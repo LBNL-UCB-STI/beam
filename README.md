@@ -5,5 +5,8 @@ The Framework for Modeling Behavior, Energy, Autonomy, and Mobility in Transport
 BEAM extends and lightweights the [Multi-Agent Transportation Simulation Framework](https://github.com/matsim-org/matsim) (MATSim)
 to enable powerful and scalable analysis of urban transportation systems.
 
-Project website: 
+## Documentation
+BEAM is documented in [our github wiki](https://github.com/colinsheppard/beam/wiki).
+
+## Project website: 
 http://www.beam-model.net/
