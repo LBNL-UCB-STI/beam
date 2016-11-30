@@ -1,0 +1,7 @@
+package beam.charging.vehicle;
+
+public enum AgentChargingState {
+
+	TRAVELING,PARKED,PRE_CHARGE,CHARGING,POST_CHARGE_PLUGGED,POST_CHARGE_UNPLUGGED,EN_ROUTE_TO_CHARGER,STRANDED;
+	
+}
