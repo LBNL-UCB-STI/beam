@@ -76,7 +76,7 @@ public class ExpBetaPlanChargingStrategySelector<T extends BasicPlan, I> impleme
 		EVDailyReplanable replanable = ChargingStrategyManager.data.getReplanable(person.getId());
 		LinkedList<EVDailyPlan> evDailyPlans = replanable.getEVDailyPlans();
 		
-		if(evDailyPlans.size() > 4){
+		if(evDailyPlans.size() > 2){
 			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		

@@ -64,7 +64,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					event.getServices().getControlerIO().getIterationFilename(event.getIteration(), EVGlobalData.data.SELECTED_EV_DAILY_PLANS_FILE_NAME));
 			for (Person person : event.getServices().getScenario().getPopulation().getPersons().values()) {
 				evDailyPlanWriter.writeEVDailyPlan(ChargingStrategyManager.data.getReplanable(person.getId()));
-				ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategiesForTheDay().resetScore();
+//				ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategiesForTheDay().resetScore();
 			}
 			evDailyPlanWriter.closeFile();
 		}
