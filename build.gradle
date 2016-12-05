@@ -67,8 +67,9 @@ dependencies {
     // https://mvnrepository.com/artifact/org.geotools/gt-epsg-hsql
     compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
     // https://mvnrepository.com/artifact/commons-io/commons-io
-	compile group: 'commons-io', name: 'commons-io', version: '2.5'
-	compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
+	  compile group: 'commons-io', name: 'commons-io', version: '2.5'
+	  compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
+    compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
 }
 
 //////////////////////////////////////////////////////////////////////
