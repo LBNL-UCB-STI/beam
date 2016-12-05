@@ -2,13 +2,21 @@ package beam.logit;
 
 import java.util.LinkedHashMap;
 
+import beam.EVSimTeleController;
+import beam.TestUtilities;
 import beam.logit.NestedLogit;
 import beam.parking.lib.DebugLib;
 import junit.framework.TestCase;
 
 public class NestedLogitTest extends TestCase {
+	protected EVSimTeleController evSimTeleController = new EVSimTeleController();
 	
 	public void testNestedLogit(){
+		// Following is only necessary to get EVGlobal data initialized
+		TestUtilities.setConfigFile("config_1_agent.xml");
+		TestUtilities.setTestInputDirectory(TestUtilities.getPathToyGridScenarioInputFolder());
+		evSimTeleController.init();
+
 		String xmlTestString = "<nestedLogit name=\"top\">"
 				+ "	<elasticity>1</elasticity>"
 				+ "	<nestedLogit name=\"alternative1\">"

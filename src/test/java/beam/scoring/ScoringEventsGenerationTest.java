@@ -75,7 +75,7 @@ public class ScoringEventsGenerationTest extends SingleAgentBaseTest {
 			}
 		}
 		
-		assertTrue("number of internal range anxity events produced with soc<1 differs from what was expected", numberOfInternalRAEventsWithSocSmallerThanOne==14);
+		assertTrue("number of internal range anxity events produced with soc<1 differs from what was expected", numberOfInternalRAEventsWithSocSmallerThanOne==15);
 		
 		
 		// TODO: add parking score tests (walk and cost component).
