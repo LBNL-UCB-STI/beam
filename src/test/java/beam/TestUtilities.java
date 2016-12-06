@@ -2,7 +2,7 @@ package beam;
 
 import java.io.File;
 import java.util.regex.Matcher;
- 
+
 public class TestUtilities {
 	
 	public static void setConfigFile(String configFileName){
