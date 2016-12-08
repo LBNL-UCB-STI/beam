@@ -46,6 +46,7 @@ import beam.controller.EVController;
 import beam.events.BeamEventHandlers;
 import beam.events.EventLogger;
 import beam.parking.lib.DebugLib;
+import beam.playground.PlaygroundFun;
 import beam.charging.vehicle.ParseVehicleTypes;
 import beam.replanning.ChargingStrategyManager;
 import beam.scoring.EVScoreAccumulator;
@@ -76,6 +77,8 @@ import java.util.List;
 public class EVSimTeleController {
 
 	public static void main(String[] args) {
+		PlaygroundFun.testFSM();
+		System.exit(0);
 		EVGlobalData.simulationStaticVariableInitializer();
 		EVGlobalData.data.INPUT_DIRECTORY_BASE_PATH = args[0];
 		EVGlobalData.data.CONFIG_RELATIVE_PATH = args[1];

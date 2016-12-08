@@ -1,3 +1,17 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+    }
+}
+
+plugins {
+    id "net.ltgt.apt" version "0.5"
+}
+
+
 apply plugin: 'java'
 apply plugin: 'maven'
 
@@ -22,6 +36,7 @@ repositories {
         dirs beamlib
     }
     jcenter()
+    maven { url "https://jitpack.io" }
 }
 
 dependencies {
@@ -67,9 +82,13 @@ dependencies {
     // https://mvnrepository.com/artifact/org.geotools/gt-epsg-hsql
     compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
     // https://mvnrepository.com/artifact/commons-io/commons-io
-	  compile group: 'commons-io', name: 'commons-io', version: '2.5'
-	  compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
+	compile group: 'commons-io', name: 'commons-io', version: '2.5'
+	compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
+    compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
+    compile 'com.github.colinsheppard:easyfsm:49bbb39d0048a304f321abeb18873335f8427efa'
+    compile 'com.google.dagger:dagger:2.8'
+    apt 'com.google.dagger:dagger-compiler:2.8'
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -78,14 +97,6 @@ dependencies {
 // Shadowjar bundles model together into executable jar
 //////////////////////////////////////////////////////////////////////
 
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
-    }
-}
 
 apply plugin: 'com.github.johnrengelman.shadow'
 
