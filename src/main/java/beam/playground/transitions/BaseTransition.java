@@ -1,4 +1,7 @@
-package beam.playground;
+package beam.playground.transitions;
+
+import beam.playground.agents.BeamAgent;
+import beam.playground.states.State;
 
 public abstract class BaseTransition implements Transition {
 	State fromState, toState;

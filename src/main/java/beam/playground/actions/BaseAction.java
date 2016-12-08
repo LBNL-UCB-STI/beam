@@ -1,9 +1,13 @@
-package beam.playground;
+package beam.playground.actions;
 
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
+
+import beam.playground.agents.BeamAgent;
+import beam.playground.exceptions.IllegalTransitionException;
+import beam.playground.transitions.Transition;
 
 public class BaseAction implements Action {
 

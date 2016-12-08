@@ -1,8 +1,11 @@
-package beam.playground;
+package beam.playground.transitions;
 
-public class TransitionFromInActivityToModeChoice extends BaseTransition {
+import beam.playground.agents.BeamAgent;
+import beam.playground.states.State;
 
-	public TransitionFromInActivityToModeChoice(State fromState, State toState, Boolean isContingent) {
+public class TransitionFromInActivityToChoosingMode extends BaseTransition {
+
+	public TransitionFromInActivityToChoosingMode(State fromState, State toState, Boolean isContingent) {
 		super(fromState, toState, isContingent);
 	}
 

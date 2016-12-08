@@ -1,6 +1,9 @@
-package beam.playground;
+package beam.playground.transitions;
 
 import java.util.HashSet;
+
+import beam.playground.agents.BeamAgent;
+import beam.playground.states.State;
 
 public interface Transition {
 	public State getFromState();

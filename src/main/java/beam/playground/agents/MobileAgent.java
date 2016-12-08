@@ -1,4 +1,4 @@
-package beam.playground;
+package beam.playground.agents;
 
 import java.util.HashSet;
 

@@ -1,8 +1,13 @@
-package beam.playground;
+package beam.playground.transitions;
 
-public class TransitionFromModeChoiceToWalk extends BaseTransition {
+import beam.playground.agents.BeamAgent;
+import beam.playground.agents.MobileAgent;
+import beam.playground.states.State;
+import beam.playground.vehicle.HumanBody;
 
-	public TransitionFromModeChoiceToWalk(State fromState, State toState, Boolean isContingent) {
+public class TransitionFromChoosingModeToWalking extends BaseTransition {
+
+	public TransitionFromChoosingModeToWalking(State fromState, State toState, Boolean isContingent) {
 		super(fromState, toState, isContingent);
 	}
 

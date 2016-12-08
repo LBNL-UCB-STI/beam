@@ -1,4 +1,4 @@
-package beam.playground;
+package beam.playground.agents;
 
 import org.matsim.api.core.v01.population.Person;
 

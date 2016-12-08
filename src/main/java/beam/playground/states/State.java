@@ -1,6 +1,9 @@
-package beam.playground;
+package beam.playground.states;
 
 import java.util.Collection;
+
+import beam.playground.actions.Action;
+import beam.playground.transitions.Transition;
 
 public interface State {
 	public String getName();

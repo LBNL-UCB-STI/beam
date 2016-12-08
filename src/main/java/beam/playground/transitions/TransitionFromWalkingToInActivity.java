@@ -1,8 +1,12 @@
-package beam.playground;
+package beam.playground.transitions;
 
-public class TransitionFromWalkToInActivity extends BaseTransition {
+import beam.playground.agents.AgentWithPlans;
+import beam.playground.agents.BeamAgent;
+import beam.playground.states.State;
 
-	public TransitionFromWalkToInActivity(State fromState, State toState, Boolean isContingent) {
+public class TransitionFromWalkingToInActivity extends BaseTransition {
+
+	public TransitionFromWalkingToInActivity(State fromState, State toState, Boolean isContingent) {
 		super(fromState, toState, isContingent);
 	}
 

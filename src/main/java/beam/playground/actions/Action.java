@@ -1,6 +1,9 @@
-package beam.playground;
+package beam.playground.actions;
 
 import java.util.Collection;
+
+import beam.playground.agents.BeamAgent;
+import beam.playground.exceptions.IllegalTransitionException;
 
 public interface Action {
 
