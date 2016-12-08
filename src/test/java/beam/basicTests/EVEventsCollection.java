@@ -13,6 +13,8 @@ import beam.events.ParkWithoutChargingEvent;
 import beam.events.PreChargeEvent;
 import beam.events.ReassessDecisionEvent;
 import beam.parking.lib.obj.LinkedListValueHashMap;
+import beam.playground.agents.BeamAgent;
+import beam.playground.events.ActionEvent;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 
 public class EVEventsCollection {
@@ -27,6 +29,7 @@ public class EVEventsCollection {
 	public LinkedListValueHashMap<Id<Person>, ParkWithoutChargingEvent> parkWithoutChargingEvents = new LinkedListValueHashMap<Id<Person>, ParkWithoutChargingEvent>();
 	public LinkedListValueHashMap<Id<Person>, PreChargeEvent> preChargeEvents = new LinkedListValueHashMap<Id<Person>, PreChargeEvent>();
 	public LinkedListValueHashMap<Id<Person>, InternalRangeAnxityEvent> internalRangeAnxityEvents = new LinkedListValueHashMap<Id<Person>, InternalRangeAnxityEvent>();
+	public LinkedListValueHashMap<Id<BeamAgent>, ActionEvent> actionEvents = new LinkedListValueHashMap<Id<BeamAgent>, ActionEvent>();
 	
 	public int getTotalNumberOfEvents() {
 		

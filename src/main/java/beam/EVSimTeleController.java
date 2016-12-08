@@ -77,12 +77,11 @@ import java.util.List;
 public class EVSimTeleController {
 
 	public static void main(String[] args) {
-		PlaygroundFun.testFSM();
-		System.exit(0);
 		EVGlobalData.simulationStaticVariableInitializer();
 		EVGlobalData.data.INPUT_DIRECTORY_BASE_PATH = args[0];
 		EVGlobalData.data.CONFIG_RELATIVE_PATH = args[1];
 		EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH = args[2];
+
 
 		EVSimTeleController evSimTeleController = new EVSimTeleController();
 		evSimTeleController.init();

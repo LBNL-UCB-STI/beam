@@ -1,30 +1,17 @@
 package beam.playground.agents;
 
 import org.matsim.api.core.v01.Coord;
-
-import beam.playground.actions.Action;
+import org.matsim.api.core.v01.Id;
 import beam.playground.states.State;
-import beam.playground.transition.selectors.RandomTransitionSelector;
-import beam.playground.transition.selectors.TransitionSelector;
-import beam.playground.transitions.Transition;
 
-public class PersonAgent implements MobileAgent {
-	State state;
+public class PersonAgent extends BeamAgentImpl implements MobileAgent {
 	Coord location;
 	
-	@Override
-	public State getState() {
-		return state;
-	}
-
-	@Override
-	public TransitionSelector getTransitionSelector(Action action) {
-		return RandomTransitionSelector.getInstance();
-	}
-
-	@Override
-	public void performTransition(Transition selectedTransition) {
-		state = selectedTransition.getToState();
+	public PersonAgent(Id<BeamAgent> id, State state, Coord location) {
+		super();
+		this.id = id;
+		this.state = state;
+		this.location = location;
 	}
 
 	@Override
@@ -35,10 +22,6 @@ public class PersonAgent implements MobileAgent {
 	@Override
 	public Boolean hasVehicleAvailable(Class<?> vehicleType) {
 		return true;
-	}
-
-	public void setState(State state) {
-		this.state = state;
 	}
 
 }

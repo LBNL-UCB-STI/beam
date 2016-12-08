@@ -1,11 +1,15 @@
 package beam.playground.transitions;
 
+import org.anarres.graphviz.builder.GraphVizGraph;
+import org.anarres.graphviz.builder.GraphVizScope;
+
 import beam.playground.agents.BeamAgent;
+import beam.playground.states.BaseState;
 import beam.playground.states.State;
 
-public abstract class BaseTransition implements Transition {
-	State fromState, toState;
-	Boolean isContingent;
+public abstract class BaseTransition implements Transition, GraphVizScope {
+	protected State fromState, toState;
+	protected Boolean isContingent;
 	
 	//@Inject
 	public BaseTransition(State fromState, State toState, Boolean isContingent) {
@@ -13,6 +17,11 @@ public abstract class BaseTransition implements Transition {
 		this.fromState = fromState;
 		this.toState = toState;
 		this.isContingent = isContingent;
+	}
+
+	public BaseTransition(BaseState fromState, BaseState toState, boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
+		this(fromState,toState,isContingent);
+		graph.edge(scope, fromState, toState).label("From"+fromState.getName()+"To"+toState.getName());
 	}
 	
 
@@ -33,7 +42,7 @@ public abstract class BaseTransition implements Transition {
 
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {
-		return null;
+		return true;
 	}
 
 }

@@ -1,20 +1,19 @@
 package beam.playground;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.Iterator;
 
-import javax.xml.parsers.ParserConfigurationException;
+import org.anarres.graphviz.builder.GraphVizGraph;
+import org.matsim.api.core.v01.Coord;
+import org.matsim.api.core.v01.Id;
 
-import org.xml.sax.SAXException;
-
-import Action.FSMAction;
-import FSM.FSM;
+import beam.playground.actions.Action;
+import beam.playground.actions.BaseAction;
+import beam.playground.agents.BeamAgent;
 import beam.playground.agents.PersonAgent;
-import beam.playground.states.ChoosingMode;
-import beam.playground.states.InActivity;
-import beam.playground.states.State;
-import beam.playground.states.Walking;
+import beam.playground.exceptions.IllegalTransitionException;
+import beam.playground.states.BaseState;
 import beam.playground.transitions.TransitionFromInActivityToChoosingMode;
 import beam.playground.transitions.TransitionFromWalkingToInActivity;
 import beam.playground.transitions.TransitionFromChoosingModeToWalking;
@@ -22,39 +21,35 @@ import beam.playground.transitions.TransitionFromChoosingModeToWalking;
 public class PlaygroundFun {
 
 	public static void testBeamFSM(){
-		State inActivity = new InActivity();
-		State choosingMode = new ChoosingMode();
-		State walking = new Walking();
+		GraphVizGraph graph = new GraphVizGraph();
+		BaseState scope = new BaseState("Start");
+		BaseState inActivity = new BaseState("InActivity",graph,scope);
+		BaseState choosingMode = new BaseState("ChoosingMode",graph,scope);
+		BaseState walking = new BaseState("Walking",graph,scope);
 
-		inActivity.addTransition(new TransitionFromInActivityToChoosingMode(inActivity, choosingMode, false));
-		choosingMode.addTransition(new TransitionFromChoosingModeToWalking(choosingMode, walking, true));
-		walking.addTransition(new TransitionFromWalkingToInActivity(walking, inActivity, false));
+		inActivity.addTransition(new TransitionFromInActivityToChoosingMode(inActivity, choosingMode, false, graph, scope));
+		inActivity.addAction(new BaseAction("EndActivity"));
+		choosingMode.addTransition(new TransitionFromChoosingModeToWalking(choosingMode, walking, true, graph, scope));
+		choosingMode.addAction(new BaseAction("ChooseMode"));
+		walking.addTransition(new TransitionFromWalkingToInActivity(walking, inActivity, false, graph, scope));
+		walking.addAction(new BaseAction("Arrive"));
 		
-		PersonAgent agent = new PersonAgent();
+		try {
+			graph.writeTo(new File("/Users/critter/Downloads/test-graph.dot"));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+
+		PersonAgent agent = new PersonAgent(Id.create(1, BeamAgent.class),inActivity,new Coord(0.0,0.0));
 		agent.setState(inActivity); 
+		
+		for (int i = 0; i < 5; i++) {
+			Iterator<Action> iter = agent.getState().getAllActions().iterator();
+			try {
+				iter.next().perform(agent);
+			} catch (IllegalTransitionException e) {
+				e.printStackTrace();
+			}
+		}
 	}
-	public static void testFSM() {
-        try {
-            FSM f = new FSM("/Users/critter/Dropbox/ucb/vto/beam-all/easyfsm/src/config/config.xml", new FSMAction() {
-                @Override
-                public boolean action(String curState, String message, String nextState, Object args) {
-                    System.out.println(curState + ":" + message + " : " + nextState);
-                    /*
-                     * Here we can implement our logic of how we wish to handle
-                     * an action
-                     */
-                    return true;
-                }
-            });
-            f.ProcessFSM("MOVELEFT");
-            f.ProcessFSM("MOVE");
-            f.ProcessFSM("MOVERIGHT");
-        } catch (ParserConfigurationException ex) {
-            Logger.getLogger(PlaygroundFun.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SAXException ex) {
-            Logger.getLogger(PlaygroundFun.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(PlaygroundFun.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
 }

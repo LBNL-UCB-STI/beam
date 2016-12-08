@@ -26,12 +26,15 @@ import beam.events.PreChargeEventHandler;
 import beam.events.ReassessDecisionEvent;
 import beam.events.ReassessDecisionEventHandler;
 import beam.parking.lib.obj.LinkedListValueHashMap;
+import beam.playground.events.ActionEvent;
+import beam.playground.events.ActionEventHandler;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEventHandler;
 
 public class EVEventCollector
 		implements PersonDepartureEventHandler, PersonArrivalEventHandler, ArrivalChargingDecisionEventHandler, DepartureChargingDecisionEventHandler,
-		BeginChargingSessionEventHandler, EndChargingSessionEventHandler, ParkWithoutChargingEventHandler, PreChargeEventHandler, ReassessDecisionEventHandler,InternalRangeAnxityEventHandler {
+		BeginChargingSessionEventHandler, EndChargingSessionEventHandler, ParkWithoutChargingEventHandler, PreChargeEventHandler, ReassessDecisionEventHandler,InternalRangeAnxityEventHandler,
+		ActionEventHandler {
 
 	public  HashMap<Integer, EVEventsCollection> eventCollection=new HashMap<>();
 	private int iterationNumber=0;
@@ -113,6 +116,11 @@ public class EVEventCollector
 	@Override
 	public void generateExternalDailyEvent(Id<Person> personId, double time) {
 		// intentionally left empty, as no need to write out 
+	}
+
+	@Override
+	public void handleEvent(ActionEvent event) {
+		eventCollection.get(iterationNumber).actionEvents.put(event.getAgentId(),event);
 	}
 
 }

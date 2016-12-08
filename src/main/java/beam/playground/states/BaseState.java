@@ -3,10 +3,14 @@ package beam.playground.states;
 import java.util.Collection;
 import java.util.LinkedList;
 
+import org.anarres.graphviz.builder.GraphVizGraph;
+import org.anarres.graphviz.builder.GraphVizScope;
+import org.anarres.graphviz.builder.GraphVizScope.Impl;
+
 import beam.playground.actions.Action;
 import beam.playground.transitions.Transition;
 
-public class BaseState implements State {
+public class BaseState implements State,GraphVizScope {
 	private String name;
 	private LinkedList<Transition> contingentTransitionsFromThisState = new LinkedList<>(), nonContingentTransitionsFromThisState = new LinkedList<>();
 	private LinkedList<Action> actions = new LinkedList<>();
@@ -14,6 +18,11 @@ public class BaseState implements State {
 	public BaseState(String name) {
 		super();
 		this.name = name;
+	}
+
+	public BaseState(String name, GraphVizGraph graph, BaseState scope) {
+		this(name);
+		graph.node(scope, this).label(name);
 	}
 
 	@Override

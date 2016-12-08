@@ -14,6 +14,8 @@ import beam.events.scoring.LegTravelTimeScoreEvent;
 import beam.events.scoring.ParkingScoreEvent;
 import beam.events.scoring.RangeAnxietyScoreEvent;
 import beam.parking.lib.DebugLib;
+import beam.playground.events.ActionEvent;
+import beam.playground.events.TransitionEvent;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 
 public class EventLogger {
@@ -62,6 +64,8 @@ public class EventLogger {
 		getControlEventTypesWithLogger().add(InternalRangeAnxityEvent.class);
 		getControlEventTypesWithLogger().add(UnplugEvent.class);
 		getControlEventTypesWithLogger().add(NestedLogitDecisionEvent.class);
+		getControlEventTypesWithLogger().add(ActionEvent.class);
+		getControlEventTypesWithLogger().add(TransitionEvent.class);
 	}
 
 	private void setLoggingLevel(String eventType, int level) {
