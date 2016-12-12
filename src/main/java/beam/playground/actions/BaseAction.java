@@ -6,6 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 
 import beam.EVGlobalData;
+import beam.playground.PlaygroundFun;
 import beam.playground.agents.BeamAgent;
 import beam.playground.events.ActionEvent;
 import beam.playground.events.TransitionEvent;
@@ -18,19 +19,21 @@ public class BaseAction implements Action {
 	public BaseAction(String name) {
 		super();
 		this.name = name;
+		//TODO need a real registry of actions
+		PlaygroundFun.actions.put(name, this);
 	}
 
 	@Override
-	public void perform(BeamAgent agent) throws IllegalTransitionException {
+	public void initiateAction(BeamAgent agent) throws IllegalTransitionException {
 		LinkedList<Transition> availableTransitions = getAvailableTransitions(agent);
 		Transition selectedTransition = agent.getTransitionSelector(this).selectTransition(availableTransitions);
 		if(!availableTransitions.contains(selectedTransition)){
 			throw new IllegalTransitionException("Transition selector " + agent.getTransitionSelector(this) + " selected the transition " + selectedTransition + " which is not available to agent " + agent);
 		}
 		EVGlobalData.data.eventLogger.processEvent(new ActionEvent(EVGlobalData.data.now,agent,this));
-		agent.performTransition(selectedTransition);
+		agent.setState(selectedTransition.getToState());
+		selectedTransition.performTransition(agent);
 		EVGlobalData.data.eventLogger.processEvent(new TransitionEvent(EVGlobalData.data.now,agent,selectedTransition));
-		//Schedule new action here....
 	}
 
 	private LinkedList<Transition> getAvailableTransitions(BeamAgent agent) {
@@ -44,6 +47,7 @@ public class BaseAction implements Action {
 
 	@Override
 	public String getName() {
+		if(name==null)name=this.getClass().getSimpleName();
 		return name;
 	}
 

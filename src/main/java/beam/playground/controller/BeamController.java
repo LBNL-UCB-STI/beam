@@ -1,29 +1,18 @@
-package beam.controller;
-/* *********************************************************************** *
- * project: org.matsim.*
- * Controler.java
- *                                                                         *
- * *********************************************************************** *
- *                                                                         *
- * copyright       : (C) 2007, 2008 by the members listed in the COPYING,  *
- *                   LICENSE and WARRANTY file.                            *
- * email           : info at matsim dot org                                *
- *                                                                         *
- * *********************************************************************** *
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *   See also COPYING, LICENSE and WARRANTY file                           *
- *                                                                         *
- * *********************************************************************** */
+package beam.playground.controller;
 
+import com.google.inject.Inject;
 import com.google.inject.Key;
 import com.google.inject.Provider;
+import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 
 import beam.controller.corelisteners.ControllerCoreListenersModule;
+import beam.playground.agents.BeamAgentPopulation;
+import beam.playground.services.BeamServices;
+import beam.playground.services.BeamServicesImpl;
+import beam.playground.services.config.BeamConfigGroup;
+import beam.sim.scheduler.Scheduler;
+import beam.sim.traveltime.BeamRouter;
 
 import org.apache.log4j.Layout;
 import org.apache.log4j.Logger;
@@ -39,17 +28,29 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.consistency.ConfigConsistencyCheckerImpl;
+import org.matsim.core.config.groups.ControlerConfigGroup;
+import org.matsim.core.controler.AbstractController;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.ControlerDefaultsModule;
 import org.matsim.core.controler.ControlerI;
+import org.matsim.core.controler.ControlerListenerManager;
+import org.matsim.core.controler.ControlerListenerManagerImpl;
 import org.matsim.core.controler.Injector;
 import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.controler.NewControlerModule;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.matsim.core.controler.PrepareForSim;
 import org.matsim.core.controler.TerminationCriterion;
-import org.matsim.core.controler.corelisteners.ControlerDefaultCoreListenersModule;
+import org.matsim.core.controler.corelisteners.DumpDataAtEnd;
+import org.matsim.core.controler.corelisteners.EventsHandling;
+import org.matsim.core.controler.corelisteners.PlansDumping;
+import org.matsim.core.controler.corelisteners.PlansReplanning;
+import org.matsim.core.controler.corelisteners.PlansScoring;
 import org.matsim.core.controler.listener.ControlerListener;
 import org.matsim.core.events.handler.EventHandler;
+import org.matsim.core.mobsim.framework.Mobsim;
+import org.matsim.core.mobsim.framework.ObservableMobsim;
+import org.matsim.core.mobsim.framework.listeners.MobsimListener;
 import org.matsim.core.replanning.ReplanningContext;
 import org.matsim.core.replanning.StrategyManager;
 import org.matsim.core.router.TripRouter;
@@ -59,23 +60,18 @@ import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.ScenarioByConfigModule;
 import org.matsim.core.scenario.ScenarioByInstanceModule;
-import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.scoring.ScoringFunctionFactory;
 
+import java.beans.Statement;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.*;
 
 /**
- * The Controler is responsible for complete simulation runs, including the
- * initialization of all required data, running the iterations and the
- * replanning, analyses, etc.
- *
- * @author mrieser
  */
-public final class EVController implements ControlerI, MatsimServices {
-	// yyyy Design thoughts:
-	// * Seems to me that we should try to get everything here final.  Flexibility is provided by the ability to set or add factories.  If this is
-	// not sufficient, people should use AbstractController.  kai, jan'13
-
+@Singleton
+public final class BeamController extends BeamAbstractController implements ControlerI, MatsimServices, BeamServices {
 	public static final String DIRECTORY_ITERS = "ITERS";
 	public static final String FILENAME_EVENTS_XML = "events.xml.gz";
 	public static final String FILENAME_LINKSTATS = "linkstats.txt.gz";
@@ -87,16 +83,45 @@ public final class EVController implements ControlerI, MatsimServices {
 	public static final String FILENAME_CONFIG = "output_config.xml.gz";
 	public static final String FILENAME_PERSON_ATTRIBUTES = "output_personAttributes.xml.gz" ; 
 	public static final String FILENAME_COUNTS = "output_counts.xml.gz" ;
-
-	private static final Logger log = Logger.getLogger(EVController.class);
-
 	public static final Layout DEFAULTLOG4JLAYOUT = new PatternLayout("%d{ISO8601} %5p %C{1}:%L %m%n");
 
+	private static final Logger log = Logger.getLogger(BeamController.class);
 	private final Config config;
+	private final PrepareForSim prepareForSim;
+	private final EventsHandling eventsHandling;
+	private final PlansDumping plansDumping;
+	private final PlansReplanning plansReplanning;
+	private final Provider<Mobsim> mobsimProvider;
+	private final PlansScoring plansScoring;
+	private final TerminationCriterion terminationCriterion;
+	private final DumpDataAtEnd dumpDataAtEnd;
+	private final Set<ControlerListener> controlerListenersDeclaredByModules;
+	private final Collection<Provider<MobsimListener>> mobsimListeners;
+	private final ControlerConfigGroup controlerConfigGroup;
+	private final OutputDirectoryHierarchy outputDirectoryHierarchy;
 	private Scenario scenario;
-
+	private BeamConfigGroup beamConfig;
 	private com.google.inject.Injector injector;
-	private boolean injectorCreated = false;
+
+	@Inject
+	public BeamController(Config config, ControlerListenerManager controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy, com.google.inject.Injector injector) {
+		super((BeamControllerListenerManager)controlerListenerManager, stopWatch, matsimServices);
+		this.config = config;
+		this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
+		this.prepareForSim = prepareForSim;
+		this.eventsHandling = eventsHandling;
+		this.plansDumping = plansDumping;
+		this.plansReplanning = plansReplanning;
+		this.mobsimProvider = mobsimProvider;
+		this.plansScoring = plansScoring;
+		this.terminationCriterion = terminationCriterion;
+		this.dumpDataAtEnd = dumpDataAtEnd;
+		this.controlerListenersDeclaredByModules = controlerListenersDeclaredByModules;
+		this.mobsimListeners = mobsimListeners;
+		this.controlerConfigGroup = controlerConfigGroup;
+		this.outputDirectoryHierarchy = outputDirectoryHierarchy;
+		this.injector = injector;
+	}
 
 	@Override
 	public IterationStopWatch getStopwatch() {
@@ -111,18 +136,6 @@ public final class EVController implements ControlerI, MatsimServices {
 	// The module which is currently defined by the sum of the setXX methods called on this Controler.
     private AbstractModule overrides = AbstractModule.emptyModule();
 
-	public static void main(final String[] args) {
-		if ((args == null) || (args.length == 0)) {
-			System.out.println("No argument given!");
-			System.out.println("Usage: Controler config-file [dtd-file]");
-			System.out.println();
-		} else {
-			final EVController controler = new EVController(args);
-			controler.run();
-		}
-		System.exit(0);
-	}
-
 	/**
 	 * Initializes a new instance of Controler with the given arguments.
 	 *
@@ -133,73 +146,49 @@ public final class EVController implements ControlerI, MatsimServices {
 	 *            to contain the path to a local copy of the DTD file used in
 	 *            the configuration file.
 	 */
-	public EVController(final String[] args) {
-		this(args.length > 0 ? args[0] : null, null, null);
-	}
+//	public BeamController(final String[] args) {
+//		this(args.length > 0 ? args[0] : null, null, null);
+//	}
+//
+//	public BeamController(final String configFileName) {
+//		this(configFileName, null, null);
+//	}
+//
+//	public BeamController(final Config config) {
+//		this(null, config, null);
+//	}
+//
+//	public BeamController(final Scenario scenario) {
+//		this(null, null, scenario);
+//	}
 
-	public EVController(final String configFileName) {
-		this(configFileName, null, null);
-	}
-
-	public EVController(final Config config) {
-		this(null, config, null);
-	}
-
-	public EVController(final Scenario scenario) {
-		this(null, null, scenario);
-	}
-
-	private EVController(final String configFileName, final Config config, Scenario scenario) {
-		if (scenario != null) {
-			// scenario already loaded (recommended):
-			this.config = scenario.getConfig();
-			this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
-		} else {
-			if (configFileName == null) {
-				// config should already be loaded:
-				if (config == null) {
-					throw new IllegalArgumentException("Either the config or the filename of a configfile must be set to initialize the Controler.");
-				}
-				this.config = config;
-			} else {
-				// else load config:
-				this.config = ConfigUtils.loadConfig(configFileName);
-			}
-			this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
-
-			// load scenario:
-			//scenario  = ScenarioUtils.createScenario(this.config);
-			//ScenarioUtils.loadScenario(scenario) ;
-		}
-		this.config.parallelEventHandling().makeLocked();
-		this.scenario = scenario;
-		this.overrides = scenario == null ?
-				new ScenarioByConfigModule() :
-				new ScenarioByInstanceModule(this.scenario);
-	}
-
-	/**
-	 * Starts the iterations.
-	 */
-	@Override
-	public final void run() {
-		this.injectorCreated = true;
-		this.injector = Injector.createInjector(config, AbstractModule.override(Collections.singleton(new AbstractModule() {
-			@Override
-			public void install() {
-				install(new NewControlerModule());
-				install(new ControllerCoreListenersModule());
-				for (AbstractModule module : modules) {
-					install(module);
-				}
-				// should not be necessary: created in the controler
-				//install(new ScenarioByInstanceModule(scenario));
-			}
-		}), overrides));
-		ControlerI controler = injector.getInstance(ControlerI.class);
-		controler.run();
-	}
-
+//	private BeamController(final String configFileName, final Config config, Scenario scenario) {
+//		if (scenario != null) {
+//			// scenario already loaded (recommended):
+//			this.config = scenario.getConfig();
+//			this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
+//		} else {
+//			if (configFileName == null) {
+//				// config should already be loaded:
+//				if (config == null) {
+//					throw new IllegalArgumentException("Either the config or the filename of a configfile must be set to initialize the Controler.");
+//				}
+//				this.config = config;
+//			} else {
+//				// else load config:
+//				this.config = ConfigUtils.loadConfig(configFileName, new BeamConfigGroup());
+//			}
+//			this.beamConfig = (BeamConfigGroup) this.config.getModule("beam");
+//			this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
+//
+//			// load scenario:
+//			//scenario  = ScenarioUtils.createScenario(this.config);
+//			//ScenarioUtils.loadScenario(scenario) ;
+//		}
+//		this.config.parallelEventHandling().makeLocked(); 
+//		this.scenario = scenario;
+//		this.overrides = scenario == null ? new ScenarioByConfigModule() : new ScenarioByInstanceModule(this.scenario);
+//	}
 
 	// ******** --------- *******
 	// The following is the internal interface of the Controler, which
@@ -250,7 +239,7 @@ public final class EVController implements ControlerI, MatsimServices {
 
     @Override
 	public final Scenario getScenario() {
-		if (this.injectorCreated) {
+		if (this.injector != null) {
 			return this.injector.getInstance(Scenario.class);
 		} else {
 			if ( scenario == null ) {
@@ -272,7 +261,7 @@ public final class EVController implements ControlerI, MatsimServices {
 			return new EventsManager() {
 				@Override
 				public void processEvent(Event event) {
-					EVController.this.injector.getInstance(EventsManager.class).processEvent(event);
+					BeamController.this.injector.getInstance(EventsManager.class).processEvent(event);
 				}
 
 				@Override
@@ -359,28 +348,30 @@ public final class EVController implements ControlerI, MatsimServices {
 	}
 
 	@Override
-	public OutputDirectoryHierarchy getControlerIO() {
-		return injector.getInstance(OutputDirectoryHierarchy.class);
+	public Random getRandom() {
+		return null;
 	}
-
 	@Override
-	public Integer getIterationNumber() {
-		return injector.getInstance(ReplanningContext.class).getIteration();
+	public BeamRouter getRouter() {
+		return null;
+	}
+	@Override
+	public Scheduler getScheduler() {
+		return null;
+	}
+	@Override
+	public BeamAgentPopulation getBeamAgentPopulation() {
+		return null;
+	}
+	@Override
+	public BeamConfigGroup getBeamConfigGroup() {
+		return this.beamConfig;
 	}
 	// ******** --------- *******
 	// The following methods are the outer interface of the Controler. They are used
 	// to set up infrastructure from the outside, before calling run().
 	// ******** --------- *******
 
-	@Override
-	public void addControlerListener(final ControlerListener controlerListener) {
-		addOverridingModule(new AbstractModule() {
-			@Override
-			public void install() {
-				addControlerListenerBinding().toInstance(controlerListener);
-			}
-		});
-	}
 
 	public final void setScoringFunctionFactory(
 			final ScoringFunctionFactory scoringFunctionFactory) {
@@ -417,17 +408,60 @@ public final class EVController implements ControlerI, MatsimServices {
 	}
 
     public final void addOverridingModule(AbstractModule abstractModule) {
-        if (this.injectorCreated) {
+        if (this.injector != null) {
             throw new RuntimeException("Too late for configuring the Controler. This can only be done before calling run.");
         }
         this.overrides = AbstractModule.override(Arrays.asList(this.overrides), abstractModule);
     }
 
     public final void setModules(AbstractModule... modules) {
-        if (this.injectorCreated) {
+        if (this.injector != null) {
             throw new RuntimeException("Too late for configuring the Controler. This can only be done before calling run.");
         }
         this.modules = Arrays.asList(modules);
     }
+
+	@Override
+	public void run() {
+		super.run(this.config);
+	}
+
+	@Override
+	protected void loadCoreListeners() {
+		if (controlerConfigGroup.getDumpDataAtEnd()) {
+			this.addCoreControlerListener(this.dumpDataAtEnd);
+		}
+
+		this.addCoreControlerListener(this.plansScoring);
+		this.addCoreControlerListener(this.plansReplanning);
+		this.addCoreControlerListener(this.plansDumping);
+		this.addCoreControlerListener(this.eventsHandling);
+		// must be last being added (=first being executed)
+
+		for (ControlerListener controlerListener : this.controlerListenersDeclaredByModules) {
+			this.addControlerListener(controlerListener);
+		}
+	}
+
+	@Override
+	protected void runMobSim() {
+		Mobsim simulation = this.mobsimProvider.get();
+		if (simulation instanceof ObservableMobsim) {
+			for (Provider<MobsimListener> l : this.mobsimListeners) {
+				((ObservableMobsim) simulation).addQueueSimulationListeners(l.get());
+			}
+		}
+		simulation.run();
+	}
+
+	@Override
+	protected void prepareForSim() {
+		this.prepareForSim.run();
+	}
+
+	@Override
+	protected boolean continueIterations(int iteration) {
+		return terminationCriterion.continueIterations(iteration);
+	}
 
 }

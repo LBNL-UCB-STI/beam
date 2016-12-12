@@ -2,14 +2,18 @@ package beam.playground.agents;
 
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.population.Person;
+
 import beam.playground.states.State;
 
 public class PersonAgent extends BeamAgentImpl implements MobileAgent {
 	Coord location;
+	Id<Person> personId;
 	
-	public PersonAgent(Id<BeamAgent> id, State state, Coord location) {
+	public PersonAgent(Id<Person> personId, State state, Coord location){
 		super();
-		this.id = id;
+		this.id = Id.create(personId.toString(), BeamAgent.class);
+		this.personId = personId;
 		this.state = state;
 		this.location = location;
 	}

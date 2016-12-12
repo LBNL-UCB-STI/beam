@@ -7,7 +7,7 @@ import beam.playground.exceptions.IllegalTransitionException;
 
 public interface Action {
 
-    public void perform(BeamAgent agent) throws IllegalTransitionException;
+    public void initiateAction(BeamAgent agent) throws IllegalTransitionException;
     public String getName(); 
 
 }

@@ -21,7 +21,8 @@ public abstract class BaseTransition implements Transition, GraphVizScope {
 
 	public BaseTransition(BaseState fromState, BaseState toState, boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
 		this(fromState,toState,isContingent);
-		graph.edge(scope, fromState, toState).label("From"+fromState.getName()+"To"+toState.getName());
+		graph.edge(scope, fromState, toState);
+//		graph.edge(scope, fromState, toState).label("From"+fromState.getName()+"To"+toState.getName());
 	}
 	
 

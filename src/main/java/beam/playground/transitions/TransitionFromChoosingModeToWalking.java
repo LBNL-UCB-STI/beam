@@ -25,5 +25,10 @@ public class TransitionFromChoosingModeToWalking extends BaseTransition {
 		}
 		return true;
 	}
+	@Override
+	public void performTransition(BeamAgent agent) {
+		// TODO Auto-generated method stub
+		
+	}
 
 }

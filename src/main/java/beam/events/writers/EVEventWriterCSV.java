@@ -75,7 +75,6 @@ public class EVEventWriterCSV extends EVEventWriterXML {
 
 	private void flushBuffer() {
 		try {
-
 			if (EVGlobalData.data.IS_DEBUG_MODE) {
 				// TODO: this conditional statement can be removed, if this
 				// flush statement does not deteriorate performance

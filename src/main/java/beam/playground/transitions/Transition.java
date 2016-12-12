@@ -10,4 +10,5 @@ public interface Transition {
 	public State getToState();
 	public Boolean isContingent();
 	public Boolean isAvailableTo(BeamAgent agent);
+	public void performTransition(BeamAgent agent);
 }

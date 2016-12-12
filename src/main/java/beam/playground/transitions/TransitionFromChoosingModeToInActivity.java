@@ -3,19 +3,17 @@ package beam.playground.transitions;
 import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
 
-import beam.EVGlobalData;
-import beam.playground.PlaygroundFun;
 import beam.playground.agents.BeamAgent;
 import beam.playground.states.BaseState;
 import beam.playground.states.State;
 
-public class TransitionFromInActivityToChoosingMode extends BaseTransition {
+public class TransitionFromChoosingModeToInActivity extends BaseTransition {
 
-	public TransitionFromInActivityToChoosingMode(State fromState, State toState, Boolean isContingent) {
+	public TransitionFromChoosingModeToInActivity(State fromState, State toState, Boolean isContingent) {
 		super(fromState, toState, isContingent);
 	}
 
-	public TransitionFromInActivityToChoosingMode(BaseState fromState, BaseState toState, boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
+	public TransitionFromChoosingModeToInActivity(BaseState fromState, BaseState toState, boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
 		super(fromState, toState, isContingent,graph, scope);
 	}
 
@@ -26,7 +24,6 @@ public class TransitionFromInActivityToChoosingMode extends BaseTransition {
 
 	@Override
 	public void performTransition(BeamAgent agent) {
-		PlaygroundFun.scheduler.addCallBackMethod(EVGlobalData.data.now + 60.0, agent, "ChooseMode", this);
 	}
 
 }
