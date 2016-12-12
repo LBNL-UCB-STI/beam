@@ -14,8 +14,8 @@ import beam.events.scoring.LegTravelTimeScoreEvent;
 import beam.events.scoring.ParkingScoreEvent;
 import beam.events.scoring.RangeAnxietyScoreEvent;
 import beam.parking.lib.DebugLib;
-import beam.playground.events.ActionEvent;
-import beam.playground.events.TransitionEvent;
+import beam.playground.metasim.events.ActionEvent;
+import beam.playground.metasim.events.TransitionEvent;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 
 public class EventLogger {

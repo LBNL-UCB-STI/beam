@@ -13,8 +13,8 @@ import beam.events.ParkWithoutChargingEvent;
 import beam.events.PreChargeEvent;
 import beam.events.ReassessDecisionEvent;
 import beam.parking.lib.obj.LinkedListValueHashMap;
-import beam.playground.agents.BeamAgent;
-import beam.playground.events.ActionEvent;
+import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.events.ActionEvent;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 
 public class EVEventsCollection {
