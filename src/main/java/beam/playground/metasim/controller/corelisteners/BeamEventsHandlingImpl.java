@@ -28,6 +28,7 @@ import org.apache.log4j.Logger;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.groups.ControlerConfigGroup;
 import org.matsim.core.config.groups.ControlerConfigGroup.EventsFileFormat;
+import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.corelisteners.EventsHandling;
 import org.matsim.core.controler.events.AfterMobsimEvent;
@@ -45,12 +46,15 @@ import com.google.inject.Singleton;
 
 import beam.events.writers.EVEventWriterCSV;
 import beam.events.writers.EVEventWriterXML;
+import beam.playground.metasim.events.EventLogger;
+import beam.playground.metasim.events.writers.BeamEventWriterCSV;
+import beam.playground.metasim.events.writers.BeamEventWriterXML;
 import beam.playground.metasim.services.BeamServices;
 
 @Singleton
-public final class EventsHandlingImpl implements EventsHandling, BeforeMobsimListener, AfterMobsimListener, IterationEndsListener, ShutdownListener {
+public final class BeamEventsHandlingImpl implements EventsHandling, BeforeMobsimListener, AfterMobsimListener, IterationEndsListener, ShutdownListener {
 
-	final static private Logger log = Logger.getLogger(EventsHandlingImpl.class);
+	final static private Logger log = Logger.getLogger(BeamEventsHandlingImpl.class);
 
 	private final EventsManager eventsManager;
 	private List<EventWriter> eventWriters = new LinkedList<>();
@@ -60,42 +64,44 @@ public final class EventsHandlingImpl implements EventsHandling, BeforeMobsimLis
 	private Set<EventsFileFormat> eventsFileFormats;
 
 	private OutputDirectoryHierarchy controlerIO;
+	private BeamServices beamServices;
+	private MatsimServices services;
 
 	private int writeMoreUntilIteration;
 
 	@Inject
-	EventsHandlingImpl(final EventsManager eventsManager, final ControlerConfigGroup config, final OutputDirectoryHierarchy controlerIO) {
+	BeamEventsHandlingImpl(final EventsManager eventsManager, final ControlerConfigGroup config, final OutputDirectoryHierarchy controlerIO, BeamServices beamServices, MatsimServices services) {
 		this.eventsManager = eventsManager;
 		this.writeEventsInterval = config.getWriteEventsInterval();
 		this.eventsFileFormats = config.getEventsFileFormats();
 		this.controlerIO = controlerIO;
 		this.writeMoreUntilIteration = config.getWriteEventsUntilIteration();
+		this.services = services;
+		this.beamServices = beamServices;
 	}
 
 	@Override
 	public void notifyBeforeMobsim(BeforeMobsimEvent event) {
-		BeamServices services = (BeamServices)event.getServices();
-
 		eventsManager.resetHandlers(event.getIteration());
 		final boolean writingEventsAtAll = this.writeEventsInterval > 0;
 		final boolean regularWriteEvents = writingEventsAtAll && (event.getIteration() > 0 && event.getIteration() % writeEventsInterval == 0);
 		final boolean earlyIteration = event.getIteration() <= writeMoreUntilIteration;
 		if (writingEventsAtAll && (regularWriteEvents || earlyIteration)) {
-			if (services.getBeamConfigGroup().getEventsFileOutputFormats().contains("xml")) {
+			if (beamServices.getBeamConfigGroup().getEventsFileOutputFormats().contains("xml")) {
 				String xmlEventFileName = "events.xml";
-				if (services.getBeamConfigGroup().getEventsFileOutputFormats().contains("xml.gz")) {
+				if (beamServices.getBeamConfigGroup().getEventsFileOutputFormats().contains("xml.gz")) {
 					xmlEventFileName += ".gz";
 				}
-				this.eventWriters.add(new EVEventWriterXML(controlerIO.getIterationFilename(event.getIteration(), xmlEventFileName)));
+				this.eventWriters.add(new BeamEventWriterXML(controlerIO.getIterationFilename(event.getIteration(), xmlEventFileName)));
 			}
 
-			if (services.getBeamConfigGroup().getEventsFileOutputFormats().contains("csv")) {
+			if (beamServices.getBeamConfigGroup().getEventsFileOutputFormats().contains("csv")) {
 				String csvEventFileName = "events.csv";
-				if (services.getBeamConfigGroup().getEventsFileOutputFormats().contains("csv.gz")) {
+				if (beamServices.getBeamConfigGroup().getEventsFileOutputFormats().contains("csv.gz")) {
 					csvEventFileName += ".gz";
 				}
 				
-				this.eventWriters.add(new EVEventWriterCSV(controlerIO.getIterationFilename(event.getIteration(), csvEventFileName)));
+				this.eventWriters.add(new BeamEventWriterCSV(controlerIO.getIterationFilename(event.getIteration(), csvEventFileName),new EventLogger(services,beamServices)));
 			}
 
 		}
