@@ -31,7 +31,7 @@ import beam.events.ParkWithoutChargingEvent;
 import beam.events.ReassessDecisionEvent;
 import beam.parking.lib.DebugLib;
 import beam.parking.lib.GeneralLib;
-import beam.playground.metasim.metasim1.PlaygroundFun;
+import beam.playground.metasim.PlaygroundFun;
 import beam.replanning.ChargingStrategy;
 import beam.replanning.ChargingStrategyManager;
 import beam.replanning.chargingStrategies.ChargingStrategyNestedLogit;

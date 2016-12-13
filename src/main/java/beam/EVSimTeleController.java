@@ -46,7 +46,7 @@ import beam.controller.EVController;
 import beam.events.BeamEventHandlers;
 import beam.events.EventLogger;
 import beam.parking.lib.DebugLib;
-import beam.playground.metasim.metasim1.PlaygroundFun;
+import beam.playground.metasim.PlaygroundFun;
 import beam.charging.vehicle.ParseVehicleTypes;
 import beam.replanning.ChargingStrategyManager;
 import beam.scoring.EVScoreAccumulator;
