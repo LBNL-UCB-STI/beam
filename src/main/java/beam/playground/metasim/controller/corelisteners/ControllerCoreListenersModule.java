@@ -14,7 +14,7 @@ public class ControllerCoreListenersModule extends AbstractModule {
 		install(new PlansScoringModule());
 		bind( PlansReplanning.class ).to( PlansReplanningImpl.class );
 		bind( PlansDumping.class ).to( PlansDumpingImpl.class );
-		bind( EventsHandling.class ).to( EventsHandlingImpl.class );
+		bind( EventsHandling.class ).to( BeamEventsHandlingImpl.class );
 		bind( DumpDataAtEnd.class ).to( DumpDataAtEndImpl.class );
 	}
 }

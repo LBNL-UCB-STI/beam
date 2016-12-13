@@ -71,7 +71,7 @@ import java.util.*;
 /**
  */
 @Singleton
-public final class BeamController extends BeamAbstractController implements ControlerI, MatsimServices, BeamServices {
+public final class BeamController extends AbstractController implements ControlerI, MatsimServices, BeamServices {
 	public static final String DIRECTORY_ITERS = "ITERS";
 	public static final String FILENAME_EVENTS_XML = "events.xml.gz";
 	public static final String FILENAME_LINKSTATS = "linkstats.txt.gz";
@@ -103,11 +103,13 @@ public final class BeamController extends BeamAbstractController implements Cont
 	private BeamConfigGroup beamConfig;
 	private com.google.inject.Injector injector;
 
+	@SuppressWarnings("deprecation")
 	@Inject
 	public BeamController(Config config, ControlerListenerManager controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy, com.google.inject.Injector injector) {
-		super((BeamControllerListenerManager)controlerListenerManager, stopWatch, matsimServices);
+		super(controlerListenerManager,stopWatch,matsimServices,outputDirectoryHierarchy);
 		this.config = config;
 		this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
+		this.beamConfig = (BeamConfigGroup) this.config.getModule("beam");
 		this.prepareForSim = prepareForSim;
 		this.eventsHandling = eventsHandling;
 		this.plansDumping = plansDumping;

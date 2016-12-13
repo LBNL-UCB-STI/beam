@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import beam.EVGlobalData;
+import beam.playground.metasim.services.BeamServices;
 
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.network.Link;
@@ -67,7 +68,7 @@ import java.util.Collections;
 import java.util.Map;
 
 @Singleton
-final class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
+final public class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 	private static final Logger log = Logger.getLogger(DumpDataAtEndImpl.class);
 
 	@Inject
@@ -113,6 +114,9 @@ final class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 	@Inject
 	private Map<Class<?>, AttributeConverter<?>> attributeConverters = Collections.emptyMap();
 
+	@Inject
+	BeamServices beamServices;
+	
 	@Override
 	public void notifyShutdown(ShutdownEvent event) {
 		if (event.isUnexpected()) {
@@ -266,7 +270,7 @@ final class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 	private void dumpPlans() {
 		// dump plans
 
-		if (EVGlobalData.data.DUMP_PLANS_AT_END_OF_RUN) {
+		if (beamServices.getBeamConfigGroup().getDumpPlansAtEndOfRun()) {
 			final String inputCRS = config.plans().getInputCRS();
 			final String internalCRS = config.global().getCoordinateSystem();
 

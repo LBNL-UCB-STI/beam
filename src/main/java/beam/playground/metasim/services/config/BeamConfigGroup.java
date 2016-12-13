@@ -73,4 +73,9 @@ public class BeamConfigGroup extends ReflectiveConfigGroup {
 		this.eventsFileOutputFormats = eventsFileOutputFormats;
 	}
 
+    //TODO this needs to come from somewhere if we want this control
+	public boolean getDumpPlansAtEndOfRun() {
+		return false;
+	}
+
 }

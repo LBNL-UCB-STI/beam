@@ -6,6 +6,7 @@ import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.ControlerListenerManager;
 import org.matsim.core.controler.ControlerListenerManagerImpl;
 import org.matsim.core.controler.MatsimServices;
+import org.matsim.core.controler.corelisteners.DumpDataAtEnd;
 import org.matsim.core.controler.corelisteners.EventsHandling;
 import org.matsim.core.mobsim.framework.Mobsim;
 
@@ -14,7 +15,8 @@ import com.google.inject.Singleton;
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.BeamControllerListenerManager;
-import beam.playground.metasim.controller.corelisteners.EventsHandlingImpl;
+import beam.playground.metasim.controller.corelisteners.BeamEventsHandlingImpl;
+import beam.playground.metasim.controller.corelisteners.DumpDataAtEndImpl;
 import beam.playground.metasim.metasim.MetaSim;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.BeamServices;
@@ -32,9 +34,9 @@ public class BeamModule extends AbstractModule {
 		bind(Mobsim.class).to(MetaSim.class);
 		bind(BeamServices.class).to(BeamController.class).asEagerSingleton();
 		bind(MatsimServices.class).to(BeamController.class).asEagerSingleton();
-		bind(EventsHandling.class).to(EventsHandlingImpl.class);
+		bind(EventsHandling.class).to(BeamEventsHandlingImpl.class);
 		addControlerListenerBinding().toInstance(new BeamAgentPopulation());
-		bind(ControlerListenerManager.class).to(BeamControllerListenerManager.class);
+		bind(DumpDataAtEnd.class).to(DumpDataAtEndImpl.class).asEagerSingleton();
 	}
 
 }

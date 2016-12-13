@@ -11,19 +11,18 @@ import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.controler.events.StartupEvent;
 import org.matsim.core.controler.listener.StartupListener;
 
+import com.google.inject.Inject;
+
 import beam.playground.metasim.services.BeamServices;
 import beam.playground.metasim.states.BaseState;
 import beam.playground.metasim.states.State;
 
 public class BeamAgentPopulation implements StartupListener{
 	LinkedHashSet<BeamAgent> beamAgents;
+	@Inject BeamServices beamServices;
 
 	@Override
 	public void notifyStartup(StartupEvent event) {
-		MatsimServices services = event.getServices();
-		services.getConfig();
-		BeamServices beamServices = (BeamServices)services;
-		beamServices.getBeamConfigGroup();
 		beamAgents = new LinkedHashSet<BeamAgent>();
 		Scenario scenario = event.getServices().getScenario();
 		State startState = new BaseState("start");
