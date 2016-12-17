@@ -1,4 +1,4 @@
-package beam.playground.metasim.transitions;
+package beam.playground.metasim.agents.transition;
 
 import com.google.inject.AbstractModule;
 

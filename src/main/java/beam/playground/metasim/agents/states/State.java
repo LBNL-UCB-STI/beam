@@ -1,9 +1,9 @@
-package beam.playground.metasim.states;
+package beam.playground.metasim.agents.states;
 
 import java.util.Collection;
 
-import beam.playground.metasim.actions.Action;
-import beam.playground.metasim.transitions.Transition;
+import beam.playground.metasim.agents.actions.Action;
+import beam.playground.metasim.agents.transition.Transition;
 
 public interface State {
 	public String getName();

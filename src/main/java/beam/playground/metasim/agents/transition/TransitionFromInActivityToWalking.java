@@ -1,13 +1,13 @@
-package beam.playground.metasim.transitions;
+package beam.playground.metasim.agents.transition;
 
 import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
 
 import beam.EVGlobalData;
-import beam.playground.metasim.PlaygroundFun;
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.states.BaseState;
-import beam.playground.metasim.states.State;
+import beam.playground.metasim.agents.states.BaseState;
+import beam.playground.metasim.agents.states.State;
+import beam.playground.metasim.services.BeamServices;
 
 public class TransitionFromInActivityToWalking extends BaseTransition {
 
@@ -26,7 +26,7 @@ public class TransitionFromInActivityToWalking extends BaseTransition {
 
 	@Override
 	public void performTransition(BeamAgent agent) {
-		PlaygroundFun.scheduler.addCallBackMethod(EVGlobalData.data.now + 60.0, agent, "ChooseMode", this);
+		beamServices.getScheduler().addCallBackMethod(EVGlobalData.data.now + 60.0, agent, "ChooseMode", this);
 	}
 
 }

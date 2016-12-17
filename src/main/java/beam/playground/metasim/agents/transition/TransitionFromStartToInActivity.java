@@ -1,12 +1,12 @@
-package beam.playground.metasim.transitions;
+package beam.playground.metasim.agents.transition;
 
 import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
 
 import beam.playground.metasim.agents.AgentWithPlans;
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.states.BaseState;
-import beam.playground.metasim.states.State;
+import beam.playground.metasim.agents.states.BaseState;
+import beam.playground.metasim.agents.states.State;
 
 public class TransitionFromStartToInActivity extends BaseTransition {
 

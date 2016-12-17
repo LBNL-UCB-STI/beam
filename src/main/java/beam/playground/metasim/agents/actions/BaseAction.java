@@ -1,26 +1,34 @@
-package beam.playground.metasim.actions;
+package beam.playground.metasim.agents.actions;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 
+import com.google.inject.BindingAnnotation;
+import com.google.inject.Inject;
+
 import beam.EVGlobalData;
-import beam.playground.metasim.PlaygroundFun;
 import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.events.ActionEvent;
 import beam.playground.metasim.events.TransitionEvent;
 import beam.playground.metasim.exceptions.IllegalTransitionException;
-import beam.playground.metasim.transitions.Transition;
+import beam.playground.metasim.services.BeamServices;
 
 public class BaseAction implements Action {
+	private BeamServices beamServices;
 	String name;
 
-	public BaseAction(String name) {
+	public BaseAction(String name, BeamServices beamServices) {
 		super();
 		this.name = name;
-		//TODO need a real registry of actions
-		PlaygroundFun.actions.put(name, this);
+		this.beamServices = beamServices;
+		beamServices.getActions().getActionMap().put(name, this);
 	}
 
 	@Override

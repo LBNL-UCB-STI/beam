@@ -1,13 +1,19 @@
-package beam.playground.metasim.transitions;
+package beam.playground.metasim.agents.transition;
 
 import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
+import org.matsim.core.controler.MatsimServices;
+
+import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.states.BaseState;
-import beam.playground.metasim.states.State;
+import beam.playground.metasim.agents.states.BaseState;
+import beam.playground.metasim.agents.states.State;
+import beam.playground.metasim.services.BeamServices;
 
 public abstract class BaseTransition implements Transition, GraphVizScope {
+	@Inject protected BeamServices beamServices;
+	@Inject protected MatsimServices matsimServices;
 	protected State fromState, toState;
 	protected Boolean isContingent;
 	

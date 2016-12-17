@@ -1,4 +1,4 @@
-package beam.playground.metasim.actions;
+package beam.playground.metasim.agents.actions;
 
 import java.util.Collection;
 

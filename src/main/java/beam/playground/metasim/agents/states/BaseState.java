@@ -1,4 +1,4 @@
-package beam.playground.metasim.states;
+package beam.playground.metasim.agents.states;
 
 import java.util.Collection;
 import java.util.LinkedList;
@@ -7,8 +7,8 @@ import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
 import org.anarres.graphviz.builder.GraphVizScope.Impl;
 
-import beam.playground.metasim.actions.Action;
-import beam.playground.metasim.transitions.Transition;
+import beam.playground.metasim.agents.actions.Action;
+import beam.playground.metasim.agents.transition.Transition;
 
 public class BaseState implements State,GraphVizScope {
 	private String name;

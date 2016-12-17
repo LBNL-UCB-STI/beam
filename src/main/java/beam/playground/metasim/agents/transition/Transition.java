@@ -1,9 +1,9 @@
-package beam.playground.metasim.transitions;
+package beam.playground.metasim.agents.transition;
 
 import java.util.HashSet;
 
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.states.State;
+import beam.playground.metasim.agents.states.State;
 
 public interface Transition {
 	public State getFromState();

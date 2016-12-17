@@ -1,20 +1,25 @@
-package beam.playground.metasim.transition.selectors;
+package beam.playground.metasim.agents.transition.selectors;
 
 import java.util.LinkedList;
 
-import beam.EVGlobalData;
-import beam.playground.metasim.transitions.Transition;
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
 
+import beam.playground.metasim.agents.transition.Transition;
+import beam.playground.metasim.services.BeamServices;
+
+@Singleton
 public class RandomTransitionSelector implements TransitionSelector {
-	static RandomTransitionSelector instance;
+	private BeamServices beamServices;
 
-	public static RandomTransitionSelector getInstance(){
-		if(instance == null)instance = new RandomTransitionSelector();
-		return instance;
+	@Inject
+	public RandomTransitionSelector(BeamServices beamServices){
+		super();
+		this.beamServices = beamServices;
 	}
 	@Override
 	public Transition selectTransition(LinkedList<Transition> transitions) {
-		return transitions.get(EVGlobalData.data.rand.nextInt(transitions.size()));
+		return transitions.get(beamServices.getRandom().nextInt(transitions.size()));
 	}
 
 }

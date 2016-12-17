@@ -1,33 +1,36 @@
 package beam.playground.metasim.scheduler;
 
 import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
 
-import beam.playground.metasim.PlaygroundFun;
-import beam.playground.metasim.actions.Action;
+import com.google.inject.Inject;
+
 import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.agents.actions.Action;
+import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.exceptions.IllegalTransitionException;
-import beam.playground.metasim.transitions.Transition;
+import beam.playground.metasim.services.BeamServices;
 
-public class ActionCallBack {
+public class ActionCallBackImpl implements ActionCallBack {
+	private BeamServices beamServices;
 	private double time,timeScheduled;
 	private double priority;
 	private Transition callingTransition;
 	private String actionName;
-	private Action targetAction;
 	private BeamAgent targetAgent;
 	
-	public ActionCallBack(double time, double priority, BeamAgent targetAgent, String actionName, double timeScheduled, Transition callingTransition) {
+	public ActionCallBackImpl(double time, double priority, BeamAgent targetAgent, String actionName, double timeScheduled, Transition callingTransition, BeamServices beamServices) {
 		super();
 		this.time = time;
 		this.priority = priority;
 		this.targetAgent = targetAgent;
 		this.actionName = actionName;
-		this.targetAction = (Action)PlaygroundFun.actions.get(actionName);
 		this.timeScheduled = timeScheduled;
 		this.callingTransition = callingTransition;
+		this.beamServices = beamServices;
 	}
 	public void perform() throws IllegalTransitionException{
-		targetAction.initiateAction(targetAgent);
+		beamServices.getActions().getActionMap().get(actionName).initiateAction(targetAgent);
 	}
 	public double getTime() {
 		return time;
