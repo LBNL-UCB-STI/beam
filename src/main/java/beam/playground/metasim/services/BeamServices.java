@@ -10,8 +10,8 @@ import com.google.inject.Singleton;
 
 import beam.playground.metasim.BeamMainSimulation;
 import beam.playground.metasim.agents.BeamAgentPopulation;
+import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
-import beam.sim.scheduler.Scheduler;
 import beam.sim.traveltime.BeamRouter;
 
 public interface BeamServices {
@@ -20,6 +20,7 @@ public interface BeamServices {
 	public Scheduler getScheduler();
 	public BeamConfigGroup getBeamConfigGroup();
 	public BeamAgentPopulation getBeamAgentPopulation();
+	public Actions getActions();
 	
 	/*
 	public static BeamServices data = null;

@@ -8,10 +8,9 @@ import com.google.inject.TypeLiteral;
 
 import beam.controller.corelisteners.ControllerCoreListenersModule;
 import beam.playground.metasim.agents.BeamAgentPopulation;
-import beam.playground.metasim.services.BeamServices;
-import beam.playground.metasim.services.BeamServicesImpl;
+import beam.playground.metasim.scheduler.Scheduler;
+import beam.playground.metasim.services.Actions;
 import beam.playground.metasim.services.config.BeamConfigGroup;
-import beam.sim.scheduler.Scheduler;
 import beam.sim.traveltime.BeamRouter;
 
 import org.apache.log4j.Layout;
@@ -71,7 +70,7 @@ import java.util.*;
 /**
  */
 @Singleton
-public final class BeamController extends AbstractController implements ControlerI, MatsimServices, BeamServices {
+public final class BeamController extends AbstractController implements ControlerI, MatsimServices {
 	public static final String DIRECTORY_ITERS = "ITERS";
 	public static final String FILENAME_EVENTS_XML = "events.xml.gz";
 	public static final String FILENAME_LINKSTATS = "linkstats.txt.gz";
@@ -349,26 +348,6 @@ public final class BeamController extends AbstractController implements Controle
 		return this.injector.getInstance(StrategyManager.class);
 	}
 
-	@Override
-	public Random getRandom() {
-		return null;
-	}
-	@Override
-	public BeamRouter getRouter() {
-		return null;
-	}
-	@Override
-	public Scheduler getScheduler() {
-		return null;
-	}
-	@Override
-	public BeamAgentPopulation getBeamAgentPopulation() {
-		return null;
-	}
-	@Override
-	public BeamConfigGroup getBeamConfigGroup() {
-		return this.beamConfig;
-	}
 	// ******** --------- *******
 	// The following methods are the outer interface of the Controler. They are used
 	// to set up infrastructure from the outside, before calling run().

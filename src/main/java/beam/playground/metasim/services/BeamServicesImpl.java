@@ -25,18 +25,23 @@ import com.google.inject.Injector;
 import com.google.inject.Provider;
 
 import beam.playground.metasim.agents.BeamAgentPopulation;
+import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
-import beam.sim.scheduler.Scheduler;
 import beam.sim.traveltime.BeamRouter;
 
 public class BeamServicesImpl implements BeamServices, MatsimServices {
-	public static BeamConfigGroup beamConfig;
+	private BeamConfigGroup beamConfig;
 	private MatsimServices matsimServices;
+	private Actions actions;
+	private Scheduler scheduler;
 
 	@Inject
-	public BeamServicesImpl(MatsimServices matsimServices) {
+	public BeamServicesImpl(MatsimServices matsimServices, Actions actions, Scheduler scheduler) {
 		super();
 		this.matsimServices = matsimServices;
+		this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
+		this.actions = actions;
+		this.scheduler = scheduler;
 	}
 	@Override
 	public Random getRandom() {
@@ -48,7 +53,7 @@ public class BeamServicesImpl implements BeamServices, MatsimServices {
 	}
 	@Override
 	public Scheduler getScheduler() {
-		return null;
+		return scheduler;
 	}
 	@Override
 	public BeamAgentPopulation getBeamAgentPopulation() {
@@ -56,10 +61,7 @@ public class BeamServicesImpl implements BeamServices, MatsimServices {
 	}
 	@Override
 	public BeamConfigGroup getBeamConfigGroup() {
-		return BeamServicesImpl.beamConfig;
-	}
-	public void setBeamConfigGroup(BeamConfigGroup group) {
-		BeamServicesImpl.beamConfig = group;
+		return beamConfig;
 	}
 	@Override
 	public IterationStopWatch getStopwatch() {
@@ -132,6 +134,10 @@ public class BeamServicesImpl implements BeamServices, MatsimServices {
 	@Override
 	public Integer getIterationNumber() {
 		return matsimServices.getIterationNumber();
+	}
+	@Override
+	public Actions getActions() {
+		return actions;
 	}
 
 }

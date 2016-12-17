@@ -4,7 +4,7 @@ import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
 
-import beam.playground.metasim.states.State;
+import beam.playground.metasim.agents.states.State;
 
 public class PersonAgent extends BeamAgentImpl implements MobileAgent {
 	Coord location;

@@ -31,7 +31,6 @@ import beam.events.ReassessDecisionEvent;
 import beam.parking.lib.obj.LinkedListValueHashMap;
 import beam.playground.metasim.agents.BeamAgent;
 import beam.playground.metasim.events.ActionEvent;
-import beam.playground.metasim.PlaygroundFun;
 import beam.scoring.EVScoringEventCollector;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 
@@ -83,7 +82,6 @@ public class FiniteStateMachineTest implements AfterMobsimListener{
 
 	@Override
 	public void notifyAfterMobsim(AfterMobsimEvent event) {
-		PlaygroundFun.testBeamFSM();
 	}
 
 }

@@ -6,19 +6,31 @@ import java.util.Queue;
 
 import org.matsim.api.core.v01.Identifiable;
 
+import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
 import beam.EVGlobalData;
 import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.exceptions.IllegalTransitionException;
-import beam.playground.metasim.transitions.Transition;
+import beam.playground.metasim.services.BeamServices;
 
 @Singleton
 public class Scheduler {
+	ActionCallBackFactory callbackFactory;
+	BeamServices beamServices;
+	Double now = 0.0;
 
-	private Queue<ActionCallBack> queue = new PriorityQueue<ActionCallBack>(100,new Comparator<ActionCallBack>() {
+	@Inject
+	public Scheduler(BeamServices beamServices, ActionCallBackFactory callbackFactory) {
+		super();
+		this.beamServices = beamServices;
+		this.callbackFactory = callbackFactory;
+	}
+
+	private Queue<ActionCallBackImpl> queue = new PriorityQueue<ActionCallBackImpl>(100,new Comparator<ActionCallBackImpl>() {
 		@Override
-		public int compare(ActionCallBack a, ActionCallBack b) {
+		public int compare(ActionCallBackImpl a, ActionCallBackImpl b) {
 			if(a.getTime() < b.getTime()){
 				return -1;
 			}else if(a.getTime() > b.getTime()){
@@ -36,18 +48,19 @@ public class Scheduler {
 			}
 		}
 	});
-	public ActionCallBack addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
+	public ActionCallBackImpl addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
 		return addCallBackMethod(time, targetAgent, actionName, callingTransition, 0.0);
 	}
-	public ActionCallBack addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
-		ActionCallBack callback=new ActionCallBack(time,priority,targetAgent,actionName,EVGlobalData.data.now,callingTransition);
+	public ActionCallBackImpl addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
+		ActionCallBackImpl callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingTransition);
 		this.queue.add(callback);
 		return callback;
 	}
 	
-	public void doSimStep(double now) {
-		while (queue.peek() != null && queue.peek().getTime() <= now) {
-			ActionCallBack entry = queue.poll();
+	public void doSimStep(double until) {
+		while (queue.peek() != null && queue.peek().getTime() <= until) {
+			ActionCallBackImpl entry = queue.poll();
+			this.now = entry.getTime();
 			//TODO handle these exceptions more elegantly
 			try {
 				entry.perform();
@@ -60,10 +73,13 @@ public class Scheduler {
 			}
 		}
 	}
-	public int getSize() {
-		return 0;
+	public Double getNow(){
+		return now;
 	}
-	public void removeCallback(ActionCallBack callback) {
+	public int getSize() {
+		return queue.size();
+	}
+	public void removeCallback(ActionCallBackImpl callback) {
 		queue.remove(callback);
 	}
 }
