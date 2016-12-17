@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent;
+import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.utils.io.IOUtils;
 import org.matsim.core.utils.io.UncheckedIOException;
 
@@ -22,10 +23,11 @@ public class BeamEventWriterCSV extends BeamEventWriterXML {
 	EventLogger eventLogger;
 	IntegerValueHashMap<String> attributeToColumnIndexMapping;
 	
-	public BeamEventWriterCSV(String outfilename, EventLogger eventLogger) {
-		super();
+	public BeamEventWriterCSV(String outfilename, EventLogger eventLogger, MatsimServices services) {
+		super(eventLogger);
 		this.out = IOUtils.getBufferedWriter(outfilename);
 		this.eventLogger = eventLogger;
+		this.matsimServices = services;
 		
 		reset(0);
 		

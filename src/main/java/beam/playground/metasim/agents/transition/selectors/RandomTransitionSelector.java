@@ -19,7 +19,7 @@ public class RandomTransitionSelector implements TransitionSelector {
 	}
 	@Override
 	public Transition selectTransition(LinkedList<Transition> transitions) {
-		return transitions.get(beamServices.getRandom().nextInt(transitions.size()));
+		return transitions.size() == 0 ? null : transitions.get(beamServices.getRandom().nextInt(transitions.size()));
 	}
 
 }

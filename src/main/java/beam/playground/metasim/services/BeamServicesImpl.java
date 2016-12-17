@@ -34,18 +34,20 @@ public class BeamServicesImpl implements BeamServices, MatsimServices {
 	private MatsimServices matsimServices;
 	private Actions actions;
 	private Scheduler scheduler;
+	private BeamRandom random;
 
 	@Inject
-	public BeamServicesImpl(MatsimServices matsimServices, Actions actions, Scheduler scheduler) {
+	public BeamServicesImpl(MatsimServices matsimServices, Actions actions, Scheduler scheduler,  BeamRandom random) {
 		super();
 		this.matsimServices = matsimServices;
 		this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
 		this.actions = actions;
 		this.scheduler = scheduler;
+		this.random = random;
 	}
 	@Override
-	public Random getRandom() {
-		return null;
+	public BeamRandom getRandom() {
+		return random;
 	}
 	@Override
 	public BeamRouter getRouter() {

@@ -2,23 +2,25 @@ package beam.playground.metasim.events.writers;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintStream;
 import java.util.Map;
 
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.events.algorithms.EventWriter;
-import org.matsim.core.events.algorithms.EventWriterXML;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.io.IOUtils;
 import org.matsim.core.utils.io.UncheckedIOException;
 
-import beam.EVGlobalData;
+import com.google.inject.Inject;
+
+import beam.playground.metasim.events.EventLogger;
 
 public class BeamEventWriterXML implements EventWriter, BasicEventHandler {
+	MatsimServices matsimServices;
+	EventLogger eventLogger;
 
-	protected BeamEventWriterXML() {
-		
+	protected BeamEventWriterXML(EventLogger eventLogger) {
+		this.eventLogger = eventLogger;
 	}
 	
 	public BeamEventWriterXML(String outfilename) {
@@ -32,9 +34,9 @@ public class BeamEventWriterXML implements EventWriter, BasicEventHandler {
 
 	@Override
 	public void handleEvent(final Event event) {
-		if (EVGlobalData.data.eventLogger.getControlEventTypesWithLogger().contains(event.getClass())) {
-			if (EVGlobalData.data.controler.getIterationNumber() % EVGlobalData.data.eventLogger.getWriteEVEventsInterval() == 0) {
-				if (EVGlobalData.data.eventLogger.getLoggingLevel(event) > 0) {
+		if (eventLogger.getControlEventTypesWithLogger().contains(event.getClass())) {
+			if (matsimServices.getIterationNumber() % eventLogger.getWriteEVEventsInterval() == 0) {
+				if (eventLogger.getLoggingLevel(event) > 0) {
 					super_handleEvent(event);
 				}
 			}
@@ -84,10 +86,10 @@ public class BeamEventWriterXML implements EventWriter, BasicEventHandler {
 				}
 				this.out.append(" />\n");
 				
-				if (EVGlobalData.data.IS_DEBUG_MODE){
+//				if (EVGlobalData.data.IS_DEBUG_MODE){
 					// TODO: this conditional statement can be removed, if this flush statement does not deteriorate performance 
 					this.out.flush();
-				}
+//				}
 				
 			} catch (IOException e) {
 				e.printStackTrace();

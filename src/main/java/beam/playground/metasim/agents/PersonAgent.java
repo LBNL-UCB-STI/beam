@@ -5,17 +5,15 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
 
 import beam.playground.metasim.agents.states.State;
+import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 
 public class PersonAgent extends BeamAgentImpl implements MobileAgent {
 	Coord location;
 	Id<Person> personId;
 	
-	public PersonAgent(Id<Person> personId, State state, Coord location){
-		super();
-		this.id = Id.create(personId.toString(), BeamAgent.class);
+	public PersonAgent(Id<Person> personId, State state, Coord location, TransitionSelector transitionSelector){
+		super(Id.create(personId.toString(), BeamAgent.class),state,transitionSelector);
 		this.personId = personId;
-		this.state = state;
-		this.location = location;
 	}
 
 	@Override

@@ -12,7 +12,14 @@ import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 public class BeamAgentImpl implements BeamAgent {
 	protected Id<BeamAgent> id;
 	protected State state;
-	@Inject protected TransitionSelector transitionSelector;
+	protected TransitionSelector transitionSelector;
+
+	public BeamAgentImpl(Id<BeamAgent> id, State state, TransitionSelector transitionSelector) {
+		super();
+		this.id = id;
+		this.state = state;
+		this.transitionSelector = transitionSelector;
+	}
 
 	@Override
 	public Id<BeamAgent> getId() {

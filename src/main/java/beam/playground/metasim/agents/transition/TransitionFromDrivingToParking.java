@@ -10,13 +10,6 @@ import beam.playground.metasim.agents.states.State;
 
 public class TransitionFromDrivingToParking extends BaseTransition {
 
-	public TransitionFromDrivingToParking(State fromState, State toState, Boolean isContingent) {
-		super(fromState, toState, isContingent);
-	}
-	public TransitionFromDrivingToParking(BaseState fromState, BaseState toState, boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
-		super(fromState, toState, isContingent,graph,scope);
-	}
-
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {
 		return (agent instanceof AgentWithPlans);

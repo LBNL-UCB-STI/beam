@@ -101,7 +101,7 @@ public final class BeamEventsHandlingImpl implements EventsHandling, BeforeMobsi
 					csvEventFileName += ".gz";
 				}
 				
-				this.eventWriters.add(new BeamEventWriterCSV(controlerIO.getIterationFilename(event.getIteration(), csvEventFileName),new EventLogger(services,beamServices)));
+				this.eventWriters.add(new BeamEventWriterCSV(controlerIO.getIterationFilename(event.getIteration(), csvEventFileName),new EventLogger(services,beamServices), services));
 			}
 
 		}

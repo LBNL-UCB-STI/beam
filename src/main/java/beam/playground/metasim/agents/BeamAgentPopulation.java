@@ -21,6 +21,8 @@ import beam.playground.metasim.agents.actions.BaseAction;
 import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.agents.transition.BaseTransition;
+import beam.playground.metasim.agents.transition.Transition;
+import beam.playground.metasim.agents.transition.TransitionFactory;
 import beam.playground.metasim.agents.transition.TransitionFromChoosingModeToInActivity;
 import beam.playground.metasim.agents.transition.TransitionFromChoosingModeToWalking;
 import beam.playground.metasim.agents.transition.TransitionFromDrivingToDriving;
@@ -38,57 +40,54 @@ public class BeamAgentPopulation implements StartupListener{
 	LinkedHashSet<BeamAgent> beamAgents;
 	@Inject BeamServices beamServices;
 	@Inject ActionFactory actionFactory;
+	@Inject PersonAgentFactory personAgentFactory;
+	@Inject TransitionFactory transitionFactory;
 
 	@Override
 	public void notifyStartup(StartupEvent event) {
 		beamAgents = new LinkedHashSet<BeamAgent>();
 		Scenario scenario = event.getServices().getScenario();
-		State startState = new BaseState("start");
-		BaseTransition nullTransition = new BaseTransition(null,null,false) {
-			@Override
-			public void performTransition(BeamAgent agent) {
-			}
-		};
+		BaseState start = new BaseState("Start");
+		BaseTransition nullTransition = (BaseTransition) transitionFactory.create(TransitionFromStartToInActivity.class, null, null, false);
 		for(Person person : scenario.getPopulation().getPersons().values()){
 			Coord initialLocation = ((Activity)person.getPlans().get(0).getPlanElements().get(0)).getCoord();
-			BeamAgent newPerson = new PersonAgent(person.getId(),startState,initialLocation);
+			BeamAgent newPerson = personAgentFactory.create(person.getId(),start,initialLocation);
 			beamAgents.add(newPerson);
-			beamServices.getScheduler().addCallBackMethod(0.0, newPerson, "start", nullTransition);
+			beamServices.getScheduler().addCallBackMethod(0.0, newPerson, "Start", nullTransition);
 		}
 		
 		GraphVizGraph graph = new GraphVizGraph();
-		BaseState start = new BaseState("Start");
 		BaseState inActivity = new BaseState("InActivity",graph,start);
 		BaseState choosingMode = new BaseState("ChoosingMode",graph,start);
 		BaseState walking = new BaseState("Walking",graph,start);
 		BaseState driving = new BaseState("Driving",graph,start);
 		BaseState parking = new BaseState("Parking",graph,start);
 
-		BaseTransition startTransition = new TransitionFromStartToInActivity(start, inActivity, false);
-		start.addAction(actionFactory.create("start"));
+		Transition startTransition = transitionFactory.create(TransitionFromStartToInActivity.class, start, inActivity, false);
+		start.addAction(actionFactory.create("Start"));
 		start.addTransition(startTransition);
 
 		inActivity.addAction(actionFactory.create("PlanNextLeg"));
 		inActivity.addAction(actionFactory.create("EndActivity"));
-		inActivity.addTransition(new TransitionFromInActivityToChoosingMode(inActivity, choosingMode, false, graph, start));
-		inActivity.addTransition(new TransitionFromInActivityToWalking(inActivity, walking, false, graph, start));
+		inActivity.addTransition(transitionFactory.create(TransitionFromInActivityToChoosingMode.class, inActivity, choosingMode, false));
+		inActivity.addTransition(transitionFactory.create(TransitionFromInActivityToWalking.class, inActivity, walking, false));
 
 		choosingMode.addAction(actionFactory.create("ChooseMode"));
-		choosingMode.addTransition(new TransitionFromChoosingModeToWalking(choosingMode, walking, false, graph, start));
-		choosingMode.addTransition(new TransitionFromChoosingModeToInActivity(choosingMode, inActivity, false, graph, start));
+		choosingMode.addTransition(transitionFactory.create(TransitionFromChoosingModeToWalking.class,choosingMode ,walking , false));
+		choosingMode.addTransition(transitionFactory.create(TransitionFromChoosingModeToInActivity.class,choosingMode , inActivity, false));
 
 		walking.addAction(actionFactory.create("Arrive"));
-		walking.addTransition(new TransitionFromWalkingToInActivity(walking, inActivity, false, graph, start));
-		walking.addTransition(new TransitionFromWalkingToWalking(walking, walking, false, graph, start));
-		walking.addTransition(new TransitionFromWalkingToDriving(walking, driving, false, graph, start));
+		walking.addTransition(transitionFactory.create(TransitionFromWalkingToInActivity.class, walking, inActivity, false));
+		walking.addTransition(transitionFactory.create(TransitionFromWalkingToWalking.class, walking, walking, false));
+		walking.addTransition(transitionFactory.create(TransitionFromWalkingToDriving.class, walking, driving, false));
 
 		driving.addAction(actionFactory.create("ExitEnterLink"));
 		driving.addAction(actionFactory.create("Arrive"));
-		driving.addTransition(new TransitionFromDrivingToDriving(driving, driving, false, graph, start));
-		driving.addTransition(new TransitionFromDrivingToParking(driving, parking, false, graph, start));
+		driving.addTransition(transitionFactory.create(TransitionFromDrivingToDriving.class, driving, driving, false));
+		driving.addTransition(transitionFactory.create(TransitionFromDrivingToParking.class, driving, parking, false));
 
 		parking.addAction(actionFactory.create("ExitVehicle"));
-		parking.addTransition(new TransitionFromParkingToWalking(parking, walking, false, graph, start));
+		parking.addTransition(transitionFactory.create(TransitionFromParkingToWalking.class, parking, walking, false));
 		
 		try {
 			graph.writeTo(new File("/Users/critter/Downloads/test-graph.dot"));

@@ -10,20 +10,13 @@ import beam.playground.metasim.agents.states.State;
 
 public class TransitionFromStartToInActivity extends BaseTransition {
 
-	public TransitionFromStartToInActivity(State fromState, State toState, Boolean isContingent) {
-		super(fromState, toState, isContingent);
-	}
-	public TransitionFromStartToInActivity(BaseState fromState, BaseState toState, boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
-		super(fromState, toState, isContingent,graph,scope);
-	}
-
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {
 		return (agent instanceof AgentWithPlans);
 	}
 	@Override
 	public void performTransition(BeamAgent agent) {
-		// TODO Auto-generated method stub
+		beamServices.getScheduler().addCallBackMethod(beamServices.getScheduler().getNow() + 60.0, agent, "ChooseMode", this);
 		
 	}
 

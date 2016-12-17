@@ -15,7 +15,7 @@ import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.sim.traveltime.BeamRouter;
 
 public interface BeamServices {
-	public Random getRandom();
+	public BeamRandom getRandom();
 	public BeamRouter getRouter();
 	public Scheduler getScheduler();
 	public BeamConfigGroup getBeamConfigGroup();

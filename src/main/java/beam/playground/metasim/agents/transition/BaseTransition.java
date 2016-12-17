@@ -12,25 +12,24 @@ import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.services.BeamServices;
 
 public abstract class BaseTransition implements Transition, GraphVizScope {
-	@Inject protected BeamServices beamServices;
-	@Inject protected MatsimServices matsimServices;
+	protected BeamServices beamServices;
+	protected MatsimServices matsimServices;
 	protected State fromState, toState;
 	protected Boolean isContingent;
-	
-	//@Inject
-	public BaseTransition(State fromState, State toState, Boolean isContingent) {
-		super();
+
+	@Override
+	public void initialize(State fromState, State toState, Boolean isContingent, GraphVizGraph graph, GraphVizScope scope, BeamServices beamServices, MatsimServices matsimServices){
 		this.fromState = fromState;
 		this.toState = toState;
 		this.isContingent = isContingent;
+		this.beamServices = beamServices;
+		this.matsimServices = matsimServices;
+		if(graph!=null && scope!= null){
+			graph.edge(scope, fromState, toState);
+			graph.edge(scope, fromState, toState).label("From"+fromState.getName()+"To"+toState.getName());
+		}
+		
 	}
-
-	public BaseTransition(BaseState fromState, BaseState toState, boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
-		this(fromState,toState,isContingent);
-		graph.edge(scope, fromState, toState);
-//		graph.edge(scope, fromState, toState).label("From"+fromState.getName()+"To"+toState.getName());
-	}
-	
 
 	@Override
 	public State getFromState() {
