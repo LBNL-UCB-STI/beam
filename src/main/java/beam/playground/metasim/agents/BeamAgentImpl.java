@@ -13,11 +13,13 @@ public class BeamAgentImpl implements BeamAgent {
 	protected Id<BeamAgent> id;
 	protected State state;
 	protected TransitionSelector transitionSelector;
+	protected FiniteStateMachineGraph graph;
 
-	public BeamAgentImpl(Id<BeamAgent> id, State state, TransitionSelector transitionSelector) {
+	public BeamAgentImpl(Id<BeamAgent> id, FiniteStateMachineGraph graph, TransitionSelector transitionSelector) {
 		super();
 		this.id = id;
-		this.state = state;
+		this.graph = graph;
+		this.state = graph.getInitialState();
 		this.transitionSelector = transitionSelector;
 	}
 
@@ -43,6 +45,11 @@ public class BeamAgentImpl implements BeamAgent {
 
 	public void setState(State state) {
 		this.state = state;
+	}
+
+	@Override
+	public FiniteStateMachineGraph getGraph() {
+		return graph;
 	}
 
 }

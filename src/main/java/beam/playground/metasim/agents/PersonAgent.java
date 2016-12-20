@@ -11,8 +11,8 @@ public class PersonAgent extends BeamAgentImpl implements MobileAgent {
 	Coord location;
 	Id<Person> personId;
 	
-	public PersonAgent(Id<Person> personId, State state, Coord location, TransitionSelector transitionSelector){
-		super(Id.create(personId.toString(), BeamAgent.class),state,transitionSelector);
+	public PersonAgent(Id<Person> personId, FiniteStateMachineGraph graph, Coord location, TransitionSelector transitionSelector){
+		super(Id.create(personId.toString(), BeamAgent.class),graph,transitionSelector);
 		this.personId = personId;
 	}
 

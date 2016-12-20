@@ -51,9 +51,9 @@ public class BeamAgentPopulation implements StartupListener{
 		BaseTransition nullTransition = (BaseTransition) transitionFactory.create(TransitionFromStartToInActivity.class, null, null, false);
 		for(Person person : scenario.getPopulation().getPersons().values()){
 			Coord initialLocation = ((Activity)person.getPlans().get(0).getPlanElements().get(0)).getCoord();
-			BeamAgent newPerson = personAgentFactory.create(person.getId(),start,initialLocation);
-			beamAgents.add(newPerson);
-			beamServices.getScheduler().addCallBackMethod(0.0, newPerson, "Start", nullTransition);
+//			BeamAgent newPerson = personAgentFactory.create(person.getId(),start,initialLocation);
+//			beamAgents.add(newPerson);
+//			beamServices.getScheduler().addCallBackMethod(0.0, newPerson, "Start", nullTransition);
 		}
 		
 		GraphVizGraph graph = new GraphVizGraph();

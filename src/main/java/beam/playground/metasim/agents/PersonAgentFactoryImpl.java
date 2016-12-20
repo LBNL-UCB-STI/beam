@@ -24,8 +24,8 @@ public class PersonAgentFactoryImpl implements PersonAgentFactory {
 	}
 
 	@Override
-	public PersonAgent create(Id<Person> personId, State state, Coord location) {
-		return new PersonAgent(personId,state,location, transitionSelectorProvider.get());
+	public PersonAgent create(Id<Person> personId, FiniteStateMachineGraph graph, Coord location) {
+		return new PersonAgent(personId,graph,location, transitionSelectorProvider.get());
 	}
 
 

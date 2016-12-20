@@ -8,6 +8,6 @@ import beam.playground.metasim.agents.states.State;
 
 public interface PersonAgentFactory {
 
-	PersonAgent create(Id<Person> personId, State state, Coord location);
+	PersonAgent create(Id<Person> personId, FiniteStateMachineGraph state, Coord location);
 
 }
