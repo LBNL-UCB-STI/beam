@@ -6,12 +6,7 @@ import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 
-import beam.controller.corelisteners.ControllerCoreListenersModule;
-import beam.playground.metasim.agents.BeamAgentPopulation;
-import beam.playground.metasim.scheduler.Scheduler;
-import beam.playground.metasim.services.Actions;
 import beam.playground.metasim.services.config.BeamConfigGroup;
-import beam.sim.traveltime.BeamRouter;
 
 import org.apache.log4j.Layout;
 import org.apache.log4j.Logger;
@@ -22,10 +17,8 @@ import org.matsim.analysis.ScoreStats;
 import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
-import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.consistency.ConfigConsistencyCheckerImpl;
 import org.matsim.core.config.groups.ControlerConfigGroup;
 import org.matsim.core.controler.AbstractController;
@@ -33,10 +26,7 @@ import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.ControlerDefaultsModule;
 import org.matsim.core.controler.ControlerI;
 import org.matsim.core.controler.ControlerListenerManager;
-import org.matsim.core.controler.ControlerListenerManagerImpl;
-import org.matsim.core.controler.Injector;
 import org.matsim.core.controler.MatsimServices;
-import org.matsim.core.controler.NewControlerModule;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.PrepareForSim;
 import org.matsim.core.controler.TerminationCriterion;
@@ -46,25 +36,17 @@ import org.matsim.core.controler.corelisteners.PlansDumping;
 import org.matsim.core.controler.corelisteners.PlansReplanning;
 import org.matsim.core.controler.corelisteners.PlansScoring;
 import org.matsim.core.controler.listener.ControlerListener;
-import org.matsim.core.events.handler.EventHandler;
 import org.matsim.core.mobsim.framework.Mobsim;
 import org.matsim.core.mobsim.framework.ObservableMobsim;
 import org.matsim.core.mobsim.framework.listeners.MobsimListener;
-import org.matsim.core.replanning.ReplanningContext;
 import org.matsim.core.replanning.StrategyManager;
 import org.matsim.core.router.TripRouter;
 import org.matsim.core.router.costcalculators.TravelDisutilityFactory;
 import org.matsim.core.router.util.LeastCostPathCalculatorFactory;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
-import org.matsim.core.scenario.ScenarioByConfigModule;
-import org.matsim.core.scenario.ScenarioByInstanceModule;
 import org.matsim.core.scoring.ScoringFunctionFactory;
 
-import java.beans.Statement;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 
 /**
@@ -103,7 +85,6 @@ public final class BeamController extends AbstractController implements Controle
 	private BeamConfigGroup beamConfig;
 	private com.google.inject.Injector injector;
 
-	@SuppressWarnings("deprecation")
 	@Inject
 	public BeamController(Config config, ControlerListenerManager controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, EventsManager eventsManager,
 			PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, 
@@ -111,7 +92,7 @@ public final class BeamController extends AbstractController implements Controle
 		super(controlerListenerManager,stopWatch,matsimServices,outputDirectoryHierarchy);
 		this.config = config;
 		this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
-		this.beamConfig = (BeamConfigGroup) this.config.getModule("beam");
+		this.beamConfig = (BeamConfigGroup) this.config.getModules().get("beam");
 		this.prepareForSim = prepareForSim;
 		this.eventsHandling = eventsHandling;
 		this.eventsManager = eventsManager;

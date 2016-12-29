@@ -10,7 +10,7 @@ import beam.playground.metasim.agents.BeamAgent;
 import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 
-public class TransitionFromInActivityToChoosingMode extends BaseTransition {
+public class TransitionFromInActivityToChoosingMode extends Transition.Default {
 
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {

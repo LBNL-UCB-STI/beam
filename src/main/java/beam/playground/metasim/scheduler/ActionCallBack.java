@@ -2,6 +2,9 @@ package beam.playground.metasim.scheduler;
 
 import org.matsim.api.core.v01.Identifiable;
 
+import com.google.inject.Inject;
+import com.google.inject.assistedinject.Assisted;
+
 import beam.playground.metasim.agents.BeamAgent;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.exceptions.IllegalTransitionException;
@@ -15,13 +18,13 @@ public interface ActionCallBack {
 	
 	public class Default implements ActionCallBack {
 		private BeamServices beamServices;
-		private double time,timeScheduled;
-		private double priority;
+		private Double time,timeScheduled, priority;
 		private Transition callingTransition;
 		private String actionName;
 		private BeamAgent targetAgent;
 		
-		public Default(double time, double priority, BeamAgent targetAgent, String actionName, double timeScheduled, Transition callingTransition, BeamServices beamServices) {
+		@Inject
+		public Default(@Assisted("time") Double time,@Assisted("priority") Double priority,@Assisted BeamAgent targetAgent,@Assisted String actionName,@Assisted("timeScheduled") Double timeScheduled,@Assisted Transition callingTransition, BeamServices beamServices) {
 			super();
 			this.time = time;
 			this.priority = priority;

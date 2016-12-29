@@ -77,7 +77,7 @@ public class BeamConfigGroup extends ReflectiveConfigGroup {
     public String getFiniteStateMachinesConfigFile(){
     	return this.finiteStateMachinesConfigFile;
     }
-    @StringGetter(FINITE_STATE_MACHINES_CONFIG_FILE)
+    @StringSetter(FINITE_STATE_MACHINES_CONFIG_FILE)
     public void setFiniteStateMachinesConfigFile(String finiteStateMachinesConfigFile){
     	this.finiteStateMachinesConfigFile = finiteStateMachinesConfigFile;
     }

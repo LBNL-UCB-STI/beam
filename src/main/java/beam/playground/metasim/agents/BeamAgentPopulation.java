@@ -17,10 +17,7 @@ import org.matsim.core.controler.listener.StartupListener;
 import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.ActionFactory;
-import beam.playground.metasim.agents.actions.BaseAction;
 import beam.playground.metasim.agents.states.BaseState;
-import beam.playground.metasim.agents.states.State;
-import beam.playground.metasim.agents.transition.BaseTransition;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
 import beam.playground.metasim.agents.transition.TransitionFromChoosingModeToInActivity;
@@ -48,7 +45,7 @@ public class BeamAgentPopulation implements StartupListener{
 		beamAgents = new LinkedHashSet<BeamAgent>();
 		Scenario scenario = event.getServices().getScenario();
 		BaseState start = new BaseState("Start");
-		BaseTransition nullTransition = (BaseTransition) transitionFactory.create(TransitionFromStartToInActivity.class, null, null, false);
+		Transition.Default nullTransition = (Transition.Default) transitionFactory.create(TransitionFromStartToInActivity.class, null, null, false);
 		for(Person person : scenario.getPopulation().getPersons().values()){
 			Coord initialLocation = ((Activity)person.getPlans().get(0).getPlanElements().get(0)).getCoord();
 //			BeamAgent newPerson = personAgentFactory.create(person.getId(),start,initialLocation);

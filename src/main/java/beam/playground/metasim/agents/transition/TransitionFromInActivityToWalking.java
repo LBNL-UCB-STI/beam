@@ -9,7 +9,7 @@ import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.services.BeamServices;
 
-public class TransitionFromInActivityToWalking extends BaseTransition {
+public class TransitionFromInActivityToWalking extends Transition.Default {
 
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {

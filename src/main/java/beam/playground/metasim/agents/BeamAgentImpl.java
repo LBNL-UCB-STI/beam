@@ -18,6 +18,7 @@ public class BeamAgentImpl implements BeamAgent {
 	public BeamAgentImpl(Id<BeamAgent> id, FiniteStateMachineGraph graph, TransitionSelector transitionSelector) {
 		super();
 		this.id = id;
+		this.getClass();
 		this.graph = graph;
 		this.state = graph.getInitialState();
 		this.transitionSelector = transitionSelector;

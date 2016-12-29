@@ -1,14 +1,12 @@
 package beam.playground.metasim.injection.modules;
 
-import java.util.Random;
-
-import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.controler.corelisteners.DumpDataAtEnd;
 import org.matsim.core.controler.corelisteners.EventsHandling;
-import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.framework.Mobsim;
+
+import com.google.inject.assistedinject.FactoryModuleBuilder;
 
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.agents.PersonAgentFactory;
@@ -23,6 +21,7 @@ import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.corelisteners.BeamEventsHandlingImpl;
 import beam.playground.metasim.controller.corelisteners.DumpDataAtEndImpl;
 import beam.playground.metasim.metasim.MetaSim;
+import beam.playground.metasim.scheduler.ActionCallBack;
 import beam.playground.metasim.scheduler.ActionCallBackFactory;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.Actions;
@@ -48,18 +47,18 @@ public class BeamModule extends AbstractModule {
 		addControlerListenerBinding().toInstance(new BeamAgentPopulation());
 		bind(DumpDataAtEnd.class).to(DumpDataAtEndImpl.class).asEagerSingleton();
 		bind(BeamRandom.class).to(BeamRandomImpl.class);
-		bind(TransitionFactory.class).to(TransitionFactory.Default.class);
 		
 		// SCHEDULER
+		install(new FactoryModuleBuilder().implement(ActionCallBack.class, ActionCallBack.Default.class).build(ActionCallBackFactory.class));
 		bind(Scheduler.class).asEagerSingleton();
-		bind(ActionCallBackFactory.class).to(ActionCallBackFactory.Default.class);
 		
 		// AGENTS
 		bind(Actions.class).asEagerSingleton();
-		bind(ActionFactory.class).to(ActionFactory.Default.class);
 		bind(TransitionSelector.class).to(RandomTransitionSelector.class);
 		bind(PersonAgentFactory.class).to(PersonAgentFactory.Default.class);
 		bind(Behavior.class).toProvider(TravelBehaviorProvider.class);
+		install(new FactoryModuleBuilder().implement(Action.class, Action.Default.class).build(ActionFactory.class));
+		bind(TransitionFactory.class).to(TransitionFactory.Default.class);
 		
 	}
 

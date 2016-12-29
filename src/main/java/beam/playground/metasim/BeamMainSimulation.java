@@ -10,6 +10,8 @@ import org.matsim.core.controler.Injector;
 import org.matsim.core.controler.NewControlerModule;
 import org.matsim.core.scenario.ScenarioByConfigModule;
 
+import com.google.inject.assistedinject.FactoryModuleBuilder;
+
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.corelisteners.ControllerCoreListenersModule;

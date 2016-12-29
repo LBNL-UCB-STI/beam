@@ -9,7 +9,7 @@ import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.vehicle.HumanBody;
 
-public class TransitionFromChoosingModeToWalking extends BaseTransition {
+public class TransitionFromChoosingModeToWalking extends Transition.Default {
 
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {

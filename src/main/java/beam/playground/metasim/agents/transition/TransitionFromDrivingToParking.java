@@ -8,7 +8,7 @@ import beam.playground.metasim.agents.BeamAgent;
 import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 
-public class TransitionFromDrivingToParking extends BaseTransition {
+public class TransitionFromDrivingToParking extends Transition.Default {
 
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {

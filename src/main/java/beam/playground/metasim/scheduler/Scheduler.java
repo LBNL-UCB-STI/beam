@@ -48,11 +48,11 @@ public class Scheduler {
 			}
 		}
 	});
-	public ActionCallBack.Default addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
+	public ActionCallBack addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
 		return addCallBackMethod(time, targetAgent, actionName, callingTransition, 0.0);
 	}
-	public ActionCallBack.Default addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
-		ActionCallBack.Default callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingTransition);
+	public ActionCallBack addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
+		ActionCallBack callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingTransition);
 		this.queue.add(callback);
 		return callback;
 	}
