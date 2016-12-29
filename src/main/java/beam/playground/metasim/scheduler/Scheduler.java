@@ -28,9 +28,9 @@ public class Scheduler {
 		this.callbackFactory = callbackFactory;
 	}
 
-	private Queue<ActionCallBackImpl> queue = new PriorityQueue<ActionCallBackImpl>(100,new Comparator<ActionCallBackImpl>() {
+	private Queue<ActionCallBack> queue = new PriorityQueue<ActionCallBack>(100,new Comparator<ActionCallBack>() {
 		@Override
-		public int compare(ActionCallBackImpl a, ActionCallBackImpl b) {
+		public int compare(ActionCallBack a, ActionCallBack b) {
 			if(a.getTime() < b.getTime()){
 				return -1;
 			}else if(a.getTime() > b.getTime()){
@@ -48,27 +48,27 @@ public class Scheduler {
 			}
 		}
 	});
-	public ActionCallBackImpl addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
+	public ActionCallBack.Default addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
 		return addCallBackMethod(time, targetAgent, actionName, callingTransition, 0.0);
 	}
-	public ActionCallBackImpl addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
-		ActionCallBackImpl callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingTransition);
+	public ActionCallBack.Default addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
+		ActionCallBack.Default callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingTransition);
 		this.queue.add(callback);
 		return callback;
 	}
 	
 	public void doSimStep(double until) {
 		while (queue.peek() != null && queue.peek().getTime() <= until) {
-			ActionCallBackImpl entry = queue.poll();
+			ActionCallBack entry = queue.poll();
 			this.now = entry.getTime();
 			//TODO handle these exceptions more elegantly
 			try {
 				entry.perform();
-			} catch (IllegalTransitionException e) {
-				e.printStackTrace();
 			} catch (SecurityException e) {
 				e.printStackTrace();
 			} catch (IllegalArgumentException e) {
+				e.printStackTrace();
+			} catch (IllegalTransitionException e) {
 				e.printStackTrace();
 			}
 		}
@@ -79,7 +79,7 @@ public class Scheduler {
 	public int getSize() {
 		return queue.size();
 	}
-	public void removeCallback(ActionCallBackImpl callback) {
+	public void removeCallback(ActionCallBack.Default callback) {
 		queue.remove(callback);
 	}
 }

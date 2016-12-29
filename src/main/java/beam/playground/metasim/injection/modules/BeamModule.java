@@ -12,14 +12,11 @@ import org.matsim.core.mobsim.framework.Mobsim;
 
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.agents.PersonAgentFactory;
-import beam.playground.metasim.agents.PersonAgentFactoryImpl;
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.actions.ActionFactory;
-import beam.playground.metasim.agents.actions.ActionFactoryImpl;
 import beam.playground.metasim.agents.behavior.Behavior;
 import beam.playground.metasim.agents.behavior.TravelBehaviorProvider;
 import beam.playground.metasim.agents.transition.TransitionFactory;
-import beam.playground.metasim.agents.transition.TransitionFactoryImpl;
 import beam.playground.metasim.agents.transition.selectors.RandomTransitionSelector;
 import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 import beam.playground.metasim.controller.BeamController;
@@ -27,7 +24,6 @@ import beam.playground.metasim.controller.corelisteners.BeamEventsHandlingImpl;
 import beam.playground.metasim.controller.corelisteners.DumpDataAtEndImpl;
 import beam.playground.metasim.metasim.MetaSim;
 import beam.playground.metasim.scheduler.ActionCallBackFactory;
-import beam.playground.metasim.scheduler.ActionCallbackFactoryImpl;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.Actions;
 import beam.playground.metasim.services.BeamRandom;
@@ -44,8 +40,6 @@ public class BeamModule extends AbstractModule {
 		 
 		// CONTROLLER / MOBSIM / SETTINGS
 		bind(BeamRouter.class).to(BeamRouterImpl.class);
-		bind(Scheduler.class).asEagerSingleton();
-		bind(ActionCallBackFactory.class).to(ActionCallbackFactoryImpl.class);
 		bind(BeamController.class).asEagerSingleton();
 		bind(BeamServices.class).to(BeamServicesImpl.class).asEagerSingleton();
 		bind(Mobsim.class).to(MetaSim.class);
@@ -54,13 +48,17 @@ public class BeamModule extends AbstractModule {
 		addControlerListenerBinding().toInstance(new BeamAgentPopulation());
 		bind(DumpDataAtEnd.class).to(DumpDataAtEndImpl.class).asEagerSingleton();
 		bind(BeamRandom.class).to(BeamRandomImpl.class);
-		bind(TransitionFactory.class).to(TransitionFactoryImpl.class);
+		bind(TransitionFactory.class).to(TransitionFactory.Default.class);
+		
+		// SCHEDULER
+		bind(Scheduler.class).asEagerSingleton();
+		bind(ActionCallBackFactory.class).to(ActionCallBackFactory.Default.class);
 		
 		// AGENTS
 		bind(Actions.class).asEagerSingleton();
-		bind(ActionFactory.class).to(ActionFactoryImpl.class);
+		bind(ActionFactory.class).to(ActionFactory.Default.class);
 		bind(TransitionSelector.class).to(RandomTransitionSelector.class);
-		bind(PersonAgentFactory.class).to(PersonAgentFactoryImpl.class);
+		bind(PersonAgentFactory.class).to(PersonAgentFactory.Default.class);
 		bind(Behavior.class).toProvider(TravelBehaviorProvider.class);
 		
 	}

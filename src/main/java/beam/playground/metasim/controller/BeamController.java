@@ -88,6 +88,7 @@ public final class BeamController extends AbstractController implements Controle
 	private final Config config;
 	private final PrepareForSim prepareForSim;
 	private final EventsHandling eventsHandling;
+	private final EventsManager eventsManager;
 	private final PlansDumping plansDumping;
 	private final PlansReplanning plansReplanning;
 	private final Provider<Mobsim> mobsimProvider;
@@ -104,13 +105,16 @@ public final class BeamController extends AbstractController implements Controle
 
 	@SuppressWarnings("deprecation")
 	@Inject
-	public BeamController(Config config, ControlerListenerManager controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy, com.google.inject.Injector injector) {
+	public BeamController(Config config, ControlerListenerManager controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, EventsManager eventsManager,
+			PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, 
+			Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy, com.google.inject.Injector injector) {
 		super(controlerListenerManager,stopWatch,matsimServices,outputDirectoryHierarchy);
 		this.config = config;
 		this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
 		this.beamConfig = (BeamConfigGroup) this.config.getModule("beam");
 		this.prepareForSim = prepareForSim;
 		this.eventsHandling = eventsHandling;
+		this.eventsManager = eventsManager;
 		this.plansDumping = plansDumping;
 		this.plansReplanning = plansReplanning;
 		this.mobsimProvider = mobsimProvider;
@@ -256,51 +260,7 @@ public final class BeamController extends AbstractController implements Controle
 	
 	@Override
 	public final EventsManager getEvents() {
-		if (this.injector != null) {
-			return this.injector.getInstance(EventsManager.class);
-		} else {
-			return new EventsManager() {
-				@Override
-				public void processEvent(Event event) {
-					BeamController.this.injector.getInstance(EventsManager.class).processEvent(event);
-				}
-
-				@Override
-				public void addHandler(final EventHandler handler) {
-					addOverridingModule(new AbstractModule() {
-						@Override
-						public void install() {
-							addEventHandlerBinding().toInstance(handler);
-						}
-					});
-				}
-
-				@Override
-				public void removeHandler(EventHandler handler) {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void resetHandlers(int iteration) {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void initProcessing() {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void afterSimStep(double time) {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void finishProcessing() {
-					throw new UnsupportedOperationException();
-				}
-			};
-		}
+		return this.eventsManager;
 	}
 
 	@Override

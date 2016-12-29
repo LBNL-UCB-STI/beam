@@ -32,7 +32,7 @@ public class BeamMainSimulation {
 	    List<AbstractModule> modules = new ArrayList<>(Arrays.<AbstractModule>asList(new ControlerDefaultsModule()));
 	    
 	    Config config = ConfigUtils.loadConfig(INPUT_DIRECTORY_BASE_PATH + File.separator + CONFIG_RELATIVE_PATH,new BeamConfigGroup());
-	    ((BeamConfigGroup)config.getModule("beam")).customizeConfiguration(config,INPUT_DIRECTORY_BASE_PATH,CONFIG_RELATIVE_PATH,OUTPUT_DIRECTORY_BASE_PATH);
+	    ((BeamConfigGroup)config.getModules().get("beam")).customizeConfiguration(config,INPUT_DIRECTORY_BASE_PATH,CONFIG_RELATIVE_PATH,OUTPUT_DIRECTORY_BASE_PATH);
 
 	    com.google.inject.Injector injector = Injector.createInjector(config,AbstractModule.override(Collections.singleton(new AbstractModule() {
 			@Override

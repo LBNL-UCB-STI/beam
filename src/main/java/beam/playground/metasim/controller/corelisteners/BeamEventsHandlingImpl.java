@@ -58,11 +58,8 @@ public final class BeamEventsHandlingImpl implements EventsHandling, BeforeMobsi
 
 	private final EventsManager eventsManager;
 	private List<EventWriter> eventWriters = new LinkedList<>();
-
 	private int writeEventsInterval;
-
 	private Set<EventsFileFormat> eventsFileFormats;
-
 	private OutputDirectoryHierarchy controlerIO;
 	private BeamServices beamServices;
 	private MatsimServices services;
