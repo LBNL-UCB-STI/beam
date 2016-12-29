@@ -29,9 +29,8 @@ import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.sim.traveltime.BeamRouter;
 
-public class BeamServicesImpl implements BeamServices, MatsimServices {
+public class BeamServicesImpl implements BeamServices {
 	private BeamConfigGroup beamConfig;
-	private MatsimServices matsimServices;
 	private Actions actions;
 	private Scheduler scheduler;
 	private BeamRandom random;
@@ -39,7 +38,6 @@ public class BeamServicesImpl implements BeamServices, MatsimServices {
 	@Inject
 	public BeamServicesImpl(MatsimServices matsimServices, Actions actions, Scheduler scheduler,  BeamRandom random) {
 		super();
-		this.matsimServices = matsimServices;
 		this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
 		this.actions = actions;
 		this.scheduler = scheduler;
@@ -64,78 +62,6 @@ public class BeamServicesImpl implements BeamServices, MatsimServices {
 	@Override
 	public BeamConfigGroup getBeamConfigGroup() {
 		return beamConfig;
-	}
-	@Override
-	public IterationStopWatch getStopwatch() {
-		return matsimServices.getStopwatch();
-	}
-	@Override
-	public TravelTime getLinkTravelTimes() {
-		return matsimServices.getLinkTravelTimes();
-	}
-	@Override
-	public Provider<TripRouter> getTripRouterProvider() {
-		return matsimServices.getTripRouterProvider();
-	}
-	@Override
-	public TravelDisutility createTravelDisutilityCalculator() {
-		return matsimServices.createTravelDisutilityCalculator();
-	}
-	@Override
-	public LeastCostPathCalculatorFactory getLeastCostPathCalculatorFactory() {
-		return matsimServices.getLeastCostPathCalculatorFactory();
-	}
-	@Override
-	public ScoringFunctionFactory getScoringFunctionFactory() {
-		return matsimServices.getScoringFunctionFactory();
-	}
-	@Override
-	public Config getConfig() {
-		return matsimServices.getConfig();
-	}
-	@Override
-	public Scenario getScenario() {
-		return matsimServices.getScenario();
-	}
-	@Override
-	public EventsManager getEvents() {
-		return matsimServices.getEvents();
-	}
-	@Override
-	public Injector getInjector() {
-		return matsimServices.getInjector();
-	}
-	@Override
-	public CalcLinkStats getLinkStats() {
-		return matsimServices.getLinkStats();
-	}
-	@Override
-	public VolumesAnalyzer getVolumes() {
-		return matsimServices.getVolumes();
-	}
-	@Override
-	public ScoreStats getScoreStats() {
-		return matsimServices.getScoreStats();
-	}
-	@Override
-	public TravelDisutilityFactory getTravelDisutilityFactory() {
-		return matsimServices.getTravelDisutilityFactory();
-	}
-	@Override
-	public StrategyManager getStrategyManager() {
-		return matsimServices.getStrategyManager();
-	}
-	@Override
-	public OutputDirectoryHierarchy getControlerIO() {
-		return matsimServices.getControlerIO();
-	}
-	@Override
-	public void addControlerListener(ControlerListener controlerListener) {
-		matsimServices.addControlerListener(controlerListener);
-	}
-	@Override
-	public Integer getIterationNumber() {
-		return matsimServices.getIterationNumber();
 	}
 	@Override
 	public Actions getActions() {
