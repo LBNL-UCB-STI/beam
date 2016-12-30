@@ -1,16 +1,12 @@
 package beam.playground.metasim.agents;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 
-import org.anarres.graphviz.builder.GraphVizGraph;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Person;
-import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.controler.events.StartupEvent;
 import org.matsim.core.controler.listener.StartupListener;
 
@@ -19,17 +15,7 @@ import com.google.inject.Inject;
 import beam.playground.metasim.agents.actions.ActionFactory;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
-import beam.playground.metasim.agents.transition.TransitionFromChoosingModeToInActivity;
-import beam.playground.metasim.agents.transition.TransitionFromChoosingModeToWalking;
-import beam.playground.metasim.agents.transition.TransitionFromDrivingToDriving;
-import beam.playground.metasim.agents.transition.TransitionFromDrivingToParking;
-import beam.playground.metasim.agents.transition.TransitionFromInActivityToChoosingMode;
-import beam.playground.metasim.agents.transition.TransitionFromInActivityToWalking;
-import beam.playground.metasim.agents.transition.TransitionFromParkingToWalking;
 import beam.playground.metasim.agents.transition.TransitionFromStartToInActivity;
-import beam.playground.metasim.agents.transition.TransitionFromWalkingToDriving;
-import beam.playground.metasim.agents.transition.TransitionFromWalkingToInActivity;
-import beam.playground.metasim.agents.transition.TransitionFromWalkingToWalking;
 import beam.playground.metasim.services.BeamServices;
 
 public class BeamAgentPopulation implements StartupListener{
@@ -43,16 +29,14 @@ public class BeamAgentPopulation implements StartupListener{
 	public void notifyStartup(StartupEvent event) {
 		beamAgents = new LinkedHashSet<BeamAgent>();
 		Scenario scenario = event.getServices().getScenario();
-		/*
-		State.Default start = new Default("Start");
 		Transition.Default nullTransition = (Transition.Default) transitionFactory.create(TransitionFromStartToInActivity.class, null, null, false);
 		for(Person person : scenario.getPopulation().getPersons().values()){
 			Coord initialLocation = ((Activity)person.getPlans().get(0).getPlanElements().get(0)).getCoord();
-//			BeamAgent newPerson = personAgentFactory.create(person.getId(),start,initialLocation);
-//			beamAgents.add(newPerson);
-//			beamServices.getScheduler().addCallBackMethod(0.0, newPerson, "Start", nullTransition);
+			BeamAgent newPerson = personAgentFactory.create(person.getId(),initialLocation);
+			beamAgents.add(newPerson);
+			beamServices.getScheduler().addCallBackMethod(0.0, newPerson, "Begin", newPerson.getGraph().getInitialState().getAllTranstions().iterator().next());
 		}
-		
+	/*	
 		GraphVizGraph graph = new GraphVizGraph();
 		Default inActivity = new Default("InActivity",graph,start);
 		Default choosingMode = new Default("ChoosingMode",graph,start);

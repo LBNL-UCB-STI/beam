@@ -1,11 +1,13 @@
 package beam.playground.metasim.agents;
 
+
 import org.matsim.api.core.v01.Id;
 
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
+import beam.playground.metasim.services.BeamServices;
 
 public interface BeamAgent {
 	public Id<BeamAgent> getId();
@@ -20,14 +22,16 @@ public interface BeamAgent {
 		protected State state;
 		protected TransitionSelector transitionSelector;
 		protected FiniteStateMachineGraph graph;
+		protected BeamServices beamServices;
 
-		public Default(Id<BeamAgent> id, FiniteStateMachineGraph graph, TransitionSelector transitionSelector) {
+		public Default(Id<BeamAgent> id, TransitionSelector transitionSelector, BeamServices beamServices) {
 			super();
 			this.id = id;
 			this.getClass();
-			this.graph = graph;
-			this.state = graph.getInitialState();
 			this.transitionSelector = transitionSelector;
+			this.beamServices = beamServices;
+			this.graph = beamServices.getFiniteStateMachineGraphFor(this.getClass());
+			this.state = this.graph.getInitialState();
 		}
 
 		@Override
@@ -59,5 +63,7 @@ public interface BeamAgent {
 			return graph;
 		}
 
+
 	}
+
 }

@@ -6,6 +6,7 @@ import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
 import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.exceptions.IllegalTransitionException;
 import beam.playground.metasim.services.BeamServices;
@@ -17,25 +18,23 @@ public interface ActionCallBack {
 	BeamAgent getTargetAgent();
 	
 	public class Default implements ActionCallBack {
-		private BeamServices beamServices;
 		private Double time,timeScheduled, priority;
 		private Transition callingTransition;
-		private String actionName;
+		private Action action;
 		private BeamAgent targetAgent;
 		
 		@Inject
-		public Default(@Assisted("time") Double time,@Assisted("priority") Double priority,@Assisted BeamAgent targetAgent,@Assisted String actionName,@Assisted("timeScheduled") Double timeScheduled,@Assisted Transition callingTransition, BeamServices beamServices) {
+		public Default(@Assisted("time") Double time,@Assisted("priority") Double priority,@Assisted BeamAgent targetAgent,@Assisted String actionName,@Assisted("timeScheduled") Double timeScheduled,@Assisted Transition callingTransition) {
 			super();
 			this.time = time;
 			this.priority = priority;
 			this.targetAgent = targetAgent;
-			this.actionName = actionName;
+			this.action = targetAgent.getGraph().getActionMap().get(actionName);
 			this.timeScheduled = timeScheduled;
 			this.callingTransition = callingTransition;
-			this.beamServices = beamServices;
 		}
 		public void perform() throws IllegalTransitionException{
-			beamServices.getActions().getActionMap().get(actionName).initiateAction(targetAgent);
+			action.initiateAction(targetAgent);
 		}
 		public double getTime() {
 			return time;
@@ -47,7 +46,7 @@ public interface ActionCallBack {
 			return targetAgent;
 		}
 		public String toString(){
-			return this.actionName + "::" + this.targetAgent.toString() + " @"+this.time + " (" + this.priority + ")";
+			return this.action.getName() + "::" + this.targetAgent.toString() + " @"+this.time + " (" + this.priority + ")";
 		}
 	}
 

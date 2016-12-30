@@ -13,7 +13,7 @@ import beam.playground.metasim.services.BeamServices;
 
 public interface PersonAgentFactory {
 
-	PersonAgent create(Id<Person> personId, FiniteStateMachineGraph state, Coord location);
+	PersonAgent create(Id<Person> personId, Coord location);
 
 	public class Default implements PersonAgentFactory {
 		private final Provider<BeamServices> beamServicesProvider;
@@ -26,8 +26,8 @@ public interface PersonAgentFactory {
 		}
 
 		@Override
-		public PersonAgent create(Id<Person> personId, FiniteStateMachineGraph graph, Coord location) {
-			return new PersonAgent(personId,beamServicesProvider.get().getFiniteStateMachineGraphFor(PersonAgent.class),location, transitionSelectorProvider.get());
+		public PersonAgent create(Id<Person> personId, Coord location) {
+			return new PersonAgent(personId,location, transitionSelectorProvider.get(),beamServicesProvider.get());
 		}
 
 

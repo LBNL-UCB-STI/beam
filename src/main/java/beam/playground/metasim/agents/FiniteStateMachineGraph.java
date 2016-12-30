@@ -61,6 +61,7 @@ public class FiniteStateMachineGraph {
 						// Make the transition
 						Transition theTransition = transitionFactory.create(Class.forName(transitionElem.getAttributeValue("class")), fromState, toState, isContingent);
 						transitions.put(transitionElem.getAttributeValue("class"),theTransition);
+						fromState.addTransition(theTransition);
 					}
 				}
 			}else if(graphElemName.equals("actions")){
@@ -98,6 +99,10 @@ public class FiniteStateMachineGraph {
 
 	public Class<?> getAssignedClass() {
 		return assignedClass;
+	}
+
+	public LinkedHashMap<String, Action> getActionMap() {
+		return actions;
 	}
 
 }
