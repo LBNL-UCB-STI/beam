@@ -4,7 +4,6 @@ import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
 
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 
 public class TransitionFromChoosingModeToInActivity extends Transition.Default {

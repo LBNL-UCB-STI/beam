@@ -7,7 +7,7 @@ import org.matsim.api.core.v01.population.Person;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 
-public class PersonAgent extends BeamAgentImpl implements MobileAgent {
+public class PersonAgent extends BeamAgent.Default implements MobileAgent {
 	Coord location;
 	Id<Person> personId;
 	

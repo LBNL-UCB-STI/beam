@@ -27,7 +27,7 @@ public interface PersonAgentFactory {
 
 		@Override
 		public PersonAgent create(Id<Person> personId, FiniteStateMachineGraph graph, Coord location) {
-			return new PersonAgent(personId,graph,location, transitionSelectorProvider.get());
+			return new PersonAgent(personId,beamServicesProvider.get().getFiniteStateMachineGraphFor(PersonAgent.class),location, transitionSelectorProvider.get());
 		}
 
 

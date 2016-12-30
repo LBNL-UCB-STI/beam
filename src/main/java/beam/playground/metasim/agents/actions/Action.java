@@ -30,7 +30,6 @@ public interface Action {
     		super();
     		this.name = name;
     		this.beamServices = beamServices;
-    		beamServices.getActions().getActionMap().put(name, this);
     		this.matsimServices = matsimServices;
     	}
 
@@ -62,6 +61,9 @@ public interface Action {
     		return name;
     	}
 
+		public String toString(){
+			return "Action:"+name;
+		}
     }
 
 }

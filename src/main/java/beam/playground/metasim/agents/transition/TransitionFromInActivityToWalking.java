@@ -5,7 +5,6 @@ import org.anarres.graphviz.builder.GraphVizScope;
 
 import beam.EVGlobalData;
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.services.BeamServices;
 

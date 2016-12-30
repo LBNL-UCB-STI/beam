@@ -1,15 +1,33 @@
 package beam.playground.metasim.services;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.LinkedHashMap;
 import java.util.Random;
 
+import javax.naming.spi.StateFactory;
+
 import org.apache.log4j.Logger;
+import org.jdom.Document;
+import org.jdom.Element;
+import org.jdom.JDOMException;
+import org.jdom.input.SAXBuilder;
 import org.matsim.core.controler.MatsimServices;
+import org.xml.sax.SAXException;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
+import beam.parking.lib.DebugLib;
 import beam.playground.metasim.BeamMainSimulation;
 import beam.playground.metasim.agents.BeamAgentPopulation;
+import beam.playground.metasim.agents.FiniteStateMachineGraph;
+import beam.playground.metasim.agents.FiniteStateMachineGraphFactory;
+import beam.playground.metasim.agents.PersonAgent;
+import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.sim.traveltime.BeamRouter;
@@ -21,7 +39,82 @@ public interface BeamServices {
 	public BeamConfigGroup getBeamConfigGroup();
 	public BeamAgentPopulation getBeamAgentPopulation();
 	public Actions getActions();
+	public FiniteStateMachineGraph getFiniteStateMachineGraphFor(Class<?> theClass);
 	
+	public class Default implements BeamServices {
+		private BeamConfigGroup beamConfig;
+		private Actions actions;
+		private Scheduler scheduler;
+		private BeamRandom random;
+		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> fsmMap;
+		private FiniteStateMachineGraphFactory finiteStateMachineGraphFactory;
+
+		@Inject
+		public Default(MatsimServices matsimServices, Actions actions, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
+			super();
+			this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
+			this.actions = actions;
+			this.scheduler = scheduler;
+			this.random = random;
+			this.finiteStateMachineGraphFactory = finiteStateMachineGraphFactory;
+			try {
+				this.fsmMap = loadFiniteStateMachineGraphs();
+			} catch (JDOMException | IOException | ClassNotFoundException | SAXException e ) {
+				e.printStackTrace();
+				DebugLib.stopSystemAndReportInconsistency();
+			}
+		}
+		@Override
+		public BeamRandom getRandom() {
+			return random;
+		}
+		@Override
+		public BeamRouter getRouter() {
+			return null;
+		}
+		@Override
+		public Scheduler getScheduler() {
+			return scheduler;
+		}
+		@Override
+		public BeamAgentPopulation getBeamAgentPopulation() {
+			return null;
+		}
+		@Override
+		public BeamConfigGroup getBeamConfigGroup() {
+			return beamConfig;
+		}
+		@Override
+		public Actions getActions() {
+			return actions;
+		}
+		@Override
+		public FiniteStateMachineGraph getFiniteStateMachineGraphFor(Class<?> theClass) {
+			return fsmMap.get(theClass);
+		}
+
+		//TODO there is surely a more appropriate place to do the XML parsing (maybe a static method in FiniteStateMachineGraph?
+		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> loadFiniteStateMachineGraphs() throws JDOMException, IOException, ClassNotFoundException, SAXException {
+			LinkedHashMap<Class<?>, FiniteStateMachineGraph> result = new LinkedHashMap<>();
+			SAXBuilder saxBuilder = new SAXBuilder();
+			InputStream stream = null;
+			Document document = null;
+			stream = new FileInputStream(new File(beamConfig.getFiniteStateMachinesConfigFile()));
+			document = saxBuilder.build(stream);
+
+			for(int i=0; i < document.getRootElement().getChildren().size(); i++){
+				Element elem = (Element)document.getRootElement().getChildren().get(i);
+				if(elem.getName().toLowerCase().equals("finitestatemachine")){
+					FiniteStateMachineGraph graph = finiteStateMachineGraphFactory.create(elem);
+					result.put(graph.getAssignedClass(), graph);
+				}
+			}
+			return result;
+		}
+
+	}
+
+
 	/*
 	public static BeamServices data = null;
 

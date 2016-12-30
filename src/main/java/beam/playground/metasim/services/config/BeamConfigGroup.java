@@ -1,6 +1,7 @@
 package beam.playground.metasim.services.config;
 
 import java.io.File;
+import java.lang.reflect.Field;
 import java.util.Map;
 
 import org.matsim.core.config.Config;
@@ -8,7 +9,7 @@ import org.matsim.core.config.ReflectiveConfigGroup;
 
 public class BeamConfigGroup extends ReflectiveConfigGroup {
 	public static final String GROUP_NAME = "beam";
-	private static final String SIMULATION_NAME = "simulationName", EVENTS_FILE_OUTPUT_FORMATS= "eventsFileOutputFormats", FINITE_STATE_MACHINES_CONFIG_FILE="finiteStateMachinesConfigFile";
+	public static final String SIMULATION_NAME = "simulationName", EVENTS_FILE_OUTPUT_FORMATS= "eventsFileOutputFormats", FINITE_STATE_MACHINES_CONFIG_FILE="finiteStateMachinesConfigFile";
 
 	private String simulationName;
 	private String eventsFileOutputFormats;
@@ -26,6 +27,25 @@ public class BeamConfigGroup extends ReflectiveConfigGroup {
 		config.network().setInputFile(inputDirectory + config.network().getInputFile());
 		config.plans().setInputFile(inputDirectory + config.plans().getInputFile());
 
+		Field[] fields = this.getClass().getFields();
+		for (Field field:fields){
+			if (field.getName().contains("_CONFIG_FILE")){
+				try {
+					Field configFileField = this.getClass().getDeclaredField(field.get(this).toString());
+					configFileField.setAccessible(true);
+					configFileField.set(this, inputDirectory + (String)configFileField.get(this));
+				} catch (IllegalArgumentException e) {
+					e.printStackTrace();
+				} catch (IllegalAccessException e) {
+					e.printStackTrace();
+				} catch (NoSuchFieldException e) {
+					e.printStackTrace();
+				} catch (SecurityException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		
 		String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
 		outputDirectoryName = simulationName + "_" + timestamp;
 		outputDirectory = new File(outputDirectoryBasePath + File.separator + outputDirectoryName);

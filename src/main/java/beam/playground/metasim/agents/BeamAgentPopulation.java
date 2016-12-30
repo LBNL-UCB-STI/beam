@@ -17,7 +17,6 @@ import org.matsim.core.controler.listener.StartupListener;
 import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.ActionFactory;
-import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
 import beam.playground.metasim.agents.transition.TransitionFromChoosingModeToInActivity;
@@ -44,7 +43,8 @@ public class BeamAgentPopulation implements StartupListener{
 	public void notifyStartup(StartupEvent event) {
 		beamAgents = new LinkedHashSet<BeamAgent>();
 		Scenario scenario = event.getServices().getScenario();
-		BaseState start = new BaseState("Start");
+		/*
+		State.Default start = new Default("Start");
 		Transition.Default nullTransition = (Transition.Default) transitionFactory.create(TransitionFromStartToInActivity.class, null, null, false);
 		for(Person person : scenario.getPopulation().getPersons().values()){
 			Coord initialLocation = ((Activity)person.getPlans().get(0).getPlanElements().get(0)).getCoord();
@@ -54,11 +54,11 @@ public class BeamAgentPopulation implements StartupListener{
 		}
 		
 		GraphVizGraph graph = new GraphVizGraph();
-		BaseState inActivity = new BaseState("InActivity",graph,start);
-		BaseState choosingMode = new BaseState("ChoosingMode",graph,start);
-		BaseState walking = new BaseState("Walking",graph,start);
-		BaseState driving = new BaseState("Driving",graph,start);
-		BaseState parking = new BaseState("Parking",graph,start);
+		Default inActivity = new Default("InActivity",graph,start);
+		Default choosingMode = new Default("ChoosingMode",graph,start);
+		Default walking = new Default("Walking",graph,start);
+		Default driving = new Default("Driving",graph,start);
+		Default parking = new Default("Parking",graph,start);
 
 		Transition startTransition = transitionFactory.create(TransitionFromStartToInActivity.class, start, inActivity, false);
 		start.addAction(actionFactory.create("Start"));
@@ -91,6 +91,7 @@ public class BeamAgentPopulation implements StartupListener{
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
+		*/
 
 	}
 

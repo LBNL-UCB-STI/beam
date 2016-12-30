@@ -7,7 +7,6 @@ import com.google.inject.Inject;
 
 import beam.EVGlobalData;
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 
 public class TransitionFromInActivityToChoosingMode extends Transition.Default {

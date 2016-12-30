@@ -7,7 +7,6 @@ import org.anarres.graphviz.builder.GraphVizScope;
 import org.matsim.core.controler.MatsimServices;
 
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.agents.states.BaseState;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.services.BeamServices;
 
@@ -59,5 +58,8 @@ public interface Transition {
 			return true;
 		}
 
+		public String toString(){
+			return "Transition:"+fromState.getName()+"_To_"+toState.getName();
+		}
 	}
 }
