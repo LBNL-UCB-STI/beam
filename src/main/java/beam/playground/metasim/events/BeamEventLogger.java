@@ -2,59 +2,68 @@ package beam.playground.metasim.events;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.core.config.groups.ControlerConfigGroup.EventsFileFormat;
 import org.matsim.core.controler.MatsimServices;
+import org.reflections.Reflections;
 
 import com.google.inject.Inject;
 
+import beam.parking.lib.DebugLib;
 import beam.playground.metasim.events.ActionEvent;
 import beam.playground.metasim.events.TransitionEvent;
 import beam.playground.metasim.services.BeamServices;
 
-public class EventLogger {
+public class BeamEventLogger {
 
-	HashMap<String, Integer> levels = new HashMap<>();
-	private int defaultLevel = 0;
-	private int writeEVEventsInterval = 1;
-	private HashSet<Class> controlEventTypesWithLogger=new HashSet<>();
+	HashMap<Class<?>, Integer> levels = new HashMap<>();
+	private HashSet<Class<?>> eventsToLog=new HashSet<>();
 	private BeamServices beamServices;
 	private MatsimServices services;
 
-	@Inject
-	public EventLogger(MatsimServices services, BeamServices beamServices) {
-		this.services = services;
+	public BeamEventLogger(BeamServices beamServices, MatsimServices services) {
 		this.beamServices = beamServices;
-
-		// TODO redesign this based on how we redesign the configuration form
-		/*
-		for (String key : params.keySet()) {
-			if (key.equalsIgnoreCase("Default.level")) {
-				setDefaultLevel(Integer.parseInt(params.get(key)));
-			} else if (key.contains(".level")) {
-				setLoggingLevel(key.replaceAll(".level", ""), Integer.parseInt(params.get(key)));
-			} else if (key.contains("writeEVEventsInterval")) {
-				setWriteEVEventsInterval(Integer.parseInt(params.get(key)));
-			} else {
-				DebugLib.stopSystemAndReportInconsistency(
-						"parameter: '" + key + "' unknown in module " + BeamConfigGroup.GROUP_NAME);
-			}
-
+		this.services = services;
+		
+		Map<String,String> params = beamServices.getBeamEventLoggerConfigGroup().getParams();
+		
+		if(beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel() > 0){
+			// All classes are logged by default
+			eventsToLog.addAll(beamServices.getBeamEventLoggerConfigGroup().getAllLoggableEvents());
 		}
-		*/
-		getControlEventTypesWithLogger().add(ActionEvent.class);
-		getControlEventTypesWithLogger().add(TransitionEvent.class);
+
+		Class<?> theClass = null;
+		for (String key : params.keySet()) {
+			if(key.contains(".level") && !key.equals("Default.level")) {
+				Integer loggingLevel = Integer.parseInt(params.get(key));
+				try {
+					theClass = Class.forName(key.replaceAll(".level", ""));
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
+					DebugLib.stopSystemAndReportInconsistency("Logging class name '"+theClass.getCanonicalName()+"' is not a valid class, use fully qualified class names (e.g. .");
+				}
+				setLoggingLevel(theClass, loggingLevel);
+				if(beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel() <= 0 & loggingLevel > 0){
+					eventsToLog.add(theClass);
+				}else if(beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel() > 0 & loggingLevel <= 0){
+					eventsToLog.remove(theClass);
+				}
+			}
+		}
 	}
 
-	private void setLoggingLevel(String eventType, int level) {
+	private void setLoggingLevel(Class<?> eventType, int level) {
 		levels.put(eventType, level);
 	}
 
 	public Integer getLoggingLevel(Event event) {
-		if (levels.containsKey(event.getEventType())) {
-			return levels.get(event.getEventType());
+		if (levels.containsKey(event.getClass())) {
+			return levels.get(event.getClass());
 		} else {
-			return getDefaultLevel();
+			return this.beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel();
 		}
 	}
 
@@ -62,24 +71,14 @@ public class EventLogger {
 		services.getEvents().processEvent(event);
 	}
 
-	public int getWriteEVEventsInterval() {
-		return writeEVEventsInterval;
+	public boolean logEventsOfClass(Class<?> clazz) {
+		//TODO in future this is where fine tuning logging based on level number could occur (e.g. info versus debug)
+		return eventsToLog.contains(clazz);
 	}
-
-	private void setWriteEVEventsInterval(int writeEVEventsInterval) {
-		this.writeEVEventsInterval = writeEVEventsInterval;
-	}
-
-	public int getDefaultLevel() {
-		return defaultLevel;
-	}
-
-	private void setDefaultLevel(int defaultLevel) {
-		this.defaultLevel = defaultLevel;
-	}
-
-	public HashSet<Class> getControlEventTypesWithLogger() {
-		return controlEventTypesWithLogger;
+	
+	public HashSet<Class<?>> getAllEventsToLog(){
+		return eventsToLog;
 	}
 
 }
+
