@@ -87,6 +87,7 @@ dependencies {
 	compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
     compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
+    compile group: 'org.reflections', name: 'reflections', version: '0.9.10'
 }
 
 //////////////////////////////////////////////////////////////////////

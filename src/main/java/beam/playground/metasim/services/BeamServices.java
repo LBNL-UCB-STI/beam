@@ -30,6 +30,7 @@ import beam.playground.metasim.agents.PersonAgent;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
+import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
 import beam.sim.traveltime.BeamRouter;
 
 public interface BeamServices {
@@ -37,12 +38,14 @@ public interface BeamServices {
 	public BeamRouter getRouter();
 	public Scheduler getScheduler();
 	public BeamConfigGroup getBeamConfigGroup();
+	public BeamEventLoggerConfigGroup getBeamEventLoggerConfigGroup();
 	public BeamAgentPopulation getBeamAgentPopulation();
 	public Actions getActions();
 	public FiniteStateMachineGraph getFiniteStateMachineGraphFor(Class<?> theClass);
 	
 	public class Default implements BeamServices {
 		private BeamConfigGroup beamConfig;
+		private BeamEventLoggerConfigGroup beamEventLoggerConfig;
 		private Actions actions;
 		private Scheduler scheduler;
 		private BeamRandom random;
@@ -53,6 +56,7 @@ public interface BeamServices {
 		public Default(MatsimServices matsimServices, Actions actions, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
 			super();
 			this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
+			this.beamEventLoggerConfig = (BeamEventLoggerConfigGroup) matsimServices.getConfig().getModules().get(BeamEventLoggerConfigGroup.GROUP_NAME);
 			this.actions = actions;
 			this.scheduler = scheduler;
 			this.random = random;
@@ -83,6 +87,10 @@ public interface BeamServices {
 		@Override
 		public BeamConfigGroup getBeamConfigGroup() {
 			return beamConfig;
+		}
+		@Override
+		public BeamEventLoggerConfigGroup getBeamEventLoggerConfigGroup() {
+			return beamEventLoggerConfig;
 		}
 		@Override
 		public Actions getActions() {

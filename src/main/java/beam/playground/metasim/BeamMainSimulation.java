@@ -17,6 +17,7 @@ import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.corelisteners.ControllerCoreListenersModule;
 import beam.playground.metasim.injection.modules.BeamModule;
 import beam.playground.metasim.services.config.BeamConfigGroup;
+import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -33,7 +34,7 @@ public class BeamMainSimulation {
 
 	    List<AbstractModule> modules = new ArrayList<>(Arrays.<AbstractModule>asList(new ControlerDefaultsModule()));
 	    
-	    Config config = ConfigUtils.loadConfig(INPUT_DIRECTORY_BASE_PATH + File.separator + CONFIG_RELATIVE_PATH,new BeamConfigGroup());
+	    Config config = ConfigUtils.loadConfig(INPUT_DIRECTORY_BASE_PATH + File.separator + CONFIG_RELATIVE_PATH,new BeamConfigGroup(), new BeamEventLoggerConfigGroup());
 	    ((BeamConfigGroup)config.getModules().get("beam")).customizeConfiguration(config,INPUT_DIRECTORY_BASE_PATH,CONFIG_RELATIVE_PATH,OUTPUT_DIRECTORY_BASE_PATH);
 
 	    com.google.inject.Injector injector = Injector.createInjector(config,AbstractModule.override(Collections.singleton(new AbstractModule() {
