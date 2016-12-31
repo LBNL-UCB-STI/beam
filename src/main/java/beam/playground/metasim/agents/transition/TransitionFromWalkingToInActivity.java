@@ -3,8 +3,8 @@ package beam.playground.metasim.agents.transition;
 import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
 
-import beam.playground.metasim.agents.AgentWithPlans;
 import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.agents.plans.AgentWithPlans;
 import beam.playground.metasim.agents.states.State;
 
 public class TransitionFromWalkingToInActivity extends Transition.Default {

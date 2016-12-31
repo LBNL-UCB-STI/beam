@@ -20,15 +20,13 @@ public interface BeamAgent {
 	public class Default implements BeamAgent {
 		protected Id<BeamAgent> id;
 		protected State state;
-		protected TransitionSelector transitionSelector;
 		protected FiniteStateMachineGraph graph;
 		protected BeamServices beamServices;
 
-		public Default(Id<BeamAgent> id, TransitionSelector transitionSelector, BeamServices beamServices) {
+		public Default(Id<BeamAgent> id, BeamServices beamServices) {
 			super();
 			this.id = id;
 			this.getClass();
-			this.transitionSelector = transitionSelector;
 			this.beamServices = beamServices;
 			this.graph = beamServices.getFiniteStateMachineGraphFor(this.getClass());
 			this.state = this.graph.getInitialState();
@@ -46,7 +44,7 @@ public interface BeamAgent {
 
 		@Override
 		public TransitionSelector getTransitionSelector(Action action) {
-			return transitionSelector;
+			return null;
 		}
 
 		@Override

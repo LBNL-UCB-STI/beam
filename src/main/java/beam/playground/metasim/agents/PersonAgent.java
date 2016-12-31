@@ -1,20 +1,38 @@
 package beam.playground.metasim.agents;
 
+import java.util.List;
+import java.util.Map;
+
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Plan;
+import org.matsim.utils.objectattributes.attributable.Attributes;
 
+import com.google.inject.Inject;
+
+import beam.playground.metasim.agents.actions.Action;
+import beam.playground.metasim.agents.plans.AgentWithPlans;
+import beam.playground.metasim.agents.plans.BeamPlan;
+import beam.playground.metasim.agents.plans.BeamPlanFactory;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 import beam.playground.metasim.services.BeamServices;
 
-public class PersonAgent extends BeamAgent.Default implements MobileAgent {
+public class PersonAgent extends BeamAgent.Default implements MobileAgent, AgentWithPlans {
 	Coord location;
-	Id<Person> personId;
+	Person person;
+	BeamPlan beamPlan;
 	
-	public PersonAgent(Id<Person> personId, Coord location, TransitionSelector transitionSelector, BeamServices beamServices){
-		super(Id.create(personId.toString(), BeamAgent.class),transitionSelector, beamServices);
-		this.personId = personId;
+	public PersonAgent(Person person, Coord location, BeamServices beamServices, BeamPlanFactory beamPlanFactory){
+		super(Id.create(person.getId().toString(), BeamAgent.class), beamServices);
+		this.person = person;
+		this.beamPlan = beamPlanFactory.create(this,person.getSelectedPlan());
+	}
+
+	@Override
+	public TransitionSelector getTransitionSelector(Action action) {
+		return beamPlan.getTransitionSelectorFor(action);
 	}
 
 	@Override
@@ -25,6 +43,16 @@ public class PersonAgent extends BeamAgent.Default implements MobileAgent {
 	@Override
 	public Boolean hasVehicleAvailable(Class<?> vehicleType) {
 		return true;
+	}
+
+	@Override
+	public Person getPerson() {
+		return person;
+	}
+
+	@Override
+	public BeamPlan getBeamPlan() {
+		return null;
 	}
 
 }

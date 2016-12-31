@@ -32,13 +32,13 @@ public interface BeamServices {
 	public BeamConfigGroup getBeamConfigGroup();
 	public BeamEventLoggerConfigGroup getBeamEventLoggerConfigGroup();
 	public BeamAgentPopulation getBeamAgentPopulation();
-	public Actions getActions();
+	public DefaultTranitionSelectors getActions();
 	public FiniteStateMachineGraph getFiniteStateMachineGraphFor(Class<?> theClass);
 	
 	public class Default implements BeamServices {
 		private BeamConfigGroup beamConfig;
 		private BeamEventLoggerConfigGroup beamEventLoggerConfig;
-		private Actions actions;
+		private DefaultTranitionSelectors actions;
 		private Scheduler scheduler;
 		private BeamRandom random;
 		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> fsmMap;
@@ -46,7 +46,7 @@ public interface BeamServices {
 		private MatsimServices matsimServices;
 
 		@Inject
-		public Default(MatsimServices matsimServices, Actions actions, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
+		public Default(MatsimServices matsimServices, DefaultTranitionSelectors actions, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
 			super();
 			this.matsimServices = matsimServices;
 			this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
@@ -87,7 +87,7 @@ public interface BeamServices {
 			return beamEventLoggerConfig;
 		}
 		@Override
-		public Actions getActions() {
+		public DefaultTranitionSelectors getActions() {
 			return actions;
 		}
 		@Override
