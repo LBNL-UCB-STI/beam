@@ -27,20 +27,25 @@ import com.google.inject.Provider;
 
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.agents.actions.Action;
+import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.sim.traveltime.BeamRouter;
 
-public class Actions {
-	private LinkedHashMap<String,Action> actions = new LinkedHashMap<>();
+public class DefaultTranitionSelectors {
+	private LinkedHashMap<Action,TransitionSelector> transitionSelectors = new LinkedHashMap<>();
 
 	@Inject
-	public Actions() {
+	public DefaultTranitionSelectors() {
 		super();
 	}
 
-	public LinkedHashMap<String, Action> getActionMap() {
-		return actions;
+	public void putDefaultTranitionSelectorForAction(Action action, TransitionSelector transitionSelector) {
+		transitionSelectors.put(action,transitionSelector);
+	}
+
+	public TransitionSelector getDefaultTranitionSelectorForAction(Action action) {
+		return transitionSelectors.get(action);
 	}
 
 
