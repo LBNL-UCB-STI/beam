@@ -28,11 +28,6 @@ public interface State {
 			this.name = name;
 		}
 
-		public Default(String name, GraphVizGraph graph, Default scope) {
-			this(name);
-			graph.node(scope, this).label(name);
-		}
-
 		@Override
 		public String getName() {
 			return name;

@@ -3,18 +3,11 @@ package beam.playground.metasim.events;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.config.groups.ControlerConfigGroup.EventsFileFormat;
 import org.matsim.core.controler.MatsimServices;
-import org.reflections.Reflections;
-
-import com.google.inject.Inject;
 
 import beam.parking.lib.DebugLib;
-import beam.playground.metasim.events.ActionEvent;
-import beam.playground.metasim.events.TransitionEvent;
 import beam.playground.metasim.services.BeamServices;
 
 public class BeamEventLogger {

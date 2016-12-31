@@ -1,27 +1,41 @@
 package beam.playground.metasim.agents;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
+import org.anarres.graphviz.builder.GraphVizGraph;
+import org.anarres.graphviz.builder.GraphVizScope;
 import org.apache.log4j.Logger;
 import org.jdom.Element;
+import org.matsim.core.controler.MatsimServices;
+import org.matsim.core.utils.io.IOUtils;
 import org.xml.sax.SAXException;
+
+import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.actions.ActionFactory;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
+import beam.playground.metasim.services.BeamServices;
+import beam.playground.metasim.viz.GraphVizExporter;
 
 public class FiniteStateMachineGraph {
 	private static Logger log = Logger.getLogger(FiniteStateMachineGraph.class);
+	private MatsimServices matsimServices;
+	private BeamServices beamServices;
 	State initialState;
 	LinkedHashMap<String,State> states = new LinkedHashMap<>();
 	LinkedHashMap<String, Transition> transitions = new LinkedHashMap<>();
 	LinkedHashMap<String, Action> actions = new LinkedHashMap<>();
 	Class<?> assignedClass;
 
-	public FiniteStateMachineGraph(Element elem, ActionFactory actionFactory, TransitionFactory transitionFactory) throws SAXException, ClassNotFoundException {
+	public FiniteStateMachineGraph(Element elem, ActionFactory actionFactory, TransitionFactory transitionFactory, MatsimServices matsimServices, BeamServices beamServices) throws SAXException, ClassNotFoundException {
+		this.matsimServices = matsimServices;
+		this.beamServices = beamServices;
 		if(elem.getAttributeValue("class") == null)throw new SAXException("Finite state machine element ('finiteStateMachine') in XML config file does not have a 'class' attribute");
 		this.assignedClass = Class.forName(elem.getAttributeValue("class"));
 		for(int j=0; j < elem.getChildren().size(); j++){
@@ -103,6 +117,30 @@ public class FiniteStateMachineGraph {
 
 	public LinkedHashMap<String, Action> getActionMap() {
 		return actions;
+	}
+
+	public void printGraphToImageFile(String dotConfigFile, String outputPath) {
+		GraphVizGraph vizGraph = new GraphVizGraph();
+		GraphVizScope scope = (GraphVizScope)this.initialState;
+		
+		for(State state : states.values()){
+			vizGraph.node(scope, state).label(state.getName());
+		}
+		for(Transition transition : transitions.values()){
+			vizGraph.edge(scope, transition.getFromState(), transition.getToState());
+//			vizGraph.edge(scope, transition.getFromState(), transition.getToState()).label(transition.toString());
+		}
+		File dotFile = new File(outputPath + File.separator + "graph" + assignedClass.getSimpleName() + ".dot");
+		File pdfFile = new File(outputPath + File.separator + "graph" + assignedClass.getSimpleName() + ".pdf");
+		try {
+			vizGraph.writeTo(dotFile);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		GraphVizExporter graphVizExporter = new GraphVizExporter(dotConfigFile);
+//	    graphVizExporter.decreaseDpi();
+	    graphVizExporter.writeGraphToFile( graphVizExporter.getGraphFromFile( dotFile, "pdf"), pdfFile );
+	    dotFile.delete();
 	}
 
 }

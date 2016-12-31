@@ -1,7 +1,5 @@
 package beam.playground.metasim.agents.transition;
 
-import org.anarres.graphviz.builder.GraphVizGraph;
-import org.anarres.graphviz.builder.GraphVizScope;
 import org.matsim.core.controler.MatsimServices;
 
 import com.google.inject.Inject;
@@ -12,8 +10,6 @@ import beam.playground.metasim.services.BeamServices;
 
 public interface TransitionFactory {
 	Transition create(Class transitionClass, State fromState, State toState, Boolean isContingent);
-	Transition create(Class transitionClass, State fromState, State toState, Boolean isContingent, GraphVizGraph graph,
-			GraphVizScope scope);
 	
 	public class Default implements TransitionFactory{
 		private final Provider<BeamServices> beamServicesProvider;
@@ -27,17 +23,13 @@ public interface TransitionFactory {
 
 		@Override
 		public Transition create(Class transitionClass, State fromState, State toState, Boolean isContingent) {
-			return create(transitionClass, fromState, toState, isContingent, null, null);
-		}
-		@Override
-		public Transition create(Class transitionClass, State fromState, State toState, Boolean isContingent, GraphVizGraph graph, GraphVizScope scope) {
 			Transition transition = null;
 			try {
 				transition = (Transition)transitionClass.newInstance();
 			} catch (InstantiationException | IllegalAccessException e) {
 				e.printStackTrace();
 			}
-			transition.initialize(fromState, toState, isContingent, graph, scope, beamServicesProvider.get(), matsimServiceProvider.get());
+			transition.initialize(fromState, toState, isContingent, beamServicesProvider.get(), matsimServiceProvider.get());
 			return transition;
 		}
 	}

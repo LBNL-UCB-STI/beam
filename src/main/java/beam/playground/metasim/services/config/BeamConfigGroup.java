@@ -10,10 +10,12 @@ import org.matsim.core.config.ReflectiveConfigGroup;
 public class BeamConfigGroup extends ReflectiveConfigGroup {
 	public static final String GROUP_NAME = "beam";
 	public static final String SIMULATION_NAME = "simulationName", EVENTS_FILE_OUTPUT_FORMATS= "eventsFileOutputFormats", FINITE_STATE_MACHINES_CONFIG_FILE="finiteStateMachinesConfigFile";
+	public static final String DOT_CONFIG_FILE = "dotConfigFile";
 
 	private String simulationName;
 	private String eventsFileOutputFormats;
 	private String finiteStateMachinesConfigFile;
+	private String dotConfigFile;
 
 	private String inputDirectoryBasePath;
 	private String configRelativePath;
@@ -101,10 +103,19 @@ public class BeamConfigGroup extends ReflectiveConfigGroup {
     public void setFiniteStateMachinesConfigFile(String finiteStateMachinesConfigFile){
     	this.finiteStateMachinesConfigFile = finiteStateMachinesConfigFile;
     }
+    @StringGetter(DOT_CONFIG_FILE)
+    public String getDotConfigFile(){
+    	return this.dotConfigFile;
+    }
+    @StringSetter(DOT_CONFIG_FILE)
+    public void setDotConfigFile(String dotConfigFile){
+    	this.dotConfigFile = dotConfigFile;
+    }
 
     //TODO this needs to come from somewhere if we want this control
 	public boolean getDumpPlansAtEndOfRun() {
 		return false;
 	}
+
 
 }

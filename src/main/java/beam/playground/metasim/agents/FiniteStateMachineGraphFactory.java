@@ -9,6 +9,7 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
+import org.matsim.core.controler.MatsimServices;
 import org.xml.sax.SAXException;
 
 import com.google.inject.Inject;
@@ -24,18 +25,20 @@ public interface FiniteStateMachineGraphFactory {
 	public class Default implements FiniteStateMachineGraphFactory{
 		ActionFactory actionFactory;
 		Provider<BeamServices> beamServicesProvider;
+		Provider<MatsimServices> matsimServicesProvider;
 		TransitionFactory transitionFactory;
 
 		@Inject
-		public Default(Provider<BeamServices> beamServicesProvider, ActionFactory actionFactory, TransitionFactory transitionFactory){
+		public Default(Provider<BeamServices> beamServicesProvider, Provider<MatsimServices> matsimServicesProvider, ActionFactory actionFactory, TransitionFactory transitionFactory){
 			this.beamServicesProvider = beamServicesProvider;
+			this.matsimServicesProvider = matsimServicesProvider;
 			this.actionFactory = actionFactory;
 			this.transitionFactory = transitionFactory;
 		}
 
 		@Override
 		public FiniteStateMachineGraph create(Element fsmElem) throws ClassNotFoundException, SAXException {
-			return new FiniteStateMachineGraph(fsmElem, actionFactory, transitionFactory);
+			return new FiniteStateMachineGraph(fsmElem, actionFactory, transitionFactory, matsimServicesProvider.get(), beamServicesProvider.get());
 		}
 
 	}

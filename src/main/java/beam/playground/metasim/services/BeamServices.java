@@ -2,15 +2,10 @@ package beam.playground.metasim.services;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.LinkedHashMap;
-import java.util.Random;
 
-import javax.naming.spi.StateFactory;
-
-import org.apache.log4j.Logger;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -19,21 +14,18 @@ import org.matsim.core.controler.MatsimServices;
 import org.xml.sax.SAXException;
 
 import com.google.inject.Inject;
-import com.google.inject.Singleton;
 
 import beam.parking.lib.DebugLib;
-import beam.playground.metasim.BeamMainSimulation;
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.agents.FiniteStateMachineGraph;
 import beam.playground.metasim.agents.FiniteStateMachineGraphFactory;
-import beam.playground.metasim.agents.PersonAgent;
-import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
 import beam.sim.traveltime.BeamRouter;
 
 public interface BeamServices {
+	public MatsimServices getMatsimServices();
 	public BeamRandom getRandom();
 	public BeamRouter getRouter();
 	public Scheduler getScheduler();
@@ -51,10 +43,12 @@ public interface BeamServices {
 		private BeamRandom random;
 		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> fsmMap;
 		private FiniteStateMachineGraphFactory finiteStateMachineGraphFactory;
+		private MatsimServices matsimServices;
 
 		@Inject
 		public Default(MatsimServices matsimServices, Actions actions, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
 			super();
+			this.matsimServices = matsimServices;
 			this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
 			this.beamEventLoggerConfig = (BeamEventLoggerConfigGroup) matsimServices.getConfig().getModules().get(BeamEventLoggerConfigGroup.GROUP_NAME);
 			this.actions = actions;
@@ -114,10 +108,15 @@ public interface BeamServices {
 				Element elem = (Element)document.getRootElement().getChildren().get(i);
 				if(elem.getName().toLowerCase().equals("finitestatemachine")){
 					FiniteStateMachineGraph graph = finiteStateMachineGraphFactory.create(elem);
+					graph.printGraphToImageFile(beamConfig.getDotConfigFile(),matsimServices.getControlerIO().getOutputPath());
 					result.put(graph.getAssignedClass(), graph);
 				}
 			}
 			return result;
+		}
+		@Override
+		public MatsimServices getMatsimServices() {
+			return matsimServices;
 		}
 
 	}

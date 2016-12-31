@@ -16,7 +16,7 @@ public interface Transition {
 	public Boolean isContingent();
 	public Boolean isAvailableTo(BeamAgent agent);
 	public void performTransition(BeamAgent agent);
-	public void initialize(State fromState, State toState, Boolean isContingent, GraphVizGraph graph, GraphVizScope scope, BeamServices beamServices, MatsimServices matsimServices);
+	public void initialize(State fromState, State toState, Boolean isContingent, BeamServices beamServices, MatsimServices matsimServices);
 	
 	public abstract class Default implements Transition, GraphVizScope {
 		protected BeamServices beamServices;
@@ -25,17 +25,12 @@ public interface Transition {
 		protected Boolean isContingent;
 
 		@Override
-		public void initialize(State fromState, State toState, Boolean isContingent, GraphVizGraph graph, GraphVizScope scope, BeamServices beamServices, MatsimServices matsimServices){
+		public void initialize(State fromState, State toState, Boolean isContingent, BeamServices beamServices, MatsimServices matsimServices){
 			this.fromState = fromState;
 			this.toState = toState;
 			this.isContingent = isContingent;
 			this.beamServices = beamServices;
 			this.matsimServices = matsimServices;
-			if(graph!=null && scope!= null){
-				graph.edge(scope, fromState, toState);
-				graph.edge(scope, fromState, toState).label("From"+fromState.getName()+"To"+toState.getName());
-			}
-			
 		}
 
 		@Override
