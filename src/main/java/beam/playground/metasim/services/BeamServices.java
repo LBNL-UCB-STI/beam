@@ -2,6 +2,7 @@ package beam.playground.metasim.services;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.LinkedHashMap;
@@ -19,6 +20,7 @@ import beam.parking.lib.DebugLib;
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.agents.FiniteStateMachineGraph;
 import beam.playground.metasim.agents.FiniteStateMachineGraphFactory;
+import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
@@ -32,13 +34,14 @@ public interface BeamServices {
 	public BeamConfigGroup getBeamConfigGroup();
 	public BeamEventLoggerConfigGroup getBeamEventLoggerConfigGroup();
 	public BeamAgentPopulation getBeamAgentPopulation();
-	public DefaultTranitionSelectors getActions();
+	public ChoiceModelService getChoiceModelService();
 	public FiniteStateMachineGraph getFiniteStateMachineGraphFor(Class<?> theClass);
+	public void finalizeInitialization();
 	
 	public class Default implements BeamServices {
 		private BeamConfigGroup beamConfig;
 		private BeamEventLoggerConfigGroup beamEventLoggerConfig;
-		private DefaultTranitionSelectors actions;
+		private ChoiceModelService choiceModelService;
 		private Scheduler scheduler;
 		private BeamRandom random;
 		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> fsmMap;
@@ -46,21 +49,57 @@ public interface BeamServices {
 		private MatsimServices matsimServices;
 
 		@Inject
-		public Default(MatsimServices matsimServices, DefaultTranitionSelectors actions, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
+		public Default(MatsimServices matsimServices, ChoiceModelService choiceModelService, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
 			super();
 			this.matsimServices = matsimServices;
 			this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
 			this.beamEventLoggerConfig = (BeamEventLoggerConfigGroup) matsimServices.getConfig().getModules().get(BeamEventLoggerConfigGroup.GROUP_NAME);
-			this.actions = actions;
+			this.choiceModelService = choiceModelService;
 			this.scheduler = scheduler;
 			this.random = random;
 			this.finiteStateMachineGraphFactory = finiteStateMachineGraphFactory;
+			/*
+			 * Calls that involve parsing input files.
+			 */
 			try {
+				initializeChoiceModelService();
 				this.fsmMap = loadFiniteStateMachineGraphs();
 			} catch (JDOMException | IOException | ClassNotFoundException | SAXException e ) {
 				e.printStackTrace();
 				DebugLib.stopSystemAndReportInconsistency();
 			}
+		}
+		@Override
+		public void finalizeInitialization(){
+			for(FiniteStateMachineGraph fsm : fsmMap.values()){
+				for(Action action : fsm.getActionMap().values()){
+					choiceModelService.putDefaultChoiceModelForAction(action, choiceModelService.getDefaultChoiceModelOfClass(((Action.Default)action).getDefaultChoiceModel()));
+				}
+			}
+		}
+		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> loadFiniteStateMachineGraphs() throws JDOMException, IOException, ClassNotFoundException, SAXException {
+			LinkedHashMap<Class<?>, FiniteStateMachineGraph> result = new LinkedHashMap<>();
+			SAXBuilder saxBuilder = new SAXBuilder();
+			InputStream stream = null;
+			Document document = null;
+			stream = new FileInputStream(new File(beamConfig.getFiniteStateMachinesConfigFile()));
+			document = saxBuilder.build(stream);
+
+			for(int i=0; i < document.getRootElement().getChildren().size(); i++){
+				Element elem = (Element)document.getRootElement().getChildren().get(i);
+				if(elem.getName().toLowerCase().equals("finitestatemachine")){
+					FiniteStateMachineGraph graph = finiteStateMachineGraphFactory.create(elem);
+					graph.printGraphToImageFile(beamConfig.getDotConfigFile(),matsimServices.getControlerIO().getOutputPath());
+					result.put(graph.getAssignedClass(), graph);
+				}
+			}
+			return result;
+		}
+		private void initializeChoiceModelService() throws JDOMException, IOException, ClassNotFoundException, SAXException {
+			SAXBuilder saxBuilder = new SAXBuilder();
+			InputStream stream = null;
+			stream = new FileInputStream(new File(beamConfig.getChoiceModelConfigFile()));
+			choiceModelService.initialize(saxBuilder.build(stream));
 		}
 		@Override
 		public BeamRandom getRandom() {
@@ -87,37 +126,18 @@ public interface BeamServices {
 			return beamEventLoggerConfig;
 		}
 		@Override
-		public DefaultTranitionSelectors getActions() {
-			return actions;
+		public ChoiceModelService getChoiceModelService() {
+			return choiceModelService;
 		}
 		@Override
 		public FiniteStateMachineGraph getFiniteStateMachineGraphFor(Class<?> theClass) {
 			return fsmMap.get(theClass);
 		}
-
-		//TODO there is surely a more appropriate place to do the XML parsing (maybe a static method in FiniteStateMachineGraph?
-		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> loadFiniteStateMachineGraphs() throws JDOMException, IOException, ClassNotFoundException, SAXException {
-			LinkedHashMap<Class<?>, FiniteStateMachineGraph> result = new LinkedHashMap<>();
-			SAXBuilder saxBuilder = new SAXBuilder();
-			InputStream stream = null;
-			Document document = null;
-			stream = new FileInputStream(new File(beamConfig.getFiniteStateMachinesConfigFile()));
-			document = saxBuilder.build(stream);
-
-			for(int i=0; i < document.getRootElement().getChildren().size(); i++){
-				Element elem = (Element)document.getRootElement().getChildren().get(i);
-				if(elem.getName().toLowerCase().equals("finitestatemachine")){
-					FiniteStateMachineGraph graph = finiteStateMachineGraphFactory.create(elem);
-					graph.printGraphToImageFile(beamConfig.getDotConfigFile(),matsimServices.getControlerIO().getOutputPath());
-					result.put(graph.getAssignedClass(), graph);
-				}
-			}
-			return result;
-		}
 		@Override
 		public MatsimServices getMatsimServices() {
 			return matsimServices;
 		}
+
 
 	}
 

@@ -34,7 +34,7 @@ public interface ActionCallBack {
 			this.callingTransition = callingTransition;
 		}
 		public void perform() throws IllegalTransitionException{
-			action.initiateAction(targetAgent);
+			action.performOn(targetAgent);
 		}
 		public double getTime() {
 			return time;

@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.population.Plan;
 
 import beam.playground.metasim.agents.PersonAgent;
 import beam.playground.metasim.agents.actions.Action;
-import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
+import beam.playground.metasim.agents.behavior.ChoiceModel;
 import beam.playground.metasim.events.TransitionEvent;
 import beam.playground.metasim.services.BeamServices;
 
@@ -16,12 +16,12 @@ public interface BeamPlan {
 
 	public Plan getMatsimPlan();
 	public List<TransitionEvent> getTransitionEventHistory();
-	public TransitionSelector getTransitionSelectorFor(Action action);
+	public ChoiceModel getTransitionSelectorFor(Action action);
 
 	public class Default implements BeamPlan{
 		private Plan plan;
 		private ArrayList<TransitionEvent> transitionEventHistory;
-		private LinkedHashMap<Action,TransitionSelector> selectorMap = new LinkedHashMap<>();
+		private LinkedHashMap<Action,ChoiceModel> selectorMap = new LinkedHashMap<>();
 		private BeamServices beamServices;
 
 		public Default(PersonAgent personAgent, Plan plan, BeamServices beamServices){
@@ -40,8 +40,8 @@ public interface BeamPlan {
 		}
 
 		@Override
-		public TransitionSelector getTransitionSelectorFor(Action action) {
-			return selectorMap.containsKey(action) ? selectorMap.get(action) : beamServices.getActions().getDefaultTranitionSelectorForAction(action);
+		public ChoiceModel getTransitionSelectorFor(Action action) {
+			return selectorMap.containsKey(action) ? selectorMap.get(action) : beamServices.getChoiceModelService().getDefaultChoiceModelForAction(action);
 		}
 		
 	}

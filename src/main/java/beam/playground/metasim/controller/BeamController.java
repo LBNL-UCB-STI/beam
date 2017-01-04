@@ -6,6 +6,7 @@ import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 
+import beam.playground.metasim.services.BeamServices;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 
 import org.apache.log4j.Layout;
@@ -84,11 +85,12 @@ public final class BeamController extends AbstractController implements Controle
 	private Scenario scenario;
 	private BeamConfigGroup beamConfig;
 	private com.google.inject.Injector injector;
+	private BeamServices beamServices;
 
 	@Inject
 	public BeamController(Config config, ControlerListenerManager controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, EventsManager eventsManager,
 			PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, 
-			Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy, com.google.inject.Injector injector) {
+			Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy, com.google.inject.Injector injector, BeamServices beamServices) {
 		super(controlerListenerManager,stopWatch,matsimServices,outputDirectoryHierarchy);
 		this.config = config;
 		this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
@@ -107,6 +109,7 @@ public final class BeamController extends AbstractController implements Controle
 		this.controlerConfigGroup = controlerConfigGroup;
 		this.outputDirectoryHierarchy = outputDirectoryHierarchy;
 		this.injector = injector;
+		this.beamServices = beamServices;
 	}
 
 	@Override
@@ -384,6 +387,10 @@ public final class BeamController extends AbstractController implements Controle
 	@Override
 	protected boolean continueIterations(int iteration) {
 		return terminationCriterion.continueIterations(iteration);
+	}
+
+	public BeamServices getBeamServices() {
+		return beamServices;
 	}
 
 }

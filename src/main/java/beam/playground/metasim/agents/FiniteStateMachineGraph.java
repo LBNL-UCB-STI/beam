@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 
 import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
@@ -17,6 +18,7 @@ import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.actions.ActionFactory;
+import beam.playground.metasim.agents.behavior.RandomTransition;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
@@ -93,14 +95,32 @@ public class FiniteStateMachineGraph {
 						State theState = states.get(actionElem.getAttributeValue("state"));
 						if(theState == null)throw new SAXException("Action in finite state machine for class " + elem.getAttributeValue("class") + " specifies an unknown state: " + actionElem.getAttributeValue("state"));
 						
-						//TODO need to deal with restrictToTransitions here somehow
-						// define the subset of transitions that this action uses
 						String restrictToTransitions = actionElem.getAttributeValue("restrictToTransitions") == null ? "" : actionElem.getAttributeValue("restrictToTransitions");
+						LinkedList<Transition> restrictedTransitions = null;
+						if(!restrictToTransitions.trim().equals("")){
+							restrictedTransitions = new LinkedList<>();
+							for(String transitionString : restrictToTransitions.split(",")){
+								restrictedTransitions.add(transitions.get(transitionString));
+							}
+						}
 						
 						// Make the action 
-						Action theAction = actionFactory.create(actionElem.getAttributeValue("name"));
+						Action theAction = actionFactory.create(actionElem.getAttributeValue("name"), restrictedTransitions);
 						actions.put(theAction.getName(), theAction);
 						theState.addAction(theAction);
+						
+						// Register the default mapping from this action to a choice model
+						Class<?> choiceModelClass = null;
+						if(actionElem.getAttributeValue("defaultChoiceModel")==null){
+							choiceModelClass = RandomTransition.class;
+						}else{
+							try{
+								choiceModelClass = Class.forName(actionElem.getAttributeValue("defaultChoiceModel"));
+							}catch(ClassNotFoundException e){
+								choiceModelClass = RandomTransition.class;
+							}
+						}
+						((Action.Default)theAction).setDefaultChoiceModel(choiceModelClass);
 					}
 				}
 			}

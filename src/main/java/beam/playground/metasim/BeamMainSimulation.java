@@ -48,6 +48,7 @@ public class BeamMainSimulation {
 			}
 		}), AbstractModule.override(Arrays.asList(new ScenarioByConfigModule()),new BeamModule())));
 		BeamController controller = injector.getInstance(BeamController.class);
+		controller.getBeamServices().finalizeInitialization();
 		controller.run();
 		int i = 0;
 	}

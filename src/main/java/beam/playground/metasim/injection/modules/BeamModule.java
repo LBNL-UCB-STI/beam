@@ -13,11 +13,12 @@ import beam.playground.metasim.agents.FiniteStateMachineGraphFactory;
 import beam.playground.metasim.agents.PersonAgentFactory;
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.actions.ActionFactory;
-import beam.playground.metasim.agents.behavior.Behavior;
-import beam.playground.metasim.agents.behavior.TravelBehaviorProvider;
+import beam.playground.metasim.agents.behavior.ChoiceModel;
+import beam.playground.metasim.agents.behavior.ChoiceModelFactory;
+import beam.playground.metasim.agents.behavior.ModeChoice;
+import beam.playground.metasim.agents.behavior.RandomTransition;
+import beam.playground.metasim.agents.plans.BeamPlanFactory;
 import beam.playground.metasim.agents.transition.TransitionFactory;
-import beam.playground.metasim.agents.transition.selectors.RandomTransitionSelector;
-import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.corelisteners.BeamEventsHandlingImpl;
 import beam.playground.metasim.controller.corelisteners.DumpDataAtEndImpl;
@@ -25,7 +26,7 @@ import beam.playground.metasim.metasim.MetaSim;
 import beam.playground.metasim.scheduler.ActionCallBack;
 import beam.playground.metasim.scheduler.ActionCallBackFactory;
 import beam.playground.metasim.scheduler.Scheduler;
-import beam.playground.metasim.services.DefaultTranitionSelectors;
+import beam.playground.metasim.services.ChoiceModelService;
 import beam.playground.metasim.services.BeamRandom;
 import beam.playground.metasim.services.BeamServices;
 import beam.sim.traveltime.BeamRouter;
@@ -52,14 +53,15 @@ public class BeamModule extends AbstractModule {
 		bind(Scheduler.class).asEagerSingleton();
 		
 		// AGENTS
-		bind(DefaultTranitionSelectors.class).asEagerSingleton();
-		bind(TransitionSelector.class).to(RandomTransitionSelector.class);
 		bind(PersonAgentFactory.class).to(PersonAgentFactory.Default.class);
-		bind(Behavior.class).toProvider(TravelBehaviorProvider.class);
 		install(new FactoryModuleBuilder().implement(Action.class, Action.Default.class).build(ActionFactory.class));
 		bind(TransitionFactory.class).to(TransitionFactory.Default.class);
 		bind(FiniteStateMachineGraphFactory.class).to(FiniteStateMachineGraphFactory.Default.class);
+		bind(BeamPlanFactory.class).to(BeamPlanFactory.Default.class);
 		
+		// CHOICE MODELS
+		bind(ChoiceModelService.class).to(ChoiceModelService.Default.class);
+		install(new FactoryModuleBuilder().build(ChoiceModelFactory.class));
 	}
 
 }

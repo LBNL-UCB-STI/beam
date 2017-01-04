@@ -7,9 +7,9 @@ import org.matsim.api.core.v01.population.Person;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 
+import beam.playground.metasim.agents.behavior.ChoiceModel;
 import beam.playground.metasim.agents.plans.BeamPlanFactory;
 import beam.playground.metasim.agents.states.State;
-import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 import beam.playground.metasim.services.BeamServices;
 
 public interface PersonAgentFactory {

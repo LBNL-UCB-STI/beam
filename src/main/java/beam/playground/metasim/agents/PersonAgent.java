@@ -12,11 +12,11 @@ import org.matsim.utils.objectattributes.attributable.Attributes;
 import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.Action;
+import beam.playground.metasim.agents.behavior.ChoiceModel;
 import beam.playground.metasim.agents.plans.AgentWithPlans;
 import beam.playground.metasim.agents.plans.BeamPlan;
 import beam.playground.metasim.agents.plans.BeamPlanFactory;
 import beam.playground.metasim.agents.states.State;
-import beam.playground.metasim.agents.transition.selectors.TransitionSelector;
 import beam.playground.metasim.services.BeamServices;
 
 public class PersonAgent extends BeamAgent.Default implements MobileAgent, AgentWithPlans {
@@ -31,7 +31,7 @@ public class PersonAgent extends BeamAgent.Default implements MobileAgent, Agent
 	}
 
 	@Override
-	public TransitionSelector getTransitionSelector(Action action) {
+	public ChoiceModel getChoiceModel(Action action) {
 		return beamPlan.getTransitionSelectorFor(action);
 	}
 
