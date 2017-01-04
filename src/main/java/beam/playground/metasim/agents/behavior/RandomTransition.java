@@ -1,19 +1,17 @@
-package beam.playground.metasim.agents.transition.selectors;
+package beam.playground.metasim.agents.behavior;
 
 import java.util.LinkedList;
 
 import com.google.inject.Inject;
-import com.google.inject.Singleton;
 
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.services.BeamServices;
 
-@Singleton
-public class RandomTransitionSelector implements TransitionSelector {
+public class RandomTransition implements ChoiceModel {
 	private BeamServices beamServices;
 
 	@Inject
-	public RandomTransitionSelector(BeamServices beamServices){
+	public RandomTransition(BeamServices beamServices){
 		super();
 		this.beamServices = beamServices;
 	}
@@ -21,5 +19,4 @@ public class RandomTransitionSelector implements TransitionSelector {
 	public Transition selectTransition(LinkedList<Transition> transitions) {
 		return transitions.size() == 0 ? null : transitions.get(beamServices.getRandom().nextInt(transitions.size()));
 	}
-
 }
