@@ -1,8 +1,8 @@
-package beam.playground.metasim.agents.behavior;
+package beam.playground.metasim.agents.choice.models;
 
 import org.jdom.Element;
 
-import beam.playground.metasim.agents.behavior.ChoiceModel;
+import beam.playground.metasim.agents.choice.models.ChoiceModel;
 
 public interface ChoiceModelFactory {
 
