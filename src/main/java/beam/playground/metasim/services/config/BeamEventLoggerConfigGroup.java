@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Map;
 import org.matsim.core.config.ReflectiveConfigGroup;
 
+import beam.playground.metasim.events.ActionCallBackScheduleEvent;
 import beam.playground.metasim.events.ActionEvent;
 import beam.playground.metasim.events.TransitionEvent;
 
@@ -25,6 +26,7 @@ public class BeamEventLoggerConfigGroup extends ReflectiveConfigGroup {
 		// Registry of BEAM (or MATSim) events that can be logged by BeamEventLogger
 		allLoggableEvents.add(ActionEvent.class);
 		allLoggableEvents.add(TransitionEvent.class);
+		allLoggableEvents.add(ActionCallBackScheduleEvent.class);
 	}
 
     @Override

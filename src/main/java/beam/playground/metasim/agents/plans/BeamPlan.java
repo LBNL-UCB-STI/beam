@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.population.Plan;
 
 import beam.playground.metasim.agents.PersonAgent;
 import beam.playground.metasim.agents.actions.Action;
-import beam.playground.metasim.agents.behavior.ChoiceModel;
+import beam.playground.metasim.agents.choice.models.ChoiceModel;
 import beam.playground.metasim.events.TransitionEvent;
 import beam.playground.metasim.services.BeamServices;
 

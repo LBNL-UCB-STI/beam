@@ -1,13 +1,8 @@
 package beam.playground.metasim.agents.transition;
 
-import org.anarres.graphviz.builder.GraphVizGraph;
-import org.anarres.graphviz.builder.GraphVizScope;
-
-import com.google.inject.Inject;
-
-import beam.EVGlobalData;
+import java.util.List;
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.agents.states.State;
+import beam.playground.metasim.scheduler.ActionCallBack;
 
 public class TransitionFromInActivityToChoosingMode extends Transition.Default {
 
@@ -17,8 +12,8 @@ public class TransitionFromInActivityToChoosingMode extends Transition.Default {
 	}
 
 	@Override
-	public void performTransition(BeamAgent agent) {
-		beamServices.getScheduler().addCallBackMethod(beamServices.getScheduler().getNow() + 60.0, agent, "ChooseMode", this);
+	public List<ActionCallBack> performTransition(BeamAgent agent) {
+		return beamServices.getScheduler().createCallBackMethod(beamServices.getScheduler().getNow() + 60.0, agent, "ChooseMode", this);
 	}
 
 }

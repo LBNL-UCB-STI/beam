@@ -5,13 +5,17 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Set;
 
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
 import org.matsim.core.controler.MatsimServices;
+import org.reflections.Reflections;
 import org.xml.sax.SAXException;
 
 import com.google.inject.Inject;
@@ -21,6 +25,9 @@ import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.agents.FiniteStateMachineGraph;
 import beam.playground.metasim.agents.FiniteStateMachineGraphFactory;
 import beam.playground.metasim.agents.actions.Action;
+import beam.playground.metasim.scheduler.ActionCallBack;
+import beam.playground.metasim.scheduler.ActionScheduler;
+import beam.playground.metasim.scheduler.ActionSchedulerFactory;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
@@ -36,7 +43,8 @@ public interface BeamServices {
 	public BeamAgentPopulation getBeamAgentPopulation();
 	public ChoiceModelService getChoiceModelService();
 	public FiniteStateMachineGraph getFiniteStateMachineGraphFor(Class<?> theClass);
-	public void finalizeInitialization();
+	public void finalizeInitialization() throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException;
+	public ActionScheduler getActionSchedulerFor(Class<?> theClass);
 	
 	public class Default implements BeamServices {
 		private BeamConfigGroup beamConfig;
@@ -47,9 +55,11 @@ public interface BeamServices {
 		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> fsmMap;
 		private FiniteStateMachineGraphFactory finiteStateMachineGraphFactory;
 		private MatsimServices matsimServices;
+		private ActionSchedulerFactory actionSchedulerFactory;
+		private LinkedHashMap<Class<?>, ActionScheduler> actionSchedulers;
 
 		@Inject
-		public Default(MatsimServices matsimServices, ChoiceModelService choiceModelService, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory) {
+		public Default(MatsimServices matsimServices, ChoiceModelService choiceModelService, Scheduler scheduler,  BeamRandom random, FiniteStateMachineGraphFactory finiteStateMachineGraphFactory, ActionSchedulerFactory actionSchedulerFactory) {
 			super();
 			this.matsimServices = matsimServices;
 			this.beamConfig = (BeamConfigGroup) matsimServices.getConfig().getModules().get(BeamConfigGroup.GROUP_NAME);
@@ -58,6 +68,7 @@ public interface BeamServices {
 			this.scheduler = scheduler;
 			this.random = random;
 			this.finiteStateMachineGraphFactory = finiteStateMachineGraphFactory;
+			this.actionSchedulerFactory = actionSchedulerFactory;
 			/*
 			 * Calls that involve parsing input files.
 			 */
@@ -70,11 +81,17 @@ public interface BeamServices {
 			}
 		}
 		@Override
-		public void finalizeInitialization(){
+		public void finalizeInitialization() throws NoSuchMethodException, SecurityException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException{
 			for(FiniteStateMachineGraph fsm : fsmMap.values()){
 				for(Action action : fsm.getActionMap().values()){
 					choiceModelService.putDefaultChoiceModelForAction(action, choiceModelService.getDefaultChoiceModelOfClass(((Action.Default)action).getDefaultChoiceModel()));
 				}
+			}
+			actionSchedulers = new LinkedHashMap<>();
+			Reflections reflections = new Reflections("com.mycompany");    
+			Set<Class<? extends ActionScheduler>> classes = reflections.getSubTypesOf(ActionScheduler.class);
+			for(Class<? extends ActionScheduler> clazz: classes){
+				actionSchedulers.put(clazz,actionSchedulerFactory.create(clazz));
 			}
 		}
 		private LinkedHashMap<Class<?>, FiniteStateMachineGraph> loadFiniteStateMachineGraphs() throws JDOMException, IOException, ClassNotFoundException, SAXException {
@@ -137,9 +154,14 @@ public interface BeamServices {
 		public MatsimServices getMatsimServices() {
 			return matsimServices;
 		}
+		@Override
+		public ActionScheduler getActionSchedulerFor(Class<?> theClass) {
+			return actionSchedulers.get(theClass);
+		}
 
 
 	}
+
 
 
 	/*

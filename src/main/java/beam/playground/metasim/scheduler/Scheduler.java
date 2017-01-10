@@ -1,6 +1,9 @@
 package beam.playground.metasim.scheduler;
 
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
 
@@ -48,13 +51,15 @@ public class Scheduler {
 			}
 		}
 	});
-	public ActionCallBack addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
-		return addCallBackMethod(time, targetAgent, actionName, callingTransition, 0.0);
+	public List<ActionCallBack> createCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
+		return createCallBackMethod(time, targetAgent, actionName, callingTransition, 0.0);
 	}
-	public ActionCallBack addCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
+	public List<ActionCallBack> createCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
 		ActionCallBack callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingTransition);
+		return Arrays.asList(callback);
+	}
+	public void scheduleCallBack(ActionCallBack callback){
 		this.queue.add(callback);
-		return callback;
 	}
 	
 	public void doSimStep(double until) {

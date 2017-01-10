@@ -39,7 +39,7 @@ public class BeamAgentPopulation implements StartupListener{
 			Coord initialLocation = ((Activity)person.getPlans().get(0).getPlanElements().get(0)).getCoord();
 			BeamAgent newPerson = personAgentFactory.create(person,initialLocation);
 			beamAgents.add(newPerson);
-			beamServices.getScheduler().addCallBackMethod(0.0, newPerson, "Begin", newPerson.getGraph().getInitialState().getAllTranstions().iterator().next());
+			beamServices.getScheduler().scheduleCallBack(beamServices.getScheduler().createCallBackMethod(0.0, newPerson, "Begin", newPerson.getGraph().getInitialState().getAllTranstions().iterator().next()).iterator().next());
 		}
 	}
 

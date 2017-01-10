@@ -1,22 +1,28 @@
 package beam.playground.metasim.agents.transition;
 
-import org.anarres.graphviz.builder.GraphVizGraph;
-import org.anarres.graphviz.builder.GraphVizScope;
+import java.util.List;
+
+import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.agents.PersonAgent;
+import beam.playground.metasim.agents.choice.models.schedulers.EnterStateInActivityActionScheduler;
 import beam.playground.metasim.agents.plans.AgentWithPlans;
-import beam.playground.metasim.agents.states.State;
+import beam.playground.metasim.scheduler.ActionCallBack;
+import beam.playground.metasim.scheduler.ActionSchedulerFactory;
 
 public class TransitionFromStartToInActivity extends Transition.Default {
+	@Inject ActionSchedulerFactory actionSchedulerFactory;
 
 	@Override
 	public Boolean isAvailableTo(BeamAgent agent) {
 		return (agent instanceof AgentWithPlans);
 	}
 	@Override
-	public void performTransition(BeamAgent agent) {
-		beamServices.getScheduler().addCallBackMethod(beamServices.getScheduler().getNow() + 60.0, agent, "ChooseMode", this);
-		
+	public List<ActionCallBack> performTransition(BeamAgent agent) {
+		PersonAgent person = (PersonAgent)agent;
+//		Double timeToChooseMode = person.getPerson().getSelectedPlan();
+		return beamServices.getActionSchedulerFor(EnterStateInActivityActionScheduler.class).scheduleNextAction(agent, this);
 	}
 
 }

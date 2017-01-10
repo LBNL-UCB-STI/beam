@@ -12,7 +12,7 @@ import org.matsim.utils.objectattributes.attributable.Attributes;
 import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.Action;
-import beam.playground.metasim.agents.behavior.ChoiceModel;
+import beam.playground.metasim.agents.choice.models.ChoiceModel;
 import beam.playground.metasim.agents.plans.AgentWithPlans;
 import beam.playground.metasim.agents.plans.BeamPlan;
 import beam.playground.metasim.agents.plans.BeamPlanFactory;

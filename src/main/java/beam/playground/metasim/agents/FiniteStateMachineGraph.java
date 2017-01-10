@@ -18,7 +18,7 @@ import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.actions.ActionFactory;
-import beam.playground.metasim.agents.behavior.RandomTransition;
+import beam.playground.metasim.agents.choice.models.RandomTransition;
 import beam.playground.metasim.agents.states.State;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
@@ -54,6 +54,7 @@ public class FiniteStateMachineGraph {
 					}
 				}
 			}else if(graphElemName.equals("transitions")){
+				String transitionClassPrefix = (graphElem.getAttribute("transitionClassPrefix")==null) ? "" : graphElem.getAttributeValue("transitionClassPrefix");
 				for(int k=0; k < graphElem.getChildren().size(); k++){
 					Element transitionElem = (Element)graphElem.getChildren().get(k);
 					if(!transitionElem.getName().toLowerCase().equals("transition"))throw new SAXException("Unexpected element in config file for finite state machines finiteStateMachines::finiteStateMachine::transitions::" + transitionElem.getName());
@@ -75,12 +76,13 @@ public class FiniteStateMachineGraph {
 						Boolean isContingent = transitionElem.getAttributeValue("isContingent") == null ? false : transitionElem.getAttributeValue("isContingent").toLowerCase().equals("true");
 						
 						// Make the transition
-						Transition theTransition = transitionFactory.create(Class.forName(transitionElem.getAttributeValue("class")), fromState, toState, isContingent);
+						Transition theTransition = transitionFactory.create(Class.forName(transitionClassPrefix + transitionElem.getAttributeValue("class")), fromState, toState, isContingent);
 						transitions.put(transitionElem.getAttributeValue("class"),theTransition);
 						fromState.addTransition(theTransition);
 					}
 				}
 			}else if(graphElemName.equals("actions")){
+				String choiceModelClassPrefix = (graphElem.getAttribute("choiceModelClassPrefix")==null) ? "" : graphElem.getAttributeValue("choiceModelClassPrefix");
 				for(int k=0; k < graphElem.getChildren().size(); k++){
 					Element actionElem = (Element)graphElem.getChildren().get(k);
 					if(!actionElem.getName().toLowerCase().equals("action"))throw new SAXException("Unexpected element in config file for finite state machines finiteStateMachines::finiteStateMachine::actions::" + actionElem.getName());
@@ -115,7 +117,7 @@ public class FiniteStateMachineGraph {
 							choiceModelClass = RandomTransition.class;
 						}else{
 							try{
-								choiceModelClass = Class.forName(actionElem.getAttributeValue("defaultChoiceModel"));
+								choiceModelClass = Class.forName(choiceModelClassPrefix+actionElem.getAttributeValue("defaultChoiceModel"));
 							}catch(ClassNotFoundException e){
 								choiceModelClass = RandomTransition.class;
 							}

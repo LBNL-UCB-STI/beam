@@ -1,5 +1,6 @@
 package beam.playground.metasim;
 
+import org.apache.log4j.Logger;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.AbstractModule;
@@ -12,6 +13,7 @@ import org.matsim.core.scenario.ScenarioByConfigModule;
 
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 
+import beam.parking.lib.DebugLib;
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.corelisteners.ControllerCoreListenersModule;
@@ -20,6 +22,7 @@ import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
 
 import java.io.File;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,9 +51,13 @@ public class BeamMainSimulation {
 			}
 		}), AbstractModule.override(Arrays.asList(new ScenarioByConfigModule()),new BeamModule())));
 		BeamController controller = injector.getInstance(BeamController.class);
-		controller.getBeamServices().finalizeInitialization();
-		controller.run();
-		int i = 0;
+		try {
+			controller.getBeamServices().finalizeInitialization();
+			controller.run(); // throws nothing but will not execute if init throws an error
+		} catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException
+				| IllegalArgumentException | InvocationTargetException e) {
+			e.printStackTrace();
+		}
 	}
 
 }

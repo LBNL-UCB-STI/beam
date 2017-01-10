@@ -2,6 +2,7 @@ package beam.playground.metasim.agents.actions;
 
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 import javax.annotation.Nullable;
 
@@ -11,11 +12,13 @@ import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
 import beam.playground.metasim.agents.BeamAgent;
-import beam.playground.metasim.agents.behavior.ChoiceModel;
+import beam.playground.metasim.agents.choice.models.ChoiceModel;
 import beam.playground.metasim.agents.transition.Transition;
+import beam.playground.metasim.events.ActionCallBackScheduleEvent;
 import beam.playground.metasim.events.ActionEvent;
 import beam.playground.metasim.events.TransitionEvent;
 import beam.playground.metasim.exceptions.IllegalTransitionException;
+import beam.playground.metasim.scheduler.ActionCallBack;
 import beam.playground.metasim.services.BeamServices;
 
 public interface Action {
@@ -42,14 +45,18 @@ public interface Action {
     	@Override
     	public void performOn(BeamAgent agent) throws IllegalTransitionException {
     		LinkedList<Transition> availableTransitions = getAvailableTransitions(agent);
-    		Transition selectedTransition = agent.getChoiceModel(this).selectTransition(availableTransitions);
+    		Transition selectedTransition = agent.getChoiceModel(this).selectTransition(agent,availableTransitions);
     		if(!availableTransitions.contains(selectedTransition)){
     			throw new IllegalTransitionException("Transition selector " + agent.getChoiceModel(this) + " selected the transition " + selectedTransition + " which is not available to agent " + agent);
     		}
     		matsimServices.getEvents().processEvent(new ActionEvent(beamServices.getScheduler().getNow(),agent,this));
     		agent.setState(selectedTransition.getToState());
-    		selectedTransition.performTransition(agent);
+    		List<ActionCallBack> callbacksToSchedule = selectedTransition.performTransition(agent);
     		matsimServices.getEvents().processEvent(new TransitionEvent(beamServices.getScheduler().getNow(),agent,selectedTransition));
+    		for(ActionCallBack callback : callbacksToSchedule){
+    			matsimServices.getEvents().processEvent(new ActionCallBackScheduleEvent(beamServices.getScheduler().getNow(),this,callback));
+    			beamServices.getScheduler().scheduleCallBack(callback);
+    		}
     	}
 
     	private LinkedList<Transition> getAvailableTransitions(BeamAgent agent) {
