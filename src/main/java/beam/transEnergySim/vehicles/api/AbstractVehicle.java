@@ -23,8 +23,8 @@ import org.matsim.api.core.v01.network.Link;
 
 public abstract class AbstractVehicle implements Vehicle{
 
-	public double updateEnergyUse(Link link, double averageSpeedDrivenInMetersPerSecond){
-		return updateEnergyUse(link.getLength(), link.getFreespeed(), averageSpeedDrivenInMetersPerSecond);
+	public double updateEnergyUse(double distanceInMeters, double averageSpeedDrivenInMetersPerSecond){
+		return updateEnergyUse(distanceInMeters, averageSpeedDrivenInMetersPerSecond);
 	}
 	
 	

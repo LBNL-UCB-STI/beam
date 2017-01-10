@@ -949,7 +949,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 				for(RouteInformationElement infoElement : route){
 					if(cumulativeTripEnergy > getSoC() )break;
 					newRoute.add(infoElement);
-					cumulativeTripEnergy += vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionForLinkInJoule(infoElement.getLinkTravelDistance(),50.0,infoElement.getAverageSpeed());
+					cumulativeTripEnergy += vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionForLinkInJoule(infoElement.getLinkTravelDistance(),infoElement.getAverageSpeed());
 				}
 				route = newRoute;
 			}

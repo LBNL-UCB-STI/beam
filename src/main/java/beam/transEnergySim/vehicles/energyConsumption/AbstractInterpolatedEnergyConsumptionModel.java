@@ -82,7 +82,7 @@ public abstract class AbstractInterpolatedEnergyConsumptionModel implements Ener
 	 * @param distanceInMeters
 	 * @return
 	 */
-	protected double getInterpolatedEnergyConsumption(double speedInMetersPerSecond, double distanceInMeters) {
+	protected double getInterpolatedEnergyConsumption(double distanceInMeters, double speedInMetersPerSecond) {
 		Iterator<EnergyConsumption> iter = queue.iterator();
 
 		EnergyConsumption currentAverageConsumption = iter.next();
@@ -114,12 +114,12 @@ public abstract class AbstractInterpolatedEnergyConsumptionModel implements Ener
 	}
 	
 	@Override
-	public double getEnergyConsumptionForLinkInJoule(Link link, double averageSpeedDriven) {
-		return getEnergyConsumptionForLinkInJoule(link.getLength(), -1, averageSpeedDriven);
+	public double getEnergyConsumptionForLinkInJoule(double distance, double averageSpeedDriven) {
+		return getInterpolatedEnergyConsumption(distance,averageSpeedDriven);
 	}
 
-	@Override
-	public double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {
-		return getInterpolatedEnergyConsumption(averageSpeedDriven, drivenDistanceInMeters);
-	}
+//	@Override
+//	public double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {
+//		return getInterpolatedEnergyConsumption(averageSpeedDriven, drivenDistanceInMeters);
+//	}
 }

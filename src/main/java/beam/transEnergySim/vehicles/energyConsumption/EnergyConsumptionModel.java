@@ -35,9 +35,9 @@ import beam.parking.lib.DebugLib;
  */
 public interface EnergyConsumptionModel extends Serializable{
 
-	public abstract double getEnergyConsumptionForLinkInJoule(Link link, double averageSpeedDriven);
+	public abstract double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double averageSpeedDriven);
 	
-	public abstract double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven);
+//	public abstract double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven);
 
 	public abstract double getEnergyConsumptionRateInJoulesPerMeter();
 }

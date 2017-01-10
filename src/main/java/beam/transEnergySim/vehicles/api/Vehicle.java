@@ -27,9 +27,7 @@ import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 
 public interface Vehicle extends Identifiable<Vehicle>{
 
-	public double updateEnergyUse(Link link, double averageSpeedDrivenInMetersPerSecond);
-	
-	public double updateEnergyUse(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven);
+	public double updateEnergyUse(double drivenDistanceInMeters, double averageSpeedDriven);
 	
 	public void reset();
 

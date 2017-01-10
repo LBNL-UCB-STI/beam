@@ -29,14 +29,14 @@ public class ConstantEnergyConsumptionModel implements EnergyConsumptionModel {
 	}
 	
 	@Override
-	public double getEnergyConsumptionForLinkInJoule(Link link, double averageSpeedDriven) {
-		return energyConsumptionPerMeterTraveled*link.getLength();
+	public double getEnergyConsumptionForLinkInJoule(double distanceInMeters, double averageSpeedDriven) {
+		return energyConsumptionPerMeterTraveled*distanceInMeters;
 	}
 
-	@Override
-	public double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {
-		return energyConsumptionPerMeterTraveled*drivenDistanceInMeters;
-	}
+//	@Override
+//	public double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {
+//		return energyConsumptionPerMeterTraveled*drivenDistanceInMeters;
+//	}
 
 	@Override
 	public double getEnergyConsumptionRateInJoulesPerMeter() {

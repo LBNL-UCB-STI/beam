@@ -52,9 +52,9 @@ public abstract class BatteryElectricVehicle extends VehicleWithBattery {
 		}
 	}
 
-	public double updateEnergyUse(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {
-		double energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(
-				drivenDistanceInMeters, maxSpeedOnLink, averageSpeedDriven);
+	@Override
+	public double updateEnergyUse(double drivenDistanceInMeters, double averageSpeedDriven) {
+		double energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(drivenDistanceInMeters, averageSpeedDriven);
 
 		useBattery(energyConsumptionForLinkInJoule);
 		return energyConsumptionForLinkInJoule;

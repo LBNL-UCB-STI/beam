@@ -47,7 +47,7 @@ public class TripInformation implements Serializable {
 		if(tripEnergyConsumptionByModel.get(model) == null){
 			double energyConsumed = 0.0;
 			for(RouteInformationElement elem : routeInformationElements){
-				energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()), elem.getAverageSpeed());
+				energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()).getLength(), elem.getAverageSpeed());
 			}
 			tripEnergyConsumptionByModel.put(model, energyConsumed);
 		}
