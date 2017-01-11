@@ -4,8 +4,6 @@ apply plugin: 'maven'
 group = 'beam'
 version = '0.1.0-SNAPSHOT'
 
-def beamlib = "$System.env.BEAMLIB"
-
 description = """"""
 
 sourceCompatibility = 1.8
@@ -19,9 +17,6 @@ repositories {
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
     maven { url "http://oss.jfrog.org/libs-snapshot" }
-    flatDir {
-        dirs beamlib
-    }
     jcenter()
 }
 
