@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: edu.ucar:udunits:4.5.5">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/edu.ucar/udunits/4.5.5/d8c8d65ade13666eedcf764889c69321c247f153/udunits-4.5.5.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/edu.ucar/udunits/4.5.5/5c329e6f633c8ba20fc4d55ba046a40b92b0f6db/udunits-4.5.5-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

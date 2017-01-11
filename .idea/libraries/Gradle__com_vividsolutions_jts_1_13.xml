@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: com.vividsolutions:jts:1.13">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.vividsolutions/jts/1.13/3ccfb9b60f04d71add996a666ceb8902904fd805/jts-1.13.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.vividsolutions/jts/1.13/ee922fa0a39de08d193337739d336779e3dfa774/jts-1.13-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
