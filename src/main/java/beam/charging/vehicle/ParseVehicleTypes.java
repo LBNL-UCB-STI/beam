@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
+import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumption;
+import beam.transEnergySim.vehicles.energyConsumption.sangjae.EnergyConsumptionModelSangjae;
 import org.matsim.api.core.v01.Id;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileHandler;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileParser;
@@ -45,6 +47,7 @@ public class ParseVehicleTypes {
 					}
 				}else{
 					String newId = row[headerMap.get("id")];
+//					EnergyConsumptionModel eConModel = new EnergyConsumptionModelSangjae();
 					EnergyConsumptionModel electricConsumptionModel = null, petroleumConsumptionModel = null;
 					// TODO Replace with final energy consumption model(s)
 					if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelRicardoFaria2012")){

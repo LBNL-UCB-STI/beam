@@ -28,7 +28,7 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
      * When EV model is not given: select Nissan leaf by default
      */
     public EnergyConsumptionModelSangjae(){
-        // Get EV parameters
+        // Get EV parameters - Nissan leaf
         initModel(null);
     }
 
@@ -37,7 +37,7 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
      * @param evModel
      */
     public EnergyConsumptionModelSangjae(String evModel){
-        // Get EV parameters
+        // Get EV parameters - of the given EV model
         initModel(evModel);
     }
 
