@@ -69,6 +69,7 @@ dependencies {
 	  compile group: 'commons-io', name: 'commons-io', version: '2.5'
 	  compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
+    complie group: 'org.apache.poi', name: 'poi', version: '3.9'
 }
 
 //////////////////////////////////////////////////////////////////////
