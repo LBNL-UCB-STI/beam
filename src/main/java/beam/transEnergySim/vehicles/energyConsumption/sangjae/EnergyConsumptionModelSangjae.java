@@ -9,7 +9,14 @@ import java.io.FileInputStream;
 import java.util.HashMap;
 
 /**
- * This class is to calculate Energy consumption of EV with the input of average speed,
+ * This class is to calculate Energy consumption of EV with the input of average speed, trip length, and average grade
+ *
+ //========================= <EXAMPLE> input data ===============================//
+ //        HashMap<String, Double> hmInputTrip = new HashMap<>();
+ //        hmInputTrip.put("linkLength", 11990d);    // link length
+ //        hmInputTrip.put("linkAvgVelocity",8.75);  // link average speed
+ //        hmInputTrip.put("linkAvgGrade",0d);       // link average grade
+ //==============================================================================//
  *
  * Created by Sangjae Bae on 1/10/17.
  */
