@@ -5,12 +5,13 @@ import java.util.HashMap;
 import java.util.LinkedList;
 
 import beam.EVGlobalData;
+import beam.transEnergySim.vehicles.api.VehicleWithBattery;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 
 public class TripInformation implements Serializable {
 	LinkedList<RouteInformationElement> routeInformationElements = new LinkedList<>();
 	double departureTime, tripTravelTime = 0.0, tripTravelDistance = 0.0, tripAverageSpeed;
-	HashMap<EnergyConsumptionModel,Double> tripEnergyConsumptionByModel = new HashMap<>();
+	HashMap<EnergyConsumptionModel,HashMap<VehicleWithBattery,Double>> tripEnergyConsumptionByModel = new HashMap<>();
 	String routeAsString = "";
 	
 	// Zero-arg constructor necessary to use kyro for serailization
@@ -43,15 +44,13 @@ public class TripInformation implements Serializable {
 		return this.tripAverageSpeed;
 	}
 	
-	public double getTripEnergyConsumption(EnergyConsumptionModel model){
-		if(tripEnergyConsumptionByModel.get(model) == null){
-			double energyConsumed = 0.0;
-			for(RouteInformationElement elem : routeInformationElements){
-				energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()).getLength(), elem.getAverageSpeed());
-			}
-			tripEnergyConsumptionByModel.put(model, energyConsumed);
+	public double getTripEnergyConsumption(EnergyConsumptionModel model, VehicleWithBattery vehicle){
+		//TODO this used to have a cache, add it back
+		double energyConsumed = 0.0;
+		for(RouteInformationElement elem : routeInformationElements){
+			energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()), vehicle, elem.getAverageSpeed());
 		}
-		return tripEnergyConsumptionByModel.get(model);
+		return energyConsumed;
 	}
 
 	public String routeAsString() {

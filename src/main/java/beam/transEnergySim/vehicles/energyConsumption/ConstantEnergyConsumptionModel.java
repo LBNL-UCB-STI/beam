@@ -20,6 +20,8 @@ package beam.transEnergySim.vehicles.energyConsumption;
 
 import org.matsim.api.core.v01.network.Link;
 
+import beam.transEnergySim.vehicles.api.VehicleWithBattery;
+
 public class ConstantEnergyConsumptionModel implements EnergyConsumptionModel {
 
 	private double energyConsumptionPerMeterTraveled;
@@ -29,8 +31,8 @@ public class ConstantEnergyConsumptionModel implements EnergyConsumptionModel {
 	}
 	
 	@Override
-	public double getEnergyConsumptionForLinkInJoule(double distanceInMeters, double averageSpeedDriven) {
-		return energyConsumptionPerMeterTraveled*distanceInMeters;
+	public double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed) {
+		return energyConsumptionPerMeterTraveled * link.getLength();
 	}
 
 //	@Override

@@ -140,7 +140,7 @@ public class EnergyConsumptionTracker implements LinkEnterEventHandler, LinkLeav
 			
 		Vehicle vehicle = vehicles.get(vehicleId);
 		
-		double energyConsumptionInJoule = vehicle.updateEnergyUse(link.getLength(), averageSpeedDrivenInMetersPerSecond);
+		double energyConsumptionInJoule = vehicle.updateEnergyUse(link, averageSpeedDrivenInMetersPerSecond);
 
 		if (loggingEnabled) {
 			

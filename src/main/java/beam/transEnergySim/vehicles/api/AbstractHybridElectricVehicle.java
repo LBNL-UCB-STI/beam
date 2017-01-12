@@ -35,10 +35,10 @@ public abstract class AbstractHybridElectricVehicle extends VehicleWithBattery {
 	protected EnergyConsumptionModel engineECM;
 	
 	@Override
-	public double updateEnergyUse(double drivenDistanceInMeters, double averageSpeedDriven) {
+	public double updateEnergyUse(Link link, double averageSpeedDriven) {
 		double energyConsumptionForLinkInJoule;
 		if (socInJoules>0){
-			energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(drivenDistanceInMeters,averageSpeedDriven);
+			energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(link,this,averageSpeedDriven);
 		
 			if (energyConsumptionForLinkInJoule<=socInJoules){
 				useBattery(energyConsumptionForLinkInJoule);
@@ -46,11 +46,11 @@ public abstract class AbstractHybridElectricVehicle extends VehicleWithBattery {
 				double fractionOfLinkTravelWithBattery=socInJoules/energyConsumptionForLinkInJoule;
 				useBattery(socInJoules);
 				
-				energyConsumptionForLinkInJoule=engineECM.getEnergyConsumptionForLinkInJoule(drivenDistanceInMeters*(1-fractionOfLinkTravelWithBattery), averageSpeedDriven);
+				energyConsumptionForLinkInJoule=engineECM.getEnergyConsumptionForLinkInJoule(link, this, averageSpeedDriven)*(1-fractionOfLinkTravelWithBattery);
 				logEngineEnergyConsumption(energyConsumptionForLinkInJoule);
 			}
 		} else {
-			energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(drivenDistanceInMeters,averageSpeedDriven);
+			energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(link, this,averageSpeedDriven);
 			logEngineEnergyConsumption(energyConsumptionForLinkInJoule);
 		}
 		

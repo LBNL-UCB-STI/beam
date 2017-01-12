@@ -400,7 +400,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	private boolean hasEnoughEnergyToMakeTrip() {
 		return !this.vehicleWithBattery.isBEV() || this.vehicleWithBattery.getSocInJoules() >= this.tripInfoAsOfDeparture
-				.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel());
+				.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),this.vehicleWithBattery);
 	}
 
 	private void scheduleTryAgainLater() {
@@ -619,17 +619,17 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	public double[] getExtraEnergyAndTimeToChargeAt(ChargingSite site, ChargingPlugType plugType) {
 		double origEnergy, origTime, subtrip1Energy, subtrip1Time, subtrip2Energy, subtrip2Time; 
 		origTime = getTripInfoAsOfDeparture().getTripTravelTime();
-		origEnergy = getTripInfoAsOfDeparture().getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel());
+		origEnergy = getTripInfoAsOfDeparture().getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),this.vehicleWithBattery);
 		
 		TripInformation subtrip1, subtrip2;
 		subtrip1 = getTripInformation(EVGlobalData.data.now, getTripInfoAsOfDeparture().getRouteInfoElements().getFirst().getLinkId(), site.getNearestLink().getId());
 		subtrip1Time = subtrip1.getTripTravelTime();
-		subtrip1Energy = subtrip1.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel());
+		subtrip1Energy = subtrip1.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),this.vehicleWithBattery);
 		
 		double timeOfSecondDeparture = EVGlobalData.data.now + subtrip1Time + site.estimateChargingSessionDuration(plugType,this.getVehicleWithBattery());
 		subtrip2 = getTripInformation(timeOfSecondDeparture, site.getNearestLink().getId(), getTripInfoAsOfDeparture().getRouteInfoElements().getLast().getLinkId());
 		subtrip2Time = subtrip2.getTripTravelTime();
-		subtrip2Energy = subtrip2.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel());
+		subtrip2Energy = subtrip2.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),this.vehicleWithBattery);
 		return new double[] { subtrip1Energy + subtrip2Energy - origEnergy, timeOfSecondDeparture + subtrip2Time - EVGlobalData.data.now - origTime };
 	}
 
@@ -792,7 +792,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	// harmonized but will require some reorganization of TES
 	private void updateEnergyUse() {
 		double electricEnergyConsumed = this.tripInfoAsOfDeparture
-				.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel());
+				.getTripEnergyConsumption(this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),this.vehicleWithBattery);
 		if (isBEV()) {
 			if (electricEnergyConsumed > getSoC()) {
 				DebugLib.stopSystemAndReportInconsistency("Ran out of energy for agent "+this.getId());
@@ -802,7 +802,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 		} else {
 			if (electricEnergyConsumed > getSoC()) {
 				double hybridEnergyConsumed = this.tripInfoAsOfDeparture.getTripEnergyConsumption(
-						this.vehicleWithBattery.getHybridDriveEnergyConsumptionModel()) * (1.0 - getSoC() / electricEnergyConsumed);
+						this.vehicleWithBattery.getHybridDriveEnergyConsumptionModel(), this.vehicleWithBattery) * (1.0 - getSoC() / electricEnergyConsumed);
 				electricEnergyConsumed = getSoC();
 				this.vehicleWithBattery.useHybridFuel(hybridEnergyConsumed);
 			}
@@ -943,13 +943,13 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	public LinkedList<RouteInformationElement> getReachableRouteInfoAlongTrip() {
 		LinkedList<RouteInformationElement> route = getTripInfoAsOfDeparture().getRouteInfoElements();
 		if(vehicleWithBattery.isBEV()){
-			if(getSoC() < getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel()) + this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter()){
+			if(getSoC() < getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),vehicleWithBattery) + this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter()){
 				LinkedList<RouteInformationElement> newRoute = new LinkedList<>();
 				double cumulativeTripEnergy = this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter();
 				for(RouteInformationElement infoElement : route){
 					if(cumulativeTripEnergy > getSoC() )break;
 					newRoute.add(infoElement);
-					cumulativeTripEnergy += vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionForLinkInJoule(infoElement.getLinkTravelDistance(),infoElement.getAverageSpeed());
+					cumulativeTripEnergy += vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(infoElement.getLinkId()),vehicleWithBattery, infoElement.getAverageSpeed());
 				}
 				route = newRoute;
 			}
@@ -958,7 +958,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public boolean canReachDestinationPlusSearchDistance() {
-		return getSoC() >= getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel()) + this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter();
+		return getSoC() >= getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),vehicleWithBattery) + this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter();
 	}
 
 }

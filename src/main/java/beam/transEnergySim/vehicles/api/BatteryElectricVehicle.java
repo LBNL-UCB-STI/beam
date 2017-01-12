@@ -53,8 +53,8 @@ public abstract class BatteryElectricVehicle extends VehicleWithBattery {
 	}
 
 	@Override
-	public double updateEnergyUse(double drivenDistanceInMeters, double averageSpeedDriven) {
-		double energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(drivenDistanceInMeters, averageSpeedDriven);
+	public double updateEnergyUse(Link link, double averageSpeedDriven) {
+		double energyConsumptionForLinkInJoule = electricDriveEnergyConsumptionModel.getEnergyConsumptionForLinkInJoule(link, this, averageSpeedDriven);
 
 		useBattery(energyConsumptionForLinkInJoule);
 		return energyConsumptionForLinkInJoule;

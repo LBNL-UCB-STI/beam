@@ -249,7 +249,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 		if (foundSites.size() > 0) {
 			ArrayList<ChargingPlug> foundPlugs = new ArrayList<ChargingPlug>();
 			for (ChargingSite site : foundSites) {
-				if(agent.getSoC() >= agent.getTripInformation(EVGlobalData.data.now, agent.getCurrentLink(), site.getNearestLink().getId()).getTripEnergyConsumption(agent.getVehicleWithBattery().getElectricDriveEnergyConsumptionModel())){
+				if(agent.getSoC() >= agent.getTripInformation(EVGlobalData.data.now, agent.getCurrentLink(), site.getNearestLink().getId()).getTripEnergyConsumption(agent.getVehicleWithBattery().getElectricDriveEnergyConsumptionModel(),agent.getVehicleWithBattery())){
 					for (ChargingPlugType plugType : site.getAllAccessibleChargingPlugTypes()) {
 						ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
 						NestedLogit alterativeNest = new NestedLogit(this.departureSitePlugTypeAlternativeTemplate);
