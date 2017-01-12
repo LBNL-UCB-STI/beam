@@ -113,10 +113,6 @@ public abstract class AbstractInterpolatedEnergyConsumptionModel implements Ener
 		return currentAverageConsumption.getSpeed() >= speedInMetersPerSecond;
 	}
 	
-	@Override
-	public double getEnergyConsumptionForLinkInJoule(double distance, double averageSpeedDriven) {
-		return getInterpolatedEnergyConsumption(distance,averageSpeedDriven);
-	}
 
 //	@Override
 //	public double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {

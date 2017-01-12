@@ -25,6 +25,7 @@ import java.util.Iterator;
 import org.matsim.api.core.v01.network.Link;
 
 import beam.parking.lib.DebugLib;
+import beam.transEnergySim.vehicles.api.VehicleWithBattery;
 /**
  * An energy consumption modell is needed to track energy consumption based on different delimiters. 
  * Usually driven distance and speed are of most importance, but time dependency (e.g. for heating) is also possible 
@@ -35,9 +36,7 @@ import beam.parking.lib.DebugLib;
  */
 public interface EnergyConsumptionModel extends Serializable{
 
-	public abstract double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double averageSpeedDriven);
-	
-//	public abstract double getEnergyConsumptionForLinkInJoule(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven);
-
 	public abstract double getEnergyConsumptionRateInJoulesPerMeter();
+
+	public abstract double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed);
 }

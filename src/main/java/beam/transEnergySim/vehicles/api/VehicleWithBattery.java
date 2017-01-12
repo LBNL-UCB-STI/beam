@@ -201,4 +201,9 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 		this.conventionalEnergyConsumedInJoules += hybridEnergyConsumed;
 	}
 
+	public void setEnergyConsumptionParameters(Object object) {
+		// SANGJAE ADD PARAMS HERE
+		
+	}
+
 }

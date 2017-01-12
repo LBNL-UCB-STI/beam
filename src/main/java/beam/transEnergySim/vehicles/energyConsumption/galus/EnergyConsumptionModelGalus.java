@@ -25,6 +25,7 @@ import java.util.PriorityQueue;
 import org.matsim.api.core.v01.network.Link;
 
 import beam.parking.lib.DebugLib;
+import beam.transEnergySim.vehicles.api.VehicleWithBattery;
 import beam.transEnergySim.vehicles.energyConsumption.AbstractInterpolatedEnergyConsumptionModel;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumption;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
@@ -73,6 +74,11 @@ public class EnergyConsumptionModelGalus extends AbstractInterpolatedEnergyConsu
 	@Override
 	public double getEnergyConsumptionRateInJoulesPerMeter() {
 		return averageEnergyConsumptionPerMeterTraveled;
+	}
+
+	@Override
+	public double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed) {
+		return getInterpolatedEnergyConsumption(link.getLength(), averageSpeed);
 	}
 
 	

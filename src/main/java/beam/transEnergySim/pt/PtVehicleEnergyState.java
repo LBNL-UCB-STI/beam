@@ -39,13 +39,15 @@ public class PtVehicleEnergyState {
 	}
 	
 	public double useBattery(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {
-		double energyConsumptionInJoule = energyConsumptionModelElectric.getEnergyConsumptionForLinkInJoule(drivenDistanceInMeters,averageSpeedDriven);
+		//TODO this is broken, needs to be fixed if ever used again
+		double energyConsumptionInJoule = energyConsumptionModelElectric.getEnergyConsumptionForLinkInJoule(null,null,averageSpeedDriven);
 		setSocInJoules(getSocInJoules() - energyConsumptionInJoule);
 		return energyConsumptionInJoule;
 	}
 	
 	public double useChemicalEnergy(double drivenDistanceInMeters, double maxSpeedOnLink, double averageSpeedDriven) {
-		return energyConsumptionModelChemical.getEnergyConsumptionForLinkInJoule(drivenDistanceInMeters,averageSpeedDriven);
+		//TODO this is broken, needs to be fixed if ever used again
+		return energyConsumptionModelChemical.getEnergyConsumptionForLinkInJoule(null,null,averageSpeedDriven);
 	}
 
 	public double getSocInJoules() {

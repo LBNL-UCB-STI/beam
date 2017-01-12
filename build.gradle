@@ -4,8 +4,6 @@ apply plugin: 'maven'
 group = 'beam'
 version = '0.1.0-SNAPSHOT'
 
-def beamlib = "$System.env.BEAMLIB"
-
 description = """"""
 
 sourceCompatibility = 1.8
@@ -18,9 +16,7 @@ repositories {
     maven { url "http://repo.maven.apache.org/maven2" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
-    flatDir {
-        dirs beamlib
-    }
+    maven { url "http://oss.jfrog.org/libs-snapshot" }
     jcenter()
 }
 
@@ -69,6 +65,7 @@ dependencies {
 	  compile group: 'commons-io', name: 'commons-io', version: '2.5'
 	  compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
+    compile group: 'org.matsim', name: 'matsim', version: '0.9.0-SNAPSHOT'
     complie group: 'org.apache.poi', name: 'poi', version: '3.9'
 }
 
@@ -100,3 +97,4 @@ shadowJar {
    classifier = null
    version = null
 }
+

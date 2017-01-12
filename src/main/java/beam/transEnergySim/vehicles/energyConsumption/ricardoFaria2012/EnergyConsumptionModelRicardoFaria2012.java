@@ -19,6 +19,9 @@
 
 package beam.transEnergySim.vehicles.energyConsumption.ricardoFaria2012;
 
+import org.matsim.api.core.v01.network.Link;
+
+import beam.transEnergySim.vehicles.api.VehicleWithBattery;
 import beam.transEnergySim.vehicles.energyConsumption.AbstractInterpolatedEnergyConsumptionModel;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumption;
 
@@ -65,5 +68,10 @@ public class EnergyConsumptionModelRicardoFaria2012 extends AbstractInterpolated
 	@Override
 	public double getEnergyConsumptionRateInJoulesPerMeter() {
 		return averageEnergyConsumptionPerMeterTraveled;
+	}
+
+	@Override
+	public double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed) {
+		return getInterpolatedEnergyConsumption(link.getLength(), averageSpeed);
 	}
 }
