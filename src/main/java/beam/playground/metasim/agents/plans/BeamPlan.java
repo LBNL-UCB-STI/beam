@@ -16,7 +16,7 @@ public interface BeamPlan {
 
 	public Plan getMatsimPlan();
 	public List<TransitionEvent> getTransitionEventHistory();
-	public ChoiceModel getTransitionSelectorFor(Action action);
+	public ChoiceModel getChoiceModelFor(Action action);
 
 	public class Default implements BeamPlan{
 		private Plan plan;
@@ -40,7 +40,7 @@ public interface BeamPlan {
 		}
 
 		@Override
-		public ChoiceModel getTransitionSelectorFor(Action action) {
+		public ChoiceModel getChoiceModelFor(Action action) {
 			return selectorMap.containsKey(action) ? selectorMap.get(action) : beamServices.getChoiceModelService().getDefaultChoiceModelForAction(action);
 		}
 		

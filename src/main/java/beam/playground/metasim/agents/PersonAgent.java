@@ -32,7 +32,7 @@ public class PersonAgent extends BeamAgent.Default implements MobileAgent, Agent
 
 	@Override
 	public ChoiceModel getChoiceModel(Action action) {
-		return beamPlan.getTransitionSelectorFor(action);
+		return beamPlan.getChoiceModelFor(action);
 	}
 
 	@Override
