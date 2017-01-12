@@ -141,7 +141,7 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
     }
 
     /**
-     * NOT SURE HOW TO USE THIS FUNCTION YET, JAN 11.
+     * NOT SURE HOW IT FUNCTIONS, YET, JAN 11.
      * @return
      */
     @Override
