@@ -45,47 +45,10 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
      * Initialize consumption model
      */
     private void initModel(String evModel) {
-        // Load EV params
+        // Load EV params; make sure to dynamically designate the model file path (from Google drive? dropBox?)
         String fPath ="/Users/mygreencar/Google Drive/beam-developers/model-inputs/vehicles/electric-vehicle-params.xlsx";
         hmEvParams = loadEvParams(fPath, evModel);
         System.out.println(hmEvParams.toString());
-    }
-
-    /**
-     * Get energy consumption
-     */
-    public double getEnergyConsumption(HashMap<String, Double> hmInputTrip) {
-
-        //========================= <EXAMPLE> input data ===============================//
-//        HashMap<String, Double> hmInputTrip = new HashMap<>();
-//        hmInputTrip.put("linkLength", 11990d);    // link length
-//        hmInputTrip.put("linkAvgVelocity",8.75);  // link average speed
-//        hmInputTrip.put("linkAvgGrade",0d);       // link average grade
-        //==============================================================================//
-
-        // Initialize conversion/general params
-        double coeff = 0.64;
-        double mps2mph = 2.236936;
-        double lbf2N = 4.448222;
-        double lbs2kg = 0.453592;
-        double gravity = 9.8;
-
-        // Calculate average power of the itinerary
-        double linkAvgVelocityMph = hmInputTrip.get("linkAvgVelocity") * mps2mph;
-        double massKg = hmEvParams.get("mass") * lbs2kg;
-        double powerAvgKw = ((hmEvParams.get("coefA")
-                + hmEvParams.get("coefB")*linkAvgVelocityMph
-                + hmEvParams.get("coefC")*Math.pow(linkAvgVelocityMph,2))*lbf2N
-                + massKg * gravity * Math.sin(hmInputTrip.get("linkAvgGrade")))*hmInputTrip.get("linkAvgVelocity")/1000;
-        System.out.println("Average power (kW): " + powerAvgKw +"\n");
-
-        // Calculate average energy consumption with the average power
-        double periodS = hmInputTrip.get("linkLength")/hmInputTrip.get("linkAvgVelocity");
-        double linkEnergyKwhIdeal = powerAvgKw * periodS / 3600;
-        double linkEnergyKwh = linkEnergyKwhIdeal/coeff;
-        System.out.println("Energy consumption (kWh): " + linkEnergyKwh + "\n");
-
-        return linkEnergyKwh;
     }
 
     /**
@@ -138,6 +101,43 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
 
         // Return the EV parameters; it returns an empty HashMap if the input file does not exist or inaccessible. A crash will occur.
         return hmEvParams;
+    }
+
+    /**
+     * Get energy consumption
+     */
+    public double getEnergyConsumption(HashMap<String, Double> hmInputTrip) {
+
+        //========================= <EXAMPLE> input data ===============================//
+//        HashMap<String, Double> hmInputTrip = new HashMap<>();
+//        hmInputTrip.put("linkLength", 11990d);    // link length
+//        hmInputTrip.put("linkAvgVelocity",8.75);  // link average speed
+//        hmInputTrip.put("linkAvgGrade",0d);       // link average grade
+        //==============================================================================//
+
+        // Initialize conversion/general params
+        double coeff = 0.64;
+        double mps2mph = 2.236936;
+        double lbf2N = 4.448222;
+        double lbs2kg = 0.453592;
+        double gravity = 9.8;
+
+        // Calculate average power of the itinerary
+        double linkAvgVelocityMph = hmInputTrip.get("linkAvgVelocity") * mps2mph;
+        double massKg = hmEvParams.get("mass") * lbs2kg;
+        double powerAvgKw = ((hmEvParams.get("coefA")
+                + hmEvParams.get("coefB")*linkAvgVelocityMph
+                + hmEvParams.get("coefC")*Math.pow(linkAvgVelocityMph,2))*lbf2N
+                + massKg * gravity * Math.sin(hmInputTrip.get("linkAvgGrade")))*hmInputTrip.get("linkAvgVelocity")/1000;
+        System.out.println("Average power (kW): " + powerAvgKw +"\n");
+
+        // Calculate average energy consumption with the average power
+        double periodS = hmInputTrip.get("linkLength")/hmInputTrip.get("linkAvgVelocity");
+        double linkEnergyKwhIdeal = powerAvgKw * periodS / 3600;
+        double linkEnergyKwh = linkEnergyKwhIdeal/coeff;
+        System.out.println("Energy consumption (kWh): " + linkEnergyKwh + "\n");
+
+        return linkEnergyKwh;
     }
 
     /**
