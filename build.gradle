@@ -83,7 +83,7 @@ dependencies {
     compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
     compile 'org.reflections:reflections:0.9.10'
 	compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
-    compile 'com.github.colinsheppard:matsim:v1.0'
+    compile 'com.github.colinsheppard.matsim:matsim:master-SNAPSHOT'
 }
 
 //////////////////////////////////////////////////////////////////////
