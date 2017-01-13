@@ -52,6 +52,8 @@ public class ParseVehicleTypes {
 					// TODO Replace with final energy consumption model(s)
 					if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelRicardoFaria2012")){
 						electricConsumptionModel = new EnergyConsumptionModelRicardoFaria2012();
+					}else if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelSangjae")){
+						electricConsumptionModel = new EnergyConsumptionModelSangjae();
 					}else{
 						throw new RuntimeException("Cannot find class that inherits EnergyConsumptionModel named "+row[headerMap.get("electricenergyconsumptionmodelclassname")]);
 					}

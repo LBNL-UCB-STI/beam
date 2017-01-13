@@ -1,8 +1,10 @@
 package beam.transEnergySim.vehicles.energyConsumption.sangjae;
 
+import beam.transEnergySim.vehicles.api.VehicleWithBattery;
 import beam.transEnergySim.vehicles.energyConsumption.AbstractInterpolatedEnergyConsumptionModel;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.matsim.api.core.v01.network.Link;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,7 +31,7 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
      */
     public EnergyConsumptionModelSangjae(){
         // Get EV parameters - Nissan leaf
-        initModel(null);
+//        initModel(null);
     }
 
     /**
@@ -38,20 +40,21 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
      */
     public EnergyConsumptionModelSangjae(String evModel){
         // Get EV parameters - of the given EV model
-        initModel(evModel);
+//        initModel(evModel);
     }
 
     /**
      * Initialize consumption model
      */
-    private void initModel(String evModel) {
-        // Load EV params; make sure to dynamically designate the model file path (from Google drive? dropBox?)
-        String fPath ="/Users/mygreencar/Google Drive/beam-developers/model-inputs/vehicles/electric-vehicle-params.xlsx";
-        hmEvParams = loadEvParams(fPath, evModel);
-        System.out.println(hmEvParams.toString());
-    }
+//    private void initModel(String evModel) {
+//        // Load EV params; make sure to dynamically designate the model file path (from Google drive? dropBox?)
+//        String fPath ="/Users/mygreencar/Google Drive/beam-developers/model-inputs/vehicles/electric-vehicle-params.xlsx";
+//        this.hmEvParams = loadEvParams(fPath, evModel);
+//        System.out.println(hmEvParams.toString());
+//    }
 
     /**
+     * <DEPRECATED> WILL BE REMOVED SOON, JAN 2017 </DEPRECATED>
      * Load params used to calculate Energy consumptions of EV models
      */
     private HashMap<String,Double> loadEvParams(String fPath, String evModel) {
@@ -104,9 +107,9 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
     }
 
     /**
-     * Get energy consumption
+     * Get energy consumption in kWH
      */
-    public double getEnergyConsumption(HashMap<String, Double> hmInputTrip) {
+    private double getEnergyConsumptionInKwh(HashMap<String, Double> hmEvParams, HashMap<String, Double> hmInputTrip) {
 
         //========================= <EXAMPLE> input data ===============================//
 //        HashMap<String, Double> hmInputTrip = new HashMap<>();
@@ -129,7 +132,7 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
                 + hmEvParams.get("coefB")*linkAvgVelocityMph
                 + hmEvParams.get("coefC")*Math.pow(linkAvgVelocityMph,2))*lbf2N
                 + massKg * gravity * Math.sin(hmInputTrip.get("linkAvgGrade")))*hmInputTrip.get("linkAvgVelocity")/1000;
-        System.out.println("Average power (kW): " + powerAvgKw +"\n");
+//        System.out.println("Average power (kW): " + powerAvgKw +"\n");
 
         // Calculate average energy consumption with the average power
         double periodS = hmInputTrip.get("linkLength")/hmInputTrip.get("linkAvgVelocity");
@@ -140,12 +143,23 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
         return linkEnergyKwh;
     }
 
-    /**
-     * NOT SURE HOW IT FUNCTIONS, YET, JAN 11.
-     * @return
-     */
     @Override
     public double getEnergyConsumptionRateInJoulesPerMeter() {
         return 0;
+    }
+
+    @Override
+    public double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed) {
+
+        // Set up input data
+        double linkAvgVelocity = averageSpeed; // m/s
+        double linkLength = link.getLength();  // meter
+        double linkAvgGrade = Math.toRadians(Math.atan(Double.valueOf(link.getAttributes().getAttribute("gradient").toString())));
+        HashMap<String, Double> hmInputTrip = new HashMap<>();
+        hmInputTrip.put("linkLength", linkLength);          // link length
+        hmInputTrip.put("linkAvgVelocity",linkAvgVelocity); // link average speed
+        hmInputTrip.put("linkAvgGrade",linkAvgGrade);       // link average grade
+
+        return getEnergyConsumptionInKwh(vehicle.getEnergyConsumptionParameters(),hmInputTrip)*3600000; // in Joule (1kWh = 3600000 Joules)
     }
 }
