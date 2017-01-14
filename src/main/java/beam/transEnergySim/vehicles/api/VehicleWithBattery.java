@@ -24,8 +24,6 @@ import java.io.FileInputStream;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.matsim.api.core.v01.Id;
 
 import beam.parking.lib.DebugLib;
@@ -54,6 +52,7 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 	 * EV parameters
 	 */
 	private HashMap<String, Double> hmEvParams;
+	private double avgElectricFuelEconomyInJoulesPerMeter;
 
 	/**
 	 * state of charge
@@ -142,7 +141,7 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 		return getRemainingRangeInMeters()/1609.34;
 	}
 	public double getRemainingRangeInMeters() {
-		return this.socInJoules / this.electricDriveEnergyConsumptionModel.getEnergyConsumptionRateInJoulesPerMeter();
+		return this.socInJoules / this.avgElectricFuelEconomyInJoulesPerMeter;
 	}
 	public boolean isBEV() {
 		return this instanceof BatteryElectricVehicle;
@@ -180,7 +179,7 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 	}
 
 	public double getRequiredEnergyInJoulesToDriveDistance(double routeDistanceInMeters) {
-		return routeDistanceInMeters * this.electricDriveEnergyConsumptionModel.getEnergyConsumptionRateInJoulesPerMeter();
+		return routeDistanceInMeters * this.avgElectricFuelEconomyInJoulesPerMeter;
 	}
 	
 	public void setVehicleAgent(VehicleAgent agent){
@@ -214,7 +213,8 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 	/**
 	 * Set Energy Consumption Parameters for specified EV -- need to pass vehicle type (or model), e.g., Tesla Model X
 	 */
-	public void setEnergyConsumptionParameters(double equivalentTestWeight, double targetCoefA, double targetCoefB, double targetCoefC) {
+	public void setEnergyConsumptionParameters(double epaFuelEcon, double equivalentTestWeight, double targetCoefA, double targetCoefB, double targetCoefC) {
+		this.avgElectricFuelEconomyInJoulesPerMeter = epaFuelEcon * 2237; // converting from kWh/mile to J/m
 		hmEvParams = new HashMap<>();
 		hmEvParams.put("EquivalentTestWeight", equivalentTestWeight);
 		hmEvParams.put("TargetCoefA",targetCoefA);
@@ -228,5 +228,9 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 	 */
 	public HashMap<String, Double> getEnergyConsumptionParameters(){
 		return this.hmEvParams;
+	}
+
+	public double getAverageElectricConsumptionRateInJoulesPerMeter() {
+		return avgElectricFuelEconomyInJoulesPerMeter;
 	}
 }

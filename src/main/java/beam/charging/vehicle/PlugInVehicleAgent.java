@@ -305,7 +305,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	} 
 	private boolean hasEnoughEnergyToConsiderHalfSearchRadius() {
 		return !this.vehicleWithBattery.isBEV() || this.vehicleWithBattery.getSocInJoules() >= 0.5
-				* this.vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter()
+				* this.vehicleWithBattery.getAverageElectricConsumptionRateInJoulesPerMeter()
 				* this.getCurrentSearchRadius();
 	}
 
@@ -943,9 +943,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	public LinkedList<RouteInformationElement> getReachableRouteInfoAlongTrip() {
 		LinkedList<RouteInformationElement> route = getTripInfoAsOfDeparture().getRouteInfoElements();
 		if(vehicleWithBattery.isBEV()){
-			if(getSoC() < getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),vehicleWithBattery) + this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter()){
+			if(getSoC() < getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),vehicleWithBattery) + this.getCurrentSearchRadius()*vehicleWithBattery.getAverageElectricConsumptionRateInJoulesPerMeter()){
 				LinkedList<RouteInformationElement> newRoute = new LinkedList<>();
-				double cumulativeTripEnergy = this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter();
+				double cumulativeTripEnergy = this.getCurrentSearchRadius()*vehicleWithBattery.getAverageElectricConsumptionRateInJoulesPerMeter();
 				for(RouteInformationElement infoElement : route){
 					if(cumulativeTripEnergy > getSoC() )break;
 					newRoute.add(infoElement);
@@ -958,7 +958,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public boolean canReachDestinationPlusSearchDistance() {
-		return getSoC() >= getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),vehicleWithBattery) + this.getCurrentSearchRadius()*vehicleWithBattery.getElectricDriveEnergyConsumptionModel().getEnergyConsumptionRateInJoulesPerMeter();
+		return getSoC() >= getTripInfoAsOfDeparture().getTripEnergyConsumption(vehicleWithBattery.getElectricDriveEnergyConsumptionModel(),vehicleWithBattery) + this.getCurrentSearchRadius()*vehicleWithBattery.getAverageElectricConsumptionRateInJoulesPerMeter();
 	}
 
 }

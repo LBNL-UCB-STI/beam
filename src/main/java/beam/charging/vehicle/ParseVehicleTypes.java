@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumption;
-import beam.transEnergySim.vehicles.energyConsumption.sangjae.EnergyConsumptionModelSangjae;
+
 import org.matsim.api.core.v01.Id;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileHandler;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileParser;
@@ -16,6 +16,7 @@ import beam.EVGlobalData;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 import beam.transEnergySim.vehicles.energyConsumption.galus.EnergyConsumptionModelGalus;
+import beam.transEnergySim.vehicles.energyConsumption.myGreenCar.EnergyConsumptionModelMyGreenCar;
 import beam.transEnergySim.vehicles.energyConsumption.ricardoFaria2012.EnergyConsumptionModelRicardoFaria2012;
 
 public class ParseVehicleTypes {
@@ -47,13 +48,12 @@ public class ParseVehicleTypes {
 					}
 				}else{
 					String newId = row[headerMap.get("id")];
-//					EnergyConsumptionModel eConModel = new EnergyConsumptionModelSangjae();
 					EnergyConsumptionModel electricConsumptionModel = null, petroleumConsumptionModel = null;
 					// TODO Replace with final energy consumption model(s)
 					if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelRicardoFaria2012")){
 						electricConsumptionModel = new EnergyConsumptionModelRicardoFaria2012();
-					}else if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelSangjae")){
-						electricConsumptionModel = new EnergyConsumptionModelSangjae();
+					}else if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelMyGreenCar")){
+						electricConsumptionModel = new EnergyConsumptionModelMyGreenCar();
 					}else{
 						throw new RuntimeException("Cannot find class that inherits EnergyConsumptionModel named "+row[headerMap.get("electricenergyconsumptionmodelclassname")]);
 					}
@@ -79,29 +79,18 @@ public class ParseVehicleTypes {
 					vehicleProperties.put("electricenergyconsumptionmodel",electricConsumptionModel);
 					vehicleProperties.put("petroleumenergyconsumptionmodel",petroleumConsumptionModel);
 
-					if(headerMap.get("EquivalentTestWeight")==null){
-						vehicleProperties.put("EquivalentTestWeight",3746);
-						vehicleProperties.put("TargetCoefA",41.06);
-						vehicleProperties.put("TargetCoefB",-0.3082);
-						vehicleProperties.put("TargetCoefC",0.02525);
+					if(headerMap.get("equivalenttestweight")==null){
+						vehicleProperties.put("equivalenttestweight",3746);
+						vehicleProperties.put("targetcoefa",41.06);
+						vehicleProperties.put("targetcoefb",-0.3082);
+						vehicleProperties.put("targetcoefc",0.02525);
 					}else{
-						vehicleProperties.put("EquivalentTestWeight",row[headerMap.get("EquivalentTestWeight")].trim());
-						vehicleProperties.put("TargetCoefA",row[headerMap.get("TargetCoefA")].trim());
-						vehicleProperties.put("TargetCoefB",row[headerMap.get("TargetCoefB")].trim());
-						vehicleProperties.put("TargetCoefC",row[headerMap.get("TargetCoefC")].trim());
+						vehicleProperties.put("equivalenttestweight",row[headerMap.get("equivalenttestweight")].trim());
+						vehicleProperties.put("targetcoefa",row[headerMap.get("targetcoefa")].trim());
+						vehicleProperties.put("targetcoefb",row[headerMap.get("targetcoefb")].trim());
+						vehicleProperties.put("targetcoefc",row[headerMap.get("targetcoefc")].trim());
 					}
-//					try{
-//						vehicleProperties.put("EquivalentTestWeight",row[headerMap.get("EquivalentTestWeight")].trim());
-//						vehicleProperties.put("TargetCoefA",row[headerMap.get("TargetCoefA")].trim());
-//						vehicleProperties.put("TargetCoefB",row[headerMap.get("TargetCoefB")].trim());
-//						vehicleProperties.put("TargetCoefC",row[headerMap.get("TargetCoefC")].trim());
-//					}catch (NullPointerException e){
-//						e.printStackTrace();
-//						vehicleProperties.put("EquivalentTestWeight",3746);
-//						vehicleProperties.put("TargetCoefA",41.06);
-//						vehicleProperties.put("TargetCoefB",-0.3082);
-//						vehicleProperties.put("TargetCoefC",0.02525);
-//					}
+					vehicleProperties.put("epafuelecon",row[headerMap.get("epafuelecon")].trim());
 					
 					EVGlobalData.data.vehiclePropertiesMap.put(row[headerMap.get("id")].trim(),vehicleProperties);
 				}
