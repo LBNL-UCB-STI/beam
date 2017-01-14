@@ -8,3 +8,5 @@ test/output
 .settings
 .classpath
 output/
+libs
+.idea
