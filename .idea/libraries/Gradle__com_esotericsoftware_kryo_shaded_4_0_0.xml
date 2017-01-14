@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="Gradle: com.esotericsoftware:kryo-shaded:4.0.0">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.esotericsoftware/kryo-shaded/4.0.0/4ae3bacfaea6459d8d63c6cf17c3718422fb2def/kryo-shaded-4.0.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.esotericsoftware/kryo-shaded/4.0.0/ed439ccb7bac5c3288dbeb2966bd7eb508059ca9/kryo-shaded-4.0.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

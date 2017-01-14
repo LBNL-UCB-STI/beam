@@ -36,7 +36,8 @@ import beam.transEnergySim.vehicles.api.VehicleWithBattery;
  */
 public interface EnergyConsumptionModel extends Serializable{
 
-	public abstract double getEnergyConsumptionRateInJoulesPerMeter();
+	public abstract double getEnergyConsumptionRateInJoulesPerMeter(VehicleWithBattery vehicle);
 
 	public abstract double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed);
+
 }

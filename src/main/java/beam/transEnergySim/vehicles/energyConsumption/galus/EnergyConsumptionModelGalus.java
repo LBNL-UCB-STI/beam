@@ -72,7 +72,7 @@ public class EnergyConsumptionModelGalus extends AbstractInterpolatedEnergyConsu
 
 	
 	@Override
-	public double getEnergyConsumptionRateInJoulesPerMeter() {
+	public double getEnergyConsumptionRateInJoulesPerMeter(VehicleWithBattery vehicle) {
 		return averageEnergyConsumptionPerMeterTraveled;
 	}
 

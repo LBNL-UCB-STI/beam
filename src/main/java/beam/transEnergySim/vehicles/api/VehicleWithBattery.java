@@ -19,6 +19,9 @@
 
 package beam.transEnergySim.vehicles.api;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 
 import org.matsim.api.core.v01.Id;
@@ -44,6 +47,12 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 	protected double usableBatteryCapacityInJoules;
 	private boolean ignoreOverCharging = false;
 	private static double overchargingErrorMargin=1;
+
+	/**
+	 * EV parameters
+	 */
+	private HashMap<String, Double> hmEvParams;
+	private double avgElectricFuelEconomyInJoulesPerMeter;
 
 	/**
 	 * state of charge
@@ -132,7 +141,7 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 		return getRemainingRangeInMeters()/1609.34;
 	}
 	public double getRemainingRangeInMeters() {
-		return this.socInJoules / this.electricDriveEnergyConsumptionModel.getEnergyConsumptionRateInJoulesPerMeter();
+		return this.socInJoules / this.avgElectricFuelEconomyInJoulesPerMeter;
 	}
 	public boolean isBEV() {
 		return this instanceof BatteryElectricVehicle;
@@ -170,7 +179,7 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 	}
 
 	public double getRequiredEnergyInJoulesToDriveDistance(double routeDistanceInMeters) {
-		return routeDistanceInMeters * this.electricDriveEnergyConsumptionModel.getEnergyConsumptionRateInJoulesPerMeter();
+		return routeDistanceInMeters * this.avgElectricFuelEconomyInJoulesPerMeter;
 	}
 	
 	public void setVehicleAgent(VehicleAgent agent){
@@ -201,9 +210,27 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 		this.conventionalEnergyConsumedInJoules += hybridEnergyConsumed;
 	}
 
-	public void setEnergyConsumptionParameters(Object object) {
-		// SANGJAE ADD PARAMS HERE
-		
+	/**
+	 * Set Energy Consumption Parameters for specified EV -- need to pass vehicle type (or model), e.g., Tesla Model X
+	 */
+	public void setEnergyConsumptionParameters(double epaFuelEcon, double equivalentTestWeight, double targetCoefA, double targetCoefB, double targetCoefC) {
+		this.avgElectricFuelEconomyInJoulesPerMeter = epaFuelEcon * 2237; // converting from kWh/mile to J/m
+		hmEvParams = new HashMap<>();
+		hmEvParams.put("EquivalentTestWeight", equivalentTestWeight);
+		hmEvParams.put("TargetCoefA",targetCoefA);
+		hmEvParams.put("TargetCoefB",targetCoefB);
+		hmEvParams.put("TargetCoefC",targetCoefC);
 	}
 
+	/**
+	 * Return energy consumptions parameters for the current vehicle
+	 * @return
+	 */
+	public HashMap<String, Double> getEnergyConsumptionParameters(){
+		return this.hmEvParams;
+	}
+
+	public double getAverageElectricConsumptionRateInJoulesPerMeter() {
+		return avgElectricFuelEconomyInJoulesPerMeter;
+	}
 }
