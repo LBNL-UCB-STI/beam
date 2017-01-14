@@ -1,9 +1,7 @@
-package beam.transEnergySim.vehicles.energyConsumption.sangjae;
+package beam.transEnergySim.vehicles.energyConsumption.myGreenCar;
 
 import beam.transEnergySim.vehicles.api.VehicleWithBattery;
 import beam.transEnergySim.vehicles.energyConsumption.AbstractInterpolatedEnergyConsumptionModel;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.matsim.api.core.v01.network.Link;
 
 import java.io.File;
@@ -22,14 +20,14 @@ import java.util.HashMap;
  *
  * Created by Sangjae Bae on 1/10/17.
  */
-public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyConsumptionModel{
+public class EnergyConsumptionModelMyGreenCar extends AbstractInterpolatedEnergyConsumptionModel{
 
     HashMap<String, Double> hmEvParams;
 
     /**
      * When EV model is not given: select Nissan leaf by default
      */
-    public EnergyConsumptionModelSangjae(){
+    public EnergyConsumptionModelMyGreenCar(){
     }
 
     /**
@@ -49,7 +47,7 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
         double mps2mph = 2.236936;
         double lbf2N = 4.448222;
         double lbs2kg = 0.453592;
-        double gravity = 9.8;
+        double gravity = 9.81;
 
         // Calculate average power of the itinerary
         double linkAvgVelocityMph = hmInputTrip.get("linkAvgVelocity") * mps2mph;
@@ -64,14 +62,14 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
         double periodS = hmInputTrip.get("linkLength")/hmInputTrip.get("linkAvgVelocity");
         double linkEnergyKwhIdeal = powerAvgKw * periodS / 3600;
         double linkEnergyKwh = linkEnergyKwhIdeal/coeff;
-        System.out.println("Energy consumption (kWh): " + linkEnergyKwh + "\n");
+//        System.out.println("Energy consumption (kWh): " + linkEnergyKwh + "\n");
 
         return linkEnergyKwh;
     }
 
     @Override
-    public double getEnergyConsumptionRateInJoulesPerMeter() {
-        return 0;
+    public double getEnergyConsumptionRateInJoulesPerMeter(VehicleWithBattery vehicle) {
+        return vehicle.getAverageElectricConsumptionRateInJoulesPerMeter();
     }
 
     @Override
