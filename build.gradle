@@ -66,7 +66,7 @@ dependencies {
 	  compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
     compile group: 'org.matsim', name: 'matsim', version: '0.9.0-SNAPSHOT'
-    complie group: 'org.apache.poi', name: 'poi', version: '3.9'
+    compile group: 'org.apache.poi', name: 'poi', version: '3.9'
 }
 
 //////////////////////////////////////////////////////////////////////
