@@ -82,8 +82,8 @@ dependencies {
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
     compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
     compile 'org.reflections:reflections:0.9.10'
-	compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
-    compile 'com.github.colinsheppard.matsim:matsim:master-SNAPSHOT'
+    compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
+    compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
 }
 
 //////////////////////////////////////////////////////////////////////
