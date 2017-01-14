@@ -30,80 +30,6 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
      * When EV model is not given: select Nissan leaf by default
      */
     public EnergyConsumptionModelSangjae(){
-        // Get EV parameters - Nissan leaf
-//        initModel(null);
-    }
-
-    /**
-     * When EV model is given
-     * @param evModel
-     */
-    public EnergyConsumptionModelSangjae(String evModel){
-        // Get EV parameters - of the given EV model
-//        initModel(evModel);
-    }
-
-    /**
-     * Initialize consumption model
-     */
-//    private void initModel(String evModel) {
-//        // Load EV params; make sure to dynamically designate the model file path (from Google drive? dropBox?)
-//        String fPath ="/Users/mygreencar/Google Drive/beam-developers/model-inputs/vehicles/electric-vehicle-params.xlsx";
-//        this.hmEvParams = loadEvParams(fPath, evModel);
-//        System.out.println(hmEvParams.toString());
-//    }
-
-    /**
-     * <DEPRECATED> WILL BE REMOVED SOON, JAN 2017 </DEPRECATED>
-     * Load params used to calculate Energy consumptions of EV models
-     */
-    private HashMap<String,Double> loadEvParams(String fPath, String evModel) {
-        HashMap<String,Double> hmEvParams = new HashMap<>();
-
-        try{
-            FileInputStream file = new FileInputStream(new File(fPath));
-
-            // Create Workbook instance holding reference to .xlsx file
-            XSSFWorkbook workbook = new XSSFWorkbook(file);
-
-            // Get first/desired sheet from the workbook
-            XSSFSheet sheet = workbook.getSheetAt(0);
-
-            // Get the row number for the given ev Model;
-            // - select Nissan leaf if no EV model is given
-            // - select Nissan leaf if the given EV model does not exist in the ev data sheet
-            int rowNumForEv = sheet.getLastRowNum();
-            if(evModel != null){ // if EV model is given
-                for(int i = 1; i<sheet.getLastRowNum();i++){
-                    if(sheet.getRow(i).getCell(1).getStringCellValue().contains(evModel)){
-                        rowNumForEv = i;
-                        break;
-                    }
-                }
-            }
-            System.out.println("\nRow num for EV: " + rowNumForEv);
-            System.out.println("Selected EV model: " + sheet.getRow(rowNumForEv).getCell(1).getStringCellValue() + "\n");
-
-            // Parse params of the selected EV from the sheet
-            double mass = Double.valueOf(sheet.getRow(rowNumForEv).getCell(4).getRawValue());
-            double coefA = Double.valueOf(sheet.getRow(rowNumForEv).getCell(5).getRawValue());
-            double coefB = Double.valueOf(sheet.getRow(rowNumForEv).getCell(6).getRawValue());
-            double coefC = Double.valueOf(sheet.getRow(rowNumForEv).getCell(7).getRawValue());
-
-            // Put params in hashMap
-            hmEvParams.put("mass",mass);
-            hmEvParams.put("coefA",coefA);
-            hmEvParams.put("coefB",coefB);
-            hmEvParams.put("coefC",coefC);
-
-            // Do not forget to close the file after use
-            file.close();
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-
-        // Return the EV parameters; it returns an empty HashMap if the input file does not exist or inaccessible. A crash will occur.
-        return hmEvParams;
     }
 
     /**
@@ -127,10 +53,10 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
 
         // Calculate average power of the itinerary
         double linkAvgVelocityMph = hmInputTrip.get("linkAvgVelocity") * mps2mph;
-        double massKg = hmEvParams.get("mass") * lbs2kg;
-        double powerAvgKw = ((hmEvParams.get("coefA")
-                + hmEvParams.get("coefB")*linkAvgVelocityMph
-                + hmEvParams.get("coefC")*Math.pow(linkAvgVelocityMph,2))*lbf2N
+        double massKg = hmEvParams.get("EquivalentTestWeight") * lbs2kg;
+        double powerAvgKw = ((hmEvParams.get("TargetCoefA")
+                + hmEvParams.get("TargetCoefB")*linkAvgVelocityMph
+                + hmEvParams.get("TargetCoefC")*Math.pow(linkAvgVelocityMph,2))*lbf2N
                 + massKg * gravity * Math.sin(hmInputTrip.get("linkAvgGrade")))*hmInputTrip.get("linkAvgVelocity")/1000;
 //        System.out.println("Average power (kW): " + powerAvgKw +"\n");
 
@@ -152,12 +78,11 @@ public class EnergyConsumptionModelSangjae extends AbstractInterpolatedEnergyCon
     public double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed) {
 
         // Set up input data
-        double linkAvgVelocity = averageSpeed; // m/s
         double linkLength = link.getLength();  // meter
         double linkAvgGrade = Math.toRadians(Math.atan(Double.valueOf(link.getAttributes().getAttribute("gradient").toString())));
         HashMap<String, Double> hmInputTrip = new HashMap<>();
         hmInputTrip.put("linkLength", linkLength);          // link length
-        hmInputTrip.put("linkAvgVelocity",linkAvgVelocity); // link average speed
+        hmInputTrip.put("linkAvgVelocity", averageSpeed); // link average speed
         hmInputTrip.put("linkAvgGrade",linkAvgGrade);       // link average grade
 
         return getEnergyConsumptionInKwh(vehicle.getEnergyConsumptionParameters(),hmInputTrip)*3600000; // in Joule (1kWh = 3600000 Joules)

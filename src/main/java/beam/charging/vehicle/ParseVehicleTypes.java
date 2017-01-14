@@ -78,6 +78,30 @@ public class ParseVehicleTypes {
 					vehicleProperties.put("vehicletypename",row[headerMap.get("vehicletypename")].trim());
 					vehicleProperties.put("electricenergyconsumptionmodel",electricConsumptionModel);
 					vehicleProperties.put("petroleumenergyconsumptionmodel",petroleumConsumptionModel);
+
+					if(headerMap.get("EquivalentTestWeight")==null){
+						vehicleProperties.put("EquivalentTestWeight",3746);
+						vehicleProperties.put("TargetCoefA",41.06);
+						vehicleProperties.put("TargetCoefB",-0.3082);
+						vehicleProperties.put("TargetCoefC",0.02525);
+					}else{
+						vehicleProperties.put("EquivalentTestWeight",row[headerMap.get("EquivalentTestWeight")].trim());
+						vehicleProperties.put("TargetCoefA",row[headerMap.get("TargetCoefA")].trim());
+						vehicleProperties.put("TargetCoefB",row[headerMap.get("TargetCoefB")].trim());
+						vehicleProperties.put("TargetCoefC",row[headerMap.get("TargetCoefC")].trim());
+					}
+//					try{
+//						vehicleProperties.put("EquivalentTestWeight",row[headerMap.get("EquivalentTestWeight")].trim());
+//						vehicleProperties.put("TargetCoefA",row[headerMap.get("TargetCoefA")].trim());
+//						vehicleProperties.put("TargetCoefB",row[headerMap.get("TargetCoefB")].trim());
+//						vehicleProperties.put("TargetCoefC",row[headerMap.get("TargetCoefC")].trim());
+//					}catch (NullPointerException e){
+//						e.printStackTrace();
+//						vehicleProperties.put("EquivalentTestWeight",3746);
+//						vehicleProperties.put("TargetCoefA",41.06);
+//						vehicleProperties.put("TargetCoefB",-0.3082);
+//						vehicleProperties.put("TargetCoefC",0.02525);
+//					}
 					
 					EVGlobalData.data.vehiclePropertiesMap.put(row[headerMap.get("id")].trim(),vehicleProperties);
 				}

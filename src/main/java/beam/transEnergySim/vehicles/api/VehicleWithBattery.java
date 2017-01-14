@@ -213,12 +213,13 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 
 	/**
 	 * Set Energy Consumption Parameters for specified EV -- need to pass vehicle type (or model), e.g., Tesla Model X
-	 * @param object
 	 */
-	public void setEnergyConsumptionParameters(Object object) {
-		// Load EV params; make sure to dynamically designate the model file path (from Google drive? dropBox?)
-		String fPath ="/Users/mygreencar/Google Drive/beam-developers/model-inputs/vehicles/electric-vehicle-params.xlsx";
-		this.hmEvParams = loadEvParams(fPath, null);
+	public void setEnergyConsumptionParameters(double equivalentTestWeight, double targetCoefA, double targetCoefB, double targetCoefC) {
+		hmEvParams = new HashMap<>();
+		hmEvParams.put("EquivalentTestWeight", equivalentTestWeight);
+		hmEvParams.put("TargetCoefA",targetCoefA);
+		hmEvParams.put("TargetCoefB",targetCoefB);
+		hmEvParams.put("TargetCoefC",targetCoefC);
 	}
 
 	/**
@@ -227,57 +228,5 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 	 */
 	public HashMap<String, Double> getEnergyConsumptionParameters(){
 		return this.hmEvParams;
-	}
-
-	/**
-	 * Load params used to calculate Energy consumptions of EV models
-	 */
-	private HashMap<String,Double> loadEvParams(String fPath, String evModel) {
-		HashMap<String,Double> hmEvParams = new HashMap<>();
-
-		try{
-			FileInputStream file = new FileInputStream(new File(fPath));
-
-			// Create Workbook instance holding reference to .xlsx file
-			XSSFWorkbook workbook = new XSSFWorkbook(file);
-
-			// Get first/desired sheet from the workbook
-			XSSFSheet sheet = workbook.getSheetAt(0);
-
-			// Get the row number for the given ev Model;
-			// - select Nissan leaf if no EV model is given
-			// - select Nissan leaf if the given EV model does not exist in the ev data sheet
-			int rowNumForEv = sheet.getLastRowNum();
-			if(evModel != null){ // if EV model is given
-				for(int i = 1; i<sheet.getLastRowNum();i++){
-					if(sheet.getRow(i).getCell(1).getStringCellValue().contains(evModel)){
-						rowNumForEv = i;
-						break;
-					}
-				}
-			}
-			System.out.println("\nRow num for EV: " + rowNumForEv);
-			System.out.println("Selected EV model: " + sheet.getRow(rowNumForEv).getCell(1).getStringCellValue() + "\n");
-
-			// Parse params of the selected EV from the sheet
-			double mass = Double.valueOf(sheet.getRow(rowNumForEv).getCell(4).getRawValue());
-			double coefA = Double.valueOf(sheet.getRow(rowNumForEv).getCell(5).getRawValue());
-			double coefB = Double.valueOf(sheet.getRow(rowNumForEv).getCell(6).getRawValue());
-			double coefC = Double.valueOf(sheet.getRow(rowNumForEv).getCell(7).getRawValue());
-
-			// Put params in hashMap
-			hmEvParams.put("mass",mass);
-			hmEvParams.put("coefA",coefA);
-			hmEvParams.put("coefB",coefB);
-			hmEvParams.put("coefC",coefC);
-
-			// Do not forget to close the file after use
-			file.close();
-		}catch (Exception e){
-			e.printStackTrace();
-		}
-
-		// Return the EV parameters; it returns an empty HashMap if the input file does not exist or inaccessible. A crash will occur.
-		return hmEvParams;
 	}
 }
