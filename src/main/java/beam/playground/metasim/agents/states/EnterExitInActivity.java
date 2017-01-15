@@ -17,7 +17,9 @@ public class EnterExitInActivity extends StateEnterExitListener.Default {
 	@Override
 	public List<ActionCallBack> notifyOfStateEntry(BeamAgent agent) {
 		PersonAgent personAgent = (PersonAgent)agent;
-		double activityEndTime = personAgent.getPlanTracker().getCurrentOrNextActivity().getEndTime();
+		Double activityEndTime = (personAgent.getPlanTracker().getCurrentOrNextActivity()==null) ? -1.0 : personAgent.getPlanTracker().getCurrentOrNextActivity().getEndTime();
+		//TODO we need a robust way of handling end_time that is blank, for now just assume 12 hours of activity
+		if(activityEndTime < beamServices.getScheduler().getNow())activityEndTime = beamServices.getScheduler().getNow() + 12.0*3600.0;
 		return beamServices.getScheduler().createCallBackMethod(activityEndTime, agent, "EndActivity", this.getClass());
 	}
 
