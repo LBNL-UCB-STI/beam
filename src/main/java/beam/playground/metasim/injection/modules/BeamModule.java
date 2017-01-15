@@ -25,7 +25,7 @@ import beam.playground.metasim.scheduler.ActionCallBack;
 import beam.playground.metasim.scheduler.ActionCallBackFactory;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.ChoiceModelService;
-import beam.playground.metasim.services.LocationalServices;
+import beam.playground.metasim.services.location.LocationalServices;
 import beam.playground.metasim.services.BeamRandom;
 import beam.playground.metasim.services.BeamServices;
 import beam.sim.traveltime.BeamRouter;

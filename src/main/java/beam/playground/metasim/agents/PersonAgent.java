@@ -7,6 +7,7 @@ import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Person;
 
+import beam.playground.metasim.BeamMode;
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.choice.models.ChoiceModel;
 import beam.playground.metasim.agents.plans.AgentWithPlans;
@@ -21,6 +22,7 @@ public class PersonAgent extends BeamAgent.Default implements MobileAgent, Agent
 	BeamPlan beamPlan;
 	PlanTracker planTracker;
 	Link nearestLink;
+	BeamMode chosenMode;
 	
 	public PersonAgent(Person person, Coord location, BeamServices beamServices, BeamPlanFactory beamPlanFactory){
 		super(Id.create(person.getId().toString(), BeamAgent.class), beamServices);
@@ -74,6 +76,16 @@ public class PersonAgent extends BeamAgent.Default implements MobileAgent, Agent
 	@Override
 	public Link getNearestLink() {
 		return nearestLink;
+	}
+
+	@Override
+	public BeamMode getChosenMode() {
+		return chosenMode;
+	}
+
+	@Override
+	public void setChosenMode(BeamMode mode) {
+		this.chosenMode = mode;
 	}
 
 }

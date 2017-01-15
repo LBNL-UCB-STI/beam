@@ -31,6 +31,7 @@ import beam.playground.metasim.scheduler.ActionCallBack;
 import beam.playground.metasim.scheduler.Scheduler;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
+import beam.playground.metasim.services.location.LocationalServices;
 import beam.sim.traveltime.BeamRouter;
 
 public interface BeamServices {

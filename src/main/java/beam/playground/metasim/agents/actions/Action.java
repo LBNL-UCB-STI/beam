@@ -51,9 +51,9 @@ public interface Action {
     		}
     		matsimServices.getEvents().processEvent(new ActionEvent(beamServices.getScheduler().getNow(),agent,this));
     		List<ActionCallBack> callbacksToSchedule = agent.getState().exitState(agent);
+    		callbacksToSchedule.addAll(selectedTransition.performTransition(agent));
     		agent.setState(selectedTransition.getToState());
     		callbacksToSchedule.addAll(agent.getState().enterState(agent));
-    		callbacksToSchedule.addAll(selectedTransition.performTransition(agent));
     		matsimServices.getEvents().processEvent(new TransitionEvent(beamServices.getScheduler().getNow(),agent,selectedTransition));
     		for(ActionCallBack callback : callbacksToSchedule){
     			matsimServices.getEvents().processEvent(new ActionCallBackScheduleEvent(beamServices.getScheduler().getNow(),this,callback));

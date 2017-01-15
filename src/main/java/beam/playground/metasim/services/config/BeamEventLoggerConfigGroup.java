@@ -4,7 +4,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 
+import org.matsim.api.core.v01.events.ActivityEndEvent;
 import org.matsim.api.core.v01.events.ActivityStartEvent;
+import org.matsim.api.core.v01.events.LinkEnterEvent;
+import org.matsim.api.core.v01.events.LinkLeaveEvent;
+import org.matsim.api.core.v01.events.PersonArrivalEvent;
+import org.matsim.api.core.v01.events.PersonDepartureEvent;
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
+import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
+import org.matsim.api.core.v01.events.VehicleEntersTrafficEvent;
+import org.matsim.api.core.v01.events.VehicleLeavesTrafficEvent;
 import org.matsim.core.config.ReflectiveConfigGroup;
 
 import beam.playground.metasim.events.ActionCallBackScheduleEvent;
@@ -25,10 +34,20 @@ public class BeamEventLoggerConfigGroup extends ReflectiveConfigGroup {
 	public BeamEventLoggerConfigGroup() {
 		super(GROUP_NAME,true);
 
-		// Registry of BEAM (or MATSim) events that can be logged by BeamEventLogger
+		// Registry of BEAM events that can be logged by BeamEventLogger
 		allLoggableEvents.add(ActionEvent.class);
 		allLoggableEvents.add(TransitionEvent.class);
 		allLoggableEvents.add(ActionCallBackScheduleEvent.class);
+		// Registry of MATSim events that can be logged by BeamEventLogger
+		allLoggableEvents.add(ActivityEndEvent.class);
+		allLoggableEvents.add(PersonDepartureEvent.class);
+		allLoggableEvents.add(PersonEntersVehicleEvent.class);
+		allLoggableEvents.add(VehicleEntersTrafficEvent.class);
+		allLoggableEvents.add(LinkLeaveEvent.class);
+		allLoggableEvents.add(LinkEnterEvent.class);
+		allLoggableEvents.add(VehicleLeavesTrafficEvent.class);
+		allLoggableEvents.add(PersonLeavesVehicleEvent.class);
+		allLoggableEvents.add(PersonArrivalEvent.class);
 		allLoggableEvents.add(ActivityStartEvent.class);
 	}
 

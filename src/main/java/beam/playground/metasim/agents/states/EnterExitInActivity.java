@@ -18,15 +18,11 @@ public class EnterExitInActivity extends StateEnterExitListener.Default {
 	public List<ActionCallBack> notifyOfStateEntry(BeamAgent agent) {
 		PersonAgent personAgent = (PersonAgent)agent;
 		double activityEndTime = personAgent.getPlanTracker().getCurrentOrNextActivity().getEndTime();
-
-		beamServices.getScheduler().createCallBackMethod(activityEndTime, agent, "ChooseMode", this.getClass());
-
-		return new LinkedList<>();
+		return beamServices.getScheduler().createCallBackMethod(activityEndTime, agent, "EndActivity", this.getClass());
 	}
 
 	@Override
 	public List<ActionCallBack> notifyOfStateExit(BeamAgent agent) {
-		PersonAgent personAgent = (PersonAgent)agent;
 		return new LinkedList<>();
 	}
 

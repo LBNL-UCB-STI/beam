@@ -32,7 +32,7 @@ public class MetaSim implements Mobsim {
 		// Note that a BeamAgentPopulation includes more than people, it includes anything that implements BeamAgent
 		// which is intended for anything that takes actions according to a finite state machine.
 		
-		scheduler.doSimStep(1000.0);
+		scheduler.doSimStep(Double.MAX_VALUE);
 
 	}
 

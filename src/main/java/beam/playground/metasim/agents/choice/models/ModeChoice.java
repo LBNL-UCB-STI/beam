@@ -7,7 +7,9 @@ import org.jdom.Element;
 import com.google.inject.Inject;
 import com.google.inject.assistedinject.Assisted;
 
+import beam.playground.metasim.BeamMode;
 import beam.playground.metasim.agents.BeamAgent;
+import beam.playground.metasim.agents.PersonAgent;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.services.BeamServices;
 
@@ -22,6 +24,8 @@ public class ModeChoice implements ChoiceModel{
 	}
 	@Override
 	public Transition selectTransition(BeamAgent agent, LinkedList<Transition> transitions) {
-		return transitions.size() == 0 ? null : transitions.get(beamServices.getRandom().nextInt(transitions.size()));
+		PersonAgent person = (PersonAgent)agent;
+		person.setChosenMode(BeamMode.WALK);
+		return transitions.getFirst();
 	}
 }
