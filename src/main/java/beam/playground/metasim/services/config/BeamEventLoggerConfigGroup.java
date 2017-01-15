@@ -3,6 +3,8 @@ package beam.playground.metasim.services.config;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
+
+import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.core.config.ReflectiveConfigGroup;
 
 import beam.playground.metasim.events.ActionCallBackScheduleEvent;
@@ -27,6 +29,7 @@ public class BeamEventLoggerConfigGroup extends ReflectiveConfigGroup {
 		allLoggableEvents.add(ActionEvent.class);
 		allLoggableEvents.add(TransitionEvent.class);
 		allLoggableEvents.add(ActionCallBackScheduleEvent.class);
+		allLoggableEvents.add(ActivityStartEvent.class);
 	}
 
     @Override
