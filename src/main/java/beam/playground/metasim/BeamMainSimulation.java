@@ -1,20 +1,13 @@
 package beam.playground.metasim;
 
-import org.apache.log4j.Logger;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.AbstractModule;
-import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.ControlerDefaultsModule;
-import org.matsim.core.controler.ControlerI;
 import org.matsim.core.controler.Injector;
 import org.matsim.core.controler.NewControlerModule;
 import org.matsim.core.scenario.ScenarioByConfigModule;
 
-import com.google.inject.assistedinject.FactoryModuleBuilder;
-
-import beam.parking.lib.DebugLib;
-import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.corelisteners.ControllerCoreListenersModule;
 import beam.playground.metasim.injection.modules.BeamModule;

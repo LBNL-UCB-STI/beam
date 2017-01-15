@@ -51,15 +51,20 @@ public class Scheduler {
 			}
 		}
 	});
-	public List<ActionCallBack> createCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition){
-		return createCallBackMethod(time, targetAgent, actionName, callingTransition, 0.0);
+	public List<ActionCallBack> createCallBackMethod(double time, BeamAgent targetAgent, String actionName, Class<?> callingClass){
+		return createCallBackMethod(time, targetAgent, actionName, callingClass, 0.0);
 	}
-	public List<ActionCallBack> createCallBackMethod(double time, BeamAgent targetAgent, String actionName, Transition callingTransition, double priority){
-		ActionCallBack callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingTransition);
+	public List<ActionCallBack> createCallBackMethod(double time, BeamAgent targetAgent, String actionName, Class<?> callingClass, double priority){
+		ActionCallBack callback = callbackFactory.create(time,priority,targetAgent,actionName,now,callingClass);
 		return Arrays.asList(callback);
 	}
 	public void scheduleCallBack(ActionCallBack callback){
 		this.queue.add(callback);
+	}
+	public void scheduleCallBacks(List<ActionCallBack> callbacks) {
+		for(ActionCallBack callback : callbacks){
+			scheduleCallBack(callback);
+		}
 	}
 	
 	public void doSimStep(double until) {

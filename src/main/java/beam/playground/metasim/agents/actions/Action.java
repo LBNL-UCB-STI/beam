@@ -50,8 +50,10 @@ public interface Action {
     			throw new IllegalTransitionException("Transition selector " + agent.getChoiceModel(this) + " selected the transition " + selectedTransition + " which is not available to agent " + agent);
     		}
     		matsimServices.getEvents().processEvent(new ActionEvent(beamServices.getScheduler().getNow(),agent,this));
+    		List<ActionCallBack> callbacksToSchedule = agent.getState().exitState(agent);
     		agent.setState(selectedTransition.getToState());
-    		List<ActionCallBack> callbacksToSchedule = selectedTransition.performTransition(agent);
+    		callbacksToSchedule.addAll(agent.getState().enterState(agent));
+    		callbacksToSchedule.addAll(selectedTransition.performTransition(agent));
     		matsimServices.getEvents().processEvent(new TransitionEvent(beamServices.getScheduler().getNow(),agent,selectedTransition));
     		for(ActionCallBack callback : callbacksToSchedule){
     			matsimServices.getEvents().processEvent(new ActionCallBackScheduleEvent(beamServices.getScheduler().getNow(),this,callback));

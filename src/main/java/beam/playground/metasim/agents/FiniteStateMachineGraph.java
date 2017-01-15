@@ -2,6 +2,7 @@ package beam.playground.metasim.agents;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -20,6 +21,7 @@ import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.actions.ActionFactory;
 import beam.playground.metasim.agents.choice.models.RandomTransition;
 import beam.playground.metasim.agents.states.State;
+import beam.playground.metasim.agents.states.StateEnterExitListener;
 import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
 import beam.playground.metasim.services.BeamServices;
@@ -35,7 +37,7 @@ public class FiniteStateMachineGraph {
 	LinkedHashMap<String, Action> actions = new LinkedHashMap<>();
 	Class<?> assignedClass;
 
-	public FiniteStateMachineGraph(Element elem, ActionFactory actionFactory, TransitionFactory transitionFactory, MatsimServices matsimServices, BeamServices beamServices) throws SAXException, ClassNotFoundException {
+	public FiniteStateMachineGraph(Element elem, ActionFactory actionFactory, TransitionFactory transitionFactory, MatsimServices matsimServices, BeamServices beamServices) throws SAXException, ClassNotFoundException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 		this.matsimServices = matsimServices;
 		this.beamServices = beamServices;
 		if(elem.getAttributeValue("class") == null)throw new SAXException("Finite state machine element ('finiteStateMachine') in XML config file does not have a 'class' attribute");
@@ -124,6 +126,21 @@ public class FiniteStateMachineGraph {
 						}
 						((Action.Default)theAction).setDefaultChoiceModel(choiceModelClass);
 					}
+				}
+			}else if(graphElemName.equals("listeners")){
+				String listenerClassPrefix = (graphElem.getAttribute("listenerClassPrefix")==null) ? "" : graphElem.getAttributeValue("listenerClassPrefix");
+				for(int k=0; k < graphElem.getChildren().size(); k++){
+					Element listenerElem = (Element)graphElem.getChildren().get(k);
+					if(!listenerElem.getName().toLowerCase().equals("listener"))throw new SAXException("Unexpected element in config file for finite state machines finiteStateMachines::finiteStateMachine::listeners::" + listenerElem.getName());
+					// state
+					if(listenerElem.getAttributeValue("state") == null)throw new SAXException("Listener in finite state machine for class " + elem.getAttributeValue("class") + " is missing the 'state' attribute.");
+					State theState = states.get(listenerElem.getAttributeValue("state"));
+					if(theState == null)throw new SAXException("Action in finite state machine for class " + elem.getAttributeValue("class") + " specifies an unknown state: " + listenerElem.getAttributeValue("state"));
+					
+					Class<?> transitionClass = Class.forName(listenerClassPrefix+listenerElem.getAttributeValue("class"));
+					StateEnterExitListener listener = (StateEnterExitListener) transitionClass.getConstructor(BeamServices.class).newInstance(beamServices);
+					theState.addStateEntryListener(listener);
+					theState.addStateExitListener(listener);
 				}
 			}
 		}

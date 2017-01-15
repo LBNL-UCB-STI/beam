@@ -20,17 +20,17 @@ public interface ActionCallBack {
 		private Double time,timeScheduled, priority;
 		private Action action;
 		private BeamAgent targetAgent;
-		private Transition callingTransition;
+		private Class<?> callingClass;
 		
 		@Inject
-		public Default(@Assisted("time") Double time,@Assisted("priority") Double priority,@Assisted BeamAgent targetAgent,@Assisted String actionName,@Assisted("timeScheduled") Double timeScheduled,@Assisted Transition callingTransition) {
+		public Default(@Assisted("time") Double time,@Assisted("priority") Double priority,@Assisted BeamAgent targetAgent,@Assisted String actionName,@Assisted("timeScheduled") Double timeScheduled,@Assisted Class<?> callingClass) {
 			super();
 			this.time = time;
 			this.priority = priority;
 			this.targetAgent = targetAgent;
 			this.action = targetAgent.getGraph().getActionMap().get(actionName);
 			this.timeScheduled = timeScheduled;
-			this.callingTransition = callingTransition;
+			this.callingClass = callingClass;
 		}
 		public void perform() throws IllegalTransitionException{
 			action.performOn(targetAgent);

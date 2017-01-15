@@ -13,7 +13,7 @@ public class TransitionFromInActivityToChoosingMode extends Transition.Default {
 
 	@Override
 	public List<ActionCallBack> performTransition(BeamAgent agent) {
-		return beamServices.getScheduler().createCallBackMethod(beamServices.getScheduler().getNow() + 60.0, agent, "ChooseMode", this);
+		return beamServices.getScheduler().createCallBackMethod(beamServices.getScheduler().getNow() + 60.0, agent, "ChooseMode", this.getClass());
 	}
 
 }

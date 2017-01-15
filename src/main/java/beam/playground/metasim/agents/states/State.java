@@ -2,12 +2,15 @@ package beam.playground.metasim.agents.states;
 
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.anarres.graphviz.builder.GraphVizGraph;
 import org.anarres.graphviz.builder.GraphVizScope;
 
+import beam.playground.metasim.agents.BeamAgent;
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.transition.Transition;
+import beam.playground.metasim.scheduler.ActionCallBack;
 
 public interface State {
 	public String getName();
@@ -17,11 +20,16 @@ public interface State {
 	public Collection<Transition> getNonContingentTranstions();
 	public void addAction(Action action);
 	public Collection<Action> getAllActions();
+	public void addStateEntryListener(StateEnterExitListener listener);
+	public void addStateExitListener(StateEnterExitListener listener);
+	public List<ActionCallBack> enterState(BeamAgent agent);
+	public List<ActionCallBack> exitState(BeamAgent agent);
 	
 	public class Default implements State,GraphVizScope {
 		private String name;
 		private LinkedList<Transition> contingentTransitionsFromThisState = new LinkedList<>(), nonContingentTransitionsFromThisState = new LinkedList<>();
 		private LinkedList<Action> actions = new LinkedList<>();
+		private LinkedList<StateEnterExitListener> entryListeners = new LinkedList<>(), exitListeners = new LinkedList<>();
 
 		public Default(String name) {
 			super();
@@ -72,6 +80,33 @@ public interface State {
 		
 		public String toString(){
 			return "State:"+name;
+		}
+
+		@Override
+		public void addStateEntryListener(StateEnterExitListener listener) {
+			entryListeners.add(listener);
+		}
+		@Override
+		public void addStateExitListener(StateEnterExitListener listener) {
+			exitListeners.add(listener);
+		}
+
+		@Override
+		public List<ActionCallBack> enterState(BeamAgent agent) {
+			List<ActionCallBack> callbacks = new LinkedList<>();
+			for(StateEnterExitListener listener : entryListeners){
+				callbacks.addAll(listener.notifyOfStateEntry(agent));
+			}
+			return callbacks;
+		}
+
+		@Override
+		public List<ActionCallBack> exitState(BeamAgent agent) {
+			List<ActionCallBack> callbacks = new LinkedList<>();
+			for(StateEnterExitListener listener : exitListeners){
+				callbacks.addAll(listener.notifyOfStateExit(agent));
+			}
+			return callbacks;
 		}
 
 	}

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 
 import org.jdom.Document;
 import org.jdom.Element;
@@ -20,7 +21,7 @@ import beam.playground.metasim.agents.transition.TransitionFactory;
 import beam.playground.metasim.services.BeamServices;
 
 public interface FiniteStateMachineGraphFactory {
-	FiniteStateMachineGraph create(Element fsmElem) throws ClassNotFoundException, SAXException;
+	FiniteStateMachineGraph create(Element fsmElem) throws ClassNotFoundException, SAXException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException;
 
 	public class Default implements FiniteStateMachineGraphFactory{
 		ActionFactory actionFactory;
@@ -37,7 +38,7 @@ public interface FiniteStateMachineGraphFactory {
 		}
 
 		@Override
-		public FiniteStateMachineGraph create(Element fsmElem) throws ClassNotFoundException, SAXException {
+		public FiniteStateMachineGraph create(Element fsmElem) throws ClassNotFoundException, SAXException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
 			return new FiniteStateMachineGraph(fsmElem, actionFactory, transitionFactory, matsimServicesProvider.get(), beamServicesProvider.get());
 		}
 

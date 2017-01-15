@@ -1,9 +1,11 @@
 package beam.playground.metasim.agents;
 
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
 import org.matsim.api.core.v01.Coord;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Person;
@@ -13,13 +15,11 @@ import org.matsim.core.controler.listener.StartupListener;
 import com.google.inject.Inject;
 
 import beam.playground.metasim.agents.actions.ActionFactory;
-import beam.playground.metasim.agents.transition.Transition;
 import beam.playground.metasim.agents.transition.TransitionFactory;
-import beam.playground.metasim.agents.transition.TransitionFromStartToInActivity;
 import beam.playground.metasim.services.BeamServices;
 
 public class BeamAgentPopulation implements StartupListener{
-	LinkedHashSet<BeamAgent> beamAgents;
+	LinkedHashMap<Id<Person>,PersonAgent> personAgents;
 	@Inject BeamServices beamServices;
 	@Inject ActionFactory actionFactory;
 	@Inject PersonAgentFactory personAgentFactory;
@@ -27,23 +27,24 @@ public class BeamAgentPopulation implements StartupListener{
 
 	@Override
 	public void notifyStartup(StartupEvent event) {
-		beamAgents = new LinkedHashSet<BeamAgent>();
+		beamServices.setBeamAgentPopulation(this);
 		
 		/* 
 		 * PersonAgents
 		 * 
 		 * We derive person agents from the MATSim population.
 		 */
+		personAgents = new LinkedHashMap<Id<Person>,PersonAgent>();
 		Scenario scenario = event.getServices().getScenario();
 		for(Person person : scenario.getPopulation().getPersons().values()){
 			Coord initialLocation = ((Activity)person.getPlans().get(0).getPlanElements().get(0)).getCoord();
-			BeamAgent newPerson = personAgentFactory.create(person,initialLocation);
-			beamAgents.add(newPerson);
-			beamServices.getScheduler().scheduleCallBack(beamServices.getScheduler().createCallBackMethod(0.0, newPerson, "Begin", newPerson.getGraph().getInitialState().getAllTranstions().iterator().next()).iterator().next());
+			PersonAgent newPerson = personAgentFactory.create(person,initialLocation);
+			personAgents.put(newPerson.getPerson().getId(),newPerson);
+			beamServices.getScheduler().scheduleCallBacks(beamServices.getScheduler().createCallBackMethod(0.0, newPerson, "Begin", this.getClass()));
 		}
 	}
 
-	public Collection<BeamAgent> getAgents() {
-		return beamAgents;
+	public PersonAgent getPersonAgentById(Id<Person> personId) {
+		return personAgents.get(personId);
 	}
 }
