@@ -1,17 +1,22 @@
-package beam.playground.metasim.services;
+package beam.playground.metasim.services.location;
 
 import java.util.LinkedList;
 
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.population.Leg;
 import org.matsim.core.utils.collections.QuadTree;
 
 import com.google.inject.Inject;
 
+import beam.playground.metasim.BeamMode;
+import beam.playground.metasim.services.BeamServices;
+
 public interface LocationalServices {
 	public Link getNearestRoadLink(Coord coord);
 	public void finalizeInitialization();
+	public TripInformation getTripInformation(Leg leg, BeamMode mode);
 
 	public class Default implements LocationalServices{
 		private BeamServices beamServices;
@@ -49,6 +54,15 @@ public interface LocationalServices {
 			return roadQuadTree.getClosest(coord.getX(), coord.getY());
 		}
 
+		@Override
+		public TripInformation getTripInformation(Leg leg, BeamMode mode) {
+			TripInformation trip = new TripInformation();
+			//TODO obviously this needs to come from a router but for now a 10 minute walk
+			trip.tripTravelTime = 60.0*10.0;
+			return trip;
+		}
+
 	}
+
 
 }
