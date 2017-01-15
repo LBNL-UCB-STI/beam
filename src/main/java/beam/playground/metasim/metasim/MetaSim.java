@@ -14,14 +14,14 @@ import beam.playground.metasim.services.BeamServices;
 
 public class MetaSim implements Mobsim {
 
-	private BeamServices services;
+	private BeamServices beamServices;
 //	private Scenario scenario;
 	private Scheduler scheduler;
 	private EventsManager events;
 
 	@Inject
 	public MetaSim(BeamServices services, EventsManager events, Scheduler scheduler) {
-		this.services = services;
+		this.beamServices = services;
 //		this.scenario = scenario;
 		this.events = events;
 		this.scheduler = scheduler;
@@ -29,11 +29,11 @@ public class MetaSim implements Mobsim {
 
 	@Override
 	public void run() {
-		// Note that a BeamAgentPopulation includes more than people, it includes anything that implements BeamAgent
-		// which is intended for anything that takes actions according to a finite state machine.
-		
-		scheduler.doSimStep(Double.MAX_VALUE);
-
+		for(Double time = 0.0; time < Double.MAX_VALUE; time++){
+			if(scheduler.getSize()==0)break;
+			scheduler.doSimStep(time);
+			beamServices.getMatsimServices().getEvents().afterSimStep(time);
+		}
 	}
 
 }
