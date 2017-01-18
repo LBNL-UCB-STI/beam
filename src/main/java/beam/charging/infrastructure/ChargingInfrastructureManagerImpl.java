@@ -408,9 +408,6 @@ public class ChargingInfrastructureManagerImpl {
 	}
 
 	public void handleEndChargingSession(ChargingPlug plug, PlugInVehicleAgent agent) {
-		if(agent.getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
-		}
 		agent.setChargingState(AgentChargingState.POST_CHARGE_PLUGGED);
 		EVGlobalData.data.eventLogger.processEvent(new EndChargingSessionEvent(EVGlobalData.data.now, agent, plug));
 		plug.getChargingSite().handleEndChargingSession(plug, agent);
