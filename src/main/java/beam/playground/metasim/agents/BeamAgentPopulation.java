@@ -42,6 +42,11 @@ public class BeamAgentPopulation implements StartupListener{
 			personAgents.put(newPerson.getPerson().getId(),newPerson);
 			beamServices.getScheduler().scheduleCallBacks(beamServices.getScheduler().createCallBackMethod(0.0, newPerson, "Begin", this.getClass()));
 		}
+		
+		/*
+		 * Look at routes
+		 */
+		beamServices.getMatsimServices().getTripRouterProvider().get().calcRoute("", null, null, 0.0, null);
 	}
 
 	public PersonAgent getPersonAgentById(Id<Person> personId) {

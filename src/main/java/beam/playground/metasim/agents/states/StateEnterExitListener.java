@@ -1,5 +1,6 @@
 package beam.playground.metasim.agents.states;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import com.google.inject.Inject;
@@ -22,12 +23,12 @@ public interface StateEnterExitListener {
 
 		@Override
 		public List<? extends ActionCallBack> notifyOfStateEntry(BeamAgent agent) {
-			return null;
+			return new LinkedList<ActionCallBack>();
 		}
 
 		@Override
 		public List<? extends ActionCallBack> notifyOfStateExit(BeamAgent agent) {
-			return null;
+			return new LinkedList<ActionCallBack>();
 		}
 		
 	}

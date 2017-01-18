@@ -28,8 +28,6 @@ import beam.playground.metasim.services.ChoiceModelService;
 import beam.playground.metasim.services.location.LocationalServices;
 import beam.playground.metasim.services.BeamRandom;
 import beam.playground.metasim.services.BeamServices;
-import beam.sim.traveltime.BeamRouter;
-import beam.sim.traveltime.BeamRouterImpl;
 
 public class BeamModule extends AbstractModule {
 
@@ -42,7 +40,6 @@ public class BeamModule extends AbstractModule {
 		bind(ChoiceModelService.class).to(ChoiceModelService.Default.class);
 		 
 		// CONTROLLER / MOBSIM / SETTINGS
-		bind(BeamRouter.class).to(BeamRouterImpl.class);
 		bind(BeamController.class).asEagerSingleton();
 		bind(Mobsim.class).to(MetaSim.class);
 		bind(EventsHandling.class).to(BeamEventsHandlingImpl.class);

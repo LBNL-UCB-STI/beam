@@ -3,14 +3,15 @@ package beam.playground.metasim;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.AbstractModule;
-import org.matsim.core.controler.ControlerDefaultsModule;
 import org.matsim.core.controler.Injector;
 import org.matsim.core.controler.NewControlerModule;
 import org.matsim.core.scenario.ScenarioByConfigModule;
 
 import beam.playground.metasim.controller.BeamController;
 import beam.playground.metasim.controller.corelisteners.ControllerCoreListenersModule;
+import beam.playground.metasim.injection.modules.BeamControlerModule;
 import beam.playground.metasim.injection.modules.BeamModule;
+import beam.playground.metasim.injection.modules.BeamTripRouterModule;
 import beam.playground.metasim.services.config.BeamConfigGroup;
 import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
 
@@ -28,7 +29,7 @@ public class BeamMainSimulation {
 		String CONFIG_RELATIVE_PATH = args[1];
 		String OUTPUT_DIRECTORY_BASE_PATH = args[2];
 
-	    List<AbstractModule> modules = new ArrayList<>(Arrays.<AbstractModule>asList(new ControlerDefaultsModule()));
+	    List<AbstractModule> modules = new ArrayList<>(Arrays.<AbstractModule>asList(new BeamControlerModule()));
 	    
 	    Config config = ConfigUtils.loadConfig(INPUT_DIRECTORY_BASE_PATH + File.separator + CONFIG_RELATIVE_PATH,new BeamConfigGroup(), new BeamEventLoggerConfigGroup());
 	    ((BeamConfigGroup)config.getModules().get("beam")).customizeConfiguration(config,INPUT_DIRECTORY_BASE_PATH,CONFIG_RELATIVE_PATH,OUTPUT_DIRECTORY_BASE_PATH);

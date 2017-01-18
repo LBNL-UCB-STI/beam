@@ -31,6 +31,9 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.facilities.Facility;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
+import org.opentripplanner.routing.graph.Graph;
+import org.opentripplanner.standalone.CommandLineParameters;
+import org.opentripplanner.standalone.OTPMain;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -43,6 +46,12 @@ public class BeamRouterImpl extends BeamRouter {
 	int cachMiss = 0, getCount = 0;
 
 	BeamRouterImpl(){ 
+		CommandLineParameters params = new CommandLineParameters();
+		// TODO remove hard coded file path
+		params.build = new File("/Users/critter/Documents/beam/otp/");
+		OTPMain otp = new OTPMain(params);
+		Graph graph = otp.graphService.getRouter().graph;
+
 //		this(EVGlobalData.data.RELAXED_TRAVEL_TIME_FILEPATH,EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
 	}
 	/*

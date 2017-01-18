@@ -30,6 +30,13 @@ repositories {
     maven { url "http://repo.maven.apache.org/maven2" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
+    maven { url "http://maven.conveyal.com/" }
+    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+    maven { url "http://repo1.maven.org/maven2" }
+    maven { url "http://download.java.net/maven/2/" }
+    maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
+    maven { url "http://dl.bintray.com/andimarek/graphql-java" }
+    maven { url "http://maven.geo-solutions.it" }
     jcenter()
     maven { url "https://jitpack.io" }
 }
@@ -84,6 +91,7 @@ dependencies {
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
+    compile 'com.github.colinsheppard:OpenTripPlanner:otp-1.0.0-beam-SNAPSHOT'
 }
 
 //////////////////////////////////////////////////////////////////////
