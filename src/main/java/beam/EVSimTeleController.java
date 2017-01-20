@@ -87,11 +87,6 @@ public class EVSimTeleController {
 		evSimTeleController.startSimulation();
 	}
 
-	protected void initModeRouters() {
-		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterImpl.class);
-		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES, BeamRouterImpl.class);
-	}
-
 	public void init() {
 		EVGlobalData.data.config = setupConfig();
 		MatsimRandom.reset(EVGlobalData.data.config.global().getRandomSeed());
@@ -104,6 +99,11 @@ public class EVSimTeleController {
 		Scenario scenario = ScenarioUtils.loadScenario(EVGlobalData.data.config);
 		EVController controler = new EVController(scenario);
 		EVGlobalData.data.controler = controler;
+	}
+
+	protected void initModeRouters() {
+		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterImpl.class);
+		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES, BeamRouterImpl.class);
 	}
 
 	public void startSimulation() {

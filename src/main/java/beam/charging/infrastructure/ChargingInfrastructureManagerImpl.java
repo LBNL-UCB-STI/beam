@@ -414,12 +414,12 @@ public class ChargingInfrastructureManagerImpl {
 		agent.setChargingState(AgentChargingState.POST_CHARGE_PLUGGED);
 		EVGlobalData.data.eventLogger.processEvent(new EndChargingSessionEvent(EVGlobalData.data.now, agent, plug));
 		plug.getChargingSite().handleEndChargingSession(plug, agent);
-		if (agent.isInLastActivity()) {
+		if (agent.isInLastActivity() && plug.getChargingPlugType().getNominalLevel() < 3 && !agent.shouldDepartAfterChargingSession()) {
 			double unplugTime = agent.getCurrentActivity().getEndTime() < 0 ? EVGlobalData.data.now : agent.getCurrentActivity().getEndTime();
 			EVGlobalData.data.scheduler.addCallBackMethod(unplugTime, plug, "unplugVehicle", 0.0,agent);
-		}else{
+		}else{ // if it is a fast charger or if the agent should leave after charging
 			plug.unplugVehicle(agent.getVehicleWithBattery());
-			if (agent.shouldDepartAfterChargingSession())agent.handleDeparture();
+			if (agent.shouldDepartAfterChargingSession()) agent.handleDeparture();
 		}
 	}
 
@@ -430,7 +430,7 @@ public class ChargingInfrastructureManagerImpl {
 		}
 		if (plug.getChargingPlugType().getNominalLevel() < 3) {
 			plug.getChargingPoint().registerVehicleDeparture(agent);
-		} else {
+		} else{
 			plug.getChargingSite().registerVehicleDeparture(agent);
 		}
 	}
