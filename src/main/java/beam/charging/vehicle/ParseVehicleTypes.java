@@ -80,18 +80,22 @@ public class ParseVehicleTypes {
 					vehicleProperties.put("petroleumenergyconsumptionmodel",petroleumConsumptionModel);
 
 					if(headerMap.get("equivalenttestweight")==null){
-						vehicleProperties.put("equivalenttestweight",3746);
-						vehicleProperties.put("targetcoefa",41.06);
-						vehicleProperties.put("targetcoefb",-0.3082);
-						vehicleProperties.put("targetcoefc",0.02525);
+						vehicleProperties.put("equivalenttestweight",String.valueOf(3746));
+						vehicleProperties.put("targetcoefa",String.valueOf(41.06));
+						vehicleProperties.put("targetcoefb",String.valueOf(-0.3082));
+						vehicleProperties.put("targetcoefc",String.valueOf(0.02525));
 					}else{
 						vehicleProperties.put("equivalenttestweight",row[headerMap.get("equivalenttestweight")].trim());
 						vehicleProperties.put("targetcoefa",row[headerMap.get("targetcoefa")].trim());
 						vehicleProperties.put("targetcoefb",row[headerMap.get("targetcoefb")].trim());
 						vehicleProperties.put("targetcoefc",row[headerMap.get("targetcoefc")].trim());
 					}
-					vehicleProperties.put("epafuelecon",row[headerMap.get("epafuelecon")].trim());
-					
+					if(headerMap.get("epafuelecon") == null){
+						vehicleProperties.put("epafuelecon", String.valueOf(80));
+					}else{
+						vehicleProperties.put("epafuelecon",row[headerMap.get("epafuelecon")].trim());
+					}
+
 					EVGlobalData.data.vehiclePropertiesMap.put(row[headerMap.get("id")].trim(),vehicleProperties);
 				}
 			}

@@ -651,7 +651,8 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		if(this.chargingState == AgentChargingState.STRANDED)return;
-		if (this.chargingState == AgentChargingState.PRE_CHARGE || this.chargingState == AgentChargingState.CHARGING || this.chargingState == AgentChargingState.POST_CHARGE_PLUGGED || this.chargingState == AgentChargingState.POST_CHARGE_UNPLUGGED) {
+		if (this.chargingState == AgentChargingState.PRE_CHARGE || this.chargingState == AgentChargingState.CHARGING
+				|| this.chargingState == AgentChargingState.POST_CHARGE_PLUGGED || this.chargingState == AgentChargingState.POST_CHARGE_UNPLUGGED) {
 			EVGlobalData.data.chargingInfrastructureManager.registerVehicleDeparture(selectedChargingPlug, this);
 			if (this.chargingState == AgentChargingState.PRE_CHARGE || this.chargingState == AgentChargingState.CHARGING ){
 				EVGlobalData.data.chargingInfrastructureManager.interruptChargingEvent(selectedChargingPlug, this);

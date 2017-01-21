@@ -272,6 +272,7 @@ public class ChargingInfrastructureManagerImpl {
 					numFast += site.getAccessibleChargingPlugsOfChargingPlugType(plugType).size();
 				}
 			}
+			// Set the number of fast charger as the maximum charging queue at the charging site
 			site.createFastChargingQueue(numFast);
 			for (ChargingPoint point : site.getAllChargingPoints()) {
 				point.createSlowChargingQueue(point.getNumberOfAvailableParkingSpots());
@@ -411,20 +412,35 @@ public class ChargingInfrastructureManagerImpl {
 		if(agent.getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
 			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
+		// Set charging state
 		agent.setChargingState(AgentChargingState.POST_CHARGE_PLUGGED);
-		EVGlobalData.data.eventLogger.processEvent(new EndChargingSessionEvent(EVGlobalData.data.now, agent, plug));
-		plug.getChargingSite().handleEndChargingSession(plug, agent);
 
-		// The agent stays plugged-in if (1) it is the last activity
-									// && (2) the charger is a slow charger
-									// && (3) the agent not "shouldDepartAfterChargingSession"
-		if (agent.isInLastActivity() && plug.getChargingPlugType().getNominalLevel() < 3 && !agent.shouldDepartAfterChargingSession()) {
-			double unplugTime = agent.getCurrentActivity().getEndTime() < 0 ? EVGlobalData.data.now : agent.getCurrentActivity().getEndTime();
-			EVGlobalData.data.scheduler.addCallBackMethod(unplugTime, plug, "unplugVehicle", 0.0,agent);
-		}else{ // Otherwise leaves
+		// Process event... what the heck is this?
+		EVGlobalData.data.eventLogger.processEvent(new EndChargingSessionEvent(EVGlobalData.data.now, agent, plug));
+
+		// Determine if the vehicle should leave or stay at the end of the charging session
+		plug.getChargingSite().handleEndChargingSession(plug, agent);
+			// this function checks if it is a slow/fast charger and if there is a queue.
+			// If there is, a vehicle is unplugged and a next vehicle is plugged-in
+			// This function, however, does not unplug EV at a fast charger if there is no queue.
+
+		// We need to plug out the EV after a fast charging no matter what.
+		if(plug.getChargingPlugType().getNominalLevel() >= 3){ // if it's a fast charger
 			plug.unplugVehicle(agent.getVehicleWithBattery());
-			if (agent.shouldDepartAfterChargingSession()) agent.handleDeparture();
-		}
+		}else if(agent.isInLastActivity()){ // if it's a slow charger && it's a last activity,
+			double unplugTime = agent.getCurrentActivity().getEndTime() < 0 ?
+					EVGlobalData.data.now : agent.getCurrentActivity().getEndTime();
+			EVGlobalData.data.scheduler.addCallBackMethod(unplugTime, plug, "unplugVehicle", 0.0,agent);
+		}else if(agent.shouldDepartAfterChargingSession()) // if it's a slow charger && if the vehicle should leave after charging
+			agent.handleDeparture();
+
+//		if (agent.isInLastActivity()) {
+//			double unplugTime = agent.getCurrentActivity().getEndTime() < 0 ? EVGlobalData.data.now : agent.getCurrentActivity().getEndTime();
+//			EVGlobalData.data.scheduler.addCallBackMethod(unplugTime, plug, "unplugVehicle", 0.0,agent);
+//		}else{
+//			plug.unplugVehicle(agent.getVehicleWithBattery());
+//			if (agent.shouldDepartAfterChargingSession()) agent.handleDeparture();
+//		}
 	}
 
 	public void registerVehicleDeparture(ChargingPlug plug, PlugInVehicleAgent agent) {

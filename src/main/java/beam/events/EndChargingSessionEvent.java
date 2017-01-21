@@ -2,6 +2,8 @@ package beam.events;
 
 import java.util.Map;
 
+import beam.charging.vehicle.AgentChargingState;
+import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugStatus;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
@@ -14,6 +16,7 @@ import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 public class EndChargingSessionEvent extends Event implements IdentifiableDecisionEvent {
 
 	private PlugInVehicleAgent agent;
+	private ChargingPlug plug;
 	private double soc;
 	private int decisionEventId;
 	
@@ -26,6 +29,7 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 		this.agent = agent;
 		this.soc = agent.getSoC()/agent.getBatteryCapacity();
 		this.setDecisionEventId(agent.getCurrentDecisionEventId());
+		this.plug = plug;
 	}
 
 	@Override
@@ -57,5 +61,33 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 	public double getSoC() {
 		return soc;
 	}
+
+//	public ChargingPlug getChargingPlug(){
+//		return this.plug;
+//	}
+//
+//	public ChargingPlugStatus getChargingPlugStatus(){
+//		return this.plug.getChargingPlugStatus();
+//	}
+
+	public AgentChargingState getChargingState(){
+		return this.agent.getChargingState();
+	}
+
+	public int getNominalChargingLevel(){
+		return this.plug.getChargingPlugType().getNominalLevel();
+	}
+
+	public boolean shouldDepartAfterChargingSession(){
+		return this.agent.shouldDepartAfterChargingSession();
+	}
+
+	public boolean isInLastActivity(){
+		return this.agent.isInLastActivity();
+	}
+
+//	public int getNumInChargingQueue(){
+//		return this.agent.getSelectedChargingSite().qu;
+//	}
 
 }
