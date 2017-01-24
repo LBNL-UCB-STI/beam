@@ -14,6 +14,8 @@ plugins {
 
 apply plugin: 'java'
 apply plugin: 'maven'
+apply plugin: 'scala'
+apply plugin: 'idea'
 
 group = 'beam'
 version = '0.2.0-SNAPSHOT'
@@ -97,9 +99,9 @@ dependencies {
     
 }
 
-tasks.withType(ScalaCompile) {
-  scalaCompileOptions.useAnt = false
-}
+//tasks.withType(ScalaCompile) {
+//  scalaCompileOptions.useAnt = false
+//}
 
 //////////////////////////////////////////////////////////////////////
 // BUNDLING FOR EXECUTION
