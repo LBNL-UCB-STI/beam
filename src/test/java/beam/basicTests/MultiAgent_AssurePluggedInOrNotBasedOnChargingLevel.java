@@ -15,7 +15,7 @@ import org.matsim.api.core.v01.population.Person;
 
 import java.util.LinkedList;
 
-public class MultiAgent_AssureUnplugIsntAlwaysCalled extends SingleAgentBaseTest{
+public class MultiAgent_AssurePluggedInOrNotBasedOnChargingLevel extends SingleAgentBaseTest{
 
     @Override
     @Test
@@ -35,6 +35,8 @@ public class MultiAgent_AssureUnplugIsntAlwaysCalled extends SingleAgentBaseTest
                 EndChargingSessionEvent event = evEventCollector.eventCollection.get(0).endChargingSessionEvents.get(personId).get(i);
                 assureVehicleUnpluggedAfterSlowChargingIfShouldLeave(event.getNominalChargingLevel() < 3, !event.getChargingState().equals(AgentChargingState.POST_CHARGE_PLUGGED), event.shouldDepartAfterChargingSession());
                 assureVehicleUnpluggedAfterFastCharging(event.getNominalChargingLevel() >= 3, !event.getChargingState().equals(AgentChargingState.POST_CHARGE_PLUGGED));
+                assureVehicleUnpluggedAfterSlowChargingIfQueue(event.getNominalChargingLevel() < 3, !event.getChargingState().equals(AgentChargingState.POST_CHARGE_PLUGGED), event.getNumInChargingQueue() > 0);
+                assureVehicleRemainPluggedAfterSlowChargingIfNoQueue(event.getNominalChargingLevel() <3, !event.getChargingState().equals(AgentChargingState.POST_CHARGE_PLUGGED), event.getNumInChargingQueue() == 0);
             }
         }
     }
@@ -52,5 +54,7 @@ public class MultiAgent_AssureUnplugIsntAlwaysCalled extends SingleAgentBaseTest
         if(isSlowCharger && shouldLeaveAfterCharging) assertTrue(isUnplugged);
     }
 
-    private void assureVehicleRemainPluggedAfterSlowChargingIfNoQueue(boolean isSlowCharger, boolean isUnplugged, boolean isQueued){}
+    private void assureVehicleRemainPluggedAfterSlowChargingIfNoQueue(boolean isSlowCharger, boolean isUnplugged, boolean isQueued){
+        if(isSlowCharger && !isQueued) assertTrue(!isUnplugged);
+    }
 }

@@ -41,7 +41,7 @@ public class ChargingSiteImpl implements ChargingSite {
 	private ChargingNetworkOperator chargingNetworkOperator;
 	private HashSet<Link> nearbyLinks = new HashSet<>();
 	private Link nearestLink;
-	private ChargingQueueImpl fastChargingQueue;
+	public ChargingQueueImpl fastChargingQueue;
 	private boolean isResidential = false;
 
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, boolean isResidential) {
@@ -195,6 +195,7 @@ public class ChargingSiteImpl implements ChargingSite {
 	@Override
 	public void createFastChargingQueue(int maxQueueLength) {
 		this.fastChargingQueue = new ChargingQueueImpl(maxQueueLength * 3);
+		EVGlobalData.data.fastChargingQueue = this.fastChargingQueue;
 	}
 	
 	/*
@@ -302,4 +303,8 @@ public class ChargingSiteImpl implements ChargingSite {
 		if(this.fastChargingQueue != null)this.fastChargingQueue.resetAll();
 	}
 
+	@Override
+	public int getNumInChargingQueue(ChargingPlug plug){
+		return this.fastChargingQueue.getNumInChargingQueue(plug.getChargingPlugType());
+	}
 }

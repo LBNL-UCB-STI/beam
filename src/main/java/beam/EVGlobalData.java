@@ -6,6 +6,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Random;
 
+import beam.charging.infrastructure.ChargingSiteImpl;
+import beam.charging.management.ChargingQueueImpl;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingQueue;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
@@ -115,6 +118,8 @@ public class EVGlobalData {
 	public Boolean IS_DEBUG_MODE;
 
 	public ChargingInfrastructureManagerImpl chargingInfrastructureManager;
+	public ChargingQueueImpl fastChargingQueue;
+	public ChargingQueueImpl slowChargingQueue;
 	public Double EN_ROUTE_SEARCH_DISTANCE; // meters
 	public Double EQUALITY_EPSILON;
 	public Double TIME_TO_ENGAGE_NEXT_FAST_CHARGING_SESSION;

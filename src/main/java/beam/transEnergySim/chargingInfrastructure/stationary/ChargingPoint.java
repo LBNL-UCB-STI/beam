@@ -39,4 +39,6 @@ public interface ChargingPoint extends Identifiable<ChargingPoint> {
 	void registerPlugUnavailable(ChargingPlug chargingPlugImpl);
 
 	void resetAll();
+
+	int getNumInChargingQueue(ChargingPlug plug);
 }

@@ -73,6 +73,6 @@ public interface ChargingSite extends Identifiable<ChargingSite> {
 
 	abstract void resetAll();
 
-
+	int getNumInChargingQueue(ChargingPlug plug);
 
 }

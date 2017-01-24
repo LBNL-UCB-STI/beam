@@ -153,5 +153,10 @@ public class ChargingPointImpl implements ChargingPoint{
 			this.availableChargingPlugsByPlugType.put(plug.getChargingPlugType(), plug);
 		}
 	}
+
+	@Override
+	public int getNumInChargingQueue(ChargingPlug plug){
+		return this.slowChargingQueue.getNumInChargingQueue(plug.getChargingPlugType());
+	}
 	
 }
