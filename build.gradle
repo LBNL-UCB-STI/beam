@@ -92,6 +92,13 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
     compile 'com.github.colinsheppard:OpenTripPlanner:otp-1.0.0-beam-SNAPSHOT'
+    compile 'org.scala-lang:scala-library:2.11.8'
+    compile group: 'com.typesafe.akka', name: 'akka-actor_2.11', version: '2.4.16'
+    
+}
+
+tasks.withType(ScalaCompile) {
+  scalaCompileOptions.useAnt = false
 }
 
 //////////////////////////////////////////////////////////////////////
