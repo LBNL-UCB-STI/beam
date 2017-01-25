@@ -40,9 +40,9 @@ class BeamAgent extends FSM[BeamState,BeamAgentInfo]{
 
   when(InitState)
 //  {}
-  {
-    case Event()
-  }
+//  {
+////    case Event()
+//  }
   when(InActivity)
 //  {}
   when(Traveling)
