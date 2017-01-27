@@ -1,13 +1,10 @@
-package beam.metasim.agents
+package beam.metasim.playground.sid.agents
 
-import akka.actor.{Actor, ActorRef, Cancellable, FSM, Props}
-import BeamAgent._
-import DecisionProtocol._
+import akka.actor.FSM
+import beam.metasim.playground.sid.agents.BeamAgent._
 import org.matsim.api.core.v01.{Coord, TransportMode}
 import org.matsim.core.utils.geometry.CoordUtils
 import org.slf4j.LoggerFactory
-
-import scala.reflect.ClassTag
 
 object BeamAgent {
 
@@ -34,7 +31,6 @@ object DecisionProtocol{
 class BeamAgent extends FSM[BeamState,BeamAgentInfo]{
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
-
 
   startWith(InitState,BeamAgentInfo(CoordUtils.createCoord(0,0)))
 
