@@ -44,6 +44,11 @@ repositories {
 }
 
 dependencies {
+
+    ////////////////////////////
+    // Java dependencies
+    ////////////////////////////
+
     compile group: 'jdom', name: 'jdom', version:'1.1'
     compile group: 'com.google.inject', name: 'guice', version:'4.1.0'
 	compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
@@ -94,9 +99,17 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
     compile 'com.github.colinsheppard:OpenTripPlanner:otp-1.0.0-beam-SNAPSHOT'
+
+    /////////////////////////////////
+    // Scala dependencies
+    /////////////////////////////////
+
     compile 'org.scala-lang:scala-library:2.11.8'
     compile group: 'com.typesafe.akka', name: 'akka-actor_2.11', version: '2.4.16'
-    
+    // https://mvnrepository.com/artifact/org.scala-lang/scala-xml
+    compile group: 'org.scala-lang', name: 'scala-xml', version: '2.11.0-M4'
+
+
 }
 
 //tasks.withType(ScalaCompile) {

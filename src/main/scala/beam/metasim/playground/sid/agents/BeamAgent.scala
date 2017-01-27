@@ -6,6 +6,8 @@ import org.matsim.api.core.v01.{Coord, TransportMode}
 import org.matsim.core.utils.geometry.CoordUtils
 import org.slf4j.LoggerFactory
 
+// NOTE: companion objects used to define static methods and factory methods for a class
+
 object BeamAgent {
 
   // states
