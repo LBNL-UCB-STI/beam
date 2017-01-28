@@ -36,17 +36,17 @@ class BeamAgent extends FSM[BeamState,BeamAgentInfo]{
 
   startWith(InitState,BeamAgentInfo(CoordUtils.createCoord(0,0)))
 
-  when(InitState)
-//  {}
-//  {
-////    case Event()
-//  }
-  when(InActivity)
-//  {}
-  when(Traveling)
-//  {}
-
-//  whenUnhandled
+//  when(InitState)
+////  {}
+////  {
+//////    case Event()
+////  }
+//  when(InActivity)
+////  {}
+//  when(Traveling)
+////  {}
+//
+////  whenUnhandled
 
   onTransition {
     case InitState -> InActivity => logger.debug("From init state to first activity")
