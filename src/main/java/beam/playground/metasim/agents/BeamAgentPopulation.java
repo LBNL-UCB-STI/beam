@@ -14,6 +14,7 @@ import org.matsim.core.controler.listener.StartupListener;
 
 import com.google.inject.Inject;
 
+import beam.metasim.playground.colin.Main;
 import beam.playground.metasim.agents.actions.ActionFactory;
 import beam.playground.metasim.agents.transition.TransitionFactory;
 import beam.playground.metasim.services.BeamServices;
@@ -29,6 +30,15 @@ public class BeamAgentPopulation implements StartupListener{
 	public void notifyStartup(StartupEvent event) {
 		beamServices.setBeamAgentPopulation(this);
 		
+		Main akkMain = new Main();
+		akkMain.init();
+		akkMain.start();
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		System.exit(0);
 		/* 
 		 * PersonAgents
 		 * 

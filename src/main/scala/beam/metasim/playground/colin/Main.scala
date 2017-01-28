@@ -3,19 +3,31 @@ package beam.metasim.playground.colin
 import akka.actor.{ActorSystem,Inbox}
 import akka.actor.Props
 import scala.concurrent.duration._
+import akka.actor.Actor
+import akka.actor.ActorRef
 
-object Main extends App {
-    val system = ActorSystem("ToySystem")
-    val myAgent = system.actorOf(Props[BeamAgent])
-    val mySchedule = system.actorOf(Props[Scheduler])
+class Main {
+    var system : ActorSystem = null
+    var myAgent : ActorRef = null
+    var mySchedule : ActorRef = null
+    var inbox : Inbox = null
+
+    def init() {
+      this.system = ActorSystem("ToySystem")
+      this.myAgent = this.system.actorOf(BeamAgent.props(0))
+      this.mySchedule = this.system.actorOf(Props[Scheduler])
     
-    // Create an "actor-in-a-box"
-    val inbox = Inbox.create(system)
-    inbox.send(mySchedule, new BeamEvent(myAgent, 1.0, "hi", 1))
-    inbox.send(mySchedule, new BeamEvent(myAgent, 5.0, "bye", 1))
-    inbox.send(mySchedule, new BeamEvent(myAgent, 2.0, "hi", 1))
-    inbox.send(mySchedule, new BeamEvent(myAgent, 4.0, "bye", 1))
-    inbox.send(mySchedule, "start")
+      // Create an "actor-in-a-box"
+      this.inbox = Inbox.create(system)
+      this.inbox.send(mySchedule, new BeamEvent(myAgent, 1.0, "hi", 1))
+      this.inbox.send(mySchedule, new BeamEvent(myAgent, 5.0, "bye", 1))
+      this.inbox.send(mySchedule, new BeamEvent(myAgent, 2.0, "hi", 1))
+      this.inbox.send(mySchedule, new BeamEvent(myAgent, 4.0, "bye", 1))
+    }
+    
+    def start() {
+      this.inbox.send(mySchedule, "start")
+    }
 //    system.scheduler.scheduleOnce(0.milliseconds,myAgent,"bad message")
 
 //  // Wait 5 seconds for the reply with the 'greeting' message

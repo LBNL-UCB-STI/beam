@@ -12,7 +12,6 @@ import org.matsim.api.core.v01.Identifiable;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
-import akka.actor.UntypedActor;
 import beam.EVGlobalData;
 import beam.playground.metasim.agents.BeamAgent;
 import beam.playground.metasim.agents.transition.Transition;
@@ -20,7 +19,7 @@ import beam.playground.metasim.exceptions.IllegalTransitionException;
 import beam.playground.metasim.services.BeamServices;
 
 @Singleton
-public class Scheduler extends UntypedActor{
+public class Scheduler {
 	ActionCallBackFactory callbackFactory;
 	BeamServices beamServices;
 	Double now = 0.0;
@@ -92,9 +91,5 @@ public class Scheduler extends UntypedActor{
 	}
 	public void removeCallback(ActionCallBack.Default callback) {
 		queue.remove(callback);
-	}
-	@Override
-	public void onReceive(Object arg0) throws Throwable {
-		
 	}
 }

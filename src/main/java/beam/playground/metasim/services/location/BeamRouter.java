@@ -44,10 +44,10 @@ public class BeamRouter implements RoutingModule {
 		public BeamRouter(){ 
 			CommandLineParameters params = new CommandLineParameters();
 			// TODO remove hard coded file path
-			params.build = new File("/Users/critter/Documents/beam/otp/graphs/");
-			OTPMain otp = new OTPMain(params);
-			otp.run();
-			Graph graph = otp.graphService.getRouter("sf-bay-area").graph;
+//			params.build = new File("/Users/critter/Documents/beam/otp/graphs/");
+//			OTPMain otp = new OTPMain(params);
+//			otp.run();
+//			Graph graph = otp.graphService.getRouter("sf-bay-area").graph;
 
 //			this(EVGlobalData.data.RELAXED_TRAVEL_TIME_FILEPATH,EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
 		}

@@ -3,7 +3,6 @@ package beam.playground.metasim.agents;
 
 import org.matsim.api.core.v01.Id;
 
-import akka.actor.UntypedActor;
 import beam.playground.metasim.agents.actions.Action;
 import beam.playground.metasim.agents.choice.models.ChoiceModel;
 import beam.playground.metasim.agents.states.State;
@@ -18,7 +17,7 @@ public interface BeamAgent {
 	public void performTransition(Transition selectedTransition);
 	public void setState(State toState);
 	
-	public class Default extends UntypedActor implements BeamAgent {
+	public class Default implements BeamAgent {
 		protected Id<BeamAgent> id;
 		protected State state;
 		protected FiniteStateMachineGraph graph;
@@ -61,11 +60,6 @@ public interface BeamAgent {
 		public FiniteStateMachineGraph getGraph() {
 			return graph;
 		}
-
-		@Override
-		public void onReceive(Object arg0) throws Throwable {
-		}
-
 
 	}
 

@@ -22,7 +22,7 @@ class Scheduler extends Actor {
     }
     case event:BeamEvent => {
       eventQueue.enqueue(event)
-      log.info("recieved event to schedule "+event.tick)
+      log.info("recieved event to schedule "+event)
     }
     case _      ⇒ log.info("received unknown message")
   }
