@@ -112,6 +112,9 @@ dependencies {
 
 }
 
+sourceSets.main.scala.srcDir "src/main/java"
+sourceSets.main.java.srcDirs = []
+
 //tasks.withType(ScalaCompile) {
 //  scalaCompileOptions.useAnt = false
 //}
