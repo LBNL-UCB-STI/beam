@@ -1,19 +1,17 @@
 package beam.playground.metasim;
 
+import beam.playground.metasim.controller.BeamController;
+import beam.playground.metasim.controller.corelisteners.ControllerCoreListenersModule;
+import beam.playground.metasim.injection.modules.BeamControlerModule;
+import beam.playground.metasim.injection.modules.BeamModule;
+import beam.playground.metasim.services.config.BeamConfigGroup;
+import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Injector;
 import org.matsim.core.controler.NewControlerModule;
 import org.matsim.core.scenario.ScenarioByConfigModule;
-
-import beam.playground.metasim.controller.BeamController;
-import beam.playground.metasim.controller.corelisteners.ControllerCoreListenersModule;
-import beam.playground.metasim.injection.modules.BeamControlerModule;
-import beam.playground.metasim.injection.modules.BeamModule;
-import beam.playground.metasim.injection.modules.BeamTripRouterModule;
-import beam.playground.metasim.services.config.BeamConfigGroup;
-import beam.playground.metasim.services.config.BeamEventLoggerConfigGroup;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
@@ -45,6 +43,7 @@ public class BeamMainSimulation {
 			}
 		}), AbstractModule.override(Arrays.asList(new ScenarioByConfigModule()),new BeamModule())));
 		BeamController controller = injector.getInstance(BeamController.class);
+
 		try {
 			controller.getBeamServices().finalizeInitialization();
 			controller.run(); // throws nothing but will not execute if init throws an error
