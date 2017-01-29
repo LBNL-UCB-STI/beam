@@ -25,6 +25,9 @@ description = """"""
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+sourceSets.main.scala.srcDir "src/main/java"
+sourceSets.main.java.srcDirs = []
+
 repositories {
     maven { url "http://maven.geotoolkit.org/" }
     maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
@@ -105,9 +108,16 @@ dependencies {
     /////////////////////////////////
 
     compile 'org.scala-lang:scala-library:2.11.8'
-    compile group: 'com.typesafe.akka', name: 'akka-actor_2.11', version: '2.4.16'
     // https://mvnrepository.com/artifact/org.scala-lang/scala-xml
     compile group: 'org.scala-lang', name: 'scala-xml', version: '2.11.0-M4'
+    // https://mvnrepository.com/artifact/org.scalatest/scalatest_2.11
+    compile group: 'org.scalatest', name: 'scalatest_2.11', version: '3.0.1'
+    // https://mvnrepository.com/artifact/com.typesafe.akka/akka-testkit_2.11
+
+    // Akka //
+    compile group: 'com.typesafe.akka', name: 'akka-testkit_2.11', version: '2.4.16'
+    compile group: 'com.typesafe.akka', name: 'akka-actor_2.11', version: '2.4.16'
+//    compile group: 'com.typesafe.akka', name: 'akka-persistence', version: '2.4.16'
 
 
 }
