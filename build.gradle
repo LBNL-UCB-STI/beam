@@ -113,6 +113,8 @@ dependencies {
     // https://mvnrepository.com/artifact/org.scalatest/scalatest_2.11
     compile group: 'org.scalatest', name: 'scalatest_2.11', version: '3.0.1'
     // https://mvnrepository.com/artifact/com.typesafe.akka/akka-testkit_2.11
+    compile 'net.codingwell:scala-guice_2.10:4.1.0'
+
 
     // Akka //
     compile group: 'com.typesafe.akka', name: 'akka-testkit_2.11', version: '2.4.16'

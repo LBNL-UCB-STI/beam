@@ -14,6 +14,6 @@ object ActorSimulationEvents {
 
   case object Start extends BeamActorSimEvent
 
-  case class StartActorSim(event: StartupEvent) extends MATSimEvent
+//  case class StartActorSim(event: StartupEvent) extends MATSimEvent
 
 }

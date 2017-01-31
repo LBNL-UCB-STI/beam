@@ -18,17 +18,15 @@ import org.matsim.core.controler.listener.StartupListener
 import scala.collection.mutable
 
 /**
-  * Supervisor actor. Re Listens to MATSim `StartupEvent`.
+  * Supervisor actor. Supervises population of BeamAgents
   *
   * Created by sfeygin on 1/28/17.
   */
 
-class ActorScheduler(agentPopulation: Population) extends Actor with StartupListener{
+class ActorScheduler(agentPopulation: Population) extends Actor {
   val log = Logging(context.system, this)
 
   var matsimServices: MatsimServices = _
-
-  override def notifyStartup(event: StartupEvent): Unit = startSimulation(event)
 
   // Initially, convert Population of MatSim "Agents" to untyped BeamActors and retain ActorRef to them mapped to their id
   // (for later reference)
@@ -37,7 +35,7 @@ class ActorScheduler(agentPopulation: Population) extends Actor with StartupList
   } toMap
 
 
-  val activityAgentMap: Map[ActorRef,Id[Person]] = _
+//  val activityAgentMap: Map[ActorRef,Id[Person]] = _
 
   def startSimulation(startUpEvent:StartupEvent): Unit = {
 

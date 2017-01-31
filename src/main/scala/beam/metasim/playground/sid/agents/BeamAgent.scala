@@ -28,22 +28,25 @@ object BeamAgent {
 }
 
 
-
-
-
+/**
+  * This FSM uses [[BeamState]] and [[BeamAgentInfo]] to define the state and
+  * state data types.
+  *
+  * @param id create a new BeamAgent using the ID from the MATSim ID.
+  */
 class BeamAgent(id: String) extends FSM[BeamState,BeamAgentInfo]{
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
-  startWith(InitState,_)
+//  startWith(InitState,_)
 
-  when(InitState){
-    case Event(StartupEvent,BeamAgentInfo(planElement)) =>
-      if (planElement.isInstanceOf[BeamLeg]){
-        sender ! Ack
-        goto(Traveling) using stateData.copy(planElement)
-      }else stay()
-  }
+//  when(InitState){
+//    case Event(StartupEvent,BeamAgentInfo(planElement)) =>
+//      if (planElement.isInstanceOf[BeamLeg]){
+//        sender ! Ack
+//        goto(Traveling) using stateData.copy(planElement)
+//      }else stay()
+//  }
 
   //TODO: Implement the following:
   //  when(InActivity)
