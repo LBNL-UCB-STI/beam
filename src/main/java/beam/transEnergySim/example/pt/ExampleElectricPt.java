@@ -31,7 +31,7 @@ import beam.parking.lib.obj.DoubleValueHashMap;
 import beam.transEnergySim.pt.ElectricPtSimModule;
 import beam.transEnergySim.pt.PtVehicleEnergyControl;
 import beam.transEnergySim.pt.PtVehicleEnergyState;
-import beam.transEnergySim.vehicles.energyConsumption.ConstantEnergyConsumptionModel;
+import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModelConstant;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 
 import java.util.HashMap;
@@ -48,7 +48,7 @@ public class ExampleElectricPt {
 	public static void main(String[] args) {
 		Controler controler = new Controler(args);
 		HashMap<Id<Vehicle>, PtVehicleEnergyState> ptEnergyMangementModels = new HashMap<>();
-		EnergyConsumptionModel ecm=new ConstantEnergyConsumptionModel(600);
+		EnergyConsumptionModel ecm = new EnergyConsumptionModelConstant();
 		double batterySize=24*3600000;
 		ptEnergyMangementModels.put(Id.create("tr_1", Vehicle.class), new PtVehicleEnergyState(batterySize, ecm, ecm));
 		ptEnergyMangementModels.put(Id.create("tr_2", Vehicle.class), new PtVehicleEnergyState(batterySize, ecm, ecm));

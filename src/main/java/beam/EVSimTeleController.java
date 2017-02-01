@@ -437,7 +437,7 @@ public class EVSimTeleController {
 						(EnergyConsumptionModel) vehicleProperties.get("petroleumenergyconsumptionmodel"),
 						(Double) vehicleProperties.get("batterycapacityinkwh") * 3600000.0, Id.create(person.getId(), Vehicle.class)));
 			}
-			agent.getVehicle().setEnergyConsumptionParameters(Double.parseDouble((String) vehicleProperties.get("epafuelecon")),
+			agent.getVehicle().setEnergyConsumptionParameters(Double.parseDouble((String) vehicleProperties.get("fueleconomyinkwhpermile")),
 					Double.parseDouble((String) vehicleProperties.get("equivalenttestweight")),
 					Double.parseDouble((String) vehicleProperties.get("targetcoefa")),
 					Double.parseDouble((String) vehicleProperties.get("targetcoefb")),
