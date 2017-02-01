@@ -1,19 +1,13 @@
 package beam.metasim.playground.sid.agents
-import scala.concurrent.duration._
+
 import akka.actor.FSM
-import beam.metasim.agents.{Ack, NoOp}
+import beam.metasim.agents.Ack
 import beam.metasim.playground.sid.agents.BeamAgent._
 import beam.metasim.playground.sid.events.ActorSimulationEvents._
-import beam.playground.metasim.services.location.BeamLeg
 import beam.replanning.io.PlanElement
-import org.matsim.api.core.v01.population.{Activity, Leg, Plan}
-import org.matsim.api.core.v01.{Coord, TransportMode}
-import org.matsim.core.controler.events.StartupEvent
-import org.matsim.core.utils.geometry.CoordUtils
-import org.matsim.facilities.Facility
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 // NOTE: companion objects used to define static methods and factory methods for a class
 
@@ -23,8 +17,11 @@ object BeamAgent {
   sealed trait BeamState
 
   case object InitState extends BeamState
+
   case object WaitingForStart extends BeamState
+
   case object InActivity extends BeamState
+
   case object Traveling extends BeamState
 
   /**
@@ -41,19 +38,19 @@ object BeamAgent {
   *
   * @param id create a new BeamAgent using the ID from the MATSim ID.
   */
-class BeamAgent(id: String) extends FSM[BeamState,BeamAgentInfo]{
+class BeamAgent(id: String) extends FSM[BeamState, BeamAgentInfo] {
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
-  startWith(InitState,BeamAgentInfo(null))
+  startWith(InitState, BeamAgentInfo(null))
 
-  when(InitState){
-    case Event(Await,_) =>
-        context.parent ! Ack
-        goto(WaitingForStart)
+  when(InitState) {
+    case Event(Await, _) =>
+      context.parent ! Ack
+      goto(WaitingForStart)
   }
 
-  when(WaitingForStart,stateTimeout = 20 milliseconds) {
+  when(WaitingForStart, stateTimeout = 20 milliseconds) {
     case Event(Start, _) =>
       log.info(s"Agent with ID $id Received Start Event from scheduler")
       context.parent ! AgentReady
@@ -64,8 +61,8 @@ class BeamAgent(id: String) extends FSM[BeamState,BeamAgentInfo]{
       goto(InitState)
 
   }
-  when(InActivity){
-    case Event(FinishLeg,_)=>
+  when(InActivity) {
+    case Event(FinishLeg, _) =>
       stay()
   }
 
@@ -73,17 +70,17 @@ class BeamAgent(id: String) extends FSM[BeamState,BeamAgentInfo]{
   //TODO: Implement the following:
   //  when(Activity)
   ////  {}
-//    when(Traveling)
-//      {
-//        case Event(FinishLeg,)
-//      }
+  //    when(Traveling)
+  //      {
+  //        case Event(FinishLeg,)
+  //      }
   //
   ////  whenUnhandled
 
   onTransition {
     case InitState -> InActivity => logger.debug("From init state to first activity")
     case InActivity -> Traveling => logger.debug("From activity to traveling")
-    case Traveling -> InActivity=> logger.debug("From traveling to activity")
+    case Traveling -> InActivity => logger.debug("From traveling to activity")
   }
 
 }
