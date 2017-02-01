@@ -1,9 +1,9 @@
 package beam.metasim.playground.sid.agents
-
+import scala.concurrent.duration._
 import akka.actor.FSM
 import beam.metasim.agents.{Ack, NoOp}
 import beam.metasim.playground.sid.agents.BeamAgent._
-import beam.metasim.playground.sid.events.ActorSimulationEvents.{Await, FinishLeg, Start}
+import beam.metasim.playground.sid.events.ActorSimulationEvents._
 import beam.playground.metasim.services.location.BeamLeg
 import beam.replanning.io.PlanElement
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan}
@@ -12,6 +12,8 @@ import org.matsim.core.controler.events.StartupEvent
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.facilities.Facility
 import org.slf4j.LoggerFactory
+
+import scala.concurrent.duration.FiniteDuration
 
 // NOTE: companion objects used to define static methods and factory methods for a class
 
@@ -51,15 +53,22 @@ class BeamAgent(id: String) extends FSM[BeamState,BeamAgentInfo]{
         goto(WaitingForStart)
   }
 
-  when(WaitingForStart) {
-    case Event(Start,_)=>
+  when(WaitingForStart,stateTimeout = 20 milliseconds) {
+    case Event(Start, _) =>
       log.info(s"Agent with ID $id Received Start Event from scheduler")
-      stay()
-    //    case Event(Start,BeamAgentInfo(planElement)) =>{
-//      stay()
-//    }
+      context.parent ! AgentReady
+      goto(InActivity)
+
+    case Event(StateTimeout, _) =>
+      context.parent ! TimeOut
+      goto(InitState)
 
   }
+  when(InActivity){
+    case Event(FinishLeg,_)=>
+      stay()
+  }
+
 
   //TODO: Implement the following:
   //  when(Activity)
