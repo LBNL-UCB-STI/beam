@@ -1,19 +1,21 @@
 package beam.metasim.playground.sid.events
 
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.controler.events.StartupEvent
+import org.matsim.core.controler.events.{ControlerEvent, StartupEvent}
 
 /**
   * Created by sfeygin on 1/28/17.
   */
 object ActorSimulationEvents {
-  trait BeamActorSimEvent
-  trait MATSimEvent{
-    val event: Event
-  }
+  sealed trait Event
+  trait ActorSimEvent extends Event
+  trait MATSimEvent[E<: ControlerEvent] extends Event
 
-  case object Start extends BeamActorSimEvent
 
-//  case class StartActorSim(event: StartupEvent) extends MATSimEvent
+  case object StartSimulation extends ActorSimEvent
+  case object Await extends ActorSimEvent
+  case object Start extends ActorSimEvent
+  case object FinishLeg extends ActorSimEvent
+
+  case object StartActorSim extends MATSimEvent[StartupEvent]
 
 }

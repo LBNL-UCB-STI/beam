@@ -2,10 +2,12 @@ package beam.metasim.playground.sid.sim
 
 import java.io.File
 
+import akka.actor.{ActorRef, Props}
 import beam.metasim.playground.sid.utils.FileUtils
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.{Config, ConfigUtils}
-import org.matsim.core.controler.Controler
+import org.matsim.core.controler.{AbstractModule, Controler}
+import org.matsim.core.events.EventsUtils
 import org.matsim.core.scenario.ScenarioUtils
 
 
@@ -22,8 +24,13 @@ object MatSimRunFromScala extends App{
   val config:Config = ConfigUtils.loadConfig(ConfigRelPath+ConfigFileName)
   FileUtils.setConfigOutputFile(OutputDirectoryBase,SimName,config)
   val scenario:Scenario = ScenarioUtils.loadScenario(config)
+  val pop = scenario.getPopulation
+
+  val sim = new BeamActorSimulation
 
   val controler:Controler = new Controler(scenario)
+
+  controler.addControlerListener(sim)
 
   controler.run()
 
