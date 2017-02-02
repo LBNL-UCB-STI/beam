@@ -1,6 +1,6 @@
 package beam.metasim.playground.sid.sim
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, FSM, Props}
 import akka.event.Logging
 import beam.metasim.agents.Ack
 import beam.metasim.playground.sid.agents.BeamAgent
@@ -12,10 +12,19 @@ import org.matsim.core.controler.MatsimServices
 import scala.collection.JavaConversions.mapAsScalaMap
 
 /**
-  * Supervisor actor. Supervises population of BeamAgents
+  * Supervisor actor. Supervises population of BeamAgents.
   *
   * Created by sfeygin on 1/28/17.
   */
+// TODO: Make [[FSM]]
+
+object ActorScheduler{
+  sealed trait SchedulerEvent extends ActorSimEvent
+
+
+}
+
+
 
 class ActorScheduler(agentPopulation: Population) extends Actor {
   val log = Logging(context.system, this)
@@ -64,14 +73,13 @@ class ActorScheduler(agentPopulation: Population) extends Actor {
       readyToStartSet -= sender
       val newNotConfirmedActors = notConfirmedActors - sender
       context become waitingForAck(newNotConfirmedActors)
-
   }
+
 
 
   override def receive: Receive = {
     case StartSimulation =>
       initAgents()
-
   }
 
 

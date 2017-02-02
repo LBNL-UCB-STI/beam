@@ -1,6 +1,6 @@
 package beam.metasim.playground.sid.sim
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, IndirectActorProducer, Props}
 import beam.metasim.playground.sid.agents.BeamAgent
 import beam.metasim.playground.sid.events.ActorSimulationEvents.StartSimulation
 import org.matsim.core.controler.MatsimServices
@@ -17,6 +17,7 @@ object BeamActorSimulation {
   val _system = ActorSystem("BeamActorSimulation")
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 }
+
 
 class BeamActorSimulation extends StartupListener {
 
