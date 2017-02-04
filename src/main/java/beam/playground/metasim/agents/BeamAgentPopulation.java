@@ -1,8 +1,6 @@
 package beam.playground.metasim.agents;
 
-import java.util.Collection;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
@@ -14,7 +12,7 @@ import org.matsim.core.controler.listener.StartupListener;
 
 import com.google.inject.Inject;
 
-import beam.metasim.playground.colin.Main;
+import beam.metasim.playground.colin.BeamAkkaSystem;
 import beam.playground.metasim.agents.actions.ActionFactory;
 import beam.playground.metasim.agents.transition.TransitionFactory;
 import beam.playground.metasim.services.BeamServices;
@@ -30,9 +28,9 @@ public class BeamAgentPopulation implements StartupListener{
 	public void notifyStartup(StartupEvent event) {
 		beamServices.setBeamAgentPopulation(this);
 		
-		Main akkMain = new Main();
-		akkMain.init();
-		akkMain.start();
+		BeamAkkaSystem main = new BeamAkkaSystem();
+		main.init();
+		main.start();
 		try {
 			Thread.sleep(1000);
 		} catch (InterruptedException e) {
