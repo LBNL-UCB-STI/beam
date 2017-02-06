@@ -29,8 +29,8 @@ case object Traveling extends BeamState {
   */
 case class BeamAgentInfo(theData: Int)
 
-sealed trait Command
-case object Transition extends Command
+sealed trait Trigger
+case object Transition extends Trigger
 
 sealed trait BeamDomainEvent
 //  case class ExampleClass(item: Item) extends DomainEvent

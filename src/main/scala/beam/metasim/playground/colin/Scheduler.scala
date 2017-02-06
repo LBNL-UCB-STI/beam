@@ -9,7 +9,7 @@ object Scheduler {
 }
 class Scheduler extends Actor {
   val log = Logging(context.system, this)
-  var eventQueue = new PriorityQueue[BeamEvent]()
+  var eventQueue = new PriorityQueue[TriggerEvent]()
 
   def receive = {
     case "start" ⇒ {
@@ -17,10 +17,10 @@ class Scheduler extends Actor {
       while(!this.eventQueue.isEmpty){
         val event = this.eventQueue.dequeue
         log.info("dispatching event " + event.tick)
-        event.agent ! event.msg
+        event.agent ! event.trigger
       }
     }
-    case event:BeamEvent => {
+    case event:TriggerEvent => {
       eventQueue.enqueue(event)
       log.info("recieved event to schedule "+event)
     }

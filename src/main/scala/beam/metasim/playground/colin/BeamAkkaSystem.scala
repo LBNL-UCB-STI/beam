@@ -19,10 +19,10 @@ class BeamAkkaSystem {
     
       // Create an "actor-in-a-box"
       this.inbox = Inbox.create(system)
-      this.inbox.send(mySchedule, new BeamEvent(myAgent, 1.0, Transition, 1))
-      this.inbox.send(mySchedule, new BeamEvent(myAgent, 5.0, Transition, 1))
-      this.inbox.send(mySchedule, new BeamEvent(myAgent, 2.0, Transition, 1))
-      this.inbox.send(mySchedule, new BeamEvent(myAgent, 4.0, Transition, 1))
+      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 1.0, Transition, 1))
+      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 5.0, Transition, 1))
+      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 2.0, Transition, 1))
+      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 4.0, Transition, 1))
     }
     
     def start() {
