@@ -4,11 +4,11 @@ import akka.actor.ActorRef
 import org.matsim.core.controler.events.ControlerEvent
 import org.matsim.core.controler.events.StartupEvent
 
-case class BeamEvent(agent: ActorRef, tick: Double, msg: Command, priority: Int) extends Ordered[BeamEvent] {
+case class TriggerEvent(agent: ActorRef, tick: Double, trigger: Trigger, priority: Int) extends Ordered[TriggerEvent] {
   import scala.math.Ordered.orderingToOrdered
-  def compare(that: BeamEvent): Int = (that.tick, that.priority) compare (this.tick, this.priority) 
+  def compare(that: TriggerEvent): Int = (that.tick, that.priority) compare (this.tick, this.priority) 
   override def toString: String = {
-    agent + "::" + msg + "@" + tick
+    agent + "::" + trigger + "@" + tick
   }
 }
 
