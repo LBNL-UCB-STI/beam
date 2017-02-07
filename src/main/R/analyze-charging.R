@@ -4,38 +4,38 @@ load.libraries(c('fields','sp','maptools','XML','R.utils','stringr','rgdal','sp'
 ########################################
 # Thought Experiments
 ########################################
-out.dirs <- list('always-real'='/Users/critter/Documents/matsim/pev/0-always-on-arrival-sf-bay_2016-09-15_11-22-12/ITERS/it.0/',
+out.dirs <- list('always-real'='/Users/critter/Documents/beam/pev/0-always-on-arrival-sf-bay_2016-09-15_11-22-12/ITERS/it.0/',
                  'always-inf'='/Users/critter/Dropbox/ucb/vto/beam-developers/outputs/0-abundant-sf-bay_2016-09-15_22-18-42/ITERS/it.0/',
-  'uniform-random'='/Users/critter/Documents/matsim/pev/0-uniform-random-sf-bay_2016-09-15_13-46-11/ITERS/it.0/',
-  'nested-logit'='/Users/critter/Documents/matsim/pev/0-nested-logit-sf-bay_2016-09-15_14-17-03/ITERS/it.0/')
-  #'nested-logit-full'='/Users/critter/Documents/matsim/pev/0-nested-logit-sf-bay_2016-09-15_14-17-03/ITERS/it.0/')
-  #'nested-logit-hetero'='/Users/critter/Documents/matsim/pev/0-nested-logit-sf-bay_2016-09-11_23-48-21/ITERS/it.0/')
+  'uniform-random'='/Users/critter/Documents/beam/pev/0-uniform-random-sf-bay_2016-09-15_13-46-11/ITERS/it.0/',
+  'nested-logit'='/Users/critter/Documents/beam/pev/0-nested-logit-sf-bay_2016-09-15_14-17-03/ITERS/it.0/')
+  #'nested-logit-full'='/Users/critter/Documents/beam/pev/0-nested-logit-sf-bay_2016-09-15_14-17-03/ITERS/it.0/')
+  #'nested-logit-hetero'='/Users/critter/Documents/beam/pev/0-nested-logit-sf-bay_2016-09-11_23-48-21/ITERS/it.0/')
 
 ########################################
 # NL Calibration
 ########################################
 out.dirs <- list(
-                 'nl1'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_09-32-54/ITERS/it.0/',
-                 'nl2'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_11-54-57/ITERS/it.0/',
-                 'nl3'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_13-58-50/ITERS/it.0/',
-                 'nl4'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_16-32-58/ITERS/it.0/',
-                 'nl5'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_18-02-51/ITERS/it.0/',
-                 'nl6'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_19-45-23/ITERS/it.0/',
-                 'nl7'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_21-09-41/ITERS/it.0/',
-                 'nl8'='/Users/critter/Documents/matsim/pev/sf-bay-nl8_2016-09-20_22-26-55/ITERS/it.0/',
-                 'nl9'='/Users/critter/Documents/matsim/pev/sf-bay-nl9_2016-09-20_23-09-27/ITERS/it.0/',
-                 'nl10'='/Users/critter/Documents/matsim/pev/sf-bay-nl10_2016-09-20_23-56-48/ITERS/it.0/',
-                 'nl11'='/Users/critter/Documents/matsim/pev/sf-bay-nl11_2016-09-21_00-45-30/ITERS/it.0/',
-                 'nl12'='/Users/critter/Documents/matsim/pev/sf-bay-nl12_2016-09-21_01-34-48/ITERS/it.0/',
-                 'nl13'='/Users/critter/Documents/matsim/pev/sf-bay-nl13_2016-09-21_02-21-08/ITERS/it.0/'
+                 'nl1'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_09-32-54/ITERS/it.0/',
+                 'nl2'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_11-54-57/ITERS/it.0/',
+                 'nl3'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_13-58-50/ITERS/it.0/',
+                 'nl4'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_16-32-58/ITERS/it.0/',
+                 'nl5'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_18-02-51/ITERS/it.0/',
+                 'nl6'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_19-45-23/ITERS/it.0/',
+                 'nl7'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_21-09-41/ITERS/it.0/',
+                 'nl8'='/Users/critter/Documents/beam/pev/sf-bay-nl8_2016-09-20_22-26-55/ITERS/it.0/',
+                 'nl9'='/Users/critter/Documents/beam/pev/sf-bay-nl9_2016-09-20_23-09-27/ITERS/it.0/',
+                 'nl10'='/Users/critter/Documents/beam/pev/sf-bay-nl10_2016-09-20_23-56-48/ITERS/it.0/',
+                 'nl11'='/Users/critter/Documents/beam/pev/sf-bay-nl11_2016-09-21_00-45-30/ITERS/it.0/',
+                 'nl12'='/Users/critter/Documents/beam/pev/sf-bay-nl12_2016-09-21_01-34-48/ITERS/it.0/',
+                 'nl13'='/Users/critter/Documents/beam/pev/sf-bay-nl13_2016-09-21_02-21-08/ITERS/it.0/'
                  )
-                 #'nl1'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_09-32-54/ITERS/it.0/',
+                 #'nl1'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_09-32-54/ITERS/it.0/',
 # for report
 out.dirs <- list(
-                 'Iteration 2'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_13-58-50/ITERS/it.0/',
-                 'Iteration 3'='/Users/critter/Documents/matsim/pev/sf-bay_2016-09-20_19-45-23/ITERS/it.0/',
-                 'Iteration 1'='/Users/critter/Documents/matsim/pev/sf-bay-nl13_2016-09-21_02-21-08/ITERS/it.0/',
-                 'Iteration Final'='/Users/critter/Documents/matsim/pev/sf-bay-nl10_2016-09-20_23-56-48/ITERS/it.0/'
+                 #'Iteration 2'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_13-58-50/ITERS/it.0/',
+                 #'Iteration 3'='/Users/critter/Documents/beam/pev/sf-bay_2016-09-20_19-45-23/ITERS/it.0/',
+                 'Iteration 1'='/Users/critter/Documents/beam/pev/old-calibration/sf-bay-nl13_2016-09-21_02-21-08/ITERS/it.0/',
+                 'Iteration Final'='/Users/critter/Documents/beam/pev/old-calibration/sf-bay-nl10_2016-09-20_23-56-48/ITERS/it.0/'
                  )
 
 #nl4 intercept 1.8, cost -2.75
@@ -44,7 +44,7 @@ out.dirs <- list(
 #nl7 intercept 4.0, cost -3.5
 
 #out.dir <- 'sf-bay_2016-09-20_11-54-57'
-#out.dirs <- list('nlX'=pp('/Users/critter/Documents/matsim/pev/',out.dir,'/ITERS/it.0/'))
+#out.dirs <- list('nlX'=pp('/Users/critter/Documents/beam/pev/',out.dir,'/ITERS/it.0/'))
 scens <- names(out.dirs)
 
 scen <- scens[1]
@@ -92,7 +92,7 @@ sf.counties <- spTransform(counties[sf.county.inds,],CRS("+proj=longlat +datum=W
 sites[,zip:=over(SpatialPoints(sites[,list(longitude,latitude)],proj4string=CRS(proj4string(sf.zips))),sf.zips)$ZCTA5CE10]
 sites[,county:=over(SpatialPoints(sites[,list(longitude,latitude)],proj4string=CRS(proj4string(sf.counties))),sf.counties)$NAME]
 
-persons <- join.on(person.attr,veh.types,'vehicleTypeId','id',c('vehicleTypeName','vehicleClassname','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
+persons <- join.on(person.attr,veh.types,'vehicleTypeId','id',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
 
 
 #########################################
@@ -139,8 +139,8 @@ ch.2 <- ev[decisionEventId %in% ch.1$decisionEventId & type %in% c('BeginChargin
 
 ch <- join.on(ch.2,ch.1,c('scenario','decisionEventId'),c('scenario','decisionEventId'),c('plugType','soc','site'),'dec.')[,list(person=as.numeric(person[1]),begin.time=as.numeric(time[1])/3600,end.time=as.numeric(time[2])/3600,plugType=dec.plugType[1],site=as.numeric(dec.site[1]),begin.soc=as.numeric(dec.soc[1]),end.soc=as.numeric(soc[2]),plug=as.numeric(plug[1])),by=c('scenario','decisionEventId')]
 ch[,charger.sector:=ifelse(plug<0,'Residential','Non-Residential')]
-ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassname','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
-ch[,veh.class:=ifelse(vehicleClassname=='PHEV','PHEV','BEV')]
+ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
+ch[,veh.class:=ifelse(vehicleClassName=='PHEV','PHEV','BEV')]
 ch <- join.on(ch,ch.types,'plugType','plugTypeName','chargingPowerInKW')
 ch <- na.omit(ch)
 ch[,kw:=ifelse(chargingPowerInKW>20,min(chargingPowerInKW,maxLevel3ChargingPowerInKW),min(chargingPowerInKW,maxLevel2ChargingPowerInKW)),by=c('scenario','decisionEventId')]
@@ -185,7 +185,7 @@ sites.to.keep <- u(points[allocated==T]$siteID)
 
 fin.plugs <- points[allocated==T]$id
 # Finally, assign home chargers to counties
-load('/Users/critter/Documents/matsim/input/run0-201-plans-all.Rdata')
+load('/Users/critter/Documents/beam/input/run0-201-plans-all.Rdata')
 setkey(plans,id,type)
 homes <- unique(plans[type=='Home' & id%in%u(ch$person)])
 homes[,home.id:=-id]
@@ -261,8 +261,8 @@ if(F){
 
     ch <- join.on(ch.2,ch.1,c('scenario','decisionEventId'),c('scenario','decisionEventId'),c('plugType','soc','site'),'dec.')[,list(person=as.numeric(person[1]),begin.time=as.numeric(time[1])/3600,end.time=as.numeric(time[2])/3600,plugType=dec.plugType[1],site=as.numeric(dec.site[1]),begin.soc=as.numeric(dec.soc[1]),end.soc=as.numeric(soc[2]),plug=as.numeric(plug[1])),by=c('scenario','decisionEventId')]
     ch[,charger.sector:=ifelse(plug<0,'Residential','Non-Residential')]
-    ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassname','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
-    ch[,veh.class:=ifelse(vehicleClassname=='PHEV','PHEV','BEV')]
+    ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
+    ch[,veh.class:=ifelse(vehicleClassName=='PHEV','PHEV','BEV')]
     ch <- join.on(ch,ch.types,'plugType','plugTypeName','chargingPowerInKW')
     ch <- na.omit(ch)
     ch[,kw:=ifelse(chargingPowerInKW>20,min(chargingPowerInKW,maxLevel3ChargingPowerInKW),min(chargingPowerInKW,maxLevel2ChargingPowerInKW)),by=c('scenario','decisionEventId')]
