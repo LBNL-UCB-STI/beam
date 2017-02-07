@@ -4,17 +4,15 @@ import akka.actor.FSM
 import akka.persistence.fsm.PersistentFSM
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.metasim.agents.Ack
-import beam.metasim.playground.colin.{MATSimEvent, Transition}
+import beam.metasim.playground.colin.MATSimEvent
 import beam.metasim.playground.sid.agents.BeamAgent._
 import beam.replanning.io.PlanElement
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Activity, Person, Plan}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler.events.ControlerEvent
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration._
-import scala.reflect.ClassTag
-import scala.reflect.classTag
+import scala.reflect.{ClassTag, classTag}
 
 // NOTE: companion objects used to define static methods and factory methods for a class
 
@@ -67,7 +65,7 @@ object BeamAgent {
 }
 
 
-sealed trait Trigger
+abstract class Trigger
 
 case object StartDay extends Trigger
 
@@ -83,18 +81,16 @@ case object DepartActivity extends Trigger
   */
 //XXXX: May be useful to encapsulate the MATSimEvent and others in a
 //      separate trait and use the `with` syntax.
-sealed trait MemoryEvent extends MATSimEvent[_ <: ControlerEvent]
+sealed trait MemoryEvent extends MATSimEvent[ControlerEvent]
 
 final case class ActivityTravelPlanMemory(planElement: PlanElement) extends MemoryEvent
-
 
 /**
   * This FSM uses [[BeamState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
   *
-  * @param id create a new BeamAgent using the ID from the MATSim ID.
   */
-class BeamAgent(id: Id[Person]) extends PersistentFSM[BeamState, BeamAgentInfo, MemoryEvent] {
+class BeamAgent extends FSM[BeamState, BeamAgentInfo] {
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
@@ -109,36 +105,25 @@ class BeamAgent(id: Id[Person]) extends PersistentFSM[BeamState, BeamAgentInfo, 
   when(Initialized) {
     case Event(StartDay, _
     ) =>
-      log.info(s"Agent with ID $id Received Start Event from scheduler")
+      log.info(s"Agent with ID $stateName Received Start Event from scheduler")
       context.parent ! Ack
       goto(PerformingActivity)
   }
 
-  when(PerformingActivity) {
-    case Event(DepartActivity, _) =>
-      stay()
-  }
 
-
-
-  onTransition {
-    case Idle -> PerformingActivity => logger.debug("From init state to first activity")
-    case PerformingActivity -> ChoosingMode => logger.debug("From activity to traveling")
-    case ChoosingMode -> PerformingActivity => logger.debug("From traveling to activity")
-  }
-
-  override implicit def domainEventClassTag: ClassTag[MemoryEvent] = classTag[MemoryEvent]
-
-  override def applyEvent(domainEvent: MemoryEvent, currentData: BeamAgentInfo): BeamAgentInfo = {
-    domainEvent match {
-      case ActivityTravelPlanMemory(newPlanElement: PlanElement) => {
-        logger.info("Old travel sequence component " + currentData.planElement + " and new data" + newPlanElement)
-        BeamAgentInfo(newPlanElement)
-      }
-    }
-  }
-
-  override def persistenceId: String = {
-    id.toString
-  }
+//
+//  override implicit def domainEventClassTag: ClassTag[MemoryEvent] = classTag[MemoryEvent]
+//
+//  override def applyEvent(domainEvent: MemoryEvent, currentData: BeamAgentInfo): BeamAgentInfo = {
+//    domainEvent match {
+//      case ActivityTravelPlanMemory(newPlanElement: PlanElement) => {
+//        logger.info("Old travel sequence component " + currentData.planElement + " and new data" + newPlanElement)
+//        BeamAgentInfo(newPlanElement)
+//      }
+//    }
+//  }
+//
+//  override def persistenceId: String = {
+//    "Name"
+//  }
 }

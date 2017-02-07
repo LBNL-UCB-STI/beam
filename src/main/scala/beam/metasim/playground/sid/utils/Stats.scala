@@ -1,21 +1,24 @@
 package beam.metasim.playground.sid.utils
 
+
 /**
   * Created by sfeygin on 2/6/17.
   */
+
+object Stats{
+  final val STATS_EPS = 1e-12
+  final val INV_SQRT_2PI = 1.0/Math.sqrt(2.0*Math.PI)
+  
+}
+
 class Stats[T](values: Vector [T])(implicit ev$1: T => Double) {
   class _Stats(var minValue: Double, var maxValue: Double, var sum: Double, var sumSqr: Double)
-  val stats: Unit = {
-    val _stats = new _Stats(Double.MaxValue, Double.MinValue, 0.0, 0.0)
+  require( values.nonEmpty, "Stats: Cannot initialize stats with undefined values")
+  private[this] val sums = values./:((0.0, 0.0))((acc, s) => (acc._1 + s, acc._2 + s*s))
+  @inline
+  lazy val mean = sums._1/values.size
+  lazy val variance = (sums._2 - mean*mean*values.size)/(values.size-1)
+  lazy val stdDev = Math.sqrt(variance)
 
-    values.foreach(x => {
-      if(x < _stats.minValue) x else _stats.minValue
-      if(x > _stats.minValue) x else _stats.maxValue
-      _stats.sum + x
-      _stats.sumSqr + x*x
-    })
-    _stats
-  }
-  lazy val mean = _stats.sum/values.size
 
 }
