@@ -39,6 +39,7 @@ import org.matsim.core.population.routes.LinkNetworkRouteImpl;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.utils.geometry.transformations.TransformationFactory;
 
+import beam.analysis.ChargingLoadProfile;
 import beam.charging.*;
 import beam.charging.infrastructure.ChargingInfrastructureManagerImpl;
 import beam.charging.vehicle.PlugInVehicleAgent;
@@ -167,6 +168,7 @@ public class EVSimTeleController {
 			@Override
 			public void install() {
 				bind(BeamEventHandlers.class).asEagerSingleton();
+				bind(ChargingLoadProfile.class).asEagerSingleton();
 				// addEventHandlerBinding().toInstance(observer);
 				// bind(MySimulationObserver.class).toInstance(observer);
 
