@@ -53,8 +53,8 @@ public class ChangePlugTest extends SingleAgentBaseTest {
 
 		String message="plug change scoring event does not work properly";
 		assertTrue(message,evScoringEventsCollection.changePlugOverheadEvents.get(agentOne).size()==2);
-		assertEquals(30602.0,evScoringEventsCollection.changePlugOverheadEvents.get(agentOne).get(0).getTime(),0);
-		assertEquals(47223.0,evScoringEventsCollection.changePlugOverheadEvents.get(agentOne).get(1).getTime(),0);
+		assertEquals(30603.0,evScoringEventsCollection.changePlugOverheadEvents.get(agentOne).get(0).getTime(),0);
+		assertEquals(47224.0,evScoringEventsCollection.changePlugOverheadEvents.get(agentOne).get(1).getTime(),0);
 	}
 
 }
