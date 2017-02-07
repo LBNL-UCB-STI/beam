@@ -28,9 +28,6 @@ class BeamActorSimulation extends StartupListener {
 
   override def notifyStartup(event: StartupEvent): Unit = {
     services = event.getServices
-    val scheduler: ActorRef = _system.actorOf(Props(new ActorScheduler(services.getScenario.getPopulation)), name = "BeamScheduler")
-    logger.info("BeamActorSimulation sending StartSimulation event to scheduler")
-    scheduler ! StartSimulation
 
   }
 }
