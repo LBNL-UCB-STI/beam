@@ -1,0 +1,68 @@
+package beam.metasim.playground.colin
+
+import akka.actor.{Actor, ActorRef, ActorSystem, IndirectActorProducer, Props}
+import org.matsim.core.controler.MatsimServices
+import org.matsim.core.controler.events.StartupEvent
+import org.matsim.core.controler.listener.StartupListener
+import org.slf4j.LoggerFactory
+import akka.actor.Inbox
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
+import scala.collection.JavaConversions.mapAsScalaMap
+import org.matsim.core.controler.listener.IterationStartsListener
+import org.matsim.core.controler.events.IterationStartsEvent
+import org.matsim.core.mobsim.framework.Mobsim
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+
+object BeamActorSimulation {
+  val _system = ActorSystem("BeamActorSimulation")
+  val logger = LoggerFactory.getLogger(classOf[BeamActorSimulation])
+  var services: MatsimServices = _
+  var scheduler: ActorRef = _
+  var eventsManagerService: ActorRef = _
+  var inbox: Inbox = _
+}
+
+
+class BeamActorSimulation extends StartupListener with Mobsim {
+  import BeamActorSimulation._
+
+  def notifyStartup(event: StartupEvent): Unit = {
+    services = event.getServices
+    scheduler = _system.actorOf(Props[Scheduler])
+    eventsManagerService = _system.actorOf(Props[EventsManagerService])
+    inbox = Inbox.create(_system)
+
+    val initPopMap: Map[ActorRef, Id[Person]] = mapAsScalaMap(services.getScenario.getPopulation.getPersons) map {
+      case (k, v) => (_system.actorOf(Props[BeamAgentColin]), k)
+    } toMap
+
+    initPopMap foreach { case (actorRef, id) =>
+      logger.info("initializing")
+//      inbox.send(actorRef, GetState);
+//      logger.info(inbox.receive(500.millis).toString())
+      inbox.send(actorRef, new Initialize(eventsManagerService))
+      inbox.send(actorRef, GetState);
+      logger.info(inbox.receive(500.millis).toString())
+    }
+		Thread.sleep(100);
+    logger.info("done 1")
+    initPopMap foreach { case (actorRef, id) =>
+      inbox.send(scheduler, new TriggerEvent(actorRef, 1.0, Transition, 1))
+      inbox.send(scheduler, new TriggerEvent(actorRef, 10.0, Transition, 1))
+      inbox.send(scheduler, new TriggerEvent(actorRef, 20.0, Transition, 1))
+      inbox.send(scheduler, new TriggerEvent(actorRef, 30.0, Transition, 1))
+    }
+		Thread.sleep(100);
+  }
+  def run(): Unit = {
+    inbox.send(scheduler, "start");
+		Thread.sleep(100);
+  }
+}
+
+
+
+
+
