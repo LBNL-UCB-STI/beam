@@ -28,6 +28,7 @@ public class BeamAgentPopulation implements StartupListener{
 	public void notifyStartup(StartupEvent event) {
 		beamServices.setBeamAgentPopulation(this);
 		
+		/*
 		BeamAkkaSystem main = new BeamAkkaSystem();
 		main.init();
 		main.start();
@@ -37,11 +38,12 @@ public class BeamAgentPopulation implements StartupListener{
 			e.printStackTrace();
 		}
 		System.exit(0);
+		*/
 		/* 
 		 * PersonAgents
 		 * 
 		 * We derive person agents from the MATSim population.
-		 */
+		 *
 		personAgents = new LinkedHashMap<Id<Person>,PersonAgent>();
 		Scenario scenario = event.getServices().getScenario();
 		for(Person person : scenario.getPopulation().getPersons().values()){
@@ -53,8 +55,8 @@ public class BeamAgentPopulation implements StartupListener{
 		
 		/*
 		 * Look at routes
-		 */
 		beamServices.getMatsimServices().getTripRouterProvider().get().calcRoute("", null, null, 0.0, null);
+		 */
 	}
 
 	public PersonAgent getPersonAgentById(Id<Person> personId) {

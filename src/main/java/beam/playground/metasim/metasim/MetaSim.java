@@ -29,11 +29,11 @@ public class MetaSim implements Mobsim {
 
 	@Override
 	public void run() {
-		for(Double time = 0.0; time < Double.MAX_VALUE; time++){
-			if(scheduler.getSize()==0)break;
-			scheduler.doSimStep(time);
-			beamServices.getMatsimServices().getEvents().afterSimStep(time);
-		}
+//		for(Double time = 0.0; time < Double.MAX_VALUE; time++){
+//			if(scheduler.getSize()==0)break;
+//			scheduler.doSimStep(time);
+//			beamServices.getMatsimServices().getEvents().afterSimStep(time);
+//		}
 	}
 
 }

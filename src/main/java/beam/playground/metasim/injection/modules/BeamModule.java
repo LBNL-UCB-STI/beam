@@ -8,6 +8,7 @@ import org.matsim.core.mobsim.framework.Mobsim;
 
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 
+import beam.metasim.playground.colin.BeamActorSimulation;
 import beam.playground.metasim.agents.BeamAgentPopulation;
 import beam.playground.metasim.agents.FiniteStateMachineGraphFactory;
 import beam.playground.metasim.agents.PersonAgentFactory;
@@ -41,9 +42,10 @@ public class BeamModule extends AbstractModule {
 		 
 		// CONTROLLER / MOBSIM / SETTINGS
 		bind(BeamController.class).asEagerSingleton();
-		bind(Mobsim.class).to(MetaSim.class);
+		bind(Mobsim.class).to(BeamActorSimulation.class);
 		bind(EventsHandling.class).to(BeamEventsHandlingImpl.class);
 		addControlerListenerBinding().toInstance(new BeamAgentPopulation());
+		addControlerListenerBinding().toInstance(new BeamActorSimulation());
 		bind(DumpDataAtEnd.class).to(DumpDataAtEndImpl.class).asEagerSingleton();
 		bind(BeamRandom.class).to(BeamRandom.Default.class);
 		

@@ -14,7 +14,7 @@ class BeamAkkaSystem {
 
     def init() {
       this.system = ActorSystem("ToySystem")
-      this.myAgent = this.system.actorOf(Props[BeamAgent])
+      this.myAgent = this.system.actorOf(Props[BeamAgentColin])
       this.mySchedule = this.system.actorOf(Props[Scheduler])
     
       // Create an "actor-in-a-box"

@@ -14,9 +14,11 @@ class Scheduler extends Actor {
   def receive = {
     case "start" ⇒ {
       log.info("starting scheduler")
+      var latestTick = -1.0
       while(!this.eventQueue.isEmpty){
         val event = this.eventQueue.dequeue
         log.info("dispatching event " + event.tick)
+        latestTick = event.tick
         event.agent ! event.trigger
       }
     }
