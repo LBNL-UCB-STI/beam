@@ -15,6 +15,7 @@ import org.matsim.core.utils.io.tabularFileParser.TabularFileParserConfig;
 import beam.EVGlobalData;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
+import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModelConstant;
 import beam.transEnergySim.vehicles.energyConsumption.galus.EnergyConsumptionModelGalus;
 import beam.transEnergySim.vehicles.energyConsumption.myGreenCar.EnergyConsumptionModelMyGreenCar;
 import beam.transEnergySim.vehicles.energyConsumption.ricardoFaria2012.EnergyConsumptionModelRicardoFaria2012;
@@ -54,6 +55,8 @@ public class ParseVehicleTypes {
 						electricConsumptionModel = new EnergyConsumptionModelRicardoFaria2012();
 					}else if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelMyGreenCar")){
 						electricConsumptionModel = new EnergyConsumptionModelMyGreenCar();
+					}else if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelConstant")){
+						electricConsumptionModel = new EnergyConsumptionModelConstant();
 					}else{
 						throw new RuntimeException("Cannot find class that inherits EnergyConsumptionModel named "+row[headerMap.get("electricenergyconsumptionmodelclassname")]);
 					}
@@ -90,12 +93,8 @@ public class ParseVehicleTypes {
 						vehicleProperties.put("targetcoefb",row[headerMap.get("targetcoefb")].trim());
 						vehicleProperties.put("targetcoefc",row[headerMap.get("targetcoefc")].trim());
 					}
-					if(headerMap.get("epafuelecon") == null){
-						vehicleProperties.put("epafuelecon", String.valueOf(80));
-					}else{
-						vehicleProperties.put("epafuelecon",row[headerMap.get("epafuelecon")].trim());
-					}
-
+					vehicleProperties.put("fueleconomyinkwhpermile",row[headerMap.get("fueleconomyinkwhpermile")].trim());
+					
 					EVGlobalData.data.vehiclePropertiesMap.put(row[headerMap.get("id")].trim(),vehicleProperties);
 				}
 			}

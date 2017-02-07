@@ -409,10 +409,6 @@ public class ChargingInfrastructureManagerImpl {
 	}
 
 	public void handleEndChargingSession(ChargingPlug plug, PlugInVehicleAgent agent) {
-		if(agent.getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
-		}
-		// Set charging state
 		agent.setChargingState(AgentChargingState.POST_CHARGE_PLUGGED);
 
 		// Process event... what the heck is this?

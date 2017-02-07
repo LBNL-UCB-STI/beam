@@ -113,7 +113,8 @@ public class BeamRouterImpl extends BeamRouter {
 		    zipIn.close();
 		    fileIn.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			// Our fallback is to use the freespeed in the network file and assume constant travel time over the day
+			EVGlobalData.data.travelTimeFunction = new RelaxedTravelTime(EVGlobalData.data.controler.getScenario().getNetwork());
 		}
 	}
 	
