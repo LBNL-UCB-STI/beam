@@ -12,8 +12,8 @@ read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
   return(data.table(read.csv.sql(filepath,filter=pp("grep ",match.string))))
 }
 
-update.exp.plans <- T
-update.events <- F
+update.exp.plans <- F
+update.events <- T
 temp.dir <- tempdir()
 all.tmp <- list()
 all.events <- list()
@@ -22,7 +22,7 @@ if(update.events & exists('ev'))rm('ev')
 run.name <- run.names[1]
 for(run.name in run.names){
   run.code <- names(run.names)[which(run.name==run.names)]
-  run.dir <- pp('/Users/critter/Documents/matsim/pev/',run.name)
+  run.dir <- pp('/Users/critter/Documents/beam/beam-output/',run.name)
 
   iter.dir <- list.dirs(pp(run.dir,'/ITERS'),recursive=F)[1]
   for(iter.dir in list.dirs(pp(run.dir,'/ITERS'),recursive=F)){

@@ -68,16 +68,18 @@ public class MultiAgentBaseTest extends SingleAgentBaseTest {
 			} else {
 				ArrivalChargingDecisionEvent firstActivityChargingDecisionOfDay = evEventCollector.eventCollection
 						.get(0).arrivalChargingDecisionEvents.get(personId).getFirst();
-				if (Integer.parseInt(firstActivityChargingDecisionOfDay.getChargingSiteId()) == 5) {
-					numberOfAgentsWithFirstArrivalChargingAtSiteFive++;
-				} else if (Integer.parseInt(firstActivityChargingDecisionOfDay.getChargingSiteId()) == 9) {
-					numberOfAgentsWithFirstArrivalChargingAtSiteNine++;
-				} else {
-					// TODO: create test case for this again:
-					// assertTrue("if site full, search radius needs to be made
-					// wider",
-					// firstActivityChargingDecisionOfDay.getSearchRadius() >
-					// initialSearchRadius);
+				if(firstActivityChargingDecisionOfDay.getChargingSiteId()!=null){
+					if (Integer.parseInt(firstActivityChargingDecisionOfDay.getChargingSiteId()) == 5) {
+						numberOfAgentsWithFirstArrivalChargingAtSiteFive++;
+					} else if (Integer.parseInt(firstActivityChargingDecisionOfDay.getChargingSiteId()) == 9) {
+						numberOfAgentsWithFirstArrivalChargingAtSiteNine++;
+					} else {
+						// TODO: create test case for this again:
+						// assertTrue("if site full, search radius needs to be made
+						// wider",
+						// firstActivityChargingDecisionOfDay.getSearchRadius() >
+						// initialSearchRadius);
+					}
 				}
 			}
 		}
