@@ -121,16 +121,26 @@ new.legs <- new.plans[,list(start_link=head(link,-1),end_link=tail(link,-1),trav
 save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.Rdata')
 
 outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.xml'
+outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-500.xml'
 
-cat('<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">\n\n<population>\n',file=outfile,append=F)
-for(person in u(plans$id)){
+the.str <- '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">\n\n<population>\n'
+cat(the.str,file=outfile,append=F)
+cat(the.str,file=outfile.500,append=F)
+i <- 1
+for(person in u(new.plans$id)){
   the.str <- pp('\t<person id="',person,'" employed="yes">\n\t\t<plan selected="yes">\n')
   the.hr <- as.numeric(strftime(new.plans[id==person]$end_time,'%H')) + 24*(as.numeric(strftime(new.plans[id==person]$end_time,'%j'))-1)
   the.min <- as.numeric(strftime(new.plans[id==person]$end_time,'%M'))
-  the.acts <- pp('\t\t\t<act end_time="',the.hr,':',formatC(the.min,width = 2, format = "d", flag = "0"),':00" type="',new.plans[id==person]$type,'" x="',new.plans[id==person]$x,'" y="',new.plans[id==person]$y,'"/>')
+  the.acts <- pp('\t\t\t<act end_time="',the.hr,':',formatC(the.min,width = 2, format = "d", flag = "0"),':00" link="',new.plans[id==person]$link,'" type="',new.plans[id==person]$type,'" x="',new.plans[id==person]$x,'" y="',new.plans[id==person]$y,'"/>')
   the.legs <- pp('\t\t\t<leg mode="PEV"><route type="links" start_link="',new.legs[id==person]$start_link,'" end_link="',new.legs[id==person]$end_link,'" trav_time="',new.legs[id==person]$trav_time,'" distance="',new.legs[id==person]$distance,'">',new.legs[id==person]$start_link,' ',new.legs[id==person]$end_link,'</route></leg>')
   the.str <- pp(the.str,pp(rbind(the.acts,c(the.legs,'')),collapse='\n'),'\t\t</plan>\n\t</person>\n')
   cat(the.str,file=outfile,append=T)
+  if(i <= 500){
+    cat(the.str,file=outfile.500,append=T)
+    i <- i + 1
+  }
 }
-cat('\n<!-- ====================================================================== -->\n\n</population>',file=outfile,append=T)
+the.str <- '\n<!-- ====================================================================== -->\n\n</population>'
+cat(the.str,file=outfile,append=T)
+cat(the.str,file=outfile.500,append=T)
 
