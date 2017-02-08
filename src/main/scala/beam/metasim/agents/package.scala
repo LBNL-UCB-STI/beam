@@ -14,8 +14,8 @@ package object agents {
 
   case class NoOp(tick: Long) extends StateChangedMessage
 
-  case object Start
-
   case object Ack
+
+  case class Failure(reason:String)
 
 }

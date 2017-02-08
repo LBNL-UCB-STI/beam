@@ -1,16 +1,8 @@
 package beam.playground.metasim.services.location;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -26,18 +18,18 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.facilities.Facility;
 import org.nustaq.serialization.FSTObjectInput;
 import org.nustaq.serialization.FSTObjectOutput;
-import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.standalone.CommandLineParameters;
-import org.opentripplanner.standalone.OTPMain;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
-import beam.EVGlobalData;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class BeamRouter implements RoutingModule {
 		AStarEuclidean routingAlg;
+
 		Network network;
 		int cachMiss = 0, getCount = 0;
 

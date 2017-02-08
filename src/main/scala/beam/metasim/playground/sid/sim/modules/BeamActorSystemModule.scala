@@ -3,14 +3,13 @@ package beam.metasim.playground.sid.sim.modules
 import akka.actor.ActorSystem
 import beam.metasim.playground.sid.agents.BeamAgent
 import beam.metasim.playground.sid.akkaguice.GuiceAkkaExtension
-import beam.metasim.playground.sid.sim.modules.BeamSimulationModule.ActorSystemProvider
-import beam.metasim.playground.sid.usecases.{RouterService, RouterServiceI}
+import beam.metasim.playground.sid.sim.modules.BeamActorSystemModule.ActorSystemProvider
+import beam.metasim.playground.sid.sim.modules.BeamRouterModuleProvider.BeamRouterModuleProvider
+import beam.playground.metasim.services.location.BeamRouter
 import com.google.inject.{AbstractModule, Inject, Injector, Provider}
 import com.typesafe.config.Config
 import net.codingwell.scalaguice.ScalaModule
-import org.matsim.core.controler.MatsimServices
-import org.matsim.core.controler.events.StartupEvent
-import org.matsim.core.controler.listener.StartupListener
+import org.matsim.core.router.RoutingModule
 import org.slf4j.LoggerFactory
 
 /**
@@ -18,7 +17,7 @@ import org.slf4j.LoggerFactory
   *  - This will eventually extend MobSim, but for now, just return the [[ActorSystem]]
   * Created by sfeygin on 1/28/17.
   */
-object BeamSimulationModule {
+object BeamActorSystemModule {
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
   class ActorSystemProvider @Inject() (val config: Config, val injector: Injector) extends Provider[ActorSystem] {
@@ -32,11 +31,10 @@ object BeamSimulationModule {
 }
 
 
-class BeamSimulationModule extends AbstractModule with ScalaModule {
+class BeamActorSystemModule extends AbstractModule with ScalaModule {
   override def configure() {
     bind[ActorSystem].toProvider[ActorSystemProvider].asEagerSingleton()
-    bind[RouterService].to[RouterServiceI]
-
+    bind[RoutingModule].toProvider[BeamRouterModuleProvider]
   }
 
 }

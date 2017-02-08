@@ -1,18 +1,16 @@
 package beam.metasim.playground.sid.sim
 
-import akka.actor.ActorSystem
-import beam.metasim.playground.sid.agents.BeamAgent.PerformingActivity
-import beam.metasim.playground.sid.agents.{DepartActivity, PersonAgent, StartDay}
+import akka.actor.{ActorRef, ActorSystem, Inbox}
+import beam.metasim.playground.sid.agents.{DepartActivity, InitActivity, PersonAgent, StartDay}
 import beam.metasim.playground.sid.akkaguice.GuiceAkkaExtension
-import beam.metasim.playground.sid.sim.modules.{BeamAgentModule, BeamSimulationModule, ConfigModule}
+import beam.metasim.playground.sid.sim.modules.{BeamActorSystemModule, BeamAgentModule, ConfigModule}
 import beam.metasim.playground.sid.utils.FileUtils
-import beam.playground.metasim.controller.BeamController
-import com.google.inject.{Guice, Key}
-import net.codingwell.scalaguice.typeLiteral
-import org.matsim.api.core.v01.Scenario
+import beam.playground.metasim.services.location.BeamRouterModuleProvider
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners._
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 
 import scala.collection.JavaConversions._
@@ -36,12 +34,13 @@ object MatSimRunFromScala extends App{
   val injector: com.google.inject.Injector =
     Injector.createInjector(config, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
+        val routeConfigGroup = getConfig.plansCalcRoute
         install(new NewControlerModule)
         install(new ScenarioByConfigModule)
         install(new ControlerDefaultsModule)
         install(new ControlerDefaultCoreListenersModule)
         install(new ConfigModule)
-        install(new BeamSimulationModule)
+        install(new BeamActorSystemModule)
         install(new BeamAgentModule)
       }
     }),new AbstractModule() {
@@ -49,17 +48,23 @@ object MatSimRunFromScala extends App{
         bind(classOf[ControlerI]).to(classOf[ControlerImpl]).asEagerSingleton()
       }
     }))
+
   val system = injector.instance[ActorSystem]
-  val personAgent = system.actorOf((GuiceAkkaExtension(system).props(PersonAgent.name)))
+  val inbox:Inbox = Inbox.create(system)
+  val personAgent:ActorRef = system.actorOf(GuiceAkkaExtension(system).props(PersonAgent.name))
+
+  val activity0=PopulationUtils.createActivityFromLinkId("h1",Id.createLinkId(11))
+  val activity1=PopulationUtils.createActivityFromLinkId("w1",Id.createLinkId(23))
 
   personAgent ! StartDay
-  personAgent ! DepartActivity
+  personAgent ! InitActivity(activity0)
+  personAgent ! DepartActivity(activity1)
 
   val controler = injector.instance[ControlerI]
+
   controler.run()
 
   system.terminate()
-
 
 }
 
