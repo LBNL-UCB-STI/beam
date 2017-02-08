@@ -1,8 +1,8 @@
 
 load.libraries(c('XML','rgdal','maptools','sp','flexclust'))
 
-counties <- readShapePoly('~/Dropbox/ucb/vto/MATSimPEV/spatial-data/ca-counties/ca-counties.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
-zips <- readShapePoly('~/Dropbox/ucb/vto/MATSimPEV/spatial-data/ca-zips/sf-bay-area-zips.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
+counties <- readShapePoly(pp(matsim.shared,'/spatial-data/ca-counties/ca-counties.shp'),proj4string=CRS("+proj=longlat +datum=WGS84"))
+zips <- readShapePoly(pp(matsim.shared,'/spatial-data/ca-zips/sf-bay-area-zips.shp'),proj4string=CRS("+proj=longlat +datum=WGS84"))
 sf.county.inds <- counties$NAME %in% c('Alameda','San Mateo','Sonoma','Marin','Contra Costa','Napa','Solano','Santa Clara','San Francisco')
 zips.in.sf <- which(!is.na(over(zips,counties[sf.county.inds,])$NAME))
 zips.not.in.sf <- as.numeric(as.character(zips$ZCTA5CE10[which(is.na(over(zips,counties[sf.county.inds,])$NAME))]))
