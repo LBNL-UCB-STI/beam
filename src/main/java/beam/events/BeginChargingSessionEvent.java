@@ -16,6 +16,7 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 	private PlugInVehicleAgent agent;
 	private String plug;
 	private int decisionEventId;
+	private double chargingKw;
 
 	
 	public static final String ATTRIBUTE_DECISION_EVENT_ID=DepartureChargingDecisionEvent.ATTRIBUTE_DECISION_EVENT_ID;
@@ -26,6 +27,8 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 		super(time);
 		this.agent = agent;
 		this.plug = plug.getId().toString();
+//		this.chargingKw = plug.getActualChargingPowerInWatt() / 1000; // KW -- causes null exception
+		this.chargingKw = plug.getMaxChargingPowerInWatt() / 1000; // KW
 		this.setDecisionEventId(agent.getCurrentDecisionEventId());
 	}
 
@@ -55,6 +58,8 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 		this.decisionEventId = decisionEventId;
 	}
 	
-	
+	public double getChargingPowerInKw(){
+		return chargingKw;
+	}
 
 }
