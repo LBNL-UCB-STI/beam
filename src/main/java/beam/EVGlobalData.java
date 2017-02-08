@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Random;
 
+import beam.analysis.ChargingLoadProfile;
 import beam.charging.infrastructure.ChargingSiteImpl;
 import beam.charging.management.ChargingQueueImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingQueue;

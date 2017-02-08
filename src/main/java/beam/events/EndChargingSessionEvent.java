@@ -81,6 +81,11 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 		else return this.plug.getChargingPoint().getNumInChargingQueue(this.plug);
 	}
 
+	public double getChargingPowerInKw(){
+//		return this.plug.getActualChargingPowerInWatt()/1000; // kW -- returns zero.
+		return this.plug.getMaxChargingPowerInWatt()/1000; // kW
+	}
+
 //	public int getNumInChargingQueue(){
 //		return new Instanceof() this.agent.getSelectedChargingSite().qu;
 //	}

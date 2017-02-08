@@ -306,6 +306,7 @@ public class EVSimTeleController {
 
 	private static void scheduleGlobalActions() {
 		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.timeMarkingNewDay, EVGlobalData.data.globalActions, "handleDayTracking");
+//		EVGlobalData.data.scheduler.addCallBackMethod(0.0, EVGlobalData.data.charging,"writeChargingLoadDataToFile", 0.0, this);
 //		EVGlobalData.data.scheduler.addCallBackMethod(0.0, EVGlobalData.data.globalActions, "printRand");
 	}
 
