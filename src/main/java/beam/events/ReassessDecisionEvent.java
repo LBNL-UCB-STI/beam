@@ -15,7 +15,7 @@ import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 public class ReassessDecisionEvent extends Event implements IdentifiableDecisionEvent {
 
 	private PlugInVehicleAgent agent;
-	private String choice,plugType;
+	private String choice,plugType,site;
 	private Double soc;
 	private int decisionEventId;
 
@@ -25,8 +25,7 @@ public class ReassessDecisionEvent extends Event implements IdentifiableDecision
 	public static final String ATTRIBUTE_DECISION_EVENT_ID=DepartureChargingDecisionEvent.ATTRIBUTE_DECISION_EVENT_ID;
 	public static final String ATTRIBUTE_PERSON = DepartureChargingDecisionEvent.ATTRIBUTE_PERSON;
 	public static final String ATTRIBUTE_PLUG_TYPE = DepartureChargingDecisionEvent.ATTRIBUTE_PLUG_TYPE;
-	
-	
+	public static final String ATTRIBUTE_SITE = DepartureChargingDecisionEvent.ATTRIBUTE_SITE;
 	
 	public ReassessDecisionEvent(double time, PlugInVehicleAgent agent, String choice) {
 		super(time);
@@ -35,6 +34,7 @@ public class ReassessDecisionEvent extends Event implements IdentifiableDecision
 		this.soc = agent.getSoC()/agent.getBatteryCapacity();
 		if(!this.choice.equals("abort")){
 			this.plugType = agent.getSelectedChargingPlug().getChargingPlugType().getPlugTypeName();
+			this.site = agent.getSelectedChargingPlug().getChargingSite().getId().toString();
 		}
 		setDecisionEventId(agent.createNewDecisionEventId());
 	}
@@ -53,6 +53,7 @@ public class ReassessDecisionEvent extends Event implements IdentifiableDecision
 		attributes.put(ATTRIBUTE_SOC, soc.toString());
 		if(!this.choice.equals("abort")){
 			attributes.put(ATTRIBUTE_PLUG_TYPE,plugType);
+			attributes.put(ATTRIBUTE_SITE, site);
 		}
 		return attributes;
 	}

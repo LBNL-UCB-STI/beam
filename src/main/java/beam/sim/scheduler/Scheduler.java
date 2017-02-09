@@ -73,7 +73,7 @@ public class Scheduler {
 		}
 	}
 	public int getSize() {
-		return 0;
+		return queue.size();
 	}
 	public void removeCallback(CallBack callback) {
 		queue.remove(callback);

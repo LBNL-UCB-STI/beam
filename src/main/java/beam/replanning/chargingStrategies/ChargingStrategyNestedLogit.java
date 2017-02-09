@@ -163,26 +163,28 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 			ArrayList<ChargingPlug> foundPlugs = new ArrayList<ChargingPlug>();
 			for (ChargingSite site : foundSites) {
 				for (ChargingPlugType plugType : site.getAllAccessibleChargingPlugTypes()) {
+					if(agent.getVehicleWithBattery().getCompatiblePlugTypes().contains(plugType)){
 					
-					// TODO: update the following lines in phase 2 (skipping all plugs allowing charging fast charging, if soc > 0.8 
-					if (ChargingInfrastructureManagerImpl.avoidPlug(agent, plugType)){
-						continue;
-					}
-					
-					ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
-					NestedLogit alterativeNest = new NestedLogit(this.arrivalSitePlugTypeAlternativeTemplate);
-					alterativeNest.setName(alt.toString());
-					this.arrivalYesChargeNest.addChild(alterativeNest);
-					alternativeNests.add(alterativeNest);
-					sitePlugAlternatives.put(alt.toString(), alt);
+						// TODO: update the following lines in phase 2 (skipping all plugs allowing charging fast charging, if soc > 0.8 
+						if (ChargingInfrastructureManagerImpl.avoidPlug(agent, plugType)){
+							continue;
+						}
+						
+						ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
+						NestedLogit alterativeNest = new NestedLogit(this.arrivalSitePlugTypeAlternativeTemplate);
+						alterativeNest.setName(alt.toString());
+						this.arrivalYesChargeNest.addChild(alterativeNest);
+						alternativeNests.add(alterativeNest);
+						sitePlugAlternatives.put(alt.toString(), alt);
 
-					altData.put("cost", site.getChargingCost(EVGlobalData.data.now, agent.getCurrentOrNextActivityDuration(), plugType, agent.getVehicleWithBattery()));
-					altData.put("chargerCapacity",
-							Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
-					altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
-					altData.put("isHomeActivityAndHomeCharger", agent.getCurrentOrNextActivity().getType().equals("Home") & site.isResidentialCharger() ? 1.0 : 0.0);
-					altData.put("isAvailable",site.getNumAvailablePlugsOfType(plugType) > 0 ? 1.0 : 0.0);
-					inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
+						altData.put("cost", site.getChargingCost(EVGlobalData.data.now, agent.getCurrentOrNextActivityDuration(), plugType, agent.getVehicleWithBattery()));
+						altData.put("chargerCapacity",
+								Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
+						altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
+						altData.put("isHomeActivityAndHomeCharger", agent.getCurrentOrNextActivity().getType().equals("Home") & site.isResidentialCharger() ? 1.0 : 0.0);
+						altData.put("isAvailable",site.getNumAvailablePlugsOfType(plugType) > 0 ? 1.0 : 0.0);
+						inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
+					}
 				}
 			}
 		}
@@ -251,21 +253,23 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 			for (ChargingSite site : foundSites) {
 				if(agent.getSoC() >= agent.getTripInformation(EVGlobalData.data.now, agent.getCurrentLink(), site.getNearestLink().getId()).getTripEnergyConsumption(agent.getVehicleWithBattery().getElectricDriveEnergyConsumptionModel(),agent.getVehicleWithBattery())){
 					for (ChargingPlugType plugType : site.getAllAccessibleChargingPlugTypes()) {
-						ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
-						NestedLogit alterativeNest = new NestedLogit(this.departureSitePlugTypeAlternativeTemplate);
-						alterativeNest.setName(alt.toString());
-						this.departureYesChargeNest.addChild(alterativeNest);
-						alternativeNests.add(alterativeNest);
-						sitePlugAlternatives.put(alt.toString(), alt);
+						if(agent.getVehicleWithBattery().getCompatiblePlugTypes().contains(plugType)){
+							ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
+							NestedLogit alterativeNest = new NestedLogit(this.departureSitePlugTypeAlternativeTemplate);
+							alterativeNest.setName(alt.toString());
+							this.departureYesChargeNest.addChild(alterativeNest);
+							alternativeNests.add(alterativeNest);
+							sitePlugAlternatives.put(alt.toString(), alt);
 
-						altData.put("cost", site.getChargingCost(EVGlobalData.data.now, agent.getCurrentOrNextActivityDuration(), plugType, agent.getVehicleWithBattery()));
-						altData.put("chargerCapacity",
-								Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
-						altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
-						double[] extraEnergyAndTimeRequiredToUseSite = agent.getExtraEnergyAndTimeToChargeAt(site, plugType);
-						altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0]/2.77778e-7);
-						altData.put("extraTimeRequired", extraEnergyAndTimeRequiredToUseSite[1]/3600);
-						inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
+							altData.put("cost", site.getChargingCost(EVGlobalData.data.now, agent.getCurrentOrNextActivityDuration(), plugType, agent.getVehicleWithBattery()));
+							altData.put("chargerCapacity",
+									Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
+							altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
+							double[] extraEnergyAndTimeRequiredToUseSite = agent.getExtraEnergyAndTimeToChargeAt(site, plugType);
+							altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0]/2.77778e-7);
+							altData.put("extraTimeRequired", extraEnergyAndTimeRequiredToUseSite[1]/3600);
+							inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
+						}
 					}
 				}
 			}
