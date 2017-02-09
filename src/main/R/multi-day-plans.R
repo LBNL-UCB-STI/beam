@@ -126,8 +126,8 @@ new.plans[,link:=pp('sfpt',link)]
 new.legs <- new.plans[,list(start_link=head(link,-1),end_link=tail(link,-1),trav_time=1,distance=1),by='id']
 save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-7.Rdata')
 
-outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.xml'
-outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-500.xml'
+outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-7day.xml'
+outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-7day-500.xml'
 
 the.str <- '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">\n\n<population>\n'
 cat(the.str,file=outfile,append=F)
