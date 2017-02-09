@@ -1,6 +1,7 @@
 package beam.analysis;
 
 import beam.utils.CSVUtil;
+import beam.utils.MathUtil;
 import org.matsim.core.api.experimental.events.EventsManager;
 
 import com.google.inject.Inject;
@@ -59,7 +60,7 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	}
 
 	/**
-	 * Write charging load data in CSV file: load-profile-outputs.csv
+	 * Write charging load data in CSV file: loadProfile.csv
 	 */
 	public void writeChargingLoadDataToFile(){
 		// write commands
@@ -71,11 +72,7 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 		}
 
 		// Reschedule this same method to be executed in future
-		EVGlobalData.data.scheduler.addCallBackMethod(roundUpToNearestInteval(EVGlobalData.data.now + writeInteval,writeInteval), this ,"writeChargingLoadDataToFile", 0.0, this);
-	}
-	
-	public Double roundUpToNearestInteval(double num, double interval){
-		return Math.floor(num/interval)*interval + Math.ceil((num / interval) - Math.floor(num / interval))*interval;
+		EVGlobalData.data.scheduler.addCallBackMethod(MathUtil.roundUpToNearestInterval(EVGlobalData.data.now + writeInteval,writeInteval), this ,"writeChargingLoadDataToFile", 0.0, this);
 	}
 
 	@Override
