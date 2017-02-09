@@ -262,7 +262,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void performChargingDecisionAlgorithmOnDeparture() {
-		DebugLib.traceAgent(this.getId(), "6825504");
+		DebugLib.traceAgent(this.getId(), "65263");
 
 		ChargingStrategy chargingStrategyForThisLeg = ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategyForLeg(getCurrentLegIndex());
 		ChargingPlug chosenPlug;

@@ -14,21 +14,21 @@ import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 public class BeginChargingSessionEvent extends Event implements IdentifiableDecisionEvent {
 
 	private PlugInVehicleAgent agent;
-	private String plug;
+	private String plug, site;
 	private int decisionEventId;
 	private double chargingKw;
 
-	
 	public static final String ATTRIBUTE_DECISION_EVENT_ID=DepartureChargingDecisionEvent.ATTRIBUTE_DECISION_EVENT_ID;
 	public static final String ATTRIBUTE_PERSON = DepartureChargingDecisionEvent.ATTRIBUTE_PERSON;
 	public static final String ATTRIBUTE_PLUG = "plug";
+	public static final String ATTRIBUTE_SITE = "site";
 	
-	public BeginChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug) {
+	public BeginChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug, double chargingPowerInW) {
 		super(time);
 		this.agent = agent;
 		this.plug = plug.getId().toString();
-//		this.chargingKw = plug.getActualChargingPowerInWatt() / 1000; // KW -- causes null exception
-		this.chargingKw = plug.getMaxChargingPowerInWatt() / 1000; // KW
+		this.site = plug.getChargingSite().getId().toString();
+		this.chargingKw = chargingPowerInW/1000.0;
 		this.setDecisionEventId(agent.getCurrentDecisionEventId());
 	}
 
@@ -42,6 +42,7 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 		final Map<String, String> attributes = super.getAttributes();
 		attributes.put(ATTRIBUTE_PERSON, agent.getPersonId().toString());
 		attributes.put(ATTRIBUTE_PLUG, plug);
+		attributes.put(ATTRIBUTE_SITE, site);
 		attributes.put(ATTRIBUTE_DECISION_EVENT_ID, Integer.toString(getDecisionEventId()));
 		return attributes;
 	}

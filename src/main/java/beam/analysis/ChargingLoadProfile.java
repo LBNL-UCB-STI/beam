@@ -31,7 +31,6 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	private Double writeInteval = 15.0*60.0;
 	private Double chargingLoadInKw = 0.0;
 	private Integer numPluggedIn = 0;
-	private double timeHour = 0;
 	private List<String> chargingLoadFileHeader = Arrays.asList("time","spatial.group","charger.type","charging.load.in.kw","num.plugged.in");
 
 	@Inject
@@ -47,7 +46,7 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	 * Initialize charging load csv file
 	 */
 	private FileWriter initFileWriter() {
-		// This should be created in every iter directory
+		//TODO This should be created in every iter directory
 		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "run0.loadProfile.csv";
 		try {
 			FileWriter writer = new FileWriter(fileName);
@@ -65,16 +64,18 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	public void writeChargingLoadDataToFile(){
 		// write commands
 		try {
-			CSVUtil.writeLine(writer, Arrays.asList(String.valueOf(timeHour), "", "", String.valueOf(chargingLoadInKw), String.valueOf(numPluggedIn)));
+			CSVUtil.writeLine(writer, Arrays.asList(String.valueOf(EVGlobalData.data.now/3600.0), "", "", String.valueOf(chargingLoadInKw), String.valueOf(numPluggedIn)));
 			writer.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
 		// Reschedule this same method to be executed in future
-		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.now + writeInteval, this ,"writeChargingLoadDataToFile", 0.0, this);
-
-		timeHour += writeInteval/60.0/60.0;
+		EVGlobalData.data.scheduler.addCallBackMethod(roundUpToNearestInteval(EVGlobalData.data.now + writeInteval,writeInteval), this ,"writeChargingLoadDataToFile", 0.0, this);
+	}
+	
+	public Double roundUpToNearestInteval(double num, double interval){
+		return Math.floor(num/interval)*interval + Math.ceil((num / interval) - Math.floor(num / interval))*interval;
 	}
 
 	@Override

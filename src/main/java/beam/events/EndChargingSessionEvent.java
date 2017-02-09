@@ -18,7 +18,7 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 
 	private PlugInVehicleAgent agent;
 	private ChargingPlug plug;
-	private double soc;
+	private double soc, chargingPowerInKw;
 	private int decisionEventId;
 	private int numInChargingQueue;
 	
@@ -26,12 +26,13 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 	public static final String ATTRIBUTE_PERSON = DepartureChargingDecisionEvent.ATTRIBUTE_PERSON;
 	public static final String ATTRIBUTE_SOC=DepartureChargingDecisionEvent.ATTRIBUTE_SOC;	
 
-	public EndChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug) {
+	public EndChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug, double chargingPowerInW) {
 		super(time);
 		this.agent = agent;
 		this.soc = agent.getSoC()/agent.getBatteryCapacity();
 		this.setDecisionEventId(agent.getCurrentDecisionEventId());
 		this.plug = plug;
+		this.chargingPowerInKw = chargingPowerInW / 1000.0;
 	}
 
 	@Override
@@ -82,8 +83,7 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 	}
 
 	public double getChargingPowerInKw(){
-//		return this.plug.getActualChargingPowerInWatt()/1000; // kW -- returns zero.
-		return this.plug.getMaxChargingPowerInWatt()/1000; // kW
+		return this.chargingPowerInKw;
 	}
 
 //	public int getNumInChargingQueue(){

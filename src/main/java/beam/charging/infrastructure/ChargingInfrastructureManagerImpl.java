@@ -404,15 +404,15 @@ public class ChargingInfrastructureManagerImpl {
 
 	public void handleBeginChargingSession(ChargingPlug plug, PlugInVehicleAgent agent) {
 		agent.setChargingState(AgentChargingState.CHARGING);
-		EVGlobalData.data.eventLogger.processEvent(new BeginChargingSessionEvent(EVGlobalData.data.now, agent, plug));
 		plug.getChargingSite().handleBeginChargingSession(plug, agent);
+		EVGlobalData.data.eventLogger.processEvent(new BeginChargingSessionEvent(EVGlobalData.data.now, agent, plug,plug.getActualChargingPowerInWatt()));
 	}
 
 	public void handleEndChargingSession(ChargingPlug plug, PlugInVehicleAgent agent) {
 		agent.setChargingState(AgentChargingState.POST_CHARGE_PLUGGED);
 
 		// Process event... what the heck is this?
-		EVGlobalData.data.eventLogger.processEvent(new EndChargingSessionEvent(EVGlobalData.data.now, agent, plug));
+		EVGlobalData.data.eventLogger.processEvent(new EndChargingSessionEvent(EVGlobalData.data.now, agent, plug, plug.getActualChargingPowerInWatt()));
 
 		// Determine if the vehicle should leave or stay at the end of the charging session
 		plug.getChargingSite().handleEndChargingSession(plug, agent);
