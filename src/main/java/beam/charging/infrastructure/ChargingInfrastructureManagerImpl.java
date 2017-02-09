@@ -411,7 +411,7 @@ public class ChargingInfrastructureManagerImpl {
 	public void handleEndChargingSession(ChargingPlug plug, PlugInVehicleAgent agent) {
 		agent.setChargingState(AgentChargingState.POST_CHARGE_PLUGGED);
 
-		// Process event... what the heck is this?
+		// Process event
 		EVGlobalData.data.eventLogger.processEvent(new EndChargingSessionEvent(EVGlobalData.data.now, agent, plug, plug.getActualChargingPowerInWatt()));
 
 		// Determine if the vehicle should leave or stay at the end of the charging session
