@@ -100,25 +100,31 @@ legs <- legs[id%in%sampled.reg$smart.id]
 home.to.home <- u(plans[,head(type,1)=='Home' & tail(type,1)=='Home',by='id'][V1==T]$id)
 other.types <- u(plans[,head(type,1)=='Home' & tail(type,1)=='Home',by='id'][V1==F]$id)
 
+n.more.days <- 6
+
 new.plans <- list()
 for(person in home.to.home){
   n.acts <- nrow(plans[id==person])
   plans[id==person,end.dt:=c(head(end.dt,-1),end.dt[1]+24*3600)]
-  new.plans[[length(new.plans)+1]] <- rbindlist(list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)],
-                                                     plans[id==person][2:n.acts,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*3600)],
-                                                     plans[id==person][2:n.acts,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+48*3600)]))
+  tmp <- list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)])
+  for(i in 1:n.more.days){
+    tmp[[length(tmp)+1]] <- plans[id==person][2:n.acts,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*i*3600)]
+  }
+  new.plans[[length(new.plans)+1]] <- rbindlist(tmp)
 }
 for(person in other.types){
   n.acts <- nrow(plans[id==person])
   plans[id==person,end.dt:=c(head(end.dt,-1),to.posix('1970-01-02'))]
-  new.plans[[length(new.plans)+1]] <- rbindlist(list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)],
-                                                     plans[id==person][,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*3600)],
-                                                     plans[id==person][,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+48*3600)]))
+  tmp <- list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)])
+  for(i in 1:n.more.days){
+    tmp[[length(tmp)+1]] <- plans[id==person][,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*i*3600)]
+  }
+  new.plans[[length(new.plans)+1]] <- rbindlist(tmp)
 }
 new.plans <- rbindlist(new.plans)
 new.plans[,link:=pp('sfpt',link)]
 new.legs <- new.plans[,list(start_link=head(link,-1),end_link=tail(link,-1),trav_time=1,distance=1),by='id']
-save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.Rdata')
+save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-7.Rdata')
 
 outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.xml'
 outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-500.xml'

@@ -39,7 +39,7 @@ out.dirs <- list(
                  )
 
 out.dirs <- list(
-                 'test'='/Users/critter/Documents/beam/beam-output/calibration_2017-02-08_15-50-17/ITERS/it.0/'
+                 'test'='/Users/critter/Documents/beam/beam-output/calibration_2017-02-08_16-09-34/ITERS/it.0/'
                  )
 #nl4 intercept 1.8, cost -2.75
 #nl5 intercept 2.0, cost -2.9
@@ -182,6 +182,7 @@ ch.load[,hour:=floor(t)]
 
 ggplot(ch.load[,list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','charger.sector')],aes(x=t,y=num.in.use,fill=charger.sector))+geom_bar(stat='identity')+labs(x="Hour",y="# Plugs in Use",fill="Type")
 dev.new();ggplot(ch.load[,list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','charger.sector')],aes(x=t,y=kw,fill=charger.sector))+geom_bar(stat='identity')+labs(x="Hour",y="# Plugs in Use",fill="Type")
+write.csv(ch.load[,list(kw=sum(kw),num.in.use=length(kw)),by=c('scenario','t')],file='~/Downloads/load.csv')
 
 #########################################
 # Directly compare scraped to modeled
