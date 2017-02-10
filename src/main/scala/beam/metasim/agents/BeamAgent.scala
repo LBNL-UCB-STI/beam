@@ -2,10 +2,10 @@ package beam.metasim.agents
 
 import akka.actor.FSM
 import akka.persistence.fsm.PersistentFSM.FSMState
-import beam.metasim.playground.colin.{Initialize, Transition}
 import org.matsim.api.core.v01.population.PlanElement
-import org.matsim.core.controler.events.ControlerEvent
 import org.slf4j.LoggerFactory
+import BeamAgent._
+import org.matsim.api.core.v01.events.Event
 
 
 object BeamAgent {
@@ -16,23 +16,16 @@ object BeamAgent {
   case object Idle extends BeamState {
     override def identifier = "Idle"
   }
-
   case object Initialized extends BeamState {
     override def identifier = "Initialized"
   }
-
 
   /**
     * Agent info consists of next MATSim plan element for agent to transition
     */
   case class BeamAgentInfo(currentTask: PlanElement)
-
   case class AgentError(errorMsg: String)
-
 }
-
-
-
 
 
 /**
@@ -41,9 +34,11 @@ object BeamAgent {
   */
 //XXXX: May be useful to encapsulate the MATSimEvent and others in a
 //      separate trait and use the `with` syntax.
-sealed trait MemoryEvent extends ControlerEvent
+sealed trait MemoryEvent extends Event
 
-final case class ActivityTravelPlanMemory(currentTask: PlanElement) extends MemoryEvent
+//final case class ActivityTravelPlanMemory(time: Double, currentTask: PlanElement) extends MemoryEvent {
+//  override def getEventType: String = "ActivityTravelPlanMemory"
+//}
 
 /**
   * This FSM uses [[BeamState]] and [[BeamAgentInfo]] to define the state and
@@ -63,13 +58,18 @@ class BeamAgent extends FSM[BeamState, BeamAgentInfo] {
   }
 
   when(Initialized) {
-    case Event(Transition(data, firstActivity), BeamAgentInfo(currentTask)
-    ) =>
-      assert(currentTask == null)
-      log.info(s"Agent with ID $stateName Received Start Event from scheduler")
-      context.parent ! Ack
-      stay() // Default behavior... we want to override this!
+    case Event(Transition(data), _) =>
+      stay()
   }
+
+}
+
+    //    case Event(Transition((data, firstActivity), BeamAgentInfo(currentTask)
+    //    ) =>
+    //      assert(currentTask == null)
+    //      log.info(s"Agent with ID $stateName Received Start Event from scheduler")
+    //      context.parent ! Ack
+    //      stay() // Default behavior... we want to override this!
 
 
   //TODO: Add Persistence back in
@@ -88,4 +88,3 @@ class BeamAgent extends FSM[BeamState, BeamAgentInfo] {
   //  override def persistenceId: String = {
   //    "Name"
   //  }
-}

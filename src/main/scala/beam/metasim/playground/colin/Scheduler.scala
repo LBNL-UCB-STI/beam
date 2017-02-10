@@ -2,15 +2,10 @@ package beam.metasim.playground.colin
 
 import akka.actor.Actor
 import akka.event.Logging
-import akka.util.Timeout
-import akka.pattern.ask
 
 import scala.collection.mutable
-import scala.collection.mutable
-import scala.math.Ordered.orderingToOrdered
-import scala.concurrent.duration._
-import java.util.Deque
 
+import beam.metasim.agents.{Trigger, TriggerData}
 import com.google.common.collect.TreeMultimap
 
 sealed trait SchedulerMessage
@@ -24,7 +19,7 @@ class Scheduler extends Actor {
   val log = Logging(context.system, this)
   val maxWindow = 10.0
   var triggerQueue = new mutable.PriorityQueue[Trigger]()
-  var awaitingResponse = new TreeMultimap[Double,Int]()
+  var awaitingResponse = TreeMultimap.create[java.lang.Double,java.lang.Integer]();
   var idCount: Int = 0
 
   def receive = {

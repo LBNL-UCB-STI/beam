@@ -1,6 +1,7 @@
 package beam.metasim.agents
 
-import beam.metasim.playground.colin.{Trigger, TriggerData}
+import beam.metasim.agents.BeamAgent.{BeamAgentInfo, BeamState, Idle}
+import beam.metasim.agents.PersonAgent.{ChoosingMode, DepartActivity, PerformingActivity}
 import beam.metasim.playground.sid.akkaguice.NamedActor
 import com.google.inject.Inject
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -16,7 +17,7 @@ import org.slf4j.LoggerFactory
 object PersonAgent extends NamedActor {
   override final val name: String = "PersonAgent"
 
-  trait InActivity extends BeamState {
+  trait InActivity extends BeamState{
     override def identifier = "In Activity"
   }
 
@@ -101,8 +102,8 @@ class PersonAgent @Inject()(population: PopulationFactory, network: Network, rou
       val fromFacilityLink: Link = network.getLinks.get(fromActivity.getLinkId)
       val toFacilityLink: Link = network.getLinks.get(toActivity.getLinkId)
 
-      val fromFacility = createFacility(fromFacilityId, fromFacilityLink)
-      val toFacility = createFacility(toFacilityId, toFacilityLink)
+      val fromFacility = PersonAgent.createFacility(fromFacilityId, fromFacilityLink)
+      val toFacility = PersonAgent.createFacility(toFacilityId, toFacilityLink)
 
       val dummyId = Id.createPersonId(1) //TODO: get personId as constructor argument using Guice
       val dummyPerson: Person = population.createPerson(dummyId)

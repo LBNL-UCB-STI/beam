@@ -6,12 +6,15 @@ import org.matsim.core.controler.events.StartupEvent
 import org.matsim.core.controler.listener.StartupListener
 import org.slf4j.LoggerFactory
 import akka.actor.Inbox
+import beam.metasim.agents.{Transition, TriggerData}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
+
 import scala.collection.JavaConversions.mapAsScalaMap
 import org.matsim.core.controler.listener.IterationStartsListener
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.mobsim.framework.Mobsim
+
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 

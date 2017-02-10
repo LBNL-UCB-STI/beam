@@ -13,8 +13,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("beam-actor-system")) with Mus
 
   describe("PersonAgent FSM"){
       it("should allow setting the current activity"){
-        val injector = Guice.createInjector(new MetaSimRoutingModule())
-        val testPersonAgent = TestActorRef(Props(new PersonAgent))
+//        val injector = Guice.createInjector(new MetaSimRoutingModule())
+//        val testPersonAgent = TestActorRef(Props(new PersonAgent))
       }
   }
 

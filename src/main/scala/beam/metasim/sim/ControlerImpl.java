@@ -1,4 +1,4 @@
-package beam.metasim.playground.sid.sim;/* *********************************************************************** *
+package beam.metasim.sim;/* *********************************************************************** *
  * project: org.matsim.*
  * Controler.java
  *                                                                         *

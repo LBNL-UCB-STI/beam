@@ -1,10 +1,12 @@
 package beam.metasim.playground.colin
 
-import akka.actor.{ActorSystem,Inbox}
+import akka.actor.{ActorSystem, Inbox}
 import akka.actor.Props
+
 import scala.concurrent.duration._
 import akka.actor.Actor
 import akka.actor.ActorRef
+import beam.metasim.agents.Transition
 
 class BeamAkkaSystem {
     var system : ActorSystem = null
@@ -19,10 +21,10 @@ class BeamAkkaSystem {
     
       // Create an "actor-in-a-box"
       this.inbox = Inbox.create(system)
-      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 1.0, Transition, 1))
-      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 5.0, Transition, 1))
-      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 2.0, Transition, 1))
-      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 4.0, Transition, 1))
+//      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 1.0, Transition, 1))
+//      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 5.0, Transition, 1))
+//      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 2.0, Transition, 1))
+//      this.inbox.send(mySchedule, new TriggerEvent(myAgent, 4.0, Transition, 1))
     }
     
     def start() {

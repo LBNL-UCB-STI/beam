@@ -1,12 +1,10 @@
-package beam.metasim.playground.sid.sim
+package beam.metasim.sim
 
 import akka.actor.{ActorRef, ActorSystem, Inbox}
 import beam.metasim.agents.PersonAgent
-import beam.metasim.playground.sid.agents.{DepartActivity, InitActivity, StartDay}
 import beam.metasim.playground.sid.akkaguice.GuiceAkkaExtension
 import beam.metasim.playground.sid.sim.modules.{BeamActorSystemModule, BeamAgentModule, ConfigModule}
 import beam.metasim.playground.sid.utils.FileUtils
-import beam.playground.metasim.services.location.BeamRouterModuleProvider
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.controler._
@@ -57,9 +55,9 @@ object MatSimRunFromScala extends App{
   val activity0=PopulationUtils.createActivityFromLinkId("h1",Id.createLinkId(11))
   val activity1=PopulationUtils.createActivityFromLinkId("w1",Id.createLinkId(23))
 
-  personAgent ! StartDay
-  personAgent ! InitActivity(activity0)
-  personAgent ! DepartActivity(activity1)
+//  personAgent ! StartDay
+//  personAgent ! InitActivity(activity0)
+//  personAgent ! DepartActivity(activity1)
 
   val controler = injector.instance[ControlerI]
 

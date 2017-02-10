@@ -1,12 +1,13 @@
 package beam.metasim.playground.colin
 
 import akka.actor.FSM
-import beam.metasim.agents.Ack
+import beam.metasim.agents.{Ack, Initialize, TriggerData}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import akka.persistence.fsm.PersistentFSM
 import akka.persistence.fsm.PersistentFSM.FSMState
+
 import scala.reflect.ClassTag
 import scala.reflect.classTag
 import akka.actor.Props
@@ -65,22 +66,26 @@ class BeamAgentColin extends PersistentFSM[BeamState, BeamAgentInfo, BeamDomainE
       sender() ! triggerData
       goto(InActivity)
     }
+      /*
     case Event(Transition(triggerData: TriggerData), _) => {
       logger.info("in initial going to activity, data: none")
       sender() ! triggerData
       goto(InActivity)
     }
+    */
   }
-  when(InActivity) {
-    case Event(Transition(triggerData: TriggerData), prevLabel: BeamAgentInfo) =>
-      logger.info("in activity and staying, data: " + prevLabel.theData)
-      this.eventsManagerService ! new ActivityStartEvent(0.0,Id.create(1,classOf[Person]),null,null,"home")
-      sender() ! triggerData
-      stay() applying LabelActivity(prevLabel.theData + 1)
+  /*
+when(InActivity) {
+  case Event(Transition(triggerData: TriggerData), prevLabel: BeamAgentInfo) =>
+    logger.info("in activity and staying, data: " + prevLabel.theData)
+    this.eventsManagerService ! new ActivityStartEvent(0.0,Id.create(1,classOf[Person]),null,null,"home")
+    sender() ! triggerData
+    stay() applying LabelActivity(prevLabel.theData + 1)
 //    case Event(_,_) =>
 //      logger.info("null trigger from in activity")
 //      stay()
   }
+*/
 
   onTransition {
     case InitialState -> InActivity => logger.debug("From init state to first activity")
