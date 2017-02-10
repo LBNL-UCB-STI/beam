@@ -1,7 +1,7 @@
 package beam.metasim.playground.sid.sim.modules
 
 import akka.actor.ActorSystem
-import beam.metasim.playground.sid.agents.BeamAgent
+import beam.metasim.agents.BeamAgent
 import beam.metasim.playground.sid.akkaguice.GuiceAkkaExtension
 import beam.metasim.playground.sid.sim.modules.BeamActorSystemModule.ActorSystemProvider
 import beam.metasim.playground.sid.sim.modules.BeamRouterModuleProvider.BeamRouterModuleProvider
@@ -34,7 +34,7 @@ object BeamActorSystemModule {
 class BeamActorSystemModule extends AbstractModule with ScalaModule {
   override def configure() {
     bind[ActorSystem].toProvider[ActorSystemProvider].asEagerSingleton()
-    bind[RoutingModule].toProvider[BeamRouterModuleProvider]
+
   }
 
 }

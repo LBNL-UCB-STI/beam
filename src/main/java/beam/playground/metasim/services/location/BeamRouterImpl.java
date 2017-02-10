@@ -223,6 +223,7 @@ public class BeamRouterImpl extends BeamRouter {
 		LinkNetworkRouteImpl route=new LinkNetworkRouteImpl(fromFacility.getLinkId(), toFacility.getLinkId());
 //		leg.setRoute(route);
 		route.setDistance(1);
+
 		return list;
 	}
 	public StageActivityTypes getStageActivityTypes() {

@@ -223,6 +223,7 @@ public class BeamRouter implements RoutingModule {
 			LinkNetworkRouteImpl route=new LinkNetworkRouteImpl(fromFacility.getLinkId(), toFacility.getLinkId());
 //			leg.setRoute(route);
 			route.setDistance(1);
+			System.out.println("Hello from BeamRouter, here's a fake route!");
 			return list;
 		}
 		public StageActivityTypes getStageActivityTypes() {

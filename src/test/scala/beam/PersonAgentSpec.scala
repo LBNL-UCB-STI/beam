@@ -2,7 +2,7 @@ package beam
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
-import beam.metasim.playground.sid.agents.PersonAgent
+import beam.metasim.agents.PersonAgent
 import com.google.inject.Guice
 import org.scalatest.{FunSpecLike, MustMatchers}
 

@@ -1,7 +1,7 @@
 package beam.metasim.playground.sid.sim.modules
 
 import akka.actor.{Actor, ActorRef, ActorSystem}
-import beam.metasim.playground.sid.agents.PersonAgent
+import beam.metasim.agents.PersonAgent
 import beam.metasim.playground.sid.akkaguice.GuiceAkkaActorRefProvider
 import com.google.inject.{AbstractModule, Inject, Provides}
 import com.google.inject.name.{Named, Names}

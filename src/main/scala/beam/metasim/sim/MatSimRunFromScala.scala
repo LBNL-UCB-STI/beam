@@ -1,7 +1,8 @@
 package beam.metasim.playground.sid.sim
 
 import akka.actor.{ActorRef, ActorSystem, Inbox}
-import beam.metasim.playground.sid.agents.{DepartActivity, InitActivity, PersonAgent, StartDay}
+import beam.metasim.agents.PersonAgent
+import beam.metasim.playground.sid.agents.{DepartActivity, InitActivity, StartDay}
 import beam.metasim.playground.sid.akkaguice.GuiceAkkaExtension
 import beam.metasim.playground.sid.sim.modules.{BeamActorSystemModule, BeamAgentModule, ConfigModule}
 import beam.metasim.playground.sid.utils.FileUtils

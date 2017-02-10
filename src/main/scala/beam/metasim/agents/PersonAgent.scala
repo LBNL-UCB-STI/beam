@@ -1,8 +1,6 @@
-package beam.metasim.playground.sid.agents
+package beam.metasim.agents
 
-import akka.actor.FSM.Failure
-import beam.metasim.agents.Ack
-import beam.metasim.playground.sid.agents.BeamAgent._
+import beam.metasim.playground.colin.{Trigger, TriggerData}
 import beam.metasim.playground.sid.akkaguice.NamedActor
 import com.google.inject.Inject
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -17,6 +15,40 @@ import org.slf4j.LoggerFactory
   */
 object PersonAgent extends NamedActor {
   override final val name: String = "PersonAgent"
+
+  trait InActivity extends BeamState {
+    override def identifier = "In Activity"
+  }
+
+  case object PerformingActivity extends InActivity {
+    override def identifier = "Performing an Activity"
+  }
+
+  trait Traveling extends BeamState {
+    override def identifier = "Traveling"
+  }
+
+  case object ChoosingMode extends Traveling {
+    override def identifier = "Choosing Travel Mode"
+  }
+
+  case object Walking extends Traveling {
+    override def identifier = "Walking"
+  }
+
+  case object Driving extends Traveling {
+    override def identifier = "Driving"
+  }
+
+  case object OnPublicTransit extends Traveling {
+    override def identifier = "On Public Transit"
+  }
+
+  case class InitActivity(override val data: TriggerData, nextActivity: PlanElement)  extends Trigger
+
+  case class SelectRoute(override val data: TriggerData) extends Trigger
+
+  case class DepartActivity(override val data:TriggerData, nextActivity: PlanElement) extends Trigger
 
   def createFacility(id: Id[ActivityFacility], link: Link): ActivityFacility = {
     if (link == null) throw new IllegalArgumentException("link == null")
@@ -53,15 +85,13 @@ object PersonAgent extends NamedActor {
 
 class PersonAgent @Inject()(population: PopulationFactory, network: Network, routerService: RoutingModule) extends BeamAgent {
 
-  import beam.metasim.playground.sid.agents.PersonAgent._
-
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
 
   when(PerformingActivity) {
 
     // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
-    case Event(DepartActivity(nextActivity), BeamAgentInfo(currentTask)) =>
+    case Event(DepartActivity(data, nextActivity), BeamAgentInfo(currentTask)) =>
       val fromActivity: Activity = currentTask.asInstanceOf[Activity]
       val toActivity: Activity = nextActivity.asInstanceOf[Activity]
 
@@ -80,9 +110,9 @@ class PersonAgent @Inject()(population: PopulationFactory, network: Network, rou
       val route = routerService.calcRoute(fromFacility, toFacility, toActivity.getEndTime, dummyPerson)
       if (route != null) {
         logger.warn("\n\n\t########## Dummy Route:" + route + "\n")
-        context.parent ! Ack
+        data.agent ! Ack
       }else{
-        context.parent ! Failure(s"$dummyId couldn't find route between $fromFacilityId and $toFacilityId. " +
+        data.agent ! Failure(s"$dummyId couldn't find route between $fromFacilityId and $toFacilityId. " +
           s"Staying at $fromActivity")
       }
 
