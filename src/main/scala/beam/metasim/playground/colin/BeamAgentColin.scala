@@ -36,9 +36,6 @@ case object Traveling extends BeamState {
 case class BeamAgentInfo(theData: Int)
 case object GetState
 
-sealed trait Trigger
-case object Transition extends Trigger
-case class Initialize(eventsManagerService: ActorRef) extends Trigger
 
 sealed trait BeamDomainEvent
 //  case class ExampleClass(item: Item) extends DomainEvent
@@ -46,10 +43,6 @@ final case class LabelActivity(newActivity: Int) extends BeamDomainEvent
 
 
 /**
-  * This FSM uses [[BeamState]] and [[BeamAgentInfo]] to define the state and
-  * state data types.
-  *
-  * @param id create a new BeamAgent using the ID from the MATSim ID.
   */
 class BeamAgentColin extends PersistentFSM[BeamState, BeamAgentInfo, BeamDomainEvent] {
 
@@ -66,20 +59,23 @@ class BeamAgentColin extends PersistentFSM[BeamState, BeamAgentInfo, BeamDomainE
   }
 
   when(InitialState) {
-    case Event(Initialize(eventsManagerService: ActorRef),_) => {
+    case Event(Initialize(triggerData: TriggerData),_) => {
       logger.info("initializing BeamAgent with event manager")
       this.eventsManagerService = eventsManagerService
+      sender() ! triggerData
       goto(InActivity)
     }
-    case Event(Transition, _) => {
+    case Event(Transition(triggerData: TriggerData), _) => {
       logger.info("in initial going to activity, data: none")
-      goto(InitialState)
+      sender() ! triggerData
+      goto(InActivity)
     }
   }
   when(InActivity) {
-    case Event(Transition, prevLabel: BeamAgentInfo) =>
+    case Event(Transition(triggerData: TriggerData), prevLabel: BeamAgentInfo) =>
       logger.info("in activity and staying, data: " + prevLabel.theData)
       this.eventsManagerService ! new ActivityStartEvent(0.0,Id.create(1,classOf[Person]),null,null,"home")
+      sender() ! triggerData
       stay() applying LabelActivity(prevLabel.theData + 1)
 //    case Event(_,_) =>
 //      logger.info("null trigger from in activity")

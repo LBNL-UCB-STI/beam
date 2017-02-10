@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
+import beam.playground.metasim.events.ActionEvent;
+import beam.playground.metasim.events.TransitionEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.config.Config;
 
@@ -14,8 +16,6 @@ import beam.events.scoring.LegTravelTimeScoreEvent;
 import beam.events.scoring.ParkingScoreEvent;
 import beam.events.scoring.RangeAnxietyScoreEvent;
 import beam.parking.lib.DebugLib;
-import beam.playground.metasim.events.ActionEvent;
-import beam.playground.metasim.events.TransitionEvent;
 import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 
 public class EventLogger {

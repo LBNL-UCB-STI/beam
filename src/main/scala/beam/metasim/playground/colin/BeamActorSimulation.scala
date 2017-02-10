@@ -40,24 +40,21 @@ class BeamActorSimulation extends StartupListener with Mobsim {
 
     initPopMap foreach { case (actorRef, id) =>
       logger.info("initializing")
-//      inbox.send(actorRef, GetState);
-//      logger.info(inbox.receive(500.millis).toString())
-      inbox.send(actorRef, new Initialize(eventsManagerService))
       inbox.send(actorRef, GetState);
       logger.info(inbox.receive(500.millis).toString())
     }
 		Thread.sleep(100);
     logger.info("done 1")
     initPopMap foreach { case (actorRef, id) =>
-      inbox.send(scheduler, new TriggerEvent(actorRef, 1.0, Transition, 1))
-      inbox.send(scheduler, new TriggerEvent(actorRef, 10.0, Transition, 1))
-      inbox.send(scheduler, new TriggerEvent(actorRef, 20.0, Transition, 1))
-      inbox.send(scheduler, new TriggerEvent(actorRef, 30.0, Transition, 1))
+      inbox.send(scheduler, Transition(new TriggerData(actorRef, 1.0)))
+      inbox.send(scheduler, Transition(new TriggerData(actorRef, 10.0)))
+      inbox.send(scheduler, Transition(new TriggerData(actorRef, 20.0)))
+      inbox.send(scheduler, Transition(new TriggerData(actorRef, 30.0)))
     }
 		Thread.sleep(100);
   }
   def run(): Unit = {
-    inbox.send(scheduler, "start");
+    inbox.send(scheduler, StartSchedule)
 		Thread.sleep(100);
   }
 }
