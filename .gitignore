@@ -7,7 +7,9 @@ test/output
 .project
 .settings
 .classpath
-output
-/.idea/
+output/
+libs
+.idea
 .cache*
-target
+target/
+beam.iml
