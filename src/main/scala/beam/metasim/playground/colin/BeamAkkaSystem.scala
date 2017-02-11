@@ -6,7 +6,7 @@ import akka.actor.Props
 import scala.concurrent.duration._
 import akka.actor.Actor
 import akka.actor.ActorRef
-import beam.metasim.agents.Transition
+import beam.metasim.agents.{Scheduler, Transition}
 
 class BeamAkkaSystem {
     var system : ActorSystem = null

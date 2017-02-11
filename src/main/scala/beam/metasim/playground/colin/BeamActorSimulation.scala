@@ -6,7 +6,7 @@ import org.matsim.core.controler.events.StartupEvent
 import org.matsim.core.controler.listener.StartupListener
 import org.slf4j.LoggerFactory
 import akka.actor.Inbox
-import beam.metasim.agents.{Transition, TriggerData}
+import beam.metasim.agents.{Scheduler, StartSchedule, Transition, TriggerData}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
