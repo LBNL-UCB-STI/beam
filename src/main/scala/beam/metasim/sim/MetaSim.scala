@@ -1,6 +1,8 @@
 package beam.metasim.sim
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
+import beam.metasim.agents.Scheduler
+import beam.metasim.playground.colin.EventsManagerService
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
@@ -14,16 +16,18 @@ import org.matsim.core.router.util.TravelTime
   *
   * Created by sfeygin on 2/8/17.
   */
-class MetaSim @Inject()(actorSystem: ActorSystem,
-                        eventsManager: EventsManager,
-                        scenario:Scenario,
-                        travelTime: TravelTime) extends Mobsim with StartupListener{
+class MetaSim @Inject()(private val actorSystem: ActorSystem,
+                        private val eventsManager: EventsManager,
+                        private val scenario:Scenario,
+                        private val travelTime: TravelTime) extends Mobsim with StartupListener{
 
   override def run(): Unit = {
+    val scheduler = actorSystem.actorOf(Props[Scheduler], "BeamAgent Scheduler")
+    val ems = actorSystem.actorOf(Props(classOf[EventsManagerService],eventsManager),"MATSim Events Manager Service")
 
   }
 
   override def notifyStartup(event: StartupEvent): Unit = {
-
+    run()
   }
 }
