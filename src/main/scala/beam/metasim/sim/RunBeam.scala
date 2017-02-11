@@ -11,7 +11,6 @@ object RunBeam extends App{
   val tsConfig: Config = ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve();
   val beamConfig = BeamConfig(tsConfig)
 
-  Console.println("JAVA HOME is ")
   Console.println(beamConfig.beam.outputs.defaultLoggingLevel)
   Console.println(beamConfig.beam.outputs.overrideLoggingLevels.head.classname)
   Console.println(beamConfig.beam.outputs.overrideLoggingLevels.head.value)
