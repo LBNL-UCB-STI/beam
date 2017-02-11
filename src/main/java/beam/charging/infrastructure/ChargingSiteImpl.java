@@ -1,5 +1,6 @@
 package beam.charging.infrastructure;
 
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteCounty;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
@@ -35,6 +36,7 @@ public class ChargingSiteImpl implements ChargingSite {
 	private LinkedList<ChargingPoint> chargingPoints;
 	private Id<ChargingSite> chargingSiteId;
 	private ChargingSitePolicy chargingSitePolicy;
+	private String chargingSiteCounty;
 	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> accessiblePlugsByType = LinkedHashMultimap.create();
 	private LinkedHashSet<ChargingPlugType> accessiblePlugTypes = new LinkedHashSet<ChargingPlugType>(), allPlugTypes = new LinkedHashSet<ChargingPlugType>();
 	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> availiblePlugsByType = LinkedHashMultimap.create();
@@ -52,8 +54,20 @@ public class ChargingSiteImpl implements ChargingSite {
 		this.chargingNetworkOperator = chargingNetworkOperator;
 		this.isResidential = isResidential;
 	}
+	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, String county, boolean isResidential) {
+		this.chargingSiteId = chargingSiteId;
+		this.coord = coord;
+		this.chargingPoints = new LinkedList<>();
+		this.chargingSitePolicy = policy;
+		this.chargingNetworkOperator = chargingNetworkOperator;
+		this.chargingSiteCounty = county;
+		this.isResidential = isResidential;
+	}
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator) {
 		this(chargingSiteId, coord, policy, chargingNetworkOperator, false);
+	}
+	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, String chargingSiteCounty) {
+		this(chargingSiteId, coord, policy, chargingNetworkOperator, chargingSiteCounty,false);
 	}
 
 	@Override
@@ -123,6 +137,10 @@ public class ChargingSiteImpl implements ChargingSite {
 
 	public ChargingSitePolicy getChargingSitePolicy(){
 		return this.chargingSitePolicy;
+	}
+
+	public String getChargingSiteCounty(){
+		return this.chargingSiteCounty;
 	}
 
 	@Override

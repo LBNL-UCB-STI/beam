@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteCounty;
 import org.apache.log4j.Logger;
 import org.jdom.JDOMException;
 import org.matsim.api.core.v01.Coord;
@@ -55,6 +56,7 @@ public class ChargingInfrastructureManagerImpl {
 	LinkedHashMap<ChargingPlugType, QuadTree<ChargingSite>> accessibleChargingSiteTreeByPlugType;
 	LinkedHashMap<ChargingPlugType, SetMultimap<Id<Link>, ChargingSite>> accessibleChargingSitesByLinkIDByPlugType;
 	LinkedHashMap<String, ChargingSitePolicy> chargingSitePolicyMap = new LinkedHashMap<String, ChargingSitePolicy>();
+	LinkedHashMap<String, ChargingSiteCounty> chargingSiteCountyMap= new LinkedHashMap<String, ChargingSiteCounty>();
 	LinkedHashMap<String, ChargingNetworkOperator> chargingNetworkOperatorMap = new LinkedHashMap<String, ChargingNetworkOperator>();
 	LinkedHashMap<String, ChargingPlugType> chargingPlugTypeByIdMap = new LinkedHashMap<String, ChargingPlugType>();
 	LinkedHashMap<String, ChargingPlugType> chargingPlugTypeByNameMap = new LinkedHashMap<String, ChargingPlugType>();
@@ -208,7 +210,8 @@ public class ChargingInfrastructureManagerImpl {
 					ChargingSite newSite = new ChargingSiteImpl(Id.create(row[headerMap.get("id")].trim(), ChargingSite.class),
 							EVGlobalData.data.transformFromWGS84.transform(theCoord),
 							chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
-							chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()));
+							chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
+							row[headerMap.get("county")].trim());
 					chargingSiteMap.put(row[headerMap.get("id")].trim(), newSite);
 				}
 			}
