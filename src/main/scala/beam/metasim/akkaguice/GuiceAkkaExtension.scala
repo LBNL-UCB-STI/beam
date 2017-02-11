@@ -1,4 +1,4 @@
-package beam.metasim.playground.sid.akkaguice
+package beam.metasim.akkaguice
 
 import akka.actor.{Actor, ActorRef, ActorSystem, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props}
 import com.google.inject.Injector

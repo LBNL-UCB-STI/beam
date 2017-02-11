@@ -1,4 +1,4 @@
-package beam.metasim.playground.sid.akkaguice
+package beam.metasim.akkaguice
 
 import akka.actor.{Actor, IndirectActorProducer}
 import com.google.inject.name.Names

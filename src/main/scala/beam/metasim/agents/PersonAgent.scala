@@ -2,7 +2,7 @@ package beam.metasim.agents
 
 import beam.metasim.agents.BeamAgent.{BeamAgentInfo, BeamState, Idle}
 import beam.metasim.agents.PersonAgent.{ChoosingMode, DepartActivity, PerformingActivity}
-import beam.metasim.playground.sid.akkaguice.NamedActor
+import beam.metasim.akkaguice.NamedActor
 import com.google.inject.Inject
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population._

@@ -1,4 +1,4 @@
-package beam.metasim.playground.sid.sim
+package beam.metasim.sim
 
 import akka.actor.ActorSystem
 import com.google.inject.Inject

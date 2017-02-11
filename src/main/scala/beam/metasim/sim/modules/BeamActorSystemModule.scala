@@ -1,10 +1,9 @@
-package beam.metasim.playground.sid.sim.modules
+package beam.metasim.sim.modules
 
 import akka.actor.ActorSystem
 import beam.metasim.agents.BeamAgent
-import beam.metasim.playground.sid.akkaguice.GuiceAkkaExtension
-import beam.metasim.playground.sid.sim.modules.BeamActorSystemModule.ActorSystemProvider
-import beam.metasim.playground.sid.sim.modules.BeamRouterModuleProvider.BeamRouterModuleProvider
+import beam.metasim.akkaguice.GuiceAkkaExtension
+import beam.metasim.sim.modules.BeamActorSystemModule.ActorSystemProvider
 import beam.playground.metasim.services.location.BeamRouter
 import com.google.inject.{AbstractModule, Inject, Injector, Provider}
 import com.typesafe.config.Config

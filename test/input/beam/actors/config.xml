@@ -21,7 +21,7 @@
 		<param name="lastIteration" value="3" />
 		<param name="eventsFileFormat" value="xml" />
 		<!--Replacing w/ own mobsim soon... -->
-		<param name="mobsim" value="qsim" />
+		<param name="mobsim" value="metasim" />
 	</module>
 
 	<module name="qsim">

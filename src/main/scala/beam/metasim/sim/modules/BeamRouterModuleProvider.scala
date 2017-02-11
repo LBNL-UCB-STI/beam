@@ -1,4 +1,4 @@
-package beam.metasim.playground.sid.sim.modules
+package beam.metasim.sim.modules
 
 import beam.playground.metasim.services.location.BeamRouter
 import com.google.inject.{Inject, Provider}
@@ -10,12 +10,11 @@ import org.matsim.core.router.RoutingModule
   */
 
 object BeamRouterModuleProvider {
+}
 
-  class BeamRouterModuleProvider @Inject()(config: Config) extends Provider[RoutingModule] {
-    // XXXX: Get router params from config and use BeamRouterImpl
-    override def get(): RoutingModule = {
-      new BeamRouter()
-    }
+class BeamRouterModuleProvider @Inject()(config: Config) extends Provider[RoutingModule] {
+  // XXXX: Get router params from config and use BeamRouterImpl
+  override def get(): RoutingModule = {
+    new BeamRouter()
   }
-
 }

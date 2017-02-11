@@ -1,6 +1,6 @@
-package beam.metasim.playground.sid.sim.modules
+package beam.metasim.sim.modules
 
-import beam.metasim.playground.sid.sim.modules.ConfigModule.ConfigProvider
+import beam.metasim.sim.modules.ConfigModule.ConfigProvider
 import com.google.inject.{AbstractModule, Provider}
 import com.typesafe.config.{Config, ConfigFactory}
 import net.codingwell.scalaguice.ScalaModule

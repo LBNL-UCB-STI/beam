@@ -2,9 +2,9 @@ package beam.metasim.sim
 
 import akka.actor.{ActorRef, ActorSystem, Inbox}
 import beam.metasim.agents.PersonAgent
-import beam.metasim.playground.sid.akkaguice.GuiceAkkaExtension
-import beam.metasim.playground.sid.sim.modules.{BeamActorSystemModule, BeamAgentModule, ConfigModule}
-import beam.metasim.playground.sid.utils.FileUtils
+import beam.metasim.akkaguice.GuiceAkkaExtension
+import beam.metasim.sim.modules.{BeamActorSystemModule, BeamAgentModule, ConfigModule, MetaSimModule}
+import beam.metasim.utils.FileUtils
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.controler._
@@ -40,6 +40,7 @@ object MatSimRunFromScala extends App{
         install(new ControlerDefaultCoreListenersModule)
         install(new ConfigModule)
         install(new BeamActorSystemModule)
+        install(new MetaSimModule)
         install(new BeamAgentModule)
       }
     }),new AbstractModule() {

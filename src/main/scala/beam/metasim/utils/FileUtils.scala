@@ -1,4 +1,4 @@
-package beam.metasim.playground.sid.utils
+package beam.metasim.utils
 
 import java.io.File
 import java.text.SimpleDateFormat

@@ -32,7 +32,9 @@ public class RelaxedTravelTime implements TravelTime, LinkToLinkTravelTime, Trav
 	private int numSlots;
 	private double timeSlice;
 	private boolean mapAbsoluteTimeToTimeOfDay = true;
-	
+
+	public RelaxedTravelTime(){
+	}
 	public RelaxedTravelTime(Boolean mapAbsoluteTimeToTimeOfDay, String serialPath) throws Exception {
 		this.mapAbsoluteTimeToTimeOfDay = mapAbsoluteTimeToTimeOfDay;
 		FileInputStream fileIn = new FileInputStream(serialPath);
