@@ -2,6 +2,7 @@ package beam.events;
 
 import java.util.Map;
 
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
@@ -14,7 +15,8 @@ import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 public class BeginChargingSessionEvent extends Event implements IdentifiableDecisionEvent {
 
 	private PlugInVehicleAgent agent;
-	private String plug, site;
+	private ChargingPlug plug;
+	private ChargingSite site;
 	private int decisionEventId;
 	private double chargingKw;
 
@@ -26,8 +28,8 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 	public BeginChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug, double chargingPowerInW) {
 		super(time);
 		this.agent = agent;
-		this.plug = plug.getId().toString();
-		this.site = plug.getChargingSite().getId().toString();
+		this.plug = plug;
+		this.site = plug.getChargingSite();
 		this.chargingKw = chargingPowerInW/1000.0;
 		this.setDecisionEventId(agent.getCurrentDecisionEventId());
 	}
@@ -41,8 +43,8 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 	public Map<String, String> getAttributes() {
 		final Map<String, String> attributes = super.getAttributes();
 		attributes.put(ATTRIBUTE_PERSON, agent.getPersonId().toString());
-		attributes.put(ATTRIBUTE_PLUG, plug);
-		attributes.put(ATTRIBUTE_SITE, site);
+		attributes.put(ATTRIBUTE_PLUG, plug.getId().toString());
+		attributes.put(ATTRIBUTE_SITE, site.getId().toString());
 		attributes.put(ATTRIBUTE_DECISION_EVENT_ID, Integer.toString(getDecisionEventId()));
 		return attributes;
 	}
@@ -61,6 +63,10 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 	
 	public double getChargingPowerInKw(){
 		return chargingKw;
+	}
+
+	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
+		return this.site.getChargingSiteSpatialGroup();
 	}
 
 }

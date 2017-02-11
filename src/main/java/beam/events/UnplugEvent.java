@@ -2,6 +2,7 @@ package beam.events;
 
 import java.util.Map;
 
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
@@ -57,5 +58,8 @@ public class UnplugEvent extends Event implements IdentifiableDecisionEvent {
 	private void setDecisionEventId(int decisionEventId) {
 		this.decisionEventId = decisionEventId;
 	}
-	
+
+	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
+		return this.plug.getChargingSite().getChargingSiteSpatialGroup();
+	}
 }

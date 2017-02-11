@@ -3,6 +3,7 @@ package beam.events;
 import java.util.Map;
 
 import beam.charging.vehicle.AgentChargingState;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugStatus;
 import javassist.expr.Instanceof;
 import org.matsim.api.core.v01.Id;
@@ -89,5 +90,9 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 //	public int getNumInChargingQueue(){
 //		return new Instanceof() this.agent.getSelectedChargingSite().qu;
 //	}
+
+	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
+		return this.plug.getChargingSite().getChargingSiteSpatialGroup();
+	}
 
 }
