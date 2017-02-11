@@ -134,6 +134,7 @@ public class ChargingSiteImpl implements ChargingSite {
 		return this.chargingSitePolicy;
 	}
 
+	@Override
 	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
 		return this.chargingSiteSpatialGroup;
 	}
