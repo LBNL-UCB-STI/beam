@@ -5,6 +5,9 @@ import akka.actor.ActorRef
 import scala.math.Ordered.orderingToOrdered
 
 class TriggerData(val agent: ActorRef, val tick: Double, val priority: Int = 0, var id: Int = 0)
+{
+  require(tick>=0, "Negative timestamps not supported!")
+}
 
 abstract class Trigger() extends Ordered[Trigger] {
   val data: TriggerData
