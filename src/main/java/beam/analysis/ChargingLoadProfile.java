@@ -28,7 +28,8 @@ import java.util.List;
 public class ChargingLoadProfile implements BeginChargingSessionEventHandler, EndChargingSessionEventHandler,
 		DepartureChargingDecisionEventHandler, ArrivalChargingDecisionEventHandler, UnplugEventHandler {
 	private EventsManager eventsManager;
-	private FileWriter writer;
+	private FileWriter aggWriter;
+	private FileWriter disggWriter;
 
 	private Double writeInteval = 15.0*60.0; 	// time interval of tracking charging load and number of plugged-in vehicles
 	private Double chargingLoadInKw = 0.0;	 	// aggregate charging load
@@ -39,7 +40,8 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	public ChargingLoadProfile(EventsManager eventsManager) {
 		this.eventsManager = eventsManager;
 		this.eventsManager.addHandler(this);
-		this.writer = initFileWriter();
+		this.aggWriter = initAggFileWriter();
+		this.disggWriter = initDisaggFileWriter();
 
 		EVGlobalData.data.scheduler.addCallBackMethod(0.0, this ,"writeChargingLoadDataToFile", 0.0, this);
 	}
@@ -47,9 +49,25 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	/**
 	 * Initialize charging load csv file
 	 */
-	private FileWriter initFileWriter() {
+	private FileWriter initAggFileWriter() {
 		//TODO This should be created in every iter directory
 		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "run0.aggregateLoadProfile.csv";
+		try {
+			FileWriter writer = new FileWriter(fileName);
+			CSVUtil.writeLine(writer, chargingLoadFileHeader);
+			return writer;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/**
+	 * Initialize charging load csv file
+	 */
+	private FileWriter initDisaggFileWriter() {
+		//TODO This should be created in every iter directory
+		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "run0.disaggregateLoadProfile.csv";
 		try {
 			FileWriter writer = new FileWriter(fileName);
 			CSVUtil.writeLine(writer, chargingLoadFileHeader);
@@ -66,12 +84,21 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	public void writeChargingLoadDataToFile(){
 		// Log aggregate plugged-in num and charging load
 		try {
-			CSVUtil.writeLine(writer, Arrays.asList(String.valueOf(EVGlobalData.data.now/3600.0), "", "", String.valueOf(chargingLoadInKw), String.valueOf(numPluggedIn)));
-			writer.flush();
+			CSVUtil.writeLine(aggWriter, Arrays.asList(String.valueOf(EVGlobalData.data.now/3600.0), "", "", String.valueOf(chargingLoadInKw), String.valueOf(numPluggedIn)));
+			aggWriter.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		//TODO: log disaggregate plugged-in num and charging load
+		//TODO: need the list of county objects (get chargingSpatialGroupMap?)
+		//TODO: then, using for loop, write each row that associated with charger type and county
+		// Log aggregate plugged-in num and charging load
+		try {
+			CSVUtil.writeLine(aggWriter, Arrays.asList(String.valueOf(EVGlobalData.data.now/3600.0), "", "", String.valueOf(chargingLoadInKw), String.valueOf(numPluggedIn)));
+			aggWriter.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
 		// Reschedule this same method to be executed in future
 		EVGlobalData.data.scheduler.addCallBackMethod(MathUtil.roundUpToNearestInterval(EVGlobalData.data.now + writeInteval,writeInteval), this ,"writeChargingLoadDataToFile", 0.0, this);
