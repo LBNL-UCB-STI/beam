@@ -1,14 +1,17 @@
 package beam.metasim.sim
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import beam.metasim.agents.Scheduler
-import beam.metasim.playground.colin.EventsManagerService
+import beam.metasim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
+import beam.metasim.playground.sid.events.MetaSimEventsBus.MetaSimEvent
+import beam.metasim.playground.sid.events.{EventsSubscriber, MetaSimEventsBus}
 import com.google.inject.Inject
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
+import org.matsim.api.core.v01.events.handler.PersonEntersVehicleEventHandler
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.events.StartupEvent
-import org.matsim.core.controler.listener.StartupListener
-import org.matsim.core.mobsim.framework.Mobsim
+import org.matsim.core.controler.events.{IterationStartsEvent, ShutdownEvent, StartupEvent}
+import org.matsim.core.controler.listener.{IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.core.router.util.TravelTime
 
 /**
@@ -19,15 +22,30 @@ import org.matsim.core.router.util.TravelTime
 class MetaSim @Inject()(private val actorSystem: ActorSystem,
                         private val eventsManager: EventsManager,
                         private val scenario:Scenario,
-                        private val travelTime: TravelTime) extends Mobsim with StartupListener{
+                        private val travelTime: TravelTime) extends StartupListener with IterationStartsListener with ShutdownListener{
 
-  override def run(): Unit = {
-    val scheduler = actorSystem.actorOf(Props[Scheduler], "BeamAgent Scheduler")
-    val ems = actorSystem.actorOf(Props(classOf[EventsManagerService],eventsManager),"MATSim Events Manager Service")
+  val metaSimEventsBus = new MetaSimEventsBus
+  val scheduler: ActorRef = actorSystem.actorOf(Props[Scheduler], "BeamAgentScheduler")
+  val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber],eventsManager,metaSimEventsBus),"MATSimEventsManagerService")
 
-  }
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    run()
+
+    eventSubscriber ! StartProcessing
+    metaSimEventsBus.subscribe(eventSubscriber,"/metasim_events")
+  }
+
+  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    val popFactory = scenario.getPopulation.getFactory
+    val person = popFactory.createPerson(Id.createPersonId(0))
+    metaSimEventsBus.publish(MetaSimEvent("/metasim_events", new PersonEntersVehicleEvent(0,person.getId,Id.createVehicleId(0))))
+  }
+
+  override def notifyShutdown(event: ShutdownEvent): Unit = {
+    eventSubscriber ! FinishProcessing
+    actorSystem.stop(eventSubscriber)
+    actorSystem.stop(scheduler)
+    actorSystem.terminate()
+
   }
 }
