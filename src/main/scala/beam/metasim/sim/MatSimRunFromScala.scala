@@ -9,6 +9,8 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners._
+import org.matsim.core.controler.listener.ControlerListener
+import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 
@@ -45,6 +47,8 @@ object MatSimRunFromScala extends App{
       }
     }),new AbstractModule() {
       override def install(): Unit = {
+        bindMobsim().to(classOf[QSim])
+        addControlerListenerBinding().to(classOf[MetaSim])
         bind(classOf[ControlerI]).to(classOf[ControlerImpl]).asEagerSingleton()
       }
     }))
