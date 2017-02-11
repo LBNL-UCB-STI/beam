@@ -9,6 +9,7 @@ buildscript {
 
 plugins {
     id "net.ltgt.apt" version "0.5"
+    id "de.undercouch.download" version "3.2.0"
 }
 
 
@@ -114,7 +115,7 @@ dependencies {
     compile group: 'org.scalatest', name: 'scalatest_2.11', version: '3.0.1'
     // https://mvnrepository.com/artifact/com.typesafe.akka/akka-testkit_2.11
     compile 'net.codingwell:scala-guice_2.11:4.1.0'
-    compile 'com.github.ElderResearch:ssc:v1.0.0'
+    compile 'com.github.carueda:tscfg:v0.8.0'
 
 
     // Akka //
@@ -153,4 +154,28 @@ shadowJar {
    baseName = 'beam'
    classifier = null
    version = null
+}
+
+//////////////////////////////////////////////////////////////////////
+// Generate config classes reflecting the application.conf file
+//////////////////////////////////////////////////////////////////////
+import de.undercouch.gradle.tasks.download.Download
+task buildConfig() {
+  if(!project.file('build/tscfg-0.8.0.jar').exists()){
+    download {
+        src 'https://github.com/carueda/tscfg/releases/download/v0.8.0/tscfg-0.8.0.jar'
+        dest buildDir
+    }
+  }
+  javaexec { 
+    main="-jar";
+    args = [
+            "build/tscfg-0.8.0.jar",
+	    "--spec","src/main/resources/config-template.conf",
+            "--scala",
+            "--pn","beam.metasim.config",
+	    "--cn","BeamConfig",
+	    "--dd","src/main/scala/beam/metasim/config/"
+           ]
+  } 
 }
