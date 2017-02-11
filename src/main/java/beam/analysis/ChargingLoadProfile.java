@@ -64,13 +64,14 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	 * Write charging load data in CSV file: loadProfile.csv
 	 */
 	public void writeChargingLoadDataToFile(){
-		// Log aggregate charging load into csv file
+		// Log aggregate plugged-in num and charging load
 		try {
 			CSVUtil.writeLine(writer, Arrays.asList(String.valueOf(EVGlobalData.data.now/3600.0), "", "", String.valueOf(chargingLoadInKw), String.valueOf(numPluggedIn)));
 			writer.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		//TODO: log disaggregate plugged-in num and charging load
 
 		// Reschedule this same method to be executed in future
 		EVGlobalData.data.scheduler.addCallBackMethod(MathUtil.roundUpToNearestInterval(EVGlobalData.data.now + writeInteval,writeInteval), this ,"writeChargingLoadDataToFile", 0.0, this);
