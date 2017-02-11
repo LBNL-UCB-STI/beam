@@ -1,27 +1,22 @@
 package beam.charging.infrastructure;
 
-import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteCounty;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
-import org.matsim.api.core.v01.Identifiable;
 import org.matsim.api.core.v01.network.Link;
 
 import beam.EVGlobalData;
 import beam.charging.management.ChargingQueueImpl;
 import beam.charging.vehicle.AgentChargingState;
 import beam.charging.vehicle.PlugInVehicleAgent;
-import beam.events.BeginChargingSessionEvent;
-import beam.events.PreChargeEvent;
 import beam.parking.lib.DebugLib;
 import beam.transEnergySim.agents.VehicleAgent;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingNetworkOperator;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSitePolicy;
 import beam.transEnergySim.chargingInfrastructure.stationary.*;
-import beam.transEnergySim.vehicles.api.Vehicle;
 import beam.transEnergySim.vehicles.api.VehicleWithBattery;
 
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.LinkedHashMultimap;
 
 import java.util.Collection;
@@ -36,7 +31,7 @@ public class ChargingSiteImpl implements ChargingSite {
 	private LinkedList<ChargingPoint> chargingPoints;
 	private Id<ChargingSite> chargingSiteId;
 	private ChargingSitePolicy chargingSitePolicy;
-	private String chargingSiteCounty;
+	private ChargingSiteSpatialGroup chargingSiteSpatialGroup;
 	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> accessiblePlugsByType = LinkedHashMultimap.create();
 	private LinkedHashSet<ChargingPlugType> accessiblePlugTypes = new LinkedHashSet<ChargingPlugType>(), allPlugTypes = new LinkedHashSet<ChargingPlugType>();
 	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> availiblePlugsByType = LinkedHashMultimap.create();
@@ -54,20 +49,20 @@ public class ChargingSiteImpl implements ChargingSite {
 		this.chargingNetworkOperator = chargingNetworkOperator;
 		this.isResidential = isResidential;
 	}
-	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, String county, boolean isResidential) {
+	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup, boolean isResidential) {
 		this.chargingSiteId = chargingSiteId;
 		this.coord = coord;
 		this.chargingPoints = new LinkedList<>();
 		this.chargingSitePolicy = policy;
 		this.chargingNetworkOperator = chargingNetworkOperator;
-		this.chargingSiteCounty = county;
+		this.chargingSiteSpatialGroup = chargingSiteSpatialGroup;
 		this.isResidential = isResidential;
 	}
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator) {
 		this(chargingSiteId, coord, policy, chargingNetworkOperator, false);
 	}
-	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, String chargingSiteCounty) {
-		this(chargingSiteId, coord, policy, chargingNetworkOperator, chargingSiteCounty,false);
+	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup) {
+		this(chargingSiteId, coord, policy, chargingNetworkOperator, chargingSiteSpatialGroup,false);
 	}
 
 	@Override
@@ -139,8 +134,12 @@ public class ChargingSiteImpl implements ChargingSite {
 		return this.chargingSitePolicy;
 	}
 
-	public String getChargingSiteCounty(){
-		return this.chargingSiteCounty;
+	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
+		return this.chargingSiteSpatialGroup;
+	}
+
+	public String getCounty(){
+		return this.chargingSiteSpatialGroup.getCounty();
 	}
 
 	@Override

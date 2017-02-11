@@ -7,7 +7,8 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 
-import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteCounty;
+import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.apache.log4j.Logger;
 import org.jdom.JDOMException;
 import org.matsim.api.core.v01.Coord;
@@ -36,7 +37,6 @@ import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.events.BeginChargingSessionEvent;
 import beam.events.EndChargingSessionEvent;
 import beam.events.PreChargeEvent;
-import beam.parking.lib.DebugLib;
 import beam.parking.lib.obj.network.EnclosingRectangle;
 import beam.parking.lib.obj.network.QuadTreeInitializer;
 import beam.sim.traveltime.RouteInformationElement;
@@ -56,7 +56,7 @@ public class ChargingInfrastructureManagerImpl {
 	LinkedHashMap<ChargingPlugType, QuadTree<ChargingSite>> accessibleChargingSiteTreeByPlugType;
 	LinkedHashMap<ChargingPlugType, SetMultimap<Id<Link>, ChargingSite>> accessibleChargingSitesByLinkIDByPlugType;
 	LinkedHashMap<String, ChargingSitePolicy> chargingSitePolicyMap = new LinkedHashMap<String, ChargingSitePolicy>();
-	LinkedHashMap<String, ChargingSiteCounty> chargingSiteCountyMap= new LinkedHashMap<String, ChargingSiteCounty>();
+	LinkedHashMap<String, ChargingSiteSpatialGroup> chargingSiteSpatialGroupMap = new LinkedHashMap<String, ChargingSiteSpatialGroup>();
 	LinkedHashMap<String, ChargingNetworkOperator> chargingNetworkOperatorMap = new LinkedHashMap<String, ChargingNetworkOperator>();
 	LinkedHashMap<String, ChargingPlugType> chargingPlugTypeByIdMap = new LinkedHashMap<String, ChargingPlugType>();
 	LinkedHashMap<String, ChargingPlugType> chargingPlugTypeByNameMap = new LinkedHashMap<String, ChargingPlugType>();
@@ -205,13 +205,19 @@ public class ChargingInfrastructureManagerImpl {
 						headerMap.put(colName, i);
 					}
 				} else {
+					//  Coordinate of the charging site
 					Coord theCoord = new Coord(Double.parseDouble(row[headerMap.get("longitude")].trim()),
 							Double.parseDouble(row[headerMap.get("latitude")].trim()));
+					// Charging site spatial group -- this can be separated from this loop once we have a separate file for charging site spatial groups
+					ChargingSiteSpatialGroup newSpatialGroup = new ChargingSiteSpatialGroupImpl(row[headerMap.get("county")].trim());
+					chargingSiteSpatialGroupMap.put(row[headerMap.get("id")].trim(),newSpatialGroup);
+					// Charging site
 					ChargingSite newSite = new ChargingSiteImpl(Id.create(row[headerMap.get("id")].trim(), ChargingSite.class),
 							EVGlobalData.data.transformFromWGS84.transform(theCoord),
 							chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
 							chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
-							row[headerMap.get("county")].trim());
+							chargingSiteSpatialGroupMap.get(row[headerMap.get("id")].trim())
+							);
 					chargingSiteMap.put(row[headerMap.get("id")].trim(), newSite);
 				}
 			}
