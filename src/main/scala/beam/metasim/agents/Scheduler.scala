@@ -1,12 +1,10 @@
-package beam.metasim.playground.colin
+package beam.metasim.agents
 
 import akka.actor.Actor
 import akka.event.Logging
+import com.google.common.collect.TreeMultimap
 
 import scala.collection.mutable
-
-import beam.metasim.agents.{Trigger, TriggerData}
-import com.google.common.collect.TreeMultimap
 
 sealed trait SchedulerMessage
 case object StartSchedule extends SchedulerMessage
