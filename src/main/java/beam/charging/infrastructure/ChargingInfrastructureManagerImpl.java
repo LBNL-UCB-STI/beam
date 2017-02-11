@@ -208,15 +208,24 @@ public class ChargingInfrastructureManagerImpl {
 					//  Coordinate of the charging site
 					Coord theCoord = new Coord(Double.parseDouble(row[headerMap.get("longitude")].trim()),
 							Double.parseDouble(row[headerMap.get("latitude")].trim()));
+
 					// Charging site spatial group -- this can be separated from this loop once we have a separate file for charging site spatial groups
-					ChargingSiteSpatialGroup newSpatialGroup = new ChargingSiteSpatialGroupImpl(row[headerMap.get("county")].trim());
-					chargingSiteSpatialGroupMap.put(row[headerMap.get("id")].trim(),newSpatialGroup);
-					// Charging site
+					try{
+						// Try if the instance for this spatial group has been already initialized
+						chargingSiteSpatialGroupMap.get(row[headerMap.get("county")].trim());
+						// If it was not initialized yet, initialize:
+						ChargingSiteSpatialGroup newSpatialGroup = new ChargingSiteSpatialGroupImpl(row[headerMap.get("county")].trim());
+						chargingSiteSpatialGroupMap.put(row[headerMap.get("county")].trim(),newSpatialGroup);
+					}catch (Exception ignored){
+						// If it has been already initialized: do nothing
+					}
+
+					// Initialize new charging site
 					ChargingSite newSite = new ChargingSiteImpl(Id.create(row[headerMap.get("id")].trim(), ChargingSite.class),
 							EVGlobalData.data.transformFromWGS84.transform(theCoord),
 							chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
 							chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
-							chargingSiteSpatialGroupMap.get(row[headerMap.get("id")].trim())
+							chargingSiteSpatialGroupMap.get(row[headerMap.get("county")].trim())
 							);
 					chargingSiteMap.put(row[headerMap.get("id")].trim(), newSite);
 				}

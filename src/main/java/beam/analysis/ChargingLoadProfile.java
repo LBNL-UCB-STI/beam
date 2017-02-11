@@ -24,14 +24,15 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+//TODO: perform test that disaggregate charging load profile is consistent with the profile in the event file
 public class ChargingLoadProfile implements BeginChargingSessionEventHandler, EndChargingSessionEventHandler,
 		DepartureChargingDecisionEventHandler, ArrivalChargingDecisionEventHandler, UnplugEventHandler {
 	private EventsManager eventsManager;
 	private FileWriter writer;
 
-	private Double writeInteval = 15.0*60.0;
-	private Double chargingLoadInKw = 0.0;
-	private Integer numPluggedIn = 0;
+	private Double writeInteval = 15.0*60.0; 	// time interval of tracking charging load and number of plugged-in vehicles
+	private Double chargingLoadInKw = 0.0;	 	// aggregate charging load
+	private Integer numPluggedIn = 0; 			// aggregate number of plugged-in vehicles
 	private List<String> chargingLoadFileHeader = Arrays.asList("time","spatial.group","charger.type","charging.load.in.kw","num.plugged.in");
 
 	@Inject
@@ -48,7 +49,7 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	 */
 	private FileWriter initFileWriter() {
 		//TODO This should be created in every iter directory
-		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "run0.loadProfile.csv";
+		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "run0.aggregateLoadProfile.csv";
 		try {
 			FileWriter writer = new FileWriter(fileName);
 			CSVUtil.writeLine(writer, chargingLoadFileHeader);
@@ -63,7 +64,7 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	 * Write charging load data in CSV file: loadProfile.csv
 	 */
 	public void writeChargingLoadDataToFile(){
-		// write commands
+		// Log aggregate charging load into csv file
 		try {
 			CSVUtil.writeLine(writer, Arrays.asList(String.valueOf(EVGlobalData.data.now/3600.0), "", "", String.valueOf(chargingLoadInKw), String.valueOf(numPluggedIn)));
 			writer.flush();
@@ -81,13 +82,22 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 
 	@Override
 	public void handleEvent(BeginChargingSessionEvent event) {
+		// Aggregate
 		numPluggedIn++;
 		chargingLoadInKw += event.getChargingPowerInKw();
+
+		// Disaggregate
+		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),event.getChargingPowerInKw()); // power
+		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),1); // number of plugged-in vehicle
 	}
 
 	@Override
 	public void handleEvent(EndChargingSessionEvent event) {
+		// Aggregate
 		chargingLoadInKw -= event.getChargingPowerInKw();
+
+		// Disaggregate
+		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),event.getChargingPowerInKw()); // power
 	}
 
 	@Override
@@ -102,7 +112,11 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 
 	@Override
 	public void handleEvent(UnplugEvent event) {
+		// Aggregate
 		numPluggedIn--;
+
+		// Disaggregate
+		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),-1);
 	}
 
 }

@@ -6,7 +6,6 @@ import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatial
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
-import org.matsim.core.api.internal.HasPersonId;
 
 import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlug;
@@ -63,6 +62,10 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 	
 	public double getChargingPowerInKw(){
 		return chargingKw;
+	}
+
+	public int getNominalChargingLevel(){
+		return this.plug.getChargingPlugType().getNominalLevel();
 	}
 
 	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
