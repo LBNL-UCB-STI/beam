@@ -115,8 +115,8 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 		chargingLoadInKw += event.getChargingPowerInKw();
 
 		// Disaggregate
-		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),event.getChargingPowerInKw()); // power
-		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),1); // number of plugged-in vehicle
+		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),event.getChargingPowerInKw()); 	// increase charging load
+		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),1); 							// increase plugged-in num
 	}
 
 	@Override
@@ -125,7 +125,7 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 		chargingLoadInKw -= event.getChargingPowerInKw();
 
 		// Disaggregate
-		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),event.getChargingPowerInKw()); // power
+		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),-event.getChargingPowerInKw());	// decrease charging load
 	}
 
 	@Override
@@ -144,7 +144,7 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 		numPluggedIn--;
 
 		// Disaggregate
-		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),-1);
+		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),-1); 							// decrease plugged-in num
 	}
 
 }
