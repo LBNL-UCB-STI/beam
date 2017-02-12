@@ -160,22 +160,24 @@ shadowJar {
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////
 import de.undercouch.gradle.tasks.download.Download
-task buildConfig() {
-  if(!project.file('build/tscfg-0.8.0.jar').exists()){
-    download {
-        src 'https://github.com/carueda/tscfg/releases/download/v0.8.0/tscfg-0.8.0.jar'
-        dest buildDir
+task generateConfig {
+  doLast {
+    if(!project.file('build/tscfg-0.8.0.jar').exists()){
+      download {
+	  src 'https://github.com/carueda/tscfg/releases/download/v0.8.0/tscfg-0.8.0.jar'
+	  dest buildDir
+      }
     }
+    javaexec { 
+      main="-jar";
+      args = [
+	      "build/tscfg-0.8.0.jar",
+	      "--spec","src/main/resources/config-template.conf",
+	      "--scala",
+	      "--pn","beam.metasim.config",
+	      "--cn","BeamConfig",
+	      "--dd","src/main/scala/beam/metasim/config/"
+	     ]
+    } 
   }
-  javaexec { 
-    main="-jar";
-    args = [
-            "build/tscfg-0.8.0.jar",
-	    "--spec","src/main/resources/config-template.conf",
-            "--scala",
-            "--pn","beam.metasim.config",
-	    "--cn","BeamConfig",
-	    "--dd","src/main/scala/beam/metasim/config/"
-           ]
-  } 
 }
