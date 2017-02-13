@@ -15,6 +15,7 @@ import org.matsim.core.router.util.TravelTime
 class MetaSimModule  extends AbstractModule with ScalaModule {
   override def configure(): Unit = {
 
+
     bind[RoutingModule].toProvider[BeamRouterModuleProvider]
     bind[TravelTime].to[RelaxedTravelTime]
   }

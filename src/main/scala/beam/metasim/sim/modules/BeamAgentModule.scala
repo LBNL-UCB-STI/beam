@@ -1,7 +1,7 @@
 package beam.metasim.sim.modules
 
 import akka.actor.ActorSystem
-import beam.metasim.agents.PersonAgent
+import beam.metasim.agents.{PersonAgent, PersonAgentCreator, Scheduler}
 import beam.metasim.agents.PersonAgent.PersonAgentFactory
 import beam.metasim.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
 import beam.metasim.sim.MetaSimServices
@@ -36,6 +36,8 @@ object BeamAgentModule {
 class BeamAgentModule extends AbstractModule with AkkaGuiceSupport with ScalaModule {
   override def configure(): Unit = {
     bind[ActorSystem].toProvider[ActorSystemProvider].asEagerSingleton()
+    bind[Scheduler].asEagerSingleton()
+    bind[PersonAgentCreator].asEagerSingleton()
     bindConstant.annotatedWith(Names.named("personName")).to(classOf[Id[Person]])
     bind[MetaSimServices].asEagerSingleton()
     bindActorFactory[PersonAgent, PersonAgentFactory]()
