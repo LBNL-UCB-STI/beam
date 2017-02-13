@@ -13,12 +13,10 @@ import com.google.inject.{Injector, Key}
   * implement the Actor trait, we need to use a name annotation on each actor (defined in the Guice
   * module) so that the name-based lookup obtains the correct actor from Guice.
   */
-class ActorProducer(val injector: Injector, val actorName: String) extends IndirectActorProducer {
+import akka.actor.{Actor, IndirectActorProducer}
+import com.google.inject.Injector
 
-  override def actorClass: Class[Actor] = classOf[Actor]
-
-  override def produce(): Actor =
-    injector.getBinding(Key.get(classOf[Actor], Names.named(actorName))).getProvider.get()
-
+private[akkaguice] class ActorProducer[A <: Actor](injector: Injector, clazz: Class[A]) extends IndirectActorProducer {
+  def actorClass: Class[A] = clazz
+  def produce(): A = injector.getBinding(clazz).getProvider.get()
 }
-
