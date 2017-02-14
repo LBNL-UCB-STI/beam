@@ -119,6 +119,7 @@ new.plans <- rbindlist(new.plans)
 new.plans[,link:=pp('sfpt',link)]
 new.legs <- new.plans[,list(start_link=head(link,-1),end_link=tail(link,-1),trav_time=1,distance=1),by='id']
 save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.Rdata')
+load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.Rdata')
 
 outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.xml'
 outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-500.xml'
