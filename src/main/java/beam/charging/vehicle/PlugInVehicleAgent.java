@@ -1,5 +1,6 @@
 package beam.charging.vehicle;
 
+import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
@@ -112,9 +113,12 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 					.getChargingSitePolicyById(homeProperties.get("homeChargingPolicyId"));
 			ChargingNetworkOperator homeNetworkOperator = EVGlobalData.data.chargingInfrastructureManager
 					.getChargingNetworkOperatorById(homeProperties.get("homeChargingNetworkOperatorId"));
-			//TODO: Person file should include associated spatial group and should use the constructor that has a spatial group as an input!!
+			if(!EVGlobalData.data.chargingSiteSpatialGroupMap.containsKey(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup"))){
+				EVGlobalData.data.chargingSiteSpatialGroupMap.put(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup"),
+						new ChargingSiteSpatialGroupImpl(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup")));
+			}
 			this.homeSite = new ChargingSiteImpl(Id.create("-" + this.getPersonId(), ChargingSite.class), this.homeLinkCoord, homeChargingPolicy,
-					homeNetworkOperator, true);
+					homeNetworkOperator, EVGlobalData.data.chargingSiteSpatialGroupMap.get(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup")),"Residential",true);
 			this.homeSite.setNearestLink(homeLink);
 			EVGlobalData.data.chargingInfrastructureManager.addChargingSite(this.homeSite.getId().toString(), this.homeSite);
 			this.homePoint = new ChargingPointImpl(Id.create("-" + this.getPersonId(), ChargingPoint.class), this.homeSite, 1);

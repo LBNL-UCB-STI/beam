@@ -10,6 +10,7 @@ import beam.analysis.ChargingLoadProfile;
 import beam.charging.infrastructure.ChargingSiteImpl;
 import beam.charging.management.ChargingQueueImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingQueue;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
@@ -132,6 +133,7 @@ public class EVGlobalData {
 	public CoordinateTransformation transformFromWGS84;
 	public LinkedHashMap<String, LinkedHashMap> vehiclePropertiesMap;
 	public LinkedHashMap<String, String> personToVehicleTypeMap;
+	public LinkedHashMap<String, ChargingSiteSpatialGroup> chargingSiteSpatialGroupMap;
 	public LinkedHashMap<String, LinkedHashMap<String, String>> personHomeProperties;
 	public DoubleValueHashMap<Id<Person>> simulationStartSocFraction = new DoubleValueHashMap<>();
 	public int currentDay = 0;

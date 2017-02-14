@@ -1,6 +1,5 @@
 package beam.charging.infrastructure;
 
-import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
@@ -36,32 +35,13 @@ public class ChargingSiteImpl implements ChargingSite {
 	private ChargingSiteSpatialGroup chargingSiteSpatialGroup;
 	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> accessiblePlugsByType = LinkedHashMultimap.create();
 	private LinkedHashSet<ChargingPlugType> accessiblePlugTypes = new LinkedHashSet<ChargingPlugType>(), allPlugTypes = new LinkedHashSet<ChargingPlugType>();
-	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> availiblePlugsByType = LinkedHashMultimap.create();
+	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> availablePlugsByType = LinkedHashMultimap.create();
 	private ChargingNetworkOperator chargingNetworkOperator;
 	private HashSet<Link> nearbyLinks = new HashSet<>();
 	private Link nearestLink;
 	public ChargingQueueImpl fastChargingQueue;
 	private boolean isResidential = false;
 
-	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, boolean isResidential) {
-		this.chargingSiteId = chargingSiteId;
-		this.coord = coord;
-		this.chargingPoints = new LinkedList<>();
-		this.chargingSitePolicy = policy;
-		this.chargingNetworkOperator = chargingNetworkOperator;
-		this.chargingSiteSpatialGroup = new ChargingSiteSpatialGroupImpl("HOME"); //TODO: "Person file" should include associated spatial group!!
-		this.siteType = "Residential";
-		this.isResidential = isResidential;
-	}
-	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup, boolean isResidential) {
-		this.chargingSiteId = chargingSiteId;
-		this.coord = coord;
-		this.chargingPoints = new LinkedList<>();
-		this.chargingSitePolicy = policy;
-		this.chargingNetworkOperator = chargingNetworkOperator;
-		this.chargingSiteSpatialGroup = chargingSiteSpatialGroup;
-		this.isResidential = isResidential;
-	}
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup, String siteType, boolean isResidential) {
 		this.chargingSiteId = chargingSiteId;
 		this.coord = coord;
@@ -71,12 +51,6 @@ public class ChargingSiteImpl implements ChargingSite {
 		this.chargingSiteSpatialGroup = chargingSiteSpatialGroup;
 		this.siteType = siteType;
 		this.isResidential = isResidential;
-	}
-	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator) {
-		this(chargingSiteId, coord, policy, chargingNetworkOperator, false);
-	}
-	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup) {
-		this(chargingSiteId, coord, policy, chargingNetworkOperator, chargingSiteSpatialGroup,false);
 	}
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup, String siteType) {
 		this(chargingSiteId, coord, policy, chargingNetworkOperator, chargingSiteSpatialGroup, siteType,false);
@@ -135,7 +109,7 @@ public class ChargingSiteImpl implements ChargingSite {
 		accessiblePlugsByType.put(plug.getChargingPlugType(),plug);
 		accessiblePlugTypes.add(plug.getChargingPlugType());
 		allPlugTypes.add(plug.getChargingPlugType());
-		availiblePlugsByType.put(plug.getChargingPlugType(),plug);
+		availablePlugsByType.put(plug.getChargingPlugType(),plug);
 	}
 	
 	@Override
@@ -176,11 +150,11 @@ public class ChargingSiteImpl implements ChargingSite {
 
 	@Override
 	public void registerPlugAvailable(ChargingPlug plug) {
-		this.availiblePlugsByType.get(plug.getChargingPlugType()).add(plug);
+		this.availablePlugsByType.get(plug.getChargingPlugType()).add(plug);
 	}
 	@Override
 	public void registerPlugUnavailable(ChargingPlug plug) {
-		this.availiblePlugsByType.get(plug.getChargingPlugType()).remove(plug);
+		this.availablePlugsByType.get(plug.getChargingPlugType()).remove(plug);
 	}
 	@Override
 	public void registerPlugAccessible(ChargingPlug plug) {
@@ -266,10 +240,10 @@ public class ChargingSiteImpl implements ChargingSite {
 					eachPlug.registerPlugInaccessible();
 				}
 			}
-			if(this.availiblePlugsByType.get(plug.getChargingPlugType()).isEmpty()){
+			if(this.availablePlugsByType.get(plug.getChargingPlugType()).isEmpty()){
 				this.fastChargingQueue.addVehicleToChargingQueue(plug.getChargingPlugType(), agent);
 			}else{
-				ChargingPlug plugToUse = this.availiblePlugsByType.get(plug.getChargingPlugType()).iterator().next();
+				ChargingPlug plugToUse = this.availablePlugsByType.get(plug.getChargingPlugType()).iterator().next();
 				((PlugInVehicleAgent)agent).setSelectedChargingPlug(plugToUse);
 				// Begin the charging session immediately, otherwise the queue will initiate the session when the queue has emptied
 				EVGlobalData.data.chargingInfrastructureManager.handleBeginChargingSession(plugToUse, (PlugInVehicleAgent)agent);
@@ -327,7 +301,7 @@ public class ChargingSiteImpl implements ChargingSite {
 	@Override
 	public int getNumAvailablePlugsOfType(ChargingPlugType plugType) {
 		int numPlugs = 0;
-		for(ChargingPlug plug : this.availiblePlugsByType.get(plugType)){
+		for(ChargingPlug plug : this.availablePlugsByType.get(plugType)){
 			if(plug.isAvailable())numPlugs++;
 		}
 		return numPlugs;
@@ -343,7 +317,7 @@ public class ChargingSiteImpl implements ChargingSite {
 			for(ChargingPlug plug : point.getAllChargingPlugs()){
 				plug.resetAll();
 				this.accessiblePlugsByType.put(plug.getChargingPlugType(), plug);
-				this.availiblePlugsByType.put(plug.getChargingPlugType(), plug);
+				this.availablePlugsByType.put(plug.getChargingPlugType(), plug);
 			}
 		}
 		for(ChargingPlugType plugType : this.allPlugTypes){

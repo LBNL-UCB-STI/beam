@@ -229,6 +229,7 @@ public class ChargingInfrastructureManagerImpl {
 			}
 		};
 		fileParser.parse(fileParserConfig, handler);
+		EVGlobalData.data.chargingSiteSpatialGroupMap = this.chargingSiteSpatialGroupMap;
 
 		/*
 		 * /* LOAD CHARGING POINTS / PLUGS
