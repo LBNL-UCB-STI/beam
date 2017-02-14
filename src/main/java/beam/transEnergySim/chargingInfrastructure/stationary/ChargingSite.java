@@ -77,4 +77,6 @@ public interface ChargingSite extends Identifiable<ChargingSite> {
 	int getNumInChargingQueue(ChargingPlug plug);
 
 	ChargingSiteSpatialGroup getChargingSiteSpatialGroup();
+	String getSiteType();
+	String getSpatialGroupName();
 }

@@ -26,7 +26,7 @@ public class ChargingSiteSpatialGroupImpl implements ChargingSiteSpatialGroup {
      * @return current county of the spatial group
      */
     @Override
-    public String getCounty() {
+    public String getName() {
         return this.county;
     }
 

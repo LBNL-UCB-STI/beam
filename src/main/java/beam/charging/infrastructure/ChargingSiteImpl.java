@@ -1,5 +1,6 @@
 package beam.charging.infrastructure;
 
+import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
@@ -31,6 +32,7 @@ public class ChargingSiteImpl implements ChargingSite {
 	private LinkedList<ChargingPoint> chargingPoints;
 	private Id<ChargingSite> chargingSiteId;
 	private ChargingSitePolicy chargingSitePolicy;
+	private String siteType;
 	private ChargingSiteSpatialGroup chargingSiteSpatialGroup;
 	private LinkedHashMultimap<ChargingPlugType, ChargingPlug> accessiblePlugsByType = LinkedHashMultimap.create();
 	private LinkedHashSet<ChargingPlugType> accessiblePlugTypes = new LinkedHashSet<ChargingPlugType>(), allPlugTypes = new LinkedHashSet<ChargingPlugType>();
@@ -47,6 +49,8 @@ public class ChargingSiteImpl implements ChargingSite {
 		this.chargingPoints = new LinkedList<>();
 		this.chargingSitePolicy = policy;
 		this.chargingNetworkOperator = chargingNetworkOperator;
+		this.chargingSiteSpatialGroup = new ChargingSiteSpatialGroupImpl("HOME"); //TODO: "Person file" should include associated spatial group!!
+		this.siteType = "Residential";
 		this.isResidential = isResidential;
 	}
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup, boolean isResidential) {
@@ -58,11 +62,24 @@ public class ChargingSiteImpl implements ChargingSite {
 		this.chargingSiteSpatialGroup = chargingSiteSpatialGroup;
 		this.isResidential = isResidential;
 	}
+	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup, String siteType, boolean isResidential) {
+		this.chargingSiteId = chargingSiteId;
+		this.coord = coord;
+		this.chargingPoints = new LinkedList<>();
+		this.chargingSitePolicy = policy;
+		this.chargingNetworkOperator = chargingNetworkOperator;
+		this.chargingSiteSpatialGroup = chargingSiteSpatialGroup;
+		this.siteType = siteType;
+		this.isResidential = isResidential;
+	}
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator) {
 		this(chargingSiteId, coord, policy, chargingNetworkOperator, false);
 	}
 	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup) {
 		this(chargingSiteId, coord, policy, chargingNetworkOperator, chargingSiteSpatialGroup,false);
+	}
+	public ChargingSiteImpl(Id<ChargingSite> chargingSiteId, Coord coord, ChargingSitePolicy policy, ChargingNetworkOperator chargingNetworkOperator, ChargingSiteSpatialGroup chargingSiteSpatialGroup, String siteType) {
+		this(chargingSiteId, coord, policy, chargingNetworkOperator, chargingSiteSpatialGroup, siteType,false);
 	}
 
 	@Override
@@ -139,8 +156,22 @@ public class ChargingSiteImpl implements ChargingSite {
 		return this.chargingSiteSpatialGroup;
 	}
 
-	public String getCounty(){
-		return this.chargingSiteSpatialGroup.getCounty();
+	/**
+	 * Return charging site type, e.g., Shopping, work, etc.
+	 * @return
+	 */
+	@Override
+	public String getSiteType(){
+		return this.siteType;
+	}
+
+	/**
+	 * Return spatial group name, e.g., Napa, Alameda, etc.
+	 * @return
+	 */
+	@Override
+	public String getSpatialGroupName(){
+		return this.chargingSiteSpatialGroup.getName();
 	}
 
 	@Override

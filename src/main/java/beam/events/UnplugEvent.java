@@ -66,4 +66,16 @@ public class UnplugEvent extends Event implements IdentifiableDecisionEvent {
 	public int getNominalChargingLevel(){
 		return this.plug.getChargingPlugType().getNominalLevel();
 	}
+
+	public String getSpatialGroup(){
+		return this.plug.getChargingSite().getChargingSiteSpatialGroup().getName();
+	}
+
+	public String getSiteType(){
+		return this.plug.getChargingSite().getSiteType();
+	}
+
+	public String getPlugType(){
+		return this.plug.getChargingPlugType().getPlugTypeName();
+	}
 }

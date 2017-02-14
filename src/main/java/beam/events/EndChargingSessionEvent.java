@@ -94,5 +94,16 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
 		return this.plug.getChargingSite().getChargingSiteSpatialGroup();
 	}
+	public String getSpatialGroup(){
+		return this.plug.getChargingSite().getSpatialGroupName();
+	}
+
+	public String getSiteType(){
+		return this.plug.getChargingSite().getSiteType();
+	}
+
+	public String getPlugType(){
+		return this.plug.getChargingPlugType().getPlugTypeName();
+	}
 
 }

@@ -47,7 +47,11 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 		attributes.put(ATTRIBUTE_DECISION_EVENT_ID, Integer.toString(getDecisionEventId()));
 		return attributes;
 	}
-	
+
+	public ChargingPlug getPlug(){
+		return this.plug;
+	}
+
 	public Id<Person> getPersonId() {
 		return this.agent.getPersonId();
 	}
@@ -72,4 +76,15 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 		return this.site.getChargingSiteSpatialGroup();
 	}
 
+	public String getSpatialGroup(){
+		return this.plug.getChargingSite().getSpatialGroupName();
+	}
+
+	public String getSiteType(){
+		return this.site.getSiteType();
+	}
+
+	public String getPlugType(){
+		return this.plug.getChargingPlugType().getPlugTypeName();
+	}
 }

@@ -112,6 +112,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 					.getChargingSitePolicyById(homeProperties.get("homeChargingPolicyId"));
 			ChargingNetworkOperator homeNetworkOperator = EVGlobalData.data.chargingInfrastructureManager
 					.getChargingNetworkOperatorById(homeProperties.get("homeChargingNetworkOperatorId"));
+			//TODO: Person file should include associated spatial group and should use the constructor that has a spatial group as an input!!
 			this.homeSite = new ChargingSiteImpl(Id.create("-" + this.getPersonId(), ChargingSite.class), this.homeLinkCoord, homeChargingPolicy,
 					homeNetworkOperator, true);
 			this.homeSite.setNearestLink(homeLink);
