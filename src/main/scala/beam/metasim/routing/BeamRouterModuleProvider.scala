@@ -1,4 +1,4 @@
-package beam.metasim.sim.modules
+package beam.metasim.routing
 
 import beam.playground.metasim.services.location.BeamRouter
 import com.google.inject.{Inject, Provider}

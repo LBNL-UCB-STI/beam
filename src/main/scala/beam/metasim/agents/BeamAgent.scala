@@ -5,6 +5,7 @@ import akka.persistence.fsm.PersistentFSM.FSMState
 import org.matsim.api.core.v01.population.PlanElement
 import org.slf4j.LoggerFactory
 import BeamAgent._
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 
 
@@ -20,10 +21,16 @@ object BeamAgent {
     override def identifier = "Initialized"
   }
 
+
+
   /**
     * Agent info consists of next MATSim plan element for agent to transition
     */
-  case class BeamAgentInfo(currentTask: PlanElement)
+  trait Data
+  case class BeamAgentInfo() extends Data
+
+
+
   case class AgentError(errorMsg: String)
 }
 
@@ -45,7 +52,7 @@ sealed trait MemoryEvent extends Event
   * state data types.
   *
   */
-class BeamAgent extends FSM[BeamState, BeamAgentInfo] {
+abstract class BeamAgent(val id: Id[_]) extends FSM[BeamState, Data] {
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
@@ -61,6 +68,10 @@ class BeamAgent extends FSM[BeamState, BeamAgentInfo] {
     case Event(Transition(trigger), _) =>
       sender() ! CompletionNotice(trigger)
       stay()
+  }
+
+  def getId: Id[_] = {
+    id
   }
 
 }

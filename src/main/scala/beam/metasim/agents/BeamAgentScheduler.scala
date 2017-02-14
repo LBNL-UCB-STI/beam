@@ -7,39 +7,43 @@ import com.google.common.collect.TreeMultimap
 import scala.collection.mutable
 
 sealed trait SchedulerMessage
-case object StartSchedule extends SchedulerMessage
+case class StartSchedule(stopTick: Double) extends SchedulerMessage
 case class DoSimStep(tick: Double) extends SchedulerMessage
-case class CompletionNotice(triggerCompleted: Trigger) extends SchedulerMessage
+case class CompletionNotice(triggerData: TriggerData) extends SchedulerMessage
 
-object Scheduler {
+object BeamAgentScheduler {
 }
-class Scheduler extends Actor {
+class BeamAgentScheduler extends Actor {
   val log = Logging(context.system, this)
   val maxWindow = 10.0
   var triggerQueue = new mutable.PriorityQueue[Trigger]()
   var awaitingResponse = TreeMultimap.create[java.lang.Double,java.lang.Integer]();
   var idCount: Int = 0
+  var stopTick: Double = 0.0
 
   def receive = {
-    case StartSchedule => {
+    case StartSchedule(stopTick: Double) => {
       log.info("starting scheduler")
+      this.stopTick = stopTick
       self ! DoSimStep(0.0)
     }
     case DoSimStep(now: Double) ⇒ {
-      if(now - awaitingResponse.keySet().first() < maxWindow) {
-        while (triggerQueue.nonEmpty & triggerQueue.head.data.tick <= now) {
-          val trigger = this.triggerQueue.dequeue
-          log.info("dispatching event at tick " + trigger.data.tick)
-          awaitingResponse.put(trigger.data.tick, trigger.data.id)
-          trigger.data.agent ! trigger
+      if(now <= stopTick) {
+        if (awaitingResponse.isEmpty || now - awaitingResponse.keySet().first() < maxWindow) {
+          while (triggerQueue.nonEmpty && triggerQueue.head.data.tick <= now) {
+            val trigger = this.triggerQueue.dequeue
+            log.info("dispatching event at tick " + trigger.data.tick)
+            awaitingResponse.put(trigger.data.tick, trigger.data.id)
+            trigger.data.agent ! trigger
+          }
+          self ! DoSimStep(now + 1.0)
+        } else {
+          Thread.sleep(10)
+          DoSimStep(now)
         }
-        self ! DoSimStep(now + 1.0)
-      }else{
-        Thread.sleep(10)
-        DoSimStep(now)
       }
     }
-    case triggerData: TriggerData => {
+    case CompletionNotice(triggerData: TriggerData) => {
       log.info("recieved notice that trigger id: "+triggerData.id+" is complete")
       awaitingResponse.remove(triggerData.tick,triggerData.id)
     }

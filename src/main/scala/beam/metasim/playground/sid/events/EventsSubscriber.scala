@@ -10,7 +10,8 @@ object EventsSubscriber{
   case object StartProcessing
   case object FinishProcessing
 }
-class EventsSubscriber (private val eventsManager: EventsManager, private val eventsBus: MetaSimEventsBus) extends Actor {
+
+class EventsSubscriber (private val eventsManager: EventsManager) extends Actor {
   val log = Logging(context.system, this)
 
   def receive: PartialFunction[Any, Unit] = {
@@ -20,7 +21,7 @@ class EventsSubscriber (private val eventsManager: EventsManager, private val ev
 
     case event: MetaSimEvent =>
       eventsManager.processEvent(event.matsimEvent)
-      log.info(s"${self.toString()} received ${event.matsimEvent.getEventType} event to process on the ${event.topic} channel!" )
+//      log.info(s"${self.toString()} received ${event.matsimEvent.getEventType} event to process on the ${event.topic} channel!" )
 
     case FinishProcessing =>
       eventsManager.finishProcessing()

@@ -16,7 +16,6 @@ object MetaSimEventsBus{
 class MetaSimEventsBus extends ActorEventBus with LookupClassification {
 
 
-
   override type Event = MetaSimEvent
   override type Classifier = String
 
