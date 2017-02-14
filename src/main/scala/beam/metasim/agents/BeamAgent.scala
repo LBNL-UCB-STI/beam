@@ -13,7 +13,7 @@ object BeamAgent {
   // states
   trait BeamState extends FSMState
 
-  case object Idle extends BeamState {
+  case object Uninitialized extends BeamState {
     override def identifier = "Idle"
   }
   case object Initialized extends BeamState {
@@ -49,16 +49,17 @@ class BeamAgent extends FSM[BeamState, BeamAgentInfo] {
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
-  startWith(Idle, BeamAgentInfo(null))
+  startWith(Uninitialized, BeamAgentInfo(null))
 
-  when(Idle) {
-    case Event(Initialize(data), _) =>
-      data.agent ! Ack
+  when(Uninitialized) {
+    case Event(Initialize(trigger), _) =>
+      sender() ! CompletionNotice(trigger)
       goto(Initialized)
   }
 
   when(Initialized) {
-    case Event(Transition(data), _) =>
+    case Event(Transition(trigger), _) =>
+      sender() ! CompletionNotice(trigger)
       stay()
   }
 

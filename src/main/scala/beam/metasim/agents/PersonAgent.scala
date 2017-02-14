@@ -1,6 +1,6 @@
 package beam.metasim.agents
 
-import beam.metasim.agents.BeamAgent.{BeamAgentInfo, BeamState, Idle}
+import beam.metasim.agents.BeamAgent.{BeamAgentInfo, BeamState, Uninitialized}
 import beam.metasim.agents.PersonAgent.{ChoosingMode, DepartActivity, PerformingActivity}
 import beam.metasim.akkaguice.NamedActor
 import com.google.inject.Inject
@@ -121,7 +121,7 @@ class PersonAgent @Inject()(population: PopulationFactory, network: Network, rou
   }
 
   onTransition {
-    case Idle -> PerformingActivity => logger.debug("From init state to first activity")
+    case Uninitialized -> PerformingActivity => logger.debug("From init state to first activity")
     case PerformingActivity -> ChoosingMode => logger.debug("From activity to traveling")
     case ChoosingMode -> PerformingActivity => logger.debug("From traveling to activity")
   }

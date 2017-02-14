@@ -1,7 +1,7 @@
 package beam.metasim.sim
 
 import akka.actor.{ActorRef, ActorSystem, Props}
-import beam.metasim.agents.Scheduler
+import beam.metasim.agents.BeamAgentScheduler
 import beam.metasim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
 import beam.metasim.playground.sid.events.MetaSimEventsBus.MetaSimEvent
 import beam.metasim.playground.sid.events.{EventsSubscriber, MetaSimEventsBus}
@@ -25,7 +25,7 @@ class MetaSim @Inject()(private val actorSystem: ActorSystem,
                         private val travelTime: TravelTime) extends StartupListener with IterationStartsListener with ShutdownListener{
 
   val metaSimEventsBus = new MetaSimEventsBus
-  val scheduler: ActorRef = actorSystem.actorOf(Props[Scheduler], "BeamAgentScheduler")
+  val scheduler: ActorRef = actorSystem.actorOf(Props[BeamAgentScheduler], "BeamAgentScheduler")
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber],eventsManager,metaSimEventsBus),"MATSimEventsManagerService")
 
 

@@ -6,7 +6,7 @@ import akka.actor.Props
 import scala.concurrent.duration._
 import akka.actor.Actor
 import akka.actor.ActorRef
-import beam.metasim.agents.{Scheduler, Transition}
+import beam.metasim.agents.{BeamAgentScheduler, Transition}
 
 class BeamAkkaSystem {
     var system : ActorSystem = null
@@ -17,7 +17,7 @@ class BeamAkkaSystem {
     def init() {
       this.system = ActorSystem("ToySystem")
       this.myAgent = this.system.actorOf(Props[BeamAgentColin])
-      this.mySchedule = this.system.actorOf(Props[Scheduler])
+      this.mySchedule = this.system.actorOf(Props[BeamAgentScheduler])
     
       // Create an "actor-in-a-box"
       this.inbox = Inbox.create(system)

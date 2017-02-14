@@ -6,7 +6,7 @@ import org.matsim.core.controler.events.StartupEvent
 import org.matsim.core.controler.listener.StartupListener
 import org.slf4j.LoggerFactory
 import akka.actor.Inbox
-import beam.metasim.agents.{Scheduler, StartSchedule, Transition, TriggerData}
+import beam.metasim.agents.{BeamAgentScheduler, StartSchedule, Transition, TriggerData}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
@@ -33,7 +33,7 @@ class BeamActorSimulation extends StartupListener with Mobsim {
 
   def notifyStartup(event: StartupEvent): Unit = {
     services = event.getServices
-    scheduler = _system.actorOf(Props[Scheduler])
+    scheduler = _system.actorOf(Props[BeamAgentScheduler])
     eventsManagerService = _system.actorOf(Props[EventsManagerService])
     inbox = Inbox.create(_system)
 
