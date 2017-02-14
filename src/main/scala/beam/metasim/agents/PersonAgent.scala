@@ -1,7 +1,7 @@
 package beam.metasim.agents
 
 import beam.metasim.agents.BeamAgent.{BeamAgentInfo, BeamState, Uninitialized}
-import beam.metasim.agents.PersonAgent.{ChoosingMode, DepartActivity, PerformingActivity}
+import beam.metasim.agents.PersonAgent._
 import beam.metasim.akkaguice.NamedActor
 import com.google.inject.Inject
 import com.google.inject.assistedinject.Assisted
@@ -23,7 +23,7 @@ object PersonAgent {
     def apply(id: Id[Person]): PersonAgent
   }
 
-  case class PersonAgentInfo(previousPlanElement: PlanElement, currentPlanElement: PlanElement, nextPlanElement: PlanElement) extends Data
+  case class PersonAgentInfo(previousPlanElement: PlanElement, currentPlanElement: PlanElement, nextPlanElement: PlanElement) extends BeamAgent.Info
 
 
   trait InActivity extends BeamState {

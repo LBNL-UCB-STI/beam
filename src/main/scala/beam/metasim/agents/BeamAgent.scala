@@ -26,8 +26,8 @@ object BeamAgent {
   /**
     * Agent info consists of next MATSim plan element for agent to transition
     */
-  trait Data
-  case class BeamAgentInfo() extends Data
+  trait Info
+  case class BeamAgentInfo() extends Info
 
 
 
@@ -52,11 +52,11 @@ sealed trait MemoryEvent extends Event
   * state data types.
   *
   */
-abstract class BeamAgent(val id: Id[_]) extends FSM[BeamState, Data] {
+abstract class BeamAgent(val id: Id[_]) extends FSM[BeamState, Info] {
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
-  startWith(Uninitialized, BeamAgentInfo(null))
+  startWith(Uninitialized, BeamAgentInfo())
 
   when(Uninitialized) {
     case Event(Initialize(trigger), _) =>
