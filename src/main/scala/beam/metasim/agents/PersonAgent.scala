@@ -49,11 +49,11 @@ object PersonAgent {
     override def identifier = "On Public Transit"
   }
 
-  case class InitActivity(override val data: TriggerData, nextActivity: PlanElement) extends Trigger
+  case class InitActivity(override val triggerData: TriggerData, nextActivity: PlanElement) extends Trigger
 
-  case class SelectRoute(override val data: TriggerData) extends Trigger
+  case class SelectRoute(override val triggerData: TriggerData) extends Trigger
 
-  case class DepartActivity(override val data: TriggerData, nextActivity: PlanElement) extends Trigger
+  case class DepartActivity(override val triggerData: TriggerData, nextActivity: PlanElement) extends Trigger
 
   def createFacility(id: Id[ActivityFacility], link: Link): ActivityFacility = {
     if (link == null) throw new IllegalArgumentException("link == null")
