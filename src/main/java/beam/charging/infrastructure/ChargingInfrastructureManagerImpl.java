@@ -210,7 +210,7 @@ public class ChargingInfrastructureManagerImpl {
 							Double.parseDouble(row[headerMap.get("latitude")].trim()));
 
 					// Charging site spatial group -- this can be separated from this loop once we have a separate file for charging site spatial groups
-					if(!chargingSiteSpatialGroupMap.containsKey(row[headerMap.get("spatialgroup")].trim())){
+					if(headerMap.containsKey("spatialgroup") && chargingSiteSpatialGroupMap.containsKey(row[headerMap.get("spatialgroup")].trim())){
 						ChargingSiteSpatialGroup newSpatialGroup = new ChargingSiteSpatialGroupImpl(row[headerMap.get("spatialgroup")].trim());
 						chargingSiteSpatialGroupMap.put(row[headerMap.get("spatialgroup")].trim(),newSpatialGroup);
 						log.info("spatial group:" + row[headerMap.get("spatialgroup")].trim());
@@ -222,7 +222,7 @@ public class ChargingInfrastructureManagerImpl {
 							chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
 							chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
 							chargingSiteSpatialGroupMap.get(row[headerMap.get("spatialgroup")].trim()),
-							row[headerMap.get("sitetype")].trim()
+							headerMap.containsKey("spatialgroup") ? row[headerMap.get("sitetype")].trim() : ""
 							);
 					chargingSiteMap.put(row[headerMap.get("id")].trim(), newSite);
 				}
