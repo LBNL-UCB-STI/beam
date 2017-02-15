@@ -92,6 +92,11 @@ load('/Users/critter/Documents/beam/input/sf-bay-sampled-plans.Rdata')
 plans <- plans[id%in%sampled.reg$smart.id]
 legs <- legs[id%in%sampled.reg$smart.id]
 
+# Deal with NA's in end.dt which come from timestamp with hour value > 24
+plans [,end.hour:=unlist(lapply(str_split(end,":"),function(ll){ as.numeric(ll[1]) }))]
+plans [,end.minute:=unlist(lapply(str_split(end,":"),function(ll){ as.numeric(ll[2]) }))]
+plans[is.na(end.dt),end.dt:=to.posix(pp('1970-01-02 ',end.hour-24,':',end.minute),'%Y-%m-%d %H:%M')]
+
 # Group into cases to make it easy to deal with the carry-over from last plan to the next
 #
 # 98% of plans being and end at Home
@@ -125,6 +130,7 @@ new.plans <- rbindlist(new.plans)
 new.plans[,link:=pp('sfpt',link)]
 new.legs <- new.plans[,list(start_link=head(link,-1),end_link=tail(link,-1),trav_time=1,distance=1),by='id']
 save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-7.Rdata')
+load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-7.Rdata')
 
 outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-7day.xml'
 outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-7day-500.xml'
