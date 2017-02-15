@@ -53,7 +53,7 @@ class BeamAgentColin extends PersistentFSM[BeamState, BeamAgentInfo, BeamDomainE
   startWith(InitialState, BeamAgentInfo(0))
   
   override def receive = {
-    case GetState ⇒ {
+    case GetState => {
       log.info("in GetState")
       sender ! this.stateName
     }
@@ -99,7 +99,7 @@ when(InActivity) {
 
   def applyEvent(domainEvent: BeamDomainEvent, currentData: BeamAgentInfo): BeamAgentInfo = {
     domainEvent match {
-      case LabelActivity(newActivity: Int) ⇒ {
+      case LabelActivity(newActivity: Int) => {
 //        logger.info("domainEvent with old data " + currentData.theData + " and new data " + newActivity)
         BeamAgentInfo(newActivity)
       }

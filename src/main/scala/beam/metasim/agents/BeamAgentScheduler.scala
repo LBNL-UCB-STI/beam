@@ -27,7 +27,7 @@ class BeamAgentScheduler extends Actor {
       this.stopTick = stopTick
       self ! DoSimStep(0.0)
     }
-    case DoSimStep(now: Double) ⇒ {
+    case DoSimStep(now: Double) => {
       if(now <= stopTick) {
         if (awaitingResponse.isEmpty || now - awaitingResponse.keySet().first() < maxWindow) {
           while (triggerQueue.nonEmpty && triggerQueue.head.data.tick <= now) {
@@ -53,6 +53,6 @@ class BeamAgentScheduler extends Actor {
       triggerQueue.enqueue(trigger)
       log.info("recieved trigger to schedule "+trigger)
     }
-    case _      ⇒ log.info("received unknown message")
+    case _      => log.info("received unknown message")
   }
 }

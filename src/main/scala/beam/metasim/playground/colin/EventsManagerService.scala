@@ -14,7 +14,7 @@ class EventsManagerService extends Actor {
   var manager: EventsManager = null
  
   def receive = {
-    case SetEventsManager(manager: EventsManager) ⇒ {
+    case SetEventsManager(manager: EventsManager) => {
       log.info("setting events manager scheduler")
       this.manager = manager
     }
@@ -22,6 +22,6 @@ class EventsManagerService extends Actor {
       log.info("recieved event to process " + event)
       this.manager.processEvent(event)
     }
-    case _      ⇒ log.info("received unknown message")
+    case _ => log.info("received unknown message")
   }
 }
