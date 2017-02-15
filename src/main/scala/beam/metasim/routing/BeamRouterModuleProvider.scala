@@ -13,7 +13,7 @@ object BeamRouterModuleProvider {
 }
 
 class BeamRouterModuleProvider @Inject()(config: Config) extends Provider[RoutingModule] {
-  // XXXX: Get router params from config and use BeamRouterImpl
+  // XXXX: Get router params from config and use BeamRouterImpl (to be redefined?)
   override def get(): RoutingModule = {
     new BeamRouter()
   }
