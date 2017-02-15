@@ -2,26 +2,23 @@ package beam.metasim.agents
 
 import akka.actor.FSM
 import akka.persistence.fsm.PersistentFSM.FSMState
-import org.matsim.api.core.v01.population.PlanElement
-import org.slf4j.LoggerFactory
-import BeamAgent._
+import beam.metasim.agents.BeamAgent._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
+import org.slf4j.LoggerFactory
 
 
 object BeamAgent {
 
   // states
-  trait BeamState extends FSMState
+  trait BeamAgentState extends FSMState
 
-  case object Uninitialized extends BeamState {
+  case object Uninitialized extends BeamAgentState {
     override def identifier = "Idle"
   }
-  case object Initialized extends BeamState {
+  case object Initialized extends BeamAgentState {
     override def identifier = "Initialized"
   }
-
-
 
   /**
     * Agent info consists of next MATSim plan element for agent to transition
@@ -48,11 +45,11 @@ sealed trait MemoryEvent extends Event
 //}
 
 /**
-  * This FSM uses [[BeamState]] and [[BeamAgentInfo]] to define the state and
+  * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
   *
   */
-abstract class BeamAgent(val id: Id[_]) extends FSM[BeamState, Info] {
+abstract class BeamAgent(val id: Id[_]) extends FSM[BeamAgentState, Info] {
 
   private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
 
@@ -72,6 +69,12 @@ abstract class BeamAgent(val id: Id[_]) extends FSM[BeamState, Info] {
 
   def getId: Id[_] = {
     id
+  }
+
+  whenUnhandled {
+    case Event(any, data) =>
+      log.error(s"Unhandled event: $any")
+      stay()
   }
 
 }

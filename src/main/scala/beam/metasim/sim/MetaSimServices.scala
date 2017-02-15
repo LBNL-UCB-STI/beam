@@ -14,7 +14,7 @@ case class MetaSimServices @Inject()(protected val injector: Injector) extends A
 
   val schedulerRef: ActorRef = injectTopActor[BeamAgentScheduler]
 
-  val personAgentCreator: ActorRef = injectTopActor[PersonAgentCreator]
+  val personAgentCreator: ActorRef = injectTopActor[PersonAgentCreatorService]
 
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 

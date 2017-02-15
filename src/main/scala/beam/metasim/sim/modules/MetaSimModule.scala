@@ -1,5 +1,7 @@
 package beam.metasim.sim.modules
 
+import akka.actor.Scheduler
+import beam.metasim.agents.PersonAgentCreatorService
 import beam.metasim.routing.BeamRouterModuleProvider
 import beam.playground.metasim.services.location.RelaxedTravelTime
 import com.google.inject.AbstractModule
@@ -15,7 +17,8 @@ import org.matsim.core.router.util.TravelTime
 class MetaSimModule  extends AbstractModule with ScalaModule {
   override def configure(): Unit = {
 
-
+    bind[Scheduler].asEagerSingleton()
+    bind[PersonAgentCreatorService].asEagerSingleton()
     bind[RoutingModule].toProvider[BeamRouterModuleProvider]
     bind[TravelTime].to[RelaxedTravelTime]
   }

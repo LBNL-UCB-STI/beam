@@ -1,16 +1,12 @@
 package beam.metasim.agents
 
-import beam.metasim.agents.BeamAgent.{BeamAgentInfo, BeamState, Uninitialized}
+import beam.metasim.agents.BeamAgent.Uninitialized
 import beam.metasim.agents.PersonAgent._
-import beam.metasim.akkaguice.NamedActor
 import com.google.inject.Inject
 import com.google.inject.assistedinject.Assisted
-import com.google.inject.name.Named
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.mobsim.framework.PlanAgent
-import org.matsim.core.router.RoutingModule
 import org.matsim.facilities.{ActivityFacility, ActivityOption}
 import org.slf4j.LoggerFactory
 
@@ -18,15 +14,16 @@ import org.slf4j.LoggerFactory
   * Created by sfeygin on 2/6/17.
   */
 object PersonAgent {
+  import BeamAgent.BeamAgentState
 
   trait PersonAgentFactory {
     def apply(id: Id[Person]): PersonAgent
   }
 
-  case class PersonAgentInfo(previousPlanElement: PlanElement, currentPlanElement: PlanElement, nextPlanElement: PlanElement) extends BeamAgent.Info
+  case class PersonAgentInfo(currentPlanElement: PlanElement) extends BeamAgent.Info
 
 
-  trait InActivity extends BeamState {
+  trait InActivity extends BeamAgentState {
     override def identifier = "In Activity"
   }
 
@@ -34,7 +31,7 @@ object PersonAgent {
     override def identifier = "Performing an Activity"
   }
 
-  trait Traveling extends BeamState
+  trait Traveling extends BeamAgentState
 
   case object ChoosingMode extends Traveling {
     override def identifier = "Choosing Travel Mode"
@@ -44,16 +41,15 @@ object PersonAgent {
     override def identifier = "Walking"
   }
 
-
   case object OnPublicTransit extends Traveling {
     override def identifier = "On Public Transit"
   }
 
-  case class InitActivity(override val data: TriggerData, nextActivity: PlanElement) extends Trigger
+  case class InitActivity(override val triggerData: TriggerData, nextActivity: PlanElement) extends Trigger
 
-  case class SelectRoute(override val data: TriggerData) extends Trigger
+  case class SelectRoute(override val triggerData: TriggerData) extends Trigger
 
-  case class DepartActivity(override val data: TriggerData, nextActivity: PlanElement) extends Trigger
+  case class DepartActivity(override val triggerData: TriggerData, nextActivity: PlanElement) extends Trigger
 
   def createFacility(id: Id[ActivityFacility], link: Link): ActivityFacility = {
     if (link == null) throw new IllegalArgumentException("link == null")
@@ -67,18 +63,22 @@ object PersonAgent {
 
       def getLinkId: Id[Link] = link.getId
 
-      def addActivityOption(option: ActivityOption) { throw new UnsupportedOperationException }
+      def addActivityOption(option: ActivityOption) {
+        throw new UnsupportedOperationException
+      }
 
       def getActivityOptions = throw new UnsupportedOperationException
 
-      def setCoord(coord: Coord) { throw new RuntimeException("not implemented")
+      def setCoord(coord: Coord) {
+        throw new RuntimeException("not implemented")
       }
     }
 
   }
 }
 
-class PersonAgent @Inject()(@Assisted personId: Id[Person], population: Population, network: Network, routerService: RoutingModule) extends BeamAgent(personId) with PlanAgent {
+// Agents initialized stateless w/out knowledge of their plan. This is sent to them by parent actor.
+class PersonAgent @Inject()(@Assisted personId: Id[Person]) extends BeamAgent(personId) {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
@@ -87,30 +87,14 @@ class PersonAgent @Inject()(@Assisted personId: Id[Person], population: Populati
     case Event(DepartActivity(data, nextActivity), info: PersonAgentInfo) =>
       val fromActivity: Activity = info.currentPlanElement.asInstanceOf[Activity]
       val toActivity: Activity = nextActivity.asInstanceOf[Activity]
-
       val fromFacilityId: Id[ActivityFacility] = Id.create(fromActivity.getType, classOf[ActivityFacility])
       val toFacilityId: Id[ActivityFacility] = Id.create(toActivity.getType, classOf[ActivityFacility])
-
-      val fromFacilityLink: Link = network.getLinks.get(fromActivity.getLinkId)
-      val toFacilityLink: Link = network.getLinks.get(toActivity.getLinkId)
-
-      val fromFacility = PersonAgent.createFacility(fromFacilityId, fromFacilityLink)
-      val toFacility = PersonAgent.createFacility(toFacilityId, toFacilityLink)
-
-      val route = routerService.calcRoute(fromFacility, toFacility, toActivity.getEndTime, population.getPersons.get(personId))
-      if (route != null) {
-        logger.warn("\n\n\t########## Dummy Route:" + route + "\n")
-        data.agent ! Ack
-      } else {
-        data.agent ! Failure(s"$personId couldn't find route between $fromFacilityId and $toFacilityId. " +
-          s"Staying at $fromActivity")
-      }
-
-      stay() using info.copy(previousPlanElement = info.currentPlanElement, currentPlanElement = nextActivity.asInstanceOf[Activity])
+      sender() ! CompletionNotice(data)
+      stay() using info.copy(currentPlanElement = nextActivity.asInstanceOf[Activity])
   }
 
   when(ChoosingMode) {
-    case Event(SelectRoute(data),info:PersonAgentInfo) =>{
+    case Event(SelectRoute(data), info: PersonAgentInfo) => {
       stay()
     }
 
@@ -123,11 +107,4 @@ class PersonAgent @Inject()(@Assisted personId: Id[Person], population: Populati
     case ChoosingMode -> PerformingActivity => logger.debug("From traveling to activity")
   }
 
-  override def getCurrentPlanElement: PlanElement = stateData.asInstanceOf[PersonAgentInfo].currentPlanElement
-
-  override def getNextPlanElement: PlanElement = stateData.asInstanceOf[PersonAgentInfo].nextPlanElement
-
-  override def getPreviousPlanElement: PlanElement = stateData.asInstanceOf[PersonAgentInfo].previousPlanElement
-
-  override def getCurrentPlan: Plan = population.getPersons.get(personId).getSelectedPlan
 }
