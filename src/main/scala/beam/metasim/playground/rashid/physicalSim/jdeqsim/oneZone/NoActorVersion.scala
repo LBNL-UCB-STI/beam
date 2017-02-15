@@ -6,6 +6,7 @@ import org.matsim.core.events.EventsUtils
 import beam.playground.jdeqsim.CountEnterLinkEvents
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation
+import org.matsim.core.events.EventsManagerImpl
 
 object NoActorVersion {
 
@@ -15,7 +16,9 @@ object NoActorVersion {
 
     val scenario = ScenarioUtils.loadScenario(config);
 
-    val eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
+    //val eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
+    val eventsManager = new EventsManagerImpl();
+    
     val countEnterLinkEvents = new CountEnterLinkEvents();
     eventsManager.addHandler(countEnterLinkEvents);
     eventsManager.initProcessing();
