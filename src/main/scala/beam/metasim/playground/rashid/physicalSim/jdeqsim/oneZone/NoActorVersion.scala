@@ -7,7 +7,7 @@ import beam.playground.jdeqsim.CountEnterLinkEvents
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation
 
-object Main {
+object NoActorVersion {
 
   def main(args: Array[String]) {
     val config = ConfigUtils.loadConfig(
