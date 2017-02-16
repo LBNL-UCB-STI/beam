@@ -10,6 +10,7 @@ package beam;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import com.google.inject.Provider;
 
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
@@ -416,6 +417,10 @@ public class EVSimTeleController {
 		EVGlobalData.data.chargingInfrastructureManager = new ChargingInfrastructureManagerImpl();
 		System.out.println("Were sites loaded?");
 		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllChargingSites()){
+			System.out.println(site.getId().toString());
+		}
+		System.out.println("are they available?");
+		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllAccessibleChargingSitesInArea(new Coord(0.0,0.0),Double.MAX_VALUE)){
 			System.out.println(site.getId().toString());
 		}
 	}
