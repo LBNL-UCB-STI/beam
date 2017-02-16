@@ -221,7 +221,7 @@ public class ChargingInfrastructureManagerImpl {
 							EVGlobalData.data.transformFromWGS84.transform(theCoord),
 							chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
 							chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
-							headerMap.containsKey("spatialgroup") ? chargingSiteSpatialGroupMap.get(row[headerMap.get("spatialgroup")].trim()) : "",
+							headerMap.containsKey("spatialgroup") ? chargingSiteSpatialGroupMap.get(row[headerMap.get("spatialgroup")].trim()) : null,
 							headerMap.containsKey("sitetype") ? row[headerMap.get("sitetype")].trim() : ""
 							);
 					chargingSiteMap.put(row[headerMap.get("id")].trim(), newSite);
