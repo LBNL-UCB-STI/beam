@@ -18,6 +18,7 @@ repositories {
     maven { url "http://dl.bintray.com/matsim/matsim" }
     maven { url "http://oss.jfrog.org/libs-snapshot" }
     jcenter()
+    maven { url "https://jitpack.io" }
 }
 
 dependencies {
@@ -65,7 +66,8 @@ dependencies {
 	  compile group: 'commons-io', name: 'commons-io', version: '2.5'
 	  compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
-    compile group: 'org.matsim', name: 'matsim', version: '0.9.0-SNAPSHOT'
+    //compile group: 'org.matsim', name: 'matsim', version: '0.9.0-SNAPSHOT'
+    compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
 }
 
 //////////////////////////////////////////////////////////////////////
