@@ -350,8 +350,9 @@ public class ChargingInfrastructureManagerImpl {
 			}
 			log.info("num sites found = "+sites.size());
 		} else {
-			log.info("Agent "+agent.getId()+" so first searching public chargers from tree of size: "+theSize+" at "+coord.getX()+","+coord.getY()+" with radius = "+distance);
+			log.info("Agent "+agent.getId()+" so first searching public chargers from tree of size: "+theSize+" at "+coord.getX()+","+coord.getY()+" with radius = "+distance+" with vehicle "+agent.getVehicleType()+" with # compatible chargesr = "+agent.getVehicleWithBattery().getCompatiblePlugTypes().size());
 			for (ChargingPlugType plugType : agent.getVehicleWithBattery().getCompatiblePlugTypes()) {
+				log.info("plug type "+plugType.getPlugTypeName());
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
 			}
 			log.info("num sites found = "+sites.size());
