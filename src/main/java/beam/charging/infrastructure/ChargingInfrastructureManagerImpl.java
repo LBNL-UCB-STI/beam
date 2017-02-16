@@ -339,17 +339,26 @@ public class ChargingInfrastructureManagerImpl {
 
 	public Collection<ChargingSite> getAllAccessibleAndCompatibleChargingSitesInArea(Coord coord, double distance, PlugInVehicleAgent agent) {
 		Collection<ChargingSite> sites = new LinkedHashSet<ChargingSite>();
+		int theSize = 0;
+		for(ChargingPlugType plugType : accessibleChargingSiteTreeByPlugType.keySet()){
+			theSize += accessibleChargingSiteTreeByPlugType.get(plugType).size();
+		}
 		if (agent == null) {
+			System.out.println("Agent == null so only searching public chargers from tree of size: "+theSize);
 			for (ChargingPlugType plugType : chargingPlugTypeByIdMap.values()) {
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
 			}
+			System.out.println("num sites found = "+sites.size());
 		} else {
+			System.out.println("Agent != null so first searching public chargers from tree of size: "+theSize);
 			for (ChargingPlugType plugType : agent.getVehicleWithBattery().getCompatiblePlugTypes()) {
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
 			}
+			System.out.println("num sites found = "+sites.size());
 			if (agent.getHomeSite() != null && getDistanceBetweenPoints(agent.getHomeSite().getCoord(), coord) <= distance) {
 				sites.add(agent.getHomeSite());
 			}
+			System.out.println("num sites found after home search= "+sites.size());
 		}
 		return sites;
 	}
