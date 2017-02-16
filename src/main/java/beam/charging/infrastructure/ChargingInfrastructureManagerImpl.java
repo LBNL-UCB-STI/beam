@@ -344,21 +344,21 @@ public class ChargingInfrastructureManagerImpl {
 			theSize += accessibleChargingSiteTreeByPlugType.get(plugType).size();
 		}
 		if (agent == null) {
-			System.out.println("Agent == null so only searching public chargers from tree of size: "+theSize);
+			log.info("Agent == null so only searching public chargers from tree of size: "+theSize+" at "+coord.getX()+","+coord.getY()+" with radius = "+distance);
 			for (ChargingPlugType plugType : chargingPlugTypeByIdMap.values()) {
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
 			}
-			System.out.println("num sites found = "+sites.size());
+			log.info("num sites found = "+sites.size());
 		} else {
-			System.out.println("Agent != null so first searching public chargers from tree of size: "+theSize);
+			log.info("Agent != null so first searching public chargers from tree of size: "+theSize+" at "+coord.getX()+","+coord.getY()+" with radius = "+distance);
 			for (ChargingPlugType plugType : agent.getVehicleWithBattery().getCompatiblePlugTypes()) {
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
 			}
-			System.out.println("num sites found = "+sites.size());
+			log.info("num sites found = "+sites.size());
 			if (agent.getHomeSite() != null && getDistanceBetweenPoints(agent.getHomeSite().getCoord(), coord) <= distance) {
 				sites.add(agent.getHomeSite());
 			}
-			System.out.println("num sites found after home search= "+sites.size());
+			log.info("num sites found after home search= "+sites.size());
 		}
 		return sites;
 	}
