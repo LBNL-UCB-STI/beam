@@ -7,6 +7,7 @@ package beam;
  * ...\output
  */
 
+import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import com.google.inject.Provider;
 
 import org.matsim.api.core.v01.Id;
@@ -413,6 +414,10 @@ public class EVSimTeleController {
 
 	private static void initializeChargingInfrastructure(EVController controler) {
 		EVGlobalData.data.chargingInfrastructureManager = new ChargingInfrastructureManagerImpl();
+		System.out.println("Were sites loaded?");
+		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllChargingSites()){
+			System.out.println(site.getId().toString());
+		}
 	}
 
 	private static void integrateChargingEventManagerIntoSimulation(final EVController controler) {
