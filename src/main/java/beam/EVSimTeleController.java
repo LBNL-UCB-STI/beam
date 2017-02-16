@@ -421,7 +421,7 @@ public class EVSimTeleController {
 		}
 		System.out.println("are they available?");
 		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllAccessibleChargingSitesInArea(new Coord(0.0,0.0),Double.MAX_VALUE)){
-			System.out.println(site.getId().toString());
+			System.out.println(site.getId().toString()+" @ "+site.getCoord().getX() + ","+site.getCoord().getY());
 		}
 	}
 

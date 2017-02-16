@@ -356,6 +356,11 @@ public class ChargingInfrastructureManagerImpl {
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
 			}
 			log.info("num sites found = "+sites.size());
+			if(sites.size()>0){
+				for(ChargingSite site : sites){
+					log.info("site = "+site.getId()+" @ "+site.getCoord().getX()+","+site.getCoord().getY());
+				}
+			}
 			if (agent.getHomeSite() != null && getDistanceBetweenPoints(agent.getHomeSite().getCoord(), coord) <= distance) {
 				sites.add(agent.getHomeSite());
 			}
