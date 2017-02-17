@@ -415,14 +415,6 @@ public class EVSimTeleController {
 
 	private static void initializeChargingInfrastructure(EVController controler) {
 		EVGlobalData.data.chargingInfrastructureManager = new ChargingInfrastructureManagerImpl();
-		System.out.println("Were sites loaded?");
-		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllChargingSites()){
-			System.out.println(site.getId().toString());
-		}
-		System.out.println("are they available?");
-		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllAccessibleChargingSitesInArea(new Coord(0.0,0.0),Double.MAX_VALUE)){
-			System.out.println(site.getId().toString()+" @ "+site.getCoord().getX() + ","+site.getCoord().getY());
-		}
 	}
 
 	private static void integrateChargingEventManagerIntoSimulation(final EVController controler) {

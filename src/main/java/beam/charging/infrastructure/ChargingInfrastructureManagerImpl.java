@@ -213,7 +213,7 @@ public class ChargingInfrastructureManagerImpl {
 					if(headerMap.containsKey("spatialgroup") && !chargingSiteSpatialGroupMap.containsKey(row[headerMap.get("spatialgroup")].trim())){
 						ChargingSiteSpatialGroup newSpatialGroup = new ChargingSiteSpatialGroupImpl(row[headerMap.get("spatialgroup")].trim());
 						chargingSiteSpatialGroupMap.put(row[headerMap.get("spatialgroup")].trim(),newSpatialGroup);
-						log.info("spatial group:" + row[headerMap.get("spatialgroup")].trim());
+//						log.info("spatial group:" + row[headerMap.get("spatialgroup")].trim());
 					}
 
 					// Initialize new charging site
@@ -307,7 +307,7 @@ public class ChargingInfrastructureManagerImpl {
 		}
 
 		accessibleChargingSiteTreeByPlugType = new LinkedHashMap<>();
-		accessibleChargingSitesByLinkIDByPlugType = new LinkedHashMap<>();
+
 		for (ChargingPlugType plugType : chargingPlugTypeByIdMap.values()) {
 			QuadTree<ChargingSite> newTree = (new QuadTreeInitializer<ChargingSite>()).getQuadTree(rect);
 			for (ChargingSite chargingSite : chargingSiteMap.values()) {
@@ -344,27 +344,16 @@ public class ChargingInfrastructureManagerImpl {
 			theSize += accessibleChargingSiteTreeByPlugType.get(plugType).size();
 		}
 		if (agent == null) {
-			log.info("Agent == null so only searching public chargers from tree of size: "+theSize+" at "+coord.getX()+","+coord.getY()+" with radius = "+distance);
 			for (ChargingPlugType plugType : chargingPlugTypeByIdMap.values()) {
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
 			}
-			log.info("num sites found = "+sites.size());
 		} else {
-			log.info("Agent "+agent.getId()+" so first searching public chargers from tree of size: "+theSize+" at "+coord.getX()+","+coord.getY()+" with radius = "+distance+" with vehicle "+agent.getVehicleType()+" with # compatible chargesr = "+agent.getVehicleWithBattery().getCompatiblePlugTypes().size());
 			for (ChargingPlugType plugType : agent.getVehicleWithBattery().getCompatiblePlugTypes()) {
-				log.info("plug type "+plugType.getPlugTypeName());
 				sites.addAll(accessibleChargingSiteTreeByPlugType.get(plugType).getDisk(coord.getX(), coord.getY(), distance));
-			}
-			log.info("num sites found = "+sites.size());
-			if(sites.size()>0){
-				for(ChargingSite site : sites){
-					log.info("site = "+site.getId()+" @ "+site.getCoord().getX()+","+site.getCoord().getY());
-				}
 			}
 			if (agent.getHomeSite() != null && getDistanceBetweenPoints(agent.getHomeSite().getCoord(), coord) <= distance) {
 				sites.add(agent.getHomeSite());
 			}
-			log.info("num sites found after home search= "+sites.size());
 		}
 		return sites;
 	}

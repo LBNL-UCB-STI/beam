@@ -82,13 +82,19 @@ shadowJar {
    version = null
 }
 
-task runBeam(type: JavaExec) {
-  classpath = sourceSets.main.runtimeClasspath
+task runBeam() {
+    doLast {
+        javaexec {
+            classpath = sourceSets.main.runtimeClasspath
 
-  main = 'beam.EVSimTeleController'
+            main = 'beam.EVSimTeleController'
 
-  args = [project.getProperty('absPathToInputs'),project.getProperty('relPathToConfig'), project.getProperty('absPathToOutputs')]
+            args = [project.hasProperty('absPathToInputs') ? project.getProperty('absPathToInputs') : '',
+                    project.hasProperty('relPathToConfig') ? project.getProperty('relPathToConfig') : '',
+                    project.hasProperty('absPathToOutputs') ? project.getProperty('absPathToOutputs') : '']
 
-  jvmArgs = [project.getProperty('jvmArgs')]
+            jvmArgs = [project.hasProperty('jvmArgs') ? project.getProperty('jvmArgs') : '']
+        }
+    }
 }
 
