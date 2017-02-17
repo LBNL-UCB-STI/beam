@@ -12,3 +12,5 @@ libs
 .idea
 .cache*
 target/
+beam.iml
+out
