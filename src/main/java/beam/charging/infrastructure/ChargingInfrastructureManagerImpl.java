@@ -307,7 +307,7 @@ public class ChargingInfrastructureManagerImpl {
 		}
 
 		accessibleChargingSiteTreeByPlugType = new LinkedHashMap<>();
-
+		accessibleChargingSitesByLinkIDByPlugType = new LinkedHashMap<>();
 		for (ChargingPlugType plugType : chargingPlugTypeByIdMap.values()) {
 			QuadTree<ChargingSite> newTree = (new QuadTreeInitializer<ChargingSite>()).getQuadTree(rect);
 			for (ChargingSite chargingSite : chargingSiteMap.values()) {
