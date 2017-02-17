@@ -87,6 +87,8 @@ task runBeam(type: JavaExec) {
 
   main = 'beam.EVSimTeleController'
 
-  args = ["/Users/critter/Dropbox/ucb/vto/beam-developers/","model-inputs/calibration-v2/config.xml","/Users/critter/Documents/beam/beam-output/"]
+  args = [project.getProperty('absPathToInputs'),project.getProperty('relPathToConfig'), project.getProperty('absPathToOutputs')]
+
+  jvmArgs = [project.getProperty('jvmArgs')]
 }
 
