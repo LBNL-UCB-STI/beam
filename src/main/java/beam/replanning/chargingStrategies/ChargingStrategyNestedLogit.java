@@ -169,8 +169,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 						if (ChargingInfrastructureManagerImpl.avoidPlug(agent, plugType)){
 							continue;
 						}
-						log.info("Considering site: "+site.getId());
-						
+
 						ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
 						NestedLogit alterativeNest = new NestedLogit(this.arrivalSitePlugTypeAlternativeTemplate);
 						alterativeNest.setName(alt.toString());
