@@ -95,10 +95,6 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 			e.printStackTrace();
 		}
 		// Log disaggregate plugged-in num and charging load
-		//TODO: log disaggregate plugged-in num and charging load
-		//TODO: need the list of county objects (get chargingSpatialGroupMap?)
-		//TODO: then, using for loop, write each row that associated with charger type and county
-		// Log aggregate plugged-in num and charging load
 		try {
 			for(String spatialKey : numPluggedinMap.keySet()){
 				for(String siteTypeKey : numPluggedinMap.get(spatialKey).keySet()){
@@ -165,10 +161,6 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 			chargingLoadInKwMap.get(event.getSpatialGroup()).put(event.getSiteType(), new HashMap<>());
 			chargingLoadInKwMap.get(event.getSpatialGroup()).get(event.getSiteType()).put(event.getPlugType(),event.getChargingPowerInKw());
 		}
-
-		// Disaggregate
-//		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),event.getChargingPowerInKw()); 	// increase charging load
-//		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),1); 							// increase plugged-in num
 	}
 
 	@Override
@@ -177,7 +169,6 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 		chargingLoadInKw -= event.getChargingPowerInKw();
 
 		// Disaggregate
-//		event.getChargingSiteSpatialGroup().addChargingLoadInKw(event.getNominalChargingLevel(),-event.getChargingPowerInKw());	// decrease charging load
 		if(chargingLoadInKwMap.containsKey(event.getSpatialGroup())){
 			if(chargingLoadInKwMap.get(event.getSpatialGroup()).containsKey(event.getSiteType())){
 				if(chargingLoadInKwMap.get(event.getSpatialGroup()).get(event.getSiteType()).containsKey(event.getPlugType())){
@@ -213,7 +204,6 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 		numPluggedIn--;
 
 		// Disaggregate
-//		event.getChargingSiteSpatialGroup().addNumPluggedIn(event.getNominalChargingLevel(),-1); 							// decrease plugged-in num
 		if(numPluggedinMap.containsKey(event.getSpatialGroup())){
 			if(numPluggedinMap.get(event.getSpatialGroup()).containsKey(event.getSiteType())){
 				if(numPluggedinMap.get(event.getSpatialGroup()).get(event.getSiteType()).containsKey(event.getPlugType())){
