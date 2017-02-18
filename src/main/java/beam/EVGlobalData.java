@@ -12,6 +12,7 @@ import beam.charging.management.ChargingQueueImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingQueue;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.apache.log4j.Logger;
+import org.geotools.referencing.CRS;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
@@ -38,6 +39,8 @@ import beam.sim.traveltime.BeamRouter;
 import beam.sim.traveltime.BeamRouterImpl;
 import beam.sim.traveltime.RelaxedTravelTime;
 import beam.sim.traveltime.TripInformation;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 //TODO: load all parameters from config in the end
 public class EVGlobalData {
@@ -46,6 +49,9 @@ public class EVGlobalData {
 	private static final Logger log = Logger.getLogger(EVGlobalData.class);
 
 	public static EVGlobalData data = null;
+	public CoordinateReferenceSystem targetCoordinateSystem;
+	public CoordinateReferenceSystem wgs84CoordinateSystem;
+
 
 	public static void simulationStaticVariableInitializer() {
 		data = new EVGlobalData();

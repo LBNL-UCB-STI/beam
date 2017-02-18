@@ -10,6 +10,7 @@ package beam;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import com.google.inject.Provider;
 
+import org.geotools.referencing.CRS;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -64,6 +65,7 @@ import beam.transEnergySim.vehicles.api.Vehicle;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 import beam.transEnergySim.vehicles.impl.BatteryElectricVehicleImpl;
 import beam.transEnergySim.vehicles.impl.PHEV;
+import org.opengis.referencing.FactoryException;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -399,8 +401,13 @@ public class EVSimTeleController {
 		
 		
 		config.setParam("controler", "outputDirectory", EVGlobalData.data.OUTPUT_DIRECTORY.getAbsolutePath());
-		EVGlobalData.data.transformFromWGS84 = TransformationFactory.getCoordinateTransformation("WGS84",
-				config.getModule("global").getValue("coordinateSystem"));
+
+		try {
+			EVGlobalData.data.targetCoordinateSystem = CRS.decode(config.getModules().get("global").getParams().get("coordinateSystem"));
+			EVGlobalData.data.wgs84CoordinateSystem = CRS.decode("EPSG:4326");
+		} catch (FactoryException e) {
+			e.printStackTrace();
+		}
 
 		// TODO: the following statement is inserted just at the moment to avoid
 		// config consistency check problems -> this could be done properly

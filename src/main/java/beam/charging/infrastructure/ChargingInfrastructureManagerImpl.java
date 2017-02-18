@@ -9,7 +9,14 @@ import java.util.LinkedList;
 
 import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.geom.Point;
 import org.apache.log4j.Logger;
+import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.JTSFactoryFinder;
+import org.geotools.referencing.CRS;
 import org.jdom.JDOMException;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
@@ -48,6 +55,8 @@ import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPoint;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import beam.transEnergySim.vehicles.api.Vehicle;
+import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.operation.TransformException;
 
 // TODO: move interface up (split interface, impl)
 public class ChargingInfrastructureManagerImpl {
@@ -187,6 +196,7 @@ public class ChargingInfrastructureManagerImpl {
 		/*
 		 * /* LOAD CHARGING SITES
 		 */
+		GeometryFactory geomFactory = JTSFactoryFinder.getGeometryFactory();
 		fileParser.parse(fileParserConfig, handler);
 		fileParserConfig.setFileName(EVGlobalData.data.CHARGING_SITES_FILEPATH);
 		fileParserConfig.setDelimiterRegex(",");
@@ -206,8 +216,19 @@ public class ChargingInfrastructureManagerImpl {
 					}
 				} else {
 					//  Coordinate of the charging site
-					Coord theCoord = new Coord(Double.parseDouble(row[headerMap.get("longitude")].trim()),
-							Double.parseDouble(row[headerMap.get("latitude")].trim()));
+					Geometry transformedPoint = null;
+					Coordinate jtsCoord = null;
+					Point jtsPoint = null;
+					try {
+					    jtsCoord = new Coordinate(Double.parseDouble(row[headerMap.get("longitude")].trim()),Double.parseDouble(row[headerMap.get("latitude")].trim()));
+						jtsPoint = geomFactory.createPoint(jtsCoord);
+						transformedPoint = JTS.transform(jtsPoint, CRS.findMathTransform(EVGlobalData.data.wgs84CoordinateSystem,EVGlobalData.data.targetCoordinateSystem));
+					} catch (TransformException e) {
+						e.printStackTrace();
+					} catch (FactoryException e) {
+						e.printStackTrace();
+					}
+					Coord theCoord = new Coord(transformedPoint.getCentroid().getX(),transformedPoint.getCentroid().getY());
 
 					// Charging site spatial group -- this can be separated from this loop once we have a separate file for charging site spatial groups
 					if(headerMap.containsKey("spatialgroup") && !chargingSiteSpatialGroupMap.containsKey(row[headerMap.get("spatialgroup")].trim())){
@@ -217,13 +238,14 @@ public class ChargingInfrastructureManagerImpl {
 					}
 
 					// Initialize new charging site
-					ChargingSite newSite = new ChargingSiteImpl(Id.create(row[headerMap.get("id")].trim(), ChargingSite.class),
-							EVGlobalData.data.transformFromWGS84.transform(theCoord),
-							chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
-							chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
-							chargingSiteSpatialGroupMap.get(row[headerMap.get("spatialgroup")].trim()),
-							headerMap.containsKey("sitetype") ? row[headerMap.get("sitetype")].trim() : ""
-							);
+					ChargingSite newSite = null;
+                    newSite = new ChargingSiteImpl(Id.create(row[headerMap.get("id")].trim(), ChargingSite.class),
+                            theCoord,
+                            chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
+                            chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
+                            chargingSiteSpatialGroupMap.get(row[headerMap.get("spatialgroup")].trim()),
+                            headerMap.containsKey("sitetype") ? row[headerMap.get("sitetype")].trim() : ""
+                            );
 					chargingSiteMap.put(row[headerMap.get("id")].trim(), newSite);
 				}
 			}
