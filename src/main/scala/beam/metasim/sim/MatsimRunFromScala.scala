@@ -1,7 +1,7 @@
 package beam.metasim.sim
 
 import beam.metasim.config.ConfigModule
-import beam.metasim.sim.modules.{BeamAgentModule, MetaSimModule}
+import beam.metasim.sim.modules.{BeamAgentModule, MetasimModule}
 import beam.metasim.utils.FileUtils
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.{Config, ConfigUtils}
@@ -17,9 +17,9 @@ import scala.collection.mutable.ListBuffer
 /**
   * Created by sfeygin on 1/30/17.
   */
-object MatSimRunFromScala extends App{
-  import net.codingwell.scalaguice.InjectorExtensions._
+object MatsimRunFromScala extends App{
   import beam.metasim._
+  import net.codingwell.scalaguice.InjectorExtensions._
 
   // Inject and use tsConfig instead here
   val matsimConfig:Config = ConfigUtils.loadConfig(MatSimConfigLoc+MatSimConfigFilename)
@@ -35,18 +35,19 @@ object MatSimRunFromScala extends App{
         install(new ScenarioByConfigModule)
         install(new ControlerDefaultsModule)
         install(new ControlerDefaultCoreListenersModule)
-        
+
         // Beam Inject below:
         install(new ConfigModule)
-        install(new MetaSimModule)
+        install(new MetasimModule)
         install(new BeamAgentModule)
       }
     }),new AbstractModule() {
       override def install(): Unit = {
-        
+
         // Beam -> MATSim Wirings
+
         bindMobsim().to(classOf[QSim]) //TODO: This will change
-        addControlerListenerBinding().to(classOf[MetaSim])
+        addControlerListenerBinding().to(classOf[Metasim])
         bind(classOf[ControlerI]).to(classOf[ControlerImpl]).asEagerSingleton()
       }
     }))

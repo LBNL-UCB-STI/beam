@@ -1,11 +1,10 @@
 package beam.metasim.agents
 
-import akka.actor.FSM
+import akka.actor.{Cancellable, FSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.metasim.agents.BeamAgent._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
-import org.slf4j.LoggerFactory
 
 
 object BeamAgent {
@@ -16,21 +15,27 @@ object BeamAgent {
   case object Uninitialized extends BeamAgentState {
     override def identifier = "Idle"
   }
+
   case object Initialized extends BeamAgentState {
     override def identifier = "Initialized"
+  }
+
+  case object Error extends BeamAgentState {
+    override def identifier: String = s"Error!"
   }
 
   /**
     * Agent info consists of next MATSim plan element for agent to transition
     */
-  trait Info
-  case class BeamAgentInfo() extends Info
+  sealed trait Info
 
+  trait BeamAgentData
 
+  case class NoData() extends BeamAgentData
 
-  case class AgentError(errorMsg: String)
+  case class BeamAgentInfo[T <: BeamAgentData](id: Id[_], implicit val data: T) extends Info
+
 }
-
 
 /**
   * MemoryEvents play a dual role. They not only act as persistence in Akka, but
@@ -49,11 +54,14 @@ sealed trait MemoryEvent extends Event
   * state data types.
   *
   */
-abstract class BeamAgent(val id: Id[_]) extends FSM[BeamAgentState, Info] {
+trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]] {
 
-  private val logger = LoggerFactory.getLogger(classOf[BeamAgent])
+  def id: Id[_]
+  def data: T
 
-  startWith(Uninitialized, BeamAgentInfo())
+  startWith(Uninitialized, BeamAgentInfo[T](id,data))
+  // Possible long-running process.
+  def currentTask: Option[Cancellable] = None
 
   when(Uninitialized) {
     case Event(Initialize(trigger), _) =>
@@ -67,39 +75,50 @@ abstract class BeamAgent(val id: Id[_]) extends FSM[BeamAgentState, Info] {
       stay()
   }
 
-  def getId: Id[_] = {
-    id
+  when(Error) {
+    case Event(StopEvent, _) =>
+      stop()
   }
 
   whenUnhandled {
     case Event(any, data) =>
-      log.error(s"Unhandled event: $any")
+      log.error(s"Unhandled event: $id")
       stay()
+  }
+
+  // Used to ensure that any long-running, potentially asynchronous process does not
+  // need to return its value before the actor can be restarted.
+  @scala.throws[Exception](classOf[Exception])
+  override def postStop(): Unit = {
+    currentTask foreach {
+      _.cancel()
+    }
+    println(s"!!! stopping ${this.getClass.getSimpleName}")
   }
 
 }
 
-    //    case Event(Transition((data, firstActivity), BeamAgentInfo(currentTask)
-    //    ) =>
-    //      assert(currentTask == null)
-    //      log.info(s"Agent with ID $stateName Received Start Event from scheduler")
-    //      context.parent ! Ack
-    //      stay() // Default behavior... we want to override this!
+//    case Event(Transition((data, firstActivity), BeamAgentInfo(currentTask)
+//    ) =>
+//      assert(currentTask == null)
+//      log.info(s"Agent with ID $stateName Received Start Event from scheduler")
+//      context.parent ! Ack
+//      stay() // Default behavior... we want to override this!
 
 
-  //TODO: Add Persistence back in
-  //
-  //  override implicit def domainEventClassTag: ClassTag[MemoryEvent] = classTag[MemoryEvent]
-  //
-  //  override def applyEvent(domainEvent: MemoryEvent, currentData: BeamAgentInfo): BeamAgentInfo = {
-  //    domainEvent match {
-  //      case ActivityTravelPlanMemory(newPlanElement: PlanElement) => {
-  //        logger.info("Old travel sequence component " + currentData.planElement + " and new data" + newPlanElement)
-  //        BeamAgentInfo(newPlanElement)
-  //      }
-  //    }
-  //  }
-  //
-  //  override def persistenceId: String = {
-  //    "Name"
-  //  }
+//TODO: Add Persistence back in
+//
+//  override implicit def domainEventClassTag: ClassTag[MemoryEvent] = classTag[MemoryEvent]
+//
+//  override def applyEvent(domainEvent: MemoryEvent, currentData: BeamAgentInfo): BeamAgentInfo = {
+//    domainEvent match {
+//      case ActivityTravelPlanMemory(newPlanElement: PlanElement) => {
+//        logger.info("Old travel sequence component " + currentData.planElement + " and new data" + newPlanElement)
+//        BeamAgentInfo(newPlanElement)
+//      }
+//    }
+//  }
+//
+//  override def persistenceId: String = {
+//    "Name"
+//  }

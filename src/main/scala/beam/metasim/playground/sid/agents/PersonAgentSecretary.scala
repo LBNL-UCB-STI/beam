@@ -1,15 +1,18 @@
-package beam.metasim.agents
+package beam.metasim.playground.sid.agents
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.event.Logging
 import beam.metasim.agents.BeamAgentProtocol.{CreatePersonAgents, PersonAgentCreated}
+import beam.metasim.agents.PersonAgent
 import beam.metasim.playground.sid.events.EventsSubscriber
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
-  * A creator AND manager of agents (alternative to [[PersonAgentCreatorService]].
+  * A creator AND manager of agents.
   *
   * For now, this actor simply deals with the actor creation step,
   * but will be further specialized later.
@@ -22,12 +25,21 @@ import scala.collection.mutable
   * XXXX: This is a service and may be abstracted
   * Created by sfeygin on 2/13/17.
   */
-abstract class BeamAgentSecretary extends Actor
+trait BeamAgentSecretary[T]
 
-class PersonAgentSecretary(val simManager: ActorRef, val eventsSubscribers: List[EventsSubscriber]) extends BeamAgentSecretary {
+object AbstractRegistry{
+  def start[T:ClassTag](system: ActorSystem): ActorRef = {
+    val log = Logging.getLogger(system, this)
+    //    log.info(s"""Starting ${typeTag[T]} secretary""")
+
+    system.actorOf(Props(implicitly[ClassTag[T]].runtimeClass))
+  }
+}
+
+class PersonAgentSecretary[T<:EventsSubscriber](val simManager: ActorRef, val eventsSubscribers: List[T]) extends Actor {
 
   // Holds map of MATSim agent IDs -> ActorRefs. If missing, will need to recreate.
-  val agents = mutable.Map.empty[Id[_ <: Person], ActorRef]
+  val agents = mutable.Map.empty[Id[Person], ActorRef]
 
   override def receive: Receive = {
     // Agent is created:
