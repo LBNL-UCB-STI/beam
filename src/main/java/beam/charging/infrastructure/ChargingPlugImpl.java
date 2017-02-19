@@ -31,13 +31,15 @@ public class ChargingPlugImpl implements ChargingPlug{
 	private VehicleWithBattery vehicle;
 	private Double beginningOfChargingSession;
 	private CallBack nextScheduledCallback;
-	
-	public ChargingPlugImpl(Id<ChargingPlug> chargingPlugId, ChargingPoint chargingPoint, ChargingPlugType chargingPlugType){
+	private boolean useInCalibration;
+
+	public ChargingPlugImpl(Id<ChargingPlug> chargingPlugId, ChargingPoint chargingPoint, ChargingPlugType chargingPlugType, boolean useInCalibration){
 		this.chargingPlugId = chargingPlugId;
 		this.chargingPoint=chargingPoint;
 		this.chargingPlugType = chargingPlugType;
 		chargingPoint.addChargingPlug(this);
 		chargingPlugStatus=ChargingPlugStatus.AVAILABLE;
+		this.useInCalibration = useInCalibration;
 	}
 	
 	@Override
@@ -199,5 +201,10 @@ public class ChargingPlugImpl implements ChargingPlug{
 		vehicle = null;
 		beginningOfChargingSession = null;
 		nextScheduledCallback = null;
+	}
+
+	@Override
+	public boolean useInCalibration() {
+		return this.useInCalibration;
 	}
 }

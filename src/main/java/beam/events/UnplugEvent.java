@@ -78,4 +78,8 @@ public class UnplugEvent extends Event implements IdentifiableDecisionEvent {
 	public String getPlugType(){
 		return this.plug.getChargingPlugType().getPlugTypeName();
 	}
+
+	public ChargingPlug getPlug() {
+		return plug;
+	}
 }

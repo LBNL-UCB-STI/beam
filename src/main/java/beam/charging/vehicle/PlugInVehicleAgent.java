@@ -138,7 +138,8 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			} else {
 				homePlugType = EVGlobalData.data.chargingInfrastructureManager.getChargingPlugTypeById(homeProperties.get("homeChargingPlugTypeId"));
 			}
-			this.homePlug = new ChargingPlugImpl(Id.create("-" + this.getPersonId(), ChargingPlug.class), this.homePoint, homePlugType);
+			Boolean useInCalibration = Boolean.parseBoolean(homeProperties.get("useInCalibration"));
+			this.homePlug = new ChargingPlugImpl(Id.create("-" + this.getPersonId(), ChargingPlug.class), this.homePoint, homePlugType, useInCalibration);
 			this.homePoint.createSlowChargingQueue(1);
 		}
 	}

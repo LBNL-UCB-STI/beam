@@ -106,4 +106,7 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 		return this.plug.getChargingPlugType().getPlugTypeName();
 	}
 
+	public ChargingPlug getPlug() {
+		return plug;
+	}
 }

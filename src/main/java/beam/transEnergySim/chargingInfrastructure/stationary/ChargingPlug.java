@@ -44,4 +44,6 @@ public interface ChargingPlug extends Identifiable<ChargingPlug> {
 	boolean isAccessible();
 
 	void resetAll();
+
+    boolean useInCalibration();
 }

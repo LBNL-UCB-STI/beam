@@ -127,6 +127,7 @@ public class ParseVehicleTypes {
 					homeProperties.put("homeChargingPolicyId",(row.length >= headerMap.get("homechargingpolicyid") + 1) ? row[headerMap.get("homechargingpolicyid")].trim() : "" );
 					homeProperties.put("homeChargingNetworkOperatorId",(row.length >= headerMap.get("homechargingnetworkoperatorid") + 1) ? row[headerMap.get("homechargingnetworkoperatorid")].trim() : "" );
 					homeProperties.put("homeChargingSpatialGroup",row[headerMap.get("spatialgroup")].trim());
+					homeProperties.put("useInCalibration",row[headerMap.get("useincalibration")].trim());
 					EVGlobalData.data.personHomeProperties.put(personIdString,homeProperties);
 					EVGlobalData.data.simulationStartSocFraction.put(Id.createPersonId(personIdString),Double.parseDouble((row.length >= headerMap.get("simulationstartsocfraction") + 1) ? row[headerMap.get("simulationstartsocfraction")].trim() : "1.0" ));
 				}
