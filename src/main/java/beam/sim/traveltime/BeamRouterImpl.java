@@ -14,6 +14,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -39,6 +40,7 @@ import com.esotericsoftware.kryo.io.Output;
 import beam.EVGlobalData;
 
 public class BeamRouterImpl extends BeamRouter {
+	private static final Logger log = Logger.getLogger(BeamRouterImpl.class);
 
 	AStarEuclidean routingAlg;
 	Network network;
@@ -134,11 +136,24 @@ public class BeamRouterImpl extends BeamRouter {
 	}
 	public void serializeRouterCacheKryo(String serialPath){
 		try {
+			Runtime runtime = Runtime.getRuntime();
+			double gb = 1024.0*1024*1024;
+			log.info("Used Memory:" + (runtime.totalMemory() - runtime.freeMemory()) / gb);
+			int counter = 0;
 			FileOutputStream fileOut = new FileOutputStream(serialPath);
 			GZIPOutputStream zout = new GZIPOutputStream(new BufferedOutputStream(fileOut));
 			Output out = new Output(zout);
 			Kryo kryo = new Kryo();
-			kryo.writeClassAndObject(out, EVGlobalData.data.tripInformationCache);
+			for(String key : EVGlobalData.data.tripInformationCache.keySet()){
+				kryo.writeClassAndObject(out, key);
+				kryo.writeClassAndObject(out,EVGlobalData.data.tripInformationCache.get(key));
+				if(counter++ % 10000 == 0) {
+					out.flush();
+				}
+				if(counter++ % 50000 == 0){
+					log.info("Used Memory after " + counter + ": " + (runtime.totalMemory() - runtime.freeMemory()) / gb + " GB");
+				}
+			}
 			out.close();
 			zout.close();
 			fileOut.close();
@@ -152,7 +167,11 @@ public class BeamRouterImpl extends BeamRouter {
 			GZIPInputStream zin = new GZIPInputStream(fileIn);
 			Input in = new Input(zin);
 			Kryo kryo = new Kryo();
-			EVGlobalData.data.tripInformationCache = (LinkedHashMap<String,TripInformation>)kryo.readClassAndObject(in);
+			EVGlobalData.data.tripInformationCache = new LinkedHashMap<String,TripInformation>();
+			while(!in.eof()) {
+				String key = (String) kryo.readClassAndObject(in);
+				EVGlobalData.data.tripInformationCache.put(key, (TripInformation) kryo.readClassAndObject(in));
+			}
 			in.close();
 			zin.close();
 			fileIn.close();
