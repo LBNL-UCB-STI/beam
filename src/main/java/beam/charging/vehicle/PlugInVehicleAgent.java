@@ -1,6 +1,7 @@
 package beam.charging.vehicle;
 
 import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
+import beam.utils.MathUtil;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;

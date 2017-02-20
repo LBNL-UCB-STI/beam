@@ -7,21 +7,17 @@ package beam;
  * ...\output
  */
 
-import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import com.google.inject.Provider;
 
 import org.geotools.referencing.CRS;
-import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
-import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigGroup;
 import org.matsim.core.config.ConfigUtils;
@@ -30,8 +26,6 @@ import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.controler.listener.ShutdownListener;
-import org.matsim.core.events.EventsReaderXMLv1;
-import org.matsim.core.events.EventsUtils;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.framework.Mobsim;
 import org.matsim.core.mobsim.qsim.QSim;
@@ -40,7 +34,6 @@ import org.matsim.core.network.LinkQuadTree;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.routes.LinkNetworkRouteImpl;
 import org.matsim.core.scenario.ScenarioUtils;
-import org.matsim.core.utils.geometry.transformations.TransformationFactory;
 
 import beam.analysis.ChargingLoadProfile;
 import beam.charging.*;
@@ -57,8 +50,6 @@ import beam.scoring.EVScoreEventGenerator;
 import beam.scoring.rangeAnxiety.LogRangeAnxityScoringEventsAtEndOfDay;
 import beam.sim.AdaptedQSimUtils;
 import beam.sim.AdaptedTeleportationEngine;
-import beam.sim.BayPTRouter;
-import beam.sim.EvRouter;
 import beam.sim.traveltime.BeamRouterImpl;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import beam.transEnergySim.vehicles.api.Vehicle;
@@ -305,12 +296,13 @@ public class EVSimTeleController {
 	}
 
 	protected void loadRouter() {
-		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.RELAXED_TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
+		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
 	}
 
 	private static void scheduleGlobalActions() {
 		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.timeMarkingNewDay, EVGlobalData.data.globalActions, "handleDayTracking");
 //		EVGlobalData.data.scheduler.addCallBackMethod(0.0, EVGlobalData.data.globalActions, "printRand");
+//		EVGlobalData.data.scheduler.addCallBackMethod(100*3600.0, EVGlobalData.data.globalActions, "pauseForHour");
 	}
 
 	public Config setupConfig() {
@@ -332,7 +324,7 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
 		EVGlobalData.data.VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("vehicleTypesFile");
 		EVGlobalData.data.PERSON_VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("personVehicleTypesFile");
-		EVGlobalData.data.RELAXED_TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("relaxedTravelTimeFile");
+		EVGlobalData.data.TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("travelTimeFile");
 		EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH = ((new File(evModule.getValue("routerCacheFileRead"))).isAbsolute())
 				? evModule.getValue("routerCacheFileRead") : inputDirectory + evModule.getValue("routerCacheFileRead");
 		if(!evModule.getValue("routerCacheFileWrite").trim().equals("")){

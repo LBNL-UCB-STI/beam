@@ -1,15 +1,22 @@
 package beam.sim.traveltime;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
+import beam.charging.policies.*;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSitePolicy;
+import beam.utils.MathUtil;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.apache.log4j.Logger;
+import org.jdom.JDOMException;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -20,50 +27,96 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.DataContainerProvider;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.trafficmonitoring.TravelTimeDataArray;
+import org.matsim.core.utils.io.tabularFileParser.TabularFileHandler;
+import org.matsim.core.utils.io.tabularFileParser.TabularFileParser;
+import org.matsim.core.utils.io.tabularFileParser.TabularFileParserConfig;
 import org.matsim.vehicles.Vehicle;
 import org.nustaq.serialization.FSTObjectInput;
-import org.nustaq.serialization.FSTObjectOutput;
 
 import beam.EVGlobalData;
 import beam.parking.lib.DebugLib;
+import org.nustaq.serialization.FSTObjectOutput;
 
-public class RelaxedTravelTime implements TravelTime, LinkToLinkTravelTime, TravelDisutility, Serializable {
-	private static final Logger log = Logger.getLogger(RelaxedTravelTime.class);
+public class ExogenousTravelTime implements TravelTime, LinkToLinkTravelTime, TravelDisutility, Serializable {
+	private static final Logger log = Logger.getLogger(ExogenousTravelTime.class);
 	private HashMap<Integer,double[]> linkTravelTimes = new HashMap<Integer, double[]>();
-	private int numSlots;
-	private double timeSlice;
-	private boolean mapAbsoluteTimeToTimeOfDay = true;
-	
-	public RelaxedTravelTime(Boolean mapAbsoluteTimeToTimeOfDay, String serialPath) throws Exception {
+	private Integer numSlots;
+	private Double timeSlice;
+	private Boolean mapAbsoluteTimeToTimeOfDay = true;
+
+	public ExogenousTravelTime(Boolean mapAbsoluteTimeToTimeOfDay){
 		this.mapAbsoluteTimeToTimeOfDay = mapAbsoluteTimeToTimeOfDay;
-		FileInputStream fileIn = new FileInputStream(serialPath);
-		FSTObjectInput in = new FSTObjectInput(fileIn);
-		this.linkTravelTimes = (HashMap<Integer, double[]>)in.readObject(HashMap.class);
-		numSlots = this.linkTravelTimes.values().iterator().next().length;
-	    in.close();
-	    fileIn.close();
 	}
-	public RelaxedTravelTime(Boolean mapAbsoluteTimeToTimeOfDay, TravelTimeCalculator calculator){
-		this.mapAbsoluteTimeToTimeOfDay = mapAbsoluteTimeToTimeOfDay;
-		numSlots = calculator.getNumSlots();
-		timeSlice = (new Integer(calculator.getTimeSlice())).doubleValue();
+	public static ExogenousTravelTime LoadTravelTimeFromValidationData(String filePath, Boolean mapAbsoluteTimeToTimeOfDay){
+		ExogenousTravelTime newTravelTime = new ExogenousTravelTime(mapAbsoluteTimeToTimeOfDay);
+
+		TabularFileParser fileParser = new TabularFileParser();
+		TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
+		fileParserConfig.setFileName(filePath);
+		fileParserConfig.setDelimiterRegex("\t");
+		TabularFileHandler handler = new TabularFileHandler() {
+			public LinkedHashMap<String, Integer> headerMap;
+			public LinkedHashMap<String, Integer> ttColumnsToBinIndex;
+
+			@Override
+			public void startRow(String[] row) {
+				if (headerMap == null) {
+					headerMap = new LinkedHashMap<String, Integer>();
+					ttColumnsToBinIndex = new LinkedHashMap<String, Integer>();
+					newTravelTime.numSlots = 0;
+					for (int i = 0; i < row.length; i++) {
+						String colName = row[i].toLowerCase();
+						if (colName.startsWith("\"")) {
+							colName = colName.substring(1, colName.length() - 1);
+						}
+						headerMap.put(colName, i);
+						if(colName.substring(0,2).equals("tt")){
+							String[] parts = colName.split("_");
+							Double binTime = Double.parseDouble(parts[1]);
+							Double binEndTime = Double.parseDouble(parts[2]);
+							Double timeSlice = binEndTime - binTime;
+							int binIndex = convertTimeToBin(binTime,mapAbsoluteTimeToTimeOfDay,timeSlice);
+							if(binTime>6.0*3600.0){
+								newTravelTime.numSlots++;
+								newTravelTime.timeSlice = timeSlice;
+								ttColumnsToBinIndex.put(colName,binIndex);
+							}
+						}
+					}
+				} else {
+					double[] travelTimes = new double[newTravelTime.numSlots];
+					String linkId = row[headerMap.get("link_id")];
+					for(String colName : ttColumnsToBinIndex.keySet()){
+					    travelTimes[ttColumnsToBinIndex.get(colName)] = Double.parseDouble(row[headerMap.get(colName)]);
+					}
+					newTravelTime.linkTravelTimes.put(linkId.hashCode(),travelTimes);
+				}
+			}
+		};
+		fileParser.parse(fileParserConfig, handler);
+
+		return newTravelTime;
+
+		/*
+		newTravelTime.numSlots = newTravelTime.calculator.getNumSlots();
+		newTravelTime.timeSlice = (new Integer(calculator.getTimeSlice())).doubleValue();
 		Field providerField, traveTimeDataArrayField, travelTimesField;
 		try {
 			providerField = calculator.getClass().getDeclaredField("dataContainerProvider");
 			providerField.setAccessible(true);
-	        DataContainerProvider provider = (DataContainerProvider) providerField.get(calculator);
+			DataContainerProvider provider = (DataContainerProvider) providerField.get(calculator);
 
-	        for(Id<Link> id : EVGlobalData.data.controler.getScenario().getNetwork().getLinks().keySet()){
-		        Object data = provider.getTravelTimeData(id, true);
-		        traveTimeDataArrayField = data.getClass().getDeclaredField("ttData");
-		        traveTimeDataArrayField.setAccessible(true);
-		        TravelTimeDataArray ttDataArray = (TravelTimeDataArray) traveTimeDataArrayField.get(data);
-		        travelTimesField = ttDataArray.getClass().getDeclaredField("travelTimes");
-		        travelTimesField.setAccessible(true);
-		        double[] travelTimes = (double[])travelTimesField.get(ttDataArray);
-		        this.linkTravelTimes.put(id.hashCode(), travelTimes);
-	        }
-	        DebugLib.emptyFunctionForSettingBreakPoint();
+			for(Id<Link> id : EVGlobalData.data.controler.getScenario().getNetwork().getLinks().keySet()){
+				Object data = provider.getTravelTimeData(id, true);
+				traveTimeDataArrayField = data.getClass().getDeclaredField("ttData");
+				traveTimeDataArrayField.setAccessible(true);
+				TravelTimeDataArray ttDataArray = (TravelTimeDataArray) traveTimeDataArrayField.get(data);
+				travelTimesField = ttDataArray.getClass().getDeclaredField("travelTimes");
+				travelTimesField.setAccessible(true);
+				double[] travelTimes = (double[])travelTimesField.get(ttDataArray);
+				this.linkTravelTimes.put(id.hashCode(), travelTimes);
+			}
+			DebugLib.emptyFunctionForSettingBreakPoint();
 		} catch (NoSuchFieldException e) {
 			e.printStackTrace();
 		} catch (SecurityException e) {
@@ -73,13 +126,58 @@ public class RelaxedTravelTime implements TravelTime, LinkToLinkTravelTime, Trav
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
 		}
+		*/
 	}
-	public RelaxedTravelTime(Network network){
-		this.mapAbsoluteTimeToTimeOfDay = true;
-		numSlots = 1;
-		timeSlice = Double.MAX_VALUE;
-	    for(Id<Link> id : network.getLinks().keySet()){
-			this.linkTravelTimes.put(id.hashCode(), new double[]{network.getLinks().get(id).getLength() / network.getLinks().get(id).getFreespeed()});
+	public static ExogenousTravelTime LoadTravelTimeFromSerializedData(String serialPath) {
+		ExogenousTravelTime newTravelTime = new ExogenousTravelTime(false);
+		newTravelTime.deserializeTravelTimeData(serialPath);
+	    return newTravelTime;
+	}
+	public static ExogenousTravelTime LoadTravelTimeFromNetwork(Network network, Boolean mapAbsoluteTimeToTimeOfDay) {
+		ExogenousTravelTime newTravelTime = new ExogenousTravelTime(mapAbsoluteTimeToTimeOfDay);
+		newTravelTime.mapAbsoluteTimeToTimeOfDay = true;
+		newTravelTime.numSlots = 1;
+		newTravelTime.timeSlice = Double.MAX_VALUE;
+		for(Id<Link> id : network.getLinks().keySet()){
+			newTravelTime.linkTravelTimes.put(id.hashCode(), new double[]{network.getLinks().get(id).getLength() / network.getLinks().get(id).getFreespeed()});
+		}
+		return newTravelTime;
+	}
+	public void deserializeTravelTimeData(String serialPath){
+		try {
+			FileInputStream fileIn = new FileInputStream(serialPath);
+			GZIPInputStream zipIn = new GZIPInputStream(fileIn);
+			Input in = new Input(zipIn);
+			Kryo kryo = new Kryo();
+			this.linkTravelTimes = (HashMap<Integer, double[]>) kryo.readClassAndObject(in);
+			this.timeSlice = (Double)kryo.readClassAndObject(in);
+			this.numSlots = (Integer)kryo.readClassAndObject(in);
+			this.mapAbsoluteTimeToTimeOfDay = (Boolean) kryo.readClassAndObject(in);
+			in.close();
+			zipIn.close();
+			fileIn.close();
+		} catch (Exception e) {
+			// Our fallback is to use the freespeed in the network file and assume constant travel time over the day
+			log.warn("Execption occurred when deserializing travel time data: "+e.getMessage()+" loading travel times from network instead");
+			EVGlobalData.data.travelTimeFunction = ExogenousTravelTime.LoadTravelTimeFromNetwork(EVGlobalData.data.controler.getScenario().getNetwork(),true);
+			System.exit(0);
+		}
+	}
+	public void serializeTravelTimeData(String serialPath){
+		try {
+			FileOutputStream fileOut = new FileOutputStream(serialPath);
+			GZIPOutputStream zout = new GZIPOutputStream(new BufferedOutputStream(fileOut));
+			Output out = new Output(zout);
+			Kryo kryo = new Kryo();
+			kryo.writeClassAndObject(out,this.linkTravelTimes);
+			kryo.writeClassAndObject(out,this.timeSlice);
+			kryo.writeClassAndObject(out,this.numSlots);
+			kryo.writeClassAndObject(out,this.mapAbsoluteTimeToTimeOfDay);
+			out.close();
+			zout.close();
+			fileOut.close();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -99,12 +197,15 @@ public class RelaxedTravelTime implements TravelTime, LinkToLinkTravelTime, Trav
 		}
 	}
 
-	public int convertTimeToBin(double time) {
+	public static int convertTimeToBin(double time, boolean mapAbsoluteTimeToTimeOfDay, double timeSlice) {
 		if(mapAbsoluteTimeToTimeOfDay){
 			return (int) (time % 86400.0 / timeSlice);
 		}else{
 			return (int) (time / timeSlice);
 		}
+    }
+	public int convertTimeToBin(double time) {
+	    return ExogenousTravelTime.convertTimeToBin(time,this.mapAbsoluteTimeToTimeOfDay, this.timeSlice);
 	}
 
 	/**

@@ -3,25 +3,16 @@ package beam;
 import java.io.File;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Random;
 
-import beam.analysis.ChargingLoadProfile;
-import beam.charging.infrastructure.ChargingSiteImpl;
 import beam.charging.management.ChargingQueueImpl;
-import beam.transEnergySim.chargingInfrastructure.management.ChargingQueue;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.apache.log4j.Logger;
-import org.geotools.referencing.CRS;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
-import org.matsim.core.controler.Controler;
-import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.mobsim.qsim.QSim;
 import org.matsim.core.network.LinkQuadTree;
-import org.matsim.core.router.RoutingModule;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
 
 import beam.charging.ChargingEventManagerImpl;
@@ -30,16 +21,12 @@ import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.controller.EVController;
 import beam.events.EventLogger;
 import beam.parking.lib.obj.DoubleValueHashMap;
-import beam.replanning.ChargingStrategy;
 import beam.replanning.ChargingStrategyManager;
-import beam.replanning.StrategySequence;
 import beam.sim.GlobalActions;
 import beam.sim.scheduler.Scheduler;
 import beam.sim.traveltime.BeamRouter;
-import beam.sim.traveltime.BeamRouterImpl;
-import beam.sim.traveltime.RelaxedTravelTime;
+import beam.sim.traveltime.ExogenousTravelTime;
 import beam.sim.traveltime.TripInformation;
-import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 //TODO: load all parameters from config in the end
@@ -120,7 +107,7 @@ public class EVGlobalData {
 	public String CHARGING_STRATEGIES_FILEPATH;
 	public String VEHICLE_TYPES_FILEPATH;
 	public String PERSON_VEHICLE_TYPES_FILEPATH;
-	public String RELAXED_TRAVEL_TIME_FILEPATH;
+	public String TRAVEL_TIME_FILEPATH;
 	public String ROUTER_CACHE_READ_FILEPATH;
 	public String ROUTER_CACHE_WRITE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
@@ -157,7 +144,7 @@ public class EVGlobalData {
 	public EventLogger eventLogger;
 	public double now;
 	public BeamRouter router;
-	public RelaxedTravelTime travelTimeFunction;
+	public ExogenousTravelTime travelTimeFunction;
 	public LinkedHashMap<String, TripInformation> tripInformationCache;
 	public LinkQuadTree linkQuadTree;
 	public HashMap<String, Class> modeRouterMapping = new HashMap<>();

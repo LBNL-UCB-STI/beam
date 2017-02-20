@@ -22,6 +22,13 @@ public class GlobalActions {
 			EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.now + 1.0, this, "printRand",100.0);
 		}
 	}
+	public void pauseForHour(){
+		try {
+			Thread.sleep(1000L * 3600L);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
 
 	public void handleDayTracking() throws InterruptedException, ExecutionException {
 		log.info("Handling Day Tracking: Set estimated travel distance in day for all agents.");
