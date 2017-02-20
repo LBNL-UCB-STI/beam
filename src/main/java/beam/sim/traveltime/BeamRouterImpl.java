@@ -224,7 +224,7 @@ public class BeamRouterImpl extends BeamRouter {
 //		}
 	}
 	public TripInformation getTripInformation(double time, Link startLink, Link endLink) {
-		double roundedTime = MathUtil.roundDownToNearestInterval(time,15.0*60.0);
+		double roundedTime = MathUtil.roundDownToNearestInterval(time,30.0*60.0);
 		String key = EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group") + "---" +
 			EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group") + "---" +
 			EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
