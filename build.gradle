@@ -32,7 +32,7 @@ dependencies {
     compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.8.0'
     compile group: 'jgridshift', name: 'jgridshift', version: '1.0'
-    compile group: 'com.google.collections', name: 'google-collections', version: '1.0'
+    compile group: 'com.google.guava', name: 'guava', version: '21.0'
 }
 
 //////////////////////////////////////////////////////////////////////
