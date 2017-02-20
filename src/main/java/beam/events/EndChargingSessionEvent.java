@@ -4,16 +4,12 @@ import java.util.Map;
 
 import beam.charging.vehicle.AgentChargingState;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
-import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugStatus;
-import javassist.expr.Instanceof;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
-import org.matsim.core.api.internal.HasPersonId;
 
 import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlug;
-import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 
 public class EndChargingSessionEvent extends Event implements IdentifiableDecisionEvent {
 
