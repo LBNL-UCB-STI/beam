@@ -227,6 +227,8 @@ public class BeamRouterImpl extends BeamRouter {
 		double roundedTime = MathUtil.roundDownToNearestInterval(time,15.0*60.0);
 		String key = startLink.getId() + "---" + endLink.getId() + "---" + EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
 		getCount++;
+		return new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
+		/*
 		if(!EVGlobalData.data.tripInformationCache.containsKey(key)){
 			cachMiss++;
 			TripInformation newInfo = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
@@ -235,6 +237,7 @@ public class BeamRouterImpl extends BeamRouter {
 			}
 		}
 		return EVGlobalData.data.tripInformationCache.get(key);
+		*/
 	}
 	private TripInformation getTripInformation(double departureTime, Id<Link> fromLinkId, Id<Link> toLinkId) {
 		if(network==null)configure();
