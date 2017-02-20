@@ -1,22 +1,16 @@
 package beam.sim.traveltime;
 
 import java.io.*;
-import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import beam.charging.policies.*;
-import beam.transEnergySim.chargingInfrastructure.management.ChargingSitePolicy;
-import beam.utils.MathUtil;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.log4j.Logger;
-import org.jdom.JDOMException;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -24,18 +18,12 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.router.util.LinkToLinkTravelTime;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
-import org.matsim.core.trafficmonitoring.DataContainerProvider;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
-import org.matsim.core.trafficmonitoring.TravelTimeDataArray;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileHandler;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileParser;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileParserConfig;
 import org.matsim.vehicles.Vehicle;
-import org.nustaq.serialization.FSTObjectInput;
 
 import beam.EVGlobalData;
-import beam.parking.lib.DebugLib;
-import org.nustaq.serialization.FSTObjectOutput;
 
 public class ExogenousTravelTime implements TravelTime, LinkToLinkTravelTime, TravelDisutility, Serializable {
 	private static final Logger log = Logger.getLogger(ExogenousTravelTime.class);
