@@ -7,6 +7,7 @@ package beam;
  * ...\output
  */
 
+import beam.sim.LinkAttributeLoader;
 import com.google.inject.Provider;
 
 import org.geotools.referencing.CRS;
@@ -175,6 +176,7 @@ public class EVSimTeleController {
 		});
 
 		attachLinkTree();
+		loadLinkAttributes();
 
 		ChargingStrategyManager.data.loadChargingStrategies();
 
@@ -294,6 +296,9 @@ public class EVSimTeleController {
 			e.printStackTrace();
 		}
 	}
+	public void loadLinkAttributes(){
+		EVGlobalData.data.linkAttributes = LinkAttributeLoader.loadLinkAttributes();
+	}
 
 	protected void loadRouter() {
 		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
@@ -325,6 +330,7 @@ public class EVSimTeleController {
 		EVGlobalData.data.VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("vehicleTypesFile");
 		EVGlobalData.data.PERSON_VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("personVehicleTypesFile");
 		EVGlobalData.data.TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("travelTimeFile");
+		EVGlobalData.data.LINK_ATTRIBUTE_FILEPATH = inputDirectory + evModule.getValue("linkAttributesFile");
 		EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH = ((new File(evModule.getValue("routerCacheFileRead"))).isAbsolute())
 				? evModule.getValue("routerCacheFileRead") : inputDirectory + evModule.getValue("routerCacheFileRead");
 		if(!evModule.getValue("routerCacheFileWrite").trim().equals("")){

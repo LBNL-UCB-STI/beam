@@ -17,7 +17,8 @@
 		<param name="chargingStrategiesFile" value="three-charging-strategies.xml" />
 		<param name="vehicleTypesFile" value="vehicle-types.csv" />
 		<param name="personVehicleTypesFile" value="person-vehicle-types_5_agents.csv" />
-		<param name="relaxedTravelTimeFile" value="BeamRouterRelaxedTravelTimeData-ToyNetwork.dat" />
+    <param name="linkAttributesFile" value="link-attributes.csv" />
+    <param name="travelTimeFile" value="ToyNetworkLinkTravelTimes.dat" />
 		<param name="routerCacheFileRead" value="BeamRouterCache.dat" />
 		<param name="routerCacheFileWrite" value="" />
 		<param name="initialSearchRadius" value="0.5" />

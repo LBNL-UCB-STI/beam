@@ -26,7 +26,7 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-math3', version:'3.5'
     compile group: 'org.geotools', name: 'gt-epsg-wkt', version: '16.0'
     compile group: 'org.geotools', name: 'gt-shapefile', version:'16.0'
-    compile group: 'junit', name: 'junit', version: '4.4'
+    compile group: 'junit', name: 'junit', version: '4.6'
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
     compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'

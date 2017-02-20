@@ -12,12 +12,12 @@
 		<param name="chargingSitePoliciesFile" value="charging-policies.csv" />
 		<param name="chargingNetworkOperatorsFile" value="charging-network-operators.csv" />
 		<param name="chargingPlugTypesFile" value="charging-plug-types.csv" />
-		<param name="chargingSitesFile" value="charging-sites.csv" />
+    <param name="chargingSitesFile" value="charging-sites.csv" />
 		<param name="chargingPointsFile" value="charging-points.csv" />
 		<param name="chargingStrategiesFile" value="charging-strategies-charge-on-arrival.xml" />
 		<param name="vehicleTypesFile" value="vehicle-types.csv" />
 		<param name="personVehicleTypesFile" value="person-vehicle-types_5_agents.csv" />
-    <param name="linkAttributesFile" value="link-attributes.csv" />
+    <param name="linkAttributesFile" value="link-attributes-grouped.csv" />
     <param name="travelTimeFile" value="ToyNetworkLinkTravelTimes.dat" />
 		<param name="routerCacheFileRead" value="BeamRouterCache.dat" />
 		<param name="routerCacheFileWrite" value="" />
@@ -32,7 +32,7 @@
 		<param name="enRouteSearchDistance" value="1000" />
 		<param name="equalityEpsilon" value="0.000000001" />
 		<param name="timeToEngageNextFastChargingStation" value="120" />
-		<param name="rangeAnxitySamplingIntervalInSeconds" value="0.5" />
+		<param name="rangeAnxitySamplingIntervalInSeconds" value="1800" />
 		<param name="isDebugMode" value="false" />
 		
 		<param name="betaChargingCost" value="-1.0" />
@@ -41,20 +41,12 @@
 		<param name="betaLegTravelTime" value="-1.0" />
 		<param name="overheadScorePlugChange" value="-1.0" />
 	</module>
-
-	<!-- Default log level is zero (no output) if not specified. The Default 
-		level can however be set to a different value: <param name="Default.level" 
-		value="0" /> and then overwritten by specific values.
-		
-		
-		The event log is written out by default in each iteration - this parameter can however be changed:
-		<param name="writeEVEventsInterval" value="1" />
-		
-		-->
+	
 	<module name="PEVSim.LogSettings">
 		<param name="Default.level" value="10" />
 	</module>
-
+	
+	
 	<!-- ====================================================================== -->
 
 	<module name="global">
@@ -77,7 +69,7 @@
 	<!-- ====================================================================== -->
 
 	<module name="plans">
-		<param name="inputPlansFile" value="plans_1_agent.xml" />
+		<param name="inputPlansFile" value="plans_5_agents.xml" />
 	</module>
 
 	<!-- ====================================================================== -->

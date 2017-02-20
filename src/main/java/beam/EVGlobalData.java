@@ -110,6 +110,7 @@ public class EVGlobalData {
 	public String TRAVEL_TIME_FILEPATH;
 	public String ROUTER_CACHE_READ_FILEPATH;
 	public String ROUTER_CACHE_WRITE_FILEPATH;
+	public String LINK_ATTRIBUTE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
 
 	public ChargingInfrastructureManagerImpl chargingInfrastructureManager;
@@ -128,6 +129,7 @@ public class EVGlobalData {
 	public LinkedHashMap<String, String> personToVehicleTypeMap;
 	public LinkedHashMap<String, ChargingSiteSpatialGroup> chargingSiteSpatialGroupMap;
 	public LinkedHashMap<String, LinkedHashMap<String, String>> personHomeProperties;
+	public LinkedHashMap<String, LinkedHashMap<String, String>> linkAttributes;
 	public DoubleValueHashMap<Id<Person>> simulationStartSocFraction = new DoubleValueHashMap<>();
 	public int currentDay = 0;
 	public double timeMarkingNewDay = 14400.0; // the number of seconds
