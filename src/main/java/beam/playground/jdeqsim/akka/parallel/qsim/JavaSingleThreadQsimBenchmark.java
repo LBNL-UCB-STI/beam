@@ -4,10 +4,11 @@ import java.util.LinkedList;
 
 public class JavaSingleThreadQsimBenchmark {
 
-	public static int numberOfFakeLinks=40000;
-	public static int numberOfTimeSteps=100;
-	public static long numberOfElementsToAdd=1000L;
-	public static double shareOfActiveLinks=0.9;
+	public static int numberOfFakeLinks=400000;
+	public static int numberOfTimeSteps=1;
+	public static long numberOfElementsToAdd=1L;
+	public static double shareOfActiveLinks=0.5;
+	public static int messageSize=10000;
 
 	
 	public static void main(String[] args) {

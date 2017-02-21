@@ -1,6 +1,8 @@
 package beam.playground.jdeqsim.akka.parallel.qsim;
 
+import java.math.BigInteger;
 import java.util.LinkedList;
+import java.util.Random;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
@@ -43,8 +45,9 @@ public class CentralClockActor extends UntypedActor {
     }
 
 	private void startNewRound() {
+		Random rand=new Random();
 		for (ActorRef fakeModel:qfakeModels){
-			 fakeModel.tell("",getSelf());
+			 fakeModel.tell(new BigInteger(JavaSingleThreadQsimBenchmark.messageSize, rand).toString(32),getSelf());
 		 }
 	}
 
