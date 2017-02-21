@@ -1,22 +1,18 @@
-package beam
+package beam.metasim.sim
 
-import org.scalatest._
-import Matchers._
-
-import scala.concurrent.duration._
-import akka.actor.{Actor, ActorSystem, ActorRef}
+import akka.actor.{Actor, ActorRef, ActorSystem}
 import akka.event.Logging
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
-import beam.metasim.agents.BeamAgent.{BeamState, Initialized, Uninitialized}
-import beam.metasim.agents.PersonAgent.PersonAgentInfo
 import akka.pattern.ask
-import org.scalatest.{FunSpecLike, MustMatchers}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import beam.metasim.agents.BeamAgent._
 import beam.metasim.agents._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.Matchers._
+import org.scalatest.{FunSpecLike, MustMatchers}
 
 import scala.concurrent.Await
+import scala.concurrent.duration._
 
 class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) with MustMatchers with FunSpecLike with ImplicitSender  {
 
@@ -73,10 +69,12 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
   }
 }
 case class ReportState(override val triggerData: TriggerData) extends Trigger
-case object Reporting extends BeamState{
+case object Reporting extends BeamAgentState{
   override def identifier = "Reporting"
 }
-class TestBeamAgent(override val id: Id[Person]) extends BeamAgent(id){
+
+class TestBeamAgent(override val id:Id[Person]) extends BeamAgent[NoData]{
+  override def data = NoData()
   val reporterActor: ActorRef = null
 
   when(Initialized) {
@@ -94,6 +92,7 @@ class TestBeamAgent(override val id: Id[Person]) extends BeamAgent(id){
       stay()
     }
   }
+
 }
 case object ReportBack
 case class SendReporter(reporter: TestActorRef[TestReporter])

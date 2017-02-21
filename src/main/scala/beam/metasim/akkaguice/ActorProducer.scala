@@ -1,9 +1,5 @@
 package beam.metasim.akkaguice
 
-import akka.actor.{Actor, IndirectActorProducer}
-import com.google.inject.name.Names
-import com.google.inject.{Injector, Key}
-
 /**
   * Created by sfeygin on 2/6/17.
   */

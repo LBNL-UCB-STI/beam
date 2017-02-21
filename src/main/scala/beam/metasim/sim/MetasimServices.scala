@@ -10,12 +10,7 @@ import org.matsim.core.controler.MatsimServices
   * Created by sfeygin on 2/11/17.
   */
 @Singleton
-case class MetaSimServices @Inject()(protected val injector: Injector) extends ActorInject {
-
+case class MetasimServices @Inject()(protected val injector: Injector) extends ActorInject {
   val schedulerRef: ActorRef = injectTopActor[BeamAgentScheduler]
-
-  val personAgentCreator: ActorRef = injectTopActor[PersonAgentCreatorService]
-
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
-
 }

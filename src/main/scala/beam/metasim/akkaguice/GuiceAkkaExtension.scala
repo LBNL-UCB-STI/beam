@@ -1,11 +1,8 @@
 package beam.metasim.akkaguice
 
-import akka.actor.{Actor, ActorRef, ActorSystem, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props}
+import akka.actor.{ActorRef, ActorSystem, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props}
 import com.google.inject.Injector
-import java.lang.reflect.Method
-import com.google.inject.assistedinject.FactoryModuleBuilder
-import com.google.inject.{Binder, AbstractModule}
-import scala.reflect.ClassTag
+
 /**
   * Created by sfeygin on 2/6/17.
   */
@@ -20,6 +17,7 @@ class GuiceAkkaExtensionImpl extends Extension {
   def props[T](actorName: String) = Props(classOf[ActorProducer[T]], injector, actorName)
 
 }
+
 object GuiceAkkaExtension extends ExtensionId[GuiceAkkaExtensionImpl] with ExtensionIdProvider {
 
   /** Register ourselves with the ExtensionIdProvider */
@@ -45,12 +43,7 @@ trait NamedActor {
   */
 trait GuiceAkkaActorRefProvider {
   def propsFor(system: ActorSystem, name: String): Props = GuiceAkkaExtension(system).props(name)
+
   def provideActorRef(system: ActorSystem, name: String): ActorRef = system.actorOf(propsFor(system, name))
 }
-
-
-
-import akka.actor._
-import com.google.inject.Injector
-import scala.reflect.ClassTag
 
