@@ -48,7 +48,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	@Override
 	public void notifyShutdown(ShutdownEvent event) {
 		if (EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH != null)
-			EVGlobalData.data.router.serializeRouterCache(EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH);
+			EVGlobalData.data.newTripInformationCache.serializeHotCacheKryo(EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH);
 	}
 
 	@Override

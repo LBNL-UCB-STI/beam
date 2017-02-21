@@ -35,21 +35,10 @@ public class GlobalActions {
 		EVGlobalData.data.currentDay++;
 		log.info(EVGlobalData.data.router);
 
-//	    int threads = Integer.parseInt(EVGlobalData.data.config.getParam("global", "numberOfThreads"));
-//	    ExecutorService service = Executors.newFixedThreadPool(threads);
-
 		for (final Person person : EVGlobalData.data.controler.getScenario().getPopulation().getPersons().values()) {
-//	        Callable callable = new Callable() {
-//	            public Object call() throws Exception {
-	                PlugInVehicleAgent.getAgent(person.getId()).setEstimatedTravelDistanceInDay();
-//					return null;
-//	            }
-//	        };
-//	        service.submit(callable);
+			PlugInVehicleAgent.getAgent(person.getId()).setEstimatedTravelDistanceInDay();
 		}
-//	    service.shutdown();
-//		EVGlobalData.data.router.serializeRouterCache(EVGlobalData.data.ROUTER_CACHE_FILEPATH);
-		log.info(EVGlobalData.data.router);
+		EVGlobalData.data.newTripInformationCache.serializeHotCacheKryo(EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH);
 		if(EVGlobalData.data.scheduler.getSize() > 0){
 			EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.now + 86400.0, this, "handleDayTracking",-1.0);
 		}

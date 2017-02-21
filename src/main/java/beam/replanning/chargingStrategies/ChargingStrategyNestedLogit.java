@@ -4,11 +4,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Random;
+import java.util.*;
 
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.log4j.Logger;
 import org.jdom.Document;
 import org.jdom.Element;
@@ -160,7 +158,6 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 		this.arrivalYesChargeNest.removeChildren();
 
 		if (foundSites.size() > 0) {
-			ArrayList<ChargingPlug> foundPlugs = new ArrayList<ChargingPlug>();
 			for (ChargingSite site : foundSites) {
 				for (ChargingPlugType plugType : site.getAllAccessibleChargingPlugTypes()) {
 					if(agent.getVehicleWithBattery().getCompatiblePlugTypes().contains(plugType)){
@@ -249,27 +246,62 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 		inputData.put("noCharge", altData);
 
 		if (foundSites.size() > 0) {
-			ArrayList<ChargingPlug> foundPlugs = new ArrayList<ChargingPlug>();
+			Boolean foundCompatibleFastSiteInRange = false;
+			Boolean foundCompatibleSiteInRange = false;
 			for (ChargingSite site : foundSites) {
-				if(agent.getSoC() >= agent.getTripInformation(EVGlobalData.data.now, agent.getCurrentLink(), site.getNearestLink().getId()).getTripEnergyConsumption(agent.getVehicleWithBattery().getElectricDriveEnergyConsumptionModel(),agent.getVehicleWithBattery())){
-					for (ChargingPlugType plugType : site.getAllAccessibleChargingPlugTypes()) {
-						if(agent.getVehicleWithBattery().getCompatiblePlugTypes().contains(plugType)){
-							ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
-							NestedLogit alterativeNest = new NestedLogit(this.departureSitePlugTypeAlternativeTemplate);
-							alterativeNest.setName(alt.toString());
-							this.departureYesChargeNest.addChild(alterativeNest);
-							alternativeNests.add(alterativeNest);
-							sitePlugAlternatives.put(alt.toString(), alt);
+				if(!Collections.disjoint(site.getAllChargingPlugTypes(),EVGlobalData.data.fastChargingPlugTypes)){
+					if(agent.getSoC() >= agent.getTripInformation(EVGlobalData.data.now, agent.getCurrentLink(), site.getNearestLink().getId()).getTripEnergyConsumption(agent.getVehicleWithBattery().getElectricDriveEnergyConsumptionModel(),agent.getVehicleWithBattery())){
+						for (ChargingPlugType plugType : EVGlobalData.data.fastChargingPlugTypes) {
+							if(site.getAllChargingPlugTypes().contains(plugType) && agent.getVehicleWithBattery().getCompatiblePlugTypes().contains(plugType)){
+								foundCompatibleFastSiteInRange = true;
+								ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
+								NestedLogit alterativeNest = new NestedLogit(this.departureSitePlugTypeAlternativeTemplate);
+								alterativeNest.setName(alt.toString());
+								this.departureYesChargeNest.addChild(alterativeNest);
+								alternativeNests.add(alterativeNest);
+								sitePlugAlternatives.put(alt.toString(), alt);
 
-							altData.put("cost", site.getChargingCost(EVGlobalData.data.now, agent.getCurrentOrNextActivityDuration(), plugType, agent.getVehicleWithBattery()));
-							altData.put("chargerCapacity",
-									Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
-							altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
-							double[] extraEnergyAndTimeRequiredToUseSite = agent.getExtraEnergyAndTimeToChargeAt(site, plugType);
-							altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0]/2.77778e-7);
-							altData.put("extraTimeRequired", extraEnergyAndTimeRequiredToUseSite[1]/3600);
-							inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
+								altData.put("cost", site.getChargingCost(EVGlobalData.data.now, agent.getCurrentOrNextActivityDuration(), plugType, agent.getVehicleWithBattery()));
+								altData.put("chargerCapacity",
+										Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
+								altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
+								double[] extraEnergyAndTimeRequiredToUseSite = agent.getExtraEnergyAndTimeToChargeAt(site, plugType);
+								altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0]/2.77778e-7);
+								altData.put("extraTimeRequired", extraEnergyAndTimeRequiredToUseSite[1]/3600);
+								inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
+								break;
+							}
 						}
+						if(foundCompatibleFastSiteInRange)break;
+                    }
+				}
+			}
+
+			if(!foundCompatibleFastSiteInRange) {
+				for (ChargingSite site : foundSites) {
+					if (agent.getSoC() >= agent.getTripInformation(EVGlobalData.data.now, agent.getCurrentLink(), site.getNearestLink().getId()).getTripEnergyConsumption(agent.getVehicleWithBattery().getElectricDriveEnergyConsumptionModel(), agent.getVehicleWithBattery())) {
+						for (ChargingPlugType plugType : site.getAllAccessibleChargingPlugTypes()) {
+							if (agent.getVehicleWithBattery().getCompatiblePlugTypes().contains(plugType)) {
+								foundCompatibleSiteInRange = true;
+								ChargingDecisionAlternative alt = new ChargingDecisionAlternative(site, plugType);
+								NestedLogit alterativeNest = new NestedLogit(this.departureSitePlugTypeAlternativeTemplate);
+								alterativeNest.setName(alt.toString());
+								this.departureYesChargeNest.addChild(alterativeNest);
+								alternativeNests.add(alterativeNest);
+								sitePlugAlternatives.put(alt.toString(), alt);
+
+								altData.put("cost", site.getChargingCost(EVGlobalData.data.now, agent.getCurrentOrNextActivityDuration(), plugType, agent.getVehicleWithBattery()));
+								altData.put("chargerCapacity",
+										Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
+								altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
+								double[] extraEnergyAndTimeRequiredToUseSite = agent.getExtraEnergyAndTimeToChargeAt(site, plugType);
+								altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0] / 2.77778e-7);
+								altData.put("extraTimeRequired", extraEnergyAndTimeRequiredToUseSite[1] / 3600);
+								inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
+								break;
+							}
+						}
+						if(foundCompatibleSiteInRange)break;
 					}
 				}
 			}

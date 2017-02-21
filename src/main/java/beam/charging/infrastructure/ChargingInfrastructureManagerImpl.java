@@ -1,11 +1,7 @@
 package beam.charging.infrastructure;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
+import java.util.*;
 
 import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
@@ -352,6 +348,10 @@ public class ChargingInfrastructureManagerImpl {
 			}
 			accessibleChargingSitesByLinkIDByPlugType.put(plugType, newMap);
 		}
+        EVGlobalData.data.fastChargingPlugTypes = new ArrayList<ChargingPlugType>();
+        EVGlobalData.data.fastChargingPlugTypes.add(getChargingPlugTypeByName("CHAdeMO"));
+        EVGlobalData.data.fastChargingPlugTypes.add(getChargingPlugTypeByName("Tesla-3"));
+        EVGlobalData.data.fastChargingPlugTypes.add(getChargingPlugTypeByName("SAE-Combo-3"));
 	}
 
 	LinkedHashMap<Id, Vehicle> vehicleOwnerAssignment;

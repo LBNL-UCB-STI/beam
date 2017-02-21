@@ -20,5 +20,4 @@ public abstract class BeamRouter implements RoutingModule {
 
 	public abstract LinkedList<RouteInformationElement> calcRoute(Link fromLink, Link toLink, double departureTime, Person person);
 
-	public abstract void serializeRouterCache(String routerCacheFilepath);
 }

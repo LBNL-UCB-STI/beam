@@ -395,9 +395,12 @@ public class EVSimTeleController {
 		if (evModule.getValue("selectedEVDailyPlansFileName")!=null){
 			EVGlobalData.data.SELECTED_EV_DAILY_PLANS_FILE_NAME = evModule.getValue("selectedEVDailyPlansFileName");
 		}
-		
-		
-		
+		if(evModule.getParams().get("routerCacheInMemoryTripLimit") != null) {
+			EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT = Integer.parseInt(evModule.getParams().get("routerCacheInMemoryTripLimit"));
+		}else{
+			EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT = 10000;
+		}
+
 		config.setParam("controler", "outputDirectory", EVGlobalData.data.OUTPUT_DIRECTORY.getAbsolutePath());
 
 		try {

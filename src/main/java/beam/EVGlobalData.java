@@ -1,12 +1,15 @@
 package beam;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Random;
 
 import beam.charging.management.ChargingQueueImpl;
+import beam.sim.traveltime.TripInfoCache;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
+import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.population.Person;
@@ -35,7 +38,7 @@ public class EVGlobalData {
 	
 	private static final Logger log = Logger.getLogger(EVGlobalData.class);
 
-	public static EVGlobalData data = null;
+    public static EVGlobalData data = null;
 	public CoordinateReferenceSystem targetCoordinateSystem;
 	public CoordinateReferenceSystem wgs84CoordinateSystem;
 
@@ -110,12 +113,14 @@ public class EVGlobalData {
 	public String TRAVEL_TIME_FILEPATH;
 	public String ROUTER_CACHE_READ_FILEPATH;
 	public String ROUTER_CACHE_WRITE_FILEPATH;
+	public int ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
 	public String LINK_ATTRIBUTE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
 
 	public ChargingInfrastructureManagerImpl chargingInfrastructureManager;
 	public ChargingQueueImpl fastChargingQueue;
 	public ChargingQueueImpl slowChargingQueue;
+	public ArrayList<ChargingPlugType> fastChargingPlugTypes;
 	public Double EN_ROUTE_SEARCH_DISTANCE; // meters
 	public Double EQUALITY_EPSILON;
 	public Double TIME_TO_ENGAGE_NEXT_FAST_CHARGING_SESSION;
@@ -147,7 +152,7 @@ public class EVGlobalData {
 	public double now;
 	public BeamRouter router;
 	public ExogenousTravelTime travelTimeFunction;
-	public LinkedHashMap<String, TripInformation> tripInformationCache;
+	public TripInfoCache newTripInformationCache;
 	public LinkQuadTree linkQuadTree;
 	public HashMap<String, Class> modeRouterMapping = new HashMap<>();
 	public double averageWalkingTimeFromParkToActivity = 120;

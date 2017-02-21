@@ -1,0 +1,191 @@
+package beam.sim.traveltime;
+
+import beam.EVGlobalData;
+import com.datastax.driver.core.*;
+import com.datastax.driver.core.exceptions.NoHostAvailableException;
+import com.datastax.driver.core.exceptions.ReadFailureException;
+import com.datastax.driver.core.exceptions.ReadTimeoutException;
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.*;
+import com.google.common.collect.TreeMultimap;
+import org.apache.log4j.Logger;
+import org.matsim.core.utils.collections.Tuple;
+
+import java.io.*;
+import java.nio.ByteBuffer;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+
+/**
+ * BEAM
+ */
+public class TripInfoCache {
+    private static final Logger log = Logger.getLogger(TripInfoCache.class);
+
+    public Cluster cluster;
+    public Session session;
+    public Boolean useCassandra = true;
+    public Kryo kryo;
+    public int maxNumTrips;
+    public LinkedHashMap<String, TripInfoAndCount> hotCache = new LinkedHashMap<>() ;
+    public TreeMultimap<Integer, String> hotCacheUtilization = TreeMultimap.create();
+    public ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    public Output output = new Output(outputStream);
+    public Input input = new Input();
+
+    public TripInfoCache() {
+        maxNumTrips = EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
+        try {
+            cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
+            session = cluster.connect("beam");
+            log.info("Successfully connect to cassandra db");
+        }catch(IllegalArgumentException | NoHostAvailableException e){
+            log.warn("No cassandra host found, proceeding without Tier 2 route cache. Cassandra connection message: " + e.getMessage());
+            useCassandra = false;
+        }
+        if(useCassandra){
+            kryo = new Kryo();
+            kryo.register(TripInfoAndCount.class, 0);
+        }
+    }
+    public TripInformation getTripInformation(String key){
+        TripInformation foundTrip = null;
+        if(hotCache.containsKey(key)){
+            TripInfoAndCount tripAndCount = hotCache.get(key);
+            hotCacheUtilization.remove(tripAndCount.count,key);
+            tripAndCount.count++;
+            hotCacheUtilization.put(tripAndCount.count,key);
+            foundTrip = tripAndCount.tripInfo;
+        }else if(useCassandra){
+            TripInfoAndCount tripAndCount = readFromTable(key);
+            if(tripAndCount!=null && hotCache.size()<maxNumTrips){
+                tripAndCount.count++;
+                hotCache.put(key,tripAndCount);
+                hotCacheUtilization.put(tripAndCount.count,key);
+                foundTrip = tripAndCount.tripInfo;
+            }
+            if(hotCache.size()>=maxNumTrips)flushHotCache();
+        }
+        return foundTrip;
+    }
+
+    private void flushHotCache() {
+        int numMoved = 0;
+        int numToFlush = maxNumTrips / 20; // 5% flush
+        LinkedList<Tuple<Integer,String>> removedKeys = new LinkedList<>();
+
+        while(numMoved < numToFlush){
+            for(Integer utilizationCount : hotCacheUtilization.keySet()){
+                for(String key : hotCacheUtilization.get(utilizationCount)){
+                    removedKeys.add(new Tuple<Integer, String>(utilizationCount,key));
+                    TripInfoAndCount tripAndCount = hotCache.get(key);
+                    if(useCassandra) {
+                        insertIntoTable(key, tripAndCount);
+                    }
+                    hotCache.remove(key);
+                    if(++numMoved >= numToFlush)break;
+                }
+                if(numMoved >= numToFlush)break;
+            }
+        }
+        for(Tuple<Integer,String> keyTuple : removedKeys){
+            hotCacheUtilization.remove(keyTuple.getFirst(),keyTuple.getSecond());
+        }
+    }
+
+    public void putTripInformation(String key, TripInformation tripInfo){
+        hotCache.put(key,new TripInfoAndCount(tripInfo,1));
+        hotCacheUtilization.put(1,key);
+        if(hotCache.size() >= maxNumTrips) {
+            flushHotCache();
+        }
+    }
+    public void insertIntoTable(String key, TripInfoAndCount theTrip) {
+        PreparedStatement statement = session.prepare("INSERT INTO beam.trips (key,trip) VALUES (?, ?)");
+        BoundStatement boundStatement = new BoundStatement(statement);
+        kryo.writeObject(output,theTrip);
+        output.flush();
+        session.execute(boundStatement.bind(key, ByteBuffer.wrap(outputStream.toByteArray())));
+
+        try {
+            outputStream.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public TripInfoAndCount readFromTable(String key) {
+        String query = "SELECT trip FROM beam.trips WHERE key = '"+key+"';";
+        ResultSet result = null;
+        try {
+            result = session.execute(query);
+        }catch(ReadTimeoutException | ReadFailureException e){
+            log.warn(e.getMessage());
+            return(null);
+        }
+        if(result.iterator().hasNext()) {
+            ByteBuffer data = result.one().getBytes("trip");
+            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(data.array());
+            Input input = new Input(byteArrayInputStream, data.array().length);
+            TripInfoAndCount theTrip = (TripInfoAndCount) kryo.readObject(input,TripInfoAndCount.class);
+            return theTrip;
+        }
+        return null;
+    }
+    public void serializeHotCacheKryo(String serialPath){
+        log.info("Writing in-memory routing cache to file: " + serialPath);
+        log.info(this.toString());
+        try {
+            Runtime runtime = Runtime.getRuntime();
+            double gb = 1024.0*1024*1024;
+            log.info("Used Memory:" + (runtime.totalMemory() - runtime.freeMemory()) / gb);
+            int counter = 0;
+            FileOutputStream fileOut = new FileOutputStream(serialPath);
+            GZIPOutputStream zout = new GZIPOutputStream(new BufferedOutputStream(fileOut));
+            Output out = new Output(zout);
+            Kryo kryo = new Kryo();
+            kryo.register(String.class);
+            kryo.register(TripInfoAndCount.class);
+            for(String key : hotCache.keySet()){
+                kryo.writeObject(out, key);
+                kryo.writeObject(out,hotCache.get(key));
+                if(counter++ % 10000 == 0) {
+                    out.flush();
+                }
+                if(counter++ % 10000 == 0){
+                    log.info("Used Memory after " + counter + ": " + (runtime.totalMemory() - runtime.freeMemory()) / gb + " GB");
+                }
+            }
+            out.close();
+            zout.close();
+            fileOut.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    public void deserializeHotCacheKryo(String serialPath){
+        try {
+            FileInputStream fileIn = new FileInputStream(serialPath);
+            GZIPInputStream zin = new GZIPInputStream(fileIn);
+            Input in = new Input(zin);
+            Kryo kryo = new Kryo();
+            while(!in.eof()) {
+                String key = (String) kryo.readObject(in,String.class);
+                TripInfoAndCount tripInfoAndCount = (TripInfoAndCount) kryo.readObject(in,TripInfoAndCount.class);
+                hotCache.put(key, tripInfoAndCount);
+                hotCacheUtilization.put(tripInfoAndCount.count,key);
+            }
+            in.close();
+            zin.close();
+            fileIn.close();
+        } catch (Exception e) {
+            log.warn("In Memory Cache not loaded from: "+serialPath);
+            e.printStackTrace();
+        }
+    }
+    public String toString(){
+        return "In-Memory Cache contains "+hotCache.size()+" trips.";
+    }
+
+}
