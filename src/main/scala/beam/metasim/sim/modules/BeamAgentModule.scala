@@ -31,7 +31,6 @@ object BeamAgentModule {
 class BeamAgentModule extends AbstractModule with AkkaGuiceSupport with ScalaModule {
   override def configure(): Unit = {
     bind[ActorSystem].toProvider[ActorSystemProvider].asEagerSingleton()
-//    bind[BeamAgentScheduler].asEagerSingleton()
     bind[MetasimServices].asEagerSingleton()
   }
 }

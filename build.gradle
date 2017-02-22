@@ -43,6 +43,8 @@ repositories {
     maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
     maven { url "http://dl.bintray.com/andimarek/graphql-java" }
     maven { url "http://maven.geo-solutions.it" }
+    maven {url "http://dl.bintray.com/scalaz/releases"}
+
     jcenter()
     maven { url "https://jitpack.io" }
 }
@@ -108,25 +110,33 @@ dependencies {
     // Scala dependencies
     /////////////////////////////////
 
-    compile 'org.scala-lang:scala-library:2.11.8'
+    compile 'org.scala-lang:scala-library:2.12.0'
     // https://mvnrepository.com/artifact/org.scala-lang/scala-xml
     compile group: 'org.scala-lang', name: 'scala-xml', version: '2.11.0-M4'
     // https://mvnrepository.com/artifact/org.scalatest/scalatest_2.11
-    compile group: 'org.scalatest', name: 'scalatest_2.11', version: '3.0.1'
-    // https://mvnrepository.com/artifact/com.typesafe.akka/akka-testkit_2.11
-    compile 'net.codingwell:scala-guice_2.11:4.1.0'
-    compile 'com.github.carueda:tscfg:v0.8.0'
+    compile group: 'org.scalatest', name: 'scalatest_2.12', version: '3.0.1'
+//    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
+    compile 'net.codingwell:scala-guice_2.12:4.1.0'  // DI
+    compile 'com.github.carueda:tscfg:v0.8.0'  // config
 
+    /////////////
+    // Akka
+    ////////////
 
-    // Akka //
-    compile group: 'com.typesafe.akka', name: 'akka-testkit_2.11', version: '2.4.16'
-    compile group: 'com.typesafe.akka', name: 'akka-actor_2.11', version: '2.4.16'
-    compile group: 'com.typesafe.akka', name: 'akka-persistence_2.11', version: '2.4.16'
-    compile group: 'com.typesafe.akka', name: 'akka-remote_2.11', version: '2.4.16'
+    // CORE Akka //
+    compile group: 'com.typesafe.akka', name: 'akka-testkit_2.12', version: '2.4.16'
+    compile group: 'com.typesafe.akka', name: 'akka-actor_2.12', version: '2.4.16'
+    compile group: 'com.typesafe.akka', name: 'akka-persistence_2.12', version: '2.4.16'
+    compile group: 'com.typesafe.akka', name: 'akka-remote_2.12', version: '2.4.16'
+    compile group: 'com.typesafe.akka', name: 'akka-cluster_2.12', version: '2.4.16'
+    compile group: 'com.typesafe.akka', name: 'akka-contrib_2.12', version: '2.4.16'
     compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
+
+    // 3rd PARTY //
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.7'
     compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
+    compile 'tv.cntt:glokka_2.12:2.4.0'  // Actor registry
 
 
 }
@@ -159,7 +169,6 @@ shadowJar {
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////
-import de.undercouch.gradle.tasks.download.Download
 task generateConfig {
   doLast {
     if(!project.file('build/tscfg-0.8.0.jar').exists()){
@@ -172,7 +181,7 @@ task generateConfig {
       main="-jar";
       args = [
 	      "build/tscfg-0.8.0.jar",
-	      "--spec","src/main/resources/config-template.conf",
+	      "--spec","src/main/resources/config-main.conf",
 	      "--scala",
 	      "--pn","beam.metasim.config",
 	      "--cn","BeamConfig",

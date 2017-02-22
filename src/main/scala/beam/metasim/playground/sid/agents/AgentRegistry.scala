@@ -1,15 +1,15 @@
 package beam.metasim.playground.sid.agents
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.event.Logging
+import akka.actor.{Actor, ActorRef, Props}
 import beam.metasim.agents.BeamAgentProtocol.{CreatePersonAgents, PersonAgentCreated}
 import beam.metasim.agents.PersonAgent
-import beam.metasim.playground.sid.events.EventsSubscriber
+import org.apache.commons.math3.genetics.Population
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import scala.collection.mutable
-import scala.reflect.ClassTag
+
+
 
 /**
   * A creator AND manager of agents.
@@ -25,18 +25,13 @@ import scala.reflect.ClassTag
   * XXXX: This is a service and may be abstracted
   * Created by sfeygin on 2/13/17.
   */
-trait BeamAgentSecretary[T]
+object AgentRegistry {
 
-object AbstractRegistry{
-  def start[T:ClassTag](system: ActorSystem): ActorRef = {
-    val log = Logging.getLogger(system, this)
-    //    log.info(s"""Starting ${typeTag[T]} secretary""")
-
-    system.actorOf(Props(implicitly[ClassTag[T]].runtimeClass))
-  }
 }
 
-class PersonAgentSecretary[T<:EventsSubscriber](val simManager: ActorRef, val eventsSubscribers: List[T]) extends Actor {
+
+
+class AgentRegistry (population:Population) extends Actor {
 
   // Holds map of MATSim agent IDs -> ActorRefs. If missing, will need to recreate.
   val agents = mutable.Map.empty[Id[Person], ActorRef]
@@ -48,9 +43,12 @@ class PersonAgentSecretary[T<:EventsSubscriber](val simManager: ActorRef, val ev
       // monitor agent for death
       context.watch(ref)
     case request: CreatePersonAgents =>
-      request.ids foreach { id => {
-        agents.getOrElseUpdate(id, context.actorOf(Props(classOf[PersonAgent], id)))
-      }
+      request.ids foreach { id =>
+        {
+          agents.getOrElseUpdate(
+            id,
+            context.actorOf(Props(classOf[PersonAgent], id)))
+        }
       }
   }
 }

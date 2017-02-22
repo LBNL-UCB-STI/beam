@@ -1,9 +1,10 @@
 package beam.metasim.sim
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorSystem}
 import beam.metasim.agents._
 import beam.metasim.akkaguice.ActorInject
 import com.google.inject.{Inject, Injector, Singleton}
+import glokka.Registry
 import org.matsim.core.controler.MatsimServices
 
 /**
@@ -13,4 +14,5 @@ import org.matsim.core.controler.MatsimServices
 case class MetasimServices @Inject()(protected val injector: Injector) extends ActorInject {
   val schedulerRef: ActorRef = injectTopActor[BeamAgentScheduler]
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
+  val actorRegistry:ActorRef=Registry.start(injector.getInstance(classOf[ActorSystem]),"actor-registry")
 }

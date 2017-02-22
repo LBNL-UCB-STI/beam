@@ -32,6 +32,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("beam-actor-system"))
         personAgentRef.stateName should be(ChoosingMode)
         personAgentRef.stateData.data.currentPlanElement should be(workActivity)
       }
+    it("should be able to get from registry"){
+
+    }
   }
 
 }
