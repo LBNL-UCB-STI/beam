@@ -1,10 +1,6 @@
 package beam.sim.traveltime;
 
 import beam.EVGlobalData;
-import com.datastax.driver.core.*;
-import com.datastax.driver.core.exceptions.NoHostAvailableException;
-import com.datastax.driver.core.exceptions.ReadFailureException;
-import com.datastax.driver.core.exceptions.ReadTimeoutException;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.*;
 import com.google.common.collect.TreeMultimap;
@@ -13,6 +9,7 @@ import org.matsim.core.utils.collections.Tuple;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.sql.*;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.zip.GZIPInputStream;
@@ -24,9 +21,8 @@ import java.util.zip.GZIPOutputStream;
 public class TripInfoCache {
     private static final Logger log = Logger.getLogger(TripInfoCache.class);
 
-    public Cluster cluster;
-    public Session session;
-    public Boolean useCassandra = true;
+    public Connection connection;
+    public Boolean useDB = true;
     public Kryo kryo;
     public int maxNumTrips;
     public LinkedHashMap<String, TripInfoAndCount> hotCache = new LinkedHashMap<>() ;
@@ -38,14 +34,18 @@ public class TripInfoCache {
     public TripInfoCache() {
         maxNumTrips = EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
         try {
+            Class.forName("org.postgresql.Driver");
+            connection = DriverManager.getConnection("jdbc:postgresql://localhost/beam", "beam", "");
+            /*
             cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
             session = cluster.connect("beam");
             log.info("Successfully connect to cassandra db");
-        }catch(IllegalArgumentException | NoHostAvailableException e){
-            log.warn("No cassandra host found, proceeding without Tier 2 route cache. Cassandra connection message: " + e.getMessage());
-            useCassandra = false;
+            */
+        } catch (SQLException | ClassNotFoundException e) {
+            log.warn("No postgres host found, proceeding without Tier 2 route cache. psql connection message: " + e.getMessage());
+            useDB = false;
         }
-        if(useCassandra){
+        if(useDB){
             kryo = new Kryo();
             kryo.register(TripInfoAndCount.class, 0);
         }
@@ -58,7 +58,7 @@ public class TripInfoCache {
             tripAndCount.count++;
             hotCacheUtilization.put(tripAndCount.count,key);
             foundTrip = tripAndCount.tripInfo;
-        }else if(useCassandra){
+        }else if(useDB){
             TripInfoAndCount tripAndCount = readFromTable(key);
             if(tripAndCount!=null && hotCache.size()<maxNumTrips){
                 tripAndCount.count++;
@@ -81,7 +81,7 @@ public class TripInfoCache {
                 for(String key : hotCacheUtilization.get(utilizationCount)){
                     removedKeys.add(new Tuple<Integer, String>(utilizationCount,key));
                     TripInfoAndCount tripAndCount = hotCache.get(key);
-                    if(useCassandra) {
+                    if(useDB) {
                         insertIntoTable(key, tripAndCount);
                     }
                     hotCache.remove(key);
@@ -103,33 +103,54 @@ public class TripInfoCache {
         }
     }
     public void insertIntoTable(String key, TripInfoAndCount theTrip) {
-        PreparedStatement statement = session.prepare("INSERT INTO beam.trips (key,trip) VALUES (?, ?)");
-        BoundStatement boundStatement = new BoundStatement(statement);
         kryo.writeObject(output,theTrip);
         output.flush();
-        session.execute(boundStatement.bind(key, ByteBuffer.wrap(outputStream.toByteArray())));
 
+        //TODO if we are using Postgres 9.5, we can do a single UPSERT statement to avoid the hideousness below
         try {
+            PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) AS n FROM trips WHERE key = ?");
+            preparedStatement.setString(1, key);
+            ResultSet result = preparedStatement.executeQuery();
+            result.next();
+            if(result.getInt(1) == 1){
+                PreparedStatement statement = connection.prepareStatement("UPDATE trips SET trip = ? WHERE key = ?");
+                statement.setBytes(1, outputStream.toByteArray());
+                statement.setString(2, key);
+                statement.executeUpdate();
+                statement.close();
+            }else {
+                PreparedStatement statement = connection.prepareStatement("INSERT INTO trips (key,trip) VALUES (?, ?) ");
+                statement.setString(1, key);
+                statement.setBytes(2, outputStream.toByteArray());
+                statement.executeUpdate();
+                statement.close();
+            }
+            preparedStatement.close();
             outputStream.flush();
-        } catch (IOException e) {
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
     }
     public TripInfoAndCount readFromTable(String key) {
-        String query = "SELECT trip FROM beam.trips WHERE key = '"+key+"';";
-        ResultSet result = null;
-        try {
-            result = session.execute(query);
-        }catch(ReadTimeoutException | ReadFailureException e){
+
+        try{
+            PreparedStatement preparedStatement = connection.prepareStatement("SELECT trip FROM trips WHERE key = ?");
+            preparedStatement.setString(1, key);
+            ResultSet result = preparedStatement.executeQuery();
+            if(result.next()){
+                byte[] tripBytes = result.getBytes(1);
+                ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(tripBytes);
+                Input input = new Input(byteArrayInputStream, tripBytes.length);
+                TripInfoAndCount theTrip = (TripInfoAndCount) kryo.readObject(input,TripInfoAndCount.class);
+                result.close();
+                preparedStatement.close();
+                return theTrip;
+            }
+            result.close();
+            preparedStatement.close();
+        }catch(SQLException e){
             log.warn(e.getMessage());
             return(null);
-        }
-        if(result.iterator().hasNext()) {
-            ByteBuffer data = result.one().getBytes("trip");
-            ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(data.array());
-            Input input = new Input(byteArrayInputStream, data.array().length);
-            TripInfoAndCount theTrip = (TripInfoAndCount) kryo.readObject(input,TripInfoAndCount.class);
-            return theTrip;
         }
         return null;
     }
@@ -183,6 +204,7 @@ public class TripInfoCache {
             log.warn("In Memory Cache not loaded from: "+serialPath);
             e.printStackTrace();
         }
+        if(hotCache.size()>=maxNumTrips)flushHotCache();
     }
     public String toString(){
         return "In-Memory Cache contains "+hotCache.size()+" trips.";
