@@ -63,8 +63,9 @@ public class BeamPersonAgent extends UntypedActor {
 			}
 
 			// TODO: add randomness
-			double arrivalTime = 3600;
+			double arrivalTime = message.getTime() + 3600;
 
+			//sendAckMessageSingleTriggerAttached(message,null);
 			sendAckMessageSingleTriggerAttached(message,new DestinationAreaApproachingMessage(getSelf(), arrivalTime, 0));
 			
 		} else if (message instanceof DestinationAreaApproachingMessage) {
@@ -101,7 +102,7 @@ public class BeamPersonAgent extends UntypedActor {
 		if (message instanceof TriggerMessage) {
 			onReceive((TriggerMessage) message);
 		} else if (message instanceof IgnoreMessage) {
-			System.out.println();
+			//System.out.println();
 		} else {
 			DebugLib.stopSystemAndReportInconsistency("unexpected message type received:" + message);
 		}

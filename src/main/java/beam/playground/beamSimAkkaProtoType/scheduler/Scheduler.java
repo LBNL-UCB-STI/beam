@@ -61,12 +61,20 @@ public class Scheduler extends UntypedActor {
 			triggers.add((TriggerMessage) message);
 		}else if (message instanceof TriggerAckMessage) {
 			TriggerAckMessage triggerAckMessage = (TriggerAckMessage) message;
-			numberOfResponsesPending.decrement(GlobalLibAndConfig.getTick(triggerAckMessage.getTime()));
+			processTriggerAck(triggerAckMessage);
 			scheduleTriggerMessage(triggerAckMessage);
 			tryToMoveWindowForward();
 		} else {
 			DebugLib.stopSystemAndReportInconsistency("unexpected message type received:" + message);
 		}
+	}
+
+	private void processTriggerAck(TriggerAckMessage triggerAckMessage) {
+		if (GlobalLibAndConfig.getTick(triggerAckMessage.getTime())<getWindowStartTick()){
+			DebugLib.stopSystemAndReportInconsistency("ack message received, which was before window start:" + triggerAckMessage);
+		}
+		
+		numberOfResponsesPending.decrement(GlobalLibAndConfig.getTick(triggerAckMessage.getTime()));
 	}
 
 	private void scheduleTriggerMessage(TriggerAckMessage triggerAckMessage) {
@@ -96,11 +104,12 @@ public class Scheduler extends UntypedActor {
 	}
 
 	private void tryToMoveWindowForward() {
+		
+		
 		for (int i = getWindwStartTick(); i <= getLastWindowTick(); i++) {
 			if (numberOfResponsesPending.get(i) == 0) {
-				setWindowStartTick(i);
-				
 				sendTriggerMessagesWithinWindow();
+				setWindowStartTick(i);
 			} else {
 				break;
 			}
@@ -114,13 +123,20 @@ public class Scheduler extends UntypedActor {
 
 	private void detectIfSimulationEndReached() {
 		if (triggers.size()==0){
+			log.info("getNumberOfPendingAckMessages():"+getNumberOfPendingAckMessages());
 			simulationEndReached=true;
 			for (int i = getWindwStartTick(); i <= getLastWindowTick(); i++) {
 				if (numberOfResponsesPending.get(i) != 0) {
+					
 					simulationEndReached=false;
 					break;
 				}
 			}
+		}
+		
+		
+		if (simulationEndReached){
+			log.info("end of simulation reached");
 		}
 	}
 
@@ -129,6 +145,7 @@ public class Scheduler extends UntypedActor {
 			TriggerMessage trigger = triggers.poll();
 			trigger.getAgentRef().tell(trigger, getSelf());
 			numberOfResponsesPending.increment(GlobalLibAndConfig.getTick(trigger.getTime()));
+			//consistencyCheck_noOpenAckMessageAllowedBeforeWindowStart();
 		}
 	}
 
@@ -142,5 +159,15 @@ public class Scheduler extends UntypedActor {
 
 	public void setWindowStartTick(int windowStartTick) {
 		this.windowStartTick = windowStartTick;
+	}
+	
+	public int getNumberOfPendingAckMessages(){
+		int numberOfPendingAckMessages=0;
+		
+		for (int i = 0; i < getLastWindowTick(); i++) {
+			numberOfPendingAckMessages+=numberOfResponsesPending.get(i);
+		}
+		
+		return numberOfPendingAckMessages;
 	}
 }
