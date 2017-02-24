@@ -35,7 +35,7 @@ public class TripInfoCache {
         maxNumTrips = EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
         try {
             Class.forName("org.postgresql.Driver");
-            connection = DriverManager.getConnection("jdbc:postgresql://localhost/beam", "beam", "");
+            connection = DriverManager.getConnection("jdbc:postgresql://scidb1.nersc.gov/beam", "beam_admin", System.getenv("PSQL_PASS"));
             /*
             cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
             session = cluster.connect("beam");
