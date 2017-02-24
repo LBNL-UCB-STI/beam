@@ -1,6 +1,7 @@
 package beam.playground.beamSimAkkaProtoType.scheduler;
 
 import java.util.LinkedList;
+import java.util.List;
 
 import akka.actor.ActorRef;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
@@ -55,8 +56,18 @@ public class TriggerMessage implements Comparable<TriggerMessage> {
 		}
 	}
 	
-	public void sendAckMessage(ActorRef scheduler, ActorRef sender, LinkedList<TriggerMessage> nextTriggerMessages){
+	public void sendAckMessageListOfTriggersAttached(ActorRef scheduler, ActorRef sender, LinkedList<TriggerMessage> nextTriggerMessages){
 		scheduler.tell(new TriggerAckMessage(getTriggerId(),getTime(),nextTriggerMessages),sender);
+	}
+	
+	public void sendAckMessageSingleTriggerAttached(ActorRef scheduler, ActorRef sender, TriggerMessage nextTriggerMessage){
+		LinkedList list=null;
+		if (nextTriggerMessage!=null){
+			list=new LinkedList();
+			list.add(nextTriggerMessage);
+		}
+		
+		sendAckMessageListOfTriggersAttached(scheduler,sender, list);
 	}
 	
 }

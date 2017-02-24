@@ -11,17 +11,30 @@ import org.matsim.core.mobsim.jdeqsim.Message;
 import com.google.common.collect.SortedSetMultimap;
 import com.google.common.collect.TreeMultimap;
 
+import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.actor.UntypedActor;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
 import beam.parking.lib.DebugLib;
 import beam.parking.lib.obj.IntegerValueHashMap;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActivityEndMessage;
+import beam.playground.beamSimAkkaProtoType.beamPersonAgent.BeamPersonAgent;
 
 public class Scheduler extends UntypedActor {
+	
+	LoggingAdapter log = Logging.getLogger(getContext().system(), this);
+	
 	private PriorityQueue<TriggerMessage> triggers = new PriorityQueue<TriggerMessage>();
 	IntegerValueHashMap<Integer> numberOfResponsesPending = new IntegerValueHashMap();
 	// key: tick, value: number of pending messages in that tick
-	int lastWindowTick;
+	
+	
+	//private int lastWindowTick;
+	
+	private int windowStartTick;
+	
 	private int windowSizeInTicks=GlobalLibAndConfig.getWindowSizeInTicks();
 	
 	boolean simulationEndReached;
@@ -29,18 +42,19 @@ public class Scheduler extends UntypedActor {
 
 
 	public Scheduler(Population population) {
-		for (Person plan:population.getPersons().values()){
-			Activity act=(Activity) plan.getSelectedPlan().getPlanElements().get(0);
+		for (Person person:population.getPersons().values()){
+			Activity act=(Activity) person.getSelectedPlan().getPlanElements().get(0);
 			double actEndTime=act.getEndTime();
-			triggers.add(new ActivityEndMessage(getSelf(),actEndTime,0));
+			ActorRef personRef = getContext().actorOf(Props.create(BeamPersonAgent.class,person.getSelectedPlan()));
+			
+			triggers.add(new ActivityEndMessage(personRef,actEndTime,0));
 		}
-		lastWindowTick=GlobalLibAndConfig.getTick(triggers.peek().getTime())+windowSizeInTicks;
 		
+		setWindowStartTick(GlobalLibAndConfig.getTick(triggers.peek().getTime()));
 	}
 
 	@Override
 	public void onReceive(Object message) throws Throwable {
-
 		if (message instanceof StartSimulationMessage) {
 			sendTriggerMessagesWithinWindow();
 		} else if (message instanceof TriggerMessage) {
@@ -59,31 +73,39 @@ public class Scheduler extends UntypedActor {
 		// it is important to allow scheduling next message together with triggerAckMessage, as otherwise
 		// we might have unprocessed messages outside (before) the window start, which are still not triggered/acknowledged
 		if (triggerAckMessage.getNextTriggerMessageToSchedule()!=null){
-			triggers.addAll(triggerAckMessage.getNextTriggerMessageToSchedule());
+			for (TriggerMessage triggerMessage:triggerAckMessage.getNextTriggerMessageToSchedule()){
+				try{
+				triggers.add(triggerMessage);
+				} catch (RuntimeException e){
+					System.out.println(e.getMessage());
+				}
+			}
 		}
 	}
 
 	private void consistencyCheck_noOpenAckMessageAllowedBeforeWindowStart() {
-		for (int i = 0; i < lastWindowTick - windowSizeInTicks; i++) {
+		for (int i = 0; i < getWindwStartTick(); i++) {
 			if (numberOfResponsesPending.get(i) != 0) {
 				DebugLib.stopSystemAndReportInconsistency("no missing ack messages allowed before window start!");
 			}
 		}
 	}
 
+	private int getWindwStartTick() {
+		return getLastWindowTick() - windowSizeInTicks;
+	}
+
 	private void tryToMoveWindowForward() {
-		int currenWindowsTick = lastWindowTick;
-		for (int i = lastWindowTick - windowSizeInTicks; i <= lastWindowTick; i++) {
+		for (int i = getWindwStartTick(); i <= getLastWindowTick(); i++) {
 			if (numberOfResponsesPending.get(i) == 0) {
-				lastWindowTick = currenWindowsTick + i;
+				setWindowStartTick(i);
+				
+				sendTriggerMessagesWithinWindow();
 			} else {
 				break;
 			}
 		}
 
-		if (lastWindowTick > currenWindowsTick) {
-			sendTriggerMessagesWithinWindow();
-		}
 		
 		detectIfSimulationEndReached();
 
@@ -93,7 +115,7 @@ public class Scheduler extends UntypedActor {
 	private void detectIfSimulationEndReached() {
 		if (triggers.size()==0){
 			simulationEndReached=true;
-			for (int i = lastWindowTick - windowSizeInTicks; i <= lastWindowTick; i++) {
+			for (int i = getWindwStartTick(); i <= getLastWindowTick(); i++) {
 				if (numberOfResponsesPending.get(i) != 0) {
 					simulationEndReached=false;
 					break;
@@ -103,10 +125,22 @@ public class Scheduler extends UntypedActor {
 	}
 
 	private void sendTriggerMessagesWithinWindow() {
-		while (triggers.peek().getTime() < GlobalLibAndConfig.getTime(lastWindowTick)) {
+		while (triggers.size()>0 && triggers.peek().getTime() <= GlobalLibAndConfig.getTime(getLastWindowTick())) {
 			TriggerMessage trigger = triggers.poll();
 			trigger.getAgentRef().tell(trigger, getSelf());
 			numberOfResponsesPending.increment(GlobalLibAndConfig.getTick(trigger.getTime()));
 		}
+	}
+
+	public int getLastWindowTick() {
+		return getWindowStartTick()+windowSizeInTicks-1;
+	}
+
+	public int getWindowStartTick() {
+		return windowStartTick;
+	}
+
+	public void setWindowStartTick(int windowStartTick) {
+		this.windowStartTick = windowStartTick;
 	}
 }

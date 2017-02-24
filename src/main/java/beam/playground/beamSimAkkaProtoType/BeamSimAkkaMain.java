@@ -38,6 +38,7 @@ public class BeamSimAkkaMain {
 		JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
 		
 		ActorSystem system = ActorSystem.create("AgentSim");
+		
 		ActorRef scheduler = system.actorOf(Props.create(Scheduler.class,scenario.getPopulation()));
         
 		scheduler.tell(new StartSimulationMessage(), ActorRef.noSender());
