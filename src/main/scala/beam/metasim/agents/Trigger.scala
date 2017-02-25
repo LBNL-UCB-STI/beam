@@ -7,6 +7,7 @@ import scala.math.Ordered.orderingToOrdered
 class TriggerData(val agent: ActorRef, val tick: Double, val priority: Int = 0, var id: Int = 0)
 {
   require(tick>=0, "Negative timestamps not supported!")
+  def ack(to: ActorRef): Unit ={ to ! this}  // Convenience method to simplify responding
 }
 
 abstract class Trigger() extends Ordered[Trigger] {
@@ -19,4 +20,5 @@ abstract class Trigger() extends Ordered[Trigger] {
 }
 case class Initialize(override val triggerData: TriggerData) extends Trigger
 case class Transition(override val triggerData: TriggerData) extends Trigger
+
 

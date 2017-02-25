@@ -29,25 +29,27 @@ class PersonAgentSpec extends TestKit(ActorSystem("beam-actor-system"))
 
     it("should allow scheduler to set the first activity") {
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), PersonAgentData(homeActivity)))
+      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+      val data = PersonData(Vector(homeActivity, workActivity), 0)
+
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
-      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
       beamAgentSchedulerRef ! Initialize(new TriggerData(personAgentRef, 0.0))
-
-      beamAgentSchedulerRef ! DepartActivity(new TriggerData(personAgentRef, 1.0), homeActivity)
-      beamAgentSchedulerRef ! DepartActivity(new TriggerData(personAgentRef, 10.0), workActivity)
-      beamAgentSchedulerRef ! StartSchedule(stopTick = 10.0, maxWindow = 10.0)
+      beamAgentSchedulerRef ! ActivityStartTrigger(new TriggerData(personAgentRef, 1.0))
+      beamAgentSchedulerRef ! ActivityEndTrigger(new TriggerData(personAgentRef, 10.0))
+      beamAgentSchedulerRef ! StartSchedule(stopTick = 11.0, maxWindow = 10.0)
 
       personAgentRef.stateName should be(ChoosingMode)
-      personAgentRef.stateData.data.currentPlanElement should be(workActivity)
+      personAgentRef.stateData.data.getCurrentActivity should be(workActivity)
     }
 
     it("should be able to be registered in registry") {
       val registry = Registry.start(this.system, "actor-registry")
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val name = "0"
-      val props = Props(classOf[PersonAgent], Id.createPersonId(name), PersonAgentData(homeActivity))
+      val data = PersonData(Vector(homeActivity), 0)
+      val props = Props(classOf[PersonAgent], Id.createPersonId(name), data)
       val future = registry ? Registry.Register(name, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Created]

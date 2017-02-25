@@ -20,6 +20,11 @@ object BeamAgent {
     override def identifier = "Initialized"
   }
 
+  case object Finished extends BeamAgentState {
+    override def identifier = "Finished"
+  }
+
+
   case object Error extends BeamAgentState {
     override def identifier: String = s"Error!"
   }
@@ -57,22 +62,27 @@ sealed trait MemoryEvent extends Event
 trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]] {
 
   def id: Id[_]
+
   def data: T
 
-  startWith(Uninitialized, BeamAgentInfo[T](id,data))
+  startWith(Uninitialized, BeamAgentInfo[T](id, data))
+
   // Possible long-running process.
   def currentTask: Option[Cancellable] = None
 
   when(Uninitialized) {
-    case Event(Initialize(trigger), _) =>
-      sender() ! CompletionNotice(trigger)
-      goto(Initialized)
+    case Event(Initialize(data), _) =>
+      goto(Initialized) replying CompletionNotice(data)
   }
 
   when(Initialized) {
-    case Event(Transition(trigger), _) =>
-      sender() ! CompletionNotice(trigger)
-      stay()
+    case Event(Transition(data), _) =>
+      stay() replying CompletionNotice(data)
+  }
+
+  when(Finished) {
+    case Event(StopEvent, _) =>
+      stop()
   }
 
   when(Error) {
@@ -85,6 +95,8 @@ trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]
       log.error(s"Unhandled event: $id")
       stay()
   }
+
+
 
   // Used to ensure that any long-running, potentially asynchronous process does not
   // need to return its value before the actor can be restarted.

@@ -1,10 +1,13 @@
 package beam.metasim.agents
 
+import beam.metasim.agents.AgentSpecialization.MobileAgent
 import beam.metasim.agents.BeamAgent._
 import beam.metasim.agents.PersonAgent._
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
+import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
+
+import scala.reflect.ClassTag
 
 /**
   * Created by sfeygin on 2/6/17.
@@ -12,21 +15,45 @@ import org.slf4j.LoggerFactory
 object PersonAgent {
 
 
-  case class PersonAgentData(currentPlanElement: PlanElement) extends BeamAgentData
+  object PersonData {
+    import scala.collection.JavaConverters._
+    /**
+      * `PersonData` factory method to assist in  creating `PersonData`
+      *
+      * @param plan : The plan having at least some `Activities`
+      * @return `PersonData`
+      */
+    def apply(plan: Plan) = new PersonData(planToVec(plan), 0)
 
-  trait InActivity extends BeamAgentState
+    def planToVec(plan: Plan): Vector[Activity] = {
+      scala.collection.immutable.Vector.empty[Activity]++plan.getPlanElements.asScala.filter(p=>p.isInstanceOf[Activity]).map(p=>p.asInstanceOf[Activity])
+    }
+  }
+
+
+  case class PersonData(activityChain: Vector[Activity], currentActivity: Int) extends BeamAgentData {
+    val getCurrentActivity: Activity = {
+      activityChain(currentActivity)
+    }
+    def inc: Int = currentActivity + 1
+  }
+
+
+
+
+  sealed trait InActivity extends BeamAgentState
 
   case object PerformingActivity extends InActivity {
     override def identifier = "Performing an Activity"
   }
 
-  trait Traveling extends BeamAgentState
+  sealed trait Traveling extends BeamAgentState
 
   case object ChoosingMode extends Traveling {
     override def identifier = "Choosing travel mode"
   }
 
-  case object Driving extends Traveling{
+  case object Driving extends Traveling {
     override def identifier = "Driving"
   }
 
@@ -38,45 +65,45 @@ object PersonAgent {
     override def identifier = "On public transit"
   }
 
-  case class InitActivity(override val triggerData: TriggerData, nextActivity: PlanElement) extends Trigger
+  case class ActivityStartTrigger(override val triggerData: TriggerData) extends Trigger
 
-  case class SelectRoute(override val triggerData: TriggerData) extends Trigger
+  case class SelectRouteTrigger(override val triggerData: TriggerData) extends Trigger
 
-  case class DepartActivity(override val triggerData: TriggerData, nextActivity: Activity) extends Trigger
+  case class ActivityEndTrigger(override val triggerData: TriggerData) extends Trigger
 
 }
 
 
 // Agents initialized stateless w/out knowledge of their plan. This is sent to them by parent actor.
-class PersonAgent (override val id:Id[PersonAgent], override val data: PersonAgentData) extends BeamAgent[PersonAgentData] {
-
+class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with MobileAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
-  when(Initialized){
-    case Event(DepartActivity(newData,nextActivity),info:BeamAgentInfo[PersonAgentData])=>
-      sender() ! CompletionNotice(newData)
-      goto(PerformingActivity) using info.copy(id, PersonAgentData(nextActivity))
+  when(Initialized) {
+    case Event(ActivityStartTrigger(newData), info: BeamAgentInfo[PersonData]) =>
+      goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(newData)
   }
 
   when(PerformingActivity) {
     // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
-    case Event(DepartActivity(newData, nextActivity), info:BeamAgentInfo[PersonAgentData]) =>
-      sender() ! CompletionNotice(newData)
-      goto(ChoosingMode) using info.copy(id, PersonAgentData(nextActivity))
+    case Event(ActivityEndTrigger(newData), info: BeamAgentInfo[PersonData]) =>
+      goto(ChoosingMode) using info.copy(id, PersonData(info.data.activityChain, info.data.inc)) replying CompletionNotice(newData)
   }
 
   when(ChoosingMode) {
-    case Event(SelectRoute(newData), info: BeamAgentInfo[PersonAgentData]) => {
+    case Event(SelectRouteTrigger(newData), info: BeamAgentInfo[PersonData]) => {
       stay()
     }
   }
 
 
   onTransition {
-    case Uninitialized -> PerformingActivity => logger.debug("From init state to first activity")
-    case PerformingActivity -> ChoosingMode => logger.debug("From activity to traveling")
-    case ChoosingMode -> PerformingActivity => logger.debug("From traveling to activity")
+    case Uninitialized -> Initialized => logger.info("From uninitialized state to init state")
+    case Initialized -> PerformingActivity => logger.info(s"From init state to ${data.getCurrentActivity.getType}")
+    case PerformingActivity -> ChoosingMode => logger.info(s"From ${data.getCurrentActivity.getType} to mode choice")
+    case ChoosingMode -> PerformingActivity => logger.info(s"From mode choice to ${data.getCurrentActivity.getType}")
   }
 
+  override def getLocation: Coord = stateData.data.getCurrentActivity.getCoord
 
+  override def hasVehicleAvailable(vehicleType: ClassTag[_]): Boolean = ???
 }

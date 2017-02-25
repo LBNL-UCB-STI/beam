@@ -6,9 +6,9 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.metasim.agents.PersonAgent
-import beam.metasim.agents.PersonAgent.PersonAgentData
+import beam.metasim.agents.PersonAgent.PersonData
 import beam.metasim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
-import beam.metasim.playground.sid.events.{EventsSubscriber, MetaSimEventsBus}
+import beam.metasim.playground.sid.events.{EventsSubscriber, MetasimEventsBus}
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import glokka.Registry
@@ -31,7 +31,7 @@ class Metasim @Inject()(private val actorSystem: ActorSystem,
                         private val config: Config
                        ) extends StartupListener with IterationStartsListener with ShutdownListener {
 
-  val metaSimEventsBus = new MetaSimEventsBus
+  val metaSimEventsBus = new MetasimEventsBus
   val registry: ActorRef = services.actorRegistry
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
@@ -45,7 +45,8 @@ class Metasim @Inject()(private val actorSystem: ActorSystem,
     metaSimEventsBus.subscribe(eventSubscriber, "/metasim_events/travel_events")
     var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     for ((k, v) <- popMap) {
-      val props = Props(classOf[PersonAgent], k, PersonAgentData(v.getSelectedPlan.getPlanElements.get(0)))
+
+      val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val future = registry ? Registry.Register(k.toString, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Created]

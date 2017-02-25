@@ -3,7 +3,7 @@ package beam.metasim.playground.sid.events
 import akka.actor.Actor
 import akka.event.Logging
 import beam.metasim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
-import beam.metasim.playground.sid.events.MetaSimEventsBus.MetaSimEvent
+import beam.metasim.playground.sid.events.MetasimEventsBus.MetaSimEvent
 import org.matsim.core.api.experimental.events.EventsManager
 
 object EventsSubscriber{

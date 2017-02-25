@@ -2,18 +2,20 @@ package beam.metasim.playground.sid.events
 
 import akka.actor.ActorRef
 import akka.event.{ActorEventBus, LookupClassification}
-import beam.metasim.playground.sid.events.MetaSimEventsBus.MetaSimEvent
+import beam.metasim.playground.sid.events.MetasimEventsBus.MetaSimEvent
 
 
 /**
   * Created by sfeygin on 2/11/17.
   */
 
-object MetaSimEventsBus{
+object MetasimEventsBus{
+  case class AddEventSubscriber(ref: ActorRef)
+  case class RemoveEventSubscriber(ref: ActorRef)
   case class MetaSimEvent(topic:String, matsimEvent: org.matsim.api.core.v01.events.Event)
 }
 
-class MetaSimEventsBus extends ActorEventBus with LookupClassification {
+class MetasimEventsBus extends ActorEventBus with LookupClassification {
 
 
   override type Event = MetaSimEvent
