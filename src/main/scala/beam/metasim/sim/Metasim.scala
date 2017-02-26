@@ -30,9 +30,9 @@ class Metasim @Inject()(private val actorSystem: ActorSystem,
                         private val services: MetasimServices,
                         private val config: Config
                        ) extends StartupListener with IterationStartsListener with ShutdownListener {
+  import MetasimServices.registry
 
   val metaSimEventsBus = new MetasimEventsBus
-  val registry: ActorRef = services.actorRegistry
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   val scenario: Scenario = services.matsimServices.getScenario

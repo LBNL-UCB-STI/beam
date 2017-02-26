@@ -55,6 +55,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("beam-actor-system"))
       val ok = result.asInstanceOf[Created]
       ok.name mustEqual name
     }
+
+    it("should demonstrate a simple complete daily activity pattern"){
+
+    }
   }
 
 }

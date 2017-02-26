@@ -3,6 +3,7 @@ package beam.metasim.agents
 import beam.metasim.agents.AgentSpecialization.MobileAgent
 import beam.metasim.agents.BeamAgent._
 import beam.metasim.agents.PersonAgent._
+import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
@@ -86,6 +87,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(PerformingActivity) {
     // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
     case Event(ActivityEndTrigger(newData), info: BeamAgentInfo[PersonData]) =>
+      val msg = new ActivityEndEvent(newData.tick,Id.createPersonId(id),info.data.getCurrentActivity.getLinkId,info.data.getCurrentActivity.getFacilityId,info.data.getCurrentActivity.getType)
+      context.actorSelection("")
+      context.system.eventStream.publish(msg)
       goto(ChoosingMode) using info.copy(id, PersonData(info.data.activityChain, info.data.inc)) replying CompletionNotice(newData)
   }
 
@@ -93,6 +97,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(SelectRouteTrigger(newData), info: BeamAgentInfo[PersonData]) => {
       stay()
     }
+
+
   }
 
 
