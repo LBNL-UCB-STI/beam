@@ -363,7 +363,7 @@ public class ChargingInfrastructureManagerImpl {
 		}else{
 	    	returnValue = row[headerMap.get(columnName)];
 		}
-		return returnValue;
+		return returnValue.trim();
 	}
 
 	LinkedHashMap<Id, Vehicle> vehicleOwnerAssignment;
