@@ -15,8 +15,6 @@ import org.matsim.core.router.StageActivityTypes;
 import org.matsim.core.router.util.LeastCostPathCalculator.Path;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.facilities.Facility;
-import org.nustaq.serialization.FSTObjectInput;
-import org.nustaq.serialization.FSTObjectOutput;
 import org.opentripplanner.routing.graph.Graph;
 import org.opentripplanner.standalone.CommandLineParameters;
 import org.opentripplanner.standalone.OTPMain;
@@ -98,117 +96,6 @@ public class BeamRouterImpl extends BeamRouter {
 		return routeInformation;
 	}
 	
-	public void deserializeTravelTimeFunction(String serialPath){
-		try {
-			FileInputStream fileIn = new FileInputStream(serialPath);
-			GZIPInputStream zipIn = new GZIPInputStream(fileIn);
-			FSTObjectInput in = new FSTObjectInput(zipIn);
-//			EVGlobalData.data.travelTimeFunction = (RelaxedTravelTime)in.readObject(RelaxedTravelTime.class);
-//			EVGlobalData.data.travelTimeFunction.setLinkTravelTimes((HashMap<Integer,double[]>)in.readObject(HashMap.class));
-		    in.close();
-		    zipIn.close();
-		    fileIn.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	
-	public void serializeTravelTimeFunction(String serialPath){
-		try {
-			FileOutputStream fileOut = new FileOutputStream(serialPath);
-			GZIPOutputStream zout = new GZIPOutputStream(new BufferedOutputStream(fileOut));
-			FSTObjectOutput out = new FSTObjectOutput(zout);
-//		    out.writeObject( EVGlobalData.data.travelTimeFunction, RelaxedTravelTime.class );
-//		    out.writeObject( EVGlobalData.data.travelTimeFunction.getLinkTravelTimes(), HashMap.class );
-		    out.close();
-		    zout.close();
-			fileOut.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	public void serializeRouterCacheKryo(String serialPath){
-		try {
-			FileOutputStream fileOut = new FileOutputStream(serialPath);
-			GZIPOutputStream zout = new GZIPOutputStream(new BufferedOutputStream(fileOut));
-			Output out = new Output(zout);
-			Kryo kryo = new Kryo();
-//			kryo.writeClassAndObject(out, EVGlobalData.data.tripInformationCache);
-			out.close();
-			zout.close();
-			fileOut.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	public void deserializeRouterCacheKryo(String serialPath){
-		try {
-			FileInputStream fileIn = new FileInputStream(serialPath);
-			GZIPInputStream zin = new GZIPInputStream(fileIn);
-			Input in = new Input(zin);
-			Kryo kryo = new Kryo();
-//			EVGlobalData.data.tripInformationCache = (LinkedHashMap<String,TripInformation>)kryo.readClassAndObject(in);
-			in.close();
-			zin.close();
-			fileIn.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-	public void deserializeRouterCache(String serialPath){
-		deserializeRouterCacheKryo(serialPath);
-//		String serialPathBase = FilenameUtils.getFullPath(serialPath);
-//		String serialPathPrefix = FilenameUtils.getBaseName(serialPath);
-//		String serialPathExtension = FilenameUtils.getExtension(serialPath);
-//		LinkedHashMap<String,TripInformation> theCache = new LinkedHashMap<String,TripInformation>();
-//		EVGlobalData.data.tripInformationCache = theCache;
-//		try {
-//			Integer partIndex = 0, numTrips = 0, totalNumTrips = 0;
-//			Boolean breakOuter = false;
-//			FileInputStream fileIn = new FileInputStream(serialPath);
-//			GZIPInputStream zipIn = new GZIPInputStream(fileIn);
-//			FSTObjectInput in = new FSTObjectInput(zipIn);
-//			totalNumTrips = (Integer)in.readObject(Integer.class);
-//			in.close();
-//			zipIn.close();
-//			fileIn.close();
-//			while(true){
-//				fileIn = new FileInputStream(serialPathBase + serialPathPrefix + "-" + partIndex++ + "." + serialPathExtension);
-//				zipIn = new GZIPInputStream(fileIn);
-//				in = new FSTObjectInput(zipIn);
-//				for(int i=0; i<250000; i++){
-//					if(numTrips++ >= totalNumTrips){
-//						breakOuter = true;
-//						break;
-//					}
-//					String key = (String)in.readObject(String.class );
-//					theCache.put(key, (TripInformation)in.readObject(TripInformation.class));
-//				}
-//				in.close();
-//				zipIn.close();
-//				fileIn.close();
-//				if(breakOuter)break;
-//			}
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//		}
-	}
-	
-	public void serializeRouterCache(String serialPath){
-		serializeRouterCacheKryo(serialPath);
-	}
-	public TripInformation getTripInformation(double time, Link startLink, Link endLink) {
-//		String key = startLink.getId() + "---" + endLink.getId() + "---" + EVGlobalData.data.travelTimeFunction.convertTimeToBin(time);
-		getCount++;
-//		if(!EVGlobalData.data.tripInformationCache.containsKey(key)){
-			cachMiss++;
-			TripInformation newInfo = new TripInformation(time, calcRoute(startLink, endLink, time, null));
-//			synchronized (EVGlobalData.data.tripInformationCache) {
-//				EVGlobalData.data.tripInformationCache.put(key, newInfo);
-//			}
-//		}
-		return new TripInformation();
-	}
 	private TripInformation getTripInformation(double departureTime, Id<Link> fromLinkId, Id<Link> toLinkId) {
 		if(network==null)configure();
 		return getTripInformation(departureTime, network.getLinks().get(fromLinkId), network.getLinks().get(toLinkId));
