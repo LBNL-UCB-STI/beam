@@ -277,7 +277,7 @@ public class ChargingInfrastructureManagerImpl {
 					Id<ChargingPoint> pointId = Id.create(chargePointIdString, ChargingPoint.class);
 					ChargingPointImpl newPoint = new ChargingPointImpl(pointId, theSite,
 							Integer.parseInt(row[headerMap.get("numparkingspacesperpoint")]));
-					Boolean useInCalibration = Boolean.parseBoolean(row[headerMap.get("useincalibration")]);
+					Boolean useInCalibration = Boolean.parseBoolean(getValue("useincalibration",row,headerMap));
 					for (int i = 0; i < Integer.parseInt(row[headerMap.get("numplugs")].trim()); i++) {
 						ChargingPlugImpl newPlug = new ChargingPlugImpl(Id.create(plugCount++, ChargingPlug.class), newPoint,
 								chargingPlugTypeByIdMap.get(row[headerMap.get("plugtypeid")].trim()),useInCalibration);
@@ -352,6 +352,18 @@ public class ChargingInfrastructureManagerImpl {
         EVGlobalData.data.fastChargingPlugTypes.add(getChargingPlugTypeByName("CHAdeMO"));
         EVGlobalData.data.fastChargingPlugTypes.add(getChargingPlugTypeByName("Tesla-3"));
         EVGlobalData.data.fastChargingPlugTypes.add(getChargingPlugTypeByName("SAE-Combo-3"));
+	}
+
+	public String getValue(String columnName, String[] row, LinkedHashMap<String, Integer> headerMap){
+		String returnValue = "";
+	    if(!headerMap.containsKey(columnName)){
+	    	log.error("Cannot find column named \""+columnName+"\" in CSV file with header "+headerMap.keySet().toString());
+		}else if (row[headerMap.get(columnName)].startsWith("\"")) {
+            returnValue = row[headerMap.get(columnName)].substring(1, row[headerMap.get(columnName)].length() - 1);
+		}else{
+	    	returnValue = row[headerMap.get(columnName)];
+		}
+		return returnValue;
 	}
 
 	LinkedHashMap<Id, Vehicle> vehicleOwnerAssignment;
