@@ -1,7 +1,9 @@
 package beam.analysis;
 
+import beam.charging.infrastructure.ChargingInfrastructureManagerImpl;
 import beam.utils.CSVUtil;
 import beam.utils.MathUtil;
+import org.apache.log4j.Logger;
 import org.matsim.core.api.experimental.events.EventsManager;
 
 import com.google.inject.Inject;
@@ -17,6 +19,8 @@ import beam.events.EndChargingSessionEvent;
 import beam.events.EndChargingSessionEventHandler;
 import beam.events.UnplugEvent;
 import beam.events.UnplugEventHandler;
+import org.matsim.core.controler.events.BeforeMobsimEvent;
+import org.matsim.core.controler.listener.BeforeMobsimListener;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -27,7 +31,8 @@ import java.util.List;
 
 //TODO: perform test that disaggregate charging load profile is consistent with the profile in the event file
 public class ChargingLoadProfile implements BeginChargingSessionEventHandler, EndChargingSessionEventHandler,
-		DepartureChargingDecisionEventHandler, ArrivalChargingDecisionEventHandler, UnplugEventHandler {
+		DepartureChargingDecisionEventHandler, ArrivalChargingDecisionEventHandler, UnplugEventHandler, BeforeMobsimListener {
+	private static final Logger log = Logger.getLogger(ChargingLoadProfile.class);
 	private EventsManager eventsManager;
 	private FileWriter aggWriter;
 	private FileWriter disaggWriter;
@@ -44,24 +49,23 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	public ChargingLoadProfile(EventsManager eventsManager) {
 		this.eventsManager = eventsManager;
 		this.eventsManager.addHandler(this);
-		this.aggWriter = initAggFileWriter();
-		this.disaggWriter = initDisaggFileWriter();
-
-		EVGlobalData.data.scheduler.addCallBackMethod(0.0, this ,"writeChargingLoadDataToFile", 0.0, this);
 	}
 
 	/**
 	 * Initialize charging load csv file
 	 */
-	private FileWriter initAggFileWriter() {
-		//TODO This should be created in every iter directory
-		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "run0.aggregateLoadProfile.csv";
+	private FileWriter initAggFileWriter(int iteration) {
+		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator
+				+ "ITERS" + File.separator + "it." + iteration +File.separator
+				+"run0."+iteration + ".aggregateLoadProfile.csv";
 		try {
 			FileWriter writer = new FileWriter(fileName);
 			CSVUtil.writeLine(writer, aggChargingLoadFileHeader);
+			log.warn(fileName + " has Created and returned writer!");
 			return writer;
 		} catch (IOException e) {
 			e.printStackTrace();
+			log.warn(fileName + " has Created but we see the error!!!");
 			return null;
 		}
 	}
@@ -69,17 +73,32 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 	/**
 	 * Initialize charging load csv file
 	 */
-	private FileWriter initDisaggFileWriter() {
-		//TODO This should be created in every iter directory
-		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "run0.disaggregateLoadProfile.csv";
+	private FileWriter initDisaggFileWriter(int iteration) {
+		String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator
+				+ "ITERS" + File.separator + "it." + iteration + File.separator
+				+"run0."+iteration + ".disaggregateLoadProfile.csv";
 		try {
 			FileWriter writer = new FileWriter(fileName);
 			CSVUtil.writeLine(writer, disaggChargingLoadFileHeader);
+			log.warn(fileName + " has Created and returned writer!");
 			return writer;
 		} catch (IOException e) {
 			e.printStackTrace();
+			log.warn(fileName + " has Created but we see the error!!!");
 			return null;
 		}
+	}
+
+	/**
+	 * Get iteration number
+	 * @return
+	 */
+	private int getIterationNumber() {
+		int count = 0;
+		for(File file : EVGlobalData.data.OUTPUT_DIRECTORY.listFiles()){
+			if(file.getName().contains("disaggregateLoadProfile")) count++;
+		}
+		return count;
 	}
 
 	/**
@@ -110,13 +129,22 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 			e.printStackTrace();
 		}
 
-
 		// Reschedule this same method to be executed in future
 		EVGlobalData.data.scheduler.addCallBackMethod(MathUtil.roundUpToNearestInterval(EVGlobalData.data.now + writeInterval, writeInterval), this ,"writeChargingLoadDataToFile", 0.0, this);
 	}
 
 	@Override
 	public void reset(int iteration) {
+		numPluggedIn = 0;
+		chargingLoadInKw = 0.;
+
+		numPluggedinMap = new HashMap<>();
+		chargingLoadInKwMap = new HashMap<>();
+
+		this.aggWriter = initAggFileWriter(iteration);
+		this.disaggWriter = initDisaggFileWriter(iteration);
+
+		EVGlobalData.data.scheduler.addCallBackMethod(0.0, this ,"writeChargingLoadDataToFile", 0.0, this);
 	}
 
 	@Override
@@ -224,5 +252,10 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 			numPluggedinMap.get(event.getSpatialGroup()).put(event.getSiteType(), new HashMap<>());
 			numPluggedinMap.get(event.getSpatialGroup()).get(event.getSiteType()).put(event.getPlugType(),-1);
 		}
+	}
+
+	@Override
+	public void notifyBeforeMobsim(BeforeMobsimEvent event) {
+
 	}
 }
