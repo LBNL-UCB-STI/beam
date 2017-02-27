@@ -8,6 +8,7 @@ package beam;
  */
 
 import beam.sim.LinkAttributeLoader;
+import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import com.google.inject.Provider;
 
 import org.geotools.referencing.CRS;
@@ -423,6 +424,14 @@ public class EVSimTeleController {
 
 	private static void initializeChargingInfrastructure(EVController controler) {
 		EVGlobalData.data.chargingInfrastructureManager = new ChargingInfrastructureManagerImpl();
+
+		/*
+		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllChargingSites()) {
+			System.out.println(site.getAllChargingPlugs().iterator().next().useInCalibration());
+			System.out.println(site.getCoord().getX() + ", " + site.getCoord().getY());
+		}
+		System.exit(0);
+		*/
 	}
 
 	private static void integrateChargingEventManagerIntoSimulation(final EVController controler) {
