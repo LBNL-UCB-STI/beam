@@ -2,6 +2,7 @@ package beam.sim;
 
 import beam.EVGlobalData;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSitePolicy;
+import beam.utils.CSVUtil;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileHandler;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileParser;
@@ -39,8 +40,8 @@ public class LinkAttributeLoader {
                             headerMap.put(colName, i);
                         }
                     } else {
-                        String linkId = row[headerMap.get("linkid")];
-                        String groupId = row[headerMap.get("group")];
+                        String linkId = CSVUtil.getValue("linkid",row,headerMap);
+                        String groupId = CSVUtil.getValue("group",row,headerMap);
 
                         LinkedHashMap<String, String> linkMap = new LinkedHashMap<String, String>();
                         linkMap.put("group", groupId);

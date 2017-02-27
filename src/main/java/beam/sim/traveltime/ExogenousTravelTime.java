@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import beam.utils.CSVUtil;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -73,9 +74,9 @@ public class ExogenousTravelTime implements TravelTime, LinkToLinkTravelTime, Tr
 					}
 				} else {
 					double[] travelTimes = new double[newTravelTime.numSlots];
-					String linkId = row[headerMap.get("link_id")];
+					String linkId = CSVUtil.getValue("link_id",row,headerMap);
 					for(String colName : ttColumnsToBinIndex.keySet()){
-					    travelTimes[ttColumnsToBinIndex.get(colName)] = Double.parseDouble(row[headerMap.get(colName)]);
+					    travelTimes[ttColumnsToBinIndex.get(colName)] = Double.parseDouble(CSVUtil.getValue(colName,row,headerMap));
 					}
 					newTravelTime.linkTravelTimes.put(linkId.hashCode(),travelTimes);
 				}

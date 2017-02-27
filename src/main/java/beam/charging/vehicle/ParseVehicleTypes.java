@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumption;
 
+import beam.utils.CSVUtil;
 import org.matsim.api.core.v01.Id;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileHandler;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileParser;
@@ -35,11 +36,11 @@ public class ParseVehicleTypes {
 		fileParserConfig.setFileName(EVGlobalData.data.VEHICLE_TYPES_FILEPATH);
 		fileParserConfig.setDelimiterRegex(",");
 		TabularFileHandler handler = new TabularFileHandler() {
-			public HashMap<String,Integer> headerMap;
+			public LinkedHashMap<String,Integer> headerMap;
 			@Override
 			public void startRow(String[] row) {
 				if(headerMap==null){
-					headerMap = new HashMap<String,Integer>();
+					headerMap = new LinkedHashMap<String,Integer>();
 					for(int i =0; i<row.length; i++){
 						String colName = row[i].toLowerCase();
 						if(colName.startsWith("\"")){
@@ -48,37 +49,37 @@ public class ParseVehicleTypes {
 						headerMap.put(colName, i);
 					}
 				}else{
-					String newId = row[headerMap.get("id")];
+					String newId = CSVUtil.getValue("id",row,headerMap);
 					EnergyConsumptionModel electricConsumptionModel = null, petroleumConsumptionModel = null;
 					// TODO Replace with final energy consumption model(s)
-					if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelRicardoFaria2012")){
+					if(CSVUtil.getValue("electricenergyconsumptionmodelclassname",row,headerMap).equals("EnergyConsumptionModelRicardoFaria2012")){
 						electricConsumptionModel = new EnergyConsumptionModelRicardoFaria2012();
-					}else if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelMyGreenCar")){
+					}else if(CSVUtil.getValue("electricenergyconsumptionmodelclassname",row,headerMap).equals("EnergyConsumptionModelMyGreenCar")){
 						electricConsumptionModel = new EnergyConsumptionModelMyGreenCar();
-					}else if(row[headerMap.get("electricenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelConstant")){
+					}else if(CSVUtil.getValue("electricenergyconsumptionmodelclassname",row,headerMap).equals("EnergyConsumptionModelConstant")){
 						electricConsumptionModel = new EnergyConsumptionModelConstant();
 					}else{
-						throw new RuntimeException("Cannot find class that inherits EnergyConsumptionModel named "+row[headerMap.get("electricenergyconsumptionmodelclassname")]);
+						throw new RuntimeException("Cannot find class that inherits EnergyConsumptionModel named "+CSVUtil.getValue("electricenergyconsumptionmodelclassname",row,headerMap));
 					}
-					if(row[headerMap.get("petroleumenergyconsumptionmodelclassname")].trim().equals("EnergyConsumptionModelGalus")){
+					if(CSVUtil.getValue("petroleumenergyconsumptionmodelclassname",row,headerMap).equals("EnergyConsumptionModelGalus")){
 						petroleumConsumptionModel = new EnergyConsumptionModelGalus();
-					}else if(!row[headerMap.get("petroleumenergyconsumptionmodelclassname")].trim().equals("")){
-						throw new RuntimeException("Cannot find class that inherits EnergyConsumptionModel named "+row[headerMap.get("petroleumenergyconsumptionmodel")]);
+					}else if(!CSVUtil.getValue("petroleumenergyconsumptionmodelclassname",row,headerMap).equals("")){
+						throw new RuntimeException("Cannot find class that inherits EnergyConsumptionModel named "+CSVUtil.getValue("petroleumenergyconsumptionmodel",row,headerMap));
 					}
 			
 					LinkedHashSet<ChargingPlugType> compatiblePlugTypes = new LinkedHashSet<ChargingPlugType>();
-					for(String plugTypeName : row[headerMap.get("compatibleplugtypesasspaceseparatedtext")].trim().split(" ")){
+					for(String plugTypeName : CSVUtil.getValue("compatibleplugtypesasspaceseparatedtext",row,headerMap).split(" ")){
 						compatiblePlugTypes.add(EVGlobalData.data.chargingInfrastructureManager.getChargingPlugTypeByName(plugTypeName.toLowerCase()));
 					}
 					
 					LinkedHashMap<String,Object> vehicleProperties = new LinkedHashMap<>();
-					vehicleProperties.put("batterycapacityinkwh",Double.parseDouble(row[headerMap.get("batterycapacityinkwh")].trim()));
-					vehicleProperties.put("maxdischargingpowerinkw",Double.parseDouble(row[headerMap.get("maxdischargingpowerinkw")].trim()));
-					vehicleProperties.put("maxlevel2chargingpowerinkw",Double.parseDouble(row[headerMap.get("maxlevel2chargingpowerinkw")].trim()));
-					vehicleProperties.put("maxlevel3chargingpowerinkw",Double.parseDouble(row[headerMap.get("maxlevel3chargingpowerinkw")].trim()));
+					vehicleProperties.put("batterycapacityinkwh",Double.parseDouble(CSVUtil.getValue("batterycapacityinkwh",row,headerMap)));
+					vehicleProperties.put("maxdischargingpowerinkw",Double.parseDouble(CSVUtil.getValue("maxdischargingpowerinkw",row,headerMap)));
+					vehicleProperties.put("maxlevel2chargingpowerinkw",Double.parseDouble(CSVUtil.getValue("maxlevel2chargingpowerinkw",row,headerMap)));
+					vehicleProperties.put("maxlevel3chargingpowerinkw",Double.parseDouble(CSVUtil.getValue("maxlevel3chargingpowerinkw",row,headerMap)));
 					vehicleProperties.put("compatibleplugtypes",compatiblePlugTypes);
-					vehicleProperties.put("vehicleclassname",row[headerMap.get("vehicleclassname")].trim());
-					vehicleProperties.put("vehicletypename",row[headerMap.get("vehicletypename")].trim());
+					vehicleProperties.put("vehicleclassname",CSVUtil.getValue("vehicleclassname",row,headerMap));
+					vehicleProperties.put("vehicletypename",CSVUtil.getValue("vehicletypename",row,headerMap));
 					vehicleProperties.put("electricenergyconsumptionmodel",electricConsumptionModel);
 					vehicleProperties.put("petroleumenergyconsumptionmodel",petroleumConsumptionModel);
 
@@ -88,14 +89,14 @@ public class ParseVehicleTypes {
 						vehicleProperties.put("targetcoefb",String.valueOf(-0.3082));
 						vehicleProperties.put("targetcoefc",String.valueOf(0.02525));
 					}else{
-						vehicleProperties.put("equivalenttestweight",row[headerMap.get("equivalenttestweight")].trim());
-						vehicleProperties.put("targetcoefa",row[headerMap.get("targetcoefa")].trim());
-						vehicleProperties.put("targetcoefb",row[headerMap.get("targetcoefb")].trim());
-						vehicleProperties.put("targetcoefc",row[headerMap.get("targetcoefc")].trim());
+						vehicleProperties.put("equivalenttestweight",CSVUtil.getValue("equivalenttestweight",row,headerMap));
+						vehicleProperties.put("targetcoefa",CSVUtil.getValue("targetcoefa",row,headerMap));
+						vehicleProperties.put("targetcoefb",CSVUtil.getValue("targetcoefb",row,headerMap));
+						vehicleProperties.put("targetcoefc",CSVUtil.getValue("targetcoefc",row,headerMap));
 					}
-					vehicleProperties.put("fueleconomyinkwhpermile",row[headerMap.get("fueleconomyinkwhpermile")].trim());
+					vehicleProperties.put("fueleconomyinkwhpermile",CSVUtil.getValue("fueleconomyinkwhpermile",row,headerMap));
 					
-					EVGlobalData.data.vehiclePropertiesMap.put(row[headerMap.get("id")].trim(),vehicleProperties);
+					EVGlobalData.data.vehiclePropertiesMap.put(CSVUtil.getValue("id",row,headerMap),vehicleProperties);
 				}
 			}
 		};
@@ -107,11 +108,11 @@ public class ParseVehicleTypes {
 		fileParserConfig.setFileName(EVGlobalData.data.PERSON_VEHICLE_TYPES_FILEPATH);
 		fileParserConfig.setDelimiterRegex(",");
 		handler = new TabularFileHandler() {
-			public HashMap<String,Integer> headerMap;
+			public LinkedHashMap<String,Integer> headerMap;
 			@Override
 			public void startRow(String[] row) {
 				if(headerMap==null){
-					headerMap = new HashMap<String,Integer>();
+					headerMap = new LinkedHashMap<String,Integer>();
 					for(int i =0; i<row.length; i++){
 						String colName = row[i].toLowerCase();
 						if(colName.startsWith("\"")){
@@ -120,16 +121,16 @@ public class ParseVehicleTypes {
 						headerMap.put(colName, i);
 					}
 				}else{
-					String personIdString = row[headerMap.get("personid")].trim();
-					EVGlobalData.data.personToVehicleTypeMap.put(personIdString,row[headerMap.get("vehicletypeid")].trim());
+					String personIdString = CSVUtil.getValue("personid",row,headerMap);
+					EVGlobalData.data.personToVehicleTypeMap.put(personIdString,CSVUtil.getValue("vehicletypeid",row,headerMap));
 					LinkedHashMap<String,String> homeProperties = new LinkedHashMap<>();
-					homeProperties.put("homeChargingPlugTypeId",(row.length >= headerMap.get("homechargingplugtypeid") + 1) ? row[headerMap.get("homechargingplugtypeid")].trim() : "" );
-					homeProperties.put("homeChargingPolicyId",(row.length >= headerMap.get("homechargingpolicyid") + 1) ? row[headerMap.get("homechargingpolicyid")].trim() : "" );
-					homeProperties.put("homeChargingNetworkOperatorId",(row.length >= headerMap.get("homechargingnetworkoperatorid") + 1) ? row[headerMap.get("homechargingnetworkoperatorid")].trim() : "" );
-					homeProperties.put("homeChargingSpatialGroup",row[headerMap.get("spatialgroup")].trim());
-					homeProperties.put("useInCalibration",row[headerMap.get("useincalibration")].trim());
+					homeProperties.put("homeChargingPlugTypeId",(row.length >= headerMap.get("homechargingplugtypeid") + 1) ? CSVUtil.getValue("homechargingplugtypeid",row,headerMap) : "" );
+					homeProperties.put("homeChargingPolicyId",(row.length >= headerMap.get("homechargingpolicyid") + 1) ? CSVUtil.getValue("homechargingpolicyid",row,headerMap) : "" );
+					homeProperties.put("homeChargingNetworkOperatorId",(row.length >= headerMap.get("homechargingnetworkoperatorid") + 1) ? CSVUtil.getValue("homechargingnetworkoperatorid",row,headerMap) : "" );
+					homeProperties.put("homeChargingSpatialGroup",CSVUtil.getValue("spatialgroup",row,headerMap));
+					homeProperties.put("useInCalibration",CSVUtil.getValue("useincalibration",row,headerMap));
 					EVGlobalData.data.personHomeProperties.put(personIdString,homeProperties);
-					EVGlobalData.data.simulationStartSocFraction.put(Id.createPersonId(personIdString),Double.parseDouble((row.length >= headerMap.get("simulationstartsocfraction") + 1) ? row[headerMap.get("simulationstartsocfraction")].trim() : "1.0" ));
+					EVGlobalData.data.simulationStartSocFraction.put(Id.createPersonId(personIdString),Double.parseDouble((row.length >= headerMap.get("simulationstartsocfraction") + 1) ? CSVUtil.getValue("simulationstartsocfraction",row,headerMap) : "1.0" ));
 				}
 			}
 		};

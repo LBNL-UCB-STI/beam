@@ -93,23 +93,23 @@ public class ChargingInfrastructureManagerImpl {
 						headerMap.put(colName, i);
 					}
 				} else {
-					String newId = row[headerMap.get("id")];
+					String newId = getValue("id",row,headerMap);
 					ChargingSitePolicy newPolicy = null;
 					try {
-						if (row[headerMap.get("classname")].trim().equals("ChargingSitePolicyChargePoint")) {
-							newPolicy = new ChargingSitePolicyChargePoint(row[headerMap.get("extradataasxml")]);
-						} else if (row[headerMap.get("classname")].trim().equals("ChargingSitePolicyBlink")) {
-							newPolicy = new ChargingSitePolicyBlink(row[headerMap.get("extradataasxml")]);
-						} else if (row[headerMap.get("classname")].trim().equals("ChargingSitePolicyEVGo")) {
-							newPolicy = new ChargingSitePolicyEVGo(row[headerMap.get("extradataasxml")]);
-						} else if (row[headerMap.get("classname")].trim().equals("ChargingSitePolicyHome")) {
-							newPolicy = new ChargingSitePolicyHome(row[headerMap.get("extradataasxml")]);
-						} else if (row[headerMap.get("classname")].trim().equals("ChargingSitePolicyTesla")) {
-							newPolicy = new ChargingSitePolicyTesla(row[headerMap.get("extradataasxml")]);
-						} else if (row[headerMap.get("classname")].trim().equals("ChargingSitePolicyOther")) {
-							newPolicy = new ChargingSitePolicyOther(row[headerMap.get("extradataasxml")]);
+						if (getValue("classname",row,headerMap).equals("ChargingSitePolicyChargePoint")) {
+							newPolicy = new ChargingSitePolicyChargePoint(getValue("extradataasxml",row,headerMap));
+						} else if (getValue("classname",row,headerMap).equals("ChargingSitePolicyBlink")) {
+							newPolicy = new ChargingSitePolicyBlink(getValue("extradataasxml",row,headerMap));
+						} else if (getValue("classname",row,headerMap).equals("ChargingSitePolicyEVGo")) {
+							newPolicy = new ChargingSitePolicyEVGo(getValue("extradataasxml",row,headerMap));
+						} else if (getValue("classname",row,headerMap).equals("ChargingSitePolicyHome")) {
+							newPolicy = new ChargingSitePolicyHome(getValue("extradataasxml",row,headerMap));
+						} else if (getValue("classname",row,headerMap).equals("ChargingSitePolicyTesla")) {
+							newPolicy = new ChargingSitePolicyTesla(getValue("extradataasxml",row,headerMap));
+						} else if (getValue("classname",row,headerMap).equals("ChargingSitePolicyOther")) {
+							newPolicy = new ChargingSitePolicyOther(getValue("extradataasxml",row,headerMap));
 						} else {
-							throw new RuntimeException("Cannot find class that inherits ChargingSitePolicy named " + row[headerMap.get("className")]);
+							throw new RuntimeException("Cannot find class that inherits ChargingSitePolicy named " + getValue("className",row,headerMap));
 						}
 					} catch (JDOMException e) {
 						e.printStackTrace();
@@ -138,17 +138,17 @@ public class ChargingInfrastructureManagerImpl {
 						headerMap.put(row[i].toLowerCase(), i);
 					}
 				} else {
-					String newId = row[headerMap.get("id")];
+					String newId = getValue("id",row,headerMap);
 					ChargingNetworkOperator newOperator = null;
-					if (row[headerMap.get("classname")].trim().equals("ChargingNetworkOperatorDumbCharging")) {
-						newOperator = new ChargingNetworkOperatorDumbCharging(row[headerMap.get("extradataasxml")]);
-					} else if (row[headerMap.get("classname")].trim().equals("ChargingNetworkOperatorSmartCharging")) {
-						newOperator = new ChargingNetworkOperatorSmartCharging(row[headerMap.get("extradataasxml")]);
-					} else if (row[headerMap.get("classname")].trim().equals("ChargingNetworkOperatorV2G")) {
-						newOperator = new ChargingNetworkOperatorV2G(row[headerMap.get("extradataasxml")]);
+					if (getValue("classname",row,headerMap).equals("ChargingNetworkOperatorDumbCharging")) {
+						newOperator = new ChargingNetworkOperatorDumbCharging(getValue("extradataasxml",row,headerMap));
+					} else if (getValue("classname",row,headerMap).equals("ChargingNetworkOperatorSmartCharging")) {
+						newOperator = new ChargingNetworkOperatorSmartCharging(getValue("extradataasxml",row,headerMap));
+					} else if (getValue("classname",row,headerMap).equals("ChargingNetworkOperatorV2G")) {
+						newOperator = new ChargingNetworkOperatorV2G(getValue("extradataasxml",row,headerMap));
 					} else {
 						throw new RuntimeException(
-								"Cannot find class that inherits ChargingNetworkOperator named " + row[headerMap.get("className")]);
+								"Cannot find class that inherits ChargingNetworkOperator named " + getValue("className",row,headerMap));
 					}
 					chargingNetworkOperatorMap.put(newId, newOperator);
 				}
@@ -176,15 +176,15 @@ public class ChargingInfrastructureManagerImpl {
 						headerMap.put(colName, i);
 					}
 				} else {
-					chargingPlugTypeByIdMap.put(row[headerMap.get("id")].trim(),
-							new ChargingPlugTypeImpl(Id.create(row[headerMap.get("id")].trim(), ChargingPlugType.class),
-									row[headerMap.get("plugtypename")].trim().toLowerCase(),
-									Double.parseDouble(row[headerMap.get("chargingpowerinkw")].trim()),
-									Double.parseDouble(row[headerMap.get("dischargingpowerinkw")].trim()),
-									Boolean.parseBoolean(row[headerMap.get("v1gcapable")].trim()),
-									Boolean.parseBoolean(row[headerMap.get("v2gcapable")].trim())));
-					chargingPlugTypeByNameMap.put(row[headerMap.get("plugtypename")].trim().toLowerCase(),
-							chargingPlugTypeByIdMap.get(row[headerMap.get("id")].trim()));
+					chargingPlugTypeByIdMap.put(getValue("id",row,headerMap),
+							new ChargingPlugTypeImpl(Id.create(getValue("id",row,headerMap), ChargingPlugType.class),
+									getValue("plugtypename",row,headerMap).toLowerCase(),
+									Double.parseDouble(getValue("chargingpowerinkw",row,headerMap)),
+									Double.parseDouble(getValue("dischargingpowerinkw",row,headerMap)),
+									Boolean.parseBoolean(getValue("v1gcapable",row,headerMap)),
+									Boolean.parseBoolean(getValue("v2gcapable",row,headerMap))));
+					chargingPlugTypeByNameMap.put(getValue("plugtypename",row,headerMap).toLowerCase(),
+							chargingPlugTypeByIdMap.get(getValue("id",row,headerMap)));
 				}
 			}
 		};
@@ -216,7 +216,7 @@ public class ChargingInfrastructureManagerImpl {
 					Coordinate jtsCoord = null;
 					Point jtsPoint = null;
 					try {
-					    jtsCoord = new Coordinate(Double.parseDouble(row[headerMap.get("longitude")].trim()),Double.parseDouble(row[headerMap.get("latitude")].trim()));
+					    jtsCoord = new Coordinate(Double.parseDouble(getValue("longitude",row,headerMap)),Double.parseDouble(getValue("latitude",row,headerMap)));
 						jtsPoint = geomFactory.createPoint(jtsCoord);
 						transformedPoint = JTS.transform(jtsPoint, CRS.findMathTransform(EVGlobalData.data.wgs84CoordinateSystem,EVGlobalData.data.targetCoordinateSystem));
 					} catch (TransformException e) {
@@ -227,22 +227,22 @@ public class ChargingInfrastructureManagerImpl {
 					Coord theCoord = new Coord(transformedPoint.getCentroid().getX(),transformedPoint.getCentroid().getY());
 
 					// Charging site spatial group -- this can be separated from this loop once we have a separate file for charging site spatial groups
-					if(headerMap.containsKey("spatialgroup") && !chargingSiteSpatialGroupMap.containsKey(row[headerMap.get("spatialgroup")].trim())){
-						ChargingSiteSpatialGroup newSpatialGroup = new ChargingSiteSpatialGroupImpl(row[headerMap.get("spatialgroup")].trim());
-						chargingSiteSpatialGroupMap.put(row[headerMap.get("spatialgroup")].trim(),newSpatialGroup);
-//						log.info("spatial group:" + row[headerMap.get("spatialgroup")].trim());
+					if(headerMap.containsKey("spatialgroup") && !chargingSiteSpatialGroupMap.containsKey(getValue("spatialgroup",row,headerMap))){
+						ChargingSiteSpatialGroup newSpatialGroup = new ChargingSiteSpatialGroupImpl(getValue("spatialgroup",row,headerMap));
+						chargingSiteSpatialGroupMap.put(getValue("spatialgroup",row,headerMap),newSpatialGroup);
+//						log.info("spatial group:" + getValue("spatialgroup",row,headerMap));
 					}
 
 					// Initialize new charging site
 					ChargingSite newSite = null;
-                    newSite = new ChargingSiteImpl(Id.create(row[headerMap.get("id")].trim(), ChargingSite.class),
+                    newSite = new ChargingSiteImpl(Id.create(getValue("id",row,headerMap), ChargingSite.class),
                             theCoord,
-                            chargingSitePolicyMap.get(row[headerMap.get("policyid")].trim()),
-                            chargingNetworkOperatorMap.get(row[headerMap.get("networkoperatorid")].trim()),
-                            chargingSiteSpatialGroupMap.get(row[headerMap.get("spatialgroup")].trim()),
-                            headerMap.containsKey("sitetype") ? row[headerMap.get("sitetype")].trim() : ""
+                            chargingSitePolicyMap.get(getValue("policyid",row,headerMap)),
+                            chargingNetworkOperatorMap.get(getValue("networkoperatorid",row,headerMap)),
+                            chargingSiteSpatialGroupMap.get(getValue("spatialgroup",row,headerMap)),
+                            headerMap.containsKey("sitetype") ? getValue("sitetype",row,headerMap) : ""
                             );
-					chargingSiteMap.put(row[headerMap.get("id")].trim(), newSite);
+					chargingSiteMap.put(getValue("id",row,headerMap), newSite);
 				}
 			}
 		};
@@ -270,21 +270,21 @@ public class ChargingInfrastructureManagerImpl {
 						headerMap.put(colName, i);
 					}
 				} else {
-					ChargingSite theSite = chargingSiteMap.get(row[headerMap.get("siteid")].trim());
+					ChargingSite theSite = chargingSiteMap.get(getValue("siteid",row,headerMap));
 					if (theSite == null)
-						throw new RuntimeException("No Charging Site found with ID = " + row[headerMap.get("siteid")].trim());
-					String chargePointIdString = row[headerMap.get("id")].trim();
+						throw new RuntimeException("No Charging Site found with ID = " + getValue("siteid",row,headerMap));
+					String chargePointIdString = getValue("id",row,headerMap);
 					Id<ChargingPoint> pointId = Id.create(chargePointIdString, ChargingPoint.class);
 					ChargingPointImpl newPoint = new ChargingPointImpl(pointId, theSite,
-							Integer.parseInt(row[headerMap.get("numparkingspacesperpoint")]));
+							Integer.parseInt(getValue("numparkingspacesperpoint",row,headerMap)));
 					Boolean useInCalibration = Boolean.parseBoolean(getValue("useincalibration",row,headerMap));
-					for (int i = 0; i < Integer.parseInt(row[headerMap.get("numplugs")].trim()); i++) {
+					for (int i = 0; i < Integer.parseInt(getValue("numplugs",row,headerMap)); i++) {
 						ChargingPlugImpl newPlug = new ChargingPlugImpl(Id.create(plugCount++, ChargingPlug.class), newPoint,
-								chargingPlugTypeByIdMap.get(row[headerMap.get("plugtypeid")].trim()),useInCalibration);
+								chargingPlugTypeByIdMap.get(getValue("plugtypeid",row,headerMap)),useInCalibration);
 					}
 
 					if (headerMap.containsKey("comparewithobservedcounts")){
-						int compareWithObservedCounts = Integer.parseInt(row[headerMap.get("comparewithobservedcounts")]);
+						int compareWithObservedCounts = Integer.parseInt(getValue("comparewithobservedcounts",row,headerMap));
 
 						if (compareWithObservedCounts == 1) {
 							comparesWithObservedCountsChargePointIds.add(chargePointIdString);
@@ -356,12 +356,12 @@ public class ChargingInfrastructureManagerImpl {
 
 	public String getValue(String columnName, String[] row, LinkedHashMap<String, Integer> headerMap){
 		String returnValue = "";
-	    if(!headerMap.containsKey(columnName)){
-	    	log.error("Cannot find column named \""+columnName+"\" in CSV file with header "+headerMap.keySet().toString());
+		if(!headerMap.containsKey(columnName)){
+			log.error("Cannot find column named \""+columnName+"\" in CSV file with header "+headerMap.keySet().toString());
 		}else if (row[headerMap.get(columnName)].startsWith("\"")) {
-            returnValue = row[headerMap.get(columnName)].substring(1, row[headerMap.get(columnName)].length() - 1);
+			returnValue = row[headerMap.get(columnName)].substring(1, row[headerMap.get(columnName)].length() - 1);
 		}else{
-	    	returnValue = row[headerMap.get(columnName)];
+			returnValue = row[headerMap.get(columnName)];
 		}
 		return returnValue.trim();
 	}
