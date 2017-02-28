@@ -247,7 +247,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			ArrivalChargingDecisionEvent decisionEvent = new ArrivalChargingDecisionEvent(EVGlobalData.data.now, this, chargingStrategyForThisLeg);
 			EVGlobalData.data.eventLogger.processEvent(decisionEvent);
 			if(chargingStrategyForThisLeg instanceof ChargingStrategyNestedLogit){
-				EVGlobalData.data.eventLogger.processEvent(new NestedLogitDecisionEvent(EVGlobalData.data.now, decisionEvent.getDecisionEventId(), (ChargingStrategyNestedLogit) chargingStrategyForThisLeg));
+//				EVGlobalData.data.eventLogger.processEvent(new NestedLogitDecisionEvent(EVGlobalData.data.now, decisionEvent.getDecisionEventId(), (ChargingStrategyNestedLogit) chargingStrategyForThisLeg));
 			} 
 
 			if(getSelectedChargingPlug() != null && this.currentActivity !=null){
