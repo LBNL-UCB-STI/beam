@@ -16,6 +16,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Props;
 import akka.stream.scaladsl.BroadcastHub.Consumer;
 import akka.util.Timeout;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargingInfrastructureManager;
 import beam.playground.beamSimAkkaProtoType.scheduler.Scheduler;
 import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
 import scala.concurrent.Await;
@@ -39,7 +40,9 @@ public class BeamSimAkkaMain {
 		
 		ActorSystem system = ActorSystem.create("AgentSim");
 		
-		ActorRef scheduler = system.actorOf(Props.create(Scheduler.class,scenario.getPopulation()));
+		ActorRef chargingInfrastructureManager = system.actorOf(Props.create(ChargingInfrastructureManager.class));
+		
+		ActorRef scheduler = system.actorOf(Props.create(Scheduler.class,scenario.getPopulation(),chargingInfrastructureManager));
         
 		scheduler.tell(new StartSimulationMessage(), ActorRef.noSender());
         
