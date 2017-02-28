@@ -2,6 +2,7 @@ package beam.playground.beamSimAkkaProtoType.beamPersonAgent;
 
 import java.util.concurrent.TimeUnit;
 
+import beam.utils.DebugLib;
 import org.matsim.api.core.v01.population.Plan;
 
 import akka.actor.ReceiveTimeout;
@@ -10,7 +11,6 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import beam.parking.lib.DebugLib;
 import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReplyChargersInRadiusMessage;
 import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReservationConfirmationMessage;
 import scala.concurrent.Await;
