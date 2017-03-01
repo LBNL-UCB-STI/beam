@@ -8,13 +8,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.config.Config;
 
 import beam.EVGlobalData;
-import beam.events.scoring.ChangePlugOverheadScoreEvent;
-import beam.events.scoring.ChargingCostScoreEvent;
-import beam.events.scoring.LegTravelTimeScoreEvent;
-import beam.events.scoring.ParkingScoreEvent;
-import beam.events.scoring.RangeAnxietyScoreEvent;
 import beam.parking.lib.DebugLib;
-import beam.scoring.rangeAnxiety.InternalRangeAnxityEvent;
 
 public class EventLogger {
 
@@ -54,14 +48,15 @@ public class EventLogger {
 		getControlEventTypesWithLogger().add(ParkWithoutChargingEvent.class);
 		getControlEventTypesWithLogger().add(PreChargeEvent.class);
 		getControlEventTypesWithLogger().add(ReassessDecisionEvent.class);
-		getControlEventTypesWithLogger().add(ChangePlugOverheadScoreEvent.class);
-		getControlEventTypesWithLogger().add(ChargingCostScoreEvent.class);
-		getControlEventTypesWithLogger().add(LegTravelTimeScoreEvent.class);
-		getControlEventTypesWithLogger().add(ParkingScoreEvent.class);
-		getControlEventTypesWithLogger().add(RangeAnxietyScoreEvent.class);
-		getControlEventTypesWithLogger().add(InternalRangeAnxityEvent.class);
 		getControlEventTypesWithLogger().add(UnplugEvent.class);
-		getControlEventTypesWithLogger().add(NestedLogitDecisionEvent.class);
+//		getControlEventTypesWithLogger().add(NestedLogitDecisionEvent.class);
+
+//		getControlEventTypesWithLogger().add(ChangePlugOverheadScoreEvent.class);
+//		getControlEventTypesWithLogger().add(ChargingCostScoreEvent.class);
+//		getControlEventTypesWithLogger().add(LegTravelTimeScoreEvent.class);
+//		getControlEventTypesWithLogger().add(ParkingScoreEvent.class);
+//		getControlEventTypesWithLogger().add(RangeAnxietyScoreEvent.class);
+//		getControlEventTypesWithLogger().add(InternalRangeAnxityEvent.class);
 	}
 
 	private void setLoggingLevel(String eventType, int level) {

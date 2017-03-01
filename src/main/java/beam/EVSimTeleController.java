@@ -203,8 +203,8 @@ public class EVSimTeleController {
 		});
 
 		integrateChargingEventManagerIntoSimulation(controler);
-		new EVScoreEventGenerator(controler).setInternalRangeAnxityEventHandler(new LogRangeAnxityScoringEventsAtEndOfDay());
-		new EVScoreAccumulator(controler);
+//		new EVScoreEventGenerator(controler).setInternalRangeAnxityEventHandler(new LogRangeAnxityScoringEventsAtEndOfDay());
+//		new EVScoreAccumulator(controler);
 
 		avoidRoutingDuringInitialization(controler);
 		setLastActivityEndTimeToBeginActivityEndTime(controler);

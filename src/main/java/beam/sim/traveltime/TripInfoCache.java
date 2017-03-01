@@ -35,17 +35,13 @@ public class TripInfoCache {
         maxNumTrips = EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
         try {
             Class.forName("org.postgresql.Driver");
-            connection = DriverManager.getConnection("jdbc:postgresql://scidb1.nersc.gov/beam", "beam_admin", System.getenv("PSQL_PASS"));
-            /*
-            cluster = Cluster.builder().addContactPoint("127.0.0.1").build();
-            session = cluster.connect("beam");
-            log.info("Successfully connect to cassandra db");
-            */
+            connection = DriverManager.getConnection("jdbc:postgresql://"+System.getenv("PSQL_HOST")+"/beam", System.getenv("PSQL_USER"), System.getenv("PSQL_PASS"));
         } catch (SQLException | ClassNotFoundException e) {
             log.warn("No postgres host found, proceeding without Tier 2 route cache. psql connection message: " + e.getMessage());
             useDB = false;
         }
         if(useDB){
+            log.info("Postgres host found and connection made successfully.");
             kryo = new Kryo();
             kryo.register(TripInfoAndCount.class, 0);
         }

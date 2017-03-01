@@ -38,6 +38,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 	private LinkedHashMap<String, Double> altData;
 	private LinkedHashMap<String, LinkedHashMap<String, Double>> inputData;
 	private Double yesProbability, choiceExpectedMaximumUtility;
+	private String storeRemainingRange, storeRemainingTravelDistInDay, storeNextTripTravelDist,storePlannedDwellTime,storeIsHomeActivity,storeIsBEV;
 
 	public ChargingStrategyNestedLogit() {
 	}
@@ -223,6 +224,18 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 				DebugLib.stopSystemAndReportInconsistency("Unrecognized choice in ChargingStrategyNestedLogit: " + choice);
 			}
 		}
+		storeNeededAltData();
+		altData = null;
+		inputData = null;
+	}
+
+	private void storeNeededAltData() {
+        storeRemainingRange = altData.get("remainingRange").toString();
+        storeRemainingTravelDistInDay = altData.get("remainingTravelDistanceInDay").toString();
+        storeNextTripTravelDist = altData.get("nextTripTravelDistance").toString();
+        storePlannedDwellTime = altData.containsKey("plannedDwellTime") ? altData.get("plannedDwellTime").toString() : "";
+        storeIsHomeActivity = altData.containsKey("isHomeActivity") ? altData.get("isHomeActivity").toString() : "";
+        storeIsBEV = altData.get("isBEV").toString();
 	}
 
 	private void gatherDataAndMakeDepatureDecisions(PlugInVehicleAgent agent) {
@@ -319,6 +332,8 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 				this.departureYesChargeNest.removeChild(nest);
 			}
 		}
+		storeNeededAltData();
+		altData = null;
 	}
 
 	@Override
@@ -388,6 +403,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 	}
 
 	public String chargerAttributesToColonSeparatedValues() {
+		if(inputData==null)return "";
 		String attribs = "";
 		Integer altNumber = 1;
 		for(String key : inputData.keySet()){
@@ -405,27 +421,27 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 	}
 
 	public String getRemainingRange() {
-		return altData.get("remainingRange").toString();
+		return storeRemainingRange;
 	}
 
 	public String getRemainingTravelDistanceInDay() {
-		return altData.get("remainingTravelDistanceInDay").toString();
+		return storeRemainingTravelDistInDay;
 	}
 
 	public String getNextTripTravelDistance() {
-		return altData.get("nextTripTravelDistance").toString();
+		return storeNextTripTravelDist;
 	}
 
 	public String getPlannedDwellTime() {
-		return altData.containsKey("plannedDwellTime") ? altData.get("plannedDwellTime").toString() : "";
+		return storePlannedDwellTime;
 	}
 
 	public String getIsHomeActivity() {
-		return altData.containsKey("isHomeActivity") ? altData.get("isHomeActivity").toString() : "";
+		return storeIsHomeActivity;
 	}
 
 	public String getIsBEV() {
-		return altData.get("isBEV").toString();
+		return storeIsBEV;
 	}
 
 
