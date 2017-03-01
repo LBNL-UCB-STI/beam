@@ -192,6 +192,10 @@ public class TripInfoCache {
                 TripInfoAndCount tripInfoAndCount = (TripInfoAndCount) kryo.readObject(in,TripInfoAndCount.class);
                 hotCache.put(key, tripInfoAndCount);
                 hotCacheUtilization.put(tripInfoAndCount.count,key);
+                if(hotCache.size()>=maxNumTrips){
+                    flushHotCache();
+                    break;
+                }
             }
             in.close();
             zin.close();
@@ -200,7 +204,6 @@ public class TripInfoCache {
             log.warn("In Memory Cache not loaded from: "+serialPath);
             e.printStackTrace();
         }
-        if(hotCache.size()>=maxNumTrips)flushHotCache();
     }
     public String toString(){
         return "In-Memory Cache contains "+hotCache.size()+" trips.";
