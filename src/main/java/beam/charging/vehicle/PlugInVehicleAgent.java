@@ -542,7 +542,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public Double getRemainingTravelDistanceInDayInMiles() {
-		return getRemainingTravelDistanceInDayInMeters() / 1609.34;
+		return (getRemainingTravelDistanceInDayInMeters()<0.0 ? 0.0 : getRemainingTravelDistanceInDayInMeters()) / 1609.34;
 	}
 
 	public void setEstimatedTravelDistanceInDay() {
