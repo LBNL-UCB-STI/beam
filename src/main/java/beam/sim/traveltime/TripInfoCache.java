@@ -189,11 +189,16 @@ public class TripInfoCache {
             GZIPInputStream zin = new GZIPInputStream(fileIn);
             Input in = new Input(zin);
             Kryo kryo = new Kryo();
+            int i = 0, divisor = 32;
             while(!in.eof()) {
                 String key = (String) kryo.readObject(in,String.class);
                 TripInfoAndCount tripInfoAndCount = (TripInfoAndCount) kryo.readObject(in,TripInfoAndCount.class);
                 hotCache.put(key, tripInfoAndCount);
                 hotCacheUtilization.put(tripInfoAndCount.count,key);
+                if(++i % divisor == 0){
+                    log.info(i + " trips loaded into in-memory cache.");
+                    divisor *= 2;
+                }
                 if(hotCache.size()>=maxNumTrips){
                     flushHotCache();
                     break;
