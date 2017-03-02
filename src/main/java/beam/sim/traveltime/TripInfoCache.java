@@ -70,6 +70,7 @@ public class TripInfoCache {
     private void flushHotCache() {
         int numMoved = 0;
         int numToFlush = maxNumTrips / 20; // 5% flush
+        int divisor = 32;
         LinkedList<Tuple<Integer,String>> removedKeys = new LinkedList<>();
 
         while(numMoved < numToFlush){
@@ -82,6 +83,10 @@ public class TripInfoCache {
                     }
                     hotCache.remove(key);
                     if(++numMoved >= numToFlush)break;
+                    if(numMoved % divisor == 0){
+                        log.info(numMoved + " of " + numToFlush + " trips flushed out of in-memory cache");
+                        divisor *= 2;
+                    }
                 }
                 if(numMoved >= numToFlush)break;
             }
@@ -185,6 +190,8 @@ public class TripInfoCache {
     }
     public void deserializeHotCacheKryo(String serialPath){
         try {
+            Runtime runtime = Runtime.getRuntime();
+            double gb = 1024.0*1024*1024;
             FileInputStream fileIn = new FileInputStream(serialPath);
             GZIPInputStream zin = new GZIPInputStream(fileIn);
             Input in = new Input(zin);
@@ -196,7 +203,7 @@ public class TripInfoCache {
                 hotCache.put(key, tripInfoAndCount);
                 hotCacheUtilization.put(tripInfoAndCount.count,key);
                 if(++i % divisor == 0){
-                    log.info(i + " trips loaded into in-memory cache.");
+                    log.info(i + " trips loaded into in-memory cache, app using "+ Math.round((runtime.totalMemory() - runtime.freeMemory()) / gb * 10)/10.0 + " GB");
                     divisor *= 2;
                 }
                 if(hotCache.size()>=maxNumTrips){
