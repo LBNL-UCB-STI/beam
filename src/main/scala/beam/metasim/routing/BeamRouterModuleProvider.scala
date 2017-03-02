@@ -1,9 +1,10 @@
 package beam.metasim.routing
 
-import beam.playground.metasim.services.location.BeamRouter
+import beam.metasim.sim.MetasimServices
+import beam.playground.metasim.services.location.BeamRouterImpl
 import com.google.inject.{Inject, Provider}
 import com.typesafe.config.Config
-import org.matsim.core.router.RoutingModule
+import org.matsim.core.router.{RoutingModule, TripRouter}
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -12,9 +13,10 @@ import org.matsim.core.router.RoutingModule
 object BeamRouterModuleProvider {
 }
 
-class BeamRouterModuleProvider @Inject()(config: Config) extends Provider[RoutingModule] {
+class BeamRouterModuleProvider @Inject()(config: Config,metasimServices: MetasimServices, tripRouter: TripRouter) extends Provider[RoutingModule] {
   // XXXX: Get router params from config and use BeamRouterImpl (to be redefined?)
   override def get(): RoutingModule = {
-    new BeamRouter()
+    val dr=new DummyRouter(metasimServices,tripRouter)
+    new BeamRouterImpl("ha","ha")
   }
 }

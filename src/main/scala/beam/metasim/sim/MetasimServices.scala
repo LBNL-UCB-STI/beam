@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import beam.metasim.agents._
 import beam.metasim.akkaguice.ActorInject
 import beam.metasim.config.ConfigModule
+import beam.metasim.playground.sid.events.MetasimEventsBus
 import beam.metasim.sim.modules.{BeamAgentModule, MetasimModule}
 import beam.metasim.utils.FileUtils
 import com.google.inject.{Inject, Injector, Singleton}
@@ -18,21 +19,19 @@ import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-object MetasimServices
-{
+object MetasimServices {
+
   import beam.metasim._
   import net.codingwell.scalaguice.InjectorExtensions._
 
   // Inject and use tsConfig instead here
-  val matsimConfig:Config = ConfigUtils.loadConfig(MatSimConfigLoc+MatSimConfigFilename)
-  FileUtils.setConfigOutputFile(OutputDirectoryBase,SimName,matsimConfig)
-  val scenario:Scenario = ScenarioUtils.loadScenario(matsimConfig)
+  val matsimConfig: Config = ConfigUtils.loadConfig(MatSimConfigLoc + MatSimConfigFilename)
+  FileUtils.setConfigOutputFile(OutputDirectoryBase, SimName, matsimConfig)
+  val scenario: Scenario = ScenarioUtils.loadScenario(matsimConfig)
   val injector: com.google.inject.Injector =
     org.matsim.core.controler.Injector.createInjector(matsimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
-
         // MATSim defaults
-        val routeConfigGroup = getConfig.plansCalcRoute
         install(new NewControlerModule)
         install(new ScenarioByConfigModule)
         install(new ControlerDefaultsModule)
@@ -43,7 +42,7 @@ object MetasimServices
         install(new MetasimModule)
         install(new BeamAgentModule)
       }
-    }).asJava,new AbstractModule() {
+    }).asJava, new AbstractModule() {
       override def install(): Unit = {
 
         // Beam -> MATSim Wirings
@@ -55,9 +54,10 @@ object MetasimServices
     }))
 
   val controler: ControlerI = injector.instance[ControlerI]
-  val registry: ActorRef=Registry.start(injector.getInstance(classOf[ActorSystem]),"actor-registry")
-
+  val metaSimEventsBus = new MetasimEventsBus
+  val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 }
+
 /**
   * Created by sfeygin on 2/11/17.
   */
@@ -65,5 +65,4 @@ object MetasimServices
 case class MetasimServices @Inject()(protected val injector: Injector) extends ActorInject {
   val schedulerRef: ActorRef = injectTopActor[BeamAgentScheduler]
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
-
 }
