@@ -169,33 +169,41 @@ ggplot(soc[hr<=33 & hr==floor(hr),list(kw=sum(kw)),by=c('hr','constraint')],aes(
 
 # Turn aggregated constraints into virtual battery cumul energy, scale by day of week, then repeat for a year
 
-virtual.battery.energy <- soc[hr>=28 & hr<=52 & hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint')]
-gap <- virtual.battery.energy[,list(max=cumul.energy[2],min=cumul.energy[1],gap=cumul.energy[2]-cumul.energy[1]),by='hr']
+virtual.battery.energy <- soc[hr>=28 & hr<=52 & hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','siteType')]
+gap <- virtual.battery.energy[,list(max.en=cumul.energy[2],min.en=cumul.energy[1],gap=cumul.energy[2]-cumul.energy[1]),by=c('hr','siteType')]
 gap[,hr.cal:=(hr-1)%%24+1]
-gap[,max.norm:=max-min(max)]
-gap[hr.cal<=4 & hr>30,max.norm:=max.norm - max(max.norm)]
-gap <- gap[2:25]
-setkey(gap,hr.cal)
+gap[,max.norm:=max.en-min(max.en),by='siteType']
+gap[hr.cal<=4 & hr>30,max.norm:=max.norm - max(max.norm),by='siteType']
+gap <- gap[hr>28]
+setkey(gap,siteType,hr.cal)
 gap[hr>30 & hr.cal>=23]
-max.start <- diff(gap[hr>30 & hr.cal>=23]$max)
-gap[,max.norm:=max.norm-min(max.norm)+max.start]
+max.start <- gap[hr>30 & hr.cal>=23,list(maxstart=diff(max.en)),by='siteType']
+gap <- join.on(gap,max.start,'siteType')
+gap[,max.norm:=max.norm-min(max.norm)+maxstart,by='siteType']
 gap[,min.norm:=max.norm-gap]
-min.start <- diff(gap[hr>30 & hr.cal>=23]$min.norm)
-gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+min.start]
+min.start <- gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by='siteType']
+gap <- join.on(gap,min.start,'siteType')
+gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by='siteType']
 
-virt <- data.table(day=rep(1:8,each=24),hr=1:(24*8),max=0,min=0)
+virt <- data.table(expand.grid(list(day=1:8,dhr=1:24,siteType=u(gap$siteType))))
+setkey(virt,siteType,day,dhr)
+virt[,hr:=(day-1)*24+dhr]
+virt[,':='(max=0,min=0)]
 for(the.day in 1:8){
   if(the.day==1){
     virt[day==1,max:=gap$max.norm]
     virt[day==1,min:=gap$min.norm]
   }else{
     prev.day <- virt[day==the.day-1]
-    virt[day==the.day,max:=max(prev.day$max)+gap$max.norm]
-    virt[day==the.day,min:=max(prev.day$min)+gap$min.norm.relative.to.min]
+    max.mins <- prev.day[,list(max.max=max(max),max.min=max(min)),by='siteType']
+    virt <- join.on(virt,max.mins,'siteType')
+    virt[day==the.day,max:=max.max+gap$max.norm]
+    virt[day==the.day,min:=max.min+gap$min.norm.relative.to.min]
+    virt[,':='(max.max=NULL,max.min=NULL)]
   }
 }
-
-ggplot(virt,aes(x=hr,y=max))+geom_line()+geom_line(aes(y=min))
+setkey(virt,siteType,day,hr)
+ggplot(virt,aes(x=hr,y=max))+geom_line()+geom_line(aes(y=min))+facet_wrap(~siteType)
 
 
 # Put final constraints needed by PLEXOS into a table
