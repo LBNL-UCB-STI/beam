@@ -104,20 +104,21 @@ public class TripInfoCache {
 
         //TODO if we are using Postgres 9.5, we can do a single UPSERT statement to avoid the hideousness below
         try {
-            PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) AS n FROM trips WHERE key = ?");
+            PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) FROM trips WHERE key = ?");
             preparedStatement.setString(1, key);
             ResultSet result = preparedStatement.executeQuery();
             result.next();
             if(result.getInt(1) == 1){
-                PreparedStatement statement = connection.prepareStatement("UPDATE trips SET trip = ? WHERE key = ?");
-                statement.setBytes(1, outputStream.toByteArray());
+                PreparedStatement statement = connection.prepareStatement("UPDATE trips SET hitcount = ? WHERE key = ?");
+                statement.setInt(1, theTrip.count);
                 statement.setString(2, key);
                 statement.executeUpdate();
                 statement.close();
             }else {
-                PreparedStatement statement = connection.prepareStatement("INSERT INTO trips (key,trip) VALUES (?, ?) ");
+                PreparedStatement statement = connection.prepareStatement("INSERT INTO trips (key,trip,hitcount) VALUES (?, ?, ?) ");
                 statement.setString(1, key);
                 statement.setBytes(2, outputStream.toByteArray());
+                statement.setInt(3, theTrip.count);
                 statement.executeUpdate();
                 statement.close();
             }
@@ -130,7 +131,7 @@ public class TripInfoCache {
     public TripInfoAndCount readFromTable(String key) {
 
         try{
-            PreparedStatement preparedStatement = connection.prepareStatement("SELECT trip FROM trips WHERE key = ?");
+            PreparedStatement preparedStatement = connection.prepareStatement("SELECT trip,hitcount FROM trips WHERE key = ?");
             preparedStatement.setString(1, key);
             ResultSet result = preparedStatement.executeQuery();
             if(result.next()){
@@ -138,6 +139,7 @@ public class TripInfoCache {
                 ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(tripBytes);
                 Input input = new Input(byteArrayInputStream, tripBytes.length);
                 TripInfoAndCount theTrip = (TripInfoAndCount) kryo.readObject(input,TripInfoAndCount.class);
+                theTrip.count = result.getInt(2);
                 result.close();
                 preparedStatement.close();
                 return theTrip;
