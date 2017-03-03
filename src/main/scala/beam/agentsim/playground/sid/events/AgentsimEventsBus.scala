@@ -8,12 +8,12 @@ import akka.event.{ActorEventBus, LookupClassification}
   * Created by sfeygin on 2/11/17.
   */
 
-object MetasimEventsBus{
+object AgentsimEventsBus{
   case class AddEventSubscriber(ref: ActorRef)
   case class RemoveEventSubscriber(ref: ActorRef)
 }
 
-class MetasimEventsBus extends ActorEventBus with LookupClassification {
+class AgentsimEventsBus extends ActorEventBus with LookupClassification {
 
   override type Event = org.matsim.api.core.v01.events.Event
   override type Classifier = String

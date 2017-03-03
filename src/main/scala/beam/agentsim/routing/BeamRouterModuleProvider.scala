@@ -1,4 +1,4 @@
-package beam.metasim.routing
+package beam.agentsim.routing
 
 import beam.agentsim.sim.AgentsimServices
 import com.google.inject.{Inject, Provider}
@@ -14,8 +14,8 @@ object BeamRouterModuleProvider {
 
 class BeamRouterModuleProvider @Inject()(config: Config, agentsimServices: AgentsimServices, tripRouter: TripRouter) extends Provider[RoutingModule] {
   // XXXX: Get router params from config and use BeamRouterImpl (to be redefined?)
-  override def get(): BeamRouterImpl = {
+  override def get(): DummyRouter = {
     val dr=new DummyRouter(agentsimServices,tripRouter)
-    new BeamRouterImpl("ha","ha")
+    dr
   }
 }

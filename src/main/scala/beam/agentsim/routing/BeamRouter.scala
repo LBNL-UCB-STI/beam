@@ -1,4 +1,4 @@
-package beam.metasim.routing
+package beam.agentsim.routing
 
 import akka.actor.Actor
 import beam.agentsim.agents.PersonAgent
@@ -11,7 +11,6 @@ import org.matsim.facilities.Facility
   * Created by sfeygin on 2/28/17.
   */
 trait BeamRouter extends Actor  {
-
 
   case class RoutingRequest(fromFacility: Facility[_ <: Facility[_]], toFacility: Facility[_ <: Facility[_]], departureTime: Double, personId: Id[PersonAgent])
 
