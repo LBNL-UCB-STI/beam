@@ -36,11 +36,11 @@ public class Scheduler extends UntypedActor {
 
 
 
-	public Scheduler(Population population) {
+	public Scheduler(Population population, ActorRef chargingInfrastructureManager) {
 		for (Person person:population.getPersons().values()){
 			Activity act=(Activity) person.getSelectedPlan().getPlanElements().get(0);
 			double actEndTime=act.getEndTime();
-			ActorRef personRef = getContext().actorOf(Props.create(BeamPersonAgent.class,person.getSelectedPlan()));
+			ActorRef personRef = getContext().actorOf(Props.create(BeamPersonAgent.class,person.getSelectedPlan(),chargingInfrastructureManager));
 			
 			triggers.add(new ActivityEndMessage(personRef,actEndTime,0));
 		}

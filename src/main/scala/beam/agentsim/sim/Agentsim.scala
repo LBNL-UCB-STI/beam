@@ -30,9 +30,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
                          private val services: MetasimServices,
                          private val config: Config
                        ) extends StartupListener with IterationStartsListener with ShutdownListener {
-  import MetasimServices.registry
+  import MetasimServices._
 
-  val metaSimEventsBus = new MetasimEventsBus
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   val scenario: Scenario = services.matsimServices.getScenario
@@ -42,7 +41,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   override def notifyStartup(event: StartupEvent): Unit = {
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
-    metaSimEventsBus.subscribe(eventSubscriber, "/metasim_events/travel_events")
+    metaSimEventsBus.subscribe(eventSubscriber, "/metasim_events/matsim_events")
     var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     for ((k, v) <- popMap) {
 

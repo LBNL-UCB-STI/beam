@@ -2,7 +2,6 @@ package beam.agentsim.playground.sid.events
 
 import akka.actor.ActorRef
 import akka.event.{ActorEventBus, LookupClassification}
-import beam.agentsim.playground.sid.events.MetasimEventsBus.MetaSimEvent
 
 
 /**
@@ -12,20 +11,18 @@ import beam.agentsim.playground.sid.events.MetasimEventsBus.MetaSimEvent
 object MetasimEventsBus{
   case class AddEventSubscriber(ref: ActorRef)
   case class RemoveEventSubscriber(ref: ActorRef)
-  case class MetaSimEvent(topic:String, matsimEvent: org.matsim.api.core.v01.events.Event)
 }
 
 class MetasimEventsBus extends ActorEventBus with LookupClassification {
 
-
-  override type Event = MetaSimEvent
+  override type Event = org.matsim.api.core.v01.events.Event
   override type Classifier = String
 
   //  Closest number of classifiers as power of 2 hint.
   override protected def mapSize(): Int = 16
 
   override protected def classify(event: Event): String = {
-    event.topic
+    event.getEventType
   }
 
   override protected def publish(event: Event, subscriber: ActorRef): Unit = {

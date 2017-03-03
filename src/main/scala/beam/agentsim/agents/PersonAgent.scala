@@ -17,7 +17,9 @@ object PersonAgent {
 
 
   object PersonData {
+
     import scala.collection.JavaConverters._
+
     /**
       * `PersonData` factory method to assist in  creating `PersonData`
       *
@@ -27,7 +29,7 @@ object PersonAgent {
     def apply(plan: Plan) = new PersonData(planToVec(plan), 0)
 
     def planToVec(plan: Plan): Vector[Activity] = {
-      scala.collection.immutable.Vector.empty[Activity]++plan.getPlanElements.asScala.filter(p=>p.isInstanceOf[Activity]).map(p=>p.asInstanceOf[Activity])
+      scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
     }
   }
 
@@ -36,10 +38,9 @@ object PersonAgent {
     val getCurrentActivity: Activity = {
       activityChain(currentActivity)
     }
+
     def inc: Int = currentActivity + 1
   }
-
-
 
 
   sealed trait InActivity extends BeamAgentState
@@ -78,6 +79,8 @@ object PersonAgent {
 // Agents initialized stateless w/out knowledge of their plan. This is sent to them by parent actor.
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with MobileAgent {
 
+  import beam.metasim.sim.MetasimServices._
+
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
   when(Initialized) {
     case Event(ActivityStartTrigger(newData), info: BeamAgentInfo[PersonData]) =>
@@ -87,14 +90,15 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(PerformingActivity) {
     // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
     case Event(ActivityEndTrigger(newData), info: BeamAgentInfo[PersonData]) =>
-      val msg = new ActivityEndEvent(newData.tick,Id.createPersonId(id),info.data.getCurrentActivity.getLinkId,info.data.getCurrentActivity.getFacilityId,info.data.getCurrentActivity.getType)
-      context.actorSelection("")
-      context.system.eventStream.publish(msg)
+      val msg = new ActivityEndEvent(newData.tick, Id.createPersonId(id), info.data.getCurrentActivity.getLinkId, info.data.getCurrentActivity.getFacilityId, info.data.getCurrentActivity.getType)
+      metaSimEventsBus.publish(msg)
       goto(ChoosingMode) using info.copy(id, PersonData(info.data.activityChain, info.data.inc)) replying CompletionNotice(newData)
   }
 
   when(ChoosingMode) {
     case Event(SelectRouteTrigger(newData), info: BeamAgentInfo[PersonData]) => {
+      // We would send a routing request here. We can simulate this for now.
+
       stay()
     }
 

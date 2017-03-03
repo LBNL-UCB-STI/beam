@@ -12,7 +12,7 @@ public class ChargingInfrastructureManager extends UntypedActor {
 	public void onReceive(Object message) throws Throwable {
 		if (message instanceof RequestChargersInRadiusMessage) {
 			// TODO: ReplyChargersInRadiusMessage
-		} else if (message instanceof ReplyChargersInRadiusMessage){
+		} else if (message instanceof ReserveChargerMessage){
 			// TODO: ReplyChargersInRadiusMessage
 		}
 	}

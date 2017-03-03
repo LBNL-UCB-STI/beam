@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.population.Plan;
 
+import akka.actor.ActorRef;
 import akka.actor.ReceiveTimeout;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
@@ -12,10 +13,14 @@ import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReplyChargersInRadiusMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.RequestChargersInRadiusMessage;
 import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReservationConfirmationMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReserveChargerMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.UnplugMessage;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
+import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
 import beam.playground.beamSimAkkaProtoType.scheduler.TriggerMessage;
 
 public class BeamPersonAgent extends UntypedActor {
@@ -24,12 +29,15 @@ public class BeamPersonAgent extends UntypedActor {
 	private Plan plan;
 	private int currentPlanElementIndex = 0;
 	private boolean vehicleIsPluggedIn = false;
+	private ActorRef chargingInfrastructureManager;
+	private TriggerMessage destinationAreaApproachingMessage;
+	private ActorRef reservedPlug;
 
 	// TODO: also send ack messages after receiving messages to scheduler
 
-	public BeamPersonAgent(Plan plan) {
+	public BeamPersonAgent(Plan plan, ActorRef chargingInfrastructureManager) {
 		this.plan = plan;
-
+		this.chargingInfrastructureManager = chargingInfrastructureManager;
 	}
 
 	public void onReceive(TriggerMessage message) {
@@ -42,14 +50,14 @@ public class BeamPersonAgent extends UntypedActor {
 
 			double arrivalTime = message.getTime() + 60;
 
-			
-			sendAckMessageSingleTriggerAttached(message,new PersonArrivalAtVehicleMessage(getSelf(), arrivalTime, 0));
-		//	message.sendAckMessageSingleTriggerAttached(getSender(), getSelf(),
-		//			new PersonArrivalAtVehicleMessage(getSelf(), arrivalTime, 0));
+			sendAckMessageSingleTriggerAttached(message, new PersonArrivalAtVehicleMessage(getSelf(), arrivalTime, 0));
+			// message.sendAckMessageSingleTriggerAttached(getSender(),
+			// getSelf(),
+			// new PersonArrivalAtVehicleMessage(getSelf(), arrivalTime, 0));
 
 		} else if (message instanceof PersonArrivalAtVehicleMessage) {
 			if (vehicleIsPluggedIn) {
-				// TODO: unplug vehicle
+				reservedPlug.tell(new UnplugMessage(), getSelf());
 			}
 
 			// getContext().setReceiveTimeout(Duration.apply(100L,
@@ -65,35 +73,34 @@ public class BeamPersonAgent extends UntypedActor {
 			// TODO: add randomness
 			double arrivalTime = message.getTime() + 3600;
 
-			//sendAckMessageSingleTriggerAttached(message,null);
-			sendAckMessageSingleTriggerAttached(message,new DestinationAreaApproachingMessage(getSelf(), arrivalTime, 0));
-			
+			// sendAckMessageSingleTriggerAttached(message,null);
+			sendAckMessageSingleTriggerAttached(message,
+					new DestinationAreaApproachingMessage(getSelf(), arrivalTime, 0));
+
 		} else if (message instanceof DestinationAreaApproachingMessage) {
-			// TODO: find chargers
-
-			// TODO: route to charger (introduce delay)
-
-			// TODO: schedule message: charger arrival message
+			this.destinationAreaApproachingMessage = (TriggerMessage)message;
+			chargingInfrastructureManager.tell(new RequestChargersInRadiusMessage(), getSelf());
 
 		} else if (message instanceof ChargerArrivalMessage) {
-			// TODO: plugin message to reserved plug
+			
+			reservedPlug.tell(new PluginMessage(), getSelf());
+			
+			double arrivalTime = message.getTime() + 2*60;
 
-			// TODO: schedule plugout within 30min -> message send to
-
-			// TODO: schedule activity start message
+			// sendAckMessageSingleTriggerAttached(message,null);
+			sendAckMessageSingleTriggerAttached(message,
+					new ActStartMessage(getSelf(), arrivalTime, 0));
 		} else if (message instanceof ActStartMessage) {
 
 			currentPlanElementIndex += 2;
 
+			//TODO: take activity end message time from plan
+			double arrivalTime = message.getTime() + 2*60;
+			
 			// TODO: schedule activity end message (only for last one, don't do
-			// it)
-		} else if (message instanceof ReplyChargersInRadiusMessage) {
-			// TODO: send ReserveChargerMessage to charging infrastructure
-			// manager
-		} else if (message instanceof ReservationConfirmationMessage) {
-			// TODO: send plugin charger message to charger which was confirmed
-
-			// TODO: schedule trigger plugout for later
+						// it)
+			sendAckMessageSingleTriggerAttached(message,
+					new ActivityEndMessage(getSelf(), arrivalTime, 0));
 		}
 	}
 
@@ -101,17 +108,36 @@ public class BeamPersonAgent extends UntypedActor {
 	public void onReceive(Object message) throws Throwable {
 		if (message instanceof TriggerMessage) {
 			onReceive((TriggerMessage) message);
+		} else if (message instanceof ReplyChargersInRadiusMessage) {
+			chargingInfrastructureManager.tell(new ReserveChargerMessage(), getSelf());
+
+		} else if (message instanceof ReservationConfirmationMessage) {
+
+			// route to charger (introduce delay)
+			try {
+				Timeout timeout = new Timeout(Duration.create(1, "seconds"));
+				Future<Object> future = Patterns.ask(getSelf(), new IgnoreMessage(), timeout);
+				String result = (String) Await.result(future, timeout.duration());
+			} catch (Exception e) {
+
+			}
+
+			// TODO: add randomness
+			double arrivalTime = this.destinationAreaApproachingMessage.getTime() + 3600;
+
+			sendAckMessageSingleTriggerAttached(this.destinationAreaApproachingMessage,
+					new ChargerArrivalMessage(getSelf(), arrivalTime, 0));
 		} else if (message instanceof IgnoreMessage) {
-			//System.out.println();
+			// System.out.println();
 		} else {
 			DebugLib.stopSystemAndReportInconsistency("unexpected message type received:" + message);
 		}
 
 	}
-	
-	private void sendAckMessageSingleTriggerAttached(TriggerMessage oldTriggerMessage,TriggerMessage newTriggerMessage){
-		oldTriggerMessage.sendAckMessageSingleTriggerAttached(getSender(), getSelf(),
-				newTriggerMessage);
+
+	private void sendAckMessageSingleTriggerAttached(TriggerMessage oldTriggerMessage,
+			TriggerMessage newTriggerMessage) {
+		oldTriggerMessage.sendAckMessageSingleTriggerAttached(getSender(), getSelf(), newTriggerMessage);
 	}
 
 }
