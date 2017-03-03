@@ -190,6 +190,7 @@ public class TripInfoCache {
     }
     public void deserializeHotCacheKryo(String serialPath){
         try {
+            log.info("Deserializing in-memory cache from: "+serialPath);
             Runtime runtime = Runtime.getRuntime();
             double gb = 1024.0*1024*1024;
             FileInputStream fileIn = new FileInputStream(serialPath);

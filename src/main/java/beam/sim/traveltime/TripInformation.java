@@ -11,9 +11,7 @@ import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 public class TripInformation implements Serializable {
 	LinkedList<RouteInformationElement> routeInformationElements = new LinkedList<>();
 	double departureTime, tripTravelTime = 0.0, tripTravelDistance = 0.0, tripAverageSpeed;
-	HashMap<EnergyConsumptionModel,HashMap<VehicleWithBattery,Double>> tripEnergyConsumptionByModel = new HashMap<>();
-	String routeAsString = "";
-	
+
 	// Zero-arg constructor necessary to use kyro for serailization
 	public TripInformation(){
 	}
@@ -23,7 +21,6 @@ public class TripInformation implements Serializable {
 		for(RouteInformationElement elem : routeInformationElements){
 			tripTravelTime += elem.getLinkTravelTime();
 			tripTravelDistance += elem.getLinkTravelDistance();
-			routeAsString += elem.getLinkId() + " ";
 		}
 		tripAverageSpeed = tripTravelDistance / tripTravelTime;
 	}
@@ -53,7 +50,4 @@ public class TripInformation implements Serializable {
 		return energyConsumed;
 	}
 
-	public String routeAsString() {
-		return this.routeAsString;
-	}
 }
