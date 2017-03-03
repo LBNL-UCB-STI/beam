@@ -27,9 +27,6 @@ public class TripInfoCache {
     public int maxNumTrips;
     public LinkedHashMap<String, TripInfoAndCount> hotCache = new LinkedHashMap<>() ;
     public TreeMultimap<Integer, String> hotCacheUtilization = TreeMultimap.create();
-    public ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    public Output output = new Output(outputStream);
-    public Input input = new Input();
 
     public TripInfoCache() {
         maxNumTrips = EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
@@ -104,6 +101,8 @@ public class TripInfoCache {
         }
     }
     public void insertIntoTable(String key, TripInfoAndCount theTrip) {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        Output output = new Output(outputStream);
         kryo.writeObject(output,theTrip);
         output.flush();
 
@@ -128,13 +127,13 @@ public class TripInfoCache {
                 statement.close();
             }
             preparedStatement.close();
-            outputStream.flush();
+            output.close();
+            outputStream.close();
         } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
     }
     public TripInfoAndCount readFromTable(String key) {
-
         try{
             PreparedStatement preparedStatement = connection.prepareStatement("SELECT trip,hitcount FROM trips WHERE key = ?");
             preparedStatement.setString(1, key);
