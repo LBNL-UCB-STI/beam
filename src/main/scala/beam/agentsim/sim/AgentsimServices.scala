@@ -4,7 +4,8 @@ import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.agents._
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.ConfigModule
-import beam.agentsim.sim.modules.{BeamAgentModule, AgentsimModule}
+import beam.agentsim.playground.sid.events.{AgentsimEventsBus}
+import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.utils.FileUtils
 import com.google.inject.{Inject, Injector, Singleton}
 import glokka.Registry
@@ -18,7 +19,7 @@ import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-object MetasimServices
+object AgentsimServices
 {
   import beam.agentsim._
   import net.codingwell.scalaguice.InjectorExtensions._
@@ -53,7 +54,7 @@ object MetasimServices
     }))
 
   val controler: ControlerI = injector.instance[ControlerI]
-  val metaSimEventsBus = new MetasimEventsBus
+  val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 }
 
@@ -61,7 +62,7 @@ object MetasimServices
   * Created by sfeygin on 2/11/17.
   */
 @Singleton
-case class MetasimServices @Inject()(protected val injector: Injector) extends ActorInject {
+case class AgentsimServices @Inject()(protected val injector: Injector) extends ActorInject {
   val schedulerRef: ActorRef = injectTopActor[BeamAgentScheduler]
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 }

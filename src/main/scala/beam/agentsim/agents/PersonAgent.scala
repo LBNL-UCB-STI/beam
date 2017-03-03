@@ -79,7 +79,7 @@ object PersonAgent {
 // Agents initialized stateless w/out knowledge of their plan. This is sent to them by parent actor.
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with MobileAgent {
 
-  import beam.metasim.sim.MetasimServices._
+  import beam.agentsim.sim.AgentsimServices._
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
   when(Initialized) {
@@ -91,7 +91,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
     case Event(ActivityEndTrigger(newData), info: BeamAgentInfo[PersonData]) =>
       val msg = new ActivityEndEvent(newData.tick, Id.createPersonId(id), info.data.getCurrentActivity.getLinkId, info.data.getCurrentActivity.getFacilityId, info.data.getCurrentActivity.getType)
-      metaSimEventsBus.publish(msg)
+      agentSimEventsBus.publish(msg)
       goto(ChoosingMode) using info.copy(id, PersonData(info.data.activityChain, info.data.inc)) replying CompletionNotice(newData)
   }
 

@@ -2,7 +2,7 @@ package beam.agentsim.sim.modules
 
 import akka.actor.ActorSystem
 import beam.agentsim.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
-import beam.agentsim.sim.MetasimServices
+import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.sim.modules.BeamAgentModule.ActorSystemProvider
 import com.google.inject.{AbstractModule, Inject, Injector, Provider}
 import com.typesafe.config.Config
@@ -31,6 +31,6 @@ object BeamAgentModule {
 class BeamAgentModule extends AbstractModule with AkkaGuiceSupport with ScalaModule {
   override def configure(): Unit = {
     bind[ActorSystem].toProvider[ActorSystemProvider].asEagerSingleton()
-    bind[MetasimServices].asEagerSingleton()
+    bind[AgentsimServices].asEagerSingleton()
   }
 }

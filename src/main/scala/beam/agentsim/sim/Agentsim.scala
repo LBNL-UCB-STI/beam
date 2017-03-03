@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
-import beam.agentsim.playground.sid.events.{EventsSubscriber, MetasimEventsBus}
+import beam.agentsim.playground.sid.events.{EventsSubscriber, AgentsimEventsBus$}
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import glokka.Registry
@@ -21,16 +21,16 @@ import org.matsim.core.controler.listener.{IterationStartsListener, ShutdownList
 import scala.concurrent.Await
 
 /**
-  * MetaSim entrypoint.
-  * Should instantiate the [[ActorSystem]], [[MetasimServices]] and interact concurrently w/ the QSim.
+  * AgentSim entrypoint.
+  * Should instantiate the [[ActorSystem]], [[AgentsimServices]] and interact concurrently w/ the QSim.
   *
   * Created by sfeygin on 2/8/17.
   */
 class Agentsim @Inject()(private val actorSystem: ActorSystem,
-                         private val services: MetasimServices,
+                         private val services: AgentsimServices,
                          private val config: Config
                        ) extends StartupListener with IterationStartsListener with ShutdownListener {
-  import MetasimServices._
+  import AgentsimServices._
 
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
@@ -41,7 +41,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   override def notifyStartup(event: StartupEvent): Unit = {
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
-    metaSimEventsBus.subscribe(eventSubscriber, "/metasim_events/matsim_events")
+    agentSimEventsBus.subscribe(eventSubscriber, "/metasim_events/matsim_events")
     var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     for ((k, v) <- popMap) {
 

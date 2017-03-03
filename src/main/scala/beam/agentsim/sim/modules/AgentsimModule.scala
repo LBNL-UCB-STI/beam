@@ -1,6 +1,5 @@
 package beam.agentsim.sim.modules
 
-import beam.agentsim.routing.BeamRouterModuleProvider
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 import org.matsim.core.router.RoutingModule

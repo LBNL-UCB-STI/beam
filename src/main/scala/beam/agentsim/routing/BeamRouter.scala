@@ -1,7 +1,7 @@
 package beam.metasim.routing
 
 import akka.actor.Actor
-import beam.metasim.agents.PersonAgent
+import beam.agentsim.agents.PersonAgent
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.router.ActivityWrapperFacility
