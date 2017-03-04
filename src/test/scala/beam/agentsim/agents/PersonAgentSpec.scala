@@ -8,6 +8,8 @@ import akka.pattern.ask
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.playground.sid.events.EventsSubscriber
+import beam.agentsim.playground.sid.events.AgentsimEventsBus
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
@@ -26,6 +28,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
   with MustMatchers with FunSpecLike with ImplicitSender {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  private val agentSimEventsBus = new AgentsimEventsBus
 
   describe("PersonAgent FSM") {
 
@@ -66,7 +69,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events),"events-subscriber")
-      agentSimEventsBu.subscribe(eventSubscriber, "actend")
+      agentSimEventsBus.subscribe(eventSubscriber, "actend")
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
