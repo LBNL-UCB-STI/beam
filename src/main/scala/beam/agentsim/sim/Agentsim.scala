@@ -43,7 +43,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
     agentSimEventsBus.subscribe(eventSubscriber, "/metasim_events/matsim_events")
-    var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
+    val popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     for ((k, v) <- popMap) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val future = registry ? Registry.Register(k.toString, props)
@@ -54,8 +54,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
-    for ((k, v) <- popMap) {
+    val popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
+    for ((k, _) <- popMap) {
       val future = registry ? Registry.Lookup(k.toString)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Found]
