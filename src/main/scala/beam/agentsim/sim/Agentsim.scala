@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
-import beam.agentsim.playground.sid.events.{EventsSubscriber, AgentsimEventsBus$}
+import beam.agentsim.playground.sid.events.EventsSubscriber
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import glokka.Registry
@@ -29,7 +29,8 @@ import scala.concurrent.Await
 class Agentsim @Inject()(private val actorSystem: ActorSystem,
                          private val services: AgentsimServices,
                          private val config: Config
-                       ) extends StartupListener with IterationStartsListener with ShutdownListener {
+                        ) extends StartupListener with IterationStartsListener with ShutdownListener {
+
   import AgentsimServices._
 
   val eventsManager: EventsManager = services.matsimServices.getEvents
@@ -44,7 +45,6 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     agentSimEventsBus.subscribe(eventSubscriber, "/metasim_events/matsim_events")
     var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     for ((k, v) <- popMap) {
-
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val future = registry ? Registry.Register(k.toString, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]

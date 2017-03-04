@@ -68,7 +68,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
     it("should publish events that can be received by a MATSim EventsManager") {
 
       val events: EventsManager = EventsUtils.createEventsManager()
-      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events),"events-subscriber")
+      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber")
       agentSimEventsBus.subscribe(eventSubscriber, "actend")
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -80,12 +80,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
       beamAgentSchedulerRef ! Initialize(new TriggerData(personAgentRef, 0.0))
       beamAgentSchedulerRef ! ActivityStartTrigger(new TriggerData(personAgentRef, 1.0))
-
-      EventFilter.info(message= "events-subscriber received actend event!",occurrences = 1).intercept {
-        beamAgentSchedulerRef ! ActivityEndTrigger(new TriggerData(personAgentRef, 10.0))
-      }
-
+      beamAgentSchedulerRef ! ActivityEndTrigger(new TriggerData(personAgentRef, 10.0))
       beamAgentSchedulerRef ! StartSchedule(stopTick = 11.0, maxWindow = 10.0)
+
+      EventFilter.info(message = "events-subscriber received actend event!", occurrences = 1)
+
 
     }
   }
