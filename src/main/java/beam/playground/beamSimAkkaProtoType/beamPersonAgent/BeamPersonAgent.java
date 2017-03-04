@@ -2,6 +2,7 @@ package beam.playground.beamSimAkkaProtoType.beamPersonAgent;
 
 import java.util.concurrent.TimeUnit;
 
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.*;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.population.Plan;
 
@@ -12,11 +13,6 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReplyChargersInRadiusMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.RequestChargersInRadiusMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReservationConfirmationMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReserveChargerMessage;
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.UnplugMessage;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;

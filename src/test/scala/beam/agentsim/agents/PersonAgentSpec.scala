@@ -66,7 +66,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events),"events-subscriber")
-      metaSimEventsBus.subscribe(eventSubscriber, "actend")
+      agentSimEventsBu.subscribe(eventSubscriber, "actend")
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
