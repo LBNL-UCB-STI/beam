@@ -96,11 +96,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   }
 
   when(ChoosingMode) {
-    case Event(SelectRouteTrigger(newData), info: BeamAgentInfo[PersonData]) => {
+    case Event(SelectRouteTrigger(newData), info: BeamAgentInfo[PersonData]) =>
       // We would send a routing request here. We can simulate this for now.
-
       stay()
-    }
 
 
   }

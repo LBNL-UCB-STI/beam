@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
-import beam.agentsim.playground.sid.events.{EventsSubscriber}
+import beam.agentsim.playground.sid.events.EventsSubscriber
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import glokka.Registry
@@ -29,7 +29,8 @@ import scala.concurrent.Await
 class Agentsim @Inject()(private val actorSystem: ActorSystem,
                          private val services: AgentsimServices,
                          private val config: Config
-                       ) extends StartupListener with IterationStartsListener with ShutdownListener {
+                        ) extends StartupListener with IterationStartsListener with ShutdownListener {
+
   import AgentsimServices._
 
   val eventsManager: EventsManager = services.matsimServices.getEvents
@@ -42,9 +43,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
     agentSimEventsBus.subscribe(eventSubscriber, "/metasim_events/matsim_events")
-    var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
+    val popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     for ((k, v) <- popMap) {
-
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val future = registry ? Registry.Register(k.toString, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
@@ -54,8 +54,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    var popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
-    for ((k, v) <- popMap) {
+    val popMap = scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
+    for ((k, _) <- popMap) {
       val future = registry ? Registry.Lookup(k.toString)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Found]
