@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
-import beam.agentsim.playground.sid.events.{EventsSubscriber, AgentsimEventsBus$}
+import beam.agentsim.playground.sid.events.{EventsSubscriber}
 import com.google.inject.Inject
 import com.typesafe.config.Config
 import glokka.Registry
