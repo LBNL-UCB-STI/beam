@@ -68,6 +68,7 @@ ev[,hr:=as.numeric(time)/3600]
 ev[,hour:=floor(hr)]
 ev[actType=="",actType:=NA]
 ev[,actType:=ifelse(type=='BeginChargingSessionEvent',repeat_last(as.character(actType),forward=F),as.character(NA)),by='person']
+ev[type=='BeginChargingSessionEvent' & is.na(actType),actType:='Home',by='person']
 
 ev <- ev[!type%in%c('arrival','departure','travelled','actend','PreChargeEvent')]
 
@@ -130,6 +131,12 @@ setkey(ev,hr,native.order)
 ev[,siteType:=repeat_last(siteType),by='person']
 ev[,actType:=repeat_last(actType),by='person']
 
+ev[,final.type:=ifelse(siteType=='Public' & actType=='Work','Public',actType)]
+ev[,final.type.new:='Public']
+ev[final.type%in%c('Work','Home'),final.type.new:=actType]
+ev[final.type=='Home',final.type.new:='Residential']
+ev[,':='(final.type=final.type.new,final.type.new=NULL)]
+
 
 ##################################################################
 # First aggregate for plexos
@@ -143,31 +150,27 @@ ts <- seq(0,ceiling(max(ev$hr)),by=1)
                 #kw=repeat_last(rev(repeat_last(rev(my.approx(hr,kw,xout=sort(c(ts,hr)),method='constant')$y))))
                 #),by=c('person','siteType')]
 
-soc <- ev[,list(hr=sort(c(ts,hr)),
+soc.raw <- ev[,list(hr=sort(c(ts,hr)),
                 hr.min=sort(c(ts,hr.min)),
                 kw=repeat_last(rev(repeat_last(rev(approx(hr,kw,xout=sort(c(ts,hr)),method='constant')$y)))),
                 kw.min=repeat_last(rev(repeat_last(rev(approx(hr,kw,xout=sort(c(ts,hr.min)),method='constant')$y)))),
                 energy.level=repeat_last(rev(repeat_last(rev(approx(hr,energy.level,xout=sort(c(ts,hr)),method='linear')$y)))),
                 energy.level.min=repeat_last(rev(repeat_last(rev(approx(hr.min,energy.level.min,xout=sort(c(ts,hr.min)),method='linear')$y)))),
-                veh.type=veh.type[1]),by=c('person','siteType','actType')]
+                veh.type=veh.type[1]),by=c('person','final.type')]
+                #veh.type=veh.type[1]),by=c('person','siteType','actType')]
 
 # Deal with over-representation of charging in early morning due to stranded/cut-off sesssions
 #soc[hr>=2 & hr<3,':='(kw=kw/3,energy.level=energy.level/3)]
 #soc[hr>=3 & hr<4,':='(kw=kw/5,energy.level=energy.level/5)]
 #soc[hr>=4 & hr<5,':='(kw=kw/2,energy.level=energy.level/2)]
 
-# these are sessions that were cut off due to stranding or due to the end of the sim
-soc[is.na(actType),actType:='Home']
-
-soc.max <- soc[,list(person,hr,energy.level,kw,constraint='max',siteType,actType,veh.type)]
-soc.min <- soc[,list(person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',siteType,actType,veh.type)]
-
-soc <- rbindlist(list(soc.min,soc.max))
-
-soc <- soc[,list(kw=sum(kw),energy.level=sum(energy.level),veh.type=veh.type[1]),by=c('hr','person','siteType','actType','constraint')]
-
-soc[,d.energy.level:=c(0,ifelse(diff(energy.level)>0,diff(energy.level),0)),by=c('person','siteType','actType','constraint')]
-soc[,cumul.energy:=cumsum(d.energy.level),by=c('person','siteType','actType','constraint')]
+soc <- rbindlist(list(soc.raw[,list(person,hr,energy.level,kw,constraint='max',final.type,veh.type)],soc.raw[,list(person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',final.type,veh.type)]
+))[hr==floor(hr)]
+soc <- soc[,list(kw=sum(kw),energy.level=sum(energy.level),veh.type=veh.type[1]),by=c('hr','person','final.type','constraint')]
+soc[,d.energy.level:=c(0,ifelse(diff(energy.level)>0,diff(energy.level),0)),by=c('person','final.type','constraint')]
+soc[,cumul.energy:=cumsum(d.energy.level),by=c('person','final.type','constraint')]
+setkey(soc,hr,person,final.type,constraint)
+soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','person','final.type')]
 
 #ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','siteType','actType')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(~siteType)
 #ggplot(soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','constraint','actType')],aes(x=hr%%24,y=d.energy))+geom_line(lwd=1.5)+facet_wrap(~actType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
@@ -176,12 +179,7 @@ soc[,cumul.energy:=cumsum(d.energy.level),by=c('person','siteType','actType','co
 #ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=actType))+geom_bar(stat='identity')+facet_wrap(~siteType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
 # Final categorization of load
-soc[,final.type:=ifelse(siteType=='Public' & actType=='Work','Public',actType)]
-soc[,final.type.new:='Public']
-soc[final.type%in%c('Work','Home'),final.type.new:=actType]
-soc[final.type=='Home',final.type.new:='Residential']
-soc[,':='(final.type=final.type.new,final.type.new=NULL)]
-soc.sum <- soc[hr==floor(hr) & hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','final.type','veh.type')]
+soc.sum <- soc[ & hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','final.type','veh.type')]
 setkey(soc.sum,hr,final.type,veh.type)
 ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_wrap(~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
@@ -203,15 +201,13 @@ shave.peak <- function(x,y,shave.start,shave.end){
 }
 soc.weekday <- copy(soc)
 soc.weekend <- copy(soc)
-shave.start <- 26; shave.end <- 28
-soc.weekday[,':='(d.energy.level=shave.peak(hr,d.energy.level,shave.start,shave.end)),by=c('person','final.type','veh.type','constraint')]
-soc.weekend[,':='(d.energy.level=shave.peak(hr,d.energy.level,shave.start,shave.end)),by=c('person','final.type','veh.type','constraint')]
 shave.start <- 28; shave.end <- 36
 soc.weekend[,':='(d.energy.level=shave.peak(hr,d.energy.level,shave.start,shave.end)),by=c('person','final.type','veh.type','constraint')]
 soc.weekend[,':='(cumul.energy=cumsum(d.energy.level)),by=c('person','final.type','veh.type','constraint')]
 
 gap.analysis <- function(the.df){
-  gap <- the.df[,list(max.en=cumul.energy[2],min.en=cumul.energy[1],gap=cumul.energy[2]-cumul.energy[1]),by=c('hr','final.type','veh.type')]
+  setkey(the.df,hr,final.type,veh.type,constraint)
+  gap <- the.df[,list(max.en=cumul.energy[1],min.en=cumul.energy[2],gap=cumul.energy[1]-cumul.energy[2],plugged.in.capacity=plugged.in.capacity[1]),by=c('hr','final.type','veh.type')]
   gap[,hr.cal:=(hr-1)%%24+1]
   gap[,max.norm:=max.en-min(max.en),by=c('final.type','veh.type')]
   gap[hr.cal<=4 & hr>30,max.norm:=max.norm - max(max.norm),by=c('final.type','veh.type')]
@@ -227,67 +223,94 @@ gap.analysis <- function(the.df){
   gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
   gap
 }
-gap <- gap.analysis(soc[hr>=28 & hr<=52 & hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','final.type','veh.type')])
-gap.weekend <- gap.analysis(soc.weekend[hr>=28 & hr<=52 & hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','final.type','veh.type')])
+gap.weekday <- gap.analysis(soc.weekday[hr>=28 & hr<=52,list(cumul.energy=sum(cumul.energy),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','constraint','final.type','veh.type')])
+gap.weekend <- gap.analysis(soc.weekend[hr>=28 & hr<=52,list(cumul.energy=sum(cumul.energy),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','constraint','final.type','veh.type')])
 
 scale.the.gap <- function(the.gap,cp.day.norm,the.day){
   day.name <- names(wdays[wdays==the.day])
   the.gap <- join.on(the.gap,cp.day.norm[wday==day.name],'final.type','type','norm.load')
   the.gap[,max.norm:=max.norm*norm.load]
   the.gap[,min.norm:=max.norm-gap*norm.load]
+  the.gap[,plugged.in.capacity:=plugged.in.capacity*norm.load]
   min.start <- the.gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
   the.gap <- join.on(the.gap,min.start,c('final.type','veh.type'))
   the.gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
   the.gap 
 }
 
-virt <- data.table(expand.grid(list(day=0:7,dhr=1:24,final.type=u(gap$final.type),veh.type=u(gap$veh.type))))
+# Note, we pad with a day on both ends, this is designed for 2024 where Jan 1 is a Monday, so the padded day in the
+# front is a Sunday.
+virt <- data.table(expand.grid(list(day=1:368,dhr=1:24,final.type=u(gap$final.type),veh.type=u(gap$veh.type))))
 setkey(virt,final.type,veh.type,day,dhr)
 virt[,hr:=(day-1)*24+dhr]
 virt[,':='(max=0,min=0)]
-for(the.day in 0:8){
-  if(the.day>1 & the.day<7){
-    gap.to.use <- scale.the.gap(copy(gap),cp.day.norm,the.day)
+for(the.day in 1:368){
+  the.wday <- (the.day-1)%%7+1
+  if(the.wday>1 & the.wday<7){
+    gap.to.use <- scale.the.gap(copy(gap.weekday),cp.day.norm,the.wday)
   }else{
-    gap.to.use <- scale.the.gap(copy(gap.weekend),cp.day.norm,the.day)
+    gap.to.use <- scale.the.gap(copy(gap.weekend),cp.day.norm,the.wday)
   }
-  if(the.day==0){
-    virt[day==0,max:=gap.to.use$max.norm]
-    virt[day==0,min:=gap.to.use$min.norm]
+  if(the.day==1){
+    virt[day==1,max:=gap.to.use$max.norm]
+    virt[day==1,min:=gap.to.use$min.norm]
+    virt[day==1,plugged.in.capacity:=gap.to.use$plugged.in.capacity]
   }else{
     prev.day <- virt[day==the.day-1]
-    max.mins <- prev.day[,list(max.max=max(max),max.min=max(min)),by=c('final.type','veh.type')]
-    virt <- join.on(virt,max.mins,c('final.type','veh.type'))
+    prev.day[,current.gap:=max-min]
+    max.mins <- prev.day[,list(max.max=max(max),max.min=max(min),max.current.gap=max(current.gap)),by=c('final.type','veh.type')]
+    max.mins[max.current.gap<0,max.current.gap:=0]
+    max.mins <- join.on(max.mins,gap.to.use[,list(max.desired.gap=max(gap)),by=c('final.type','veh.type')],c('final.type','veh.type'))
+    max.mins[,gap.adjustment:=ifelse(max.current.gap>max.desired.gap,max.current.gap-max.desired.gap,0)]
+    virt <- join.on(virt,max.mins,c('final.type','veh.type'),c('final.type','veh.type'),c('max.max','max.min','gap.adjustment'))
+    if(the.wday==1){
+      virt[,max.min:=max.min+gap.adjustment]
+    }
     setkey(virt,final.type,veh.type,day,dhr)
     virt[day==the.day,max:=max.max+gap.to.use$max.norm]
     virt[day==the.day,min:=max.min+gap.to.use$min.norm.relative.to.min]
-    virt[,':='(max.max=NULL,max.min=NULL)]
+    virt[day==the.day,plugged.in.capacity:=gap.to.use$plugged.in.capacity]
+    virt[,':='(max.max=NULL,max.min=NULL,gap.adjustment=NULL)]
   }
 }
 setkey(virt,final.type,veh.type,day,hr)
-ggplot(virt,aes(x=hr,y=max))+geom_line()+geom_line(aes(y=min))+facet_wrap(veh.type~final.type)
+ggplot(virt[day<10],aes(x=hr,y=max))+geom_line()+geom_line(aes(y=min))+facet_wrap(veh.type~final.type)
+#ggplot(virt[day<10],aes(x=hr,y=plugged.in.capacity))+geom_line()+facet_wrap(veh.type~final.type)
 
 
 # Put final constraints needed by PLEXOS into a table
-plexos.constraints <- data.table(hour=1:24,pev.inflexible.load.mw=diff(virtual.battery.energy[constraint=='max']$cumul.energy)/1000,
-                                 plexos.battery.min.soc=head(virtual.battery.energy[constraint=='max']$cumul.energy - virtual.battery.energy[constraint=='min']$cumul.energy,-1))
+plexos.constraints <- virt[,list(max=sum(max),min=sum(min),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','veh.type')][,list(hour=head(hr,-1),pev.inflexible.load.mw=diff(max)/1000,plexos.battery.min.soc=head(max - min,-1),plugged.in.charger.capacity=head(plugged.in.capacity/1000,-1)),by=c('veh.type')]
 plexos.constraints[,plexos.battery.max.discharge:=pev.inflexible.load.mw]
-plexos.constraints[,plexos.battery.min.soc:=1-plexos.battery.min.soc/max(plexos.battery.min.soc)]
-
-# get the # of vehicles plugged in by hour
-soc.both <- join.on(soc[hr<=33 & hr==floor(hr) & constraint=='min'],soc[hr<=33 & hr==floor(hr)& constraint=='max'],c('person','hr'),c('person','hr'),c('cumul.energy','kw'),'max.')
-soc.both.sum <- soc.both[abs(cumul.energy-max.cumul.energy)>1e-4,list(kw=sum(max.kw)/1e3),by='hr']
-soc.both.sum[,hour:=hr]
-plexos.constraints <- join.on(plexos.constraints,soc.both.sum,'hour','hour','kw')
-plexos.constraints[,':='(plugged.in.charger.capacity=kw,kw=NULL)]
-plexos.constraints[is.na(plugged.in.charger.capacity),plugged.in.charger.capacity:=0]
-
+plexos.constraints[,plexos.battery.min.soc:=1-plexos.battery.min.soc/max(plexos.battery.min.soc),by=c('veh.type')]
 plexos.constraints[,plexos.battery.max.charge:=plugged.in.charger.capacity - pev.inflexible.load.mw]
+plexos.constraints[,hour:=hour-24]
+plexos.constraints[,plugged.in.charger.capacity:=NULL]
 
-#TODO figure out how max capacity is less than load, for now cut off to 0
-plexos.constraints[plexos.battery.max.charge<0,plexos.battery.max.charge:=0]
+# Finally, scale according to the scenarios developed by Julia
+scenarios <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/Scaling_factors_for_forecast_and_EV_counts.csv'))
+scenarios <- melt(scenarios[,list(utility,Vehicle_category,Low_2024_energy_propCED13,Mid_2024_energy_propCED13,High_2024_energy_propCED13,Low_2024_energy_propCED15_2080,Low_2024_energy_propCED15_5050,Low_2024_energy_propCED15_8020,Mid_2024_energy_propCED15_2080,Mid_2024_energy_propCED15_5050,Mid_2024_energy_propCED15_8020,High_2024_energy_propCED15_2080,High_2024_energy_propCED15_5050,High_2024_energy_propCED15_8020)],id.vars=c('utility','Vehicle_category'))
+scenarios[,penetration:=unlist(lapply(str_split(variable,"_"),function(ll){ ll[1] }))]
+scenarios[,veh.type.split:=unlist(lapply(str_split(variable,"_"),function(ll){ ifelse(length(ll)==4,ll[4],ll[5]) }))]
+scenarios[,':='(veh.type=Vehicle_category,Vehicle_category=NULL)]
 
-write.csv(plexos.constraints,'/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/example-constraints.csv')
+the.utility <- scenarios$utility[1]
+pen <- scenarios$penetration[1]
+veh.split <- scenarios$veh.type.split[1]
+for(the.utility in u(scenarios$utility)){
+  for(pen in u(scenarios$penetration)){
+    for(veh.split in u(scenarios$veh.type.split)){
+      to.write <- copy(plexos.constraints[hour>=1 & hour<=8784])
+      to.write <- join.on(to.write,scenarios[utility==the.utility & penetration==pen & veh.type.split==veh.split],'veh.type','veh.type','value')
+      to.write <- to.write[,list(pev.inflexible.load.mw=sum(pev.inflexible.load.mw*value),
+                     plexos.battery.min.soc=sum(plexos.battery.min.soc*value),
+                     plexos.battery.max.discharge=sum(plexos.battery.max.discharge*value),
+                     plexos.battery.max.charge=sum(plexos.battery.max.charge*value)
+                     ),by='hour']
+      write.csv(to.write,pp('/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024/',pen,'_',veh.split,'_',the.utility,'.csv'),row.names=F)
+    }
+  }
+}
+
 
 # Now generate minute by minute data for just the 24 hour time period of interest
 ts <- seq(27,51,by=1/60)
