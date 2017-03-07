@@ -33,15 +33,12 @@ object PersonAgent {
     }
   }
 
-
   case class PersonData(activityChain: Vector[Activity], currentActivity: Int) extends BeamAgentData {
     val getCurrentActivity: Activity = {
       activityChain(currentActivity)
     }
-
     def inc: Int = currentActivity + 1
   }
-
 
   sealed trait InActivity extends BeamAgentState
 
