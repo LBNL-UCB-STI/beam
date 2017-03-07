@@ -13,9 +13,11 @@ import beam.agentsim.playground.sid.events.AgentsimEventsBus
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.population.PopulationUtils
+import org.matsim.facilities.ActivityFacility
 import org.scalatest.Matchers._
 import org.scalatest.{FunSpecLike, MustMatchers}
 
@@ -30,7 +32,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   private val agentSimEventsBus = new AgentsimEventsBus
 
-  describe("PersonAgent FSM") {
+  describe("A PersonAgent FSM") {
 
     it("should allow scheduler to set the first activity") {
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -61,15 +63,13 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       ok.name mustEqual name
     }
 
-    it("should demonstrate a simple complete daily activity pattern") {
-
-    }
 
     it("should publish events that can be received by a MATSim EventsManager") {
 
       val events: EventsManager = EventsUtils.createEventsManager()
-      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber")
-      agentSimEventsBus.subscribe(eventSubscriber, "actend")
+      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber1")
+      val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
+      agentSimEventsBus.subscribe(eventSubscriber, actEndDummy)
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
@@ -85,8 +85,29 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
       EventFilter.info(message = "events-subscriber received actend event!", occurrences = 1)
 
-
     }
+
+    it("should be able to route legs"){
+      val events: EventsManager = EventsUtils.createEventsManager()
+      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber2")
+      val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
+      agentSimEventsBus.subscribe(eventSubscriber,actEndDummy)
+
+      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+      val data = PersonData(Vector(homeActivity, workActivity,homeActivity), 0)
+
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
+      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
+
+      beamAgentSchedulerRef ! Initialize(new TriggerData(personAgentRef, 0.0))
+      beamAgentSchedulerRef ! ActivityStartTrigger(new TriggerData(personAgentRef, 1.0))
+      beamAgentSchedulerRef ! ActivityEndTrigger(new TriggerData(personAgentRef, 10.0))
+      beamAgentSchedulerRef ! SelectRouteTrigger(new TriggerData(personAgentRef,11.0))
+      beamAgentSchedulerRef ! StartSchedule(stopTick = 12.0, maxWindow = 10.0)
+    }
+
+    it("should demonstrate a simple complete daily activity pattern")(pending)
   }
 
 }

@@ -1,8 +1,15 @@
 package beam.agentsim.agents
 
+import java.util.concurrent.TimeUnit
+
+import akka.actor.Props
 import beam.agentsim.agents.AgentSpecialization.MobileAgent
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
+import beam.agentsim.routing.DummyRouter.RoutingResponse
+import beam.agentsim.routing.RoutingRequest
+import glokka.Registry
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
@@ -15,13 +22,19 @@ import scala.reflect.ClassTag
   */
 object PersonAgent {
 
+  // syntactic sugar for props creation
+  def props(personId: Id[PersonAgent], personData: PersonData) = Props(new PersonAgent(personId, personData))
 
+  //////////////////////////////
+  // PersonData Begin... //
+  /////////////////////////////
   object PersonData {
 
     import scala.collection.JavaConverters._
 
     /**
-      * `PersonData` factory method to assist in  creating `PersonData`
+      * [[PersonData]] factory method to assist in  creating [[PersonData]].
+      * Permits creation of
       *
       * @param plan : The plan having at least some `Activities`
       * @return `PersonData`
@@ -34,14 +47,26 @@ object PersonAgent {
   }
 
 
-  case class PersonData(activityChain: Vector[Activity], currentActivity: Int) extends BeamAgentData {
+  case class PersonData(activityChain: Vector[Activity], currentActIx: Int) extends BeamAgentData {
     val getCurrentActivity: Activity = {
-      activityChain(currentActivity)
+      activityChain(currentActIx)
     }
 
-    def inc: Int = currentActivity + 1
+    val getNextActivity: Either[Activity, String] = {
+      val nextActIx = currentActIx + 1
+      if (activityChain.lengthCompare(nextActIx) > 0) Left(activityChain(nextActIx)) else Right("plan finished")
+    }
+
+    val getPrevActivity: Either[Activity, String] = {
+      val prevActIx = currentActIx - 1
+      if (activityChain.lengthCompare(prevActIx) < 0) Left(activityChain(prevActIx)) else Right("at start")
+    }
+
+    def inc: Int = currentActIx + 1
+
   }
 
+  // End PersonData ~
 
   sealed trait InActivity extends BeamAgentState
 
@@ -73,13 +98,17 @@ object PersonAgent {
 
   case class ActivityEndTrigger(override val triggerData: TriggerData) extends Trigger
 
+  case class ApproachingDestinationTrigger(override val triggerData: TriggerData) extends Trigger
+
 }
 
 
-// Agents initialized stateless w/out knowledge of their plan. This is sent to them by parent actor.
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with MobileAgent {
 
+  import akka.util.Timeout
   import beam.agentsim.sim.AgentsimServices._
+
+  private implicit val timeout = Timeout(5, TimeUnit.SECONDS)
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
   when(Initialized) {
@@ -91,15 +120,28 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
     case Event(ActivityEndTrigger(newData), info: BeamAgentInfo[PersonData]) =>
       val msg = new ActivityEndEvent(newData.tick, Id.createPersonId(id), info.data.getCurrentActivity.getLinkId, info.data.getCurrentActivity.getFacilityId, info.data.getCurrentActivity.getType)
-      agentSimEventsBus.publish(msg)
-      goto(ChoosingMode) using info.copy(id, PersonData(info.data.activityChain, info.data.inc)) replying CompletionNotice(newData)
+      agentSimEventsBus.publish(MatsimEvent(msg))
+
+      goto(ChoosingMode) replying CompletionNotice(newData)
   }
 
   when(ChoosingMode) {
     case Event(SelectRouteTrigger(newData), info: BeamAgentInfo[PersonData]) =>
       // We would send a routing request here. We can simulate this for now.
-      stay()
+      info.data.getNextActivity match {
+        case Left(nextAct) => registry ! Registry.Tell("agent-router", RoutingRequest(info.data.getCurrentActivity, nextAct, newData.tick, id))
+          stay() replying CompletionNotice(newData)
+        case Right(done) => goto(Finished) replying CompletionNotice(newData)
+      }
 
+    case Event(RoutingResponse(legs), info: BeamAgentInfo[PersonData]) =>
+      goto(Driving) using info.copy(id, PersonData(info.data.activityChain, info.data.inc))
+  }
+
+
+  when(Driving) {
+    case Event(ApproachingDestinationTrigger(_), info: BeamAgentInfo[PersonData]) =>
+      stay() using info
 
   }
 
@@ -114,4 +156,6 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   override def getLocation: Coord = stateData.data.getCurrentActivity.getCoord
 
   override def hasVehicleAvailable(vehicleType: ClassTag[_]): Boolean = ???
+
+
 }

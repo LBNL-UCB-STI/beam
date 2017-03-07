@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) with MustMatchers with FunSpecLike with ImplicitSender {
 
-  describe("BEAM Agent Scheduler") {
+  describe("A BEAM Agent Scheduler") {
     it("should send trigger to a BeamAgent") {
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))

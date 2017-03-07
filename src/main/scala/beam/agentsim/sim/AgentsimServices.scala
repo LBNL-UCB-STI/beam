@@ -4,13 +4,13 @@ import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.agents._
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.ConfigModule
-import beam.agentsim.playground.sid.events.{AgentsimEventsBus}
+import beam.agentsim.playground.sid.events.AgentsimEventsBus
 import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.utils.FileUtils
 import com.google.inject.{Inject, Injector, Singleton}
 import glokka.Registry
 import org.matsim.api.core.v01.Scenario
-import org.matsim.core.config.{Config, ConfigUtils}
+import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.ControlerDefaultCoreListenersModule
 import org.matsim.core.mobsim.qsim.QSim
@@ -25,7 +25,8 @@ object AgentsimServices
   import net.codingwell.scalaguice.InjectorExtensions._
 
   // Inject and use tsConfig instead here
-  val matsimConfig: Config = ConfigUtils.loadConfig(MatSimConfigLoc + MatSimConfigFilename)
+  // Make implict to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
+  val matsimConfig: org.matsim.core.config.Config = ConfigUtils.loadConfig(MatSimConfigLoc + MatSimConfigFilename)
   FileUtils.setConfigOutputFile(OutputDirectoryBase, SimName, matsimConfig)
   val scenario: Scenario = ScenarioUtils.loadScenario(matsimConfig)
   val injector: com.google.inject.Injector =
@@ -49,13 +50,14 @@ object AgentsimServices
 
         bindMobsim().to(classOf[QSim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[Agentsim])
-        bind(classOf[ControlerI]).to(classOf[ControlerImpl]).asEagerSingleton()
+        bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
       }
     }))
 
   val controler: ControlerI = injector.instance[ControlerI]
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
+  implicit val beamConfig: com.typesafe.config.Config = injector.getProvider(classOf[com.typesafe.config.Config]).get()
 }
 
 /**
@@ -65,4 +67,5 @@ object AgentsimServices
 case class AgentsimServices @Inject()(protected val injector: Injector) extends ActorInject {
   val schedulerRef: ActorRef = injectTopActor[BeamAgentScheduler]
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
+  Registry.Register("scheduler",schedulerRef)
 }

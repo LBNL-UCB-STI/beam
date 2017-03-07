@@ -2,7 +2,7 @@ package beam.agentsim.routing
 
 import beam.agentsim.sim.AgentsimServices
 import com.google.inject.{Inject, Provider}
-import com.typesafe.config.Config
+import glokka.Registry
 import org.matsim.core.router.{RoutingModule, TripRouter}
 
 /**
@@ -12,10 +12,10 @@ import org.matsim.core.router.{RoutingModule, TripRouter}
 object BeamRouterModuleProvider {
 }
 
-class BeamRouterModuleProvider @Inject()(config: Config, agentsimServices: AgentsimServices, tripRouter: TripRouter) extends Provider[RoutingModule] {
+class BeamRouterModuleProvider @Inject()(agentsimServices: AgentsimServices, tripRouter: TripRouter) extends Provider[RoutingModule] {
   // XXXX: Get router params from config and use BeamRouterImpl (to be redefined?)
   override def get(): DummyRouter = {
-    val dr=new DummyRouter(agentsimServices,tripRouter)
-    dr
+    AgentsimServices.registry ! Registry.Register("agent-router", DummyRouter.props(agentsimServices, tripRouter))
+    new DummyRouter(agentsimServices, tripRouter)
   }
 }
