@@ -16,3 +16,4 @@ beam.iml
 out/
 beam.ipr
 beam.iws
+docs/_build
