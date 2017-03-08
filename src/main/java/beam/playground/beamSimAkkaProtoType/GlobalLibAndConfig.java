@@ -9,15 +9,13 @@ public class GlobalLibAndConfig {
 	// if window size is small (e.g. 1 second), then it might make sense to
 	// decrease tick size, as it might allows for slightly more parallelism (window can
 	// move forward faster)
-	public static final double sizeOfTickInSeconds = 100;
+	public static final double sizeOfTickInSeconds = 10;
 
-	public static final int windowSizeInSeconds = 1000;
+	public static final int windowSizeInSeconds = 30;
 
-	public static final int latencyRttDelayInMs=1;
+	public static final int latencyRttDelayInMs=0;
 	
 	public static boolean printMessagesReceived=false;
-	
-	public static int numberOfPeopleInSimulation=10000000;
 	
 
 	public static int getWindowSizeInTicks() {
