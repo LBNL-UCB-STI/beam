@@ -36,10 +36,11 @@ import javax.inject.Inject;
 import java.util.Collection;
 import java.util.Set;
 
-class ControlerImpl extends AbstractController implements ControlerI {
+class BeamControler extends AbstractController implements ControlerI {
+
 
     @SuppressWarnings("unused")
-    private static Logger log = Logger.getLogger(ControlerImpl.class);
+    private static Logger log = Logger.getLogger(BeamControler.class);
 
     private final Config config;
     private final PrepareForSim prepareForSim;
@@ -55,8 +56,11 @@ class ControlerImpl extends AbstractController implements ControlerI {
     private final ControlerConfigGroup controlerConfigGroup;
     private final OutputDirectoryHierarchy outputDirectoryHierarchy;
 
+    private com.google.inject.Injector injector;
+
+
     @Inject
-    ControlerImpl(Config config, ControlerListenerManagerImpl controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy) {
+    BeamControler(Config config, ControlerListenerManagerImpl controlerListenerManager, MatsimServices matsimServices, IterationStopWatch stopWatch, PrepareForSim prepareForSim, EventsHandling eventsHandling, PlansDumping plansDumping, PlansReplanning plansReplanning, Provider<Mobsim> mobsimProvider, PlansScoring plansScoring, TerminationCriterion terminationCriterion, DumpDataAtEnd dumpDataAtEnd, Set<ControlerListener> controlerListenersDeclaredByModules, Collection<Provider<MobsimListener>> mobsimListeners, ControlerConfigGroup controlerConfigGroup, OutputDirectoryHierarchy outputDirectoryHierarchy) {
         super(controlerListenerManager, stopWatch, matsimServices, outputDirectoryHierarchy);
         this.config = config;
         this.config.addConfigConsistencyChecker(new ConfigConsistencyCheckerImpl());
