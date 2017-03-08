@@ -1,25 +1,19 @@
 package beam.playground.beamSimAkkaProtoType.scheduler;
 
 import java.util.PriorityQueue;
-import java.util.SortedSet;
 
+import beam.utils.DebugLib;
+import beam.utils.IntegerValueHashMap;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Population;
-import org.matsim.core.mobsim.jdeqsim.Message;
-
-import com.google.common.collect.SortedSetMultimap;
-import com.google.common.collect.TreeMultimap;
 
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import beam.parking.lib.DebugLib;
-import beam.parking.lib.obj.IntegerValueHashMap;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
-import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActStartMessage;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActivityEndMessage;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.BeamPersonAgent;
 
@@ -43,11 +37,10 @@ public class Scheduler extends UntypedActor {
 
 
 	public Scheduler(Population population, ActorRef chargingInfrastructureManager) {
-		int i=0;
 		for (Person person:population.getPersons().values()){
 			Activity act=(Activity) person.getSelectedPlan().getPlanElements().get(0);
 			double actEndTime=act.getEndTime();
-			ActorRef personRef = getContext().actorOf(Props.create(BeamPersonAgent.class,person.getSelectedPlan(),chargingInfrastructureManager,getSelf()),"beamPersonAgent-"+i++);
+			ActorRef personRef = getContext().actorOf(Props.create(BeamPersonAgent.class,person.getSelectedPlan(),chargingInfrastructureManager));
 			
 			triggers.add(new ActivityEndMessage(personRef,actEndTime,0));
 		}
@@ -57,8 +50,6 @@ public class Scheduler extends UntypedActor {
 
 	@Override
 	public void onReceive(Object message) throws Throwable {
-		GlobalLibAndConfig.printMessage(log, message);
-		updateStats(message);
 		if (message instanceof StartSimulationMessage) {
 			sendTriggerMessagesWithinWindow();
 		} else if (message instanceof TriggerMessage) {
@@ -70,16 +61,6 @@ public class Scheduler extends UntypedActor {
 			tryToMoveWindowForward();
 		} else {
 			DebugLib.stopSystemAndReportInconsistency("unexpected message type received:" + message);
-		}
-	}
-
-	private int stats_numberOfTriggerMessages=0;
-	private void updateStats(Object message) {
-		if (message instanceof TriggerAckMessage){
-			stats_numberOfTriggerMessages++;
-			if (stats_numberOfTriggerMessages%1000==0){
-				log.info("stats_numberOfActStartMessages: " + stats_numberOfTriggerMessages);
-			}
 		}
 	}
 
@@ -137,7 +118,7 @@ public class Scheduler extends UntypedActor {
 
 	private void detectIfSimulationEndReached() {
 		if (triggers.size()==0){
-			//log.info("getNumberOfPendingAckMessages():"+getNumberOfPendingAckMessages());
+			log.info("getNumberOfPendingAckMessages():"+getNumberOfPendingAckMessages());
 			simulationEndReached=true;
 			for (int i = getWindwStartTick(); i <= getLastWindowTick(); i++) {
 				if (numberOfResponsesPending.get(i) != 0) {

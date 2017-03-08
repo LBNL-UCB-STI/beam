@@ -12,8 +12,6 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.scenario.ScenarioUtils;
 
-import beam.parking.lib.DebugLib;
-
 public class Main_equil_bareBone {
 
 	public static void main(String[] args) {
