@@ -74,11 +74,13 @@ public class Scheduler extends UntypedActor {
 	}
 
 	private int stats_numberOfTriggerMessages=0;
+	private int stats_numberOfTriggerMessagesModulo=1;
 	private void updateStats(Object message) {
 		if (message instanceof TriggerAckMessage){
 			stats_numberOfTriggerMessages++;
-			if (stats_numberOfTriggerMessages%1000==0){
-				log.info("stats_numberOfActStartMessages: " + stats_numberOfTriggerMessages);
+			if (stats_numberOfTriggerMessages%stats_numberOfTriggerMessagesModulo==0){
+				log.info("numberOfTriggerMessages processed: " + stats_numberOfTriggerMessages);
+				stats_numberOfTriggerMessagesModulo*=2;
 			}
 		}
 	}
