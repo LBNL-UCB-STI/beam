@@ -19,9 +19,10 @@ case class CompletionNotice(triggerData: TriggerData) extends SchedulerMessage
 object BeamAgentScheduler {
 }
 
+
 class BeamAgentScheduler extends Actor {
   val log = Logging(context.system, this)
-  var triggerQueue = new mutable.PriorityQueue[Trigger]()
+  var triggerQueue = new mutable.PriorityQueue[Trigger[_]]()(Ordering.by(t => (t.triggerData.tick, t.triggerData.priority)))
   var awaitingResponse: TreeMultimap[Double, Integer] = TreeMultimap.create[java.lang.Double, java.lang.Integer]()
   var idCount: Int = 0
   var stopTick: Double = 0.0
@@ -52,10 +53,9 @@ class BeamAgentScheduler extends Actor {
       log.info("recieved notice that trigger id: " + triggerData.id + " is complete")
       awaitingResponse.remove(triggerData.tick, triggerData.id)
 
-    case trigger: Trigger =>
+    case trigger: Trigger[_] =>
       this.idCount += 1
-      trigger.triggerData.id = this.idCount
-      triggerQueue.enqueue(trigger)
+      triggerQueue.enqueue(trigger.copy(this.idCount))
       log.info("recieved trigger to schedule " + trigger)
 
     case _ => log.info("received unknown message")

@@ -92,13 +92,20 @@ object PersonAgent {
     override def identifier = "On public transit"
   }
 
-  case class ActivityStartTrigger(override val triggerData: TriggerData) extends Trigger
+  case class ActivityStartTrigger(override val triggerData: TriggerData) extends Trigger[ActivityStartTrigger] {
+    override def copy(newId: Int):ActivityStartTrigger  = ActivityStartTrigger(this.triggerData.copy(id = newId))
+  }
 
-  case class SelectRouteTrigger(override val triggerData: TriggerData) extends Trigger
+  case class SelectRouteTrigger(override val triggerData: TriggerData) extends Trigger[SelectRouteTrigger] {
+    override def copy(newId: Int) = SelectRouteTrigger(this.triggerData.copy(id = newId))
+  }
 
-  case class ActivityEndTrigger(override val triggerData: TriggerData) extends Trigger
-
-  case class ApproachingDestinationTrigger(override val triggerData: TriggerData) extends Trigger
+  case class ActivityEndTrigger(override val triggerData: TriggerData) extends Trigger[ActivityEndTrigger] {
+    override def copy(newId: Int) = ActivityEndTrigger(this.triggerData.copy(id = newId))
+  }
+  case class ApproachingDestinationTrigger(override val triggerData: TriggerData) extends Trigger[ApproachingDestinationTrigger]{
+    override def copy(newId: Int) = ApproachingDestinationTrigger(this.triggerData.copy(id = newId))
+  }
 
 }
 
