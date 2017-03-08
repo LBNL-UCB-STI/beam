@@ -19,9 +19,6 @@ import akka.util.Timeout;
 import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargingInfrastructureManager;
 import beam.playground.beamSimAkkaProtoType.scheduler.Scheduler;
 import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
-import scala.concurrent.Await;
-import scala.concurrent.duration.Duration;
-import scala.concurrent.duration.FiniteDuration;
 
 public class BeamSimAkkaMain {
 
@@ -31,8 +28,12 @@ public class BeamSimAkkaMain {
 		
 		
 		Config config = ConfigUtils.loadConfig(
-		"C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
+		"C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config2000.xml");
 
+//		Config config = ConfigUtils.loadConfig(
+//				"C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config_plans1.xml");
+		
+		
 		Scenario scenario = ScenarioUtils.loadScenario(config);
 		
 		
@@ -40,9 +41,9 @@ public class BeamSimAkkaMain {
 		
 		ActorSystem system = ActorSystem.create("AgentSim");
 		
-		ActorRef chargingInfrastructureManager = system.actorOf(Props.create(ChargingInfrastructureManager.class));
+		ActorRef chargingInfrastructureManager = system.actorOf(Props.create(ChargingInfrastructureManager.class,10),"chargingInfrastructureManager");
 		
-		ActorRef scheduler = system.actorOf(Props.create(Scheduler.class,scenario.getPopulation(),chargingInfrastructureManager));
+		ActorRef scheduler = system.actorOf(Props.create(Scheduler.class,scenario.getPopulation(),chargingInfrastructureManager),"scheduler");
         
 		scheduler.tell(new StartSimulationMessage(), ActorRef.noSender());
         

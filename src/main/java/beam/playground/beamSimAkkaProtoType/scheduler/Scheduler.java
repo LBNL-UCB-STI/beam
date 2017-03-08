@@ -19,6 +19,7 @@ import akka.event.LoggingAdapter;
 import beam.parking.lib.DebugLib;
 import beam.parking.lib.obj.IntegerValueHashMap;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
+import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActStartMessage;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActivityEndMessage;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.BeamPersonAgent;
 
@@ -42,10 +43,11 @@ public class Scheduler extends UntypedActor {
 
 
 	public Scheduler(Population population, ActorRef chargingInfrastructureManager) {
+		int i=0;
 		for (Person person:population.getPersons().values()){
 			Activity act=(Activity) person.getSelectedPlan().getPlanElements().get(0);
 			double actEndTime=act.getEndTime();
-			ActorRef personRef = getContext().actorOf(Props.create(BeamPersonAgent.class,person.getSelectedPlan(),chargingInfrastructureManager));
+			ActorRef personRef = getContext().actorOf(Props.create(BeamPersonAgent.class,person.getSelectedPlan(),chargingInfrastructureManager,getSelf()),"beamPersonAgent-"+i++);
 			
 			triggers.add(new ActivityEndMessage(personRef,actEndTime,0));
 		}
@@ -55,6 +57,8 @@ public class Scheduler extends UntypedActor {
 
 	@Override
 	public void onReceive(Object message) throws Throwable {
+		GlobalLibAndConfig.printMessage(log, message);
+		updateStats(message);
 		if (message instanceof StartSimulationMessage) {
 			sendTriggerMessagesWithinWindow();
 		} else if (message instanceof TriggerMessage) {
@@ -66,6 +70,16 @@ public class Scheduler extends UntypedActor {
 			tryToMoveWindowForward();
 		} else {
 			DebugLib.stopSystemAndReportInconsistency("unexpected message type received:" + message);
+		}
+	}
+
+	private int stats_numberOfTriggerMessages=0;
+	private void updateStats(Object message) {
+		if (message instanceof TriggerAckMessage){
+			stats_numberOfTriggerMessages++;
+			if (stats_numberOfTriggerMessages%1000==0){
+				log.info("stats_numberOfActStartMessages: " + stats_numberOfTriggerMessages);
+			}
 		}
 	}
 
@@ -123,7 +137,7 @@ public class Scheduler extends UntypedActor {
 
 	private void detectIfSimulationEndReached() {
 		if (triggers.size()==0){
-			log.info("getNumberOfPendingAckMessages():"+getNumberOfPendingAckMessages());
+			//log.info("getNumberOfPendingAckMessages():"+getNumberOfPendingAckMessages());
 			simulationEndReached=true;
 			for (int i = getWindwStartTick(); i <= getLastWindowTick(); i++) {
 				if (numberOfResponsesPending.get(i) != 0) {

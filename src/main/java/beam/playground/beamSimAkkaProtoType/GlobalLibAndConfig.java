@@ -1,15 +1,22 @@
 package beam.playground.beamSimAkkaProtoType;
 
+import akka.actor.ActorRef;
+import akka.event.LoggingAdapter;
+import beam.playground.beamSimAkkaProtoType.beamPersonAgent.ActStartMessage;
+
 public class GlobalLibAndConfig {
 
 	// if window size is small (e.g. 1 second), then it might make sense to
 	// decrease tick size, as it might allows for slightly more parallelism (window can
 	// move forward faster)
-	public static final double sizeOfTickInSeconds = 0.1;
+	public static final double sizeOfTickInSeconds = 10;
 
-	public static final int windowSizeInSeconds = 10;
+	public static final int windowSizeInSeconds = 30;
 
-	public static final int latencyRttDelayInMs = 10;
+	public static final int latencyRttDelayInMs=0;
+	
+	public static boolean printMessagesReceived=false;
+	
 
 	public static int getWindowSizeInTicks() {
 		return getTick(windowSizeInSeconds);
@@ -22,5 +29,12 @@ public class GlobalLibAndConfig {
 	public static double getTime(int tick) {
 		return tick * sizeOfTickInSeconds;
 	}
+	
 
+	
+	public static void printMessage(LoggingAdapter log ,Object message){
+		if (printMessagesReceived){
+			log.info(message.toString());
+		}
+	}
 }
