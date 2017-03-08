@@ -1,9 +1,12 @@
 buildscript {
     repositories {
         jcenter()
+        mavenLocal()
+        mavenCentral()
     }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
     }
 }
 
@@ -17,6 +20,7 @@ apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'scala'
 apply plugin: 'idea'
+apply plugin: 'kr.motd.sphinx'
 
 group = 'beam'
 version = '0.2.0-SNAPSHOT'
@@ -105,6 +109,7 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
     compile 'com.github.colinsheppard:OpenTripPlanner:otp-1.0.0-beam-SNAPSHOT'
+
 
     /////////////////////////////////
     // Scala dependencies
