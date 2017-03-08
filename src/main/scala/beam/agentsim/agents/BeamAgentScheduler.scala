@@ -1,6 +1,7 @@
 package beam.agentsim.agents
 
 import java.lang.Double
+import java.lang.Long
 
 import akka.actor.Actor
 import akka.event.Logging
@@ -23,8 +24,8 @@ object BeamAgentScheduler {
 class BeamAgentScheduler extends Actor {
   val log = Logging(context.system, this)
   var triggerQueue = new mutable.PriorityQueue[Trigger[_]]()(Ordering.by(t => (t.triggerData.tick, t.triggerData.priority)))
-  var awaitingResponse: TreeMultimap[Double, Integer] = TreeMultimap.create[java.lang.Double, java.lang.Integer]()
-  var idCount: Int = 0
+  var awaitingResponse: TreeMultimap[Double, Long] = TreeMultimap.create[java.lang.Double, Long]()
+  var idCount: Long = 0L
   var stopTick: Double = 0.0
   var maxWindow: Double = 0.0
 
@@ -55,7 +56,8 @@ class BeamAgentScheduler extends Actor {
 
     case trigger: Trigger[_] =>
       this.idCount += 1
-      triggerQueue.enqueue(trigger.copy(this.idCount))
+      val triggerWithId =
+        triggerQueue.enqueue(trigger.withId(this.idCount))
       log.info("recieved trigger to schedule " + trigger)
 
     case _ => log.info("received unknown message")
