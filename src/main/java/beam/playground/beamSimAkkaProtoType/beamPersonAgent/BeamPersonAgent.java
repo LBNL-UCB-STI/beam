@@ -1,9 +1,10 @@
 package beam.playground.beamSimAkkaProtoType.beamPersonAgent;
 
+import java.util.LinkedList;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.*;
-import beam.utils.DebugLib;
+import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Plan;
 
 import akka.actor.ActorRef;
@@ -13,6 +14,15 @@ import akka.event.Logging;
 import akka.event.LoggingAdapter;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
+import beam.parking.lib.DebugLib;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.PluginMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReplyChargersInRadiusMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.RequestChargersInRadiusMessage;
+import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargerReservationConfirmationMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ReserveChargerMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.UnplugAckMessage;
+import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.UnplugMessage;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.duration.Duration;
@@ -26,14 +36,23 @@ public class BeamPersonAgent extends UntypedActor {
 	private int currentPlanElementIndex = 0;
 	private boolean vehicleIsPluggedIn = false;
 	private ActorRef chargingInfrastructureManager;
-	private TriggerMessage destinationAreaApproachingMessage;
-	private ActorRef reservedPlug;
+	private DestinationAreaApproachingMessage destinationAreaApproachingMessage;
+	private ActorRef reservedCharger;
+	private ActorRef scheduler;
+	private Random rand;
 
 	// TODO: also send ack messages after receiving messages to scheduler
 
-	public BeamPersonAgent(Plan plan, ActorRef chargingInfrastructureManager) {
+	public BeamPersonAgent(Plan plan, ActorRef chargingInfrastructureManager, ActorRef scheduler) {
 		this.plan = plan;
 		this.chargingInfrastructureManager = chargingInfrastructureManager;
+		this.scheduler = scheduler;
+		this.rand=new Random();
+		rand.setSeed(1000);
+	}
+	
+	private int getRandomNumber(int range){
+		return rand.nextInt(range);
 	}
 
 	public void onReceive(TriggerMessage message) {
@@ -44,7 +63,7 @@ public class BeamPersonAgent extends UntypedActor {
 			// eucledean distance)
 			// log.info(message.toString());
 
-			double arrivalTime = message.getTime() + 60;
+			double arrivalTime = message.getTime() + getRandomNumber(60);
 
 			sendAckMessageSingleTriggerAttached(message, new PersonArrivalAtVehicleMessage(getSelf(), arrivalTime, 0));
 			// message.sendAckMessageSingleTriggerAttached(getSender(),
@@ -53,35 +72,34 @@ public class BeamPersonAgent extends UntypedActor {
 
 		} else if (message instanceof PersonArrivalAtVehicleMessage) {
 			if (vehicleIsPluggedIn) {
-				reservedPlug.tell(new UnplugMessage(), getSelf());
+				reservedCharger.tell(new UnplugMessage(), getSelf());
 			}
 
 			// getContext().setReceiveTimeout(Duration.apply(100L,
 			// TimeUnit.MILLISECONDS));
 			try {
-				Timeout timeout = new Timeout(Duration.create(1, "seconds"));
+				Timeout timeout = new Timeout(Duration.create(GlobalLibAndConfig.latencyRttDelayInMs , "millis"));
 				Future<Object> future = Patterns.ask(getSelf(), new IgnoreMessage(), timeout);
 				String result = (String) Await.result(future, timeout.duration());
 			} catch (Exception e) {
 
 			}
 
-			// TODO: add randomness
-			double arrivalTime = message.getTime() + 3600;
+			double arrivalTime = message.getTime() + getRandomNumber(3600);
 
 			// sendAckMessageSingleTriggerAttached(message,null);
 			sendAckMessageSingleTriggerAttached(message,
 					new DestinationAreaApproachingMessage(getSelf(), arrivalTime, 0));
 
 		} else if (message instanceof DestinationAreaApproachingMessage) {
-			this.destinationAreaApproachingMessage = (TriggerMessage)message;
+			this.destinationAreaApproachingMessage = (DestinationAreaApproachingMessage)message;
 			chargingInfrastructureManager.tell(new RequestChargersInRadiusMessage(), getSelf());
 
 		} else if (message instanceof ChargerArrivalMessage) {
 			
-			reservedPlug.tell(new PluginMessage(), getSelf());
+			reservedCharger.tell(new PluginMessage(getSelf()), getSelf());
 			
-			double arrivalTime = message.getTime() + 2*60;
+			double arrivalTime = message.getTime() + getRandomNumber(2*60);
 
 			// sendAckMessageSingleTriggerAttached(message,null);
 			sendAckMessageSingleTriggerAttached(message,
@@ -90,40 +108,57 @@ public class BeamPersonAgent extends UntypedActor {
 
 			currentPlanElementIndex += 2;
 
-			//TODO: take activity end message time from plan
-			double arrivalTime = message.getTime() + 2*60;
-			
-			// TODO: schedule activity end message (only for last one, don't do
-						// it)
-			sendAckMessageSingleTriggerAttached(message,
-					new ActivityEndMessage(getSelf(), arrivalTime, 0));
+			if (plan.getPlanElements().size()>currentPlanElementIndex+1){
+				double actEndTime=((Activity) plan.getPlanElements().get(currentPlanElementIndex)).getEndTime();
+				
+				double arrivalTime;
+				
+				if (actEndTime<message.getTime()){
+					arrivalTime = message.getTime() + getRandomNumber(2*60);
+				} else {
+					arrivalTime=actEndTime;
+				}
+				
+				
+				sendAckMessageSingleTriggerAttached(message,
+						new ActivityEndMessage(getSelf(), arrivalTime, 0));
+			} else {
+				sendAckMessageSingleTriggerAttached(message,
+						null);
+			}
 		}
 	}
 
 	@Override
 	public void onReceive(Object message) throws Throwable {
+		GlobalLibAndConfig.printMessage(log, message);
+		modelAgentCompuationBurden();
 		if (message instanceof TriggerMessage) {
 			onReceive((TriggerMessage) message);
 		} else if (message instanceof ReplyChargersInRadiusMessage) {
-			chargingInfrastructureManager.tell(new ReserveChargerMessage(), getSelf());
+			ReplyChargersInRadiusMessage replyChargersInRadiusMessage=(ReplyChargersInRadiusMessage)message;
+			chargingInfrastructureManager.tell(new ReserveChargerMessage(replyChargersInRadiusMessage.getCharger()), getSelf());
 
-		} else if (message instanceof ReservationConfirmationMessage) {
-
+		} else if (message instanceof ChargerReservationConfirmationMessage) {
+			ChargerReservationConfirmationMessage chargerReservationConfirmationMessage=(ChargerReservationConfirmationMessage)message;
+			this.reservedCharger=chargerReservationConfirmationMessage.getCharger();
+			
 			// route to charger (introduce delay)
 			try {
-				Timeout timeout = new Timeout(Duration.create(1, "seconds"));
+				Timeout timeout = new Timeout(Duration.create(GlobalLibAndConfig.latencyRttDelayInMs , "millis"));
 				Future<Object> future = Patterns.ask(getSelf(), new IgnoreMessage(), timeout);
 				String result = (String) Await.result(future, timeout.duration());
 			} catch (Exception e) {
 
 			}
 
-			// TODO: add randomness
-			double arrivalTime = this.destinationAreaApproachingMessage.getTime() + 3600;
+			double arrivalTime = this.destinationAreaApproachingMessage.getTime() + getRandomNumber(3600);
 
 			sendAckMessageSingleTriggerAttached(this.destinationAreaApproachingMessage,
 					new ChargerArrivalMessage(getSelf(), arrivalTime, 0));
-		} else if (message instanceof IgnoreMessage) {
+		} else if (message instanceof UnplugAckMessage) {
+			this.reservedCharger=null;
+		}else if (message instanceof IgnoreMessage) {
 			// System.out.println();
 		} else {
 			DebugLib.stopSystemAndReportInconsistency("unexpected message type received:" + message);
@@ -133,7 +168,15 @@ public class BeamPersonAgent extends UntypedActor {
 
 	private void sendAckMessageSingleTriggerAttached(TriggerMessage oldTriggerMessage,
 			TriggerMessage newTriggerMessage) {
-		oldTriggerMessage.sendAckMessageSingleTriggerAttached(getSender(), getSelf(), newTriggerMessage);
+		oldTriggerMessage.sendAckMessageSingleTriggerAttached(scheduler, getSelf(), newTriggerMessage);
+	}
+	
+	private void modelAgentCompuationBurden(){
+		LinkedList<Long> queue=new LinkedList<>();
+		for (long i = 0; i < GlobalLibAndConfig.agentComputationBurden; i++) {
+			queue.add(i);
+			queue.removeFirst();
+		}
 	}
 
 }
