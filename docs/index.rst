@@ -11,6 +11,8 @@ Contents:
 .. toctree::
    :maxdepth: 3
     
+   about
+   users
    developers
 
 
