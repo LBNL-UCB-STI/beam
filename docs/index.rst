@@ -14,6 +14,7 @@ Contents:
    about
    users
    developers
+   agents
 
 
 Indices and tables
