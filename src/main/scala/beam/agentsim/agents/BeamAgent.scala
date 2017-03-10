@@ -24,7 +24,6 @@ object BeamAgent {
     override def identifier = "Finished"
   }
 
-
   case object Error extends BeamAgentState {
     override def identifier: String = s"Error!"
   }
@@ -91,8 +90,6 @@ trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]
       log.error(s"Unhandled event: $id")
       stay()
   }
-
-
 
   // Used to ensure that any long-running, potentially asynchronous process does not
   // need to return its value before the actor can be restarted.

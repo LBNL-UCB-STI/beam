@@ -55,9 +55,9 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val future = registry ? Registry.Lookup(k.toString)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Found]
-      println(s"${ok.name}")
+      print(s"${ok.name},")
     }
-
+    println("")
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -73,8 +73,9 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val future = registry ? Registry.Register(k.toString, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Created]
-      println(s"${ok.name}")
+      print(s"${ok.name},")
     }
+    println("")
   }
 
 }
