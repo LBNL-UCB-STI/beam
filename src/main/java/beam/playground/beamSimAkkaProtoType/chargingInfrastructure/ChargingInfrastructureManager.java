@@ -9,7 +9,7 @@ import akka.actor.Props;
 import akka.actor.UntypedActor;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
-import beam.parking.lib.DebugLib;
+import beam.utils.DebugLib;
 import beam.playground.beamSimAkkaProtoType.GlobalLibAndConfig;
 import beam.playground.beamSimAkkaProtoType.beamPersonAgent.BeamPersonAgent;
 import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
