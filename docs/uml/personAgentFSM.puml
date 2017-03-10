@@ -1,0 +1,67 @@
+@startuml
+scale 1300 height
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+' BeamAgent: States '
+state Uninitialized #grey
+Uninitialized: InitializeTrigger
+
+state Initialized #grey
+Initialized: ActivityBeginTrigger
+
+'BeamAgent Transitions'
+[*] --> Uninitialized
+Uninitialized -> Initialized
+
+''''''''''''''''''''''''''
+' PersonAgent States'
+''''''''''''''''''''''''''
+state PerformingActivity #eb1921
+PerformingActivity: ActivityEndTrigger
+
+state ChoosingMode #eb1921
+ChoosingMode: PersonDepartureTrigger
+
+state Traveling #eb1921{
+    state Walking #eb1921{
+        Walking: PersonEntersVehicleTrigger
+        Walking: PersonArrivesTransitStopTrigger
+        Walking: PersonArrivalTrigger
+    }
+    state Driving #eb1921{
+        Driving: PersonExitsVehicleTrigger
+    }
+    state Waiting #eb1921{
+        Waiting: PersonEntersBoardingQueueTrigger
+    }
+    state Boarding #eb1921{
+        Boarding: PersonEntersVehicleTrigger
+    }
+    state OnTransit #eb1921{
+        OnTransit: PersonEntersAlightingQueueTrigger
+    }
+    state Alighting #eb1921{
+        Alighting: PersonExitsVehicleTrigger
+    }
+  [*] --> Walking
+  Walking --> Driving
+  Walking --> Waiting
+  Waiting --> Boarding
+  Boarding --> OnTransit
+  OnTransit --> Alighting
+  Alighting --> Walking
+  Driving --> Walking
+}
+
+''''''''''''''''''''''''''
+' PersonAgent Transitions'
+''''''''''''''''''''''''''
+Initialized --> PerformingActivity
+PerformingActivity --> ChoosingMode
+Traveling --> PerformingActivity
+ChoosingMode --> Traveling
+Walking --> Traveling
+
+@enduml
