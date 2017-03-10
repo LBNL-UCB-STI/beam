@@ -42,9 +42,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
-      beamAgentSchedulerRef ! Initialize(new TriggerData(personAgentRef, 0.0))
-      beamAgentSchedulerRef ! ActivityStartTrigger(new TriggerData(personAgentRef, 1.0))
-      beamAgentSchedulerRef ! ActivityEndTrigger(new TriggerData(personAgentRef, 10.0))
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ActivityStartTrigger(1.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ActivityEndTrigger(10.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 11.0, maxWindow = 10.0)
 
       personAgentRef.stateName should be(ChoosingMode)
@@ -78,9 +78,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
-      beamAgentSchedulerRef ! Initialize(new TriggerData(personAgentRef, 0.0))
-      beamAgentSchedulerRef ! ActivityStartTrigger(new TriggerData(personAgentRef, 1.0))
-      beamAgentSchedulerRef ! ActivityEndTrigger(new TriggerData(personAgentRef, 10.0))
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ActivityStartTrigger(1.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ActivityEndTrigger(10.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 11.0, maxWindow = 10.0)
 
       EventFilter.info(message = "events-subscriber received actend event!", occurrences = 1)
@@ -100,10 +100,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
-      beamAgentSchedulerRef ! Initialize(new TriggerData(personAgentRef, 0.0))
-      beamAgentSchedulerRef ! ActivityStartTrigger(new TriggerData(personAgentRef, 1.0))
-      beamAgentSchedulerRef ! ActivityEndTrigger(new TriggerData(personAgentRef, 10.0))
-      beamAgentSchedulerRef ! SelectRouteTrigger(new TriggerData(personAgentRef,11.0))
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ActivityStartTrigger(1.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ActivityEndTrigger(10.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(SelectRouteTrigger(11.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 12.0, maxWindow = 10.0)
     }
 

@@ -42,6 +42,7 @@ object BeamAgent {
 
 }
 
+case class InitializeTrigger(val tick: Double) extends Trigger
 /**
   * MemoryEvents play a dual role. They not only act as persistence in Akka, but
   * also get piped to the MATSimEvent Handler.
@@ -71,13 +72,8 @@ trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]
   def currentTask: Option[Cancellable] = None
 
   when(Uninitialized) {
-    case Event(Initialize(data), _) =>
-      goto(Initialized) replying CompletionNotice(data)
-  }
-
-  when(Initialized) {
-    case Event(Transition(data), _) =>
-      stay() replying CompletionNotice(data)
+    case Event(TriggerWithId(InitializeTrigger(tick),triggerId), _) =>
+      goto(Initialized) replying CompletionNotice(triggerId)
   }
 
   when(Finished) {

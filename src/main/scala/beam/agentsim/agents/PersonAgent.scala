@@ -92,23 +92,12 @@ object PersonAgent {
     override def identifier = "On public transit"
   }
 
-  case class ActivityStartTrigger(val triggerData: TriggerData) extends Trigger[ActivityStartTrigger] {
-    def withId(newId:Long) = this.copy(triggerData.copy(id = newId))
-  }
-
-  case class SelectRouteTrigger(val triggerData: TriggerData) extends Trigger[SelectRouteTrigger] {
-    def withId(newId:Long) = this.copy(triggerData.copy(id = newId))
-  }
-
-  case class ActivityEndTrigger(val triggerData: TriggerData) extends Trigger[ActivityEndTrigger] {
-    def withId(newId:Long) = this.copy(triggerData.copy(id = newId))
-  }
-  case class ApproachingDestinationTrigger(val triggerData: TriggerData) extends Trigger[ApproachingDestinationTrigger]{
-    def withId(newId:Long) = this.copy(triggerData.copy(id = newId))
-  }
+  case class ActivityStartTrigger(val tick: Double) extends Trigger
+  case class SelectRouteTrigger(val tick: Double) extends Trigger
+  case class ActivityEndTrigger(val tick: Double) extends Trigger
+  case class ApproachingDestinationTrigger(val tick: Double) extends Trigger
 
 }
-
 
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with MobileAgent {
 
@@ -119,26 +108,26 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
   when(Initialized) {
-    case Event(ActivityStartTrigger(newData), info: BeamAgentInfo[PersonData]) =>
-      goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(newData)
+    case Event(TriggerWithId(ActivityStartTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
+      goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(triggerId)
   }
 
   when(PerformingActivity) {
     // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
-    case Event(ActivityEndTrigger(newData), info: BeamAgentInfo[PersonData]) =>
-      val msg = new ActivityEndEvent(newData.tick, Id.createPersonId(id), info.data.getCurrentActivity.getLinkId, info.data.getCurrentActivity.getFacilityId, info.data.getCurrentActivity.getType)
+    case Event(TriggerWithId(ActivityEndTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
+      val msg = new ActivityEndEvent(tick, Id.createPersonId(id), info.data.getCurrentActivity.getLinkId, info.data.getCurrentActivity.getFacilityId, info.data.getCurrentActivity.getType)
       agentSimEventsBus.publish(MatsimEvent(msg))
 
-      goto(ChoosingMode) replying CompletionNotice(newData)
+      goto(ChoosingMode) replying CompletionNotice(triggerId)
   }
 
   when(ChoosingMode) {
-    case Event(SelectRouteTrigger(newData), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(SelectRouteTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
       // We would send a routing request here. We can simulate this for now.
       info.data.getNextActivity match {
-        case Left(nextAct) => registry ! Registry.Tell("agent-router", RoutingRequest(info.data.getCurrentActivity, nextAct, newData.tick, id))
-          stay() replying CompletionNotice(newData)
-        case Right(done) => goto(Finished) replying CompletionNotice(newData)
+        case Left(nextAct) => registry ! Registry.Tell("agent-router", RoutingRequest(info.data.getCurrentActivity, nextAct, tick, id))
+          stay() replying CompletionNotice(triggerId)
+        case Right(done) => goto(Finished) replying CompletionNotice(triggerId)
       }
 
     case Event(RoutingResponse(legs), info: BeamAgentInfo[PersonData]) =>
@@ -147,11 +136,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
 
   when(Driving) {
-    case Event(ApproachingDestinationTrigger(_), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(ApproachingDestinationTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
       stay() using info
-
   }
-
 
   onTransition {
     case Uninitialized -> Initialized => logger.info("From uninitialized state to init state")

@@ -9,6 +9,7 @@ import beam.agentsim.agents._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.scalatest.Matchers._
+import org.scalatest.exceptions.TestFailedException
 import org.scalatest.{FunSpecLike, MustMatchers}
 
 import scala.concurrent.Await
@@ -21,7 +22,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
       beamAgentRef.stateName should be(Uninitialized)
-      beamAgentSchedulerRef ! Initialize(new TriggerData(beamAgentRef, 0.0))
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),beamAgentRef)
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 10.0, maxWindow = 10.0)
       beamAgentRef.stateName should be(Initialized)
@@ -30,18 +31,23 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
       val thrown = intercept[Exception] {
-        beamAgentSchedulerRef ! Initialize(new TriggerData(beamAgentRef, -1.0))
+        beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(-1),beamAgentRef)
       }
       thrown.getClass should be(classOf[IllegalArgumentException])
     }
     it("should allow for addition of non-chronological triggers") {
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
-      beamAgentSchedulerRef ! Initialize(new TriggerData(beamAgentRef, 0.0))
-      beamAgentSchedulerRef ! Initialize(new TriggerData(beamAgentRef, 10.0))
-      beamAgentSchedulerRef ! Initialize(new TriggerData(beamAgentRef, 5.0))
-      beamAgentSchedulerRef ! Initialize(new TriggerData(beamAgentRef, 15.0))
-      beamAgentSchedulerRef ! Initialize(new TriggerData(beamAgentRef, 9.0))
+      val thrownTest = intercept[Exception] {
+        val thrown = intercept[Exception] {
+          beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), beamAgentRef)
+          beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(10.0), beamAgentRef)
+          beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(5.0), beamAgentRef)
+          beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(15.0), beamAgentRef)
+          beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(9.0), beamAgentRef)
+        }
+      }
+      thrownTest.getClass should be(classOf[TestFailedException])
     }
     it("should dispatch triggers in chronological order") {
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
@@ -49,27 +55,26 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)) {
         override val reporterActor: ActorRef = testReporter.actorRef
       })
-      beamAgentRef ! Initialize(new TriggerData(beamAgentRef, 0.0))
-      beamAgentRef.stateName should be(Initialized)
-      beamAgentRef ! testReporter
-      beamAgentRef.stateName should be(Reporting)
-      beamAgentSchedulerRef ! ReportState(new TriggerData(beamAgentRef, 0.0))
-      beamAgentSchedulerRef ! ReportState(new TriggerData(beamAgentRef, 10.0))
-      beamAgentSchedulerRef ! ReportState(new TriggerData(beamAgentRef, 5.0))
-      beamAgentSchedulerRef ! ReportState(new TriggerData(beamAgentRef, 15.0))
-      beamAgentSchedulerRef ! ReportState(new TriggerData(beamAgentRef, 9.0))
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(1.0),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(10.0),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(5.0),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(15.0),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(9.0),beamAgentRef)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 100.0, maxWindow = 100.0)
       Thread.sleep(100)
+      beamAgentRef.stateName should be(Reporting)
       val future = testReporter.ask(ReportBack)(1 second)
       val result = Await.result(future, 1 second).asInstanceOf[List[String]]
-      result should be(Seq("15.0", "10.0", "9.0", "5.0", "0.0"))
+      result should be(Seq("15.0", "10.0", "9.0", "5.0", "1.0"))
     }
     it("should not dispatch triggers beyond a window when old triggers have not completed") {}
     //    it(""){}
   }
 }
 
-case class ReportState(override val triggerData: TriggerData) extends Trigger
+case class ReportState(val tick: Double) extends Trigger
 
 case object Reporting extends BeamAgentState {
   override def identifier = "Reporting"
@@ -81,14 +86,14 @@ class TestBeamAgent(override val id: Id[Person]) extends BeamAgent[NoData] {
   val reporterActor: ActorRef = null
 
   when(Initialized) {
-    case _ =>
-      goto(Reporting)
+    case Event(TriggerWithId(_,triggerId),_) =>
+      goto(Reporting) replying CompletionNotice(triggerId)
   }
   when(Reporting) {
-    case Event(ReportState(triggerData), _) =>
-      reporterActor ! triggerData.tick.toString
+    case Event(TriggerWithId(ReportState(tick),triggerId),_) =>
+      reporterActor ! tick.toString
       stay()
-    case Event(msg, _) =>
+    case msg =>
       log.warning("unhandled " + msg + " from state Reporting")
       stay()
   }

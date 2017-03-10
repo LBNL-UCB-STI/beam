@@ -15,7 +15,7 @@ import org.matsim.facilities.Facility
   */
 class DummyRouter(agentsimServices: AgentsimServices, val tripRouter: TripRouter) extends RoutingModule with BeamRouter {
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): List[_ <: PlanElement] = {
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
     new util.LinkedList[PlanElement]()
   }
 
