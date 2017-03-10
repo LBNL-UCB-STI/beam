@@ -38,7 +38,8 @@ public class GlobalActions {
 		for (final Person person : EVGlobalData.data.controler.getScenario().getPopulation().getPersons().values()) {
 			PlugInVehicleAgent.getAgent(person.getId()).setEstimatedTravelDistanceInDay();
 		}
-		EVGlobalData.data.newTripInformationCache.serializeHotCacheKryo(EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH);
+		if (EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH != null)
+			EVGlobalData.data.newTripInformationCache.serializeHotCacheKryo(EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH);
 		if(EVGlobalData.data.scheduler.getSize() > 0){
 			EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.now + 86400.0, this, "handleDayTracking",-1.0);
 		}

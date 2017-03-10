@@ -519,4 +519,6 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 		this.departureChargingChoiceIndex = -1;
 	}
 
+    public void updateLogitModelParameters() {
+    }
 }
