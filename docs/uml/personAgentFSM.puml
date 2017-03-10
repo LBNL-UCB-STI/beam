@@ -25,10 +25,14 @@ state ChoosingMode #eb1921
 ChoosingMode: PersonDepartureTrigger
 
 state Traveling #eb1921{
+    Traveling: OnEnter: EnterBodyVehicle
+    Traveling: OnExit: ExitBodyVehicle
+
     state Walking #eb1921{
-        Walking: PersonEntersVehicleTrigger
-        Walking: PersonArrivesTransitStopTrigger
-        Walking: PersonArrivalTrigger
+        Walking: Triggers:
+        Walking: -PersonEntersVehicleTrigger
+        Walking: -PersonArrivesTransitStopTrigger
+        Walking: -PersonArrivalTrigger
     }
     state Driving #eb1921{
         Driving: PersonExitsVehicleTrigger
@@ -45,14 +49,15 @@ state Traveling #eb1921{
     state Alighting #eb1921{
         Alighting: PersonExitsVehicleTrigger
     }
-  [*] --> Walking
-  Walking --> Driving
-  Walking --> Waiting
-  Waiting --> Boarding
-  Boarding --> OnTransit
-  OnTransit --> Alighting
-  Alighting --> Walking
-  Driving --> Walking
+
+    [*] --> Walking
+    Walking --> Driving
+    Walking --> Waiting
+    Waiting --> Boarding
+    Boarding --> OnTransit
+    OnTransit --> Alighting
+    Alighting --> Walking
+    Driving --> Walking
 }
 
 ''''''''''''''''''''''''''
