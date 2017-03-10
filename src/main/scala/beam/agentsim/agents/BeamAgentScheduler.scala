@@ -11,7 +11,7 @@ sealed trait SchedulerMessage
 
 case class StartSchedule(stopTick: Double, maxWindow: Double) extends SchedulerMessage
 case class DoSimStep(tick: Double) extends SchedulerMessage
-case class CompletionNotice(id: Long) extends SchedulerMessage
+case class CompletionNotice(id: Long, newTriggers: List[ScheduleTrigger] = List[ScheduleTrigger]()) extends SchedulerMessage
 case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage{
   require(trigger.tick>=0, "Negative ticks not supported!")
 }
@@ -42,6 +42,14 @@ class BeamAgentScheduler extends Actor {
   var stopTick: Double = 0.0
   var maxWindow: Double = 0.0
 
+  def scheduleTrigger(triggerToSchedule: ScheduleTrigger) = {
+    this.idCount += 1
+    val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
+    triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority ))
+    triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
+    log.info("recieved trigger to schedule " + triggerToSchedule)
+  }
+
   def receive: Receive = {
     case StartSchedule(stopTick: Double, maxWindow: Double) =>
       log.info("starting scheduler")
@@ -68,17 +76,13 @@ class BeamAgentScheduler extends Actor {
     case DoSimStep(now: Double) if now > stopTick =>
       log.info("Stopping BeamAgentScheduler @ tick "+now)
 
-    case CompletionNotice(id: Long) =>
+    case CompletionNotice(id: Long, newTriggers: List[ScheduleTrigger]) =>
       log.info("recieved notice that trigger id: " + id + " is complete")
       awaitingResponse.remove(triggerIdToTick(id), id)
       triggerIdToTick -= id
+      newTriggers.foreach {scheduleTrigger}
 
-    case triggerToSchedule: ScheduleTrigger =>
-      this.idCount += 1
-      val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
-      triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority ))
-      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
-      log.info("recieved trigger to schedule " + triggerToSchedule)
+    case triggerToSchedule: ScheduleTrigger => scheduleTrigger(triggerToSchedule)
 
     case msg => log.info("received unknown message: " + msg)
   }
