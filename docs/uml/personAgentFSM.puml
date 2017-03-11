@@ -30,9 +30,9 @@ state Traveling #eb1921{
 
     state Walking #eb1921{
         Walking: Triggers:
-        Walking: -PersonEntersVehicleTrigger
-        Walking: -PersonArrivesTransitStopTrigger
-        Walking: -PersonArrivalTrigger
+        Walking: -PersonEntersVehicleTrigger [1]
+        Walking: -PersonArrivesTransitStopTrigger [2]
+        Walking: -PersonArrivalTrigger [3]
     }
     state Driving #eb1921{
         Driving: PersonExitsVehicleTrigger
@@ -51,8 +51,8 @@ state Traveling #eb1921{
     }
 
     [*] --> Walking
-    Walking --> Driving
-    Walking --> Waiting
+    Walking --> Driving: 1
+    Walking --> Waiting: 2
     Waiting --> Boarding
     Boarding --> OnTransit
     OnTransit --> Alighting
@@ -67,6 +67,6 @@ Initialized --> PerformingActivity
 PerformingActivity --> ChoosingMode
 Traveling --> PerformingActivity
 ChoosingMode --> Traveling
-Walking --> Traveling
+Walking --> Traveling: 3
 
 @enduml
