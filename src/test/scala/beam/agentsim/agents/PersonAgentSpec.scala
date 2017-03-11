@@ -36,19 +36,18 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
     it("should allow scheduler to set the first activity") {
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      val data = PersonData(Vector(homeActivity, workActivity), 0)
+      homeActivity.setStartTime(1.0)
+      homeActivity.setEndTime(10.0)
+      val data = PersonData(Vector(homeActivity), 0)
 
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(ActivityStartTrigger(1.0),personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(ActivityEndTrigger(10.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 11.0, maxWindow = 10.0)
 
       personAgentRef.stateName should be(ChoosingMode)
-      personAgentRef.stateData.data.getCurrentActivity should be(workActivity)
+      personAgentRef.stateData.data.getCurrentActivity should be("plan finished")
     }
 
     it("should be able to be registered in registry") {

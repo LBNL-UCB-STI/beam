@@ -46,24 +46,19 @@ object PersonAgent {
     }
   }
 
-
-  case class PersonData(activityChain: Vector[Activity], currentActIx: Int) extends BeamAgentData {
-    val getCurrentActivity: Activity = {
-      activityChain(currentActIx)
+  case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int) extends BeamAgentData {
+    def activityOrMessage(ind: Int, msg: String): Either[String, Activity]= {
+      if(ind < 0 || activityChain.lengthCompare(ind) > 0) Left(msg) else Right(activityChain(currentActivityIndex))
     }
-
-    val getNextActivity: Either[Activity, String] = {
-      val nextActIx = currentActIx + 1
-      if (activityChain.lengthCompare(nextActIx) > 0) Left(activityChain(nextActIx)) else Right("plan finished")
+    def currentActivity: Either[String, Activity] = {
+      activityOrMessage(currentActivityIndex,"plan finished")
     }
-
-    val getPrevActivity: Either[Activity, String] = {
-      val prevActIx = currentActIx - 1
-      if (activityChain.lengthCompare(prevActIx) < 0) Left(activityChain(prevActIx)) else Right("at start")
+    def nextActivity: Either[String, Activity] = {
+      activityOrMessage(currentActivityIndex + 1,"plan finished")
     }
-
-    def inc: Int = currentActIx + 1
-
+    def prevActivity: Either[String, Activity] = {
+      activityOrMessage(currentActivityIndex - 1,"at start")
+    }
   }
 
   // End PersonData ~
@@ -107,33 +102,45 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   private implicit val timeout = Timeout(5, TimeUnit.SECONDS)
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
+
   when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(triggerId)
   }
 
   when(PerformingActivity) {
-    // DepartActivity trigger causes PersonAgent to initiate routing request from routing service
     case Event(TriggerWithId(ActivityEndTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
-      val msg = new ActivityEndEvent(tick, Id.createPersonId(id), info.data.getCurrentActivity.getLinkId, info.data.getCurrentActivity.getFacilityId, info.data.getCurrentActivity.getType)
-      agentSimEventsBus.publish(MatsimEvent(msg))
-
-      goto(ChoosingMode) replying CompletionNotice(triggerId)
+      info.data.currentActivity match {
+        case Left(msg) =>
+          logger.error("getCurrentActivity did not return an activity: ${msg}")
+          goto(Finished) replying CompletionNotice(triggerId)
+        case Right(currentActivity) =>
+          val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
+          agentSimEventsBus.publish(MatsimEvent(msg))
+          goto(ChoosingMode) replying CompletionNotice(triggerId)
+      }
   }
 
   when(ChoosingMode) {
     case Event(TriggerWithId(SelectRouteTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
       // We would send a routing request here. We can simulate this for now.
-      info.data.getNextActivity match {
-        case Left(nextAct) => registry ! Registry.Tell("agent-router", RoutingRequest(info.data.getCurrentActivity, nextAct, tick, id))
-          stay() replying CompletionNotice(triggerId)
-        case Right(done) => goto(Finished) replying CompletionNotice(triggerId)
+      info.data.nextActivity match {
+        case Right(nextAct) => {
+          info.data.currentActivity match {
+            case Left(msg) =>
+              logger.error("getCurrentActivity did not return an activity: ${msg}")
+              goto(Finished) replying CompletionNotice(triggerId)
+            case Right(currentActivity) =>
+              registry ! Registry.Tell("agent-router", RoutingRequest(currentActivity, nextAct, tick, id))
+              stay() replying CompletionNotice(triggerId)
+          }
+        }
+        case Left(done) => goto(Finished) replying CompletionNotice(triggerId)
       }
 
     case Event(RoutingResponse(legs), info: BeamAgentInfo[PersonData]) =>
-      goto(Driving) using info.copy(id, PersonData(info.data.activityChain, info.data.inc))
+      goto(Driving) using info.copy(id, PersonData(info.data.activityChain, info.data.currentActivityIndex))
   }
-
 
   when(Driving) {
     case Event(TriggerWithId(ApproachingDestinationTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
@@ -141,13 +148,27 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   }
 
   onTransition {
-    case Uninitialized -> Initialized => logger.info("From uninitialized state to init state")
-    case Initialized -> PerformingActivity => logger.info(s"From init state to ${data.getCurrentActivity.getType}")
-    case PerformingActivity -> ChoosingMode => logger.info(s"From ${data.getCurrentActivity.getType} to mode choice")
-    case ChoosingMode -> PerformingActivity => logger.info(s"From mode choice to ${data.getCurrentActivity.getType}")
+    case Uninitialized -> Initialized =>
+      logger.info("From uninitialized state to init state")
+      this.data.currentActivity match {
+        case Left(msg) =>
+          logger.error("getCurrentActivity did not return an activity: ${msg}")
+        case Right(currentActivity) =>
+          sender ! ScheduleTrigger(ActivityStartTrigger(currentActivity.getStartTime()),self)
+      }
+//    case Initialized -> PerformingActivity => logger.info(s"From init state to ${data.getCurrentActivity.getType}")
+//    case PerformingActivity -> ChoosingMode => logger.info(s"From ${data.getCurrentActivity.getType} to mode choice")
+//    case ChoosingMode -> PerformingActivity => logger.info(s"From mode choice to ${data.getCurrentActivity.getType}")
   }
 
-  override def getLocation: Coord = stateData.data.getCurrentActivity.getCoord
+  override def getLocation: Coord = {
+    stateData.data.currentActivity match {
+      case Left(msg) =>
+//        logger.error("getCurrentActivity did not return an activity: ${msg}")
+      case Right(currentActivity) =>
+        currentActivity.getCoord
+    }
+  }
 
   override def hasVehicleAvailable(vehicleType: ClassTag[_]): Boolean = ???
 
