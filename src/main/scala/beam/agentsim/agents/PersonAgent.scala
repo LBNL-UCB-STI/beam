@@ -3,7 +3,6 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Props
-import beam.agentsim.agents.AgentSpecialization.MobileAgent
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
@@ -87,14 +86,14 @@ object PersonAgent {
     override def identifier = "On public transit"
   }
 
-  case class ActivityStartTrigger(val tick: Double) extends Trigger
-  case class SelectRouteTrigger(val tick: Double) extends Trigger
-  case class ActivityEndTrigger(val tick: Double) extends Trigger
-  case class ApproachingDestinationTrigger(val tick: Double) extends Trigger
+  case class ActivityStartTrigger(tick: Double) extends Trigger
+  case class SelectRouteTrigger(tick: Double) extends Trigger
+  case class ActivityEndTrigger(tick: Double) extends Trigger
+  case class ApproachingDestinationTrigger(tick: Double) extends Trigger
 
 }
 
-class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with MobileAgent {
+class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
   import akka.util.Timeout
   import beam.agentsim.sim.AgentsimServices._
@@ -112,7 +111,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(TriggerWithId(ActivityEndTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
       info.data.currentActivity match {
         case Left(msg) =>
-          logger.error("getCurrentActivity did not return an activity: ${msg}")
+          logger.error(s"getCurrentActivity did not return an activity: $msg")
           goto(Finished) replying CompletionNotice(triggerId)
         case Right(currentActivity) =>
           val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
@@ -125,16 +124,15 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(TriggerWithId(SelectRouteTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
       // We would send a routing request here. We can simulate this for now.
       info.data.nextActivity match {
-        case Right(nextAct) => {
+        case Right(nextAct) =>
           info.data.currentActivity match {
             case Left(msg) =>
-              logger.error("getCurrentActivity did not return an activity: ${msg}")
+              logger.error(s"getCurrentActivity did not return an activity: $msg")
               goto(Finished) replying CompletionNotice(triggerId)
             case Right(currentActivity) =>
               registry ! Registry.Tell("agent-router", RoutingRequest(currentActivity, nextAct, tick, id))
               stay() replying CompletionNotice(triggerId)
           }
-        }
         case Left(done) => goto(Finished) replying CompletionNotice(triggerId)
       }
 
@@ -152,25 +150,26 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       logger.info("From uninitialized state to init state")
       this.data.currentActivity match {
         case Left(msg) =>
-          logger.error("getCurrentActivity did not return an activity: ${msg}")
+          logger.error(s"getCurrentActivity did not return an activity: $msg")
         case Right(currentActivity) =>
-          sender ! ScheduleTrigger(ActivityStartTrigger(currentActivity.getStartTime()),self)
+          sender ! ScheduleTrigger(ActivityStartTrigger(currentActivity.getStartTime),self)
       }
 //    case Initialized -> PerformingActivity => logger.info(s"From init state to ${data.getCurrentActivity.getType}")
 //    case PerformingActivity -> ChoosingMode => logger.info(s"From ${data.getCurrentActivity.getType} to mode choice")
 //    case ChoosingMode -> PerformingActivity => logger.info(s"From mode choice to ${data.getCurrentActivity.getType}")
   }
 
-  override def getLocation: Coord = {
+  def getLocation: Option[Coord] = {
     stateData.data.currentActivity match {
       case Left(msg) =>
+          None
 //        logger.error("getCurrentActivity did not return an activity: ${msg}")
       case Right(currentActivity) =>
-        currentActivity.getCoord
+        Some(currentActivity.getCoord)
     }
   }
 
-  override def hasVehicleAvailable(vehicleType: ClassTag[_]): Boolean = ???
+  def hasVehicleAvailable(vehicleType: ClassTag[_]): Boolean = ???
 
 
 }

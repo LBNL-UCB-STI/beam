@@ -47,7 +47,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       beamAgentSchedulerRef ! StartSchedule(stopTick = 11.0, maxWindow = 10.0)
 
       personAgentRef.stateName should be(ChoosingMode)
-      personAgentRef.stateData.data.getCurrentActivity should be("plan finished")
+      personAgentRef.stateData.data should be("plan finished")
     }
 
     it("should be able to be registered in registry") {

@@ -41,7 +41,7 @@ object BeamAgent {
 
 }
 
-case class InitializeTrigger(val tick: Double) extends Trigger
+case class InitializeTrigger(tick: Double) extends Trigger
 /**
   * MemoryEvents play a dual role. They not only act as persistence in Akka, but
   * also get piped to the MATSimEvent Handler.
