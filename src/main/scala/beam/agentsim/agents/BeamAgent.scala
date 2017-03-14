@@ -5,6 +5,7 @@ import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
+import beam.agentsim.agents.BeamAgentScheduler._
 
 
 object BeamAgent {

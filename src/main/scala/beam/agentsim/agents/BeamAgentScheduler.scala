@@ -6,33 +6,18 @@ import akka.actor.Actor
 import akka.event.Logging
 import akka.actor.ActorRef
 import com.google.common.collect.TreeMultimap
+import beam.agentsim.agents.BeamAgentScheduler._
 
 import scala.collection.mutable
 
-sealed trait SchedulerMessage
-
-case class StartSchedule(stopTick: Double, maxWindow: Double) extends SchedulerMessage
-case class DoSimStep(tick: Double) extends SchedulerMessage
-case class CompletionNotice(id: Long, newTriggers: List[ScheduleTrigger] = List[ScheduleTrigger]()) extends SchedulerMessage
-case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage{
-  require(trigger.tick>=0, "Negative ticks not supported!")
-}
-case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef, priority: Int) extends Ordered[ScheduledTrigger] {
-  // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
-  //   smaller tick => then higher priority value => then lower triggerId
-  def compare(that: ScheduledTrigger): Int =
-    that.triggerWithId.trigger.tick compare triggerWithId.trigger.tick match {
-      case 0 =>
-        priority compare that.priority match {
-          case 0 =>
-            that.triggerWithId.triggerId compare triggerWithId.triggerId
-          case c => c
-        }
-      case c => c
-    }
-}
-
 object BeamAgentScheduler {
+  sealed trait SchedulerMessage
+  case class StartSchedule(stopTick: Double, maxWindow: Double) extends SchedulerMessage
+  case class DoSimStep(tick: Double) extends SchedulerMessage
+  case class CompletionNotice(id: Long, newTriggers: List[ScheduleTrigger] = List[ScheduleTrigger]()) extends SchedulerMessage
+  case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage{
+    require(trigger.tick>=0, "Negative ticks not supported!")
+  }
 }
 
 class BeamAgentScheduler extends Actor {
@@ -87,5 +72,20 @@ class BeamAgentScheduler extends Actor {
     case triggerToSchedule: ScheduleTrigger => scheduleTrigger(triggerToSchedule)
 
     case msg => log.info(s"received unknown message: $msg")
+  }
+
+  case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef, priority: Int) extends Ordered[ScheduledTrigger] {
+    // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
+    //   smaller tick => then higher priority value => then lower triggerId
+    def compare(that: ScheduledTrigger): Int =
+    that.triggerWithId.trigger.tick compare triggerWithId.trigger.tick match {
+      case 0 =>
+        priority compare that.priority match {
+          case 0 =>
+            that.triggerWithId.triggerId compare triggerWithId.triggerId
+          case c => c
+        }
+      case c => c
+    }
   }
 }

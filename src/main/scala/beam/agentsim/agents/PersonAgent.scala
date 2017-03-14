@@ -8,6 +8,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.routing.DummyRouter.RoutingResponse
 import beam.agentsim.routing.RoutingRequest
+import beam.agentsim.agents.BeamAgentScheduler._
 import glokka.Registry
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.population._

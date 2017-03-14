@@ -11,6 +11,7 @@ import org.matsim.api.core.v01.population.Person
 import org.scalatest.Matchers._
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.{FunSpecLike, MustMatchers}
+import BeamAgentScheduler._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
