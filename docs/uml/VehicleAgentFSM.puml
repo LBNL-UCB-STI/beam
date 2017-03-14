@@ -1,0 +1,40 @@
+@startuml
+scale 600 height
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+' BeamAgent: States '
+state Uninitialized #grey
+Uninitialized: InitializeTrigger
+
+state Initialized #grey
+Initialized: ParkTrigger
+
+'BeamAgent Transitions'
+[*] --> Uninitialized
+Uninitialized -> Initialized
+
+''''''''''''''''''''''''''
+' VehicleAgent States'
+''''''''''''''''''''''''''
+state Parked #eb1921
+Parked: PersonEntersVehicleEvent [1]
+Parked: BeginRefuelingEvent [2]
+
+state InUse #eb1921
+InUse: PersonExitsVehicleEvent [1]
+
+state Refueling #eb1921
+Refueling: EndRefuelingEvent
+
+''''''''''''''''''''''''''
+' VehicleAgent Transitions'
+''''''''''''''''''''''''''
+Initialized --> Parked
+Parked --> InUse: 1
+Parked --> Refueling: 2
+InUse --> Parked
+Refueling --> Parked
+
+@enduml
