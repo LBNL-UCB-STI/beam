@@ -199,11 +199,11 @@ task generateConfig {
       main="-jar";
       args = [
 	      "build/tscfg-0.8.0.jar",
-	      "--spec","src/main/resources/config-main.conf",
+	      "--spec","src/main/resources/config-template.conf",
 	      "--scala",
-	      "--pn","beam.metasim.config",
+	      "--pn","beam.agentsim.config",
 	      "--cn","BeamConfig",
-	      "--dd","src/main/scala/beam/metasim/config/"
+	      "--dd","src/main/scala/beam/agentsim/config/"
 	     ]
     } 
   }

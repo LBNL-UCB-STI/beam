@@ -14,7 +14,7 @@ object BeamAgentScheduler {
   sealed trait SchedulerMessage
   case class StartSchedule(stopTick: Double, maxWindow: Double) extends SchedulerMessage
   case class DoSimStep(tick: Double) extends SchedulerMessage
-  case class CompletionNotice(id: Long, newTriggers: List[ScheduleTrigger] = List[ScheduleTrigger]()) extends SchedulerMessage
+  case class CompletionNotice(id: Long, newTriggers: Vector[ScheduleTrigger] = Vector[ScheduleTrigger]()) extends SchedulerMessage
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage{
     require(trigger.tick>=0, "Negative ticks not supported!")
   }
@@ -28,24 +28,25 @@ class BeamAgentScheduler extends Actor {
   var idCount: Long = 0L
   var stopTick: Double = 0.0
   var maxWindow: Double = 0.0
+  var startSender: ActorRef = self
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
     val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
     triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority ))
     triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
-    log.info(s"recieved trigger to schedule $triggerToSchedule")
+//    log.info(s"recieved trigger to schedule $triggerToSchedule")
   }
 
   def receive: Receive = {
     case StartSchedule(stopTick: Double, maxWindow: Double) =>
       log.info("starting scheduler")
+      this.startSender = sender()
       this.stopTick = stopTick
       this.maxWindow = maxWindow
       self ! DoSimStep(0.0)
 
     case DoSimStep(now: Double) if now <= stopTick =>
-      val whatisthis = if (awaitingResponse.isEmpty) { -1 } else {awaitingResponse.keySet().first()}
       if (awaitingResponse.isEmpty || now - awaitingResponse.keySet().first() < maxWindow) {
         while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= now) {
           val scheduledTrigger = this.triggerQueue.dequeue
@@ -61,10 +62,16 @@ class BeamAgentScheduler extends Actor {
       }
 
     case DoSimStep(now: Double) if now > stopTick =>
-      log.info(s"Stopping BeamAgentScheduler @ tick $now")
+      if (awaitingResponse.isEmpty) {
+        log.info(s"Stopping BeamAgentScheduler @ tick $now")
+        startSender ! CompletionNotice(0L)
+      }else {
+        Thread.sleep(10)
+        self ! DoSimStep(now)
+      }
 
-    case CompletionNotice(id: Long, newTriggers: List[ScheduleTrigger]) =>
-      log.info(s"recieved notice that trigger id: $id is complete")
+    case CompletionNotice(id: Long, newTriggers: Vector[ScheduleTrigger]) =>
+//      log.info(s"recieved notice that trigger id: $id is complete")
       awaitingResponse.remove(triggerIdToTick(id), id)
       triggerIdToTick -= id
       newTriggers.foreach {scheduleTrigger}

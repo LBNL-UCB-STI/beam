@@ -99,7 +99,7 @@ trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]
     currentTask foreach {
       _.cancel()
     }
-    println(s"!!! stopping ${this.getClass.getSimpleName}")
+    print(s"stop:${this.getClass.getSimpleName}, ")
   }
 
 }

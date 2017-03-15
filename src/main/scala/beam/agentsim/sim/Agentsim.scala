@@ -5,10 +5,12 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
+import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.playground.sid.events.EventsSubscriber
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
+import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.{Created, Found}
@@ -22,6 +24,7 @@ import org.matsim.facilities.ActivityFacility
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.Await
+import scala.concurrent.duration._
 
 /**
   * AgentSim entrypoint.
@@ -43,6 +46,9 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
+    registry ! Registry.Register("scheduler",services.schedulerRef)
+    registry ! Registry.Register("agent-router",Props(classOf[OpenTripPlannerRouter],services))
+
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
     val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
@@ -51,20 +57,27 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    implicit val timeout = Timeout(50000.seconds)
     for ((k, _) <- popMap) {
       val future = registry ? Registry.Lookup(k.toString)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Found]
       print(s"${ok.name},")
     }
-    println("")
+    val future = registry ? Registry.Lookup("agent-router")
+    val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
+    println(s"lookup response ${result},")
+
+    //TODO replace magic numbers
+    val simFuture = services.schedulerRef ? StartSchedule(100000.0,100.0)
+    val simResult = Await.result(simFuture,timeout.duration).asInstanceOf[CompletionNotice]
+    println(simResult)
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
     eventSubscriber ! FinishProcessing
     actorSystem.stop(eventSubscriber)
     actorSystem.terminate()
-
   }
 
   def createAgents(): Unit = {
@@ -74,6 +87,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Created]
       print(s"${ok.name},")
+      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),ok.ref)
     }
     println("")
   }

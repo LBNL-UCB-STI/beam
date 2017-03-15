@@ -46,12 +46,12 @@ object PersonAgent {
     }
   }
 
-  case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int) extends BeamAgentData {
+  case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int, pendingTriggerId: Long = -1L) extends BeamAgentData {
     def activityOrMessage(ind: Int, msg: String): Either[String, Activity]= {
-      if(ind < 0 || activityChain.lengthCompare(ind) > 0) Left(msg) else Right(activityChain(currentActivityIndex))
+      if(ind < 0 || ind >= activityChain.length) Left(msg) else Right(activityChain(currentActivityIndex))
     }
-    def currentActivity: Either[String, Activity] = {
-      activityOrMessage(currentActivityIndex,"plan finished")
+    def currentOrNextActivity: Activity = {
+      activityChain(currentActivityIndex)
     }
     def nextActivity: Either[String, Activity] = {
       activityOrMessage(currentActivityIndex + 1,"plan finished")
@@ -105,40 +105,42 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(triggerId)
+      val currentActivity = info.data.currentOrNextActivity
+      val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
+      agentSimEventsBus.publish(MatsimEvent(msg))
+      goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying
+        CompletionNotice(triggerId,Vector[ScheduleTrigger](ScheduleTrigger(ActivityEndTrigger(currentActivity.getEndTime),self)))
   }
 
   when(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
-      info.data.currentActivity match {
-        case Left(msg) =>
-          logger.error(s"getCurrentActivity did not return an activity: $msg")
-          goto(Finished) replying CompletionNotice(triggerId)
-        case Right(currentActivity) =>
-          val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
-          agentSimEventsBus.publish(MatsimEvent(msg))
-          goto(ChoosingMode) replying CompletionNotice(triggerId)
-      }
+      val currentActivity = info.data.currentOrNextActivity
+      val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
+      agentSimEventsBus.publish(MatsimEvent(msg))
+      goto(ChoosingMode) replying CompletionNotice(triggerId,Vector[ScheduleTrigger](ScheduleTrigger(SelectRouteTrigger(tick+30.0),self)))
   }
 
   when(ChoosingMode) {
     case Event(TriggerWithId(SelectRouteTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
-      // We would send a routing request here. We can simulate this for now.
       info.data.nextActivity match {
         case Right(nextAct) =>
-          info.data.currentActivity match {
-            case Left(msg) =>
-              logger.error(s"getCurrentActivity did not return an activity: $msg")
-              goto(Finished) replying CompletionNotice(triggerId)
-            case Right(currentActivity) =>
-              registry ! Registry.Tell("agent-router", RoutingRequest(currentActivity, nextAct, tick, id))
-              stay() replying CompletionNotice(triggerId)
-          }
-        case Left(done) => goto(Finished) replying CompletionNotice(triggerId)
+          val currentActivity = info.data.currentOrNextActivity
+          registry ! Registry.Lookup("scheduler")
+          registry ! Registry.Tell("agent-router", RoutingRequest(currentActivity, nextAct, tick, id))
+          stay() using info.copy(id,info.data.copy(pendingTriggerId = triggerId))
+        case Left(done) =>
+          log.info("attempted to choose mode when no further activities exist in PersonAgent activity chain")
+          goto(Finished) replying CompletionNotice(triggerId)
       }
+    case Event(Registry.Found(actorName, actorRef), _) =>
+      log.info(actorName)
+      stay()
+    case Event(Registry.NotFound(actorName), _) =>
+      log.info(actorName)
+      stay()
 
-    case Event(RoutingResponse(legs), info: BeamAgentInfo[PersonData]) =>
-      goto(Driving) using info.copy(id, PersonData(info.data.activityChain, info.data.currentActivityIndex))
+    case Event(RoutingResponse(routeItineraries), info: BeamAgentInfo[PersonData]) =>
+      goto(Driving) using info.copy(id, PersonData(info.data.activityChain, info.data.currentActivityIndex)) replying(CompletionNotice(info.data.pendingTriggerId))
   }
 
   when(Driving) {
@@ -148,26 +150,15 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   onTransition {
     case Uninitialized -> Initialized =>
-      logger.info("From uninitialized state to init state")
-      this.data.currentActivity match {
-        case Left(msg) =>
-          logger.error(s"getCurrentActivity did not return an activity: $msg")
-        case Right(currentActivity) =>
-          sender ! ScheduleTrigger(ActivityStartTrigger(currentActivity.getStartTime),self)
-      }
+//      logger.info("From uninitialized state to init state")
+      registry ! Registry.Tell("scheduler",ScheduleTrigger(ActivityStartTrigger(0.0),self))
 //    case Initialized -> PerformingActivity => logger.info(s"From init state to ${data.getCurrentActivity.getType}")
 //    case PerformingActivity -> ChoosingMode => logger.info(s"From ${data.getCurrentActivity.getType} to mode choice")
 //    case ChoosingMode -> PerformingActivity => logger.info(s"From mode choice to ${data.getCurrentActivity.getType}")
   }
 
-  def getLocation: Option[Coord] = {
-    stateData.data.currentActivity match {
-      case Left(msg) =>
-          None
-//        logger.error("getCurrentActivity did not return an activity: ${msg}")
-      case Right(currentActivity) =>
-        Some(currentActivity.getCoord)
-    }
+  def getLocation: Coord = {
+    stateData.data.currentOrNextActivity.getCoord
   }
 
   def hasVehicleAvailable(vehicleType: ClassTag[_]): Boolean = ???
