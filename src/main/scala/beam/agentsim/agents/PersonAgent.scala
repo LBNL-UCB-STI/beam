@@ -4,18 +4,16 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.Props
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.routing.DummyRouter.RoutingResponse
 import beam.agentsim.routing.RoutingRequest
-import beam.agentsim.agents.BeamAgentScheduler._
 import glokka.Registry
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.population._
-import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
-
-import scala.reflect.ClassTag
 
 /**
   * Created by sfeygin on 2/6/17.
@@ -47,17 +45,18 @@ object PersonAgent {
   }
 
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int) extends BeamAgentData {
-    def activityOrMessage(ind: Int, msg: String): Either[String, Activity]= {
-      if(ind < 0 || activityChain.lengthCompare(ind) > 0) Left(msg) else Right(activityChain(currentActivityIndex))
+    def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
+      if (ind < 0 || activityChain.lengthCompare(ind) > 0) Left(msg) else Right(activityChain(currentActivityIndex))
     }
-    def currentActivity: Either[String, Activity] = {
-      activityOrMessage(currentActivityIndex,"plan finished")
-    }
+
+    def currentActivity: Activity = activityChain(currentActivityIndex)
+
     def nextActivity: Either[String, Activity] = {
-      activityOrMessage(currentActivityIndex + 1,"plan finished")
+      activityOrMessage(currentActivityIndex + 1, "plan finished")
     }
+
     def prevActivity: Either[String, Activity] = {
-      activityOrMessage(currentActivityIndex - 1,"at start")
+      activityOrMessage(currentActivityIndex - 1, "at start")
     }
   }
 
@@ -88,8 +87,12 @@ object PersonAgent {
   }
 
   case class ActivityStartTrigger(tick: Double) extends Trigger
-  case class SelectRouteTrigger(tick: Double) extends Trigger
+
+
   case class ActivityEndTrigger(tick: Double) extends Trigger
+
+  case class PersonDepartureTrigger(tick: Double) extends Trigger
+
   case class ApproachingDestinationTrigger(tick: Double) extends Trigger
 
 }
@@ -104,73 +107,57 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   when(Initialized) {
-    case Event(TriggerWithId(ActivityStartTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(triggerId)
   }
 
   when(PerformingActivity) {
-    case Event(TriggerWithId(ActivityEndTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
-      info.data.currentActivity match {
-        case Left(msg) =>
-          logger.error(s"getCurrentActivity did not return an activity: $msg")
+    case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+
+      val currentActivity = info.data.currentActivity
+
+      // Activity ends, so publish to EventBus
+      val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
+
+      agentSimEventsBus.publish(MatsimEvent(msg))
+
+      info.data.nextActivity.fold(
+        msg => {
+          logger.info(s"Didn't get nextActivity because: $msg")
           goto(Finished) replying CompletionNotice(triggerId)
-        case Right(currentActivity) =>
-          val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
-          agentSimEventsBus.publish(MatsimEvent(msg))
+        },
+        nextAct => {
+          registry ! Registry.Tell("agent-router", RoutingRequest(currentActivity, nextAct, tick, id))
           goto(ChoosingMode) replying CompletionNotice(triggerId)
-      }
+        }
+      )
   }
 
   when(ChoosingMode) {
-    case Event(TriggerWithId(SelectRouteTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       // We would send a routing request here. We can simulate this for now.
-      info.data.nextActivity match {
-        case Right(nextAct) =>
-          info.data.currentActivity match {
-            case Left(msg) =>
-              logger.error(s"getCurrentActivity did not return an activity: $msg")
-              goto(Finished) replying CompletionNotice(triggerId)
-            case Right(currentActivity) =>
-              registry ! Registry.Tell("agent-router", RoutingRequest(currentActivity, nextAct, tick, id))
-              stay() replying CompletionNotice(triggerId)
-          }
-        case Left(done) => goto(Finished) replying CompletionNotice(triggerId)
-      }
+    {
+      stay()
+    }
 
-    case Event(RoutingResponse(legs), info: BeamAgentInfo[PersonData]) =>
-      goto(Driving) using info.copy(id, PersonData(info.data.activityChain, info.data.currentActivityIndex))
+
+    case Event(RoutingResponse(legs), _) => {
+      stay()
+    }
+
+    case Event(TriggerWithId(PersonDepartureTrigger(legs), triggerId), info: BeamAgentInfo[PersonData]) =>
+      goto(Walking) using info.copy(id, PersonData(info.data.activityChain, info.data.currentActivityIndex))
   }
 
   when(Driving) {
-    case Event(TriggerWithId(ApproachingDestinationTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(ApproachingDestinationTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       stay() using info
   }
+
 
   onTransition {
     case Uninitialized -> Initialized =>
       logger.info("From uninitialized state to init state")
-      this.data.currentActivity match {
-        case Left(msg) =>
-          logger.error(s"getCurrentActivity did not return an activity: $msg")
-        case Right(currentActivity) =>
-          sender ! ScheduleTrigger(ActivityStartTrigger(currentActivity.getStartTime),self)
-      }
-//    case Initialized -> PerformingActivity => logger.info(s"From init state to ${data.getCurrentActivity.getType}")
-//    case PerformingActivity -> ChoosingMode => logger.info(s"From ${data.getCurrentActivity.getType} to mode choice")
-//    case ChoosingMode -> PerformingActivity => logger.info(s"From mode choice to ${data.getCurrentActivity.getType}")
+      sender ! ScheduleTrigger(ActivityStartTrigger(this.data.currentActivity.getStartTime), self)
   }
-
-  def getLocation: Option[Coord] = {
-    stateData.data.currentActivity match {
-      case Left(msg) =>
-          None
-//        logger.error("getCurrentActivity did not return an activity: ${msg}")
-      case Right(currentActivity) =>
-        Some(currentActivity.getCoord)
-    }
-  }
-
-  def hasVehicleAvailable(vehicleType: ClassTag[_]): Boolean = ???
-
-
 }
