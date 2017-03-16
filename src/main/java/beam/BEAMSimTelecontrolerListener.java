@@ -100,7 +100,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			observedLoadInKwMap = getChargingLoadHashMap(EVGlobalData.data.INPUT_DIRECTORY_BASE_PATH + File.separator + EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH);
+			observedLoadInKwMap = getChargingLoadHashMap(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH);
 		}else{
 			if(shouldUpdateBetaPlus){
 				// Re-initialize params
@@ -110,9 +110,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 
 			// Update Logit params
 			if(shouldUpdateLogitParams){
-				String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + File.separator + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "it." + (event.getIteration()-3);
-				String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + File.separator + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "it." + (event.getIteration()-2);
-				String betaMinusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + File.separator + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "it." + (event.getIteration()-1);
+				String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-3) + File.separator + "run0."+ (event.getIteration()-3) + ".disaggregateLoadProfile.csv";
+				String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-2) + File.separator + "run0."+ (event.getIteration()-2) + ".disaggregateLoadProfile.csv";
+				String betaMinusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
 
 				loadProfileModeled 			= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"modeled"), getChargingLoadHashMap(prevLoadFile),observedLoadInKwMap);
 				loadProfileBetaPlus 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"plus"), getChargingLoadHashMap(betaPlusLoadFile),observedLoadInKwMap);
@@ -249,20 +249,26 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 						String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
 						String siteType = CSVUtil.getValue("site.type",row,headerMap);
 						String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
-						String chargingLoad = CSVUtil.getValue("charging.load",row,headerMap);
+						String chargingLoad = CSVUtil.getValue("charging.load.in.kw",row,headerMap);
 						if(hashMap.containsKey(time)){
 							if(hashMap.get(time).containsKey(spatialGroup)){
 								if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
 									if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
 										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 								}else{
-									hashMap.get(time).get(spatialGroup).put(siteType, new HashMap<>()).put(chargerType, chargingLoad);
+									hashMap.get(time).get(spatialGroup).put(siteType, new HashMap<>());
+									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 								}
 							}else{
-								hashMap.get(time).put(spatialGroup, new HashMap<>()).put(siteType, new HashMap<>()).put(chargerType, chargingLoad);
+								hashMap.get(time).put(spatialGroup, new HashMap<>());
+								hashMap.get(time).get(spatialGroup).put(siteType, new HashMap<>());
+								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 							}
 						}else{
-							hashMap.put(time, new HashMap<>()).put(spatialGroup, new HashMap<>()).put(siteType, new HashMap<>()).put(chargerType, chargingLoad);
+							hashMap.put(time, new HashMap<>());
+							hashMap.get(time).put(spatialGroup, new HashMap<>());
+							hashMap.get(time).get(spatialGroup).put(siteType, new HashMap<>());
+							hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 						}
 					}
 				}
@@ -311,8 +317,6 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				for (String siteTypeKey : hashMapMerged.get(timeKey).get(spatialGroupKey).keySet()) {
 					for (String chargerTypeKey : hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet()) {
 						mergedArray.add(count++, Double.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)));
-						// TODO: WRITE CSV FILE TO CHECK IF THIS ALGORITHM WORKS
-
 					}
 				}
 			}
