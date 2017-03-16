@@ -10,10 +10,13 @@ import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.routing.DummyRouter.RoutingResponse
 import beam.agentsim.routing.RoutingRequest
 import glokka.Registry
+import glokka.Registry.Found
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.population._
 import org.slf4j.LoggerFactory
+
+import scala.util.{Failure, Success}
 
 /**
   * Created by sfeygin on 2/6/17.
@@ -99,6 +102,7 @@ object PersonAgent {
 
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
+  import akka.pattern.ask
   import akka.util.Timeout
   import beam.agentsim.sim.AgentsimServices._
 
@@ -108,7 +112,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(triggerId)
+      goto(PerformingActivity) using info.copy(id, PersonData(data.activityChain, 0)) replying CompletionNotice(triggerId, List(ScheduleTrigger(ActivityEndTrigger(data.currentActivity.getStartTime), self)))
   }
 
   when(PerformingActivity) {
@@ -118,17 +122,28 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
       // Activity ends, so publish to EventBus
       val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
-
       agentSimEventsBus.publish(MatsimEvent(msg))
 
       info.data.nextActivity.fold(
         msg => {
-          logger.info(s"Didn't get nextActivity because: $msg")
+          logger.info(s"Didn't get nextActivity because $msg")
           goto(Finished) replying CompletionNotice(triggerId)
         },
         nextAct => {
-          registry ! Registry.Tell("agent-router", RoutingRequest(currentActivity, nextAct, tick, id))
-          goto(ChoosingMode) replying CompletionNotice(triggerId)
+          val lookupFuture = registry ? Registry.Lookup("agent-router")
+          lookupFuture onComplete {
+            case Success(result) =>
+              val routerFuture = result.asInstanceOf[Found].ref ? RoutingRequest(info.data.currentActivity, nextAct, tick, id)
+              routerFuture onComplete {
+                case Success(routingResult) =>
+                  //TODO: Modify the PersonData class to take the routing result
+                  goto(ChoosingMode) replying CompletionNotice(triggerId)
+                case Failure(failure) => stay() // TODO: or throw error/goto finished?
+              }
+            case Failure(failure) => stay()  // TODO: or throw error/goto finished?
+          }
+          // This is the default condition
+          stay()
         }
       )
   }
