@@ -179,7 +179,7 @@ soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr'
 #ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=actType))+geom_bar(stat='identity')+facet_wrap(~siteType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
 # Final categorization of load
-soc.sum <- soc[ & hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','final.type','veh.type')]
+soc.sum <- soc[hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','final.type','veh.type')]
 setkey(soc.sum,hr,final.type,veh.type)
 ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_wrap(~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
@@ -240,11 +240,11 @@ scale.the.gap <- function(the.gap,cp.day.norm,the.day){
 
 # Note, we pad with a day on both ends, this is designed for 2024 where Jan 1 is a Monday, so the padded day in the
 # front is a Sunday.
-virt <- data.table(expand.grid(list(day=1:368,dhr=1:24,final.type=u(gap$final.type),veh.type=u(gap$veh.type))))
+virt <- data.table(expand.grid(list(day=1:9,dhr=1:24,final.type=u(gap.weekday$final.type),veh.type=u(gap.weekday$veh.type))))
 setkey(virt,final.type,veh.type,day,dhr)
 virt[,hr:=(day-1)*24+dhr]
 virt[,':='(max=0,min=0)]
-for(the.day in 1:368){
+for(the.day in 1:9){
   the.wday <- (the.day-1)%%7+1
   if(the.wday>1 & the.wday<7){
     gap.to.use <- scale.the.gap(copy(gap.weekday),cp.day.norm,the.wday)
@@ -279,9 +279,10 @@ ggplot(virt[day<10],aes(x=hr,y=max))+geom_line()+geom_line(aes(y=min))+facet_wra
 
 
 # Put final constraints needed by PLEXOS into a table
-plexos.constraints <- virt[,list(max=sum(max),min=sum(min),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','veh.type')][,list(hour=head(hr,-1),pev.inflexible.load.mw=diff(max)/1000,plexos.battery.min.soc=head(max - min,-1),plugged.in.charger.capacity=head(plugged.in.capacity/1000,-1)),by=c('veh.type')]
+plexos.constraints <- virt[,list(max=sum(max),min=sum(min),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','veh.type')][,list(hour=head(hr,-1),pev.inflexible.load.mw=diff(max)/1000,plexos.battery.min.mwh=head(max - min,-1)/1000,plugged.in.charger.capacity=head(plugged.in.capacity/1000,-1)),by=c('veh.type')]
 plexos.constraints[,plexos.battery.max.discharge:=pev.inflexible.load.mw]
-plexos.constraints[,plexos.battery.min.soc:=1-plexos.battery.min.soc/max(plexos.battery.min.soc),by=c('veh.type')]
+plexos.constraints[,plexos.battery.max.mwh:=max(plexos.battery.min.mwh),by=c('veh.type')]
+plexos.constraints[,plexos.battery.min.mwh:=plexos.battery.max.mwh-plexos.battery.min.mwh,by=c('veh.type')]
 plexos.constraints[,plexos.battery.max.charge:=plugged.in.charger.capacity - pev.inflexible.load.mw]
 plexos.constraints[,hour:=hour-24]
 plexos.constraints[,plugged.in.charger.capacity:=NULL]
@@ -293,20 +294,29 @@ scenarios[,penetration:=unlist(lapply(str_split(variable,"_"),function(ll){ ll[1
 scenarios[,veh.type.split:=unlist(lapply(str_split(variable,"_"),function(ll){ ifelse(length(ll)==4,ll[4],ll[5]) }))]
 scenarios[,':='(veh.type=Vehicle_category,Vehicle_category=NULL)]
 
-the.utility <- scenarios$utility[1]
+the.utility <- scenarios$utility[3]
 pen <- scenarios$penetration[1]
 veh.split <- scenarios$veh.type.split[1]
 for(the.utility in u(scenarios$utility)){
   for(pen in u(scenarios$penetration)){
     for(veh.split in u(scenarios$veh.type.split)){
-      to.write <- copy(plexos.constraints[hour>=1 & hour<=8784])
-      to.write <- join.on(to.write,scenarios[utility==the.utility & penetration==pen & veh.type.split==veh.split],'veh.type','veh.type','value')
+      to.write <- copy(plexos.constraints[hour>=1 & hour<=7*24])
+      to.write.all <- list()
+      for(the.week in 1:53){
+        to.write.all[[the.week]] <- copy(to.write)
+        to.write.all[[the.week]][,week:=the.week]
+      }
+      to.write <- rbindlist(to.write.all)
+      to.write[,hour:=hour+(week-1)*168]
+      to.write[,week:=NULL]
+      to.write <- join.on(to.write[hour<=366*24],scenarios[utility==the.utility & penetration==pen & veh.type.split==veh.split],'veh.type','veh.type','value')
       to.write <- to.write[,list(pev.inflexible.load.mw=sum(pev.inflexible.load.mw*value),
-                     plexos.battery.min.soc=sum(plexos.battery.min.soc*value),
+                     plexos.battery.max.mwh=sum(plexos.battery.max.mwh*value),
+                     plexos.battery.min.mwh=sum(plexos.battery.min.mwh*value),
                      plexos.battery.max.discharge=sum(plexos.battery.max.discharge*value),
                      plexos.battery.max.charge=sum(plexos.battery.max.charge*value)
                      ),by='hour']
-      write.csv(to.write,pp('/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024/',pen,'_',veh.split,'_',the.utility,'.csv'),row.names=F)
+      write.csv(to.write,pp('/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-v2/',pen,'_',veh.split,'_',the.utility,'.csv'),row.names=F)
     }
   }
 }
