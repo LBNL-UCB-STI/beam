@@ -40,10 +40,10 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	private boolean shouldUpdateLogitParams = true; // true when updating objective function
 	private boolean shouldUpdateBetaPlus, shouldUpdateBetaMinus, isFirstIteration;
 	private ArrayList<Double> paramsList = new ArrayList<>(), paramsPlus = new ArrayList<>(), paramsMinus = new ArrayList<>(), paramsDelta = new ArrayList<>();
-	private HashMap<String, HashMap<String,HashMap<String, HashMap<String, String>>>>
-			observedLoadInKwMap = new HashMap<>(),
-			modeledLoadInKwMap = new HashMap<>(),
-			mergedLoadInKwMap = new HashMap<>();
+	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>>
+			observedLoadInKwMap = new LinkedHashMap<>(),
+			modeledLoadInKwMap = new LinkedHashMap<>(),
+			mergedLoadInKwMap = new LinkedHashMap<>();
 	private ArrayList<Double> loadProfileModeled = new ArrayList<>(), loadProfileBetaPlus = new ArrayList<>(), loadProfileBetaMinus = new ArrayList<>(), loadProfileChargingPoint = new ArrayList<>();
 
 	@Override
@@ -219,12 +219,12 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	}
 
 	/**
-	 * Return HashMap that contains charging load in kW with associated time, spatial group, site type, charger type.
+	 * Return LinkedHashMap that contains charging load in kW with associated time, spatial group, site type, charger type.
 	 * @param filePath: charging load profile csv file path
 	 * @return hashMap: charging load hashMap
 	 */
-	private HashMap<String, HashMap<String,HashMap<String, HashMap<String, String>>>> getChargingLoadHashMap(String filePath) {
-		HashMap<String, HashMap<String,HashMap<String, HashMap<String, String>>>> hashMap = new HashMap<>();
+	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getChargingLoadHashMap(String filePath) {
+		LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap = new LinkedHashMap<>();
 		TabularFileParser fileParser = new TabularFileParser();
 		TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
 		fileParserConfig.setFileName(filePath);
@@ -245,7 +245,35 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					}
 				} else {
 					String time = CSVUtil.getValue("time",row,headerMap);
-					if(Double.valueOf(time) >= 27 && Double.valueOf(time) <= 51){
+					if(!filePath.toLowerCase().contains("validation")){
+						if(Double.valueOf(time) >= 27 && Double.valueOf(time) <= 51){
+							time = String.valueOf(Double.valueOf(time)-27);
+							String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
+							String siteType = CSVUtil.getValue("site.type",row,headerMap);
+							String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
+							String chargingLoad = CSVUtil.getValue("charging.load.in.kw",row,headerMap);
+							if(hashMap.containsKey(time)){
+								if(hashMap.get(time).containsKey(spatialGroup)){
+									if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
+										if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
+											hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+									}else{
+										hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+									}
+								}else{
+									hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+								}
+							}else{
+								hashMap.put(time, new LinkedHashMap<>());
+								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+							}
+						}
+					}else{
 						String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
 						String siteType = CSVUtil.getValue("site.type",row,headerMap);
 						String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
@@ -256,18 +284,18 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 									if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
 										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 								}else{
-									hashMap.get(time).get(spatialGroup).put(siteType, new HashMap<>());
+									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
 									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 								}
 							}else{
-								hashMap.get(time).put(spatialGroup, new HashMap<>());
-								hashMap.get(time).get(spatialGroup).put(siteType, new HashMap<>());
+								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
 								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 							}
 						}else{
-							hashMap.put(time, new HashMap<>());
-							hashMap.get(time).put(spatialGroup, new HashMap<>());
-							hashMap.get(time).get(spatialGroup).put(siteType, new HashMap<>());
+							hashMap.put(time, new LinkedHashMap<>());
+							hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+							hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
 							hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 						}
 					}
@@ -285,10 +313,10 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	 * @return mergedArray: Array list of load profile hashMap1
 	 */
 	private ArrayList<Double> getMergedLoadProfile(
-			HashMap<String, HashMap<String,HashMap<String, HashMap<String, String>>>> hashMap1,
-			HashMap<String, HashMap<String,HashMap<String, HashMap<String, String>>>> hashMap2){
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
 
-		HashMap<String, HashMap<String, HashMap<String, HashMap<String, String>>>> hashMapMerged = new HashMap<>(hashMap1);
+		LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMapMerged = new LinkedHashMap<>(hashMap1);
 		ArrayList<Double> mergedArray = new ArrayList<>();
 
 		// Get merged hash map
@@ -301,9 +329,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 								if(hashMap1.get(timeKey).get(spatialGroupKey).containsKey(siteTypeKey))
 									if(!hashMap1.get(timeKey).get(spatialGroupKey).get(siteTypeKey).containsKey(chargerTypeKey))
 										hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).put(chargerTypeKey, String.valueOf(0));
-								else hashMapMerged.get(timeKey).get(spatialGroupKey).put(siteTypeKey, new HashMap<>()).put(chargerTypeKey, String.valueOf(0));
-							else hashMapMerged.get(timeKey).put(spatialGroupKey, new HashMap<>()).put(siteTypeKey, new HashMap<>()).put(chargerTypeKey, String.valueOf(0));
-						else hashMapMerged.put(timeKey, new HashMap<>()).put(spatialGroupKey, new HashMap<>()).put(siteTypeKey, new HashMap<>()).put(chargerTypeKey, String.valueOf(0));
+								else hashMapMerged.get(timeKey).get(spatialGroupKey).put(siteTypeKey, new LinkedHashMap<>()).put(chargerTypeKey, String.valueOf(0));
+							else hashMapMerged.get(timeKey).put(spatialGroupKey, new LinkedHashMap<>()).put(siteTypeKey, new LinkedHashMap<>()).put(chargerTypeKey, String.valueOf(0));
+						else hashMapMerged.put(timeKey, new LinkedHashMap<>()).put(spatialGroupKey, new LinkedHashMap<>()).put(siteTypeKey, new LinkedHashMap<>()).put(chargerTypeKey, String.valueOf(0));
 					}
 				}
 			}
@@ -332,25 +360,38 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	 * @return mergedArray: Array list of load profile hashMap1
 	 */
 	private ArrayList<Double> getMergedLoadProfile(FileWriter writer,
-			HashMap<String, HashMap<String,HashMap<String, HashMap<String, String>>>> hashMap1,
-			HashMap<String, HashMap<String,HashMap<String, HashMap<String, String>>>> hashMap2){
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
 
-		HashMap<String, HashMap<String, HashMap<String, HashMap<String, String>>>> hashMapMerged = new HashMap<>(hashMap1);
+		LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMapMerged = new LinkedHashMap<>(hashMap1);
 		ArrayList<Double> mergedArray = new ArrayList<>();
 
 		// Get merged hash map
-		for (String timeKey : hashMap2.keySet()) {
-			for (String spatialGroupKey : hashMap2.get(timeKey).keySet()) {
-				for (String siteTypeKey : hashMap2.get(timeKey).get(spatialGroupKey).keySet()) {
-					for (String chargerTypeKey : hashMap2.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet()) {
-						if(hashMap1.containsKey(timeKey))
-							if(hashMap1.get(timeKey).containsKey(spatialGroupKey))
-								if(hashMap1.get(timeKey).get(spatialGroupKey).containsKey(siteTypeKey))
-									if(!hashMap1.get(timeKey).get(spatialGroupKey).get(siteTypeKey).containsKey(chargerTypeKey))
-										hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).put(chargerTypeKey, String.valueOf(0));
-									else hashMapMerged.get(timeKey).get(spatialGroupKey).put(siteTypeKey, new HashMap<>()).put(chargerTypeKey, String.valueOf(0));
-								else hashMapMerged.get(timeKey).put(spatialGroupKey, new HashMap<>()).put(siteTypeKey, new HashMap<>()).put(chargerTypeKey, String.valueOf(0));
-							else hashMapMerged.put(timeKey, new HashMap<>()).put(spatialGroupKey, new HashMap<>()).put(siteTypeKey, new HashMap<>()).put(chargerTypeKey, String.valueOf(0));
+		for (String time : hashMap2.keySet()) {
+			log.info(time);
+			for (String spatialGroup : hashMap2.get(time).keySet()) {
+				for (String siteType : hashMap2.get(time).get(spatialGroup).keySet()) {
+					for (String chargerType : hashMap2.get(time).get(spatialGroup).get(siteType).keySet()) {
+						if(hashMap1.containsKey(time)){
+							if(hashMap1.get(time).containsKey(spatialGroup)){
+								if(hashMap1.get(time).get(spatialGroup).containsKey(siteType)){
+									if(!hashMap1.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
+										hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+								}else{
+									hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+								}
+							}else{
+								hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+							}
+						}else{
+							hashMapMerged.put(time, new LinkedHashMap<>());
+							hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+						}
 					}
 				}
 			}
