@@ -103,6 +103,7 @@ public class EVGlobalData {
 	public double OVERHEAD_SCORE_PLUG_CHANGE;
 
 	public String CHARGING_SITE_POLICIES_FILEPATH;
+	public String CHARGING_LOAD_VALIDATION_FILEPATH = "cp-data-for-validation.csv";
 	public String CHARGING_NETWORK_OPERATORS_FILEPATH;
 	public String CHARGING_SITES_FILEPATH;
 	public String CHARGING_PLUG_TYPES_FILEPATH;
