@@ -141,45 +141,104 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		Iterator itr = null;
 		int paramIndex = 0;
 		// reinitialize logitParamsPlus and logitParamsMinus
-		if(shouldUpdateBetaPlus) itr = (BEAMSimTelecontrolerListener.logitParamsPlus.getChildren()).iterator();
+		if(shouldUpdateBetaPlus) {
+			paramsDelta = new ArrayList<>();
+			itr = (BEAMSimTelecontrolerListener.logitParamsPlus.getChildren()).iterator();
+		}
 		if(shouldUpdateBetaMinus) itr = (BEAMSimTelecontrolerListener.logitParamsMinus.getChildren()).iterator();
 		if(shouldUpdateLogitParams){
 			itr = (BEAMSimTelecontrolerListener.logitParams.getChildren()).iterator();
-			paramsDelta = new ArrayList<>();
 		}
+//		itr = (BEAMSimTelecontrolerListener.logitParams.getChildren()).iterator();
 		if(!isFirstIteration){
-			while (itr != null && itr.hasNext()) {
+			while (itr != null && itr.hasNext()) { //TODO: arrival/departure
 				Element element = (Element) itr.next();
 				Iterator itrElem = element.getChildren().iterator();
 				paramIndex = 0;
-				while (itrElem.hasNext()) {
+				while (itrElem.hasNext()) { //TODO: yescharge/nocharge
 					Element subElement = ((Element) itrElem.next());
-					log.info("subElement.getName().toLowerCase(): " + subElement.getName().toLowerCase());
-					if(subElement.getName().toLowerCase().equals("nestedLogit")){
-//						Element subElement.getChildren("") !!!!!!!!!!!!!!!!!!!!!!! RESUME WORKING HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					}
-					if(subElement.getName().toLowerCase().equals("params")){
-						// Only update intercept
-						log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + subElement.getAttributeValue("name").toLowerCase());
-						if(subElement.getAttributeValue("name").toLowerCase().equals("intercept")){
-							if(shouldUpdateBetaPlus){
-								boolean delta = StdRandom.bernoulli();
-								paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
-								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-							}else if(shouldUpdateBetaMinus){
-								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex++)));
-								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-							}else if(shouldUpdateLogitParams){
-								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-								grad = diff/(2*c*paramsDelta.get(paramIndex++));
-								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
-								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+					log.info("subElement.getName().toLowerCase(): " + subElement.getName().toLowerCase() + "name: " + subElement.getAttributeValue("name"));
+					if(subElement.getName().toLowerCase().equals("nestedlogit")){
+						for (Object o1 : subElement.getChildren()) { //TODO: genericSitePlug...
+							Element logitElem = ((Element) o1);
+							if (logitElem.getName().toLowerCase().equals("nestedlogit")) {
+								for (Object o : (logitElem.getChild("utility")).getChildren()) { //TODO: parameters
+									Element utilElem = ((Element) o);
+									if (utilElem.getName().equals("param")) {
+										// Only update intercept
+										log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + utilElem.getAttributeValue("name").toLowerCase());
+										if (utilElem.getAttributeValue("name").toLowerCase().equals("intercept")) {
+											if (shouldUpdateBetaPlus) {
+												boolean delta = StdRandom.bernoulli();
+												paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
+												log.info("(betaPlus) attribute: " + utilElem.getAttributeValue("name") + " origin param: " + utilElem.getText());
+												utilElem.setText(String.valueOf(Double.valueOf(utilElem.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
+												log.info("(betaPlus) attribute: " + utilElem.getAttributeValue("name") + " updated param: " + utilElem.getText());
+											} else if (shouldUpdateBetaMinus) {
+												log.info("(betaMinus) attribute: " + utilElem.getAttributeValue("name") + " origin param: " + utilElem.getText());
+												utilElem.setText(String.valueOf(Double.valueOf(utilElem.getText()) + c * paramsDelta.get(paramIndex++)));
+												log.info("(betaMinus) attribute: " + utilElem.getAttributeValue("name") + " updated param: " + utilElem.getText());
+											} else if (shouldUpdateLogitParams) {
+												log.info("(param update) attribute: " + utilElem.getAttributeValue("name") + " origin param: " + utilElem.getText());
+												grad = diff / (2 * c * paramsDelta.get(paramIndex++));
+												utilElem.setText(String.valueOf(Double.valueOf(utilElem.getText()) - a * grad));
+												log.info("(param update) attribute: " + utilElem.getAttributeValue("name") + " updated param: " + utilElem.getText());
+											}
+										}
+									}
+								}
+							} else if (logitElem.getName().toLowerCase().equals("utility")) {
+								Iterator iterUtiltiy = logitElem.getChildren().iterator();
+								while(iterUtiltiy.hasNext()){
+									Element utilElem = (Element) iterUtiltiy.next();
+									if(utilElem.getName().equals("param")){
+										// Only update intercept
+										log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + utilElem.getAttributeValue("name").toLowerCase());
+										if (utilElem.getAttributeValue("name").toLowerCase().equals("intercept")) {
+											if (shouldUpdateBetaPlus) {
+												boolean delta = StdRandom.bernoulli();
+												paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
+												log.info("(betaPlus) attribute: " + utilElem.getAttributeValue("name") + " origin param: " + utilElem.getText());
+												utilElem.setText(String.valueOf(Double.valueOf(utilElem.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
+												log.info("(betaPlus) attribute: " + utilElem.getAttributeValue("name") + " updated param: " + utilElem.getText());
+											} else if (shouldUpdateBetaMinus) {
+												log.info("(betaMinus) attribute: " + utilElem.getAttributeValue("name") + " origin param: " + utilElem.getText());
+												utilElem.setText(String.valueOf(Double.valueOf(utilElem.getText()) + c * paramsDelta.get(paramIndex++)));
+												log.info("(betaMinus) attribute: " + utilElem.getAttributeValue("name") + " updated param: " + utilElem.getText());
+											} else if (shouldUpdateLogitParams) {
+												log.info("(param update) attribute: " + utilElem.getAttributeValue("name") + " origin param: " + utilElem.getText());
+												grad = diff / (2 * c * paramsDelta.get(paramIndex++));
+												utilElem.setText(String.valueOf(Double.valueOf(utilElem.getText()) - a * grad));
+												log.info("(param update) attribute: " + utilElem.getAttributeValue("name") + " updated param: " + utilElem.getText());
+											}
+										}
+									}
+								}
 							}
 						}
 					}
+//					if(subElement.getName().toLowerCase().equals("params")){
+//						// Only update intercept
+//						log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + subElement.getAttributeValue("name").toLowerCase());
+//						if(subElement.getAttributeValue("name").toLowerCase().equals("intercept")){
+//							if(shouldUpdateBetaPlus){
+//								boolean delta = StdRandom.bernoulli();
+//								paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
+//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
+//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+//							}else if(shouldUpdateBetaMinus){
+//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex++)));
+//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+//							}else if(shouldUpdateLogitParams){
+//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+//								grad = diff/(2*c*paramsDelta.get(paramIndex++));
+//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
+//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+//							}
+//						}
+//					}
 				}
 //			if (element.getAttribute("name").getValue().toLowerCase().equals("arrival")) { // do we need to distinguish
 //				Iterator itrArrival = element.getChildren().iterator();
