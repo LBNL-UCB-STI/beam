@@ -62,6 +62,7 @@ object AgentsimServices {
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
   val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve());
+  var beamRouter : OpenTripPlannerRouter = None[OpenTripPlannerRouter]
 }
 
 /**

@@ -1,11 +1,5 @@
 package beam.agentsim.sim
 
-import java.io.File
-
-import beam.agentsim.config.BeamConfig
-import com.typesafe.config.ConfigFactory
-import com.typesafe.config.Config
-
 object RunBeam extends App{
 
 //  val tsConfig: Config = ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve();
