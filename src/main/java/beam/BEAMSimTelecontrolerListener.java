@@ -156,7 +156,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					Element subElement = ((Element) itrElem.next());
 					log.info("subElement.getName().toLowerCase(): " + subElement.getName().toLowerCase());
 					if(subElement.getName().toLowerCase().equals("nestedLogit")){
-//						Element subElement.getChildren("")
+//						Element subElement.getChildren("") !!!!!!!!!!!!!!!!!!!!!!! RESUME WORKING HERE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 					}
 					if(subElement.getName().toLowerCase().equals("params")){
 						// Only update intercept
