@@ -351,7 +351,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 			}
 		}
 		setPlugTypeAlternativeTemplate();
-		log.info(this.toString());
+//		log.info(this.toString());
 	}
 
 	@Override

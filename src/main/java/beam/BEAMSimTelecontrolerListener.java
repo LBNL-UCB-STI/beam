@@ -153,17 +153,31 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				Iterator itrElem = element.getChildren().iterator();
 				paramIndex = 0;
 				while (itrElem.hasNext()) {
-					Element subElement = (Element) itrElem.next();
+					Element subElement = ((Element) itrElem.next());
+					log.info("subElement.getName().toLowerCase(): " + subElement.getName().toLowerCase());
+					if(subElement.getName().toLowerCase().equals("nestedLogit")){
+//						Element subElement.getChildren("")
+					}
 					if(subElement.getName().toLowerCase().equals("params")){
-						if(shouldUpdateBetaPlus){
-							boolean delta = StdRandom.bernoulli();
-							paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
-						}else if(shouldUpdateBetaMinus){
-							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex++)));
-						}else if(shouldUpdateLogitParams){
-							grad = diff/(2*c*paramsDelta.get(paramIndex++));
-							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
+						// Only update intercept
+						log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + subElement.getAttributeValue("name").toLowerCase());
+						if(subElement.getAttributeValue("name").toLowerCase().equals("intercept")){
+							if(shouldUpdateBetaPlus){
+								boolean delta = StdRandom.bernoulli();
+								paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
+								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
+								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+							}else if(shouldUpdateBetaMinus){
+								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex++)));
+								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+							}else if(shouldUpdateLogitParams){
+								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+								grad = diff/(2*c*paramsDelta.get(paramIndex++));
+								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
+								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+							}
 						}
 					}
 				}
@@ -195,7 +209,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 //			}
 			}
 		}
-		
+
 
 		/*
 		 * This code you shouldn't need to touch, it just loops through all agents and replaces their choice models with
@@ -246,6 +260,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					}
 				} else {
 					String time = CSVUtil.getValue("time",row,headerMap);
+					if(!time.contains(".")) time += ".0";
 					if(!filePath.toLowerCase().contains("validation")){
 						if(Double.valueOf(time) >= 27 && Double.valueOf(time) <= 51){
 							time = String.valueOf(Double.valueOf(time)-27);
@@ -321,18 +336,31 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		ArrayList<Double> mergedArray = new ArrayList<>();
 
 		// Get merged hash map
-		for (String timeKey : hashMap2.keySet()) {
-			for (String spatialGroupKey : hashMap2.get(timeKey).keySet()) {
-				for (String siteTypeKey : hashMap2.get(timeKey).get(spatialGroupKey).keySet()) {
-					for (String chargerTypeKey : hashMap2.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet()) {
-						if(hashMap1.containsKey(timeKey))
-							if(hashMap1.get(timeKey).containsKey(spatialGroupKey))
-								if(hashMap1.get(timeKey).get(spatialGroupKey).containsKey(siteTypeKey))
-									if(!hashMap1.get(timeKey).get(spatialGroupKey).get(siteTypeKey).containsKey(chargerTypeKey))
-										hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).put(chargerTypeKey, String.valueOf(0));
-								else hashMapMerged.get(timeKey).get(spatialGroupKey).put(siteTypeKey, new LinkedHashMap<>()).put(chargerTypeKey, String.valueOf(0));
-							else hashMapMerged.get(timeKey).put(spatialGroupKey, new LinkedHashMap<>()).put(siteTypeKey, new LinkedHashMap<>()).put(chargerTypeKey, String.valueOf(0));
-						else hashMapMerged.put(timeKey, new LinkedHashMap<>()).put(spatialGroupKey, new LinkedHashMap<>()).put(siteTypeKey, new LinkedHashMap<>()).put(chargerTypeKey, String.valueOf(0));
+		for (String time : hashMap2.keySet()) {
+			for (String spatialGroup : hashMap2.get(time).keySet()) {
+				for (String siteType : hashMap2.get(time).get(spatialGroup).keySet()) {
+					for (String chargerType : hashMap2.get(time).get(spatialGroup).get(siteType).keySet()) {
+						if(hashMapMerged.containsKey(time)){
+							if(hashMapMerged.get(time).containsKey(spatialGroup)){
+								if(hashMapMerged.get(time).get(spatialGroup).containsKey(siteType)){
+									if(!hashMapMerged.get(time).get(spatialGroup).get(siteType).containsKey(chargerType)){
+										hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+									}
+								}else{
+									hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+								}
+							}else{
+								hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+							}
+						}else{
+							hashMapMerged.put(time, new LinkedHashMap<>());
+							hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+						}
 					}
 				}
 			}
@@ -369,44 +397,42 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 
 		// Get merged hash map
 		for (String time : hashMap2.keySet()) {
-			log.info(time);
 			for (String spatialGroup : hashMap2.get(time).keySet()) {
 				for (String siteType : hashMap2.get(time).get(spatialGroup).keySet()) {
 					for (String chargerType : hashMap2.get(time).get(spatialGroup).get(siteType).keySet()) {
-						if(hashMap1.containsKey(time)){
-							if(hashMap1.get(time).containsKey(spatialGroup)){
-								if(hashMap1.get(time).get(spatialGroup).containsKey(siteType)){
-									if(!hashMap1.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
-										hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+						if(hashMapMerged.containsKey(time)){
+							if(hashMapMerged.get(time).containsKey(spatialGroup)){
+								if(hashMapMerged.get(time).get(spatialGroup).containsKey(siteType)){
+									if(!hashMapMerged.get(time).get(spatialGroup).get(siteType).containsKey(chargerType)){
+										hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+									}
 								}else{
 									hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-									hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+									hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
 								}
 							}else{
 								hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
 								hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-								hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+								hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
 							}
 						}else{
 							hashMapMerged.put(time, new LinkedHashMap<>());
 							hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
 							hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-							hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(999));
+							hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
 						}
 					}
 				}
 			}
 		}
 
-		// TODO: check if merged load profile is in the same order of time, spatial group, site type, and charger type regardless
 		// Get merged array
 		int count = 0;
-		for (String timeKey : hashMapMerged.keySet()) {
-			for (String spatialGroupKey : hashMapMerged.get(timeKey).keySet()) {
-				for (String siteTypeKey : hashMapMerged.get(timeKey).get(spatialGroupKey).keySet()) {
-					for (String chargerTypeKey : hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet()) {
+		for (String timeKey : new TreeSet<>(hashMapMerged.keySet())) {
+			for (String spatialGroupKey : new TreeSet<>(hashMapMerged.get(timeKey).keySet())) {
+				for (String siteTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).keySet())) {
+					for (String chargerTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet())) {
 						mergedArray.add(count++, Double.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)));
-						// TODO: WRITE CSV FILE TO CHECK IF THIS ALGORITHM WORKS
 						try {
 							CSVUtil.writeLine(writer, Arrays.asList(timeKey, spatialGroupKey, siteTypeKey, chargerTypeKey,
                                     String.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)),""));
