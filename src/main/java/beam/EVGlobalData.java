@@ -38,7 +38,7 @@ public class EVGlobalData {
 	
 	private static final Logger log = Logger.getLogger(EVGlobalData.class);
 
-    public static EVGlobalData data = null;
+	public static EVGlobalData data = null;
 	public CoordinateReferenceSystem targetCoordinateSystem;
 	public CoordinateReferenceSystem wgs84CoordinateSystem;
 
@@ -117,6 +117,7 @@ public class EVGlobalData {
 	public int ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
 	public String LINK_ATTRIBUTE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
+	public boolean SHOULD_DO_PARAM_CALIBRATION;
 
 	public ChargingInfrastructureManagerImpl chargingInfrastructureManager;
 	public ChargingQueueImpl fastChargingQueue;

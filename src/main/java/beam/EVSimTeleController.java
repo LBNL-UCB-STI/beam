@@ -328,7 +328,8 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_SITES_FILEPATH = inputDirectory + evModule.getValue("chargingSitesFile");
 		EVGlobalData.data.CHARGING_POINTS_FILEPATH = inputDirectory + evModule.getValue("chargingPointsFile");
 		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
-		EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesValidationFile");
+		if(evModule.getValue("chargingStrategiesValidationFile")!= null)
+			EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesValidationFile");
 		EVGlobalData.data.VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("vehicleTypesFile");
 		EVGlobalData.data.PERSON_VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("personVehicleTypesFile");
 		EVGlobalData.data.TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("travelTimeFile");
@@ -361,7 +362,9 @@ public class EVSimTeleController {
 		EVGlobalData.data.RANGE_ANXITY_SAMPLING_INTERVAL_IN_SECONDS = Double.parseDouble(evModule.getValue("rangeAnxitySamplingIntervalInSeconds"));
 
 		EVGlobalData.data.IS_DEBUG_MODE = Boolean.parseBoolean(evModule.getValue("isDebugMode"));
-		
+
+		if(evModule.getValue("shouldDoParamCalibration")!=null)
+			EVGlobalData.data.SHOULD_DO_PARAM_CALIBRATION = Boolean.parseBoolean(evModule.getValue("shouldDoParamCalibration"));
 		
 		EVGlobalData.data.BETA_CHARGING_COST = Double.parseDouble(evModule.getValue("betaChargingCost"));
 		EVGlobalData.data.BETA_PARKING_COST = Double.parseDouble(evModule.getValue("betaParkingCost"));
