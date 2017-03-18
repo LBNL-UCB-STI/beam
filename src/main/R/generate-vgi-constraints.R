@@ -159,6 +159,14 @@ soc.raw <- ev[,list(hr=sort(c(ts,hr)),
                 veh.type=veh.type[1]),by=c('person','final.type')]
                 #veh.type=veh.type[1]),by=c('person','siteType','actType')]
 
+#soc <- rbindlist(list(soc.raw[,list(person,hr,energy.level,kw,constraint='max',siteType,actType,veh.type)],soc.raw[,list(person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',siteType,actType,veh.type)]
+#))[hr==floor(hr)]
+#soc <- soc[,list(kw=sum(kw),energy.level=sum(energy.level),veh.type=veh.type[1]),by=c('hr','person','siteType','actType','constraint')]
+#soc[,d.energy.level:=c(0,ifelse(diff(energy.level)>0,diff(energy.level),0)),by=c('person','siteType','actType','constraint')]
+#soc[,cumul.energy:=cumsum(d.energy.level),by=c('person','siteType','actType','constraint')]
+#setkey(soc,hr,person,siteType,actType,constraint)
+#soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','person','siteType','actType')]
+
 # Deal with over-representation of charging in early morning due to stranded/cut-off sesssions
 #soc[hr>=2 & hr<3,':='(kw=kw/3,energy.level=energy.level/3)]
 #soc[hr>=3 & hr<4,':='(kw=kw/5,energy.level=energy.level/5)]
