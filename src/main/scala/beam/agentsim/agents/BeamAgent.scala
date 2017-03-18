@@ -88,7 +88,7 @@ trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]
 
   whenUnhandled {
     case Event(any, data) =>
-      log.error(s"Unhandled event: $id")
+      log.error(s"Unhandled event: $id $any $data")
       stay()
   }
 

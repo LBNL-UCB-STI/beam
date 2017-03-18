@@ -48,7 +48,7 @@ object PersonAgent {
 
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int, pendingTriggerId: Long = -1L) extends BeamAgentData {
     def activityOrMessage(ind: Int, msg: String): Either[String, Activity]= {
-      if(ind < 0 || ind >= activityChain.length) Left(msg) else Right(activityChain(currentActivityIndex))
+      if(ind < 0 || ind >= activityChain.length) Left(msg) else Right(activityChain(ind))
     }
     def currentOrNextActivity: Activity = {
       activityChain(currentActivityIndex)

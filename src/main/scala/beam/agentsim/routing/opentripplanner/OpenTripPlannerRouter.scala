@@ -9,11 +9,12 @@ import java.util.Locale
 import akka.actor.Props
 import beam.agentsim.routing.{BeamRouter, DummyRouter, RoutingRequest}
 import beam.agentsim.sim.AgentsimServices
-import com.google.inject.Inject
+import com.vividsolutions.jts.geom.Coordinate
+import org.geotools.geometry.DirectPosition2D
 import org.matsim.api.core.v01.population.{Person, PlanElement}
-import org.matsim.core.router.{RoutingModule, StageActivityTypes, TripRouter}
 import org.matsim.facilities.Facility
 import org.matsim.utils.objectattributes.attributable.Attributes
+import org.opengis.referencing.crs.{CRSFactory, CoordinateReferenceSystem}
 import org.opentripplanner.routing.spt.GraphPath
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
@@ -22,6 +23,9 @@ import org.opentripplanner.routing.graph.Edge
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
 import org.opentripplanner.standalone.CommandLineParameters
+import org.geotools.referencing.CRS
+import org.opengis.referencing.crs.CoordinateReferenceSystem
+import org.opengis.referencing.operation.MathTransform
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
@@ -36,24 +40,36 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
   val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
   val graphService: GraphService = makeGraphService()
   val router = graphService.getRouter(routerIds.head)
+  val transform: MathTransform = CRS.findMathTransform(CRS.decode("EPSG:26910",true),CRS.decode("EPSG:4326",true),false)
 
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
       val request = new org.opentripplanner.routing.core.RoutingRequest()
       request.routerId = routerIds.head
       request.addMode(TraverseMode.CAR)
-      request.from = new GenericLocation(fromFacility.getCoord.getY, fromFacility.getCoord.getX)
-      request.to = new GenericLocation(toFacility.getCoord.getY, toFacility.getCoord.getX)
-      request.dateTime = ZonedDateTime.now().minusYears(2).toEpochSecond
+      /*
+      val fromPt: DirectPosition2D = new DirectPosition2D(fromFacility.getCoord.getX,fromFacility.getCoord.getY)
+      var fromProjected: DirectPosition2D = new DirectPosition2D(0,0)
+      val toPt: DirectPosition2D = new DirectPosition2D(toFacility.getCoord.getX,toFacility.getCoord.getY)
+      var toProjected: DirectPosition2D = new DirectPosition2D(0,0)
+      transform.transform(fromPt,fromProjected)
+      transform.transform(toPt,toProjected)
+      request.from = new GenericLocation(fromProjected.y,fromProjected.x)
+      request.to = new GenericLocation(toProjected.y,toProjected.x)
+      */
+      request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
+      request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
+      request.dateTime = ZonedDateTime.now().minusMonths(5).toEpochSecond
       request.maxWalkDistance = 804.672
       request.locale = Locale.ENGLISH
       val gpFinder = new GraphPathFinder(router)
+      //TODO this is not robust to OTP exceptions
       val paths = gpFinder.graphPathFinderEntryPoint(request)
       val beamTrips = for(path: GraphPath <- paths.asScala.toVector) yield {
-          val edgesModesTimes: Vector[Tuple3[String, String, Long]] = for (edge: Edge <- path.edges.asScala.toVector; state: State <- path.states.asScala.toVector) yield {
+          val verticesModesTimes: Vector[Tuple3[String, String, Long]] = for (state: State <- path.states.asScala.toVector) yield {
             val theMode : String = if (state.getNonTransitMode == null) { state.getTripId.getAgencyId } else { state.getNonTransitMode.name() }
-            Tuple3(edge.getName,theMode,state.getTimeInMillis)
+            Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
           }
-          val it = edgesModesTimes.iterator
+          val it = verticesModesTimes.iterator
           var activeTuple = it.next()
           var activeGraphPath = Vector[String](activeTuple._1)
           var activeMode = activeTuple._2
@@ -115,6 +131,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     params.securePort = 338081
     params.routerIds = routerIds.asJava
     params.infer()
+    params.autoReload = false
     params
   }
 
@@ -122,6 +139,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     routerIds.foreach(routerId => {
       val graphDirectory = new File(s"${baseDirectory.getAbsolutePath}/graphs/$routerId/")
       val graphBuilder = GraphBuilder.forDirectory(params, graphDirectory)
+      graphBuilder.setAlwaysRebuild(false);
       if (graphBuilder != null) {
         graphBuilder.run()
         val graph = graphBuilder.getGraph
