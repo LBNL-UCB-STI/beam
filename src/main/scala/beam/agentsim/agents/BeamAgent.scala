@@ -13,9 +13,7 @@ object BeamAgent {
   // states
   trait BeamAgentState extends FSMState
 
-  case object Uninitialized extends BeamAgentState {
-    override def identifier = "Uninitialized"
-  }
+  case object Uninitialized extends BeamAgentState { override def identifier = "Uninitialized" }
 
   case object Initialized extends BeamAgentState {
     override def identifier = "Initialized"

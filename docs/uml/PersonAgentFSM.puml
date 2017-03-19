@@ -1,6 +1,6 @@
 @startuml
 
-scale 600 width
+scale 1200 width
 skinparam stateBorderColor #black
 skinparam stateFontStyle bold
 skinparam arrowColor #black

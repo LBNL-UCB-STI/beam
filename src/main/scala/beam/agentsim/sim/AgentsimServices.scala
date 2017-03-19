@@ -1,6 +1,6 @@
 package beam.agentsim.sim
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import beam.agentsim.agents._
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
@@ -21,6 +21,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import java.io.File
 
+import beam.agentsim.routing.{BeamRouter, DummyRouter}
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 
 object AgentsimServices {
@@ -62,7 +63,8 @@ object AgentsimServices {
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
   val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve());
-  var beamRouter : Option[OpenTripPlannerRouter] = None
+  //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
+  var beamRouter : ActorRef = null
 }
 
 /**

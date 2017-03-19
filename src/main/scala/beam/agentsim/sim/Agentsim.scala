@@ -47,7 +47,9 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyStartup(event: StartupEvent): Unit = {
     registry ! Registry.Register("scheduler",services.schedulerRef)
-    registry ! Registry.Register("agent-router",Props(classOf[OpenTripPlannerRouter],services))
+    registry ! Registry.Register("router",Props(classOf[OpenTripPlannerRouter],services))
+    val future = registry ? Registry.Lookup("router")
+    beamRouter = Await.result(future, timeout.duration).asInstanceOf[Found].ref
 
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
@@ -64,10 +66,6 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val ok = result.asInstanceOf[Found]
       print(s"${ok.name},")
     }
-    val future = registry ? Registry.Lookup("agent-router")
-    val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
-    println(s"lookup response ${result},")
-
     //TODO replace magic numbers
     val simFuture = services.schedulerRef ? StartSchedule(100000.0,100.0)
     val simResult = Await.result(simFuture,timeout.duration).asInstanceOf[CompletionNotice]

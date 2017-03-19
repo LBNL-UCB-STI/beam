@@ -103,7 +103,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(ActivityStartTrigger(1.0),personAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(ActivityEndTrigger(10.0),personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(SelectRouteTrigger(11.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 12.0, maxWindow = 10.0)
     }
 

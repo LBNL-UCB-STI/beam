@@ -71,7 +71,7 @@ class BeamAgentScheduler extends Actor {
       }
 
     case CompletionNotice(id: Long, newTriggers: Vector[ScheduleTrigger]) =>
-//      log.info(s"recieved notice that trigger id: $id is complete")
+      log.info(s"recieved notice that trigger id: $id is complete")
       awaitingResponse.remove(triggerIdToTick(id), id)
       triggerIdToTick -= id
       newTriggers.foreach {scheduleTrigger}

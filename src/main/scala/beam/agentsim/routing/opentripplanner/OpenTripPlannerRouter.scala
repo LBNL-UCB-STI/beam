@@ -7,6 +7,7 @@ import java.util.LinkedList
 import java.util.Locale
 
 import akka.actor.Props
+import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamGraphPath, BeamItinerary, BeamLeg, BeamTrip}
 import beam.agentsim.routing.{BeamRouter, DummyRouter, RoutingRequest}
 import beam.agentsim.sim.AgentsimServices
 import com.vividsolutions.jts.geom.Coordinate
@@ -96,7 +97,9 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
   override def receive: Receive = {
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
-      sender() ! calcRoute(fromFacility, toFacility, departureTime, person)
+      val senderRef = sender()
+      senderRef ! calcRoute(fromFacility, toFacility, departureTime, person)
+//        sender() ! calcRoute(fromFacility, toFacility, departureTime, person)
     case msg =>
       log.info(s"unknown message received by OTPRouter $msg")
   }
@@ -149,12 +152,6 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     })
   }
 
-  case class BeamItinerary(itinerary: Vector[BeamTrip]) extends PlanElement {
-    override def getAttributes: Attributes = new Attributes()
-  }
-  case class BeamTrip(legs: Vector[BeamLeg])
-  case class BeamLeg(startTime: Long, mode: String, graphPath: BeamGraphPath)
-  case class BeamGraphPath(value: Vector[String])
 
 }
 
@@ -163,4 +160,10 @@ object OpenTripPlannerRouter {
 
   case class RoutingResponse(legs: util.LinkedList[PlanElement])
 
+  case class BeamItinerary(itinerary: Vector[BeamTrip]) extends PlanElement {
+    override def getAttributes: Attributes = new Attributes()
+  }
+  case class BeamTrip(legs: Vector[BeamLeg])
+  case class BeamLeg(startTime: Long, mode: String, graphPath: BeamGraphPath)
+  case class BeamGraphPath(value: Vector[String])
 }
