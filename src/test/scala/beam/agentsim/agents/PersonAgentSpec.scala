@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
+import beam.agentsim.agents.BeamAgent.Initialized
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.playground.sid.events.EventsSubscriber
@@ -39,7 +40,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
-      val data = PersonData(Vector(homeActivity), 0)
+      val data = PersonData(Vector(homeActivity))
 
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
@@ -47,15 +48,15 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(stopTick = 11.0, maxWindow = 10.0)
 
-      personAgentRef.stateName should be(ChoosingMode)
-      personAgentRef.stateData.data should be("plan finished")
+      personAgentRef.stateName should be(Initialized)
+      personAgentRef.stateData.data.currentActivity should be(homeActivity)
     }
 
     it("should be able to be registered in registry") {
       val registry = Registry.start(this.system, "actor-registry")
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val name = "0"
-      val data = PersonData(Vector(homeActivity), 0)
+      val data = PersonData(Vector(homeActivity))
       val props = Props(classOf[PersonAgent], Id.createPersonId(name), data)
       val future = registry ? Registry.Register(name, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
@@ -72,8 +73,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       agentSimEventsBus.subscribe(eventSubscriber, actEndDummy)
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      homeActivity.setEndTime(28800)  // 8:00:00 AM
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      val data = PersonData(Vector(homeActivity, workActivity), 0)
+      workActivity.setEndTime(61200) //5:00:00 PM
+      val data = PersonData(Vector(homeActivity, workActivity))
 
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
@@ -95,7 +98,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      val data = PersonData(Vector(homeActivity, workActivity,homeActivity), 0)
+      val data = PersonData(Vector(homeActivity, workActivity,homeActivity))
 
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]

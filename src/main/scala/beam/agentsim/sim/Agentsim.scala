@@ -6,8 +6,8 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.agents.PersonAgent.PersonData
+import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.playground.sid.events.EventsSubscriber
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter

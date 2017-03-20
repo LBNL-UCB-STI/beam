@@ -3,31 +3,25 @@ package beam.agentsim.routing.opentripplanner
 import java.io.File
 import java.time.ZonedDateTime
 import java.util
-import java.util.LinkedList
 import java.util.Locale
 
 import akka.actor.Props
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamGraphPath, BeamItinerary, BeamLeg, BeamTrip}
-import beam.agentsim.routing.{BeamRouter, DummyRouter, RoutingRequest}
+import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
+import beam.agentsim.routing.{BeamRouter, RoutingRequest}
 import beam.agentsim.sim.AgentsimServices
-import com.vividsolutions.jts.geom.Coordinate
-import org.geotools.geometry.DirectPosition2D
+import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.population.{Person, PlanElement}
 import org.matsim.facilities.Facility
 import org.matsim.utils.objectattributes.attributable.Attributes
-import org.opengis.referencing.crs.{CRSFactory, CoordinateReferenceSystem}
-import org.opentripplanner.routing.spt.GraphPath
+import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
 import org.opentripplanner.routing.core.{State, TraverseMode}
-import org.opentripplanner.routing.graph.Edge
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
-import org.opentripplanner.standalone.CommandLineParameters
-import org.geotools.referencing.CRS
-import org.opengis.referencing.crs.CoordinateReferenceSystem
-import org.opengis.referencing.operation.MathTransform
-import org.slf4j.LoggerFactory
+import org.opentripplanner.routing.spt.GraphPath
+import org.opentripplanner.standalone.{CommandLineParameters, Router}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 
@@ -36,11 +30,11 @@ import scala.collection.JavaConverters._
 class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRouter {
   import beam.agentsim.sim.AgentsimServices._
 
-  val log = LoggerFactory.getLogger(getClass)
+  val log: Logger = LoggerFactory.getLogger(getClass)
   val baseDirectory: File = new File(beamConfig.beam.sim.sharedInputs + beamConfig.beam.routing.otp.directory)
   val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
   val graphService: GraphService = makeGraphService()
-  val router = graphService.getRouter(routerIds.head)
+  val router: Router = graphService.getRouter(routerIds.head)
   val transform: MathTransform = CRS.findMathTransform(CRS.decode("EPSG:26910",true),CRS.decode("EPSG:4326",true),false)
 
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
@@ -66,7 +60,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
       //TODO this is not robust to OTP exceptions
       val paths = gpFinder.graphPathFinderEntryPoint(request)
       val beamTrips = for(path: GraphPath <- paths.asScala.toVector) yield {
-          val verticesModesTimes: Vector[Tuple3[String, String, Long]] = for (state: State <- path.states.asScala.toVector) yield {
+          val verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
             val theMode : String = if (state.getNonTransitMode == null) { state.getTripId.getAgencyId } else { state.getNonTransitMode.name() }
             Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
           }
@@ -90,15 +84,17 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
           BeamTrip(beamLegs)
       }
       val planElementList = new java.util.LinkedList[PlanElement]()
-      planElementList.add(new BeamItinerary(beamTrips))
+      planElementList.add(BeamItinerary(beamTrips))
       planElementList
   }
 
   override def receive: Receive = {
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
+      log.info(s"OTP Router received routing request from $sender")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val senderRef = sender()
-      senderRef ! calcRoute(fromFacility, toFacility, departureTime, person)
+      val plans = calcRoute(fromFacility, toFacility, departureTime, person)
+      senderRef ! RoutingResponse(plans)
 //        sender() ! calcRoute(fromFacility, toFacility, departureTime, person)
     case msg =>
       log.info(s"unknown message received by OTPRouter $msg")
@@ -142,7 +138,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     routerIds.foreach(routerId => {
       val graphDirectory = new File(s"${baseDirectory.getAbsolutePath}/graphs/$routerId/")
       val graphBuilder = GraphBuilder.forDirectory(params, graphDirectory)
-      graphBuilder.setAlwaysRebuild(false);
+      graphBuilder.setAlwaysRebuild(false)
       if (graphBuilder != null) {
         graphBuilder.run()
         val graph = graphBuilder.getGraph
@@ -158,7 +154,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
 object OpenTripPlannerRouter {
   def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter],agentsimServices)
 
-  case class RoutingResponse(legs: util.LinkedList[PlanElement])
+  case class RoutingResponse(els: util.LinkedList[PlanElement])
 
   case class BeamItinerary(itinerary: Vector[BeamTrip]) extends PlanElement {
     override def getAttributes: Attributes = new Attributes()

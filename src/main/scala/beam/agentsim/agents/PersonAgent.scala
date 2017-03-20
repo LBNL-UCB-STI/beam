@@ -3,24 +3,18 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Props
-import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.routing.DummyRouter.RoutingResponse
 import beam.agentsim.routing.RoutingRequest
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamTrip}
+import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamTrip, RoutingResponse}
 import glokka.Registry
-import glokka.Registry.Found
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.population._
+import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
@@ -53,8 +47,8 @@ object PersonAgent {
   }
 
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0, currentRoute: Option[BeamTrip] = None) extends BeamAgentData {
-    def activityOrMessage(ind: Int, msg: String): Either[String, Activity]= {
-      if(ind < 0 || ind >= activityChain.length) Left(msg) else Right(activityChain(ind))
+    def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
+      if (ind < 0 || ind >= activityChain.length) Left(msg) else Right(activityChain(ind))
     }
 
     def currentActivity: Activity = activityChain(currentActivityIndex)
@@ -78,44 +72,78 @@ object PersonAgent {
 
   sealed trait Traveling extends BeamAgentState
 
-  case object ChoosingMode extends Traveling { override def identifier = "ChoosingMode" }
-  case object Driving extends Traveling { override def identifier = "Driving" }
-  case object Walking extends Traveling { override def identifier = "Walking" }
-  case object Waiting extends Traveling { override def identifier = "Waiting" }
-  case object OnTransit extends Traveling { override def identifier = "OnTransit" }
-  case object Alighting extends Traveling { override def identifier = "Alighting" }
+  case object ChoosingMode extends Traveling {
+    override def identifier = "ChoosingMode"
+  }
+
+  case object Driving extends Traveling {
+    override def identifier = "Driving"
+  }
+
+  case object Walking extends Traveling {
+    override def identifier = "Walking"
+  }
+
+  case object Waiting extends Traveling {
+    override def identifier = "Waiting"
+  }
+
+  case object OnTransit extends Traveling {
+    override def identifier = "OnTransit"
+  }
+
+  case object Alighting extends Traveling {
+    override def identifier = "Alighting"
+  }
 
   case class ActivityStartTrigger(tick: Double) extends Trigger
+
   case class ActivityEndTrigger(tick: Double) extends Trigger
 
+  case class RouteReceivedPseudoTrigger(tick: Double, triggerId: Long, trip: BeamTrip) extends Trigger
+
   case class PersonDepartureTrigger(tick: Double) extends Trigger
+
   case class PersonEntersVehicleTrigger(tick: Double) extends Trigger
+
   case class PersonExitsVehicleTrigger(tick: Double) extends Trigger
+
   case class PersonEntersBoardingQueueTrigger(tick: Double) extends Trigger
+
   case class PersonEntersAlightingQueueTrigger(tick: Double) extends Trigger
+
   case class PersonArrivesTransitStopTrigger(tick: Double) extends Trigger
+
   case class PersonArrivalTrigger(tick: Double) extends Trigger
+
 }
 
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
-  import akka.pattern.ask
+  import akka.pattern.{ask,pipe}
   import beam.agentsim.sim.AgentsimServices._
 
   private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
+  def routeReceived(data: BeamAgent.BeamAgentInfo[PersonData]): Boolean = {
+    data match {
+      case data: BeamAgent.BeamAgentInfo[PersonData] => data.data.currentRoute.nonEmpty
+      case _ => false
+    }
+  }
+
   when(Initialized) {
-    case Event(TriggerWithId(ActivityStartTrigger(tick),triggerId), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentActivity = info.data.currentActivity
       val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
       agentSimEventsBus.publish(MatsimEvent(msg))
       // Since this is the first activity of the day, we don't increment the currentActivityIndex
-      goto(PerformingActivity) using info replying CompletionNotice(triggerId,Vector[ScheduleTrigger](ScheduleTrigger(ActivityEndTrigger(currentActivity.getEndTime),self)))
+      goto(PerformingActivity) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](ScheduleTrigger(ActivityEndTrigger(currentActivity.getEndTime), self)))
   }
 
-  when(PerformingActivity) {
+  when(PerformingActivity)(transform {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
 
       val currentActivity = info.data.currentActivity
@@ -130,33 +158,28 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
           goto(Finished) replying CompletionNotice(triggerId)
         },
         nextAct => {
-          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick + timeToChooseMode, id)).mapTo[java.util.LinkedList[PlanElement]]
-          routerFuture.onComplete {
-            case Success(routingResult) =>
-              val itins: BeamItinerary = routingResult.getFirst.asInstanceOf[BeamItinerary]
-
-              //TODO: do the selection between itins here
-              val theRoute: BeamTrip = itins.itinerary.head
-
-              val depatureTrigger = ScheduleTrigger(PersonDepartureTrigger(tick + timeToChooseMode),self)
-
-              goto(ChoosingMode) using info.copy(id,info.data.copy(currentRoute = Some(theRoute))) replying CompletionNotice(triggerId, Vector(depatureTrigger))
-
-            case Failure(failure) => stay() // TODO: or throw error/goto finished?
-          }
-          stay() //TODO: what is default when things don't go right?
+          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick + timeToChooseMode, id)).mapTo[RoutingResponse] map { result =>
+            val theRoute = result.els.getFirst.asInstanceOf[BeamItinerary].itinerary.head
+            RouteReceivedPseudoTrigger(tick+timeToChooseMode,triggerId,theRoute)
+          } pipeTo self
         }
       )
       log.info("after fold")
       stay()
-  }
+    case Event(result: RouteReceivedPseudoTrigger, info: BeamAgentInfo[PersonData]) =>
+      log.info("Received route")
+      val departureTrigger = ScheduleTrigger(PersonDepartureTrigger(result.tick), self)
+      goto(ChoosingMode) using info.copy(id, info.data.copy(currentRoute = Some(result.trip))) replying CompletionNotice(result.triggerId, Vector(departureTrigger))
+  } using {
+    case s if routeReceived(s.stateData) =>
+      s.copy(stateName = ChoosingMode)
+  })
 
   when(ChoosingMode) {
-    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) => {
-      val enterVehicleTrigger = ScheduleTrigger(PersonEntersVehicleTrigger(tick + timeToChooseMode),self)
 
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      val enterVehicleTrigger: SchedulerMessage = ScheduleTrigger(PersonEntersVehicleTrigger(tick + timeToChooseMode), self)
       goto(Walking) using info
-    }
   }
 
   when(Walking) {
@@ -175,7 +198,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   onTransition {
     case Uninitialized -> Initialized =>
-      registry ! Registry.Tell("scheduler",ScheduleTrigger(ActivityStartTrigger(0.0),self))
+      registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
+    case PerformingActivity -> ChoosingMode =>
+      log.info("FSM going from PerformingActivity to ChoosingMode")
   }
 
   /*
@@ -184,7 +209,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   def currentLocation: Coord = {
     stateData.data.currentActivity.getCoord
   }
-  def timeToChooseMode: Double = 30.0
+
+  val timeToChooseMode: Double = 30.0
 
 
 }

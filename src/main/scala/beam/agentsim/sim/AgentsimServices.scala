@@ -1,6 +1,8 @@
 package beam.agentsim.sim
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import java.io.File
+
+import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.agents._
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
@@ -19,10 +21,6 @@ import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-import java.io.File
-
-import beam.agentsim.routing.{BeamRouter, DummyRouter}
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 
 object AgentsimServices {
   import beam.agentsim._

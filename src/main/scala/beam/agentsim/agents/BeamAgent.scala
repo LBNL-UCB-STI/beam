@@ -1,11 +1,11 @@
 package beam.agentsim.agents
 
-import akka.actor.{Cancellable, FSM}
+import akka.actor.{Cancellable, LoggingFSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.BeamAgentScheduler._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
-import beam.agentsim.agents.BeamAgentScheduler._
 
 
 object BeamAgent {
@@ -58,7 +58,7 @@ sealed trait MemoryEvent extends Event
   * state data types.
   *
   */
-trait BeamAgent[T <: BeamAgentData] extends FSM[BeamAgentState, BeamAgentInfo[T]] {
+trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] {
 
   def id: Id[_]
 
