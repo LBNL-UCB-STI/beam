@@ -7,7 +7,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.routing.RoutingRequest
+import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamTrip, RoutingResponse}
 import glokka.Registry
 import org.matsim.api.core.v01.events.ActivityEndEvent

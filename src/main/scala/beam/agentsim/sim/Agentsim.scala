@@ -10,6 +10,7 @@ import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
 import beam.agentsim.playground.sid.events.EventsSubscriber
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
+import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import com.google.inject.Inject
 import glokka.Registry
@@ -52,6 +53,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
     val routerFuture = registry ? Registry.Register("router",Props(classOf[OpenTripPlannerRouter],services))
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
+    val routerInitFuture = beamRouter ? InitializeRouter
+    Await.result(routerInitFuture,timeout.duration)
 
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say

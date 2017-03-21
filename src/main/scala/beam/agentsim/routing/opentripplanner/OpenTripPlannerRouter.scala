@@ -7,7 +7,8 @@ import java.util.Locale
 
 import akka.actor.Props
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
-import beam.agentsim.routing.{BeamRouter, RoutingRequest}
+import beam.agentsim.routing.{BeamRouter}
+import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.sim.AgentsimServices
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.population.{Person, PlanElement}
@@ -17,6 +18,7 @@ import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
 import org.opentripplanner.routing.core.{State, TraverseMode}
+import org.opentripplanner.routing.error.PathNotFoundException
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
 import org.opentripplanner.routing.spt.GraphPath
@@ -33,9 +35,9 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
   val log: Logger = LoggerFactory.getLogger(getClass)
   val baseDirectory: File = new File(beamConfig.beam.sim.sharedInputs + beamConfig.beam.routing.otp.directory)
   val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
-  val graphService: GraphService = makeGraphService()
-  val router: Router = graphService.getRouter(routerIds.head)
-  val transform: MathTransform = CRS.findMathTransform(CRS.decode("EPSG:26910",true),CRS.decode("EPSG:4326",true),false)
+  var graphService: Option[GraphService] = None
+  var router: Option[Router] = None
+  var transform: Option[MathTransform] = None
 
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
       val request = new org.opentripplanner.routing.core.RoutingRequest()
@@ -56,10 +58,17 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
       request.dateTime = ZonedDateTime.now().minusMonths(5).toEpochSecond
       request.maxWalkDistance = 804.672
       request.locale = Locale.ENGLISH
-      val gpFinder = new GraphPathFinder(router)
+      val gpFinder = new GraphPathFinder(router.get)
       //TODO this is not robust to OTP exceptions
-      val paths = gpFinder.graphPathFinderEntryPoint(request)
-      val beamTrips = for(path: GraphPath <- paths.asScala.toVector) yield {
+      var paths : Option[util.List[GraphPath]] = None
+      try {
+        paths = Some(gpFinder.graphPathFinderEntryPoint(request))
+      }catch{
+        case pathNotFound: PathNotFoundException =>
+          log.error(pathNotFound.getCause.toString)
+          return new util.LinkedList[PlanElement]()
+      }
+      val beamTrips = for(path: GraphPath <- paths.get.asScala.toVector) yield {
           val verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
             val theMode : String = if (state.getNonTransitMode == null) { state.getTripId.getAgencyId } else { state.getNonTransitMode.name() }
             Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
@@ -89,13 +98,18 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
   }
 
   override def receive: Receive = {
+    case InitializeRouter =>
+      log.info("Initializing OTP Router")
+      graphService = Some(makeGraphService())
+      router = Some(graphService.get.getRouter(routerIds.head))
+      transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910",true),CRS.decode("EPSG:4326",true),false))
+      sender() ! RouterInitialized()
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
-      log.info(s"OTP Router received routing request from $sender")
+      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val senderRef = sender()
       val plans = calcRoute(fromFacility, toFacility, departureTime, person)
       senderRef ! RoutingResponse(plans)
-//        sender() ! calcRoute(fromFacility, toFacility, departureTime, person)
     case msg =>
       log.info(s"unknown message received by OTPRouter $msg")
   }

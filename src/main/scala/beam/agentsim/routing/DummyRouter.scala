@@ -5,6 +5,7 @@ import java.util.List
 
 import akka.actor.Props
 import beam.agentsim.routing.DummyRouter.RoutingResponse
+import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.sim.AgentsimServices
 import org.matsim.api.core.v01.population.{Person, PlanElement}
 import org.matsim.core.router.{RoutingModule, StageActivityTypes, TripRouter}
