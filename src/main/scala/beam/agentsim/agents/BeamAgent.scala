@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Cancellable, LoggingFSM}
+import akka.actor.LoggingFSM
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
@@ -66,8 +66,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
 
   startWith(Uninitialized, BeamAgentInfo[T](id, data))
 
-  // Possible long-running process.
-  def currentTask: Option[Cancellable] = None
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick),triggerId), _) =>
@@ -90,15 +88,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       stay()
   }
 
-  // Used to ensure that any long-running, potentially asynchronous process does not
-  // need to return its value before the actor can be restarted.
-  @scala.throws[Exception](classOf[Exception])
-  override def postStop(): Unit = {
-    currentTask foreach {
-      _.cancel()
-    }
-    print(s"stop:${this.getClass.getSimpleName}, ")
-  }
 
 }
 

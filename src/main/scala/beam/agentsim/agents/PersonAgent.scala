@@ -44,6 +44,7 @@ object PersonAgent {
     def planToVec(plan: Plan): Vector[Activity] = {
       scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
     }
+
   }
 
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0, currentRoute: Option[BeamTrip] = None) extends BeamAgentData {
@@ -60,6 +61,8 @@ object PersonAgent {
     def prevActivity: Either[String, Activity] = {
       activityOrMessage(currentActivityIndex - 1, "at start")
     }
+
+
   }
 
   // End PersonData ~
@@ -120,7 +123,7 @@ object PersonAgent {
 
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
-  import akka.pattern.{ask,pipe}
+  import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
 
   private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
@@ -168,7 +171,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       log.info("after fold")
       stay()
     case Event(result: RouteReceivedPseudoTrigger, info: BeamAgentInfo[PersonData]) =>
-      log.info("Received route")
+      log.info(s"PersonAgent $id: Received route")
       val departureTrigger = ScheduleTrigger(PersonDepartureTrigger(result.tick), self)
       val completionNotice = CompletionNotice(result.triggerId, Vector[ScheduleTrigger](departureTrigger))
 
@@ -191,7 +194,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       val exitsVehicleTrigger: ScheduleTrigger = ScheduleTrigger(PersonExitsVehicleTrigger(tick + timeToChooseMode), self)
       goto(Driving) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](exitsVehicleTrigger))
     case Event(TriggerWithId(PersonArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(PerformingActivity) using stateData.copy(id,PersonData(info.data.activityChain,info.data.currentActivityIndex+1,info.data.currentRoute))
+      val nextAct = info.data.nextActivity.right.get
+      log.info("after fold")
+      goto(PerformingActivity) using copyIncrementingActivityIndex replying CompletionNotice(triggerId,Vector[ScheduleTrigger](ScheduleTrigger(ActivityEndTrigger(nextAct.getEndTime), self)))
   }
 
   when(Driving) {
@@ -204,15 +209,15 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Uninitialized -> Initialized =>
       registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
     case PerformingActivity -> ChoosingMode =>
-      log.info(s"PersonAgent $id going from ${stateData.data.currentActivity.getType} to ChoosingMode")
-    case ChoosingMode -> Walking=>
-      log.info(s"PersonAgent $id going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}}")
-    case Walking -> Driving=>
-      log.info(s"PersonAgent $id going from Walking to Driving")
+      log.info(s"PersonAgent $id: going from ${stateData.data.currentActivity.getType} to ChoosingMode")
+    case ChoosingMode -> Walking =>
+      log.info(s"PersonAgent $id: going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}")
+    case Walking -> Driving =>
+      log.info(s"PersonAgent $id: going from Walking to Driving")
     case Driving -> Walking =>
-      log.info(s"PersonAgent $id going from Driving to Walking")
+      log.info(s"PersonAgent $id: going from Driving to Walking")
     case Walking -> PerformingActivity =>
-      log.info(s"PersonAgent $id going from Walking to ${stateData.data.currentActivity.getType}")
+      log.info(s"PersonAgent $id: going from Walking to ${stateData.data.currentActivity.getType}")
   }
 
   /*
@@ -222,7 +227,15 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     stateData.data.currentActivity.getCoord
   }
 
+  def copyIncrementingActivityIndex(): BeamAgentInfo[PersonData] = {
+    stateData.copy(id,stateData.data.copy(activityChain=stateData.data.activityChain,currentActivityIndex=stateData.data.currentActivityIndex+1,currentRoute=stateData.data.currentRoute))
+  }
+
   val timeToChooseMode: Double = 30.0
+
+//  def completionNotice[T<:Trigger](triggerId: Long)(implicit tag: ClassTag[T]):  CompletionNotice{
+//
+//  }
 
 
 }
