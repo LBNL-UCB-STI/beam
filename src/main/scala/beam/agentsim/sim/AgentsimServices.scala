@@ -3,7 +3,6 @@ package beam.agentsim.sim
 import java.io.File
 
 import akka.actor.{ActorRef, ActorSystem}
-import beam.agentsim.agents._
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.playground.sid.events.AgentsimEventsBus
@@ -62,7 +61,8 @@ object AgentsimServices {
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
   val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve());
   //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
-  var beamRouter : ActorRef = null
+  var beamRouter : ActorRef = _
+  var schedulerRef: ActorRef =_
 }
 
 /**
@@ -70,6 +70,5 @@ object AgentsimServices {
   */
 @Singleton
 case class AgentsimServices @Inject()(protected val injector: Injector) extends ActorInject {
-  val schedulerRef: ActorRef = injectTopActor[BeamAgentScheduler]
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 }

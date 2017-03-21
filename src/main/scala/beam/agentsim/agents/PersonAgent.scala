@@ -143,7 +143,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       goto(PerformingActivity) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](ScheduleTrigger(ActivityEndTrigger(currentActivity.getEndTime), self)))
   }
 
-  when(PerformingActivity)(transform {
+  when(PerformingActivity){
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
 
       val currentActivity = info.data.currentActivity
@@ -169,14 +169,12 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(result: RouteReceivedPseudoTrigger, info: BeamAgentInfo[PersonData]) =>
       log.info("Received route")
       val departureTrigger = ScheduleTrigger(PersonDepartureTrigger(result.tick), self)
-      goto(ChoosingMode) using info.copy(id, info.data.copy(currentRoute = Some(result.trip))) replying CompletionNotice(result.triggerId, Vector(departureTrigger))
-  } using {
-    case s if routeReceived(s.stateData) =>
-      s.copy(stateName = ChoosingMode)
-  })
+      val completionNotice = CompletionNotice(result.triggerId, Vector[ScheduleTrigger](departureTrigger))
+      schedulerRef ! completionNotice  // Can't reply, since context is post-pipe.
+      goto(ChoosingMode) using info.copy(id, info.data.copy(currentRoute = Some(result.trip)))
+  }
 
   when(ChoosingMode) {
-
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val enterVehicleTrigger: SchedulerMessage = ScheduleTrigger(PersonEntersVehicleTrigger(tick + timeToChooseMode), self)
       goto(Walking) using info
@@ -201,6 +199,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
     case PerformingActivity -> ChoosingMode =>
       log.info("FSM going from PerformingActivity to ChoosingMode")
+    case ChoosingMode -> Walking=>
+      log.info("FSM going from ChoosingMode to Walking")
   }
 
   /*

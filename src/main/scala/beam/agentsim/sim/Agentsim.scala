@@ -7,7 +7,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
-import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
+import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
 import beam.agentsim.playground.sid.events.EventsSubscriber
 import beam.agentsim.playground.sid.events.EventsSubscriber.{FinishProcessing, StartProcessing}
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
@@ -46,10 +46,11 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    registry ! Registry.Register("scheduler",services.schedulerRef)
-    registry ! Registry.Register("router",Props(classOf[OpenTripPlannerRouter],services))
-    val future = registry ? Registry.Lookup("router")
-    beamRouter = Await.result(future, timeout.duration).asInstanceOf[Found].ref
+    val schedulerFuture = registry ? Registry.Register("scheduler",Props(classOf[BeamAgentScheduler]))
+    schedulerRef = Await.result(schedulerFuture,timeout.duration).asInstanceOf[Created].ref
+
+    val routerFuture = registry ? Registry.Register("router",Props(classOf[OpenTripPlannerRouter],services))
+    beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
 
     eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
@@ -67,7 +68,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       print(s"${ok.name},")
     }
     //TODO replace magic numbers
-    val simFuture = services.schedulerRef ? StartSchedule(100000.0,100.0)
+    val simFuture = schedulerRef ? StartSchedule(100000.0,100.0)
     val simResult = Await.result(simFuture,timeout.duration).asInstanceOf[CompletionNotice]
     println(simResult)
   }
@@ -85,7 +86,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Created]
       print(s"${ok.name},")
-      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),ok.ref)
+      schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),ok.ref)
     }
     println("")
   }
