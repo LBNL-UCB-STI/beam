@@ -170,21 +170,25 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       log.info("Received route")
       val departureTrigger = ScheduleTrigger(PersonDepartureTrigger(result.tick), self)
       val completionNotice = CompletionNotice(result.triggerId, Vector[ScheduleTrigger](departureTrigger))
-      schedulerRef ! completionNotice  // Can't reply, since context is post-pipe.
+
+      // Send CN directly to scheduler.
+      // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
+      schedulerRef ! completionNotice
       goto(ChoosingMode) using info.copy(id, info.data.copy(currentRoute = Some(result.trip)))
   }
 
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val enterVehicleTrigger: SchedulerMessage = ScheduleTrigger(PersonEntersVehicleTrigger(tick + timeToChooseMode), self)
-      goto(Walking) using info
+      val enterVehicleTrigger: ScheduleTrigger = ScheduleTrigger(PersonEntersVehicleTrigger(tick + timeToChooseMode), self)
+      goto(Walking) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](enterVehicleTrigger))
   }
 
   when(Walking) {
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(Waiting) using info
     case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(Driving) using info
+      val exitsVehicleTrigger: ScheduleTrigger = ScheduleTrigger(PersonExitsVehicleTrigger(tick + timeToChooseMode), self)
+      goto(Driving) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](exitsVehicleTrigger))
     case Event(TriggerWithId(PersonArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(PerformingActivity) using info
   }
@@ -201,6 +205,10 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       log.info("FSM going from PerformingActivity to ChoosingMode")
     case ChoosingMode -> Walking=>
       log.info("FSM going from ChoosingMode to Walking")
+    case Walking -> Driving=>
+      log.info("FSM going from Walking to Driving")
+    case Driving -> Walking =>
+      log.info("FSM going from Driving to Walking")
   }
 
   /*
