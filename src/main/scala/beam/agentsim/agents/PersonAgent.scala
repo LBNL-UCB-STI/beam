@@ -204,15 +204,15 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Uninitialized -> Initialized =>
       registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
     case PerformingActivity -> ChoosingMode =>
-      log.info(s"FSM $id going from ${stateData.data.currentActivity.getType} to ChoosingMode")
+      log.info(s"PersonAgent $id going from ${stateData.data.currentActivity.getType} to ChoosingMode")
     case ChoosingMode -> Walking=>
-      log.info(s"FSM $id going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}}")
+      log.info(s"PersonAgent $id going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}}")
     case Walking -> Driving=>
-      log.info(s"FSM $id going from Walking to Driving")
+      log.info(s"PersonAgent $id going from Walking to Driving")
     case Driving -> Walking =>
-      log.info(s"FSM $id going from Driving to Walking")
+      log.info(s"PersonAgent $id going from Driving to Walking")
     case Walking -> PerformingActivity =>
-      log.info(s"FSM $id going from Walking to ${stateData.data.currentActivity.getType}")
+      log.info(s"PersonAgent $id going from Walking to ${stateData.data.currentActivity.getType}")
   }
 
   /*

@@ -21,6 +21,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.facilities.ActivityFacility
+import org.slf4j.LoggerFactory
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.Await
@@ -37,7 +38,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
                         ) extends StartupListener with IterationStartsListener with ShutdownListener {
 
   import AgentsimServices._
-
+  private val logger = LoggerFactory.getLogger(classOf[Agentsim])
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   val scenario: Scenario = services.matsimServices.getScenario
@@ -65,7 +66,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val future = registry ? Registry.Lookup(k.toString)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Found]
-      print(s"${ok.name},")
+      logger.info(s"${ok.name},")
     }
     //TODO replace magic numbers
     val simFuture = schedulerRef ? StartSchedule(100000.0,100.0)
@@ -85,10 +86,9 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val future = registry ? Registry.Register(k.toString, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Created]
-      print(s"${ok.name},")
+      logger.info(s"${ok.name}")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),ok.ref)
     }
-    println("")
   }
 
 }
