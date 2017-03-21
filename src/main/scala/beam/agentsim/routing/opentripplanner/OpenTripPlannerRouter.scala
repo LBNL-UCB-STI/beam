@@ -160,6 +160,11 @@ object OpenTripPlannerRouter {
     override def getAttributes: Attributes = new Attributes()
   }
   case class BeamTrip(legs: Vector[BeamLeg])
+
+  object BeamTrip {
+    val noneTrip: BeamTrip = BeamTrip(Vector.empty)
+  }
+
   case class BeamLeg(startTime: Long, mode: String, graphPath: BeamGraphPath)
   case class BeamGraphPath(value: Vector[String])
 }

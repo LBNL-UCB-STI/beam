@@ -149,6 +149,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       val currentActivity = info.data.currentActivity
 
       // Activity ends, so publish to EventBus
+      // FIXME: This isn't working... needs to be enforced by contract
       val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
       agentSimEventsBus.publish(MatsimEvent(msg))
 
@@ -190,25 +191,28 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       val exitsVehicleTrigger: ScheduleTrigger = ScheduleTrigger(PersonExitsVehicleTrigger(tick + timeToChooseMode), self)
       goto(Driving) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](exitsVehicleTrigger))
     case Event(TriggerWithId(PersonArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(PerformingActivity) using info
+      goto(PerformingActivity) using stateData.copy(id,PersonData(info.data.activityChain,info.data.currentActivityIndex+1,info.data.currentRoute))
   }
 
   when(Driving) {
     case Event(TriggerWithId(PersonExitsVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(Walking) using info
+      val personArrivalTrigger: ScheduleTrigger = ScheduleTrigger(PersonArrivalTrigger(tick + timeToChooseMode), self)
+      goto(Walking) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](personArrivalTrigger))
   }
 
   onTransition {
     case Uninitialized -> Initialized =>
       registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
     case PerformingActivity -> ChoosingMode =>
-      log.info("FSM going from PerformingActivity to ChoosingMode")
+      log.info(s"FSM $id going from ${stateData.data.currentActivity.getType} to ChoosingMode")
     case ChoosingMode -> Walking=>
-      log.info("FSM going from ChoosingMode to Walking")
+      log.info(s"FSM $id going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}}")
     case Walking -> Driving=>
-      log.info("FSM going from Walking to Driving")
+      log.info(s"FSM $id going from Walking to Driving")
     case Driving -> Walking =>
-      log.info("FSM going from Driving to Walking")
+      log.info(s"FSM $id going from Driving to Walking")
+    case Walking -> PerformingActivity =>
+      log.info(s"FSM $id going from Walking to ${stateData.data.currentActivity.getType}")
   }
 
   /*
