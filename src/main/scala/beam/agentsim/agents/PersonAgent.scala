@@ -22,6 +22,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
   */
 object PersonAgent {
 
+  val timeToChooseMode: Double = 30.0
+
+  private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
+
+  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+
+
+
   // syntactic sugar for props creation
   def props(personId: Id[PersonAgent], personData: PersonData) = Props(new PersonAgent(personId, personData))
 
@@ -126,9 +134,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
 
-  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
-  private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
+
 
   def routeReceived(data: BeamAgent.BeamAgentInfo[PersonData]): Boolean = {
     data match {
@@ -158,7 +165,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
       info.data.nextActivity.fold(
         msg => {
-          logger.info(s"Didn't get nextActivity because $msg")
+          logInfo(s"didn't get nextActivity because $msg")
           goto(Finished) replying CompletionNotice(triggerId)
         },
         nextAct => {
@@ -169,8 +176,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         }
       )
       stay()
-    case Event(result: RouteResponseWrapper, info: BeamAgentInfo[PersonData])  =>
-      log.info(s"PersonAgent $id: Received route")
+    case Event(result: RouteResponseWrapper, _)  =>
+      logInfo(s"received route")
       goto(ChoosingMode) using updateRoute(result)
   }
 
@@ -182,12 +189,13 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(Walking) {
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(Waiting) using info
+
     case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(Driving) using info replying completed(triggerId, schedule[PersonExitsVehicleTrigger](tick + timeToChooseMode))
+
     case Event(TriggerWithId(PersonArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val nextAct = info.data.nextActivity.right.get
-      log.info("after fold")
-      goto(PerformingActivity) using nextActivity replying completed(triggerId, schedule[ActivityEndTrigger](nextAct.getEndTime))
+      goto(PerformingActivity) using nextActivity replying
+        completed(triggerId, schedule[ActivityEndTrigger](info.data.nextActivity.right.get.getEndTime))
   }
 
   when(Driving) {
@@ -199,20 +207,25 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Uninitialized -> Initialized =>
       registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
     case PerformingActivity -> ChoosingMode =>
-      log.info(s"PersonAgent $id: going from ${stateData.data.currentActivity.getType} to ChoosingMode")
+      logInfo(s"going from ${stateData.data.currentActivity.getType} to ChoosingMode")
     case ChoosingMode -> Walking =>
-      log.info(s"PersonAgent $id: going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}")
+      logInfo(s"going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}")
     case Walking -> Driving =>
-      log.info(s"PersonAgent $id: going from Walking to Driving")
+      logInfo(s"going from Walking to Driving")
     case Driving -> Walking =>
-      log.info(s"PersonAgent $id: going from Driving to Walking")
+      log.info(s"going from Driving to Walking")
     case Walking -> PerformingActivity =>
-      log.info(s"PersonAgent $id: going from Walking to ${stateData.data.currentActivity.getType}")
+      logInfo(s"going from Walking to ${stateData.data.currentActivity.getType}")
   }
 
   /*
    * Helper methods
    */
+  def logInfo(msg: String): Unit ={
+    log.info(s"PersonAgent $id: $msg")
+  }
+
+  // TODO: This is fine for now, but consider +/- of passing stateData as param, creating pure and more portable static methods...
   def currentLocation: Coord = {
     stateData.data.currentActivity.getCoord
   }
@@ -221,8 +234,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     stateData.copy(id, stateData.data.copy(activityChain = stateData.data.activityChain, currentActivityIndex = stateData.data.currentActivityIndex + 1, currentRoute = stateData.data.currentRoute))
   }
 
-  val timeToChooseMode: Double = 30.0
-
+  // TODO: Use shapeless Hlist/Generics (if Triggers only have double field) or roll own method to accept multiple triggers.
   def schedule[T <: Trigger](tick: Double)(implicit tag: scala.reflect.ClassTag[T]): Vector[ScheduleTrigger] = {
     Vector[ScheduleTrigger](ScheduleTrigger(tag.runtimeClass.getConstructor(classOf[Double]).newInstance(new java.lang.Double(tick)).asInstanceOf[T], self))
   }
@@ -238,6 +250,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     schedulerRef ! completionNotice
     stateData.copy(id, stateData.data.copy(currentRoute = Some(result.trip)))
   }
+
 
 
 
