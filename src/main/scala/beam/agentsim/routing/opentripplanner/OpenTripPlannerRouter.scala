@@ -40,7 +40,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
   var transform: Option[MathTransform] = None
 
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
-    val request = new org.opentripplanner.routing.core.RoutingRequest()
+    var request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
     request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
@@ -51,15 +51,22 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     request.clearModes()
     request.addMode(TraverseMode.WALK)
     request.addMode(TraverseMode.CAR)
-    val gpFinder = new GraphPathFinder(router.get)
+    var gpFinder = new GraphPathFinder(router.get)
     try {
-      paths.add(gpFinder.graphPathFinderEntryPoint(request).get(0))
+      paths.addAll(gpFinder.graphPathFinderEntryPoint(request))
     }catch{
       case e: NullPointerException =>
         log.error(e.getCause.toString)
       case e: PathNotFoundException =>
-        log.error(e.getCause.toString)
+        log.error("PathNotFoundException")
     }
+    request = new org.opentripplanner.routing.core.RoutingRequest()
+    request.routerId = routerIds.head
+    request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
+    request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
+    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong%(24L*3600L)
+    request.maxWalkDistance = 804.672
+    request.locale = Locale.ENGLISH
     request.clearModes()
     request.addMode(TraverseMode.WALK)
     request.addMode(TraverseMode.TRANSIT)
@@ -72,13 +79,14 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     request.addMode(TraverseMode.TRAM)
     request.addMode(TraverseMode.FUNICULAR)
     request.addMode(TraverseMode.GONDOLA)
+    gpFinder = new GraphPathFinder(router.get)
     try {
-      paths.add(gpFinder.graphPathFinderEntryPoint(request).get(0))
+      paths.addAll(gpFinder.graphPathFinderEntryPoint(request))
     }catch{
       case e: NullPointerException =>
         log.error("NullPointerException encountered in OpenTripPlanner router for request: " + request.toString)
       case e: PathNotFoundException =>
-        log.error(e.getCause.toString)
+        log.error("PathNotFoundException")
     }
 
     val beamTrips = for(path: GraphPath <- paths.asScala.toVector) yield {
@@ -158,6 +166,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     params.routerIds = routerIds.asJava
     params.infer()
     params.autoReload = false
+    params.inMemory = false
     params
   }
 

@@ -15,6 +15,10 @@ plugins {
     id "de.undercouch.download" version "3.2.0"
 }
 
+configurations.all {
+    // check for updates every build
+    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}
 
 apply plugin: 'java'
 apply plugin: 'maven'
@@ -63,7 +67,7 @@ dependencies {
     compile group: 'com.google.inject', name: 'guice', version:'4.1.0'
 	compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version:'4.1.0'
-    compile group: 'com.google.guava', name: 'guava', version:'19.0'
+    compile group: 'com.google.guava', name: 'guava', version:'18.0'
     compile group: 'de.ruedigermoeller', name: 'fst', version:'2.47'
     compile group: 'org.jfree', name: 'jfreechart', version:'1.0.14'
     compile group: 'org.apache.commons', name: 'commons-math3', version:'3.5'
@@ -89,11 +93,11 @@ dependencies {
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
     compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
-    compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
+    //compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
-    compile 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
-    compile 'com.github.colinsheppard:OpenTripPlanner:otp-1.0.0-beam-SNAPSHOT'
+    compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: true
+    compile group: 'com.github.colinsheppard', name:'OpenTripPlanner', version:'otp-1.0.0-beam-SNAPSHOT', changing: true
 
 
     /////////////////////////////////
