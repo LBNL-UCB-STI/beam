@@ -7,7 +7,7 @@ import java.util.Locale
 
 import akka.actor.Props
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
-import beam.agentsim.routing.{BeamRouter}
+import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.sim.AgentsimServices
 import org.geotools.referencing.CRS
@@ -18,6 +18,7 @@ import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
 import org.opentripplanner.routing.core.{State, TraverseMode}
+import org.opentripplanner.routing.edgetype.{PreAlightEdge, PreBoardEdge, StreetTransitLink, TransitBoardAlight}
 import org.opentripplanner.routing.error.PathNotFoundException
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
@@ -90,10 +91,31 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     }
 
     val beamTrips = for(path: GraphPath <- paths.asScala.toVector) yield {
-      val verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
-        val theMode : String = if (state.getNonTransitMode == null) { state.getTripId.getAgencyId } else { state.getNonTransitMode.name() }
+      var verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
+        val theMode : String = if (state.getBackMode != null) {
+          if(state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
+            if (state.getBackEdge.isInstanceOf[StreetTransitLink]) {
+              state.getNonTransitMode.name()
+            } else if (state.getBackEdge.isInstanceOf[PreAlightEdge]) {
+              "PRE_ALIGHT"
+            } else if (state.getBackEdge.isInstanceOf[PreBoardEdge]) {
+                "WAITING"
+            } else if (state.getBackEdge.isInstanceOf[TransitBoardAlight]) {
+              if (state.getBackEdge.asInstanceOf[TransitBoardAlight].boarding) {
+                "BOARDING"
+              } else {
+                "ALIGHTING"
+              }
+            } else {
+              state.getBackMode.name()
+            }
+          }else {
+            state.getBackMode.name()
+          }
+        } else { state.getNonTransitMode.name() }
         Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
       }
+      verticesModesTimes = verticesModesTimes.filter(!_._2.equals("PRE_ALIGHT"))
       val it = verticesModesTimes.iterator
       var activeTuple = it.next()
       var activeGraphPath = Vector[String](activeTuple._1)
