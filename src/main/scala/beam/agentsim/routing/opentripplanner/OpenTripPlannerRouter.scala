@@ -95,7 +95,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
         val theMode : String = if (state.getBackMode != null) {
           if(state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
             if (state.getBackEdge.isInstanceOf[StreetTransitLink]) {
-              state.getNonTransitMode.name()
+              "PRE_BOARD"
             } else if (state.getBackEdge.isInstanceOf[PreAlightEdge]) {
               "PRE_ALIGHT"
             } else if (state.getBackEdge.isInstanceOf[PreBoardEdge]) {
@@ -115,7 +115,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
         } else { state.getNonTransitMode.name() }
         Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
       }
-      verticesModesTimes = verticesModesTimes.filter(!_._2.equals("PRE_ALIGHT"))
+      verticesModesTimes = verticesModesTimes.filter(t => !(t._2.equals("PRE_BOARD") | t._2.equals("PRE_ALIGHT")))
       val it = verticesModesTimes.iterator
       var activeTuple = it.next()
       var activeGraphPath = Vector[String](activeTuple._1)
