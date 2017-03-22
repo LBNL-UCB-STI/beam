@@ -133,9 +133,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
-
-
-
+  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
   def routeReceived(data: BeamAgent.BeamAgentInfo[PersonData]): Boolean = {
     data match {

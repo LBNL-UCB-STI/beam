@@ -40,62 +40,74 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
   var transform: Option[MathTransform] = None
 
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
-      val request = new org.opentripplanner.routing.core.RoutingRequest()
-      request.routerId = routerIds.head
-      request.addMode(TraverseMode.CAR)
-      /*
-      val fromPt: DirectPosition2D = new DirectPosition2D(fromFacility.getCoord.getX,fromFacility.getCoord.getY)
-      var fromProjected: DirectPosition2D = new DirectPosition2D(0,0)
-      val toPt: DirectPosition2D = new DirectPosition2D(toFacility.getCoord.getX,toFacility.getCoord.getY)
-      var toProjected: DirectPosition2D = new DirectPosition2D(0,0)
-      transform.transform(fromPt,fromProjected)
-      transform.transform(toPt,toProjected)
-      request.from = new GenericLocation(fromProjected.y,fromProjected.x)
-      request.to = new GenericLocation(toProjected.y,toProjected.x)
-      */
-      request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
-      request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
-      request.dateTime = ZonedDateTime.parse("2016-10-21T10:00:00-08:00[UTC-08:00]").toEpochSecond
-      request.maxWalkDistance = 804.672
-      request.locale = Locale.ENGLISH
-      val gpFinder = new GraphPathFinder(router.get)
-      //TODO this is not robust to OTP exceptions
-      var paths : Option[util.List[GraphPath]] = None
-      try {
-        log.info(router.get.timeouts.map(timeout => timeout.toString) mkString ",")
-        paths = Some(gpFinder.graphPathFinderEntryPoint(request))
-      }catch{
-        case pathNotFound: PathNotFoundException =>
-          log.error(pathNotFound.getCause.toString)
-          return new util.LinkedList[PlanElement]()
+    val request = new org.opentripplanner.routing.core.RoutingRequest()
+    request.routerId = routerIds.head
+    request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
+    request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
+    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong%(24L*3600L)
+    request.maxWalkDistance = 804.672
+    request.locale = Locale.ENGLISH
+    val paths : util.List[GraphPath] = new util.ArrayList[GraphPath]()
+    request.clearModes()
+    request.addMode(TraverseMode.WALK)
+    request.addMode(TraverseMode.CAR)
+    val gpFinder = new GraphPathFinder(router.get)
+    try {
+      paths.add(gpFinder.graphPathFinderEntryPoint(request).get(0))
+    }catch{
+      case e: NullPointerException =>
+        log.error(e.getCause.toString)
+      case e: PathNotFoundException =>
+        log.error(e.getCause.toString)
+    }
+    request.clearModes()
+    request.addMode(TraverseMode.WALK)
+    request.addMode(TraverseMode.TRANSIT)
+    request.addMode(TraverseMode.BUS)
+    request.addMode(TraverseMode.RAIL)
+    request.addMode(TraverseMode.SUBWAY)
+    request.addMode(TraverseMode.LEG_SWITCH)
+    request.addMode(TraverseMode.CABLE_CAR)
+    request.addMode(TraverseMode.FERRY)
+    request.addMode(TraverseMode.TRAM)
+    request.addMode(TraverseMode.FUNICULAR)
+    request.addMode(TraverseMode.GONDOLA)
+    try {
+      paths.add(gpFinder.graphPathFinderEntryPoint(request).get(0))
+    }catch{
+      case e: NullPointerException =>
+        log.error("NullPointerException encountered in OpenTripPlanner router for request: " + request.toString)
+      case e: PathNotFoundException =>
+        log.error(e.getCause.toString)
+    }
+
+    val beamTrips = for(path: GraphPath <- paths.asScala.toVector) yield {
+      val verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
+        val theMode : String = if (state.getNonTransitMode == null) { state.getTripId.getAgencyId } else { state.getNonTransitMode.name() }
+        Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
       }
-      val beamTrips = for(path: GraphPath <- paths.get.asScala.toVector) yield {
-          val verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
-            val theMode : String = if (state.getNonTransitMode == null) { state.getTripId.getAgencyId } else { state.getNonTransitMode.name() }
-            Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
-          }
-          val it = verticesModesTimes.iterator
-          var activeTuple = it.next()
-          var activeGraphPath = Vector[String](activeTuple._1)
-          var activeMode = activeTuple._2
-          var activeStart = activeTuple._3
-          var beamLegs = Vector[BeamLeg]()
-          while (it.hasNext) {
-            activeTuple = it.next()
-            if (activeTuple._2 == activeMode) {
-              activeGraphPath = activeGraphPath :+ activeTuple._1
-            } else {
-              beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, BeamGraphPath(activeGraphPath))
-              activeMode = activeTuple._2
-              activeStart = activeTuple._3
-            }
-          }
+      val it = verticesModesTimes.iterator
+      var activeTuple = it.next()
+      var activeGraphPath = Vector[String](activeTuple._1)
+      var activeMode = activeTuple._2
+      var activeStart = activeTuple._3
+      var beamLegs = Vector[BeamLeg]()
+      while (it.hasNext) {
+        activeTuple = it.next()
+        if (activeTuple._2 == activeMode) {
+          activeGraphPath = activeGraphPath :+ activeTuple._1
+        } else {
           beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, BeamGraphPath(activeGraphPath))
-          BeamTrip(beamLegs)
+          activeMode = activeTuple._2
+          activeStart = activeTuple._3
+        }
       }
-      val planElementList = new java.util.LinkedList[PlanElement]()
-      planElementList.add(BeamItinerary(beamTrips))
-      planElementList
+      beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, BeamGraphPath(activeGraphPath))
+      BeamTrip(beamLegs)
+    }
+    val planElementList = new java.util.LinkedList[PlanElement]()
+    planElementList.add(BeamItinerary(beamTrips))
+    planElementList
   }
 
   override def receive: Receive = {
