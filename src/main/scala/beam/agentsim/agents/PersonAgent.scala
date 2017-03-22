@@ -22,6 +22,14 @@ import scala.concurrent.ExecutionContext.Implicits.global
   */
 object PersonAgent {
 
+  val timeToChooseMode: Double = 30.0
+
+  private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
+
+  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+
+
+
   // syntactic sugar for props creation
   def props(personId: Id[PersonAgent], personData: PersonData) = Props(new PersonAgent(personId, personData))
 
@@ -103,7 +111,7 @@ object PersonAgent {
 
   case class ActivityEndTrigger(tick: Double) extends Trigger
 
-  case class RouteReceivedPseudoTrigger(tick: Double, triggerId: Long, trip: BeamTrip) extends Trigger
+  case class RouteResponseWrapper(tick: Double, triggerId: Long, trip: BeamTrip) extends Trigger
 
   case class PersonDepartureTrigger(tick: Double) extends Trigger
 
@@ -126,9 +134,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
 
-  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
-  private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
+
 
   def routeReceived(data: BeamAgent.BeamAgentInfo[PersonData]): Boolean = {
     data match {
@@ -143,10 +150,10 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
       agentSimEventsBus.publish(MatsimEvent(msg))
       // Since this is the first activity of the day, we don't increment the currentActivityIndex
-      goto(PerformingActivity) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](ScheduleTrigger(ActivityEndTrigger(currentActivity.getEndTime), self)))
+      goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime))
   }
 
-  when(PerformingActivity){
+  when(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
 
       val currentActivity = info.data.currentActivity
@@ -158,84 +165,93 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
       info.data.nextActivity.fold(
         msg => {
-          logger.info(s"Didn't get nextActivity because $msg")
+          logInfo(s"didn't get nextActivity because $msg")
           goto(Finished) replying CompletionNotice(triggerId)
         },
         nextAct => {
           val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick + timeToChooseMode, id)).mapTo[RoutingResponse] map { result =>
             val theRoute = result.els.getFirst.asInstanceOf[BeamItinerary].itinerary.head
-            RouteReceivedPseudoTrigger(tick+timeToChooseMode,triggerId,theRoute)
+            RouteResponseWrapper(tick + timeToChooseMode, triggerId, theRoute)
           } pipeTo self
         }
       )
-      log.info("after fold")
       stay()
-    case Event(result: RouteReceivedPseudoTrigger, info: BeamAgentInfo[PersonData]) =>
-      log.info(s"PersonAgent $id: Received route")
-      val departureTrigger = ScheduleTrigger(PersonDepartureTrigger(result.tick), self)
-      val completionNotice = CompletionNotice(result.triggerId, Vector[ScheduleTrigger](departureTrigger))
-
-      // Send CN directly to scheduler.
-      // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
-      schedulerRef ! completionNotice
-      goto(ChoosingMode) using info.copy(id, info.data.copy(currentRoute = Some(result.trip)))
+    case Event(result: RouteResponseWrapper, _)  =>
+      logInfo(s"received route")
+      goto(ChoosingMode) using updateRoute(result)
   }
 
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val enterVehicleTrigger: ScheduleTrigger = ScheduleTrigger(PersonEntersVehicleTrigger(tick + timeToChooseMode), self)
-      goto(Walking) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](enterVehicleTrigger))
+      goto(Walking) using info replying completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode))
   }
 
   when(Walking) {
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(Waiting) using info
+
     case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val exitsVehicleTrigger: ScheduleTrigger = ScheduleTrigger(PersonExitsVehicleTrigger(tick + timeToChooseMode), self)
-      goto(Driving) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](exitsVehicleTrigger))
+      goto(Driving) using info replying completed(triggerId, schedule[PersonExitsVehicleTrigger](tick + timeToChooseMode))
+
     case Event(TriggerWithId(PersonArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val nextAct = info.data.nextActivity.right.get
-      log.info("after fold")
-      goto(PerformingActivity) using copyIncrementingActivityIndex replying CompletionNotice(triggerId,Vector[ScheduleTrigger](ScheduleTrigger(ActivityEndTrigger(nextAct.getEndTime), self)))
+      goto(PerformingActivity) using nextActivity replying
+        completed(triggerId, schedule[ActivityEndTrigger](info.data.nextActivity.right.get.getEndTime))
   }
 
   when(Driving) {
     case Event(TriggerWithId(PersonExitsVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val personArrivalTrigger: ScheduleTrigger = ScheduleTrigger(PersonArrivalTrigger(tick + timeToChooseMode), self)
-      goto(Walking) using info replying CompletionNotice(triggerId, Vector[ScheduleTrigger](personArrivalTrigger))
+      goto(Walking) using info replying completed(triggerId, schedule[PersonArrivalTrigger](tick + timeToChooseMode))
   }
 
   onTransition {
     case Uninitialized -> Initialized =>
       registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
     case PerformingActivity -> ChoosingMode =>
-      log.info(s"PersonAgent $id: going from ${stateData.data.currentActivity.getType} to ChoosingMode")
+      logInfo(s"going from ${stateData.data.currentActivity.getType} to ChoosingMode")
     case ChoosingMode -> Walking =>
-      log.info(s"PersonAgent $id: going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}")
+      logInfo(s"going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}")
     case Walking -> Driving =>
-      log.info(s"PersonAgent $id: going from Walking to Driving")
+      logInfo(s"going from Walking to Driving")
     case Driving -> Walking =>
-      log.info(s"PersonAgent $id: going from Driving to Walking")
+      log.info(s"going from Driving to Walking")
     case Walking -> PerformingActivity =>
-      log.info(s"PersonAgent $id: going from Walking to ${stateData.data.currentActivity.getType}")
+      logInfo(s"going from Walking to ${stateData.data.currentActivity.getType}")
   }
 
   /*
    * Helper methods
    */
+  def logInfo(msg: String): Unit ={
+    log.info(s"PersonAgent $id: $msg")
+  }
+
+  // TODO: This is fine for now, but consider +/- of passing stateData as param, creating pure and more portable static methods...
   def currentLocation: Coord = {
     stateData.data.currentActivity.getCoord
   }
 
-  def copyIncrementingActivityIndex(): BeamAgentInfo[PersonData] = {
-    stateData.copy(id,stateData.data.copy(activityChain=stateData.data.activityChain,currentActivityIndex=stateData.data.currentActivityIndex+1,currentRoute=stateData.data.currentRoute))
+  def nextActivity(): BeamAgentInfo[PersonData] = {
+    stateData.copy(id, stateData.data.copy(activityChain = stateData.data.activityChain, currentActivityIndex = stateData.data.currentActivityIndex + 1, currentRoute = stateData.data.currentRoute))
   }
 
-  val timeToChooseMode: Double = 30.0
+  // TODO: Use shapeless Hlist/Generics (if Triggers only have double field) or roll own method to accept multiple triggers.
+  def schedule[T <: Trigger](tick: Double)(implicit tag: scala.reflect.ClassTag[T]): Vector[ScheduleTrigger] = {
+    Vector[ScheduleTrigger](ScheduleTrigger(tag.runtimeClass.getConstructor(classOf[Double]).newInstance(new java.lang.Double(tick)).asInstanceOf[T], self))
+  }
 
-//  def completionNotice[T<:Trigger](triggerId: Long)(implicit tag: ClassTag[T]):  CompletionNotice{
-//
-//  }
+  def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
+    CompletionNotice(triggerId, scheduleTriggers)
+  }
+
+  def updateRoute(result: RouteResponseWrapper): BeamAgentInfo[PersonData]={
+    val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick))
+    // Send CN directly to scheduler.
+    // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
+    schedulerRef ! completionNotice
+    stateData.copy(id, stateData.data.copy(currentRoute = Some(result.trip)))
+  }
+
+
 
 
 }
