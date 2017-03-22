@@ -72,37 +72,22 @@ dependencies {
     compile group: 'org.geotools', name: 'gt-shapefile', version:'13.0'
     compile group: 'net.sf.trove4j', name: 'trove4j', version:'3.0.3'
     runtime group: 'org.geotools', name: 'gt-epsg-hsql', version:'13.0'
-    // https://mvnrepository.com/artifact/aopalliance/aopalliance
     compile group: 'aopalliance', name: 'aopalliance', version: '1.0'
-    // https://mvnrepository.com/artifact/de.ruedigermoeller/fst
     compile group: 'de.ruedigermoeller', name: 'fst', version: '2.48'
-    // https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-core
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.5.5'
-    // https://mvnrepository.com/artifact/org.javassist/javassist
     compile group: 'org.javassist', name: 'javassist', version: '3.19.0-GA'
-    // https://mvnrepository.com/artifact/javax.inject/javax.inject
     compile group: 'javax.inject', name: 'javax.inject', version: '1'
-    // https://mvnrepository.com/artifact/jdom/jdom
     compile group: 'jdom', name: 'jdom', version: '1.1'
-    // https://mvnrepository.com/artifact/log4j/log4j
     compile group: 'log4j', name: 'log4j', version: '1.2.16'
-    // https://mvnrepository.com/artifact/org.matsim.contrib/multimodal
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.8.0'
-    // https://mvnrepository.com/artifact/org.objenesis/objenesis
     compile group: 'org.objenesis', name: 'objenesis', version: '2.4'
-    // https://mvnrepository.com/artifact/javax.jms/jms
     compile group: 'javax.jms', name: 'jms', version: '1.1'
-    // https://mvnrepository.com/artifact/javax.media/jai_core
     compile group: 'javax.media', name: 'jai_core', version: '1.1.3'
-    // https://mvnrepository.com/artifact/junit/junit
     testCompile group: 'junit', name: 'junit', version: '4.4'
-    // https://mvnrepository.com/artifact/org.geotools/gt-referencing
     compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
-    // https://mvnrepository.com/artifact/org.geotools/gt-epsg-hsql
     compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
-    // https://mvnrepository.com/artifact/commons-io/commons-io
-	compile group: 'commons-io', name: 'commons-io', version: '2.5'
-	compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
+    compile group: 'commons-io', name: 'commons-io', version: '2.5'
+    compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
     compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
     compile 'org.reflections:reflections:0.9.10'

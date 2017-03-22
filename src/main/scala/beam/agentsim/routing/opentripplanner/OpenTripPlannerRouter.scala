@@ -55,13 +55,14 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
       */
       request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
       request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
-      request.dateTime = ZonedDateTime.now().minusMonths(5).toEpochSecond
+      request.dateTime = ZonedDateTime.parse("2016-10-21T10:00:00-08:00[UTC-08:00]").toEpochSecond
       request.maxWalkDistance = 804.672
       request.locale = Locale.ENGLISH
       val gpFinder = new GraphPathFinder(router.get)
       //TODO this is not robust to OTP exceptions
       var paths : Option[util.List[GraphPath]] = None
       try {
+        log.info(router.get.timeouts.map(timeout => timeout.toString) mkString ",")
         paths = Some(gpFinder.graphPathFinderEntryPoint(request))
       }catch{
         case pathNotFound: PathNotFoundException =>
