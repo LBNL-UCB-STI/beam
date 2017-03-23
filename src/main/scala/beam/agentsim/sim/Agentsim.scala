@@ -15,13 +15,11 @@ import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.{Created, Found}
-import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationStartsListener, ShutdownListener, StartupListener}
-import org.matsim.facilities.ActivityFacility
 import org.slf4j.LoggerFactory
 
 import scala.collection.immutable.ListMap
@@ -54,12 +52,22 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     val routerFuture = registry ? Registry.Register("router",Props(classOf[OpenTripPlannerRouter],services))
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamRouter ? InitializeRouter
+
     Await.result(routerInitFuture,timeout.duration)
 
-    eventSubscriber ! StartProcessing
     // create specific channel for travel events, say
-    val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
-    agentSimEventsBus.subscribe(eventSubscriber, actEndDummy)
+    agentSimEventsBus.subscribe(eventSubscriber, "actend")
+    agentSimEventsBus.subscribe(eventSubscriber, "actstart")
+    agentSimEventsBus.subscribe(eventSubscriber, "PersonEntersVehicle")
+    agentSimEventsBus.subscribe(eventSubscriber, "PersonLeavesVehicle")
+    agentSimEventsBus.subscribe(eventSubscriber, "vehicle enters traffic")
+    agentSimEventsBus.subscribe(eventSubscriber, "vehicle leaves traffic")
+    agentSimEventsBus.subscribe(eventSubscriber, "VehicleArrivesAtFacility")
+    agentSimEventsBus.subscribe(eventSubscriber, "VehicleDepartsAtFacility")
+    agentSimEventsBus.subscribe(eventSubscriber, "departure")
+    agentSimEventsBus.subscribe(eventSubscriber, "waitingForPt")
+    agentSimEventsBus.subscribe(eventSubscriber, "arrival")
+    eventSubscriber ! StartProcessing
     createAgents()
   }
 

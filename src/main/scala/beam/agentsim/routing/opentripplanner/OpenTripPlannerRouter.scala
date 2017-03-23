@@ -27,6 +27,7 @@ import org.opentripplanner.standalone.{CommandLineParameters, Router}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.Queue
 
 /**
   */
@@ -94,20 +95,21 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
       var verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
         val theMode : String = if (state.getBackMode != null) {
           if(state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
-            if (state.getBackEdge.isInstanceOf[StreetTransitLink]) {
-              "PRE_BOARD"
-            } else if (state.getBackEdge.isInstanceOf[PreAlightEdge]) {
-              "PRE_ALIGHT"
-            } else if (state.getBackEdge.isInstanceOf[PreBoardEdge]) {
+            state.getBackEdge match {
+              case _: StreetTransitLink =>
+                "PRE_BOARD"
+              case _: PreAlightEdge =>
+                "PRE_ALIGHT"
+              case _: PreBoardEdge =>
                 "WAITING"
-            } else if (state.getBackEdge.isInstanceOf[TransitBoardAlight]) {
-              if (state.getBackEdge.asInstanceOf[TransitBoardAlight].boarding) {
-                "BOARDING"
-              } else {
-                "ALIGHTING"
-              }
-            } else {
-              state.getBackMode.name()
+              case alight: TransitBoardAlight =>
+                if (alight.boarding) {
+                  "BOARDING"
+                } else {
+                  "ALIGHTING"
+                }
+              case _ =>
+                state.getBackMode.name()
             }
           }else {
             state.getBackMode.name()
@@ -121,7 +123,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
       var activeGraphPath = Vector[String](activeTuple._1)
       var activeMode = activeTuple._2
       var activeStart = activeTuple._3
-      var beamLegs = Vector[BeamLeg]()
+      var beamLegs = Queue[BeamLeg]()
       while (it.hasNext) {
         activeTuple = it.next()
         if (activeTuple._2 == activeMode) {
@@ -217,12 +219,18 @@ object OpenTripPlannerRouter {
   case class BeamItinerary(itinerary: Vector[BeamTrip]) extends PlanElement {
     override def getAttributes: Attributes = new Attributes()
   }
-  case class BeamTrip(legs: Vector[BeamLeg])
+
+  case class BeamTrip(legs: Queue[BeamLeg])
 
   object BeamTrip {
-    val noneTrip: BeamTrip = BeamTrip(Vector.empty)
+    val noneTrip: BeamTrip = BeamTrip(Queue[BeamLeg]())
   }
 
   case class BeamLeg(startTime: Long, mode: String, graphPath: BeamGraphPath)
   case class BeamGraphPath(value: Vector[String])
+
+  object BeamGraphPath {
+    def empty(): BeamGraphPath = new BeamGraphPath(Vector[String]())
+  }
+
 }

@@ -2,7 +2,6 @@ package beam.agentsim.playground.sid.events
 
 import akka.actor.ActorRef
 import akka.event.{ActorEventBus, LookupClassification}
-import akka.util.Subclassification
 import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
 
 
@@ -19,7 +18,7 @@ object AgentsimEventsBus{
 class AgentsimEventsBus extends ActorEventBus with LookupClassification {
 
   override type Event = MatsimEvent
-  override type Classifier = org.matsim.api.core.v01.events.Event
+  override type Classifier = String
   override type Subscriber = ActorRef
 
 
@@ -27,26 +26,12 @@ class AgentsimEventsBus extends ActorEventBus with LookupClassification {
   override protected def mapSize(): Int = 16
 
   override protected def classify(event: Event): Classifier = {
-    event.wrappedEvent
+    event.wrappedEvent.getEventType
   }
 
   override protected def publish(event: Event, subscriber: Subscriber): Unit = {
     subscriber ! event
   }
 
-  protected def subclassification = new Subclassification[Classifier] {
-    def isEqual(
-                 subscribedToClassifier: Classifier,
-                 eventClassifier: Classifier): Boolean = {
 
-      subscribedToClassifier.equals(eventClassifier)
-    }
-
-    def isSubclass(
-                    subscribedToClassifier: Classifier,
-                    eventClassifier: Classifier): Boolean = {
-
-      subscribedToClassifier.getEventType.startsWith(eventClassifier.getEventType)
-    }
-  }
 }
