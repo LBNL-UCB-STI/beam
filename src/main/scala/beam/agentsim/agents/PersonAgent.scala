@@ -16,6 +16,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Random
 
 /**
   * Created by sfeygin on 2/6/17.
@@ -26,9 +27,11 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  type ChoiceCalculator = (Vector[BeamTrip]) => BeamTrip
 
-
+  def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = {
+    Random.shuffle(alternatives.toList).head
+  }
 
   // syntactic sugar for props creation
   def props(personId: Id[PersonAgent], personData: PersonData) = Props(new PersonAgent(personId, personData))
@@ -47,7 +50,7 @@ object PersonAgent {
       * @param plan : The plan having at least some `Activities`
       * @return `PersonData`
       */
-    def apply(plan: Plan) = new PersonData(planToVec(plan), 0)
+    def apply(plan: Plan) = new PersonData(planToVec(plan), 0, None, Vector[BeamTrip](), randomChoice)
 
     def planToVec(plan: Plan): Vector[Activity] = {
       scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
@@ -55,7 +58,11 @@ object PersonAgent {
 
   }
 
-  case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0, currentRoute: Option[BeamTrip] = None) extends BeamAgentData {
+  case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0,
+                        currentRoute: Option[BeamTrip] = None,
+                        currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip](),
+                        choiceCalculator: ChoiceCalculator) extends BeamAgentData {
+
     def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
       if (ind < 0 || ind >= activityChain.length) Left(msg) else Right(activityChain(ind))
     }
@@ -111,7 +118,7 @@ object PersonAgent {
 
   case class ActivityEndTrigger(tick: Double) extends Trigger
 
-  case class RouteResponseWrapper(tick: Double, triggerId: Long, trip: BeamTrip) extends Trigger
+  case class RouteResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip]) extends Trigger
 
   case class PersonDepartureTrigger(tick: Double) extends Trigger
 
@@ -133,14 +140,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
+
   private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
-  def routeReceived(data: BeamAgent.BeamAgentInfo[PersonData]): Boolean = {
-    data match {
-      case data: BeamAgent.BeamAgentInfo[PersonData] => data.data.currentRoute.nonEmpty
-      case _ => false
-    }
-  }
 
   when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
@@ -148,6 +150,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       val msg = new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)
       agentSimEventsBus.publish(MatsimEvent(msg))
       // Since this is the first activity of the day, we don't increment the currentActivityIndex
+      logInfo(s"starting at ${currentActivity.getType}")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime))
   }
 
@@ -167,59 +170,64 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
           goto(Finished) replying CompletionNotice(triggerId)
         },
         nextAct => {
+          logInfo(s"going to ${nextAct.getType}")
           val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick + timeToChooseMode, id)).mapTo[RoutingResponse] map { result =>
-            val theRoute = result.els.getFirst.asInstanceOf[BeamItinerary].itinerary.head
+            val theRoute = result.els.getFirst.asInstanceOf[BeamItinerary].itinerary
             RouteResponseWrapper(tick + timeToChooseMode, triggerId, theRoute)
           } pipeTo self
         }
       )
       stay()
-    case Event(result: RouteResponseWrapper, _)  =>
+    case Event(result: RouteResponseWrapper, info: BeamAgentInfo[PersonData]) =>
       logInfo(s"received route")
-      goto(ChoosingMode) using updateRoute(result)
+      goto(ChoosingMode) using updateRoute(result, info)
   }
 
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(Walking) using info replying completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode))
+      val tripChoice = Some(info.data.choiceCalculator(info.data.currentAlternatives))
+      logInfo(s"chose ${tripChoice.get.legs.map(l=>l.mode).mkString(" ~> ")}")
+      goto(Walking) using stateData.copy(id, stateData.data.copy(currentRoute = tripChoice)) replying
+        completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode))
   }
 
   when(Walking) {
-    case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(Waiting) using info
+    case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), _) =>
+      goto(Waiting)
 
-    case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(Driving) using info replying completed(triggerId, schedule[PersonExitsVehicleTrigger](tick + timeToChooseMode))
+    case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), _) =>
+      goto(Driving) replying completed(triggerId, schedule[PersonExitsVehicleTrigger](tick))
 
     case Event(TriggerWithId(PersonArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(PerformingActivity) using nextActivity replying
+      logInfo(s"arrived at ${info.data.currentActivity.getType}")
+      goto(PerformingActivity) using nextActivity(info) replying
         completed(triggerId, schedule[ActivityEndTrigger](info.data.nextActivity.right.get.getEndTime))
   }
 
   when(Driving) {
-    case Event(TriggerWithId(PersonExitsVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(Walking) using info replying completed(triggerId, schedule[PersonArrivalTrigger](tick + timeToChooseMode))
+    case Event(TriggerWithId(PersonExitsVehicleTrigger(tick), triggerId), _) =>
+      goto(Walking) replying completed(triggerId, schedule[PersonArrivalTrigger](tick))
   }
 
   onTransition {
     case Uninitialized -> Initialized =>
       registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
     case PerformingActivity -> ChoosingMode =>
-      logInfo(s"going from ${stateData.data.currentActivity.getType} to ChoosingMode")
+      logInfo(s"going from PerformingActivity to ChoosingMode")
     case ChoosingMode -> Walking =>
-      logInfo(s"going from ChoosingMode to Walking having chosen ${stateData.data.currentRoute.getOrElse(BeamTrip.noneTrip).legs.head.mode}")
+      logInfo(s"going from ChoosingMode to Walking")
     case Walking -> Driving =>
       logInfo(s"going from Walking to Driving")
     case Driving -> Walking =>
       log.info(s"going from Driving to Walking")
     case Walking -> PerformingActivity =>
-      logInfo(s"going from Walking to ${stateData.data.currentActivity.getType}")
+      logInfo(s"going from Walking to PerformingActivity")
   }
 
   /*
    * Helper methods
    */
-  def logInfo(msg: String): Unit ={
+  def logInfo(msg: String): Unit = {
     log.info(s"PersonAgent $id: $msg")
   }
 
@@ -228,8 +236,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     stateData.data.currentActivity.getCoord
   }
 
-  def nextActivity(): BeamAgentInfo[PersonData] = {
-    stateData.copy(id, stateData.data.copy(activityChain = stateData.data.activityChain, currentActivityIndex = stateData.data.currentActivityIndex + 1, currentRoute = stateData.data.currentRoute))
+  def nextActivity(info: BeamAgentInfo[PersonData]): BeamAgentInfo[PersonData] = {
+    info.copy(id, info.data.copy(currentActivityIndex = info.data.currentActivityIndex + 1))
   }
 
   // TODO: Use shapeless Hlist/Generics (if Triggers only have double field) or roll own method to accept multiple triggers.
@@ -241,15 +249,13 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     CompletionNotice(triggerId, scheduleTriggers)
   }
 
-  def updateRoute(result: RouteResponseWrapper): BeamAgentInfo[PersonData]={
+  def updateRoute(result: RouteResponseWrapper, info: BeamAgentInfo[PersonData]): BeamAgentInfo[PersonData] = {
     val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick))
     // Send CN directly to scheduler.
     // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
     schedulerRef ! completionNotice
-    stateData.copy(id, stateData.data.copy(currentRoute = Some(result.trip)))
+    stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
   }
-
-
 
 
 }
