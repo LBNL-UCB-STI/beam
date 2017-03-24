@@ -124,6 +124,8 @@ object PersonAgent {
 
   case class RouteResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip]) extends Trigger
 
+  case class FinishWrapper(tick: Double, triggerId: Long) extends Trigger
+
   case class PersonDepartureTrigger(tick: Double) extends Trigger
 
   case class PersonEntersVehicleTrigger(tick: Double) extends Trigger
@@ -168,7 +170,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       info.data.nextActivity.fold(
         msg => {
           logInfo(s"didn't get nextActivity because $msg")
-          goto(Finished) replying CompletionNotice(triggerId)
+          self ! FinishWrapper(tick,triggerId)
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType}")
@@ -185,6 +187,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
       schedulerRef ! completionNotice
       goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
+    case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
+      schedulerRef ! CompletionNotice(msg.triggerId)
+      goto(Finished)
   }
 
   when(ChoosingMode) {
