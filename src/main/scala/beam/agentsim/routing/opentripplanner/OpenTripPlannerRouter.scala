@@ -31,7 +31,8 @@ import scala.collection.immutable.Queue
 
 /**
   */
-class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRouter {
+class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRouter {
+
   import beam.agentsim.sim.AgentsimServices._
 
   val log: Logger = LoggerFactory.getLogger(getClass)
@@ -44,19 +45,19 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
     var request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
-    request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
-    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong%(24L*3600L)
+    request.from = new GenericLocation(fromFacility.getCoord.getY, fromFacility.getCoord.getX)
+    request.to = new GenericLocation(toFacility.getCoord.getY, toFacility.getCoord.getX)
+    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong % (24L * 3600L)
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
-    val paths : util.List[GraphPath] = new util.ArrayList[GraphPath]()
+    val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     request.clearModes()
     request.addMode(TraverseMode.WALK)
     request.addMode(TraverseMode.CAR)
     var gpFinder = new GraphPathFinder(router.get)
     try {
       paths.addAll(gpFinder.graphPathFinderEntryPoint(request))
-    }catch{
+    } catch {
       case e: NullPointerException =>
         log.error(e.getCause.toString)
       case e: PathNotFoundException =>
@@ -64,9 +65,9 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     }
     request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    request.from = new GenericLocation(fromFacility.getCoord.getY,fromFacility.getCoord.getX)
-    request.to = new GenericLocation(toFacility.getCoord.getY,toFacility.getCoord.getX)
-    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong%(24L*3600L)
+    request.from = new GenericLocation(fromFacility.getCoord.getY, fromFacility.getCoord.getX)
+    request.to = new GenericLocation(toFacility.getCoord.getY, toFacility.getCoord.getX)
+    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong % (24L * 3600L)
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
     request.clearModes()
@@ -84,17 +85,17 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
     gpFinder = new GraphPathFinder(router.get)
     try {
       paths.addAll(gpFinder.graphPathFinderEntryPoint(request))
-    }catch{
+    } catch {
       case e: NullPointerException =>
         log.error("NullPointerException encountered in OpenTripPlanner router for request: " + request.toString)
       case e: PathNotFoundException =>
         log.error("PathNotFoundException")
     }
 
-    val beamTrips = for(path: GraphPath <- paths.asScala.toVector) yield {
+    val beamTrips = for (path: GraphPath <- paths.asScala.toVector) yield {
       var verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
-        val theMode : String = if (state.getBackMode != null) {
-          if(state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
+        val theMode: String = if (state.getBackMode != null) {
+          if (state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
             state.getBackEdge match {
               case _: StreetTransitLink =>
                 "PRE_BOARD"
@@ -111,13 +112,16 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
               case _ =>
                 state.getBackMode.name()
             }
-          }else {
+          } else {
             state.getBackMode.name()
           }
-        } else { state.getNonTransitMode.name() }
-        Tuple3(state.getVertex.getLabel,theMode,state.getTimeSeconds)
+        } else {
+          state.getNonTransitMode.name()
+        }
+        (state.getVertex.getLabel, theMode, state.getTimeSeconds)
       }
       verticesModesTimes = verticesModesTimes.filter(t => !(t._2.equals("PRE_BOARD") | t._2.equals("PRE_ALIGHT")))
+
       val it = verticesModesTimes.iterator
       var activeTuple = it.next()
       var activeGraphPath = Vector[String](activeTuple._1)
@@ -134,7 +138,16 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
           activeStart = activeTuple._3
         }
       }
-      beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, BeamGraphPath(activeGraphPath))
+
+      // CAR only
+      val beamLeg = BeamLeg(activeStart, activeMode, BeamGraphPath(activeGraphPath))
+      beamLegs = if (activeMode == "CAR") {
+        beamLegs :+ BeamLeg.dummyWalk(activeStart) :+ beamLeg :+ BeamLeg.dummyWalk(verticesModesTimes.last._3)
+      } else {
+        beamLegs :+ beamLeg
+      }
+
+
       BeamTrip(beamLegs)
     }
     val planElementList = new java.util.LinkedList[PlanElement]()
@@ -147,7 +160,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
       log.info("Initializing OTP Router")
       graphService = Some(makeGraphService())
       router = Some(graphService.get.getRouter(routerIds.head))
-      transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910",true),CRS.decode("EPSG:4326",true),false))
+      transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
       sender() ! RouterInitialized()
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       log.info(s"OTP Router received routing request from person $personId ($sender)")
@@ -212,7 +225,7 @@ class OpenTripPlannerRouter (agentsimServices: AgentsimServices) extends BeamRou
 }
 
 object OpenTripPlannerRouter {
-  def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter],agentsimServices)
+  def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
 
   case class RoutingResponse(els: util.LinkedList[PlanElement])
 
@@ -227,6 +240,11 @@ object OpenTripPlannerRouter {
   }
 
   case class BeamLeg(startTime: Long, mode: String, graphPath: BeamGraphPath)
+
+  object BeamLeg {
+    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, "WALK", BeamGraphPath.empty())
+  }
+
   case class BeamGraphPath(value: Vector[String])
 
   object BeamGraphPath {
