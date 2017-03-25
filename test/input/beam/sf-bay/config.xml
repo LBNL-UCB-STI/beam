@@ -18,8 +18,9 @@
 	<module name="controler">
 		<param name="outputDirectory" value="./output/pt-tutorial" />
 		<param name="firstIteration" value="0" />
-		<param name="lastIteration" value="0" />
+		<param name="lastIteration" value="2" />
 		<param name="eventsFileFormat" value="xml" />
+		<param name="writeEventsInterval" value="1" />
 		<!--Replacing w/ own mobsim soon... -->
 		<param name="mobsim" value="metasim" />
 	</module>
@@ -42,12 +43,12 @@
 		<param name="traveling" value="-6" />
 		<param name="waiting" value="-0" />
 		
-		<param name="activityType_0"            value="h" /> <!-- home -->
+		<param name="activityType_0"            value="Home" /> <!-- home -->
 		<param name="activityPriority_0"        value="1" />
 		<param name="activityTypicalDuration_0" value="12:00:00" />
 		<param name="activityMinimalDuration_0" value="08:00:00" />
 	
-		<param name="activityType_1"            value="w" /> <!-- work -->
+		<param name="activityType_1"            value="Work" /> <!-- work -->
 		<param name="activityPriority_1"        value="1" />
 		<param name="activityTypicalDuration_1" value="08:00:00" />
 		<param name="activityMinimalDuration_1" value="06:00:00" />
@@ -56,7 +57,7 @@
 		<param name="activityEarliestEndTime_1" value="" />
 		<param name="activityClosingTime_1"     value="18:00:00" />
 
-		<param name="activityType_2"            value="s" /> <!-- shop -->
+		<param name="activityType_2"            value="Shopping" /> <!-- shop -->
 		<param name="activityPriority_2"        value="1" />
 		<param name="activityTypicalDuration_2" value="00:40:00" />
 		<param name="activityMinimalDuration_2" value="00:10:00" />
@@ -84,9 +85,9 @@
 	</module>
 
 	<module name="transit">
-		<param name="useTransit" value="false" />
-		<param name="transitScheduleFile" value="" />
-		<param name="vehiclesFile" value="" />
+		<param name="useTransit" value="true" />
+		<param name="transitScheduleFile" value="transitschedule.xml" />
+		<param name="vehiclesFile" value="transitVehicles.xml" />
 		<param name="transitModes" value="pt" />
 	</module>
 	

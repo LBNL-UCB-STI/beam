@@ -1,8 +1,7 @@
 package beam.agentsim.sim.modules
 
-import beam.agentsim.routing.BeamRouterModuleProvider
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import beam.agentsim.events.BeamEventsHandling
+import beam.agentsim.routing.BeamRouterModuleProvider
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 import org.matsim.core.controler.corelisteners.EventsHandling
