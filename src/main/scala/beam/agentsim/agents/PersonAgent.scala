@@ -189,7 +189,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
     case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
       schedulerRef ! CompletionNotice(msg.triggerId)
-      goto(Finished)
+      goto(Uninitialized)
   }
 
   when(ChoosingMode) {

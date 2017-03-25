@@ -74,7 +74,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
 
   when(Finished) {
     case Event(StopEvent, _) =>
-      stop()
+      goto(Uninitialized)
   }
 
   when(Error) {
