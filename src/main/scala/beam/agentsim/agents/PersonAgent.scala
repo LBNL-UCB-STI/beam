@@ -10,7 +10,7 @@ import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamTrip, RoutingResponse}
 import glokka.Registry
-import org.matsim.api.core.v01.events.{ActivityEndEvent, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
+import org.matsim.api.core.v01.events.{ActivityEndEvent, ActivityStartEvent, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
@@ -153,7 +153,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentActivity = info.data.currentActivity
-      agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
+      agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, Id.createPersonId(id.toString), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
       // Since this is the first activity of the day, we don't increment the currentActivityIndex
       logInfo(s"starting at ${currentActivity.getType}")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime))

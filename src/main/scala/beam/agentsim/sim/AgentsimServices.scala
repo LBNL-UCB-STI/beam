@@ -47,7 +47,6 @@ object AgentsimServices {
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
-        import beam.agentsim.controler.BeamControler
 
         // Beam -> MATSim Wirings
 
@@ -60,7 +59,7 @@ object AgentsimServices {
   val controler: ControlerI = injector.instance[ControlerI]
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
-  val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve());
+  val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve())
   //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
   var beamRouter : ActorRef = _
   var schedulerRef: ActorRef =_

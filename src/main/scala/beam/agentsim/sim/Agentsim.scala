@@ -88,6 +88,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   override def notifyShutdown(event: ShutdownEvent): Unit = {
     eventSubscriber ! FinishProcessing
     actorSystem.stop(eventSubscriber)
+    actorSystem.stop(schedulerRef)
     actorSystem.terminate()
   }
 
@@ -95,12 +96,13 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     for ((k, v) <- popMap) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val future = registry ? Registry.Register(k.toString, props)
-      val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
-      val ok = result.asInstanceOf[Created]
-      logger.info(s"${ok.name}")
-      schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),ok.ref)
+      val result = Await.result(future, timeout.duration).asInstanceOf[Created]
+      logger.info(s"${result.name}")
+      schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),result.ref)
     }
   }
 
 }
+
+
 
