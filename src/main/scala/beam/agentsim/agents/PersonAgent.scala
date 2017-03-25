@@ -153,7 +153,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentActivity = info.data.currentActivity
-      agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, Id.createPersonId(id.toString), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
+      agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
       // Since this is the first activity of the day, we don't increment the currentActivityIndex
       logInfo(s"starting at ${currentActivity.getType}")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime))
@@ -165,7 +165,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       val currentActivity = info.data.currentActivity
 
       // Activity ends, so publish to EventBus
-      agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, Id.createPersonId(id), currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
+      agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
 
       info.data.nextActivity.fold(
         msg => {
@@ -189,7 +189,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
     case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
       schedulerRef ! CompletionNotice(msg.triggerId)
-      goto(Uninitialized)
+      goto(Uninitialized) using stateData.copy(id,stateData.data.copy())
   }
 
   when(ChoosingMode) {
@@ -227,7 +227,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   when(Driving) {
     case Event(TriggerWithId(PersonLeavesVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), Id.createVehicleId("car"))))
+      agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, id, Id.createVehicleId("car"))))
       goto(Walking) replying completed(triggerId, schedule[PersonArrivalTrigger](tick))
   }
 
@@ -235,13 +235,13 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   when(Waiting){
     case Event(TriggerWithId(PersonEntersBoardingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), Id.createVehicleId("transit"))))
+      agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId("transit"))))
       goto(Boarding) replying completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick))
   }
 
   when(Boarding){
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), Id.createVehicleId("transit"))))
+      agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, id, Id.createVehicleId("transit"))))
       goto(OnTransit) replying completed(triggerId, schedule[PersonEntersAlightingQueueTrigger](tick))
   }
 

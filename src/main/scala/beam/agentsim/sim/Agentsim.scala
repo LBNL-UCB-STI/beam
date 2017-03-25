@@ -14,13 +14,13 @@ import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import com.google.inject.Inject
 import glokka.Registry
-import glokka.Registry.{Created, FoundOrCreated}
+import glokka.Registry.Created
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.Await
@@ -37,11 +37,10 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   import AgentsimServices._
 
-  private val logger = LoggerFactory.getLogger(classOf[Agentsim])
+  private val logger: Logger = LoggerFactory.getLogger(classOf[Agentsim])
+  private val popMap: Map[Id[Person], Person] = ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager, services), "MATSimEventsManagerService")
-  val scenario: Scenario = services.matsimServices.getScenario
-  val popMap: Map[Id[Person], Person] = ListMap(scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
 
@@ -93,10 +92,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   def resetPop(): Unit = {
     for ((k, v) <- popMap) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
-      val future = registry ? Registry.Register(k.toString, props)
-      val result = Await.result(future, timeout.duration).asInstanceOf[FoundOrCreated]
-      logger.info(s"${result.name}")
-      schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), result.ref)
+      val ref: ActorRef = actorSystem.actorOf(props)
+      schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
   }
 
