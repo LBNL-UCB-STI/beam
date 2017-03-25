@@ -67,7 +67,7 @@ dependencies {
     compile group: 'com.google.inject', name: 'guice', version:'4.1.0'
 	compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version:'4.1.0'
-    compile group: 'com.google.guava', name: 'guava', version:'18.0'
+    compile group: 'com.google.guava', name: 'guava', version:'19.0'
     compile group: 'de.ruedigermoeller', name: 'fst', version:'2.47'
     compile group: 'org.jfree', name: 'jfreechart', version:'1.0.14'
     compile group: 'org.apache.commons', name: 'commons-math3', version:'3.5'

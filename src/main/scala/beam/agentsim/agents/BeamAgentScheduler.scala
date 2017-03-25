@@ -5,8 +5,8 @@ import java.lang.Double
 import akka.actor.Actor
 import akka.event.Logging
 import akka.actor.ActorRef
-import com.google.common.collect.TreeMultimap
 import beam.agentsim.agents.BeamAgentScheduler._
+import com.google.common.collect.TreeMultimap
 
 import scala.collection.mutable
 

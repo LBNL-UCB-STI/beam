@@ -2,8 +2,10 @@ package beam.agentsim.sim.modules
 
 import beam.agentsim.routing.BeamRouterModuleProvider
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
+import beam.agentsim.events.BeamEventsHandling
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
+import org.matsim.core.controler.corelisteners.EventsHandling
 import org.matsim.core.router.RoutingModule
 
 /**
@@ -14,6 +16,6 @@ import org.matsim.core.router.RoutingModule
 class AgentsimModule  extends AbstractModule with ScalaModule {
   override def configure(): Unit = {
     bind[RoutingModule].toProvider[BeamRouterModuleProvider]
-//    bind[TravelTime].to[RelaxedTravelTime]
+    bind[EventsHandling].to[BeamEventsHandling]
   }
 }

@@ -7,6 +7,7 @@ import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.playground.sid.events.AgentsimEventsBus
 import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
+import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.utils.FileUtils
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.ConfigFactory
@@ -14,7 +15,6 @@ import glokka.Registry
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler._
-import org.matsim.core.controler.corelisteners.ControlerDefaultCoreListenersModule
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 
@@ -38,7 +38,7 @@ object AgentsimServices {
         install(new NewControlerModule)
         install(new ScenarioByConfigModule)
         install(new ControlerDefaultsModule)
-        install(new ControlerDefaultCoreListenersModule)
+        install(new BeamControllerCoreListenersModule)
 
         // Beam Inject below:
         install(new ConfigModule)
@@ -47,6 +47,7 @@ object AgentsimServices {
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
+        import beam.agentsim.controler.BeamControler
 
         // Beam -> MATSim Wirings
 
