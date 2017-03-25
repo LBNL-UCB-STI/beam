@@ -10,8 +10,8 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Initialized
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.playground.sid.events.EventsSubscriber
-import beam.agentsim.playground.sid.events.AgentsimEventsBus
+import beam.agentsim.events.EventsSubscriber
+import beam.agentsim.events.AgentsimEventsBus
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.Id

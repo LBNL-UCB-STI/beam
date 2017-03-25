@@ -8,8 +8,8 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
-import beam.agentsim.playground.sid.events.EventsSubscriber
-import beam.agentsim.playground.sid.events.EventsSubscriber.{EndIteration, FinishProcessing, StartIteration, StartProcessing}
+import beam.agentsim.events.EventsSubscriber
+import beam.agentsim.events.EventsSubscriber.{EndIteration, FinishProcessing, StartIteration, StartProcessing}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import com.google.inject.Inject
@@ -74,7 +74,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
     eventSubscriber ! StartIteration(event.getIteration)
-    Await.result(schedulerRef ? StartSchedule(100000.0, 100.0),timeout.duration)
+    Await.result(schedulerRef ? StartSchedule(1000000.0, 100.0),timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

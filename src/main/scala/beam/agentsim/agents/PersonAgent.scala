@@ -6,7 +6,7 @@ import akka.actor.Props
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
+import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamTrip, RoutingResponse}
 import glokka.Registry
@@ -50,7 +50,7 @@ object PersonAgent {
       * @param plan : The plan having at least some `Activities`
       * @return `PersonData`
       */
-    def apply(plan: Plan) = new PersonData(planToVec(plan), 0, None, Vector[BeamTrip](), randomChoice)
+    def apply(plan: Plan) = new PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), randomChoice)
 
     def planToVec(plan: Plan): Vector[Activity] = {
       scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
@@ -59,7 +59,7 @@ object PersonAgent {
   }
 
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0,
-                        currentRoute: Option[BeamTrip] = None,
+                        currentRoute: BeamTrip = BeamTrip.noneTrip,
                         currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip](),
                         choiceCalculator: ChoiceCalculator) extends BeamAgentData {
 
@@ -161,7 +161,6 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   when(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-
       val currentActivity = info.data.currentActivity
 
       // Activity ends, so publish to EventBus
@@ -170,7 +169,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       info.data.nextActivity.fold(
         msg => {
           logInfo(s"didn't get nextActivity because $msg")
-          self ! FinishWrapper(tick,triggerId)
+          self ! FinishWrapper(tick, triggerId)
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType}")
@@ -189,38 +188,53 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
     case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
       schedulerRef ! CompletionNotice(msg.triggerId)
-      goto(Uninitialized) using stateData.copy(id,stateData.data.copy())
+      goto(Uninitialized) using stateData.copy(id, stateData.data.copy())
   }
 
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val tripChoice = Some(info.data.choiceCalculator(info.data.currentAlternatives))
-      logInfo(s"chose ${tripChoice.get.legs.map(l=>l.mode).mkString(" ~> ")}")
-      goto(Walking) using stateData.copy(id, info.data.copy(currentRoute = tripChoice)) replying
-        completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode))
+      val (nextLeg, restTrip, nextStart) = procStateData(info, tick)
+      // Here, we actually need to do an extra step of look-ahead to get the correct (non-walk) mode
+      restTrip.legs.head.mode match {
+        case "WALK" =>
+          goto(Walking) using stateData.copy(id, info.data.copy(currentRoute = restTrip)) replying
+            completed(triggerId, schedule[PersonArrivalTrigger](nextStart + timeToChooseMode))
+        case "CAR" =>
+          goto(Walking) using stateData.copy(id, info.data.copy(currentRoute = restTrip)) replying
+            completed(triggerId, schedule[PersonEntersVehicleTrigger](nextStart + timeToChooseMode))
+        case "WAITING" =>
+          goto(Walking) using stateData.copy(id, info.data.copy(currentRoute = restTrip)) replying
+            completed(triggerId, schedule[PersonArrivesTransitStopTrigger](nextStart + timeToChooseMode))
+        case _ =>
+          goto(Uninitialized) using stateData.copy(id, stateData.data.copy())
+      }
   }
 
-
+  // TODO: Get Vehicle ids and implement currentVehicle as member of PersonData
   when(Walking) {
-
     // -> Driving
     case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      // TODO: Get Vehicle ids and implement currentVehicle as member of PersonData
+      val (nextLeg, restTrip, nextStart) = procStateData(info, tick)
       agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), Id.createVehicleId("car"))))
-      goto(Driving) replying completed(triggerId, schedule[PersonLeavesVehicleTrigger](tick))
-
+      goto(Driving) using stateData.copy(id, info.data.copy(currentRoute = restTrip)) replying
+        completed(triggerId, schedule[PersonLeavesVehicleTrigger](nextStart))
     // -> Transit
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      goto(Waiting) replying completed(triggerId, schedule[PersonEntersBoardingQueueTrigger](tick))
+      val (nextLeg, restTrip, nextStart) = procStateData(info, tick)
+      goto(Waiting) using stateData.copy(id, info.data.copy(currentRoute = restTrip)) replying
+        completed(triggerId, schedule[PersonEntersBoardingQueueTrigger](nextStart))
 
     //TODO Transfer on Transit
 
     //-> NextActivity
     case Event(TriggerWithId(PersonArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"arrived at ${info.data.currentActivity.getType}")
-//      agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, Id.createPersonId(id), info.data.nextActivity.right.get.getLinkId, info.data.currentRoute.get.legs.head.mode)))
-      goto(PerformingActivity) using   info.copy(id, info.data.copy(currentActivityIndex = info.data.currentActivityIndex + 1)) replying
-        completed(triggerId, schedule[ActivityEndTrigger](info.data.nextActivity.right.get.getEndTime))
+      val nextActStart = info.data.nextActivity.right.get.getEndTime
+      val (nextLeg, restTrip, nextStart) = procStateData(info, tick)
+      //      agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, Id.createPersonId(id), info.data.nextActivity.right.get.getLinkId, info.data.currentRoute.get.legs.head.mode)))
+      val triggerTime = if (nextStart > nextActStart) nextActStart else nextStart  //FIXME: Temporary kludge... decide how to deal w/ Activity dropping
+      goto(PerformingActivity) using info.copy(id, info.data.copy(currentActivityIndex = info.data.currentActivityIndex + 1)) replying
+        completed(triggerId, schedule[ActivityEndTrigger](triggerTime))
   }
 
   // Driving-related states
@@ -233,24 +247,24 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   // Transit-related states
 
-  when(Waiting){
+  when(Waiting) {
     case Event(TriggerWithId(PersonEntersBoardingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId("transit"))))
       goto(Boarding) replying completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick))
   }
 
-  when(Boarding){
+  when(Boarding) {
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, id, Id.createVehicleId("transit"))))
       goto(OnTransit) replying completed(triggerId, schedule[PersonEntersAlightingQueueTrigger](tick))
   }
 
-  when(OnTransit){
+  when(OnTransit) {
     case Event(TriggerWithId(PersonEntersAlightingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(Alighting) replying completed(triggerId, schedule[PersonLeavesVehicleTrigger](tick))
   }
 
-  when(Alighting){
+  when(Alighting) {
     case Event(TriggerWithId(PersonLeavesVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       goto(Walking) replying completed(triggerId, schedule[PersonArrivalTrigger](tick))
   }
@@ -292,6 +306,13 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     CompletionNotice(triggerId, scheduleTriggers)
   }
 
+  private def procStateData(info: BeamAgentInfo[PersonData], tick: Double) = {
+    val tripChoice = info.data.choiceCalculator(info.data.currentAlternatives)
+    val nextLeg = tripChoice.legs.head
+    val restTrip = BeamTrip(tripChoice.legs.tail)
+    val nextStart = restTrip.legs.head.startTime - nextLeg.startTime
+    (nextLeg, restTrip, nextStart + tick)
+  }
 
 
 }

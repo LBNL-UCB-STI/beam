@@ -1,9 +1,9 @@
-package beam.agentsim.playground.sid.events
+package beam.agentsim.events
 
 import akka.actor.Actor
 import akka.event.Logging
-import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.playground.sid.events.EventsSubscriber.{EndIteration, FinishProcessing, StartIteration, StartProcessing}
+import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
+import beam.agentsim.events.EventsSubscriber.{EndIteration, FinishProcessing, StartIteration, StartProcessing}
 import beam.agentsim.sim.AgentsimServices
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.algorithms.EventWriterXML

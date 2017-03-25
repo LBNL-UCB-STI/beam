@@ -1,8 +1,8 @@
-package beam.agentsim.playground.sid.events
+package beam.agentsim.events
 
 import akka.actor.ActorRef
 import akka.event.{ActorEventBus, LookupClassification}
-import beam.agentsim.playground.sid.events.AgentsimEventsBus.MatsimEvent
+import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 
 
 /**

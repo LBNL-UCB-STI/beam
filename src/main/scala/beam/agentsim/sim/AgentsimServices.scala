@@ -5,7 +5,7 @@ import java.io.File
 import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
-import beam.agentsim.playground.sid.events.AgentsimEventsBus
+import beam.agentsim.events.AgentsimEventsBus
 import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.utils.FileUtils
