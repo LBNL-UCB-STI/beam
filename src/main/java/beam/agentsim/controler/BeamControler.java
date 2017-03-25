@@ -1,4 +1,5 @@
-package beam.agentsim.controler.corelisteners;/* *********************************************************************** *
+package beam.agentsim.controler;
+/* *********************************************************************** *
  * project: org.matsim.*
  * Controler.java
  *                                                                         *
@@ -36,7 +37,7 @@ import javax.inject.Inject;
 import java.util.Collection;
 import java.util.Set;
 
-class BeamControler extends AbstractController implements ControlerI {
+public class BeamControler extends AbstractController implements ControlerI {
 
 
     @SuppressWarnings("unused")
