@@ -2,9 +2,8 @@ package beam.agentsim.agents
 
 import java.lang.Double
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import akka.event.Logging
-import akka.actor.ActorRef
 import beam.agentsim.agents.BeamAgentScheduler._
 import com.google.common.collect.TreeMultimap
 

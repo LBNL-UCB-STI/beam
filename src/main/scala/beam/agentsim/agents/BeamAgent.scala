@@ -3,7 +3,6 @@ package beam.agentsim.agents
 import akka.actor.LoggingFSM
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.BeamAgentScheduler._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 
@@ -67,14 +66,11 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   startWith(Uninitialized, BeamAgentInfo[T](id, data))
 
 
-  when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick),triggerId), _) =>
-      goto(Initialized) replying CompletionNotice(triggerId)
-  }
+
 
   when(Finished) {
     case Event(StopEvent, _) =>
-      stop()
+      goto(Uninitialized)
   }
 
   when(Error) {
