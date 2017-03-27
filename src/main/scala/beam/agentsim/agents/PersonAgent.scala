@@ -9,6 +9,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamLeg, BeamTrip, RoutingResponse}
+import beam.utils.DebugLib
 import glokka.Registry
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -197,6 +198,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       stay()
     case Event(result: RouteResponseWrapper, info: BeamAgentInfo[PersonData]) =>
       val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick))
+      if(info.id.toString.equals("3")){
+        DebugLib.emptyFunctionForSettingBreakPoint();
+      }
       // Send CN directly to scheduler.
       // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
       schedulerRef ! completionNotice
