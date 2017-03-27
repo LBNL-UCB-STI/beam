@@ -8,6 +8,7 @@ import beam.agentsim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.playground.sid.events.AgentsimEventsBus
 import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
+import beam.agentsim.controler.BeamControler
 import beam.agentsim.utils.FileUtils
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.ConfigFactory
