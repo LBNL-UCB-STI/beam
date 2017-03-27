@@ -42,7 +42,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager, services), "MATSimEventsManagerService")
 
-  private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val timeout = Timeout(300, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
 
@@ -66,20 +66,20 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     agentSimEventsBus.subscribe(eventSubscriber, "VehicleDepartsAtFacility")
     agentSimEventsBus.subscribe(eventSubscriber, "departure")
     agentSimEventsBus.subscribe(eventSubscriber, "waitingForPt")
+    agentSimEventsBus.subscribe(eventSubscriber, "travelled")
     agentSimEventsBus.subscribe(eventSubscriber, "arrival")
     eventSubscriber ! StartProcessing
-    resetPop()
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
+    resetPop(event.getIteration)
     eventSubscriber ! StartIteration(event.getIteration)
-    Await.result(schedulerRef ? StartSchedule(1000000.0, 100.0),timeout.duration)
+    Await.result(schedulerRef ? StartSchedule(100000.0, 100.0), timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     eventSubscriber ! EndIteration(event.getIteration)
-    resetPop()
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -89,10 +89,10 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     actorSystem.terminate()
   }
 
-  def resetPop(): Unit = {
+  def resetPop(iter: Int): Unit = {
     for ((k, v) <- popMap) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
-      val ref: ActorRef = actorSystem.actorOf(props)
+      val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
   }
