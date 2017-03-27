@@ -11,6 +11,7 @@ import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.sim.AgentsimServices
 import org.geotools.referencing.CRS
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Person, PlanElement}
 import org.matsim.facilities.Facility
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -93,7 +94,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     }
 
     val beamTrips = for (path: GraphPath <- paths.asScala.toVector) yield {
-      var verticesModesTimes: Vector[(String, String, Long)] = for (state: State <- path.states.asScala.toVector) yield {
+      var verticesModesTimes: Vector[(String, String, Long, Coord)] = for (state: State <- path.states.asScala.toVector) yield {
         val theMode: String = if (state.getBackMode != null) {
           if (state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
             state.getBackEdge match {
@@ -118,29 +119,34 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         } else {
           state.getNonTransitMode.name()
         }
-        (state.getVertex.getLabel, theMode, state.getTimeSeconds)
+        (state.getVertex.getLabel, theMode, state.getTimeSeconds, new Coord(state.getVertex.getX,state.getVertex.getY))
       }
       verticesModesTimes = verticesModesTimes.filter(t => !(t._2.equals("PRE_BOARD") | t._2.equals("PRE_ALIGHT")))
 
       val it = verticesModesTimes.iterator
       var activeTuple = it.next()
-      var activeGraphPath = Vector[String](activeTuple._1)
+      var activeLinkIds = Vector[String](activeTuple._1)
+      var activeCoords = Vector[Coord](activeTuple._4)
+      var activeTimes = Vector[Long](activeTuple._3)
       var activeMode = activeTuple._2
       var activeStart = activeTuple._3
       var beamLegs = Queue[BeamLeg]()
       while (it.hasNext) {
         activeTuple = it.next()
         if (activeTuple._2 == activeMode) {
-          activeGraphPath = activeGraphPath :+ activeTuple._1
+          activeLinkIds = activeLinkIds :+ activeTuple._1
+          activeCoords = activeCoords :+ activeTuple._4
+          activeTimes = activeTimes :+ activeTuple._3
         } else {
-          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, BeamGraphPath(activeGraphPath))
+          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode,
+            BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
           activeMode = activeTuple._2
           activeStart = activeTuple._3
         }
       }
 
       // CAR only
-      val beamLeg = BeamLeg(activeStart, activeMode, BeamGraphPath(activeGraphPath))
+      val beamLeg = BeamLeg(activeStart, activeMode, BeamGraphPath(activeLinkIds,Some(activeCoords), Some(activeTimes)))
       beamLegs = if (activeMode == "CAR") {
         beamLegs :+ BeamLeg.dummyWalk(activeStart) :+ beamLeg :+ BeamLeg.dummyWalk(verticesModesTimes.last._3)
       } else {
@@ -245,10 +251,12 @@ object OpenTripPlannerRouter {
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, "WALK", BeamGraphPath.empty())
   }
 
-  case class BeamGraphPath(value: Vector[String])
+  case class BeamGraphPath(linkIds: Vector[String],
+                           latLons: Option[Vector[Coord]],
+                           entryTimes: Option[Vector[Long]])
 
   object BeamGraphPath {
-    def empty(): BeamGraphPath = new BeamGraphPath(Vector[String]())
+    def empty(): BeamGraphPath = new BeamGraphPath(Vector[String](),None, None)
   }
 
 }
