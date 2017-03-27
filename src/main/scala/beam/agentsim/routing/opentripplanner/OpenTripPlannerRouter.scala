@@ -126,6 +126,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       val it = verticesModesTimes.iterator
       var activeTuple = it.next()
       var activeLinkIds = Vector[String](activeTuple._1)
+      //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
       var activeCoords = Vector[Coord](activeTuple._4)
       var activeTimes = Vector[Long](activeTuple._3)
       var activeMode = activeTuple._2
