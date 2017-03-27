@@ -207,6 +207,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       goto(Error)
   }
 
+  // TODO: Deal with case of arriving too late at next activity
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
@@ -237,6 +238,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
       agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId(s"car_$id"))))
+//      agentSimEventsBus.publish(MatsimEvent(new VehicleEntersTrafficEvent(tick, id, Id.createLinkId(procData.nextLeg.graphPath.value.head),Id.createVehicleId(s"car_$id"), TransportMode.car, 0.0)))
       goto(Driving) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonLeavesVehicleTrigger](procData.nextStart))
 
@@ -246,7 +248,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       goto(Waiting) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonEntersBoardingQueueTrigger](procData.nextStart))
 
-    //TODO Transfer on Transit
+    // TODO: Transfer on Transit
 
     //-> NextActivity
     case Event(TriggerWithId(TeleportationArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
@@ -293,6 +295,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(OnTransit) {
     case Event(TriggerWithId(PersonEntersAlightingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
+
       goto(Alighting) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonLeavesVehicleTrigger](tick))
   }
