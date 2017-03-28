@@ -8,7 +8,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
-import beam.agentsim.events.EventsSubscriber.{EndIteration, FinishProcessing, StartIteration, StartProcessing}
 import beam.agentsim.events.{EventsSubscriber, PathTraversalEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
@@ -20,6 +19,8 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
+import org.matsim.core.events.EventsUtils
+import org.matsim.core.events.algorithms.EventWriterXML
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
@@ -39,8 +40,10 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[Agentsim])
   private val popMap: Map[Id[Person], Person] = ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
-  val eventsManager: EventsManager = services.matsimServices.getEvents
-  val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager, services), "MATSimEventsManagerService")
+  val eventsManager: EventsManager = EventsUtils.createEventsManager()
+  val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
+  var writer: EventWriterXML = _
+
 
   private implicit val timeout = Timeout(600, TimeUnit.SECONDS)
 
@@ -67,22 +70,27 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     agentSimEventsBus.subscribe(eventSubscriber, "waitingForPt")
     agentSimEventsBus.subscribe(eventSubscriber, "travelled")
     agentSimEventsBus.subscribe(eventSubscriber, "arrival")
-    eventSubscriber ! StartProcessing
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
+    writer = new EventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(event.getIteration,"events.xml.gz"))
+    eventsManager.addHandler(writer)
     resetPop(event.getIteration)
-    eventSubscriber ! StartIteration(event.getIteration)
+    eventsManager.initProcessing()
     Await.result(schedulerRef ? StartSchedule(120000.0, 100.0), timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
+    eventsManager.finishProcessing()
+    writer.closeFile()
+    eventsManager.removeHandler(writer)
+    writer=null
+//    Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    Await.result(eventSubscriber ? FinishProcessing,timeout.duration)
+
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(schedulerRef)
     actorSystem.terminate()
