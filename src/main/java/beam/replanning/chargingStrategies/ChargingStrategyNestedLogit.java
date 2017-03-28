@@ -141,7 +141,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 		LinkedHashMap<String, ChargingDecisionAlternative> sitePlugAlternatives = new LinkedHashMap<String, ChargingDecisionAlternative>();
 		inputData = new LinkedHashMap<String, LinkedHashMap<String, Double>>();
 		ArrayList<ChargingSite> foundSites = new ArrayList<ChargingSite>();
-		foundSites.addAll(EVGlobalData.data.chargingInfrastructureManager.getAllAccessibleAndCompatibleChargingSitesInArea(agent.getLinkCoordOfNextActivity(),agent.getCurrentSearchRadius(),agent));
+		foundSites.addAll(EVGlobalData.data.chargingInfrastructureManager.getAllAccessibleAndCompatibleChargingSitesInArea(agent.getLinkCoordOfCurrentOrNextActivity(),agent.getCurrentSearchRadius(),agent));
 
 		altData = new LinkedHashMap<>();
 		altData.put("remainingRange", agent.getVehicleWithBattery().getRemainingRangeInMiles());
@@ -205,6 +205,9 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 			}
 			if(theChoice.chosenChargingPlug == null){
 				theChoice.chosenChargingPlug = chosenAlternative.site.getAccessibleChargingPlugsOfChargingPlugType(chosenAlternative.plugType).iterator().next();
+			}
+			if(agent.getCurrentOrNextActivity().getType().equals("Home") && !theChoice.chosenChargingPlug.getChargingSite().isResidentialCharger()){
+				DebugLib.emptyFunctionForSettingBreakPoint();
 			}
 		}
 		if (foundSites.size() > 0) {
