@@ -42,7 +42,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   val eventsManager: EventsManager = services.matsimServices.getEvents
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager, services), "MATSimEventsManagerService")
 
-  private implicit val timeout = Timeout(300, TimeUnit.SECONDS)
+  private implicit val timeout = Timeout(600, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
 
@@ -77,7 +77,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     // TODO replace magic numbers
     resetPop(event.getIteration)
     eventSubscriber ! StartIteration(event.getIteration)
-    Await.result(schedulerRef ? StartSchedule(100000.0, 100.0), timeout.duration)
+    Await.result(schedulerRef ? StartSchedule(120000.0, 100.0), timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
