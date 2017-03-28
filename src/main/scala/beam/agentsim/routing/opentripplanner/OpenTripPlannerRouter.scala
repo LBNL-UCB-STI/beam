@@ -151,6 +151,9 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         } else {
           beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode,
             BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
+          activeLinkIds = Vector[String](activeTuple._1)
+          activeCoords = Vector[Coord](activeTuple._4)
+          activeTimes = Vector[Long](activeTuple._3)
           activeMode = activeTuple._2
           activeStart = activeTuple._3
         }
