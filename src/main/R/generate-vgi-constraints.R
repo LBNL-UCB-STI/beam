@@ -24,7 +24,7 @@ read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
   match.string <- pp("'",pp(match.words,collapse="\\|"),"'")
   return(data.table(my.read.csv.sql(filepath,filter=pp("grep ",match.string))))
 }
-unzip(my.read.csv.sql <- function(file, sql = "select * from file", header = TRUE, sep = ",", 
+my.read.csv.sql <- function(file, sql = "select * from file", header = TRUE, sep = ",", 
     row.names, eol, skip, filter, nrows, field.types, colClasses, 
     dbname = tempfile(), drv = "SQLite", ...){
       file.format <- list(header = header, sep = sep)
@@ -149,12 +149,16 @@ ev[,energy.level:=soc*batteryCapacityInKWh]
 setkey(ev,scenario,hr,native.order)
  
 # Fill in end of charging sessions for those that were cut short
+end.of.sim <- ev[,list(end=max(hr)),by='scenario']
+end.of.sim.names <- end.of.sim$scenario
+end.of.sim <- end.of.sim$end
+names(end.of.sim) <- end.of.sim.names
 peeps.to.fix.1 <- ev[,list(n=length(type)),by=c('scenario','person','decisionEventId')][n==1]
 peeps.to.fix.1[,row:=1:nrow(peeps.to.fix.1)]
-peeps.to.fix.1 <- peeps.to.fix.1[,list(person=person,decisionEventId=decisionEventId,type=c('EndChargingSessionEvent','UnplugEvent'),hr=72,energy.level=25,soc=1,kw=6.7,native.order=c(max(ev$native.order)+1,Inf)),by='row']
+peeps.to.fix.1 <- peeps.to.fix.1[,list(person=person,decisionEventId=decisionEventId,scenario=scenario,type=c('EndChargingSessionEvent','UnplugEvent'),hr=end.of.sim[scenario],energy.level=25,soc=1,kw=6.7,native.order=c(max(ev$native.order)+1,Inf)),by='row']
 peeps.to.fix.2 <- ev[,list(n=length(type)),by=c('scenario','person','decisionEventId')][n==2]
 peeps.to.fix.2[,row:=1:nrow(peeps.to.fix.2)]
-peeps.to.fix.2 <- peeps.to.fix.2[,list(person=person,decisionEventId=decisionEventId,type='UnplugEvent',hr=72,energy.level=25,soc=1,kw=6.7,native.order=Inf),by='row']
+peeps.to.fix.2 <- peeps.to.fix.2[,list(person=person,decisionEventId=decisionEventId,scenario=scenario,type='UnplugEvent',hr=end.of.sim[scenario],energy.level=25,soc=1,kw=6.7,native.order=Inf),by='row']
 
 ev <- rbindlist(list(ev,peeps.to.fix.1,peeps.to.fix.2),use.names=T,fill=T)
 setkey(ev,scenario,hr,native.order)
@@ -171,11 +175,12 @@ peeps.to.fix <- ev[,all(hr.min==hr.min[1]),by=c('scenario','person','decisionEve
 ev[person%in%peeps.to.fix,hr.min:=hr.min+c(0,0,0.1),by=c('scenario','person','decisionEventId')]
 
 peeps.to.skip <- ev[,type==c('BeginChargingSessionEvent','EndChargingSessionEvent','UnplugEvent'),by=c('scenario','person','decisionEventId')][V1==F]$person
+my.cat(pp('Skipping ',length(peeps.to.skip),' peeps'))
 ev <- ev[!person%in%peeps.to.skip]
 setkey(ev,scenario,hr,native.order)
 
-ev[,siteType:=repeat_last(siteType),by=c('scenario','person')]
-ev[,actType:=repeat_last(actType),by=c('scenario','person')]
+ev[,siteType:=repeat_last(siteType),by=c('scenario','person','decisionEventId')]
+ev[,actType:=repeat_last(actType),by=c('scenario','person','decisionEventId')]
 
 ev[,final.type:=ifelse(siteType=='Public' & actType=='Work','Public',actType)]
 ev[,final.type.new:='Public']
@@ -201,24 +206,31 @@ soc.raw <- ev[,list(hr=sort(c(ts,hr)),
                 kw=repeat_last(rev(repeat_last(rev(approx(hr,kw,xout=sort(c(ts,hr)),method='constant')$y)))),
                 kw.min=repeat_last(rev(repeat_last(rev(approx(hr,kw,xout=sort(c(ts,hr.min)),method='constant')$y)))),
                 energy.level=repeat_last(rev(repeat_last(rev(approx(hr,energy.level,xout=sort(c(ts,hr)),method='linear')$y)))),
-                energy.level.min=repeat_last(rev(repeat_last(rev(approx(hr.min,energy.level.min,xout=sort(c(ts,hr.min)),method='linear')$y)))),
-                veh.type=veh.type[1]),by=c('scenario','person','final.type')]
-                #veh.type=veh.type[1]),by=c('scenario','person','siteType','actType')]
+                energy.level.min=repeat_last(rev(repeat_last(rev(my.approx(hr.min,energy.level.min,xout=sort(c(ts,hr.min)),method='linear')$y)))),
+                veh.type=veh.type[1]),
+                # by=c('scenario','person','final.type')]
+                ,by=c('scenario','person','siteType','actType')]
 
-#soc <- rbindlist(list(soc.raw[,list(person,hr,energy.level,kw,constraint='max',siteType,actType,veh.type)],soc.raw[,list(person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',siteType,actType,veh.type)]
-#))[hr==floor(hr)]
-#soc <- soc[,list(kw=sum(kw),energy.level=sum(energy.level),veh.type=veh.type[1]),by=c('hr','scenario','person','siteType','actType','constraint')]
-#soc[,d.energy.level:=c(0,ifelse(diff(energy.level)>0,diff(energy.level),0)),by=c('scenario','person','siteType','actType','constraint')]
-#soc[,cumul.energy:=cumsum(d.energy.level),by=c('scenario','person','siteType','actType','constraint')]
-#setkey(soc,scenario,hr,person,siteType,actType,constraint)
-#soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','scenario','person','siteType','actType')]
+soc <- rbindlist(list(soc.raw[,list(scenario,person,hr,energy.level,kw,constraint='max',siteType,actType,veh.type)],soc.raw[,list(scenario,person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',siteType,actType,veh.type)]
+))[hr==floor(hr)]
+soc <- soc[,list(kw=sum(kw),energy.level=sum(energy.level),veh.type=veh.type[1]),by=c('hr','scenario','person','siteType','actType','constraint')]
+soc[,d.energy.level:=c(0,ifelse(diff(energy.level)>0,diff(energy.level),0)),by=c('scenario','person','siteType','actType','constraint')]
+soc[,cumul.energy:=cumsum(d.energy.level),by=c('scenario','person','siteType','actType','constraint')]
+setkey(soc,scenario,hr,person,siteType,actType,constraint)
+soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','scenario','person','siteType','actType')]
+
+ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','siteType','actType')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(~siteType)
+ggplot(soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','constraint','actType')],aes(x=hr%%24,y=d.energy))+geom_line(lwd=1.5)+facet_wrap(~actType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
+soc.sum <- soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','siteType','actType')]
+setkey(soc.sum,scenario,hr,actType)
+ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=actType))+geom_bar(stat='identity')+facet_wrap(scenario~siteType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
 # Deal with over-representation of charging in early morning due to stranded/cut-off sesssions
 #soc[hr>=2 & hr<3,':='(kw=kw/3,energy.level=energy.level/3)]
 #soc[hr>=3 & hr<4,':='(kw=kw/5,energy.level=energy.level/5)]
 #soc[hr>=4 & hr<5,':='(kw=kw/2,energy.level=energy.level/2)]
 
-soc <- rbindlist(list(soc.raw[,list(person,hr,energy.level,kw,constraint='max',final.type,veh.type)],soc.raw[,list(person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',final.type,veh.type)]
+soc <- rbindlist(list(soc.raw[,list(scenario,person,hr,energy.level,kw,constraint='max',final.type,veh.type)],soc.raw[,list(scenario,person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',final.type,veh.type)]
 ))[hr==floor(hr)]
 soc <- soc[,list(kw=sum(kw),energy.level=sum(energy.level),veh.type=veh.type[1]),by=c('scenario','hr','person','final.type','constraint')]
 soc[,d.energy.level:=c(0,ifelse(diff(energy.level)>0,diff(energy.level),0)),by=c('scenario','person','final.type','constraint')]
@@ -226,16 +238,11 @@ soc[,cumul.energy:=cumsum(d.energy.level),by=c('scenario','person','final.type',
 setkey(soc,scenario,hr,person,final.type,constraint)
 soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','scenario','person','final.type')]
 
-#ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','siteType','actType')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(~siteType)
-#ggplot(soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','constraint','actType')],aes(x=hr%%24,y=d.energy))+geom_line(lwd=1.5)+facet_wrap(~actType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
-#soc.sum <- soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','constraint','siteType','actType')]
-#setkey(soc.sum,scenario,hr,actType)
-#ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=actType))+geom_bar(stat='identity')+facet_wrap(~siteType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
 # Final categorization of load
-soc.sum <- soc[hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','final.type','veh.type')]
+soc.sum <- soc[hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','final.type','veh.type')]
 setkey(soc.sum,scenario,hr,final.type,veh.type)
-ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_wrap(~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
+ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_wrap(scenario~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
 # Load CP data and create scaling factors for turning BEAM workday output into a full week of constraints
 load(pp(matsim.shared,'/data/chargepoint/cp.Rdata'))
