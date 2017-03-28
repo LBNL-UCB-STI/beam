@@ -8,8 +8,8 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
-import beam.agentsim.events.{EventsSubscriber, PathTraversalEvent}
 import beam.agentsim.events.EventsSubscriber.{EndIteration, FinishProcessing, StartIteration, StartProcessing}
+import beam.agentsim.events.{EventsSubscriber, PathTraversalEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import com.google.inject.Inject
@@ -33,7 +33,7 @@ import scala.concurrent.Await
   */
 class Agentsim @Inject()(private val actorSystem: ActorSystem,
                          private val services: AgentsimServices
-                        ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
+                        ) extends StartupListener  with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
   import AgentsimServices._
 
@@ -52,10 +52,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     val routerFuture = registry ? Registry.Register("router", Props(classOf[OpenTripPlannerRouter], services))
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamRouter ? InitializeRouter
-
     Await.result(routerInitFuture, timeout.duration)
-
-
 
     agentSimEventsBus.subscribe(eventSubscriber, "actend")
     agentSimEventsBus.subscribe(eventSubscriber, "actstart")
@@ -70,22 +67,24 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     agentSimEventsBus.subscribe(eventSubscriber, "waitingForPt")
     agentSimEventsBus.subscribe(eventSubscriber, "travelled")
     agentSimEventsBus.subscribe(eventSubscriber, "arrival")
+
+    resetPop(0)
     eventSubscriber ! StartProcessing
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
-    resetPop(event.getIteration)
     eventSubscriber ! StartIteration(event.getIteration)
     Await.result(schedulerRef ? StartSchedule(120000.0, 100.0), timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    eventSubscriber ! EndIteration(event.getIteration)
+    resetPop(event.getIteration+1)
+    Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    eventSubscriber ! FinishProcessing
+    Await.result(eventSubscriber ? FinishProcessing,timeout.duration)
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(schedulerRef)
     actorSystem.terminate()

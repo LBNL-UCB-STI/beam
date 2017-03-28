@@ -27,7 +27,7 @@ import scala.util.Random
   */
 object PersonAgent {
 
-  val timeToChooseMode: Double = 30.0
+  val timeToChooseMode: Double = 1.0
   val minActDuration: Double = 1.0
   val teleportWalkDuration = 0.0
 
@@ -215,7 +215,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   // TODO: Deal with case of arriving too late at next activity
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      if(info.data.currentAlternatives.size==0){
+      if(info.data.currentAlternatives.isEmpty){
         goto(Finished) replying CompletionNotice(triggerId)
       }else {
         val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
@@ -313,7 +313,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(TriggerWithId(PersonEntersAlightingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
       goto(Alighting) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
-        completed(triggerId, schedule[PersonLeavesVehicleTrigger](tick))
+        completed(triggerId, schedule[PersonLeavesVehicleTrigger](procData.nextStart))
   }
 
   when(Alighting) {
@@ -382,7 +382,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
     val nextLeg: BeamLeg = trip.legs.head
     val restTrip: BeamTrip = BeamTrip(trip.legs.tail)
-    val nextStart = if(restTrip.legs.size>0){ restTrip.legs.head.startTime - nextLeg.startTime }else{ -999.0 }
+    val nextStart = if(restTrip.legs.nonEmpty){ restTrip.legs.head.startTime - nextLeg.startTime }else{ 0.0 }
     ProcessedData(nextLeg, restTrip, nextStart + tick)
   }
 
