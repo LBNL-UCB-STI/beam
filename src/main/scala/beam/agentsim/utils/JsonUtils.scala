@@ -15,5 +15,7 @@ object JsonUtils {
     val jsonOutString = out.mkString("\n[",",\n","]\n")
     val writer = IOUtils.getBufferedWriter(outFile)
     writer.write(jsonOutString)
+    writer.flush()
+    writer.close()
   }
 }
