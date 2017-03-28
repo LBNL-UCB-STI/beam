@@ -88,9 +88,9 @@ public class JsonFriendlyEventWriterXML implements EventWriter, BasicEventHandle
 			Map<String, String> attr = event.getAttributes();
 			for (Map.Entry<String, String> entry : attr.entrySet()) {
 				this.out.append(entry.getKey());
-				this.out.append("=\"");
+				this.out.append("='");
 				this.out.append(encodeAttributeValue(entry.getValue()));
-				this.out.append("\" ");
+				this.out.append("' ");
 			}
 			this.out.append(" />\n");
 		} catch (IOException e) {
