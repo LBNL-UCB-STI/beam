@@ -1,11 +1,12 @@
 package beam.agentsim.utils.scripts
 
+import beam.agentsim.utils.JsonUtils
+
 /**
   * Created by sfeygin on 3/28/17.
   */
 object VizProcessing {
-  import JsonUtils._
   def main(args: Array[String]): Unit = {
-    JsonUtils.processEventsFile(args(0))
+    JsonUtils.processEventsFileVizData(args(0),args(1))
   }
 }
