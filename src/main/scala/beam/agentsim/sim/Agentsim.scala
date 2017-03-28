@@ -56,7 +56,6 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     Await.result(routerInitFuture, timeout.duration)
 
 
-
     agentSimEventsBus.subscribe(eventSubscriber, "actend")
     agentSimEventsBus.subscribe(eventSubscriber, "actstart")
     agentSimEventsBus.subscribe(eventSubscriber, "PersonEntersVehicle")
