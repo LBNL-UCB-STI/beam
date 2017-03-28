@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
-import beam.agentsim.events.{EventsSubscriber, PathTraversalEvent}
+import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import com.google.inject.Inject
@@ -20,7 +20,6 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.core.events.EventsUtils
-import org.matsim.core.events.algorithms.EventWriterXML
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
@@ -42,7 +41,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   private val popMap: Map[Id[Person], Person] = ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
-  var writer: EventWriterXML = _
+  var writer: JsonFriendlyEventWriterXML = _
 
 
   private implicit val timeout = Timeout(600, TimeUnit.SECONDS)
@@ -74,7 +73,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
-    writer = new EventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(event.getIteration,"events.xml.gz"))
+    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(event.getIteration,"events.xml.gz"))
     eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()

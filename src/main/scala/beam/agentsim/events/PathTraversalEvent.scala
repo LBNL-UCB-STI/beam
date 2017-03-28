@@ -26,14 +26,13 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
-    val viz_data = beamGraphPath.latLons.get map { c => s"[${c.getX},${c.getY}]" } zip
-      beamGraphPath.entryTimes.get map { x => s":$x" } map
+    val vizString = beamGraphPath.latLons.get map { c => s"""\"begin_shape\": [${c.getX},${c.getY}],\"begin_time\":""" } zip
+      beamGraphPath.entryTimes.get map { x => s"$x" } map
       (x => x.replace("(", "").replace(")", "")) mkString
-      ("{", "},{", "}")
+      (s"""[{\"travel_type\": "$mode",""", "},{", "}]")
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
-    attr.put(ATTRIBUTE_VIZ_DATA, viz_data)
+    attr.put(ATTRIBUTE_VIZ_DATA, vizString)
     attr.put(ATTRIBUTE_LINK_IDS, beamGraphPath.linkIds.mkString(","))
-    attr.put(ATTRIBUTE_MODE, mode)
     attr
   }
 }
@@ -41,3 +40,4 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
 object PathTraversalEvent {
   val EVENT_TYPE = "pathTraversal"
 }
+
