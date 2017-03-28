@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
-import beam.agentsim.events.EventsSubscriber
+import beam.agentsim.events.{EventsSubscriber, PathTraversalEvent}
 import beam.agentsim.events.EventsSubscriber.{EndIteration, FinishProcessing, StartIteration, StartProcessing}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
@@ -55,12 +55,14 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
     Await.result(routerInitFuture, timeout.duration)
 
-    // create specific channel for travel events, say
+
+
     agentSimEventsBus.subscribe(eventSubscriber, "actend")
     agentSimEventsBus.subscribe(eventSubscriber, "actstart")
     agentSimEventsBus.subscribe(eventSubscriber, "PersonEntersVehicle")
     agentSimEventsBus.subscribe(eventSubscriber, "PersonLeavesVehicle")
     agentSimEventsBus.subscribe(eventSubscriber, "vehicle enters traffic")
+    agentSimEventsBus.subscribe(eventSubscriber, PathTraversalEvent.EVENT_TYPE)
     agentSimEventsBus.subscribe(eventSubscriber, "vehicle leaves traffic")
     agentSimEventsBus.subscribe(eventSubscriber, "VehicleArrivesAtFacility")
     agentSimEventsBus.subscribe(eventSubscriber, "VehicleDepartsAtFacility")

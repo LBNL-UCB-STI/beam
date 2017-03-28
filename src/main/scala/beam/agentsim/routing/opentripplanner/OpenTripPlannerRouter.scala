@@ -226,7 +226,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
   private def buildAndPersistGraph(graphService: GraphService, params: CommandLineParameters): Unit = {
     routerIds.foreach(routerId => {
-      val graphDirectory = new File(s"${baseDirectory.getAbsolutePath}/graphs/$routerId/")
+      val graphDirectory = new File(s"${baseDirectory.getAbsolutePath}/graphs/$routerId")
       val graphBuilder = GraphBuilder.forDirectory(params, graphDirectory)
       graphBuilder.setAlwaysRebuild(false)
       if (graphBuilder != null) {
