@@ -29,7 +29,7 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
     val viz_data = beamGraphPath.latLons.get map { c => s"'begin_shape':[${c.getX},${c.getY}]" } zip
       beamGraphPath.entryTimes.get map { x => s"'begin_time':$x" } map
       (x => x.replace("(", "").replace(")", "")) mkString
-      ("{", "},{", "}\n")
+      ("{", "},{", "}")
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_VIZ_DATA, viz_data)
     attr.put(ATTRIBUTE_LINK_IDS, beamGraphPath.linkIds.mkString(","))
