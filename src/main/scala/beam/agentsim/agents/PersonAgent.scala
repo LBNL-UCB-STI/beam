@@ -7,6 +7,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
+import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamLeg, BeamTrip, RoutingResponse}
 import beam.utils.DebugLib
@@ -199,7 +200,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(result: RouteResponseWrapper, info: BeamAgentInfo[PersonData]) =>
       val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick))
       if(info.id.toString.equals("3")){
-        DebugLib.emptyFunctionForSettingBreakPoint();
+        DebugLib.emptyFunctionForSettingBreakPoint()
       }
       // Send CN directly to scheduler.
       // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
@@ -242,7 +243,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(TriggerWithId(PersonEntersVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
       agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId(s"car_$id"))))
-//      agentSimEventsBus.publish(MatsimEvent(new VehicleEntersTrafficEvent(tick, id, Id.createLinkId(procData.nextLeg.graphPath.value.head),Id.createVehicleId(s"car_$id"), TransportMode.car, 0.0)))
+      // TODO: order this as after traversal
+      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.restTrip.legs.head.graphPath,TransportMode.car)))
       goto(Driving) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonLeavesVehicleTrigger](procData.nextStart))
 
@@ -292,6 +294,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
       agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId(s"pt_$id"))))
+      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,TransportMode.pt)))
       goto(OnTransit) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonEntersAlightingQueueTrigger](procData.nextStart))
   }
@@ -299,7 +302,6 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(OnTransit) {
     case Event(TriggerWithId(PersonEntersAlightingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
-
       goto(Alighting) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonLeavesVehicleTrigger](tick))
   }

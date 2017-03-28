@@ -80,12 +80,12 @@
 		<param name="ModuleProbability_3" value="0.1" />
 		<param name="Module_3" value="TimeAllocationMutator" />
 
-		<param name="ModuleProbability_4" value="0.1" />
-		<param name="Module_4" value="ChangeTripMode" />
+		<!--<param name="ModuleProbability_4" value="0.1" />-->
+		<!--<param name="Module_4" value="ChangeTripMode" />-->
 	</module>
 
 	<module name="transit">
-		<param name="useTransit" value="true" />
+		<param name="useTransit" value="false" />
 		<param name="transitScheduleFile" value="transitschedule.xml" />
 		<param name="vehiclesFile" value="transitVehicles.xml" />
 		<param name="transitModes" value="pt" />
