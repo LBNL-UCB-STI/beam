@@ -9,7 +9,7 @@ object xmlParsing {
 
   import scala.xml.XML
 
-  val xml = XML.loadFile("/Users/sfeygin/current_code/java/research/ucb_smartcities_all/output/toy/01.output_plans.xml")
+  val xml = XML.loadFile("/Users/sfeygin/current_code/java/research/beam/test/output/beam/basicTests/sf-bay/sf-bay_2017-03-28_14-08-45/output_events.xml")
   val population = xml \\ "population" \ "person"
   val num = population.length
   val ids = population.map(i => i \ "@id")

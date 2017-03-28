@@ -27,8 +27,8 @@ import scala.util.Random
   */
 object PersonAgent {
 
-  val timeToChooseMode: Double = 1.0
-  val minActDuration: Double = 1.0
+  val timeToChooseMode: Double = 0.0
+  val minActDuration: Double = 0.0
   val teleportWalkDuration = 0.0
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
