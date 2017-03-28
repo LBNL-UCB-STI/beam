@@ -67,19 +67,17 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     agentSimEventsBus.subscribe(eventSubscriber, "waitingForPt")
     agentSimEventsBus.subscribe(eventSubscriber, "travelled")
     agentSimEventsBus.subscribe(eventSubscriber, "arrival")
-
-    resetPop(0)
     eventSubscriber ! StartProcessing
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
+    resetPop(event.getIteration)
     eventSubscriber ! StartIteration(event.getIteration)
     Await.result(schedulerRef ? StartSchedule(120000.0, 100.0), timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    resetPop(event.getIteration+1)
     Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
   }
 
