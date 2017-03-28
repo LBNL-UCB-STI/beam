@@ -2,17 +2,7 @@ package beam.gtfs;
 
 import beam.agentsim.config.BeamConfig;
 import com.typesafe.config.ConfigFactory;
-import org.matsim.core.config.Config;
-import org.matsim.core.config.ConfigGroup;
-import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.config.ConfigWriter;
-import org.matsim.core.utils.io.UncheckedIOException;
 import org.matsim.pt.utils.TransitScheduleValidator;
-//import org.matsim.pt2matsim.config.CreateDefaultConfig;
-//import org.matsim.pt2matsim.config.PublicTransitMappingConfigGroup;
-//import org.matsim.pt2matsim.gtfs.Gtfs2TransitSchedule;
-//import org.matsim.pt2matsim.mapping.RunPublicTransitMapper;
-//import org.matsim.pt2matsim.run.CheckMappedSchedulePlausibility;
 import org.xml.sax.SAXException;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -22,6 +12,12 @@ import java.util.concurrent.ExecutionException;
 
 import static beam.gtfs.GtfsFunctions.isFilePresent;
 import static beam.gtfs.GtfsFunctions.opNameToPath;
+
+//import org.matsim.pt2matsim.config.CreateDefaultConfig;
+//import org.matsim.pt2matsim.config.PublicTransitMappingConfigGroup;
+//import org.matsim.pt2matsim.gtfs.Gtfs2TransitSchedule;
+//import org.matsim.pt2matsim.mapping.RunPublicTransitMapper;
+//import org.matsim.pt2matsim.run.CheckMappedSchedulePlausibility;
 
 /**
  * Runs GTFS Schedule Mapping.
@@ -42,7 +38,7 @@ public class SFBayPT2MATSim {
 
     public SFBayPT2MATSim() {
         outputDir = BEAM_CONFIG.beam().routing().gtfs().outputDir();
-        apiKey = BEAM_CONFIG.beam().routing().gtfs().apiKey();
+//        apiKey = BEAM_CONFIG.beam().routing().gtfs().apiKey();
     }
 
     public void mapSingleGtfsOperator(String opName, String opKey) {
