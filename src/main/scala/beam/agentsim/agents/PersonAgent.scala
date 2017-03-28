@@ -269,7 +269,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     //-> NextActivity
     case Event(TriggerWithId(TeleportationArrivalTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val arrivalTime = teleportWalkDuration + tick
-      agentSimEventsBus.publish(MatsimEvent(new TeleportationArrivalEvent(arrivalTime, id, 0)))
+      agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(arrivalTime, id, info.data.nextActivity.right.get.getLinkId, TransportMode.walk)))
       val nextAct = info.data.nextActivity.right.get // No danger of failure here
       agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(arrivalTime, id, nextAct.getLinkId, nextAct.getFacilityId, nextAct.getType)))
       logInfo(s"arrived at ${nextAct.getType} at $arrivalTime")
