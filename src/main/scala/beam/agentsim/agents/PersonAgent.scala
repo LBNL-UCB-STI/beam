@@ -214,25 +214,35 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   // TODO: Deal with case of arriving too late at next activity
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
-      val procData = procStateData(tripChoice, tick)
-      // Here, we actually need to do an extra step of look-ahead to get the correct (non-walk) mode
-      val restTrip = procData.restTrip
-      restTrip.legs.head.mode match {
-        case "WALK" =>
+      if(info.data.currentAlternatives.size==0){
+        goto(Finished) replying CompletionNotice(triggerId)
+      }else {
+        val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
+        val procData = procStateData(tripChoice, tick)
+        // Here, we actually need to do an extra step of look-ahead to get the correct (non-walk) mode
+        val restTrip = procData.restTrip
+        if(restTrip.legs.size>1) {
+          restTrip.legs.head.mode match {
+            case "WALK" =>
+              agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.walk)))
+              goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
+                completed(triggerId, schedule[PersonArrivalTrigger](tick + timeToChooseMode))
+            case "CAR" =>
+              agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.car)))
+              goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
+                completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode))
+            case "WAITING" =>
+              agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.pt)))
+              goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
+                completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick + timeToChooseMode))
+            case _ =>
+              goto(Uninitialized) using stateData.copy(id, stateData.data.copy())
+          }
+        }else{
           agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.walk)))
           goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
             completed(triggerId, schedule[PersonArrivalTrigger](tick + timeToChooseMode))
-        case "CAR" =>
-          agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.car)))
-          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
-            completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode))
-        case "WAITING" =>
-          agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.pt)))
-          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
-            completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick + timeToChooseMode))
-        case _ =>
-          goto(Uninitialized) using stateData.copy(id, stateData.data.copy())
+        }
       }
   }
 
@@ -370,7 +380,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
     val nextLeg: BeamLeg = trip.legs.head
     val restTrip: BeamTrip = BeamTrip(trip.legs.tail)
-    val nextStart = restTrip.legs.head.startTime - nextLeg.startTime
+    val nextStart = if(restTrip.legs.size>0){ restTrip.legs.head.startTime - nextLeg.startTime }else{ -999.0 }
     ProcessedData(nextLeg, restTrip, nextStart + tick)
   }
 

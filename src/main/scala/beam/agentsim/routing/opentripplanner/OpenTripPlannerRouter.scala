@@ -10,11 +10,13 @@ import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.sim.AgentsimServices
+import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Person, PlanElement}
 import org.matsim.facilities.Facility
 import org.matsim.utils.objectattributes.attributable.Attributes
+import org.opengis.geometry.DirectPosition
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
@@ -46,8 +48,16 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
     var request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    request.from = new GenericLocation(fromFacility.getCoord.getY, fromFacility.getCoord.getX)
-    request.to = new GenericLocation(toFacility.getCoord.getY, toFacility.getCoord.getX)
+    val fromPos = new DirectPosition2D(fromFacility.getCoord.getX, fromFacility.getCoord.getY)
+    val toPos = new DirectPosition2D(toFacility.getCoord.getX, toFacility.getCoord.getY)
+    val fromPosTransformed = new DirectPosition2D(fromFacility.getCoord.getX, fromFacility.getCoord.getY)
+    val toPosTransformed = new DirectPosition2D(toFacility.getCoord.getX, toFacility.getCoord.getY)
+    if(fromFacility.getCoord.getX>400.0 | fromFacility.getCoord.getX < -400.0) {
+      transform.get.transform(fromPos, fromPosTransformed)
+      transform.get.transform(toPos, toPosTransformed)
+    }
+    request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
+    request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
     request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong % (24L * 3600L)
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
@@ -66,8 +76,8 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     }
     request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    request.from = new GenericLocation(fromFacility.getCoord.getY, fromFacility.getCoord.getX)
-    request.to = new GenericLocation(toFacility.getCoord.getY, toFacility.getCoord.getX)
+    request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
+    request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
     request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong % (24L * 3600L)
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
