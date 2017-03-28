@@ -227,7 +227,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
             case "WALK" =>
               agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.walk)))
               goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
-                completed(triggerId, schedule[PersonArrivalTrigger](tick + timeToChooseMode))
+                completed(triggerId, schedule[TeleportationArrivalTrigger](tick + timeToChooseMode))
             case "CAR" =>
               agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.car)))
               goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
@@ -242,7 +242,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         }else{
           agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.walk)))
           goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
-            completed(triggerId, schedule[PersonArrivalTrigger](tick + timeToChooseMode))
+            completed(triggerId, schedule[TeleportationArrivalTrigger](tick + timeToChooseMode))
         }
       }
   }
