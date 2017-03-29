@@ -22,7 +22,7 @@ import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
 import org.opentripplanner.routing.core.{State, TraverseMode}
 import org.opentripplanner.routing.edgetype.{PreAlightEdge, PreBoardEdge, StreetTransitLink, TransitBoardAlight}
-import org.opentripplanner.routing.error.PathNotFoundException
+import org.opentripplanner.routing.error.{PathNotFoundException, TrivialPathException}
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
 import org.opentripplanner.routing.spt.GraphPath
@@ -73,6 +73,8 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         log.error(e.getCause.toString)
       case e: PathNotFoundException =>
         log.error("PathNotFoundException")
+      case e: TrivialPathException =>
+        log.error("TrivialPathException")
     }
     request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
@@ -101,6 +103,8 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         log.error("NullPointerException encountered in OpenTripPlanner router for request: " + request.toString)
       case e: PathNotFoundException =>
         log.error("PathNotFoundException")
+      case e: TrivialPathException =>
+        log.error("TrivialPathException")
     }
 
     val beamTrips = for (path: GraphPath <- paths.asScala.toVector) yield {
@@ -183,7 +187,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
       sender() ! RouterInitialized()
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
-      log.info(s"OTP Router received routing request from person $personId ($sender)")
+//      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val senderRef = sender()
       val plans = calcRoute(fromFacility, toFacility, departureTime, person)

@@ -50,7 +50,7 @@ class BeamAgentScheduler extends Actor {
         while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= now) {
           val scheduledTrigger = this.triggerQueue.dequeue
           val triggerWithId = scheduledTrigger.triggerWithId
-          log.info(s"dispatching $triggerWithId")
+          //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick, triggerWithId.triggerId)
           scheduledTrigger.agent ! triggerWithId
         }
@@ -70,7 +70,7 @@ class BeamAgentScheduler extends Actor {
       }
 
     case CompletionNotice(id: Long, newTriggers: Vector[ScheduleTrigger]) =>
-      log.info(s"recieved notice that trigger id: $id is complete")
+//      log.info(s"recieved notice that trigger id: $id is complete")
       awaitingResponse.remove(triggerIdToTick(id), id)
       triggerIdToTick -= id
       newTriggers.foreach {scheduleTrigger}

@@ -283,7 +283,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(Driving) {
     case Event(TriggerWithId(PersonLeavesVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
-      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
+      if(tick < 3600*10.0)agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
       agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(procData.nextStart, id, Id.createVehicleId(s"car_$id"))))
       agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(procData.nextStart, id, info.data.nextActivity.right.get.getLinkId, TransportMode.car)))
       goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
@@ -295,8 +295,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(Waiting) {
     case Event(TriggerWithId(PersonEntersBoardingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
-      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
-      agentSimEventsBus.publish(MatsimEvent(new AgentWaitingForPtEvent(tick, id, Id.create(Random.nextInt(),classOf[TransitStopFacility]),Id.create(Random.nextInt(),classOf[TransitStopFacility]))))
+//      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
+      if(tick < 3600*10.0)agentSimEventsBus.publish(MatsimEvent(new AgentWaitingForPtEvent(tick, id, Id.create(Random.nextInt(),classOf[TransitStopFacility]),Id.create(Random.nextInt(),classOf[TransitStopFacility]))))
       goto(Boarding) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonArrivesTransitStopTrigger](procData.nextStart))
   }
@@ -304,7 +304,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(Boarding) {
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
-      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
+//      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
       agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId(s"pt_$id"))))
       goto(OnTransit) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonEntersAlightingQueueTrigger](procData.nextStart))
@@ -313,7 +313,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   when(OnTransit) {
     case Event(TriggerWithId(PersonEntersAlightingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
-      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
+      if(tick < 3600*10.0)agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
       goto(Alighting) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonLeavesVehicleTrigger](procData.nextStart))
   }
@@ -322,7 +322,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Event(TriggerWithId(PersonLeavesVehicleTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val procData = procStateData(info.data.currentRoute, tick)
       agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, id, Id.createVehicleId(s"pt_$id"))))
-      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
+//      agentSimEventsBus.publish(MatsimEvent(PathTraversalEvent(tick, id, procData.nextLeg.graphPath,procData.nextLeg.mode)))
       val restTrip = procData.restTrip
 
       // If there are remaining legs in transit trip (Transfers)
@@ -354,7 +354,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     case Walking -> Driving =>
       logInfo(s"going from Walking to Driving")
     case Driving -> Walking =>
-      log.info(s"going from Driving to Walking")
+      logInfo(s"going from Driving to Walking")
     case Walking -> PerformingActivity =>
       logInfo(s"going from Walking to PerformingActivity")
   }
@@ -363,7 +363,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
    * Helper methods
    */
   def logInfo(msg: String): Unit = {
-    log.info(s"PersonAgent $id: $msg")
+//    log.info(s"PersonAgent $id: $msg")
   }
 
   // NEVER use stateData in below, pass `info` object directly (closure around stateData on object creation)
