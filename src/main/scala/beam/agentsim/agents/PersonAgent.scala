@@ -40,7 +40,7 @@ object PersonAgent {
   }
 
   // syntactic sugar for props creation
-  def props(personId: Id[PersonAgent], personData: PersonData) = Props(new PersonAgent(personId, personData))
+  def props(personId: Id[PersonAgent], personData: PersonData) = Props(classOf[PersonAgent], personId, personData)
 
   //////////////////////////////
   // PersonData Begin... //
@@ -56,11 +56,13 @@ object PersonAgent {
       * @param plan : The plan having at least some `Activities`
       * @return `PersonData`
       */
-    def apply(plan: Plan) = new PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), randomChoice)
+    def apply(plan: Plan) = PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), randomChoice)
 
     def planToVec(plan: Plan): Vector[Activity] = {
       scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
     }
+
+    implicit def plan2PersonData(plan:Plan): PersonData = PersonData(plan)
 
   }
 
