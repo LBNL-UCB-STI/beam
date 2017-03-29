@@ -199,7 +199,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	public void performChargingDecisionAlgorithmOnArrival() {
 		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		try {
 			//TODO we need more robust way of tracking where we are in the plan and pulling the appropriate strategy
@@ -269,7 +269,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void performChargingDecisionAlgorithmOnDeparture() {
-		DebugLib.traceAgent(this.getId(), "65263");
+		//DebugLib.traceAgent(this.getId(), "65263");
 
 		ChargingStrategy chargingStrategyForThisLeg = ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategyForLeg(getCurrentLegIndex());
 		ChargingPlug chosenPlug;
@@ -324,16 +324,17 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	private void adjustTravelDistanceInDayForEnRoute() {
-		double origDist, subtrip1Dist, subtrip2Dist; 
+		//DebugLib.traceAgent(this.getPersonId(),"1702340");
+		double origDist, subtrip1Dist, subtrip2Dist;
 		origDist = getTripInfoAsOfDeparture().getTripDistance();
 		
 		TripInformation subtrip1, subtrip2;
 		Id<Link> chargingLinkId = getSelectedChargingSite().getNearestLink().getId();
-		subtrip1 = getTripInformation(EVGlobalData.data.now, getTripInfoAsOfDeparture().getRouteInfoElements().getFirst().getLinkId(), chargingLinkId);
+		subtrip1 = getTripInformation(EVGlobalData.data.now, getCurrentLink(), chargingLinkId);
 		subtrip1Dist = subtrip1.getTripDistance();
 		
 		double timeOfSecondDeparture = EVGlobalData.data.now + subtrip1.getTripTravelTime() + getSelectedChargingSite().estimateChargingSessionDuration(getSelectedChargingPlug().getChargingPlugType(),this.getVehicleWithBattery());
-		subtrip2 = getTripInformation(timeOfSecondDeparture, chargingLinkId, getTripInfoAsOfDeparture().getRouteInfoElements().getLast().getLinkId());
+		subtrip2 = getTripInformation(timeOfSecondDeparture, chargingLinkId, getNextActivity().getLinkId());
 		subtrip2Dist = subtrip2.getTripDistance();
 		this.remainingTravelDistanceInDayInMeters += -origDist + subtrip1Dist + subtrip2Dist;
 	}
@@ -352,7 +353,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	public void performReassessDecision() {
 		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		updateEnergyUse();
 		this.currentLinkId = getSelectedChargingSite().getNearestLink().getId();
@@ -470,6 +471,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	private void decrementRemainingTravelInDay(double distance) {
+		//DebugLib.traceAgent(this.getPersonId(),"1702340");
 		if (this.remainingTravelDistanceInDayInMeters == null) {
 			setEstimatedTravelDistanceInDay();
 		}
@@ -595,7 +597,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	public double getOnTheWayChargingSessionDuration() {
 		if (selectedChargingPlug == null) {
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		Link originLink = this.selectedChargingPlug.getChargingSite().getNearestLink();
 		Link destinationLink = EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(this.nextActivity.getLinkId());
@@ -654,9 +656,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void handleDeparture() {
-		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
-		}
+		//DebugLib.traceAgent(this.getPersonId(),"1702340");
 		if(this.chargingState == AgentChargingState.STRANDED)return;
 		if (this.chargingState == AgentChargingState.PRE_CHARGE || this.chargingState == AgentChargingState.CHARGING
 				|| this.chargingState == AgentChargingState.POST_CHARGE_PLUGGED || this.chargingState == AgentChargingState.POST_CHARGE_UNPLUGGED) {
@@ -682,7 +682,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	public void handleArrival() {
 		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		this.currentLinkId = this.nextActivity.getLinkId();
 		updateEnergyUse();

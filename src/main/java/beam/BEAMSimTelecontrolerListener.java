@@ -62,6 +62,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		EVGlobalData.data.chargingInfrastructureManager.resetAll();
 		
 		PlugInVehicleAgent.resetDecisionEventIdCounter();
+
+		EVGlobalData.data.currentDay = 0;
+		EVSimTeleController.scheduleGlobalActions();
 	}
 
 	@Override

@@ -482,9 +482,9 @@ public class ChargingInfrastructureManagerImpl {
 			double unplugTime = agent.getCurrentActivity().getEndTime() < 0 ?
 					EVGlobalData.data.now : agent.getCurrentActivity().getEndTime();
 			EVGlobalData.data.scheduler.addCallBackMethod(unplugTime, plug, "unplugVehicle", 0.0,agent);
-		}else if(agent.shouldDepartAfterChargingSession()) // if it's a slow charger && if the vehicle should leave after charging
+		}else if(agent.shouldDepartAfterChargingSession()) { // if it's a slow charger && if the vehicle should leave after charging
 			agent.handleDeparture();
-
+		}
 //		if (agent.isInLastActivity()) {
 //			double unplugTime = agent.getCurrentActivity().getEndTime() < 0 ? EVGlobalData.data.now : agent.getCurrentActivity().getEndTime();
 //			EVGlobalData.data.scheduler.addCallBackMethod(unplugTime, plug, "unplugVehicle", 0.0,agent);

@@ -186,7 +186,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 			}
 		}
 		if(altData.containsKey("isHomeActivityAndHomeCharger") && altData.get("isHomeActivityAndHomeCharger") == 1.0){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 
 		this.arrivalModel.evaluateProbabilities(inputData);

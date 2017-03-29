@@ -7,9 +7,7 @@ public class DebugLib {
 	private static final Logger log = Logger.getLogger(DebugLib.class);
 
 	public static void traceAgent(Id personId){
-		if (personId.toString().equalsIgnoreCase("3711631")){
-			emptyFunctionForSettingBreakPoint();
-		}
+		emptyFunctionForSettingBreakPoint();
 	}
 	public static void traceAgent(Id personId, String idToCatch){
 		if (personId.toString().equalsIgnoreCase(idToCatch)){
@@ -64,7 +62,7 @@ public class DebugLib {
 	}
 
 	public static void emptyFunctionForSettingBreakPoint(){
-		
+		int i = 0;
 	}
 	
 	public static void haltSystemToPrintCrutialHint(String hintString){

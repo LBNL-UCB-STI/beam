@@ -187,7 +187,7 @@ public class EVSimTeleController {
 
 		loadRouter();
 		initializeVehicleFleet(controler);
-		scheduleGlobalActions();
+		//scheduleGlobalActions();
 
 		controler.addControlerListener(new AddReplanning());
 		controler.addControlerListener(new BEAMSimTelecontrolerListener());
@@ -305,7 +305,7 @@ public class EVSimTeleController {
 		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
 	}
 
-	private static void scheduleGlobalActions() {
+	public static void scheduleGlobalActions() {
 		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.timeMarkingNewDay, EVGlobalData.data.globalActions, "handleDayTracking");
 //		EVGlobalData.data.scheduler.addCallBackMethod(0.0, EVGlobalData.data.globalActions, "printRand");
 //		EVGlobalData.data.scheduler.addCallBackMethod(100*3600.0, EVGlobalData.data.globalActions, "pauseForHour");

@@ -125,7 +125,7 @@ public class ChargingPlugImpl implements ChargingPlug{
 	@Override
 	public double estimateChargingSessionDuration() {
 		if(this.chargingPlugType.getNominalLevel()==3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		return this.chargingPoint.getChargingSite().estimateChargingSessionDuration(this.getChargingPlugType(),this.getVehicle());
 	}
@@ -137,7 +137,7 @@ public class ChargingPlugImpl implements ChargingPlug{
 	public void handleEndChargingSession(){
 //		log.info(EVGlobalData.data.now + " Plug "+this.toString()+" executing handleEndChargingSession");
 		if(this.chargingPlugType.getNominalLevel()==3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		this.vehicle.addEnergyToVehicleBattery(this.getEnergyDeliveredByTime(EVGlobalData.data.now));
 		double sessionDuration = this.estimateChargingSessionDuration();

@@ -111,6 +111,7 @@ public class BeamRouterImpl extends BeamRouter {
 			resultTrip = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
 			EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
 		}
+		resultTrip.departureTime = time;
 		return resultTrip;
 		/*
 		if(!EVGlobalData.data.tripInformationCache.containsKey(key)){
