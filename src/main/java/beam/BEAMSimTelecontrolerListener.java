@@ -41,9 +41,10 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	private boolean shouldUpdateBetaPlus, shouldUpdateBetaMinus, isFirstIteration;
 	private ArrayList<Double> paramsList = new ArrayList<>(), paramsPlus = new ArrayList<>(), paramsMinus = new ArrayList<>(), paramsDelta = new ArrayList<>();
 	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>>
-			observedLoadInKwMap = new LinkedHashMap<>(),
-			modeledLoadInKwMap = new LinkedHashMap<>(),
-			mergedLoadInKwMap = new LinkedHashMap<>();
+			observedLoadHashMap = new LinkedHashMap<>(),
+			betaLoadHashMap =new LinkedHashMap<>(),
+			betaPlusLoadHashMap = new LinkedHashMap<>(),
+			betaMinusLoadHashMap = new LinkedHashMap<>();
 	private ArrayList<Double> loadProfileBeta = new ArrayList<>(), loadProfileBetaPlus = new ArrayList<>(), loadProfileBetaMinus = new ArrayList<>(), loadProfileChargingPoint = new ArrayList<>();
 
 	@Override
@@ -106,7 +107,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-				observedLoadInKwMap = getChargingLoadHashMap(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH);
+				observedLoadHashMap = getChargingLoadHashMap(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH);
 			}else{
 				if(shouldUpdateBetaPlus){
 					// Re-initialize params
@@ -120,19 +121,35 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-2) + File.separator + "run0."+ (event.getIteration()-2) + ".disaggregateLoadProfile.csv";
 					String betaMinusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
 
-					loadProfileBeta 			= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"beta"), getChargingLoadHashMap(prevLoadFile),observedLoadInKwMap);
-					loadProfileBetaPlus 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"betaPlus"), getChargingLoadHashMap(betaPlusLoadFile),observedLoadInKwMap);
-					loadProfileBetaMinus 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"betaMinus"), getChargingLoadHashMap(betaMinusLoadFile),observedLoadInKwMap);
-					loadProfileChargingPoint 	= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"observed"),observedLoadInKwMap, getChargingLoadHashMap(betaMinusLoadFile));
+					// Merge simulated data first
+					betaLoadHashMap = getMergedHashMap(getChargingLoadHashMap(prevLoadFile), getChargingLoadHashMap(betaPlusLoadFile));
+					betaLoadHashMap = getMergedHashMap(betaLoadHashMap, getChargingLoadHashMap(betaMinusLoadFile));
+
+					betaPlusLoadHashMap = getMergedHashMap(getChargingLoadHashMap(betaPlusLoadFile), betaLoadHashMap);
+					betaMinusLoadHashMap = getMergedHashMap(getChargingLoadHashMap(betaMinusLoadFile), betaLoadHashMap);
+
+					loadProfileBeta 			= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"beta"), betaLoadHashMap, observedLoadHashMap);
+					loadProfileBetaPlus 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"betaPlus"), betaPlusLoadHashMap, observedLoadHashMap);
+					loadProfileBetaMinus 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"betaMinus"), betaMinusLoadHashMap, observedLoadHashMap);
+					loadProfileChargingPoint 	= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"observed"), observedLoadHashMap, betaLoadHashMap);
 
 					//			obj[i] = ((observed - modeled)**2) -- need to track this error somewhere
 
 					// update gradient
 					diff = 0;
+					double scaler = 500/70000;
+					log.info("loadProfileBeta size: " + loadProfileBeta.size());
+					log.info("loadProfileBetaPlus size: " + loadProfileBetaPlus.size());
+					log.info("loadProfileBetaMinus size: " + loadProfileBetaMinus.size());
+					log.info("loadProfileChargingPoint size: " + loadProfileChargingPoint.size());
 					for(int i =0; i<loadProfileBetaPlus.size(); i++){
-						diff += Math.pow(loadProfileChargingPoint.get(i)-loadProfileBetaPlus.get(i),2)
-								- Math.pow(loadProfileChargingPoint.get(i)-loadProfileBetaMinus.get(i),2);
+						if(i==loadProfileBetaPlus.size()) break;
+						try{
+							diff += Math.pow(loadProfileChargingPoint.get(i)*scaler-loadProfileBetaPlus.get(i),2)
+									- Math.pow(loadProfileChargingPoint.get(i)*scaler-loadProfileBetaMinus.get(i),2);
+						}catch(Exception e){break;}
 					}
+					log.info("HERE!!!!! diff: " + diff);
 				}
 			}
 
@@ -431,13 +448,12 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			}
 		}
 
-		// TODO: check if merged load profile is in the same order of time, spatial group, site type, and charger type regardless
 		// Get merged array
 		int count = 0;
-		for (String timeKey : hashMapMerged.keySet()) {
-			for (String spatialGroupKey : hashMapMerged.get(timeKey).keySet()) {
-				for (String siteTypeKey : hashMapMerged.get(timeKey).get(spatialGroupKey).keySet()) {
-					for (String chargerTypeKey : hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet()) {
+		for (String timeKey : new TreeSet<>(hashMapMerged.keySet())) {
+			for (String spatialGroupKey : new TreeSet<>(hashMapMerged.get(timeKey).keySet())) {
+				for (String siteTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).keySet())) {
+					for (String chargerTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet())) {
 						mergedArray.add(count++, Double.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)));
 					}
 				}
@@ -511,6 +527,47 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		}
 
 		return mergedArray;
+	}
+
+	private LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> getMergedHashMap(
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
+
+		LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMapMerged = new LinkedHashMap<>(hashMap1);
+		ArrayList<Double> mergedArray = new ArrayList<>();
+
+		// Get merged hash map
+		for (String time : hashMap2.keySet()) {
+			for (String spatialGroup : hashMap2.get(time).keySet()) {
+				for (String siteType : hashMap2.get(time).get(spatialGroup).keySet()) {
+					for (String chargerType : hashMap2.get(time).get(spatialGroup).get(siteType).keySet()) {
+						if(hashMapMerged.containsKey(time)){
+							if(hashMapMerged.get(time).containsKey(spatialGroup)){
+								if(hashMapMerged.get(time).get(spatialGroup).containsKey(siteType)){
+									if(!hashMapMerged.get(time).get(spatialGroup).get(siteType).containsKey(chargerType)){
+										hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+									}
+								}else{
+									hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+								}
+							}else{
+								hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+							}
+						}else{
+							hashMapMerged.put(time, new LinkedHashMap<>());
+							hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+						}
+					}
+				}
+			}
+		}
+
+		return hashMapMerged;
 	}
 
 	/**
