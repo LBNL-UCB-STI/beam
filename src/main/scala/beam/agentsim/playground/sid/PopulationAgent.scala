@@ -3,6 +3,7 @@ package beam.agentsim.playground.sid
 import akka.actor.SupervisorStrategy.{Restart, Resume, Stop}
 import akka.actor.{Actor, OneForOneStrategy}
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.playground.sid.BeamExceptions.{BeamAgentRestartException, BeamAgentResumeException, BeamAgentStopException}
 import beam.agentsim.playground.sid.PopulationAgent.PopulationAgentProtocol.CreateChildAgent
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -17,9 +18,9 @@ class PopulationAgent(popMap: Map[Id[Person],Person]) extends Actor{
   }
 
   override def supervisorStrategy = OneForOneStrategy() {
-    case _: RestartMeException => Restart
-    case _: ResumeMeException => Resume
-    case _: StopMeException => Stop
+    case _: BeamAgentRestartException => Restart
+    case _: BeamAgentResumeException => Resume
+    case _: BeamAgentStopException => Stop
   }
 }
 
