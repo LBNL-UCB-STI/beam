@@ -77,7 +77,7 @@ public class ExpBetaPlanChargingStrategySelector<T extends BasicPlan, I> impleme
 		LinkedList<EVDailyPlan> evDailyPlans = replanable.getEVDailyPlans();
 		
 		if(evDailyPlans.size() > 2){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		
 		//System.out.println(replanable.getSelectedEvDailyPlan().getScore());
