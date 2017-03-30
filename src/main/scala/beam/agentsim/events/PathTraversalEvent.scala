@@ -39,15 +39,15 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
     val vizString = beamGraphPath.latLons match {
       case Some(latLons) =>
         latLons.map {
-          c => s"""\"shp\": [%.6f,%.6f],\"tim\":""".format (c.getX, c.getY)
+          c => s"""\"shp\":[%.6f,%.6f],\"tim\":""".format (c.getX, c.getY)
           } zip
           times map {
           x => s"$x"
           } map
           (x => x.replace ("(", "").replace (")", "").replace (":,", ":") ) mkString
-          (s"""[{\"typ\": "$mode",""", "},{", "}]")
+          (s"""[{\"typ\":"$mode",""", "},{", "}]")
       case None =>
-        s"""[{\"typ\": \"ERROR\",\"shp\": [0.0,0.0],\"tim\":0}]"""
+        s"""[{\"typ\":\"ERROR\",\"shp\":[0.0,0.0],\"tim\":0}]"""
     }
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_VIZ_DATA, vizString)

@@ -222,9 +222,14 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       } else {
         val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
         val procData = procStateData(tripChoice, tick)
-        agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(tick,id,"CHOICE",info.data.currentActivity.getCoord)))
         // Here, we actually need to do an extra step of look-ahead to get the correct (non-walk) mode
         val restTrip = procData.restTrip
+        restTrip.legs.headOption match {
+          case Some(BeamLeg(_, "WALK", _)) | Some(BeamLeg(_, "CAR", _)) | Some(BeamLeg(_, "WAITING", _)) =>
+            agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(tick,id,"CHOICE",info.data.currentActivity.getCoord)))
+          case _ =>
+            //do nothing
+        }
         restTrip.legs.headOption match {
           case Some(BeamLeg(_, "WALK", _)) if restTrip.legs.length == 1 =>
             agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.walk)))

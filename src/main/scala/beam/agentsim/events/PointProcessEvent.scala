@@ -34,7 +34,7 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
   override def getPersonId: Id[Person] = id
 
   def createStartBurst(time: Double, location: Coord, intensity: Double, pointProcessType: String,
-                       radialLength: Double = 1000, paceInTicksPerFrame: Double = 1, numRays: Int = 8,
+                       radialLength: Double = 800, paceInTicksPerFrame: Double = 3, numRays: Int = 12,
                        directionOut: Boolean = true, numFrames: Int = 10, doTransform: Boolean = false) : String = {
     val radiusFromOrigin : Vector[Double] = (for(i <- 0 to numFrames - 1) yield ( radialLength * i / (numFrames - 1) )).toVector
     val deltaRadian = 2.0 * Pi / numRays
@@ -50,10 +50,11 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
           x = thePosTransformed.x
           y = thePosTransformed.y
         }
-        s"""\"shp\": [%.6f,%.6f],\"tim\":""".format(x, y) + (time + paceInTicksPerFrame*frameIndex)
-      }.mkString(",")
+        s"""\"shp\":[%.6f,%.6f],\"tim\":""".format(x, y) + (time + paceInTicksPerFrame*frameIndex) mkString
+      }
     }
-    "\"type\": \"" + pointProcessType + "\",\"shp\":"+vizData.mkString(",")
+    val resultStr = ((for(x <- vizData)yield(x.mkString("},{"))).mkString("},{"))
+    "[{\"typ\":\"" + pointProcessType + "\",\"val\":"+(s"""%.3f""".format(intensity))+","+resultStr+"}]"
   }
 
   override def getAttributes: util.Map[String, String] = {
@@ -75,23 +76,5 @@ object PointProcessEvent {
 }
 
 /* For debugging in REPL
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.population.Person
-import org.matsim.core.api.internal.HasPersonId
-import com.lihaoyi.pprint_2.11
-
-val time: Double = 20000
-val location: Coord = new Coord(540000,4160000)
-val intensity: Double = 1.0
-val pointProcessType: String = "CHOICE"
-val radialLength: Double = 1000
-val paceInTicksPerFrame: Double = 1
-val numRays: Int = 8
-val directionOut: Boolean = true
-val numFrames: Int = 10
-
-val segmentStartRadius = for(i <- 0 until numFrames) yield ( radialLength * i / numFrames)
-val segmentStartCoord = segmentStartRadius.
 
 */
