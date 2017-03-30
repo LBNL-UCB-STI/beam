@@ -4,12 +4,17 @@ import java.time.ZonedDateTime
 import java.util
 
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamGraphPath
+import org.geotools.geometry.DirectPosition2D
+import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
+import org.opengis.referencing.operation.MathTransform
 
-import scala.collection.immutable
+import scala.math._
+
+import beam.agentsim.events.PointProcessEvent._
 
 /**
   * BEAM
@@ -28,16 +33,33 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
 
   override def getPersonId: Id[Person] = id
 
-  def createStartBurst(location: Coord, intensity: Double, pointProcessType: String,
-                       radialLength: Double = 0.005, paceInTicksPerFrame: Double = 1, numRays: Int = 8,
-                       directionOut: Boolean = true) : String = {
-    ""
+  def createStartBurst(time: Double, location: Coord, intensity: Double, pointProcessType: String,
+                       radialLength: Double = 1000, paceInTicksPerFrame: Double = 1, numRays: Int = 8,
+                       directionOut: Boolean = true, numFrames: Int = 10, doTransform: Boolean = false) : String = {
+    val radiusFromOrigin : Vector[Double] = (for(i <- 0 to numFrames - 1) yield ( radialLength * i / (numFrames - 1) )).toVector
+    val deltaRadian = 2.0 * Pi / numRays
+    val vizData = for(rayIndex <- 0 to numRays - 1) yield {
+      for(frameIndex <- 0 to numFrames - 1)  yield {
+        val len = radiusFromOrigin(frameIndex)
+        var x = location.getX + len * cos(deltaRadian * rayIndex)
+        var y = location.getY + len * sin(deltaRadian * rayIndex)
+        if(doTransform){
+          val thePos = new DirectPosition2D(x,y)
+          val thePosTransformed = new DirectPosition2D(x,y)
+          transform.transform(thePos, thePosTransformed)
+          x = thePosTransformed.x
+          y = thePosTransformed.y
+        }
+        s"""\"shp\": [%.6f,%.6f],\"tim\":""".format(x, y) + (time + paceInTicksPerFrame*frameIndex)
+      }.mkString(",")
+    }
+    "\"type\": \"" + pointProcessType + "\",\"shp\":"+vizData.mkString(",")
   }
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
-    val epochSeconds: Long =ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
-    val vizString = createStartBurst(location,intensity,pointProcessType)
+    val doTheTransform = location.getX < -400 | location.getX > 400
+    val vizString = createStartBurst(time,location,intensity,pointProcessType,doTransform = doTheTransform)
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_LOCATION, vizString)
     attr.put(ATTRIBUTE_INTENSITY, vizString)
@@ -49,5 +71,27 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
 
 object PointProcessEvent {
   val EVENT_TYPE = "pointProcess"
+  val transform = CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false)
 }
 
+/* For debugging in REPL
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.population.Person
+import org.matsim.core.api.internal.HasPersonId
+import com.lihaoyi.pprint_2.11
+
+val time: Double = 20000
+val location: Coord = new Coord(540000,4160000)
+val intensity: Double = 1.0
+val pointProcessType: String = "CHOICE"
+val radialLength: Double = 1000
+val paceInTicksPerFrame: Double = 1
+val numRays: Int = 8
+val directionOut: Boolean = true
+val numFrames: Int = 10
+
+val segmentStartRadius = for(i <- 0 until numFrames) yield ( radialLength * i / numFrames)
+val segmentStartCoord = segmentStartRadius.
+
+*/

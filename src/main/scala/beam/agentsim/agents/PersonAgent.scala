@@ -7,7 +7,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamItinerary, BeamLeg, BeamTrip, RoutingResponse}
 import beam.utils.DebugLib
@@ -222,6 +222,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       } else {
         val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
         val procData = procStateData(tripChoice, tick)
+        agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(tick,id,"CHOICE",info.data.currentActivity.getCoord)))
         // Here, we actually need to do an extra step of look-ahead to get the correct (non-walk) mode
         val restTrip = procData.restTrip
         restTrip.legs.headOption match {

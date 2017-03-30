@@ -123,6 +123,9 @@ dependencies {
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile 'net.codingwell:scala-guice_2.12:4.1.0'  // DI
     compile 'com.github.carueda:tscfg:v0.8.0'  // config
+    //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
+    //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
+
 
 
     /////////////
