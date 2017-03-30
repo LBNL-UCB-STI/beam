@@ -46,7 +46,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   var currentIter = 0
 
 
-  private implicit val timeout = Timeout(1200, TimeUnit.SECONDS)
+  private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
 
