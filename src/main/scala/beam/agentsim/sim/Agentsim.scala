@@ -11,6 +11,7 @@ import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
+import beam.agentsim.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
@@ -42,9 +43,10 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
   val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
+  var currentIter = 0
 
 
-  private implicit val timeout = Timeout(600, TimeUnit.SECONDS)
+  private implicit val timeout = Timeout(1200, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
 
@@ -73,7 +75,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
-    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(event.getIteration,"events.xml.gz"))
+    currentIter = event.getIteration
+    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(currentIter,"events.xml.gz"))
     eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()
@@ -81,15 +84,25 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    cleanupWriter()
+
+//    Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
+  }
+
+  private def cleanupWriter() = {
     eventsManager.finishProcessing()
     writer.closeFile()
     eventsManager.removeHandler(writer)
-    writer=null
-//    Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
+    writer = null
+    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter,"events.xml.gz"),
+      services.matsimServices.getControlerIO.getIterationFilename(currentIter,"events.json"))
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
 
+    if(writer!=null && event.isUnexpected){
+      cleanupWriter()
+    }
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(schedulerRef)
     actorSystem.terminate()

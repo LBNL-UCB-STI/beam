@@ -118,7 +118,6 @@ dependencies {
     // TEST Scala //
     testCompile group: 'org.scalatest', name: 'scalatest_2.12', version: '3.0.1'
 
-
     // 3rd Party Scala //
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile 'net.codingwell:scala-guice_2.12:4.1.0'  // DI
