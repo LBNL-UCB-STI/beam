@@ -111,9 +111,10 @@ dependencies {
 
     // CORE Scala //
     compile "org.scala-lang:scala-library:${scalaBinaryVersion}"
-    // https://mvnrepository.com/artifact/org.scala-lang/scala-xml
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
-    // https://mvnrepository.com/artifact/org.scalatest/scalatest_2.11
+
+    // NEEDED FOR USING REPL //
+    compile "org.scala-lang:scala-compiler:${scalaBinaryVersion}.1"
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: 'scalatest_2.12', version: '3.0.1'
@@ -200,5 +201,12 @@ task generateConfig {
 	     ]
     } 
   }
+}
+
+task repl(type:JavaExec) {
+  main = "scala.tools.nsc.MainGenericRunner"
+  classpath = sourceSets.main.runtimeClasspath
+  standardInput System.in
+  args '-usejavacp'
 }
 
