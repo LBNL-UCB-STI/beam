@@ -216,9 +216,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   // TODO: Deal with case of arriving too late at next activity
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      if (info.data.currentAlternatives.isEmpty) {  //FIXME: Is this actually an Error?
-        logWarn("going to finished b/c empty route received.")
-        goto(Finished) replying CompletionNotice(triggerId)
+      if (info.data.currentAlternatives.isEmpty) {
+        logError("going to Error b/c empty route received")
+        goto(Error) replying CompletionNotice(triggerId)
       } else {
         val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
         val procData = procStateData(tripChoice, tick)
