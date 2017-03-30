@@ -36,7 +36,7 @@ import java.util.*;
 public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, AfterMobsimListener, ShutdownListener, IterationStartsListener, IterationEndsListener {
 	private static final Logger log = Logger.getLogger(BEAMSimTelecontrolerListener.class);
 	private static Element logitParams, logitParamsPlus, logitParamsMinus;
-	private double a0=0.5f, c0=0.5f, alpha=1f, gamma= 0.4f, a,c, diff, grad;
+	private double a0=0.5f, c0=0.5f, alpha=1f, gamma= 0.4f, a,c, diff, maxDiff = 0, grad;
 	private boolean shouldUpdateBeta = true; // true when updating objective function
 	private boolean shouldUpdateBetaPlus, shouldUpdateBetaMinus, isFirstIteration;
 	private ArrayList<Double> paramsList = new ArrayList<>(), paramsPlus = new ArrayList<>(), paramsMinus = new ArrayList<>(), paramsDelta = new ArrayList<>();
@@ -149,7 +149,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 									- Math.pow(loadProfileChargingPoint.get(i)*scaler-loadProfileBetaMinus.get(i),2);
 						}catch(Exception e){break;}
 					}
+					if(Math.abs(diff) >= maxDiff) maxDiff = Math.abs(diff);
 					log.info("HERE!!!!! diff: " + diff);
+					log.info("HERE!!!!! max diff: " + maxDiff);
 				}
 			}
 
@@ -163,6 +165,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		 */
 			Iterator itr = null;
 			int paramIndex = 0;
+			double paramMaxConst = 10, paramMinConst = -10;
 			// reinitialize logitParamsPlus and logitParamsMinus
 			if(shouldUpdateBetaPlus) {
 				paramsDelta = new ArrayList<>();
@@ -202,8 +205,13 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 													log.info("(betaMinus) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												} else if (shouldUpdateBeta) {
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-													grad = diff / (2 * c * paramsDelta.get(paramIndex++));
-													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - a * grad));
+													grad = (diff/maxDiff)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
+													double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
+													if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
+														if(updatedParam >= 0) updatedParam = paramMaxConst;
+														if(updatedParam < 0) updatedParam = paramMinConst;
+													}
+													utilityElement.setText(String.valueOf(updatedParam));
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												}
 											}
@@ -228,8 +236,13 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 													log.info("(betaMinus) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												} else if (shouldUpdateBeta) {
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-													grad = diff / (2 * c * paramsDelta.get(paramIndex++));
-													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - a * grad));
+													grad = (diff/maxDiff)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
+													double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
+													if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
+														if(updatedParam >= 0) updatedParam = paramMaxConst;
+														if(updatedParam < 0) updatedParam = paramMinConst;
+													}
+													utilityElement.setText(String.valueOf(updatedParam));
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												}
 											}
