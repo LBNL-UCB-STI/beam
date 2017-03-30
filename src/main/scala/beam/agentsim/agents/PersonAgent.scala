@@ -216,7 +216,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   // TODO: Deal with case of arriving too late at next activity
   when(ChoosingMode) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      if (info.data.currentAlternatives.isEmpty) {
+      if (info.data.currentAlternatives.isEmpty) {  //FIXME: Is this actually an Error?
+        logWarn("going to finished b/c empty route received.")
         goto(Finished) replying CompletionNotice(triggerId)
       } else {
         val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
@@ -240,7 +241,11 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
             agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.pt)))
             goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
               completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick + timeToChooseMode))
+          case Some(BeamLeg(_,_,_))=>
+            logError(s"going to Error on trigger $triggerId in ChoosingMode due to unknown mode")
+            goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
           case None | Some(_) =>
+            logError(s"going to Error on trigger $triggerId in ChoosingMode due to no next leg")
             goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
         }
       }
@@ -336,10 +341,11 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         case Some(BeamLeg(_, "WAITING", _)) =>
           goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = restTrip)) replying
             completed(triggerId, schedule[PersonEntersBoardingQueueTrigger](procData.nextStart))
-        case Some(BeamLeg(_, _, _)) =>
+        case Some(BeamLeg(_, _, _)) =>  // Not sure if this is a good idea
           goto(Walking) using stateData.copy(id, info.data.copy(currentRoute = restTrip)) replying //
             completed(triggerId, schedule[TeleportationArrivalTrigger](procData.nextStart))
         case None =>
+          logError(s"going to Error on trigger $triggerId in ALIGHTING")
           goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
       }
   }
@@ -365,6 +371,14 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
    */
   def logInfo(msg: String): Unit = {
     //    log.info(s"PersonAgent $id: $msg")
+  }
+
+  def logWarn(msg: String): Unit ={
+    log.warning(s"PersonAgent $id: $msg")
+  }
+
+  def logError(msg: String): Unit ={
+    log.error(s"PersonAgent $id: $msg")
   }
 
   // NEVER use stateData in below, pass `info` object directly (closure around stateData on object creation)
