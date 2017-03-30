@@ -54,6 +54,7 @@ class BeamAgentScheduler extends Actor {
           awaitingResponse.put(triggerWithId.trigger.tick, triggerWithId.triggerId)
           scheduledTrigger.agent ! triggerWithId
         }
+        if(now%1800 == 0)log.info("Hour "+now/3600.0+" completed.")
         self ! DoSimStep(now + 1.0)
       } else {
         Thread.sleep(10)
