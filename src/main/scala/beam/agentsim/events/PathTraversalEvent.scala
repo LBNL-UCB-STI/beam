@@ -47,7 +47,7 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
           (x => x.replace ("(", "").replace (")", "").replace (":,", ":") ) mkString
           (s"""[{\"travel_type\": "$mode",""", "},{", "}]")
       case None =>
-        ""
+        """[{\"travel_type\": \"ERROR\",\"begin_shape\": [0.0,0.0],\"begin_time\":0}]"""
     }
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_VIZ_DATA, vizString)

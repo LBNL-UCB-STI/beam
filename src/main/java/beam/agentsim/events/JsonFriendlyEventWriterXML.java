@@ -119,6 +119,8 @@ public class JsonFriendlyEventWriterXML implements EventWriter, BasicEventHandle
 			if (ch == '<') {
 				encode = true;
 				break;
+			}else if(ch =='\''){
+				encode=true;
 			} else if (ch == '>') {
 				encode = true;
 				break;
@@ -135,7 +137,7 @@ public class JsonFriendlyEventWriterXML implements EventWriter, BasicEventHandle
 					bf.append("&lt;");
 				} else if (ch == '>') {
 					bf.append("&gt;");
-				} else if (ch == '\"') {
+				} else if (ch == '\'') {
 					bf.append("&quot;");
 				} else if (ch == '&') {
 					bf.append("&amp;");
