@@ -108,7 +108,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     }
 
     val beamTrips = for (path: GraphPath <- paths.asScala.toVector) yield {
-      var verticesModesTimes: Vector[(String, String, Long, Coord)] = for (state: State <- path.states.asScala.toVector) yield {
+      var verticesModesTimes: Vector[(String, String, Long, Coord, Coord)] = for (state: State <- path.states.asScala.toVector) yield {
         val theMode: String = if (state.getBackMode != null) {
           if (state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
             state.getBackEdge match {
@@ -133,26 +133,31 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         } else {
           state.getNonTransitMode.name()
         }
-        (state.getVertex.getLabel, theMode, state.getTimeSeconds, new Coord(state.getVertex.getX,state.getVertex.getY))
+        val toCoord = new Coord(state.getVertex.getX,state.getVertex.getY)
+        val fromCoord = if(state.getBackEdge == null){ toCoord }else
+          { new Coord(state.getBackEdge.getFromVertex.getX,state.getBackEdge.getFromVertex.getY) }
+        (state.getVertex.getLabel, theMode, state.getTimeSeconds, fromCoord, toCoord)
       }
       verticesModesTimes = verticesModesTimes.filter(t => !(t._2.equals("PRE_BOARD") | t._2.equals("PRE_ALIGHT")))
 
-      val it = verticesModesTimes.iterator
+      val it = verticesModesTimes.iterator.buffered
       var activeTuple = it.next()
-      var activeLinkIds = Vector[String](activeTuple._1)
+      var activeLinkIds = Vector[String]()
       //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
-      var activeCoords = Vector[Coord](activeTuple._4)
-      var activeTimes = Vector[Long](activeTuple._3)
+      var activeCoords = Vector[Coord]()
+      var activeTimes = Vector[Long]()
       var activeMode = activeTuple._2
       var activeStart = activeTuple._3
       var beamLegs = Queue[BeamLeg]()
       while (it.hasNext) {
         activeTuple = it.next()
-        if (activeTuple._2 == activeMode) {
+        activeLinkIds = activeLinkIds :+ activeTuple._1
+        activeCoords = activeCoords :+ activeTuple._4
+        activeTimes = activeTimes :+ activeTuple._3
+        if (activeTuple._2 != activeMode) {
           activeLinkIds = activeLinkIds :+ activeTuple._1
-          activeCoords = activeCoords :+ activeTuple._4
+          activeCoords = activeCoords :+ activeTuple._5
           activeTimes = activeTimes :+ activeTuple._3
-        } else {
           beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode,
             BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
           activeLinkIds = Vector[String](activeTuple._1)

@@ -30,11 +30,25 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     val epochSeconds: Long =ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
-    val times: immutable.Seq[Long] =for {time<-beamGraphPath.entryTimes.get} yield time - epochSeconds
-    val vizString = beamGraphPath.latLons.get map { c => s"""\"begin_shape\": [%.6f,%.6f],\"begin_time\":""".format(c.getX,c.getY) } zip
-      times map { x => s"$x" } map
-      (x => x.replace("(", "").replace(")", "").replace(":,",":")) mkString
-      (s"""[{\"travel_type\": "$mode",""", "},{", "}]")
+    val times: immutable.Seq[Long] = beamGraphPath.entryTimes match {
+      case Some(entryTimes) =>
+        for{time<-entryTimes} yield time - epochSeconds
+      case None =>
+        immutable.Seq[Long]()
+    }
+    val vizString = beamGraphPath.latLons match {
+      case Some(latLons) =>
+        latLons.map {
+          c => s"""\"begin_shape\": [%.6f,%.6f],\"begin_time\":""".format (c.getX, c.getY)
+          } zip
+          times map {
+          x => s"$x"
+          } map
+          (x => x.replace ("(", "").replace (")", "").replace (":,", ":") ) mkString
+          (s"""[{\"travel_type\": "$mode",""", "},{", "}]")
+      case None =>
+        ""
+    }
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_VIZ_DATA, vizString)
     attr.put(ATTRIBUTE_LINK_IDS, beamGraphPath.linkIds.mkString(","))
