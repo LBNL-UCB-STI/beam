@@ -85,8 +85,6 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     cleanupWriter()
-
-//    Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
   }
 
   private def cleanupWriter() = {
