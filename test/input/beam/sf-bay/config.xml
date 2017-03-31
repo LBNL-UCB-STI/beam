@@ -12,7 +12,8 @@
 	</module>
 
 	<module name="plans">
-		<param name="inputPlansFile" value="sf-bay-for-viz-morning-rush-8k-agents.xml" />
+	  <param name="inputPlansFile" value="sf-bay-for-viz-morning-rush-8k-agents.xml" />
+	  <!--<param name="inputPlansFile" value="population-500.xml" />-->
 	</module>
 
 	<module name="parallelEventHandling">
