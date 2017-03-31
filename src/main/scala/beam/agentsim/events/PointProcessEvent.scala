@@ -34,12 +34,13 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
   override def getPersonId: Id[Person] = id
 
   def createStartBurst(time: Double, location: Coord, intensity: Double, pointProcessType: String,
-                       radialLength: Double = 800, paceInTicksPerFrame: Double = 3, numRays: Int = 12,
-                       directionOut: Boolean = true, numFrames: Int = 10, doTransform: Boolean = false) : String = {
+                       radialLength: Double = 350, paceInTicksPerFrame: Double = 25, numRays: Int = 10,
+                       directionOut: Boolean = true, numFrames: Int = 4, doTransform: Boolean = false) : String = {
     val radiusFromOrigin : Vector[Double] = (for(i <- 0 to numFrames - 1) yield ( radialLength * i / (numFrames - 1) )).toVector
     val deltaRadian = 2.0 * Pi / numRays
+    val frameIndices = if(directionOut){ 0 to numFrames - 1}else{ numFrames - 1 to 0}
     val vizData = for(rayIndex <- 0 to numRays - 1) yield {
-      for(frameIndex <- 0 to numFrames - 1)  yield {
+      for(frameIndex <- frameIndices)  yield {
         val len = radiusFromOrigin(frameIndex)
         var x = location.getX + len * cos(deltaRadian * rayIndex)
         var y = location.getY + len * sin(deltaRadian * rayIndex)
