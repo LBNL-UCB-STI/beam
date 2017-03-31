@@ -10,6 +10,7 @@ import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
+import beam.utils.DebugLib
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
@@ -43,6 +44,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
   var graphService: Option[GraphService] = None
   var router: Option[Router] = None
   var transform: Option[MathTransform] = None
+  val baseTime: Long = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
     var request = new org.opentripplanner.routing.core.RoutingRequest()
@@ -57,7 +59,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     }
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
-    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong % (24L * 3600L)
+    request.dateTime = baseTime + departureTime.toLong % (24L * 3600L)
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
@@ -79,7 +81,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     request.routerId = routerIds.head
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
-    request.dateTime = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond + departureTime.toLong % (24L * 3600L)
+    request.dateTime = baseTime + departureTime.toLong % (24L * 3600L)
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
     request.clearModes()
@@ -135,7 +137,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         val toCoord = new Coord(state.getVertex.getX,state.getVertex.getY)
         val fromCoord = if(state.getBackEdge == null){ toCoord }else
           { new Coord(state.getBackEdge.getFromVertex.getX,state.getBackEdge.getFromVertex.getY) }
-        (state.getVertex.getLabel, theMode, state.getTimeSeconds, fromCoord, toCoord)
+        (state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
       }
       verticesModesTimes = verticesModesTimes.filter(t => !(t._2.equals("PRE_BOARD") | t._2.equals("PRE_ALIGHT")))
 

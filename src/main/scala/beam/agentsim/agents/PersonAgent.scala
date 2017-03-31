@@ -226,7 +226,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         val restTrip = procData.restTrip
         restTrip.legs.headOption match {
           case Some(BeamLeg(_, "WALK", _)) | Some(BeamLeg(_, "CAR", _)) | Some(BeamLeg(_, "WAITING", _)) =>
-            agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(tick,id,"CHOICE",info.data.currentActivity.getCoord)))
+            agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(procData.nextLeg.startTime,id,"CHOICE",info.data.currentActivity.getCoord)))
           case _ =>
             //do nothing
         }
@@ -405,11 +405,11 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     val nextLeg: BeamLeg = trip.legs.head
     val restTrip: BeamTrip = BeamTrip(trip.legs.tail)
     val nextStart = if (restTrip.legs.nonEmpty) {
-      restTrip.legs.head.startTime - nextLeg.startTime
+      restTrip.legs.head.startTime
     } else {
-      0.0
+      tick
     }
-    ProcessedData(nextLeg, restTrip, nextStart + tick)
+    ProcessedData(nextLeg, restTrip, nextStart)
   }
 
   case class ProcessedData(nextLeg: BeamLeg, restTrip: BeamTrip, nextStart: Double)

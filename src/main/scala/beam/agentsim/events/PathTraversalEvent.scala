@@ -29,10 +29,9 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
-    val epochSeconds: Long =ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
     val times: immutable.Seq[Long] = beamGraphPath.entryTimes match {
       case Some(entryTimes) =>
-        for{time<-entryTimes} yield time - epochSeconds
+        for{time<-entryTimes} yield time
       case None =>
         immutable.Seq[Long]()
     }
