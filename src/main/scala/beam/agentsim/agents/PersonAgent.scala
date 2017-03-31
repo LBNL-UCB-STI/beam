@@ -14,7 +14,7 @@ import beam.utils.DebugLib
 import glokka.Registry
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
-import org.matsim.api.core.v01.{Coord, Id, TransportMode}
+import org.matsim.api.core.v01.{Id, TransportMode}
 import org.matsim.core.api.experimental.events.AgentWaitingForPtEvent
 import org.matsim.pt.transitSchedule.api.TransitStopFacility
 import org.slf4j.LoggerFactory
@@ -390,9 +390,6 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   }
 
   // NEVER use stateData in below, pass `info` object directly (closure around stateData on object creation)
-  def currentLocation(info: BeamAgentInfo[PersonData]): Coord = {
-    info.data.currentActivity.getCoord
-  }
 
   // TODO: Use shapeless Hlist/Generics (if Triggers only have double field) or roll own method to accept multiple triggers.
   def schedule[T <: Trigger](tick: Double)(implicit tag: scala.reflect.ClassTag[T]): Vector[ScheduleTrigger] = {
@@ -403,9 +400,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     CompletionNotice(triggerId, scheduleTriggers)
   }
 
-  private def procStateData(trip: BeamTrip, tick: Double): ProcessedData
-
-  = {
+  private def procStateData(trip: BeamTrip, tick: Double): ProcessedData = {
 
     val nextLeg: BeamLeg = trip.legs.head
     val restTrip: BeamTrip = BeamTrip(trip.legs.tail)
