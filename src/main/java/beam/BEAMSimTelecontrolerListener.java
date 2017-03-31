@@ -117,9 +117,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 
 				// Update Logit params
 				if(shouldUpdateBeta){
-					String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-3) + File.separator + "run0."+ (event.getIteration()-3) + ".disaggregateLoadProfile.csv";
-					String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-2) + File.separator + "run0."+ (event.getIteration()-2) + ".disaggregateLoadProfile.csv";
-					String betaMinusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH + EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
+					String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-3) + File.separator + "run0."+ (event.getIteration()-3) + ".disaggregateLoadProfile.csv";
+					String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-2) + File.separator + "run0."+ (event.getIteration()-2) + ".disaggregateLoadProfile.csv";
+					String betaMinusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
 
 					// Merge simulated data first
 					betaLoadHashMap = getMergedHashMap(getChargingLoadHashMap(prevLoadFile), getChargingLoadHashMap(betaPlusLoadFile));
