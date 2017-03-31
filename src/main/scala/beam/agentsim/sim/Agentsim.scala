@@ -16,8 +16,9 @@ import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.Person
-import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.core.events.EventsUtils
@@ -34,14 +35,14 @@ import scala.concurrent.Await
   */
 class Agentsim @Inject()(private val actorSystem: ActorSystem,
                          private val services: AgentsimServices
-                        ) extends StartupListener  with IterationStartsListener with IterationEndsListener with ShutdownListener {
+                        ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
   import AgentsimServices._
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[Agentsim])
   private val popMap: Map[Id[Person], Person] = ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
-  val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
+  implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
   var currentIter = 0
 
@@ -49,6 +50,18 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
+
+    subscribe(ActivityEndEvent.EVENT_TYPE)
+    subscribe(ActivityStartEvent.EVENT_TYPE)
+    subscribe(PersonEntersVehicleEvent.EVENT_TYPE)
+    subscribe(PersonLeavesVehicleEvent.EVENT_TYPE)
+    subscribe(VehicleEntersTrafficEvent.EVENT_TYPE)
+    subscribe(PathTraversalEvent.EVENT_TYPE)
+    subscribe(VehicleLeavesTrafficEvent.EVENT_TYPE)
+    subscribe(PersonDepartureEvent.EVENT_TYPE)
+    subscribe(AgentWaitingForPtEvent.EVENT_TYPE)
+    subscribe(TeleportationArrivalEvent.EVENT_TYPE)
+    subscribe(PersonArrivalEvent.EVENT_TYPE)
 
     val schedulerFuture = registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler]))
     schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
@@ -58,25 +71,12 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     val routerInitFuture = beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
 
-    agentSimEventsBus.subscribe(eventSubscriber, "actend")
-    agentSimEventsBus.subscribe(eventSubscriber, "actstart")
-    agentSimEventsBus.subscribe(eventSubscriber, "PersonEntersVehicle")
-    agentSimEventsBus.subscribe(eventSubscriber, "PersonLeavesVehicle")
-    agentSimEventsBus.subscribe(eventSubscriber, "vehicle enters traffic")
-    agentSimEventsBus.subscribe(eventSubscriber, PathTraversalEvent.EVENT_TYPE)
-    agentSimEventsBus.subscribe(eventSubscriber, "vehicle leaves traffic")
-    agentSimEventsBus.subscribe(eventSubscriber, "VehicleArrivesAtFacility")
-    agentSimEventsBus.subscribe(eventSubscriber, "VehicleDepartsAtFacility")
-    agentSimEventsBus.subscribe(eventSubscriber, "departure")
-    agentSimEventsBus.subscribe(eventSubscriber, "waitingForPt")
-    agentSimEventsBus.subscribe(eventSubscriber, "travelled")
-    agentSimEventsBus.subscribe(eventSubscriber, "arrival")
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
     currentIter = event.getIteration
-    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(currentIter,"events.xml.gz"))
+    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.xml.gz"))
     eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()
@@ -85,8 +85,6 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     cleanupWriter()
-
-//    Await.result(eventSubscriber ? EndIteration(event.getIteration),timeout.duration)
   }
 
   private def cleanupWriter() = {
@@ -94,13 +92,13 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     writer.closeFile()
     eventsManager.removeHandler(writer)
     writer = null
-    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter,"events.xml.gz"),
-      services.matsimServices.getControlerIO.getIterationFilename(currentIter,"events.json"))
+    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.xml.gz"),
+      services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.json"))
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
 
-    if(writer!=null && event.isUnexpected){
+    if (writer != null && event.isUnexpected) {
       cleanupWriter()
     }
     actorSystem.stop(eventSubscriber)
@@ -114,6 +112,10 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
+  }
+
+  def subscribe(eventType:String):Unit={
+    agentSimEventsBus.subscribe(eventSubscriber,eventType)
   }
 
 }

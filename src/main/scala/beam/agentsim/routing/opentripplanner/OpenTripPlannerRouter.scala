@@ -6,9 +6,9 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
+import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
@@ -16,7 +16,6 @@ import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Person, PlanElement}
 import org.matsim.facilities.Facility
 import org.matsim.utils.objectattributes.attributable.Attributes
-import org.opengis.geometry.DirectPosition
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
@@ -266,6 +265,7 @@ object OpenTripPlannerRouter {
 
   object BeamTrip {
     val noneTrip: BeamTrip = BeamTrip(Queue[BeamLeg]())
+
   }
 
   case class BeamLeg(startTime: Long, mode: String, graphPath: BeamGraphPath)

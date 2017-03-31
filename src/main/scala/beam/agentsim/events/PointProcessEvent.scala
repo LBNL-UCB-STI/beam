@@ -1,20 +1,16 @@
 package beam.agentsim.events
 
-import java.time.ZonedDateTime
 import java.util
 
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamGraphPath
+import beam.agentsim.events.PointProcessEvent._
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.internal.HasPersonId
-import org.opengis.referencing.operation.MathTransform
 
 import scala.math._
-
-import beam.agentsim.events.PointProcessEvent._
 
 /**
   * BEAM
