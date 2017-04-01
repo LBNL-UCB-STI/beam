@@ -114,9 +114,11 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     }
   }
 
-  def subscribe(eventType:String):Unit={
-    agentSimEventsBus.subscribe(eventSubscriber,eventType)
+
+  def subscribe(eventType: String): Unit = {
+    agentSimEventsBus.subscribe(eventSubscriber, eventType)
   }
+
 
 }
 
