@@ -1,6 +1,5 @@
 package beam.agentsim.events
 
-import java.time.ZonedDateTime
 import java.util
 
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamGraphPath
@@ -57,5 +56,6 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
 
 object PathTraversalEvent {
   val EVENT_TYPE = "pathTraversal"
+  val EVENTS_TO_PUBLISH: Vector[String] = Vector[String]("BUS","CAR","WALK","ERROR")
 }
 

@@ -21,7 +21,6 @@ class AgentsimEventsBus extends ActorEventBus with LookupClassification {
   override type Classifier = String
   override type Subscriber = ActorRef
 
-
   //  Closest number of classifiers as power of 2 hint.
   override protected def mapSize(): Int = 16
 
