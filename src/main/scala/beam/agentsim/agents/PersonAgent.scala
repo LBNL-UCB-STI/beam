@@ -276,7 +276,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
             agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.pt)))
             goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
               completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick + timeToChooseMode))
-          case Some(BeamLeg(_, _, _)) =>
+          case Some(BeamLeg(_, _, _,_)) =>
             logError(s"going to Error on trigger $triggerId in ChoosingMode due to unknown mode")
             goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
           case None | Some(_) =>
@@ -444,11 +444,10 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   case class ProcessedData(nextLeg: BeamLeg, restTrip: BeamTrip, nextStart: Double)
 
   private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    if(PathTraversalEvent.EVENTS_TO_PUBLISH contains event.mode){
+    if(beamConfig.beam.events.pathTraversalEvents contains event.mode){
       agentSimEventsBus.publish(MatsimEvent(event))
     }
   }
-
 
 }
 

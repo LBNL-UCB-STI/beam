@@ -57,7 +57,7 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     val doTheTransform = location.getX < -400 | location.getX > 400
-    val vizString = createStartBurst(time,location,intensity,pointProcessType,doTransform = doTheTransform)
+    val vizString = createStarBurst(time,location,intensity,pointProcessType,doTransform = doTheTransform)
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_LOCATION, vizString)
     attr.put(ATTRIBUTE_INTENSITY, vizString)
