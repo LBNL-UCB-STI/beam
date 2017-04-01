@@ -159,7 +159,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
           activeLinkIds = activeLinkIds :+ activeTuple._1
           activeCoords = activeCoords :+ activeTuple._5
           activeTimes = activeTimes :+ activeTuple._3
-          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode,
+          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart,
             BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
           activeLinkIds = Vector[String](activeTuple._1)
           activeCoords = Vector[Coord](activeTuple._4)
@@ -170,15 +170,14 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       }
 
       // CAR only
-      val beamLeg = BeamLeg(activeStart, activeMode, BeamGraphPath(activeLinkIds,Some(activeCoords), Some(activeTimes)))
+      val beamLeg = BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart, BeamGraphPath(activeLinkIds,Some(activeCoords), Some(activeTimes)))
       beamLegs = if (activeMode == "CAR") {
         beamLegs :+ BeamLeg.dummyWalk(activeStart) :+ beamLeg :+ BeamLeg.dummyWalk(verticesModesTimes.last._3)
       } else {
         beamLegs :+ beamLeg
       }
 
-
-      BeamTrip(beamLegs)
+      BeamTrip(beamLegs.toVector)
     }
     val planElementList = new java.util.LinkedList[PlanElement]()
     planElementList.add(BeamItinerary(beamTrips))
@@ -263,17 +262,17 @@ object OpenTripPlannerRouter {
     override def getAttributes: Attributes = new Attributes()
   }
 
-  case class BeamTrip(legs: Queue[BeamLeg])
+  case class BeamTrip(legs: Vector[BeamLeg])
 
   object BeamTrip {
-    val noneTrip: BeamTrip = BeamTrip(Queue[BeamLeg]())
+    val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
 
   }
 
-  case class BeamLeg(startTime: Long, mode: String, graphPath: BeamGraphPath)
+  case class BeamLeg(startTime: Long, mode: String, travelTime: Long, graphPath: BeamGraphPath)
 
   object BeamLeg {
-    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, "WALK", BeamGraphPath.empty())
+    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, "WALK", 0, BeamGraphPath.empty())
   }
 
   case class BeamGraphPath(linkIds: Vector[String],
