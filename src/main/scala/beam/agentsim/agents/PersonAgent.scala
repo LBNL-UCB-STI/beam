@@ -446,6 +446,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   private def publishPathTraversal(event: PathTraversalEvent): Unit = {
     if(beamConfig.beam.events.pathTraversalEvents contains event.mode){
       agentSimEventsBus.publish(MatsimEvent(event))
+
     }
   }
 

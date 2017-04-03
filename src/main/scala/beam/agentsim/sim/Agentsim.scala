@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
-import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent}
+import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import beam.agentsim.utils.JsonUtils
@@ -62,6 +62,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     subscribe(AgentWaitingForPtEvent.EVENT_TYPE)
     subscribe(TeleportationArrivalEvent.EVENT_TYPE)
     subscribe(PersonArrivalEvent.EVENT_TYPE)
+    subscribe(PointProcessEvent.EVENT_TYPE)
 
     val schedulerFuture = registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler]))
     schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
@@ -93,7 +94,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     eventsManager.removeHandler(writer)
     writer = null
     JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.xml.gz"),
-      services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.json"))
+      services.matsimServices.getControlerIO.getOutputFilename("trips.json"))
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {

@@ -17,7 +17,6 @@ import scala.math._
   */
 class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String, location: Coord, intensity: Double = 1.0 ) extends Event(time) with HasPersonId {
 
-  import PathTraversalEvent.EVENT_TYPE
 
   val ATTRIBUTE_VIZ_DATA: String = "viz_data"
   val ATTRIBUTE_LOCATION: String = "location"
@@ -32,10 +31,10 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
   def createStarBurst(time: Double, location: Coord, intensity: Double, pointProcessType: String,
                       radialLength: Double = 350, paceInTicksPerFrame: Double = 25, numRays: Int = 10,
                       directionOut: Boolean = true, numFrames: Int = 4, doTransform: Boolean = false) : String = {
-    val radiusFromOrigin : Vector[Double] = (for(i <- 0 to numFrames - 1) yield ( radialLength * i / (numFrames - 1) )).toVector
+    val radiusFromOrigin : Vector[Double] = (for(i <- 0 until numFrames) yield radialLength * i / (numFrames - 1)).toVector
     val deltaRadian = 2.0 * Pi / numRays
-    val frameIndices = if(directionOut){ 0 to numFrames - 1}else{ numFrames - 1 to 0}
-    val vizData = for(rayIndex <- 0 to numRays - 1) yield {
+    val frameIndices = if(directionOut){ 0 until numFrames}else{ numFrames - 1 to 0}
+    val vizData = for(rayIndex <- 0 until numRays) yield {
       for(frameIndex <- frameIndices)  yield {
         val len = radiusFromOrigin(frameIndex)
         var x = location.getX + len * cos(deltaRadian * rayIndex)
@@ -50,8 +49,8 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
         s"""\"shp\":[%.6f,%.6f],\"tim\":""".format(x, y) + (time + paceInTicksPerFrame*frameIndex) mkString
       }
     }
-    val resultStr = ((for(x <- vizData)yield(x.mkString("},{"))).mkString("},{"))
-    "[{\"typ\":\"" + pointProcessType + "\",\"val\":"+(s"""%.3f""".format(intensity))+","+resultStr+"}]"
+    val resultStr = (for (x <- vizData) yield x.mkString("},{")).mkString("},{")
+    "[{\"typ\":\"" + pointProcessType + "\",\"val\":"+ s"""%.3f""".format(intensity) +","+resultStr+"}]"
   }
 
   override def getAttributes: util.Map[String, String] = {
@@ -59,9 +58,6 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
     val doTheTransform = location.getX < -400 | location.getX > 400
     val vizString = createStarBurst(time,location,intensity,pointProcessType,doTransform = doTheTransform)
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
-    attr.put(ATTRIBUTE_LOCATION, vizString)
-    attr.put(ATTRIBUTE_INTENSITY, vizString)
-    attr.put(ATTRIBUTE_POINT_PROCESS_TYPE, vizString)
     attr.put(ATTRIBUTE_VIZ_DATA, vizString)
     attr
   }

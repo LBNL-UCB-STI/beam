@@ -10,7 +10,7 @@ import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
-import beam.utils.DebugLib
+import beam.agentsim.utils.GeoUtils._
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
@@ -53,7 +53,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     val toPos = new DirectPosition2D(toFacility.getCoord.getX, toFacility.getCoord.getY)
     val fromPosTransformed = new DirectPosition2D(fromFacility.getCoord.getX, fromFacility.getCoord.getY)
     val toPosTransformed = new DirectPosition2D(toFacility.getCoord.getX, toFacility.getCoord.getY)
-    if(fromFacility.getCoord.getX>400.0 | fromFacility.getCoord.getX < -400.0) {
+    if (fromFacility.getCoord.getX > 400.0 | fromFacility.getCoord.getX < -400.0) {
       transform.get.transform(fromPos, fromPosTransformed)
       transform.get.transform(toPos, toPosTransformed)
     }
@@ -134,9 +134,12 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         } else {
           state.getNonTransitMode.name()
         }
-        val toCoord = new Coord(state.getVertex.getX,state.getVertex.getY)
-        val fromCoord = if(state.getBackEdge == null){ toCoord }else
-          { new Coord(state.getBackEdge.getFromVertex.getX,state.getBackEdge.getFromVertex.getY) }
+        val toCoord = new Coord(state.getVertex.getX, state.getVertex.getY)
+        val fromCoord = if (state.getBackEdge == null) {
+          toCoord
+        } else {
+          new Coord(state.getBackEdge.getFromVertex.getX, state.getBackEdge.getFromVertex.getY)
+        }
         (state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
       }
       verticesModesTimes = verticesModesTimes.filter(t => !(t._2.equals("PRE_BOARD") | t._2.equals("PRE_ALIGHT")))
@@ -150,27 +153,43 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       var activeMode = activeTuple._2
       var activeStart = activeTuple._3
       var beamLegs = Queue[BeamLeg]()
+
       while (it.hasNext) {
         activeTuple = it.next()
-        activeLinkIds = activeLinkIds :+ activeTuple._1
-        activeCoords = activeCoords :+ activeTuple._4
-        activeTimes = activeTimes :+ activeTuple._3
+        val lastCoord = activeCoords.lastOption.getOrElse(activeTuple._4)
+        val dist = distLatLon2Meters(lastCoord.getX, lastCoord.getY, activeTuple._4.getX, activeTuple._4.getY)
+        if (dist > beamConfig.beam.events.filterDist) {
+          log.warn(s"$activeTuple, $dist")
+        } else {
+          activeLinkIds = activeLinkIds :+ activeTuple._1
+          activeCoords = activeCoords :+ activeTuple._4
+          activeTimes = activeTimes :+ activeTuple._3
+        }
+
         if (activeTuple._2 != activeMode) {
           activeLinkIds = activeLinkIds :+ activeTuple._1
-          activeCoords = activeCoords :+ activeTuple._5
-          activeTimes = activeTimes :+ activeTuple._3
-          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart,
-            BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
-          activeLinkIds = Vector[String](activeTuple._1)
-          activeCoords = Vector[Coord](activeTuple._4)
-          activeTimes = Vector[Long](activeTuple._3)
-          activeMode = activeTuple._2
-          activeStart = activeTuple._3
+          val lastCoord = activeCoords.lastOption.getOrElse(activeTuple._5)
+          val dist = distLatLon2Meters(lastCoord.getX, lastCoord.getY, activeTuple._5.getX, activeTuple._5.getY)
+          if (dist > beamConfig.beam.events.filterDist) {
+            log.warn(s"$activeTuple, $dist")
+          } else {
+            activeCoords = activeCoords :+ activeTuple._5
+            activeTimes = activeTimes :+ activeTuple._3
+            beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart,
+              BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
+            activeLinkIds = Vector[String](activeTuple._1)
+            activeCoords = Vector[Coord](activeTuple._4)
+            activeTimes = Vector[Long](activeTuple._3)
+            activeMode = activeTuple._2
+            activeStart = activeTuple._3
+          }
+          //          activeCoords = activeCoords :+ activeTuple._5
+
         }
       }
 
       // CAR only
-      val beamLeg = BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart, BeamGraphPath(activeLinkIds,Some(activeCoords), Some(activeTimes)))
+      val beamLeg = BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart, BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
       beamLegs = if (activeMode == "CAR") {
         beamLegs :+ BeamLeg.dummyWalk(activeStart) :+ beamLeg :+ BeamLeg.dummyWalk(verticesModesTimes.last._3)
       } else {
@@ -192,7 +211,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
       sender() ! RouterInitialized()
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
-//      log.info(s"OTP Router received routing request from person $personId ($sender)")
+      //      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val senderRef = sender()
       val plans = calcRoute(fromFacility, toFacility, departureTime, person)
@@ -250,11 +269,15 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     })
   }
 
+  def filterSegment(a: Coord, b: Coord): Boolean = distLatLon2Meters(a.getX, b.getY, a.getX, b.getY) > beamConfig.beam.events.filterDist
+
+  def filterLatLonList(latLons: Vector[Coord], thresh: Double): Vector[Coord] = for ((a, b) <- latLons zip latLons.drop(1) if distLatLon2Meters(a.getX, a.getY, b.getX, b.getY) < thresh) yield b
 
 }
 
 object OpenTripPlannerRouter {
   def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
+
 
   case class RoutingResponse(els: util.LinkedList[PlanElement])
 
@@ -266,7 +289,6 @@ object OpenTripPlannerRouter {
 
   object BeamTrip {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
-
   }
 
   case class BeamLeg(startTime: Long, mode: String, travelTime: Long, graphPath: BeamGraphPath)
@@ -280,7 +302,13 @@ object OpenTripPlannerRouter {
                            entryTimes: Option[Vector[Long]])
 
   object BeamGraphPath {
-    def empty(): BeamGraphPath = new BeamGraphPath(Vector[String](),None, None)
+    def empty(): BeamGraphPath = new BeamGraphPath(Vector[String](), None, None)
+  }
+
+  case class PathSegment(from: Coord, to: Coord)
+
+  object PathSegment {
+//    apply(tup:Tuple2(Coord,Coord))=PathSegment(tup._1,tup._2)
   }
 
 }
