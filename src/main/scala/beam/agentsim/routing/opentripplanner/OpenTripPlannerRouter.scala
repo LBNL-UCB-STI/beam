@@ -156,8 +156,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
       while (it.hasNext) {
         activeTuple = it.next()
-        val lastCoord = activeCoords.lastOption.getOrElse(activeTuple._4)
-        val dist = distLatLon2Meters(lastCoord.getX, lastCoord.getY, activeTuple._4.getX, activeTuple._4.getY)
+        val dist = distLatLon2Meters(activeTuple._4.getX, activeTuple._4.getY, activeTuple._5.getX, activeTuple._5.getY)
         if (dist > beamConfig.beam.events.filterDist) {
           log.warn(s"$activeTuple, $dist")
         } else {
@@ -165,11 +164,9 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
           activeCoords = activeCoords :+ activeTuple._4
           activeTimes = activeTimes :+ activeTuple._3
         }
-
         if (activeTuple._2 != activeMode) {
           activeLinkIds = activeLinkIds :+ activeTuple._1
-          val lastCoord = activeCoords.lastOption.getOrElse(activeTuple._5)
-          val dist = distLatLon2Meters(lastCoord.getX, lastCoord.getY, activeTuple._5.getX, activeTuple._5.getY)
+          val dist = distLatLon2Meters(activeTuple._4.getX, activeTuple._4.getY, activeTuple._5.getX, activeTuple._5.getY)
           if (dist > beamConfig.beam.events.filterDist) {
             log.warn(s"$activeTuple, $dist")
           } else {
@@ -183,8 +180,6 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
             activeMode = activeTuple._2
             activeStart = activeTuple._3
           }
-          //          activeCoords = activeCoords :+ activeTuple._5
-
         }
       }
 
@@ -305,10 +300,11 @@ object OpenTripPlannerRouter {
     def empty(): BeamGraphPath = new BeamGraphPath(Vector[String](), None, None)
   }
 
-  case class PathSegment(from: Coord, to: Coord)
+  case class PathSegment(from: Coord, to: Coord) {
 
-  object PathSegment {
-//    apply(tup:Tuple2(Coord,Coord))=PathSegment(tup._1,tup._2)
+    import beam.agentsim.utils.GeoUtils._
+
+    val lengthInMeters: Double = distLatLon2Meters(from.getX, from.getY, to.getX, to.getY)
   }
 
 }
