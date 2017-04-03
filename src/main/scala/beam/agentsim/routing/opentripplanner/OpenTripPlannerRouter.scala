@@ -140,7 +140,12 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         } else {
           new Coord(state.getBackEdge.getFromVertex.getX, state.getBackEdge.getFromVertex.getY)
         }
-        (state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
+        val dist = distLatLon2Meters(fromCoord.getX, fromCoord.getY, toCoord.getX, toCoord.getY)
+        if (dist < beamConfig.beam.events.filterDist) {
+          (state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
+        } else {
+          (state.getVertex.getLabel,theMode, 0.toLong, new Coord(0, 0), new Coord(0, 0))
+        }
       }
       verticesModesTimes = verticesModesTimes.filter(t => !(t._2.equals("PRE_BOARD") | t._2.equals("PRE_ALIGHT")))
 
@@ -156,30 +161,21 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
       while (it.hasNext) {
         activeTuple = it.next()
-        val dist = distLatLon2Meters(activeTuple._4.getX, activeTuple._4.getY, activeTuple._5.getX, activeTuple._5.getY)
-        if (dist > beamConfig.beam.events.filterDist) {
-          log.warn(s"$activeTuple, $dist")
-        } else {
-          activeLinkIds = activeLinkIds :+ activeTuple._1
-          activeCoords = activeCoords :+ activeTuple._4
-          activeTimes = activeTimes :+ activeTuple._3
-        }
+        activeLinkIds = activeLinkIds :+ activeTuple._1
+        activeCoords = activeCoords :+ activeTuple._4
+        activeTimes = activeTimes :+ activeTuple._3
+
         if (activeTuple._2 != activeMode) {
           activeLinkIds = activeLinkIds :+ activeTuple._1
-          val dist = distLatLon2Meters(activeTuple._4.getX, activeTuple._4.getY, activeTuple._5.getX, activeTuple._5.getY)
-          if (dist > beamConfig.beam.events.filterDist) {
-            log.warn(s"$activeTuple, $dist")
-          } else {
-            activeCoords = activeCoords :+ activeTuple._5
-            activeTimes = activeTimes :+ activeTuple._3
-            beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart,
-              BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
-            activeLinkIds = Vector[String](activeTuple._1)
-            activeCoords = Vector[Coord](activeTuple._4)
-            activeTimes = Vector[Long](activeTuple._3)
-            activeMode = activeTuple._2
-            activeStart = activeTuple._3
-          }
+          activeCoords = activeCoords :+ activeTuple._5
+          activeTimes = activeTimes :+ activeTuple._3
+          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeTuple._3 - activeStart,
+            BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
+          activeLinkIds = Vector[String](activeTuple._1)
+          activeCoords = Vector[Coord](activeTuple._4)
+          activeTimes = Vector[Long](activeTuple._3)
+          activeMode = activeTuple._2
+          activeStart = activeTuple._3
         }
       }
 
@@ -193,6 +189,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
       BeamTrip(beamLegs.toVector)
     }
+
     val planElementList = new java.util.LinkedList[PlanElement]()
     planElementList.add(BeamItinerary(beamTrips))
     planElementList
@@ -252,7 +249,9 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
   private def buildAndPersistGraph(graphService: GraphService, params: CommandLineParameters): Unit = {
     routerIds.foreach(routerId => {
-      val graphDirectory = new File(s"${baseDirectory.getAbsolutePath}/graphs/$routerId")
+      val graphDirectory = new File(s"${
+        baseDirectory.getAbsolutePath
+      }/graphs/$routerId")
       val graphBuilder = GraphBuilder.forDirectory(params, graphDirectory)
       graphBuilder.setAlwaysRebuild(false)
       if (graphBuilder != null) {
