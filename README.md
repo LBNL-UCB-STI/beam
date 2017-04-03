@@ -6,7 +6,7 @@ BEAM extends and lightweights the [Multi-Agent Transportation Simulation Framewo
 to enable powerful and scalable analysis of urban transportation systems.
 
 ## Documentation
-BEAM is documented in [our github wiki](https://github.com/colinsheppard/beam/wiki).
+BEAM is documented on [readthedocs](http://beam.readthedocs.io/en/akka/)
 
 ## Project website: 
 http://www.beam-model.net/
