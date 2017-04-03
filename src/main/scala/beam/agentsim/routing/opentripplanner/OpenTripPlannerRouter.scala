@@ -141,7 +141,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
           new Coord(state.getBackEdge.getFromVertex.getX, state.getBackEdge.getFromVertex.getY)
         }
         val dist = distLatLon2Meters(fromCoord.getX, fromCoord.getY, toCoord.getX, toCoord.getY)
-        if (dist < beamConfig.beam.events.filterDist | state.isOnboard) {
+        if (dist < beamConfig.beam.events.filterDist & state.isOnboard) {
           (state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
         } else {
           (state.getVertex.getLabel,theMode, 0.toLong, new Coord(0, 0), new Coord(0, 0))
