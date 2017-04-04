@@ -60,7 +60,7 @@ object PersonAgent {
     alternatives(chosenIndex.head)
   }
   def altUtility(mode: String, travelTime: Double): Double = {
-    val intercept = if(mode.equalsIgnoreCase("CAR")){ 1.0 }else{ 0.0 }
+    val intercept = if(mode.equalsIgnoreCase("CAR")){ -10.0 }else{ 0.0 }
     intercept + -0.001 * travelTime
   }
   def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = {

@@ -81,7 +81,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()
-    Await.result(schedulerRef ? StartSchedule(3600*8.0, 300.0), timeout.duration)
+    Await.result(schedulerRef ? StartSchedule(3600*9.0, 300.0), timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
