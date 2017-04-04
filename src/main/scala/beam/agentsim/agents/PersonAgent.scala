@@ -57,7 +57,7 @@ object PersonAgent {
     val cumulativeAltProbabilities = altProbabilities.scanLeft(0.0)( _ + _ )
     val randDraw = Random.nextDouble()
     val chosenIndex = for(i <- (1 to cumulativeAltProbabilities.length - 1) if randDraw < cumulativeAltProbabilities(i)) yield ( i-1 )
-    alternatives(chosenIndex.head)
+    alternatives(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
   }
   def altUtility(mode: String, travelTime: Double): Double = {
     val intercept = if(mode.equalsIgnoreCase("CAR")){ -10.0 }else{ 0.0 }
@@ -255,7 +255,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         val restTrip = procData.restTrip
         restTrip.legs.headOption match {
           case Some(BeamLeg(_, "WALK",_, _)) | Some(BeamLeg(_, "CAR",_, _)) | Some(BeamLeg(_, "WAITING",_, _)) =>
-            agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(procData.nextLeg.startTime,id,"CHOICE",info.data.currentActivity.getCoord)))
+            agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(procData.nextLeg.startTime,id,"CHOICE",info.data.currentActivity.getCoord,intensity = tripChoice.choiceUtility)))
           case _ =>
           //do nothing
         }
