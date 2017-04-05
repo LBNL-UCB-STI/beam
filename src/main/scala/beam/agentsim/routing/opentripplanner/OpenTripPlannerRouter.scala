@@ -11,17 +11,15 @@ import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils._
-import com.vividsolutions.jts.geom.Coordinate
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.population.{Person, PlanElement}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
-import org.matsim.utils.objectattributes.attributable.Attributes
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
-import org.opentripplanner.routing.core.{State, TraverseMode}
+import org.opentripplanner.routing.core.TraverseMode
 import org.opentripplanner.routing.edgetype._
 import org.opentripplanner.routing.error.{PathNotFoundException, TrivialPathException}
 import org.opentripplanner.routing.impl._
@@ -47,7 +45,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
   var transform: Option[MathTransform] = None
   val baseTime: Long = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse = {
     var request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     val fromPos = new DirectPosition2D(fromFacility.getCoord.getX, fromFacility.getCoord.getY)
@@ -112,66 +110,62 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     val beamTrips = for (path: GraphPath <- paths.asScala.toVector) yield {
       val statesInGraphPath = path.states.asScala.toVector
       val edgesInGraphPath = path.edges.asScala.toVector
-      var runningTime = statesInGraphPath.head.getTimeSeconds - baseTime
-      val timesAlongGraphPath = for(state <- statesInGraphPath)yield()
       var edgesModesTimes: Vector[EdgeModeTime] = Vector()
       var stateIndex = 0
       var prevTime = statesInGraphPath(stateIndex).getTimeSeconds - baseTime
       while(stateIndex < statesInGraphPath.length - 1){
         val state = statesInGraphPath(stateIndex)
-        if(!state.isInstanceOf[PatternDwell]) {
-          val theMode: String = if (state.getBackMode != null) {
-            if (state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
-              state.getBackEdge match {
-                case _: StreetTransitLink =>
-                  "PRE_BOARD"
-                case _: PreAlightEdge =>
-                  "PRE_ALIGHT"
-                case _: PreBoardEdge =>
-                  "WAITING"
-                case alight: TransitBoardAlight =>
-                  if (alight.boarding) {
-                    "BOARDING"
-                  } else {
-                    "ALIGHTING"
-                  }
-                case _ =>
-                  state.getBackMode.name()
-              }
-            } else {
-              state.getBackMode.name()
+        val theMode: String = if (state.getBackMode != null) {
+          if (state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
+            state.getBackEdge match {
+              case _: StreetTransitLink =>
+                "PRE_BOARD"
+              case _: PreAlightEdge =>
+                "PRE_ALIGHT"
+              case _: PreBoardEdge =>
+                "WAITING"
+              case alight: TransitBoardAlight =>
+                if (alight.boarding) {
+                  "BOARDING"
+                } else {
+                  "ALIGHTING"
+                }
+              case _ =>
+                state.getBackMode.name()
             }
           } else {
-            state.getNonTransitMode.name()
+            state.getBackMode.name()
           }
-          if (stateIndex == 0  || edgesInGraphPath(stateIndex-1).getGeometry == null || edgesInGraphPath(stateIndex-1).getGeometry.getCoordinates.length == 0) {
-            val toCoord = new Coord(state.getVertex.getX, state.getVertex.getY)
-            val fromCoord = if (state.getBackEdge == null) {
-              toCoord
-            } else {
-              new Coord(state.getBackEdge.getFromVertex.getX, state.getBackEdge.getFromVertex.getY)
-            }
-            edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
-          } else {
-            val coords = (for (coordinate <- edgesInGraphPath(stateIndex-1).getGeometry.getCoordinates) yield (new Coord(coordinate.x, coordinate.y))).toVector
-            val coordIt = coords.iterator
-            var runningTime = prevTime
-            val timeIncrement = (state.getTimeSeconds - baseTime - prevTime) / coords.length
-            var fromCoord = if (coords.length > 0) {
-              coords.head
-            } else {
-              null
-            }
-            while (coordIt.hasNext) {
-              val toCoord = coordIt.next()
-              edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, runningTime, fromCoord, toCoord)
-              fromCoord = toCoord
-              runningTime = runningTime + timeIncrement
-            }
-
-          }
-          prevTime = state.getTimeSeconds - baseTime
+        } else {
+          state.getNonTransitMode.name()
         }
+        if (stateIndex == 0  || edgesInGraphPath(stateIndex-1).getGeometry == null || edgesInGraphPath(stateIndex-1).getGeometry.getCoordinates.length == 0) {
+          val toCoord = new Coord(state.getVertex.getX, state.getVertex.getY)
+          val fromCoord = if (state.getBackEdge == null) {
+            toCoord
+          } else {
+            new Coord(state.getBackEdge.getFromVertex.getX, state.getBackEdge.getFromVertex.getY)
+          }
+          edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
+        } else {
+          val coords = (for (coordinate <- edgesInGraphPath(stateIndex-1).getGeometry.getCoordinates) yield new Coord(coordinate.x, coordinate.y)).toVector
+          val coordIt = coords.iterator
+          var runningTime = prevTime
+          val timeIncrement = (state.getTimeSeconds - baseTime - prevTime) / coords.length
+          var fromCoord = if (coords.nonEmpty) {
+            coords.head
+          } else {
+            null
+          }
+          while (coordIt.hasNext) {
+            val toCoord = coordIt.next()
+            edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, runningTime, fromCoord, toCoord)
+            fromCoord = toCoord
+            runningTime = runningTime + timeIncrement
+          }
+
+        }
+        prevTime = state.getTimeSeconds - baseTime
         stateIndex = stateIndex + 1
       }
       edgesModesTimes = edgesModesTimes.filter(t => !(t.mode.equals("PRE_BOARD") | t.mode.equals("PRE_ALIGHT")))
@@ -218,9 +212,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
       BeamTrip(beamLegs.toVector)
     }
-    val planElementList = new java.util.LinkedList[PlanElement]()
-    planElementList.add(BeamItinerary(beamTrips))
-    planElementList
+    RoutingResponse(beamTrips)
   }
 
   override def receive: Receive = {
@@ -234,8 +226,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       //      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val senderRef = sender()
-      val plans = calcRoute(fromFacility, toFacility, departureTime, person)
-      senderRef ! RoutingResponse(plans)
+      senderRef ! calcRoute(fromFacility, toFacility, departureTime, person)
     case msg =>
       log.info(s"unknown message received by OTPRouter $msg")
   }
@@ -300,14 +291,12 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 object OpenTripPlannerRouter {
   def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
 
+  case class RoutingResponse(itinerary: Vector[BeamTrip])
 
-  case class RoutingResponse(els: util.LinkedList[PlanElement])
-
-  case class BeamItinerary(itinerary: Vector[BeamTrip]) extends PlanElement {
-    override def getAttributes: Attributes = new Attributes()
+  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0){
+    val tripClassifier: String =if( legs map(_.mode) contains "CAR"){"CAR"} else {"PT"}
+    val totalTravelTime: Long = legs.map(_.travelTime).sum
   }
-
-  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0)
 
   object BeamTrip {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
