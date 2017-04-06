@@ -11,13 +11,11 @@ import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils._
-import com.vividsolutions.jts.geom.Coordinate
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.population.{Person, PlanElement}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
-import org.matsim.utils.objectattributes.attributable.Attributes
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
@@ -47,7 +45,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
   var transform: Option[MathTransform] = None
   val baseTime: Long = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse = {
     var request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     val fromPos = new DirectPosition2D(fromFacility.getCoord.getX, fromFacility.getCoord.getY)
@@ -218,9 +216,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
       BeamTrip(beamLegs.toVector)
     }
-    val planElementList = new java.util.LinkedList[PlanElement]()
-    planElementList.add(BeamItinerary(beamTrips))
-    planElementList
+    RoutingResponse(beamTrips)
   }
 
   override def receive: Receive = {
@@ -234,8 +230,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       //      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val senderRef = sender()
-      val plans = calcRoute(fromFacility, toFacility, departureTime, person)
-      senderRef ! RoutingResponse(plans)
+      senderRef ! calcRoute(fromFacility, toFacility, departureTime, person)
     case msg =>
       log.info(s"unknown message received by OTPRouter $msg")
   }
@@ -304,14 +299,12 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 object OpenTripPlannerRouter {
   def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
 
+  case class RoutingResponse(itinerary: Vector[BeamTrip])
 
-  case class RoutingResponse(els: util.LinkedList[PlanElement])
-
-  case class BeamItinerary(itinerary: Vector[BeamTrip]) extends PlanElement {
-    override def getAttributes: Attributes = new Attributes()
+  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0){
+    val tripClassifier: String =if( legs map(_.mode) contains "CAR"){"CAR"} else {"PT"}
+    val totalTravelTime: Long = legs.map(_.travelTime).sum
   }
-
-  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0)
 
   object BeamTrip {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
