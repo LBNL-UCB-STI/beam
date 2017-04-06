@@ -42,7 +42,7 @@ object PersonAgent {
     var alternativesWithTaxi = Vector[BeamTrip]()
     alternativesWithTaxi = alternativesWithTaxi ++ alternatives
     var containsDriveAlt = -1
-    var altModesAndTimes : Vector[Tuple2[String, Double]] = for(i <- (0 to alternatives.length - 1).toVector) yield {
+    var altModesAndTimes : Vector[(String, Double)] = for(i <- alternatives.indices.toVector) yield {
       val alt = alternatives(i)
       val altMode = if (alt.legs.length == 1) {
         alt.legs.head.mode
@@ -54,23 +54,23 @@ object PersonAgent {
           "PT"
         }
       }
-      val travelTime = (for (leg <- alt.legs) yield (leg.travelTime)).foldLeft(0.0) {
+      val travelTime = (for (leg <- alt.legs) yield leg.travelTime).foldLeft(0.0) {
         _ + _
       }
       (altMode, travelTime)
     }
-    if(containsDriveAlt >= 0 && taxiAlternatives.length > 0){
+    if(containsDriveAlt >= 0 && taxiAlternatives.nonEmpty){
       //TODO replace magic number here (5 minute wait time) with calculated wait time
-      val minTimeToCustomer = taxiAlternatives.foldLeft(Double.PositiveInfinity)((r,c) => if(c<r){c}else{r})
-      altModesAndTimes = altModesAndTimes :+ ("TAXI",(for(alt <- altModesAndTimes if alt._1.equals("CAR"))yield( alt._2 + minTimeToCustomer )).head)
+      val minTimeToCustomer = taxiAlternatives.foldLeft(Double.PositiveInfinity)((r,c) => if(c<r){c}else r)
+      altModesAndTimes = altModesAndTimes :+ ("TAXI",(for(alt <- altModesAndTimes if alt._1.equals("CAR"))yield alt._2 + minTimeToCustomer).head)
       alternativesWithTaxi = alternativesWithTaxi :+ BeamTrip(alternatives(containsDriveAlt).legs.map(leg => leg.copy(mode = if(leg.mode.equals("CAR")){ "TAXI" }else{ leg.mode })))
     }
-    val altUtilities = for(alt <- altModesAndTimes)yield( altUtility(alt._1, alt._2) )
+    val altUtilities = for(alt <- altModesAndTimes)yield altUtility(alt._1, alt._2)
     val sumExpUtilities = altUtilities.foldLeft(0.0)( _ + math.exp(_) )
-    val altProbabilities = for( util <- altUtilities) yield ( math.exp(util) / sumExpUtilities )
+    val altProbabilities = for( util <- altUtilities) yield math.exp(util) / sumExpUtilities
     val cumulativeAltProbabilities = altProbabilities.scanLeft(0.0)( _ + _ )
     val randDraw = Random.nextDouble()
-    val chosenIndex = for(i <- (1 to cumulativeAltProbabilities.length - 1) if randDraw < cumulativeAltProbabilities(i)) yield ( i-1 )
+    val chosenIndex = for(i <- 1 until cumulativeAltProbabilities.length if randDraw < cumulativeAltProbabilities(i)) yield i - 1
     alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
   }
   def altUtility(mode: String, travelTime: Double): Double = {
