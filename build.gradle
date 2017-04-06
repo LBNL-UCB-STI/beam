@@ -126,6 +126,10 @@ dependencies {
     compile 'com.github.carueda:tscfg:v0.8.0'  // config
     //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
     //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
+    // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
+
+
+
 
 
     // DI

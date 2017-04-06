@@ -1,0 +1,49 @@
+{
+  "id": "http://lbnl.edu/beam/v2/schemas/trips.schema.json",
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Trips sequence",
+  "description": "A sequence of trips from the beam visualization",
+  "type": "array",
+  "items": {
+    "title": "Trip",
+    "type": "array",
+    "items": {
+      "title": "Trip Element",
+      "type": "object",
+      "properties": {
+        "typ": {
+          "type": "string",
+          "enum": [
+            "CHOICE",
+            "WALK",
+            "SUBWAY",
+            "CAR",
+            "TRAM",
+            "RAIL",
+            "BUS",
+            "CABLE-CAR",
+            "ERROR"
+          ]
+        },
+        "val": {
+          "description": "Probability of choice (optional)",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "shp": {
+          "description": "trip point",
+          "$ref": "http://json-schema.org/geo"
+        },
+        "tim": {
+          "description": "Time corresponding to trip point",
+          "type": "number"
+        }
+      },
+      "optional": [
+        "typ",
+        "val"
+      ]
+    }
+  }
+}
