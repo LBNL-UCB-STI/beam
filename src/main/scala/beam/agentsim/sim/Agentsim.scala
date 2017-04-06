@@ -7,7 +7,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
-import beam.agentsim.agents.{BeamAgentScheduler, InitializeTrigger, PersonAgent}
+import beam.agentsim.agents.TaxiAgent.TaxiData
+import beam.agentsim.agents._
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
@@ -15,9 +16,9 @@ import beam.agentsim.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
@@ -26,6 +27,7 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.Await
+import scala.util.Random
 
 /**
   * AgentSim entrypoint.
@@ -70,6 +72,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
+    val taxiManagerFuture = registry ? Registry.Register("taxiManager", Props(classOf[TaxiManager]))
+    taxiManager = Await.result(taxiManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
   }
 
@@ -110,6 +114,16 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     for ((k, v) <- popMap) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
+      schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
+    }
+    // Generate taxis and intialize them to be located within ~initialLocationJitter km of a subset of agents
+    val taxiFraction = 0.1
+    val initialLocationJitter = 2000 // meters
+    for((k,v) <- popMap.take(math.round(taxiFraction * popMap.size).toInt)){
+      val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+      val taxiInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5),personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
+      val props = Props(classOf[TaxiAgent], Id.create(k.toString,TaxiAgent.getClass), TaxiData(taxiInitialLocation))
+      val ref: ActorRef = actorSystem.actorOf(props, s"taxi_${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
   }

@@ -29,8 +29,8 @@ object RouteUtils {
       eventQueue.add(linkLeaveEvent)
       var linkLeaveTime = linkEnterTime
       val routeLinkIds = route.getLinkIds
-      import scala.collection.JavaConversions._
-      for (routeLinkId <- routeLinkIds) {
+      import scala.collection.JavaConverters._
+      for (routeLinkId <- routeLinkIds.asScala) {
         if (linkEnterTime > 1E16) {
           val mmm = 0
         }

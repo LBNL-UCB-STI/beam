@@ -3,9 +3,12 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Props
+import akka.actor.ActorRef
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
+import beam.agentsim.agents.TaxiAgent.DropOffCustomer
+import beam.agentsim.agents.TaxiManager.{ReserveTaxi, ReserveTaxiConfirmation, TaxiInquiry, TaxiInquiryResponse}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.RoutingRequest
@@ -33,14 +36,19 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  type ChoiceCalculator = (Vector[BeamTrip]) => BeamTrip
+  type ChoiceCalculator = (Vector[BeamTrip], Vector[Double]) => BeamTrip
 
-  def mnlChoice(alternatives: Vector[BeamTrip]): BeamTrip = {
-    val altModesAndTimes = for(alt <- alternatives) yield {
+  def mnlChoice(alternatives: Vector[BeamTrip], taxiAlternatives: Vector[Double]): BeamTrip = {
+    var alternativesWithTaxi = Vector[BeamTrip]()
+    alternativesWithTaxi = alternativesWithTaxi ++ alternatives
+    var containsDriveAlt = -1
+    var altModesAndTimes : Vector[Tuple2[String, Double]] = for(i <- (0 to alternatives.length - 1).toVector) yield {
+      val alt = alternatives(i)
       val altMode = if (alt.legs.length == 1) {
         alt.legs.head.mode
       } else {
         if (alt.legs(1).mode.equalsIgnoreCase("CAR")) {
+          containsDriveAlt = i
           "CAR"
         } else {
           "PT"
@@ -51,19 +59,25 @@ object PersonAgent {
       }
       (altMode, travelTime)
     }
+    if(containsDriveAlt >= 0 && taxiAlternatives.length > 0){
+      //TODO replace magic number here (5 minute wait time) with calculated wait time
+      val minTimeToCustomer = taxiAlternatives.foldLeft(Double.PositiveInfinity)((r,c) => if(c<r){c}else{r})
+      altModesAndTimes = altModesAndTimes :+ ("TAXI",(for(alt <- altModesAndTimes if alt._1.equals("CAR"))yield( alt._2 + minTimeToCustomer )).head)
+      alternativesWithTaxi = alternativesWithTaxi :+ BeamTrip(alternatives(containsDriveAlt).legs.map(leg => leg.copy(mode = if(leg.mode.equals("CAR")){ "TAXI" }else{ leg.mode })))
+    }
     val altUtilities = for(alt <- altModesAndTimes)yield( altUtility(alt._1, alt._2) )
     val sumExpUtilities = altUtilities.foldLeft(0.0)( _ + math.exp(_) )
     val altProbabilities = for( util <- altUtilities) yield ( math.exp(util) / sumExpUtilities )
     val cumulativeAltProbabilities = altProbabilities.scanLeft(0.0)( _ + _ )
     val randDraw = Random.nextDouble()
     val chosenIndex = for(i <- (1 to cumulativeAltProbabilities.length - 1) if randDraw < cumulativeAltProbabilities(i)) yield ( i-1 )
-    alternatives(chosenIndex.head)
+    alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
   }
   def altUtility(mode: String, travelTime: Double): Double = {
-    val intercept = if(mode.equalsIgnoreCase("CAR")){ 1.0 }else{ 0.0 }
+    val intercept = if(mode.equalsIgnoreCase("CAR")){ -5.0 }else{ if(mode.equalsIgnoreCase("TAXI")){ 0.0}else{0.0} }
     intercept + -0.001 * travelTime
   }
-  def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = {
+  def randomChoice(alternatives: Vector[BeamTrip], taxiAlternatives: Vector[ActorRef]): BeamTrip = {
     Random.shuffle(alternatives.toList).head
   }
 
@@ -84,7 +98,7 @@ object PersonAgent {
       * @param plan : The plan having at least some `Activities`
       * @return `PersonData`
       */
-    def apply(plan: Plan): PersonData = PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), mnlChoice)
+    def apply(plan: Plan): PersonData = PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), Vector[Double](), mnlChoice, None)
 
     def planToVec(plan: Plan): Vector[Activity] = {
       scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
@@ -97,7 +111,9 @@ object PersonAgent {
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0,
                         currentRoute: BeamTrip = BeamTrip.noneTrip,
                         currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip](),
-                        choiceCalculator: ChoiceCalculator) extends BeamAgentData {
+                        taxiAlternatives: Vector[Double] = Vector[Double](),
+                        choiceCalculator: ChoiceCalculator,
+                        currentVehicle: Option[ActorRef]) extends BeamAgentData {
 
     def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
       if (ind < 0 || ind >= activityChain.length) Left(msg) else Right(activityChain(ind))
@@ -135,6 +151,10 @@ object PersonAgent {
     override def identifier = "Driving"
   }
 
+  case object InTaxi extends Traveling {
+    override def identifier = "InTaxi"
+  }
+
   case object Walking extends Traveling {
     override def identifier = "Walking"
   }
@@ -163,6 +183,10 @@ object PersonAgent {
 
   case class RouteResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip]) extends Trigger
 
+  case class TaxiInquiryResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip], timesToCustomer: Vector[Double]) extends Trigger
+
+  case class ReserveTaxiResponseWrapper(tick: Double, triggerId: Long, taxi: Option[ActorRef], timeToCustomer: Double, tripChoice: BeamTrip) extends Trigger
+
   case class FinishWrapper(tick: Double, triggerId: Long) extends Trigger
 
   case class NextActivityWrapper(tick: Double, triggerId: Long) extends Trigger
@@ -172,6 +196,10 @@ object PersonAgent {
   case class PersonEntersVehicleTrigger(tick: Double) extends Trigger
 
   case class PersonLeavesVehicleTrigger(tick: Double) extends Trigger
+
+  case class PersonEntersTaxiTrigger(tick: Double) extends Trigger
+
+  case class PersonLeavesTaxiTrigger(tick: Double) extends Trigger
 
   case class PersonEntersBoardingQueueTrigger(tick: Double) extends Trigger
 
@@ -228,7 +256,12 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         }
       )
       stay()
-    case Event(result: RouteResponseWrapper, info: BeamAgentInfo[PersonData]) =>
+    case Event(routeResult: RouteResponseWrapper, info: BeamAgentInfo[PersonData]) =>
+      val taxiManagerFuture = (taxiManager ? TaxiInquiry(info.data.currentActivity.getCoord,2000)).mapTo[TaxiInquiryResponse] map { taxiResult =>
+        TaxiInquiryResponseWrapper(routeResult.tick, routeResult.triggerId, routeResult.alternatives, taxiResult.timesToCustomer)
+      } pipeTo self
+      stay()
+    case Event(result: TaxiInquiryResponseWrapper, info: BeamAgentInfo[PersonData]) =>
       val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick))
       if (info.id.toString.equals("3")) {
         DebugLib.emptyFunctionForSettingBreakPoint()
@@ -236,7 +269,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       // Send CN directly to scheduler.
       // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
       schedulerRef ! completionNotice
-      goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
+      goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives, taxiAlternatives = result.timesToCustomer))
     case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
       schedulerRef ! CompletionNotice(msg.triggerId)
       goto(Error)
@@ -249,13 +282,13 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         logError("going to Error b/c empty route received")
         goto(Error) replying CompletionNotice(triggerId)
       } else {
-        val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
+        val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives, info.data.taxiAlternatives)
         val procData = procStateData(tripChoice, tick)
         // Here, we actually need to do an extra step of look-ahead to get the correct (non-walk) mode
         val restTrip = procData.restTrip
         restTrip.legs.headOption match {
           case Some(BeamLeg(_, "WALK",_, _)) | Some(BeamLeg(_, "CAR",_, _)) | Some(BeamLeg(_, "WAITING",_, _)) =>
-            agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(procData.nextLeg.startTime,id,"CHOICE",info.data.currentActivity.getCoord)))
+            agentSimEventsBus.publish(MatsimEvent(new PointProcessEvent(procData.nextLeg.startTime,id,"CHOICE",info.data.currentActivity.getCoord,intensity = tripChoice.choiceUtility)))
           case _ =>
           //do nothing
         }
@@ -272,17 +305,33 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
             agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.car)))
             goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
               completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode))
+          case Some(BeamLeg(_, "TAXI",_, _)) if restTrip.legs.length > 1 =>
+            (taxiManager ? ReserveTaxi(info.data.currentActivity.getCoord)).mapTo[ReserveTaxiConfirmation] map { result =>
+              ReserveTaxiResponseWrapper(tick, triggerId, result.taxi, result.timeToCustomer, tripChoice)
+            } pipeTo self
+            stay()
           case Some(BeamLeg(_, "WAITING",_, _)) =>
             agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.pt)))
             goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
               completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick + timeToChooseMode))
-          case Some(BeamLeg(_, _, _)) =>
+          case Some(BeamLeg(_, _, _,_)) =>
             logError(s"going to Error on trigger $triggerId in ChoosingMode due to unknown mode")
             goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
           case None | Some(_) =>
             logError(s"going to Error on trigger $triggerId in ChoosingMode due to no next leg")
             goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
         }
+      }
+    case Event(ReserveTaxiResponseWrapper(tick, triggerId, taxi, timeToCustomer, tripChoice),info: BeamAgentInfo[PersonData]) =>
+      taxi match {
+        case Some(theTaxi) =>
+          agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TransportMode.car)))
+          schedulerRef ! completed(triggerId, schedule[PersonEntersTaxiTrigger](tick + timeToCustomer))
+          goto(Walking) using BeamAgentInfo(id, info.data.copy(currentRoute = tripChoice, currentVehicle = taxi))
+        case None =>
+          logError(s"going to Error on trigger $triggerId in ChoosingMode due to no taxi")
+          schedulerRef ! CompletionNotice(triggerId)
+          goto(Error) using stateData.copy(id, stateData.data.copy())
       }
   }
 
@@ -294,6 +343,13 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId(s"car_$id"))))
       goto(Driving) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[PersonLeavesVehicleTrigger](procData.nextStart))
+
+    // -> Taxi
+    case Event(TriggerWithId(PersonEntersTaxiTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      val procData = procStateData(info.data.currentRoute, tick)
+      agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, id, Id.createVehicleId(s"taxi_$id"))))
+      goto(InTaxi) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
+        completed(triggerId, schedule[PersonLeavesTaxiTrigger](procData.nextStart))
 
     // -> Transit
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
@@ -327,6 +383,19 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       publishPathTraversal(PathTraversalEvent(tick, id, procData.nextLeg.graphPath, procData.nextLeg.mode))
       agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(procData.nextStart, id, Id.createVehicleId(s"car_$id"))))
       agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(procData.nextStart, id, info.data.nextActivity.right.get.getLinkId, TransportMode.car)))
+      goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
+        completed(triggerId, schedule[TeleportationArrivalTrigger](procData.nextStart))
+  }
+
+  // Taxi-related states
+
+  when(InTaxi) {
+    case Event(TriggerWithId(PersonLeavesTaxiTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      val procData = procStateData(info.data.currentRoute, tick)
+      publishPathTraversal(PathTraversalEvent(tick, id, procData.nextLeg.graphPath, procData.nextLeg.mode))
+      agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(procData.nextStart, id, Id.createVehicleId(s"car_$id"))))
+      agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(procData.nextStart, id, info.data.nextActivity.right.get.getLinkId, TransportMode.car)))
+      info.data.currentVehicle.get ! DropOffCustomer(procData.nextLeg.graphPath.latLons.get.head)
       goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[TeleportationArrivalTrigger](procData.nextStart))
   }
@@ -444,11 +513,11 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   case class ProcessedData(nextLeg: BeamLeg, restTrip: BeamTrip, nextStart: Double)
 
   private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    if(PathTraversalEvent.EVENTS_TO_PUBLISH contains event.mode){
+    if(beamConfig.beam.events.pathTraversalEvents contains event.mode){
       agentSimEventsBus.publish(MatsimEvent(event))
+
     }
   }
-
 
 }
 

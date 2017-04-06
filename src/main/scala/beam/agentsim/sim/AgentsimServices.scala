@@ -10,6 +10,7 @@ import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.controler.BeamControler
 import beam.agentsim.utils.FileUtils
+import beam.agentsim.routing.BoundingBox
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.ConfigFactory
 import glokka.Registry
@@ -18,6 +19,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
+import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -64,6 +66,9 @@ object AgentsimServices {
   //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
   var beamRouter : ActorRef = _
   var schedulerRef: ActorRef =_
+  var taxiManager: ActorRef = _
+  val bbox: BoundingBox = new BoundingBox()
+
 }
 
 /**

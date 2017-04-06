@@ -1,9 +1,12 @@
 package beam.agentsim.utils
 
-import java.io.File
+import java.io.{ByteArrayInputStream, File}
 import java.text.SimpleDateFormat
+import java.util.zip.GZIPInputStream
 
 import org.matsim.core.config.Config
+
+import scala.util.Try
 /**
   * Created by sfeygin on 1/30/17.
   */
@@ -16,6 +19,13 @@ object FileUtils {
     outputDirectory.mkdir()
     config.controler setOutputDirectory outputDirectory.getAbsolutePath
   }
+
+
+  def decompress(compressed: Array[Byte]): Option[String] =
+    Try {
+      val inputStream = new GZIPInputStream(new ByteArrayInputStream(compressed))
+      scala.io.Source.fromInputStream(inputStream).mkString
+    }.toOption
 
 
 }
