@@ -2,18 +2,18 @@ package beam.agentsim.events
 
 import java.util
 
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamGraphPath
+import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamLeg
+import io.circe.syntax._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
-
-import scala.collection.immutable
+import beam.agentsim.utils.JsonUtils._
 
 /**
   * Created by sfeygin on 3/27/17.
   */
-case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamGraphPath, mode: String) extends Event(time) with HasPersonId {
+case class PathTraversalEvent(id: Id[Person], beamLeg: BeamLeg) extends Event(beamLeg.startTime) with HasPersonId {
 
   import PathTraversalEvent.EVENT_TYPE
 
@@ -28,30 +28,15 @@ case class PathTraversalEvent(time: Double, id: Id[Person], beamGraphPath: BeamG
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
-    val times: immutable.Seq[Long] = beamGraphPath.entryTimes match {
-      case Some(entryTimes) =>
-        for{time<-entryTimes} yield time
-      case None =>
-        immutable.Seq[Long]()
-    }
-    val vizString = beamGraphPath.latLons match {
-      case Some(latLons) =>
-        latLons.map {
-          c => s"""\"shp\":[%.6f,%.6f],\"tim\":""".format (c.getX, c.getY)
-          } zip
-          times map {
-          x => s"$x"
-          } map
-          (x => x.replace ("(", "").replace (")", "").replace (":,", ":") ) mkString
-          (s"""[{\"typ\":"$mode",""", "},{", "}]")
-      case None =>
-        s"""[{\"typ\":\"ERROR\",\"shp\":[0.0,0.0],\"tim\":0}]"""
-    }
+
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
-    attr.put(ATTRIBUTE_VIZ_DATA, vizString)
-    attr.put(ATTRIBUTE_LINK_IDS, beamGraphPath.linkIds.mkString(","))
+    attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
+    attr.put(ATTRIBUTE_LINK_IDS, beamLeg.graphPath.linkIds.mkString(","))
     attr
+
+
   }
+
 }
 
 object PathTraversalEvent {

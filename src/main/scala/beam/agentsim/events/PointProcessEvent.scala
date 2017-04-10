@@ -3,7 +3,7 @@ package beam.agentsim.events
 import java.util
 
 import beam.agentsim.events.PointProcessEvent._
-import org.geotools.geometry.DirectPosition2D
+import beam.agentsim.utils.GeoUtils
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
@@ -16,7 +16,6 @@ import scala.math._
   * BEAM
   */
 class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String, location: Coord, intensity: Double = 1.0 ) extends Event(time) with HasPersonId {
-
 
   val ATTRIBUTE_VIZ_DATA: String = "viz_data"
   val ATTRIBUTE_LOCATION: String = "location"
@@ -37,19 +36,13 @@ class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String,
     val vizData = for(rayIndex <- 0 until numRays) yield {
       for(frameIndex <- frameIndices)  yield {
         val len = radiusFromOrigin(frameIndex)
-        var x = location.getX + len * cos(deltaRadian * rayIndex)
-        var y = location.getY + len * sin(deltaRadian * rayIndex)
-        if(doTransform){
-          val thePos = new DirectPosition2D(x,y)
-          val thePosTransformed = new DirectPosition2D(x,y)
-          transform.transform(thePos, thePosTransformed)
-          x = thePosTransformed.x
-          y = thePosTransformed.y
-        }
-        s"""\"shp\":[%.6f,%.6f],\"tim\":""".format(x, y) + (time + paceInTicksPerFrame*frameIndex) mkString
+        val x = location.getX + len * cos(deltaRadian * rayIndex)
+        val y = location.getY + len * sin(deltaRadian * rayIndex)
+        val thePos = GeoUtils.transform(new Coord(x,y))
+        s"""[%.6f,%.6f,%d]""".format(thePos.getX, thePos.getY, (time + paceInTicksPerFrame*frameIndex).toLong) mkString
       }
     }
-    val resultStr = (for (x <- vizData) yield x.mkString("},{")).mkString("},{")
+    val resultStr = vizData.map(x => x.mkString(",")).mkString("[",",","]")
     "[{\"typ\":\"" + pointProcessType + "\",\"val\":"+ s"""%.3f""".format(intensity) +","+resultStr+"}]"
   }
 
