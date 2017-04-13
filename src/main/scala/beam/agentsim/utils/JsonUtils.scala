@@ -14,19 +14,8 @@ object JsonUtils {
 
   implicit val encodeLeg: Encoder[BeamLeg] = (a: BeamLeg) => {
     val jsonBuilder: Map[String, Json] = Map(
-      "typ" -> Json.fromString(a.mode), "shp" -> a.graphPath.asJson)
+      "typ" -> Json.fromString("trajectory"), "mode" -> Json.fromString(a.mode), "shp" -> a.graphPath.asJson)
     Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
-  }
-
-  implicit val encodeGraphPath: Encoder[BeamGraphPath] = (a: BeamGraphPath) => {
-    Json.fromValues(a.trajectory.map(t => coordTimeToJson(t._1, t._2)))
-  }
-
-  def coordTimeToJson(c: Coord, t: Long): Json = {
-    Json.fromValues(Seq[Json](
-      Json.fromDoubleOrNull(MathUtils.roundDouble(c.getX, 5)),
-      Json.fromDoubleOrNull(MathUtils.roundDouble(c.getY, 5)),
-      Json.fromLong(t)))
   }
 
   def processEventsFileVizData(inFile: String, outFile: String): Unit = {
@@ -40,4 +29,13 @@ object JsonUtils {
     writer.flush()
     writer.close()
   }
+
+  //// Private Methods
+
+  private[this] implicit val encodeGraphPath: Encoder[BeamGraphPath] = (a: BeamGraphPath) => {
+    Json.fromValues(a.trajectory.map(_.asJson))
+  }
+
+
+  //~
 }

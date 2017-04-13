@@ -26,7 +26,6 @@ class EventsSubscriber (private val eventsManager: EventsManager) extends Actor 
     case event: Event =>
       eventsManager.processEvent(event.wrappedEvent)
 
-
     case _ => log.info("received unknown message")
   }
 }

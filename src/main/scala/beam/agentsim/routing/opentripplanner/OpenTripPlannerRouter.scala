@@ -6,12 +6,14 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
+import cats.{Applicative, Id}
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
@@ -324,8 +326,8 @@ object OpenTripPlannerRouter {
                            latLons: Vector[Coord],
                            entryTimes: Vector[Long]) {
 
-    lazy val trajectory: Vector[(Coord, Long)] = {
-      latLons zip entryTimes
+    lazy val trajectory: Vector[SpaceTime] = {
+      latLons zip entryTimes map(tup => SpaceTime(tup._1, tup._2))
     }
   }
 
@@ -335,6 +337,7 @@ object OpenTripPlannerRouter {
     val errorTime: Vector[Long] = Vector[Long](-1L)
 
     val empty: BeamGraphPath = new BeamGraphPath(Vector[String](), errorPoints, emptyTimes)
+
 
   }
 
