@@ -688,6 +688,94 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				paramArr.add(Double.valueOf(element.getValue()));
 			}
 		}
+
+		Iterator itr = (rootElem.getChildren()).iterator();
+		while (itr != null && itr.hasNext()) { //TODO: arrival/departure
+			Element element = (Element) itr.next();
+			Iterator itrElem = element.getChildren().iterator();
+			while (itrElem.hasNext()) { //TODO: yescharge/nocharge
+				Element subElement = ((Element) itrElem.next());
+//						log.info("subElement.getName().toLowerCase(): " + subElement.getName().toLowerCase() + "name: " + subElement.getAttributeValue("name"));
+				if(subElement.getName().toLowerCase().equals("nestedlogit")){
+					for (Object obj1 : subElement.getChildren()) { //TODO: genericSitePlug...
+						Element childElement = ((Element) obj1);
+						if (childElement.getName().toLowerCase().equals("nestedlogit")) {
+							for (Object obj2 : (childElement.getChild("utility")).getChildren()) { //TODO: parameters
+								Element utilityElement = ((Element) obj2);
+								if (utilityElement.getName().equals("param")) {
+									if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
+										log.info("parameter: " + utilityElement.getAttributeValue("name") + "value: " + utilityElement.getText());
+										paramArr.add(Double.valueOf(utilityElement.getText()));
+									}
+								}
+							}
+						} else if (childElement.getName().toLowerCase().equals("utility")) {
+							for (Object o : childElement.getChildren()) {
+								Element utilityElement = (Element) o;
+								if (utilityElement.getName().equals("param")) {
+									// Only update intercept
+//											log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + utilityElement.getAttributeValue("name").toLowerCase());
+									if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
+										if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
+											log.info("parameter: " + utilityElement.getAttributeValue("name") + "value: " + utilityElement.getText());
+											paramArr.add(Double.valueOf(utilityElement.getText()));
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+//					if(subElement.getName().toLowerCase().equals("params")){
+//						// Only update intercept
+//						log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + subElement.getAttributeValue("name").toLowerCase());
+//						if(subElement.getAttributeValue("name").toLowerCase().equals("intercept")){
+//							if(shouldUpdateBetaPlus){
+//								boolean delta = StdRandom.bernoulli();
+//								paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
+//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
+//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+//							}else if(shouldUpdateBetaMinus){
+//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex++)));
+//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+//							}else if(shouldUpdateBeta){
+//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
+//								grad = diffLoss/(2*c*paramsDelta.get(paramIndex++));
+//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
+//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
+//							}
+//						}
+//					}
+			}
+//			if (element.getAttribute("name").getValue().toLowerCase().equals("arrival")) { // do we need to distinguish
+//				Iterator itrArrival = element.getChildren().iterator();
+//				paramIndex = 0;
+//				while (itrArrival.hasNext()) {
+//					// CODE HERE
+//					Element subElement = (Element) itrArrival.next();
+//					if(subElement.getName().toLowerCase().equals("params")){
+//						if(shouldUpdateBetaPlus){
+//							boolean delta = StdRandom.bernoulli();
+//							paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
+//							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
+//						}else if(shouldUpdateBetaMinus) subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex)));
+//						else if(shouldUpdateBeta && !isFirstIteration){
+//							grad = diffLoss/(2*c*paramsDelta.get(paramIndex));
+//							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
+//						}
+//
+//						paramIndex++;
+//					}
+//				}
+//			} else if (element.getAttribute("name").getValue().toLowerCase().equals("departure")) {
+//				// TODO: update params for departure
+//			} else {
+//				DebugLib.stopSystemAndReportInconsistency("Charging Strategy config file has a nestedLogit element with an unrecongized name."
+//						+ " Expecting one of 'arrival' or 'departure' but found: " + element.getAttribute("name").getValue());
+//			}
+		}
 		return paramArr;
 	}
 
