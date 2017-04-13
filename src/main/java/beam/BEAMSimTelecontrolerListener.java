@@ -131,17 +131,21 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					// Calculate residuals
 					residual = 0;
 					for(int i =0;i<loadProfileBetaTemp.size();i++){
-						residual += Math.pow(loadProfileObserved.get(i)-loadProfileBetaTemp.get(i),2);
+						residual += Math.pow(loadProfileObserved.get(i)*500/70000-loadProfileBetaTemp.get(i),2);
 					}
 					log.info("residual (observed - modeled)^2 = " + residual);
 					if(event.getIteration() == 1) minResidual = residual;
+					log.info("min Residual: " + minResidual);
 
 					if(event.getIteration() >= 3 && residual <= minResidual){ // Check if we have an improvement with the updated parameter
+						log.info("origin params: " + getUtilityParams(logitParams));
 						// Update the parameter if the perturbation made an improvement
 						minResidual = residual; // update the threshold
 						logitParams = logitParamsTemp; // update the parameter
+						log.info("current params: " + getUtilityParams(logitParams));
 						log.info("YES, Parameters are updated.");
 					}else{
+						log.info("current params: " + getUtilityParams(logitParams));
 						log.warn("NO, Parameters are not updated.");
 					}
 
