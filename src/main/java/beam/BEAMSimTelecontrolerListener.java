@@ -40,7 +40,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	private boolean
 			shouldUpdateBeta = true, // true when updating objective function
 			shouldUpdateBetaTemp = true,
-			shouldUpdateBetaPlus, shouldUpdateBetaMinus, isFirstIteration;
+			shouldUpdateBetaPlus,
+			shouldUpdateBetaMinus,
+			isFirstIteration;
 	private ArrayList<Double>
 			paramsList = new ArrayList<>(),
 			paramsPlus = new ArrayList<>(),
@@ -137,11 +139,12 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					if(event.getIteration() == 1) minResidual = residual;
 					log.info("min Residual: " + minResidual);
 
+					// Update parameter if we have an improvement in residuals
 					if(event.getIteration() >= 3 && residual <= minResidual){ // Check if we have an improvement with the updated parameter
 						log.info("origin params: " + getUtilityParams(logitParams));
 						// Update the parameter if the perturbation made an improvement
 						minResidual = residual; // update the threshold
-						logitParams = logitParamsTemp; // update the parameter
+						logitParams = (Element) logitParamsTemp.clone(); // update the parameter
 						log.info("current params: " + getUtilityParams(logitParams));
 						log.info("YES, Parameters are updated.");
 					}else{
@@ -150,9 +153,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					}
 
 					// Re-initialize params
-					logitParamsTemp 	= logitParams; // Temporary logit params
-					logitParamsPlus 	= logitParams; // Positive perturbed logit params
-					logitParamsMinus 	= logitParams; // Negative perturbed logit params
+					logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
+					logitParamsPlus 	= (Element) logitParams.clone(); // Positive perturbed logit params
+					logitParamsMinus 	= (Element) logitParams.clone(); // Negative perturbed logit params
 				}
 
 				// Update Logit params
@@ -238,18 +241,13 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 										Element utilityElement = ((Element) obj2);
 										if (utilityElement.getName().equals("param")) {
 											// Only update intercept
-//											log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + utilityElement.getAttributeValue("name").toLowerCase());
 											if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
 												if (shouldUpdateBetaPlus) {
 													boolean delta = StdRandom.bernoulli();
 													paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-//													log.info("(betaPlus) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
 													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
-//													log.info("(betaPlus) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												} else if (shouldUpdateBetaMinus) {
-//													log.info("(betaMinus) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
 													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
-//													log.info("(betaMinus) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												} else if (shouldUpdateBetaTemp) {
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
 													grad = (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
@@ -682,12 +680,12 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	 */
 	private ArrayList<Double> getUtilityParams(Element rootElem){
 		ArrayList<Double> paramArr = new ArrayList<>();
-		for (Object o : (rootElem.getChildren())) {
-			Element element = (Element) o;
-			if (element.getName().toLowerCase().equals("param")) {
-				paramArr.add(Double.valueOf(element.getValue()));
-			}
-		}
+//		for (Object o : (rootElem.getChildren())) {
+//			Element element = (Element) o;
+//			if (element.getName().toLowerCase().equals("param")) {
+//				paramArr.add(Double.valueOf(element.getValue()));
+//			}
+//		}
 
 		Iterator itr = (rootElem.getChildren()).iterator();
 		while (itr != null && itr.hasNext()) { //TODO: arrival/departure
