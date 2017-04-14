@@ -110,8 +110,8 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			shouldUpdateBetaPlus 	= (event.getIteration()%3 == 1);
 			shouldUpdateBetaMinus 	= (event.getIteration()%3 == 2);
 			shouldUpdateBetaTemp 	= (event.getIteration()%3 == 0) && !isFirstIteration;
-			a 	= a0 / (Math.pow(event.getIteration(),alpha));
-			c 	= c0 / (Math.pow(event.getIteration(),gamma));
+			a 	= a0 / (Math.pow(event.getIteration()/3,alpha));
+			c 	= c0 / (Math.pow(event.getIteration()/3,gamma));
 
 			if(isFirstIteration){
 				// load parameters from logit model XML
