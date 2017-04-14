@@ -122,6 +122,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					e.printStackTrace();
 				}
 				hmObservedLoad = getChargingLoadHashMap(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH);
+				logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
 			}else{
 				if(shouldUpdateBetaPlus){
 					// Load and merge observed & simulated data
@@ -133,7 +134,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					// Calculate residuals
 					residual = 0;
 					for(int i =0;i<loadProfileBetaTemp.size();i++){
-						residual += Math.pow(loadProfileObserved.get(i)*500/70000-loadProfileBetaTemp.get(i),2);
+						double scaler = 500/70000;
+						scaler = 1;
+						residual += Math.pow(loadProfileObserved.get(i)*scaler-loadProfileBetaTemp.get(i),2);
 					}
 					log.info("residual (observed - modeled)^2 = " + residual);
 					if(event.getIteration() == 1) minResidual = residual;
@@ -153,9 +156,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					}
 
 					// Re-initialize params
-					logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
-					logitParamsPlus 	= (Element) logitParams.clone(); // Positive perturbed logit params
-					logitParamsMinus 	= (Element) logitParams.clone(); // Negative perturbed logit params
+//					logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
+					logitParamsPlus 	= (Element) logitParamsTemp.clone(); // Positive perturbed logit params
+					logitParamsMinus 	= (Element) logitParamsTemp.clone(); // Negative perturbed logit params
 				}
 
 				// Update Logit params
