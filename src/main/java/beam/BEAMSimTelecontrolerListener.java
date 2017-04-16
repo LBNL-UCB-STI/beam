@@ -156,7 +156,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					}
 
 					// Re-initialize params
-//					logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
+					logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
 					logitParamsPlus 	= (Element) logitParamsTemp.clone(); // Positive perturbed logit params
 					logitParamsMinus 	= (Element) logitParamsTemp.clone(); // Negative perturbed logit params
 				}
