@@ -49,17 +49,27 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			paramsMinus = new ArrayList<>(),
 			paramsDelta = new ArrayList<>();
 	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>>
-			hmObservedLoad = new LinkedHashMap<>(),
-			hmBetaLoad =new LinkedHashMap<>(),
-			hmBetaTempLoad =new LinkedHashMap<>(),
-			hmBetaPlusLoad = new LinkedHashMap<>(),
-			hmBetaMinusLoad = new LinkedHashMap<>();
+			valHmObserved = new LinkedHashMap<>(),
+			valHmBeta =new LinkedHashMap<>(),
+			valHmBetaTemp =new LinkedHashMap<>(),
+			valHmBetaPlus = new LinkedHashMap<>(),
+			valHmBetaMinus = new LinkedHashMap<>(),
+			hmObservedNum = new LinkedHashMap<>(),
+			hmBetaNum =new LinkedHashMap<>(),
+			hmBetaTempNum =new LinkedHashMap<>(),
+			hmBetaPlusNum = new LinkedHashMap<>(),
+			hmBetaMinusNum = new LinkedHashMap<>();
 	private ArrayList<Double>
 			loadProfileBeta = new ArrayList<>(),
-			loadProfileBetaTemp = new ArrayList<>(),
-			loadProfileBetaPlus = new ArrayList<>(),
-			loadProfileBetaMinus = new ArrayList<>(),
-			loadProfileObserved = new ArrayList<>();
+			valListBetaTemp = new ArrayList<>(),
+			valListBetaPlus = new ArrayList<>(),
+			valListBetaMinus = new ArrayList<>(),
+			valListObserved = new ArrayList<>(),
+			listBetaNum = new ArrayList<>(),
+			listBetaNumTemp = new ArrayList<>(),
+			listBetaPlusNum = new ArrayList<>(),
+			listBetaMinusNum = new ArrayList<>(),
+			listObservedNum = new ArrayList<>();
 
 	@Override
 	public void notifyBeforeMobsim(BeforeMobsimEvent event) {
@@ -106,12 +116,15 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		 * read in the simulated loads, calculate the objective function, generate a new set of parameters to simulate
 		 * (either from the random draw or from the update step).
 		 */
+			int iterPeriod = 3;
+			String valueType = "pluggednum"; // "chargingload" or "pluggednum"
 			isFirstIteration		= (event.getIteration() == 0);
-			shouldUpdateBetaPlus 	= (event.getIteration()%3 == 1);
-			shouldUpdateBetaMinus 	= (event.getIteration()%3 == 2);
-			shouldUpdateBetaTemp 	= (event.getIteration()%3 == 0) && !isFirstIteration;
-			a 	= a0 / (Math.pow(event.getIteration()/3,alpha));
-			c 	= c0 / (Math.pow(event.getIteration()/3,gamma));
+			shouldUpdateBetaPlus 	= (event.getIteration()%iterPeriod == 1);
+			shouldUpdateBetaMinus 	= (event.getIteration()%iterPeriod == 2);
+//			shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 3);
+			shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 0) && !isFirstIteration;
+			a 	= a0 / (Math.pow(event.getIteration()/iterPeriod,alpha));
+			c 	= c0 / (Math.pow(event.getIteration()/iterPeriod,gamma));
 
 			if(isFirstIteration){
 				// load parameters from logit model XML
@@ -121,29 +134,30 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-				hmObservedLoad = getChargingLoadHashMap(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH);
+				valHmObserved = getHashMapFromFile(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH,valueType);
 				logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
 			}else{
 				if(shouldUpdateBetaPlus){
 					// Load and merge observed & simulated data
-					String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
-					hmBetaLoad 					= getChargingLoadHashMap(prevLoadFile);
-					loadProfileBetaTemp			= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"beta"), hmBetaLoad, hmObservedLoad);
-					loadProfileObserved 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"observed"), hmObservedLoad, hmBetaLoad);
+					String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it."
+							+ (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
+					valHmBeta = getHashMapFromFile(prevLoadFile,valueType);
+					valListBetaTemp = getMergedArray(initDisaggFileWriter(event.getIteration(),"beta"), valHmBeta, valHmObserved, valueType);
+					valListObserved = getMergedArray(initDisaggFileWriter(event.getIteration(),"observed"), valHmObserved, valHmBeta, valueType);
 
 					// Calculate residuals
 					residual = 0;
-					for(int i =0;i<loadProfileBetaTemp.size();i++){
+					for(int i = 0; i< valListBetaTemp.size(); i++){
 						double scaler = 500/70000;
 						scaler = 1;
-						residual += Math.pow(loadProfileObserved.get(i)*scaler-loadProfileBetaTemp.get(i),2);
+						residual += Math.pow(valListObserved.get(i)*scaler- valListBetaTemp.get(i),2);
 					}
 					log.info("residual (observed - modeled)^2 = " + residual);
 					if(event.getIteration() == 1) minResidual = residual;
 					log.info("min Residual: " + minResidual);
 
 					// Update parameter if we have an improvement in residuals
-					if(event.getIteration() >= 3 && residual <= minResidual){ // Check if we have an improvement with the updated parameter
+					if(event.getIteration() >= iterPeriod && residual <= minResidual){ // Check if we have an improvement with the updated parameter
 						log.info("origin params: " + getUtilityParams(logitParams));
 						// Update the parameter if the perturbation made an improvement
 						minResidual = residual; // update the threshold
@@ -162,42 +176,38 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				}
 
 				// Update Logit params
-				if(shouldUpdateBetaTemp){
-					String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-3) + File.separator + "run0."+ (event.getIteration()-3) + ".disaggregateLoadProfile.csv";
-					String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-2) + File.separator + "run0."+ (event.getIteration()-2) + ".disaggregateLoadProfile.csv";
-					String betaMinusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it." + (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
+				else if(shouldUpdateBetaTemp){
+					String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator
+							+ "it." + (event.getIteration()-3) + File.separator + "run0."+ (event.getIteration()-3) + ".disaggregateLoadProfile.csv";
+					String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator
+							+ "it." + (event.getIteration()-2) + File.separator + "run0."+ (event.getIteration()-2) + ".disaggregateLoadProfile.csv";
+					String betaMinusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator
+							+ "it." + (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
 
 					// Merge simulated data first
-					hmBetaLoad 					= getMergedHashMap(getChargingLoadHashMap(prevLoadFile), getChargingLoadHashMap(betaPlusLoadFile));
-					hmBetaLoad 					= getMergedHashMap(hmBetaLoad, getChargingLoadHashMap(betaMinusLoadFile));
-					hmBetaPlusLoad 				= getMergedHashMap(getChargingLoadHashMap(betaPlusLoadFile), hmBetaLoad);
-					hmBetaMinusLoad 			= getMergedHashMap(getChargingLoadHashMap(betaMinusLoadFile), hmBetaLoad);
+					valHmBeta = getMergedHashMap(getHashMapFromFile(prevLoadFile,valueType), getHashMapFromFile(betaPlusLoadFile,valueType));
+					valHmBeta = getMergedHashMap(valHmBeta, getHashMapFromFile(betaMinusLoadFile,valueType));
+					valHmBetaPlus = getMergedHashMap(getHashMapFromFile(betaPlusLoadFile,valueType), valHmBeta);
+					valHmBetaMinus = getMergedHashMap(getHashMapFromFile(betaMinusLoadFile,valueType), valHmBeta);
 
-					// Get load profile
-					loadProfileBetaTemp			= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"beta"), hmBetaLoad, hmObservedLoad);
-					loadProfileBetaPlus 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"betaPlus"), hmBetaPlusLoad, hmObservedLoad);
-					loadProfileBetaMinus 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"betaMinus"), hmBetaMinusLoad, hmObservedLoad);
-					loadProfileObserved 		= getMergedLoadProfile(initDisaggFileWriter(event.getIteration(),"observed"), hmObservedLoad, hmBetaLoad);
+					// Get target values (charging load / plugged-in num)
+					valListBetaTemp = getMergedArray(initDisaggFileWriter(event.getIteration(),"beta"), valHmBeta, valHmObserved,valueType);
+					valListBetaPlus = getMergedArray(initDisaggFileWriter(event.getIteration(),"betaPlus"), valHmBetaPlus, valHmObserved,valueType);
+					valListBetaMinus = getMergedArray(initDisaggFileWriter(event.getIteration(),"betaMinus"), valHmBetaMinus, valHmObserved,valueType);
+					valListObserved = getMergedArray(initDisaggFileWriter(event.getIteration(),"observed"), valHmObserved, valHmBeta,valueType);
 
-					//			obj[i] = ((observed - modeled)**2) -- need to track this error somewhere
-
-					// update gradient
+					// Update gradient
 					diffLoss = 0;
 					double scaler = 500/70000;
-					log.info("loadProfileBetaTemp size: " + loadProfileBetaTemp.size());
-					log.info("loadProfileBetaPlus size: " + loadProfileBetaPlus.size());
-					log.info("loadProfileBetaMinus size: " + loadProfileBetaMinus.size());
-					log.info("loadProfileObserved size: " + loadProfileObserved.size());
-					for(int i =0; i<loadProfileBetaPlus.size(); i++){
-//						if(i==loadProfileBetaPlus.size()) break;
+//					scaler = 1;
+					log.info("valListBetaTemp size: " + valListBetaTemp.size());
+					log.info("valListBetaPlus size: " + valListBetaPlus.size());
+					log.info("valListBetaMinus size: " + valListBetaMinus.size());
+					log.info("valListObserved size: " + valListObserved.size());
+					for(int i = 0; i< valListBetaPlus.size(); i++){
 						try{
-//							log.info("Charge point: " + loadProfileObserved.get(i));
-//							log.info("Beta plus: " + loadProfileBetaPlus.get(i));
-//							log.info("Beta minus: " + loadProfileBetaMinus.get(i));
-							diffLoss += Math.pow(loadProfileObserved.get(i)*scaler-loadProfileBetaPlus.get(i),2)
-									- Math.pow(loadProfileObserved.get(i)*scaler-loadProfileBetaMinus.get(i),2);
-//							log.info("temporary diffLoss: " + (Math.pow(loadProfileObserved.get(i)*scaler-loadProfileBetaPlus.get(i),2)
-//									- Math.pow(loadProfileObserved.get(i)*scaler-loadProfileBetaMinus.get(i),2)));
+							diffLoss += Math.pow(valListObserved.get(i)*scaler- valListBetaPlus.get(i),2)
+									- Math.pow(valListObserved.get(i)*scaler- valListBetaMinus.get(i),2);
 						}catch(Exception e){break;}
 					}
 					if(Math.abs(diffLoss) >= maxDiffLoss) maxDiffLoss = Math.abs(diffLoss);
@@ -221,21 +231,16 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			if(shouldUpdateBetaPlus) {
 				paramsDelta = new ArrayList<>();
 				itr = (BEAMSimTelecontrolerListener.logitParamsPlus.getChildren()).iterator();
-			}
-			if(shouldUpdateBetaMinus){
-				itr = (BEAMSimTelecontrolerListener.logitParamsMinus.getChildren()).iterator();
-			}
-			if(shouldUpdateBetaTemp){
-				itr = (BEAMSimTelecontrolerListener.logitParamsTemp.getChildren()).iterator();
-			}
-			if(!isFirstIteration){
-				while (itr != null && itr.hasNext()) { //TODO: arrival/departure
+			}else if(shouldUpdateBetaMinus) itr = (BEAMSimTelecontrolerListener.logitParamsMinus.getChildren()).iterator();
+			else if(shouldUpdateBetaTemp)itr = (BEAMSimTelecontrolerListener.logitParamsTemp.getChildren()).iterator();
+
+			if(!isFirstIteration && itr != null){
+				while (itr.hasNext()) { //TODO: arrival/departure
 					Element element = (Element) itr.next();
 					Iterator itrElem = element.getChildren().iterator();
 					paramIndex = 0;
 					while (itrElem.hasNext()) { //TODO: yescharge/nocharge
 						Element subElement = ((Element) itrElem.next());
-//						log.info("subElement.getName().toLowerCase(): " + subElement.getName().toLowerCase() + "name: " + subElement.getAttributeValue("name"));
 						if(subElement.getName().toLowerCase().equals("nestedlogit")){
 							for (Object obj1 : subElement.getChildren()) { //TODO: genericSitePlug...
 								Element childElement = ((Element) obj1);
@@ -270,18 +275,13 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 										Element utilityElement = (Element) o;
 										if (utilityElement.getName().equals("param")) {
 											// Only update intercept
-//											log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + utilityElement.getAttributeValue("name").toLowerCase());
 											if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
 												if (shouldUpdateBetaPlus) {
 													boolean delta = StdRandom.bernoulli();
 													paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-//													log.info("(betaPlus) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
 													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
-//													log.info("(betaPlus) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												} else if (shouldUpdateBetaMinus) {
-//													log.info("(betaMinus) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
 													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
-//													log.info("(betaMinus) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												} else if (shouldUpdateBetaTemp) {
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
 													grad = (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
@@ -299,55 +299,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 								}
 							}
 						}
-//					if(subElement.getName().toLowerCase().equals("params")){
-//						// Only update intercept
-//						log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + subElement.getAttributeValue("name").toLowerCase());
-//						if(subElement.getAttributeValue("name").toLowerCase().equals("intercept")){
-//							if(shouldUpdateBetaPlus){
-//								boolean delta = StdRandom.bernoulli();
-//								paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
-//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-//							}else if(shouldUpdateBetaMinus){
-//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex++)));
-//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-//							}else if(shouldUpdateBeta){
-//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-//								grad = diffLoss/(2*c*paramsDelta.get(paramIndex++));
-//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
-//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-//							}
-//						}
-//					}
 					}
-//			if (element.getAttribute("name").getValue().toLowerCase().equals("arrival")) { // do we need to distinguish
-//				Iterator itrArrival = element.getChildren().iterator();
-//				paramIndex = 0;
-//				while (itrArrival.hasNext()) {
-//					// CODE HERE
-//					Element subElement = (Element) itrArrival.next();
-//					if(subElement.getName().toLowerCase().equals("params")){
-//						if(shouldUpdateBetaPlus){
-//							boolean delta = StdRandom.bernoulli();
-//							paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
-//							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
-//						}else if(shouldUpdateBetaMinus) subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex)));
-//						else if(shouldUpdateBeta && !isFirstIteration){
-//							grad = diffLoss/(2*c*paramsDelta.get(paramIndex));
-//							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
-//						}
-//
-//						paramIndex++;
-//					}
-//				}
-//			} else if (element.getAttribute("name").getValue().toLowerCase().equals("departure")) {
-//				// TODO: update params for departure
-//			} else {
-//				DebugLib.stopSystemAndReportInconsistency("Charging Strategy config file has a nestedLogit element with an unrecongized name."
-//						+ " Expecting one of 'arrival' or 'departure' but found: " + element.getAttribute("name").getValue());
-//			}
 				}
 			}
 
@@ -357,20 +309,24 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		 * fresh models based on the new params defined above.
 		 */
 			Element elem = null;
-			if(isFirstIteration) elem = BEAMSimTelecontrolerListener.logitParams;
-			if(shouldUpdateBetaTemp && !isFirstIteration) elem = BEAMSimTelecontrolerListener.logitParamsTemp;
-			if(shouldUpdateBetaPlus) elem = BEAMSimTelecontrolerListener.logitParamsPlus;
-			if(shouldUpdateBetaMinus) elem = BEAMSimTelecontrolerListener.logitParamsMinus;
-			for (Person person : event.getServices().getScenario().getPopulation().getPersons().values()) {
-				StrategySequence sequence = ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategiesForTheDay();
-				for(int i = 0; i < sequence.getSequenceLength(); i++){
-					ChargingStrategy strategy = sequence.getStrategy(i);
-					if(strategy instanceof ChargingStrategyNestedLogit){
-						ChargingStrategyNestedLogit logitStrategy = (ChargingStrategyNestedLogit)strategy;
-						logitStrategy.resetDecisions();
-						logitStrategy.setParameters(elem);
+			if(isFirstIteration) elem = (Element) BEAMSimTelecontrolerListener.logitParams.clone();
+			else if(shouldUpdateBetaPlus) elem = (Element) BEAMSimTelecontrolerListener.logitParamsPlus.clone();
+			else if(shouldUpdateBetaMinus) elem = (Element) BEAMSimTelecontrolerListener.logitParamsMinus.clone();
+			else if(shouldUpdateBetaTemp) elem = (Element) BEAMSimTelecontrolerListener.logitParamsTemp.clone();
+			if(elem != null){
+				for (Person person : event.getServices().getScenario().getPopulation().getPersons().values()) {
+					StrategySequence sequence = ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategiesForTheDay();
+					for(int i = 0; i < sequence.getSequenceLength(); i++){
+						ChargingStrategy strategy = sequence.getStrategy(i);
+						if(strategy instanceof ChargingStrategyNestedLogit){
+							ChargingStrategyNestedLogit logitStrategy = (ChargingStrategyNestedLogit)strategy;
+							logitStrategy.resetDecisions();
+							logitStrategy.setParameters(elem);
+						}
 					}
 				}
+			}else{
+				log.warn("Run another iteration without updating parameters to get the simulation result converges..");
 			}
 		}else{
 			log.warn("We do not calibrate parameter. Set \"shouldDoParamCalibration\" true in config to estimate parameter.");
@@ -382,7 +338,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	 * @param filePath: charging load profile csv file path
 	 * @return hashMap: charging load hashMap
 	 */
-	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getChargingLoadHashMap(String filePath) {
+	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getHashMapFromFile(String filePath) {
 		LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap = new LinkedHashMap<>();
 		TabularFileParser fileParser = new TabularFileParser();
 		TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
@@ -467,12 +423,192 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	}
 
 	/**
+	 * Return LinkedHashMap that contains charging load/Plugged-in num in kW with associated time, spatial group, site type, charger type.
+	 * @param filePath
+	 * @param valueType
+	 * @return
+	 */
+	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getHashMapFromFile(String filePath, String valueType) {
+		LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap = new LinkedHashMap<>();
+		TabularFileParser fileParser = new TabularFileParser();
+		TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
+		fileParserConfig.setFileName(filePath);
+		fileParserConfig.setDelimiterRegex(",");
+		String valueColumn = (valueType.equals("chargingload")?"charging.load.in.kw":"num.plugged.in");
+		TabularFileHandler handler = new TabularFileHandler() {
+			LinkedHashMap<String, Integer> headerMap;
+
+			@Override
+			public void startRow(String[] row) {
+				if (headerMap == null) {
+					headerMap = new LinkedHashMap<String, Integer>();
+					for (int i = 0; i < row.length; i++) {
+						String colName = row[i].toLowerCase();
+						if (colName.startsWith("\"")) {
+							colName = colName.substring(1, colName.length() - 1);
+						}
+						headerMap.put(colName, i);
+					}
+				} else {
+					String time = CSVUtil.getValue("time",row,headerMap);
+					if(!time.contains(".")) time += ".0";
+					if(!filePath.toLowerCase().contains("validation")){
+						if(Double.valueOf(time) >= 27 && Double.valueOf(time) <= 51){
+							time = String.valueOf(Double.valueOf(time)-27);
+							String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
+							String siteType = CSVUtil.getValue("site.type",row,headerMap);
+							String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
+							String chargingLoad = CSVUtil.getValue(valueColumn,row,headerMap);
+							if(hashMap.containsKey(time)){
+								if(hashMap.get(time).containsKey(spatialGroup)){
+									if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
+										if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
+											hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+									}else{
+										hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+									}
+								}else{
+									hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+								}
+							}else{
+								hashMap.put(time, new LinkedHashMap<>());
+								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+							}
+						}
+					}else{
+						String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
+						String siteType = CSVUtil.getValue("site.type",row,headerMap);
+						String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
+						String chargingLoad = CSVUtil.getValue(valueColumn,row,headerMap);
+						if(hashMap.containsKey(time)){
+							if(hashMap.get(time).containsKey(spatialGroup)){
+								if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
+									if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
+										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+								}else{
+									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+								}
+							}else{
+								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+							}
+						}else{
+							hashMap.put(time, new LinkedHashMap<>());
+							hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+							hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+							hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+						}
+					}
+				}
+			}
+		};
+		fileParser.parse(fileParserConfig, handler);
+		return hashMap;
+	}
+
+	/**
+	 * Return LinkedHashMap that contains Plugged-in count with associated time, spatial group, site type, charger type.
+	 * @param filePath
+	 * @return
+	 */
+	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getPluggedNumHashMap(String filePath) {
+		LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap = new LinkedHashMap<>();
+		TabularFileParser fileParser = new TabularFileParser();
+		TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
+		fileParserConfig.setFileName(filePath);
+		fileParserConfig.setDelimiterRegex(",");
+		TabularFileHandler handler = new TabularFileHandler() {
+			LinkedHashMap<String, Integer> headerMap;
+
+			@Override
+			public void startRow(String[] row) {
+				if (headerMap == null) {
+					headerMap = new LinkedHashMap<String, Integer>();
+					for (int i = 0; i < row.length; i++) {
+						String colName = row[i].toLowerCase();
+						if (colName.startsWith("\"")) {
+							colName = colName.substring(1, colName.length() - 1);
+						}
+						headerMap.put(colName, i);
+					}
+				} else {
+					String time = CSVUtil.getValue("time",row,headerMap);
+					if(!time.contains(".")) time += ".0";
+					if(!filePath.toLowerCase().contains("validation")){
+						if(Double.valueOf(time) >= 27 && Double.valueOf(time) <= 51){
+							time = String.valueOf(Double.valueOf(time)-27);
+							String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
+							String siteType = CSVUtil.getValue("site.type",row,headerMap);
+							String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
+							String chargingLoad = CSVUtil.getValue("num.plugged.in",row,headerMap);
+							if(hashMap.containsKey(time)){
+								if(hashMap.get(time).containsKey(spatialGroup)){
+									if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
+										if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
+											hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+									}else{
+										hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+									}
+								}else{
+									hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+								}
+							}else{
+								hashMap.put(time, new LinkedHashMap<>());
+								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+							}
+						}
+					}else{
+						String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
+						String siteType = CSVUtil.getValue("site.type",row,headerMap);
+						String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
+						String chargingLoad = CSVUtil.getValue("num.plugged.in",row,headerMap);
+						if(hashMap.containsKey(time)){
+							if(hashMap.get(time).containsKey(spatialGroup)){
+								if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
+									if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
+										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+								}else{
+									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+								}
+							}else{
+								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+							}
+						}else{
+							hashMap.put(time, new LinkedHashMap<>());
+							hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
+							hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+							hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
+						}
+					}
+				}
+			}
+		};
+		fileParser.parse(fileParserConfig, handler);
+		return hashMap;
+	}
+
+	/**
 	 * Merge load profile hash maps on time, spatial group, site type, and charger type
 	 * @param hashMap1
 	 * @param hashMap2
 	 * @return mergedArray: Array list of load profile hashMap1
 	 */
-	private ArrayList<Double> getMergedLoadProfile(
+	private ArrayList<Double> getMergedArray(
 			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
 			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
 
@@ -531,9 +667,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	 * @param hashMap2
 	 * @return mergedArray: Array list of load profile hashMap1
 	 */
-	private ArrayList<Double> getMergedLoadProfile(FileWriter writer,
-			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
-			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
+	private ArrayList<Double> getMergedArray(FileWriter writer,
+											 LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
+											 LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
 
 		LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMapMerged = new LinkedHashMap<>(hashMap1);
 		ArrayList<Double> mergedArray = new ArrayList<>();
@@ -578,7 +714,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 						mergedArray.add(count++, Double.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)));
 						try {
 							CSVUtil.writeLine(writer, Arrays.asList(timeKey, spatialGroupKey, siteTypeKey, chargerTypeKey,
-                                    String.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)),""));
+									String.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)), ""));
 							writer.flush();
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -591,6 +727,89 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		return mergedArray;
 	}
 
+	/**
+	 * Merge load profile hash maps on time, spatial group, site type, and charger type
+	 * @param hashMap1
+	 * @param hashMap2
+	 * @return mergedArray: Array list of load profile hashMap1
+	 */
+	private ArrayList<Double> getMergedArray(FileWriter writer,
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
+			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2, String type){
+
+		LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMapMerged = new LinkedHashMap<>(hashMap1);
+		ArrayList<Double> mergedArray = new ArrayList<>();
+
+		// Get merged hash map
+		for (String time : hashMap2.keySet()) {
+			for (String spatialGroup : hashMap2.get(time).keySet()) {
+				for (String siteType : hashMap2.get(time).get(spatialGroup).keySet()) {
+					for (String chargerType : hashMap2.get(time).get(spatialGroup).get(siteType).keySet()) {
+						if(hashMapMerged.containsKey(time)){
+							if(hashMapMerged.get(time).containsKey(spatialGroup)){
+								if(hashMapMerged.get(time).get(spatialGroup).containsKey(siteType)){
+									if(!hashMapMerged.get(time).get(spatialGroup).get(siteType).containsKey(chargerType)){
+										hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+									}
+								}else{
+									hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+									hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+								}
+							}else{
+								hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+								hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+							}
+						}else{
+							hashMapMerged.put(time, new LinkedHashMap<>());
+							hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+							hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
+						}
+					}
+				}
+			}
+		}
+
+		// Get merged array
+		int count = 0;
+		for (String timeKey : new TreeSet<>(hashMapMerged.keySet())) {
+			for (String spatialGroupKey : new TreeSet<>(hashMapMerged.get(timeKey).keySet())) {
+				for (String siteTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).keySet())) {
+					for (String chargerTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet())) {
+						mergedArray.add(count++, Double.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)));
+						try {
+							switch (type) {
+								case "chargingload":
+									CSVUtil.writeLine(writer, Arrays.asList(timeKey, spatialGroupKey, siteTypeKey, chargerTypeKey,
+											String.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)), ""));
+
+									break;
+								case "pluggednum":
+									CSVUtil.writeLine(writer, Arrays.asList(timeKey, spatialGroupKey, siteTypeKey, chargerTypeKey,
+											"", String.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey))));
+									break;
+								default:
+									throw new IllegalArgumentException("Value type is wrong! The value type must be either chargingload or pluggednum");
+							}
+							writer.flush();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			}
+		}
+
+		return mergedArray;
+	}
+
+	/**
+	 * Merge two hash maps
+	 * @param hashMap1
+	 * @param hashMap2
+	 * @return
+	 */
 	private LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> getMergedHashMap(
 			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
 			LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
@@ -683,12 +902,6 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	 */
 	private ArrayList<Double> getUtilityParams(Element rootElem){
 		ArrayList<Double> paramArr = new ArrayList<>();
-//		for (Object o : (rootElem.getChildren())) {
-//			Element element = (Element) o;
-//			if (element.getName().toLowerCase().equals("param")) {
-//				paramArr.add(Double.valueOf(element.getValue()));
-//			}
-//		}
 
 		Iterator itr = (rootElem.getChildren()).iterator();
 		while (itr != null && itr.hasNext()) { //TODO: arrival/departure
@@ -696,7 +909,6 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			Iterator itrElem = element.getChildren().iterator();
 			while (itrElem.hasNext()) { //TODO: yescharge/nocharge
 				Element subElement = ((Element) itrElem.next());
-//						log.info("subElement.getName().toLowerCase(): " + subElement.getName().toLowerCase() + "name: " + subElement.getAttributeValue("name"));
 				if(subElement.getName().toLowerCase().equals("nestedlogit")){
 					for (Object obj1 : subElement.getChildren()) { //TODO: genericSitePlug...
 						Element childElement = ((Element) obj1);
@@ -715,7 +927,6 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 								Element utilityElement = (Element) o;
 								if (utilityElement.getName().equals("param")) {
 									// Only update intercept
-//											log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + utilityElement.getAttributeValue("name").toLowerCase());
 									if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
 										if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
 											log.info("parameter: " + utilityElement.getAttributeValue("name") + "value: " + utilityElement.getText());
@@ -727,55 +938,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 						}
 					}
 				}
-//					if(subElement.getName().toLowerCase().equals("params")){
-//						// Only update intercept
-//						log.info("subElement.getAttributeValue(\"name\").toLowerCase(): " + subElement.getAttributeValue("name").toLowerCase());
-//						if(subElement.getAttributeValue("name").toLowerCase().equals("intercept")){
-//							if(shouldUpdateBetaPlus){
-//								boolean delta = StdRandom.bernoulli();
-//								paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
-//								log.info("(betaPlus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-//							}else if(shouldUpdateBetaMinus){
-//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex++)));
-//								log.info("(betaMinus) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-//							}else if(shouldUpdateBeta){
-//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " origin param: " + subElement.getText());
-//								grad = diffLoss/(2*c*paramsDelta.get(paramIndex++));
-//								subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
-//								log.info("(param update) attribute: " + subElement.getAttributeValue("name") + " updated param: " + subElement.getText());
-//							}
-//						}
-//					}
 			}
-//			if (element.getAttribute("name").getValue().toLowerCase().equals("arrival")) { // do we need to distinguish
-//				Iterator itrArrival = element.getChildren().iterator();
-//				paramIndex = 0;
-//				while (itrArrival.hasNext()) {
-//					// CODE HERE
-//					Element subElement = (Element) itrArrival.next();
-//					if(subElement.getName().toLowerCase().equals("params")){
-//						if(shouldUpdateBetaPlus){
-//							boolean delta = StdRandom.bernoulli();
-//							paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
-//							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * ((delta?1:0)*2-1)));
-//						}else if(shouldUpdateBetaMinus) subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) + c * paramsDelta.get(paramIndex)));
-//						else if(shouldUpdateBeta && !isFirstIteration){
-//							grad = diffLoss/(2*c*paramsDelta.get(paramIndex));
-//							subElement.setText(String.valueOf(Double.valueOf(subElement.getText()) - a * grad));
-//						}
-//
-//						paramIndex++;
-//					}
-//				}
-//			} else if (element.getAttribute("name").getValue().toLowerCase().equals("departure")) {
-//				// TODO: update params for departure
-//			} else {
-//				DebugLib.stopSystemAndReportInconsistency("Charging Strategy config file has a nestedLogit element with an unrecongized name."
-//						+ " Expecting one of 'arrival' or 'departure' but found: " + element.getAttribute("name").getValue());
-//			}
 		}
 		return paramArr;
 	}
