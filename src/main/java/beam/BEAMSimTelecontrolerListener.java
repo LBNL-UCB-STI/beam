@@ -36,7 +36,7 @@ import java.util.*;
 public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, AfterMobsimListener, ShutdownListener, IterationStartsListener, IterationEndsListener {
 	private static final Logger log = Logger.getLogger(BEAMSimTelecontrolerListener.class);
 	private static Element logitParams, logitParamsTemp, logitParamsPlus, logitParamsMinus;
-	private double a0=0.5f, c0=0.5f, alpha=1f, gamma= 0.4f, a,c, diffLoss, maxDiffLoss = 0, grad, residual, minResidual = 99999999;
+	private double a0=0.5f, c0=0.5f, alpha=1f, gamma= 0.4f, a,c, diffLoss, maxDiffLoss = 0, grad, residual, minResidual;
 	private boolean
 			shouldUpdateBeta = true, // true when updating objective function
 			shouldUpdateBetaTemp = true,
@@ -116,15 +116,13 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		 * read in the simulated loads, calculate the objective function, generate a new set of parameters to simulate
 		 * (either from the random draw or from the update step).
 		 */
-			int iterPeriod = 3;
+			int iterPeriod = 4;
 			String valueType = "pluggednum"; // "chargingload" or "pluggednum"
 			isFirstIteration		= (event.getIteration() == 0);
-			shouldUpdateBetaPlus 	= (event.getIteration()%iterPeriod == 1);
-			shouldUpdateBetaMinus 	= (event.getIteration()%iterPeriod == 2);
-//			shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 3);
-			shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 0) && !isFirstIteration;
-			a 	= a0 / (Math.pow(event.getIteration()/iterPeriod,alpha));
-			c 	= c0 / (Math.pow(event.getIteration()/iterPeriod,gamma));
+			shouldUpdateBetaPlus 	= (event.getIteration() % iterPeriod == 1);
+			shouldUpdateBetaMinus 	= (event.getIteration() % iterPeriod == 2);
+			if(iterPeriod==4) shouldUpdateBetaTemp 	= (event.getIteration() % iterPeriod == 3);
+			else if(iterPeriod==3) shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 0) && !isFirstIteration;
 
 			if(isFirstIteration){
 				// load parameters from logit model XML
@@ -138,9 +136,17 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
 			}else{
 				if(shouldUpdateBetaPlus){
+					// Update algorithmic params
+					log.info("Math.ceil(event.getIteration()/iterPeriod): " + Math.ceil((double)event.getIteration()/(double)iterPeriod));
+					a 	= a0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod),alpha));
+					c 	= c0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod),gamma));
+
 					// Load and merge observed & simulated data
-					String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator + "it."
-							+ (event.getIteration()-1) + File.separator + "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
+					String prevLoadFile = EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+
+							EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator +
+							"ITERS" + File.separator +
+							"it." + (event.getIteration()-1) + File.separator +
+							"run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
 					valHmBeta = getHashMapFromFile(prevLoadFile,valueType);
 					valListBetaTemp = getMergedArray(initDisaggFileWriter(event.getIteration(),"beta"), valHmBeta, valHmObserved, valueType);
 					valListObserved = getMergedArray(initDisaggFileWriter(event.getIteration(),"observed"), valHmObserved, valHmBeta, valueType);
@@ -148,9 +154,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					// Calculate residuals
 					residual = 0;
 					for(int i = 0; i< valListBetaTemp.size(); i++){
-						double scaler = 500/70000;
-						scaler = 1;
-						residual += Math.pow(valListObserved.get(i)*scaler- valListBetaTemp.get(i),2);
+						residual += Math.pow(valListObserved.get(i)- valListBetaTemp.get(i),2);
 					}
 					log.info("residual (observed - modeled)^2 = " + residual);
 					if(event.getIteration() == 1) minResidual = residual;
@@ -170,7 +174,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					}
 
 					// Re-initialize params
-					logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
+					logitParamsTemp 	= (Element) logitParams.clone(); 	 // Temporary logit params
 					logitParamsPlus 	= (Element) logitParamsTemp.clone(); // Positive perturbed logit params
 					logitParamsMinus 	= (Element) logitParamsTemp.clone(); // Negative perturbed logit params
 				}
@@ -199,20 +203,17 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					// Update gradient
 					diffLoss = 0;
 					double scaler = 10000/70000;
-//					scaler = 1;
-					log.info("valListBetaTemp size: " + valListBetaTemp.size());
-					log.info("valListBetaPlus size: " + valListBetaPlus.size());
-					log.info("valListBetaMinus size: " + valListBetaMinus.size());
-					log.info("valListObserved size: " + valListObserved.size());
+					scaler = 1;
 					for(int i = 0; i< valListBetaPlus.size(); i++){
 						try{
-							diffLoss += Math.pow(valListObserved.get(i)*scaler- valListBetaPlus.get(i),2)
+							// Get loss function
+							diffLoss += Math.pow(valListObserved.get(i) *scaler- valListBetaPlus.get(i),2)
 									- Math.pow(valListObserved.get(i)*scaler- valListBetaMinus.get(i),2);
 						}catch(Exception e){break;}
 					}
 					if(Math.abs(diffLoss) >= maxDiffLoss) maxDiffLoss = Math.abs(diffLoss);
-					log.info("HERE!!!!! difference in diffLoss: " + diffLoss);
-					log.info("HERE!!!!! max difference in diffLoss: " + maxDiffLoss);
+					log.info("HERE!!!!! diffLoss: " + diffLoss);
+					log.info("HERE!!!!! max diffLoss: " + maxDiffLoss);
 				}
 			}
 
@@ -259,6 +260,8 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 												} else if (shouldUpdateBetaTemp) {
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
 													grad = (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
+//													grad = (diffLoss) / (2 * c * paramsDelta.get(paramIndex++));
+													log.info("grad: " + grad);
 													double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
 													if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
 														if(updatedParam >= 0) updatedParam = paramMaxConst;
@@ -284,7 +287,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
 												} else if (shouldUpdateBetaTemp) {
 													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-													grad = (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
+													grad = (diffLoss / maxDiffLoss)*paramMaxConst/ (2 * c * paramsDelta.get(paramIndex++));
+//													grad = (diffLoss)/ (2 * c * paramsDelta.get(paramIndex++));
+													log.info("grad: " + grad);
 													double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
 													if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
 														if(updatedParam >= 0) updatedParam = paramMaxConst;
