@@ -39,7 +39,7 @@ class PointProcessEvent(time: Double, id: Id[Person],
       "typ"->Json.fromString(EVENT_TYPE),
       "kind"->Json.fromString(PointProcessType.Choice.name),
       "val"->Json.fromDoubleOrNull(intensity),
-      "startTime"->Json.fromDoubleOrNull(time),
+      "startTime"->Json.fromLong(time.toLong),
       "endTime"->vizData.asArray.get.last.asArray.get.last,
       "shp"->vizData.asJson
     )

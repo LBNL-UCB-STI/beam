@@ -17,7 +17,11 @@ package object events {
   object SpaceTime {
     def apply(x: Double, y: Double, time: Long): SpaceTime = SpaceTime(new Coord(x, y), time)
 
-    implicit  val encodeSpaceTime: Encoder[SpaceTime] = (a: SpaceTime) => {
+    def apply(tup: (Coord, Long)): SpaceTime = tup match {
+      case (c, l) => SpaceTime(c, l)
+    }
+
+    implicit val encodeSpaceTime: Encoder[SpaceTime] = (a: SpaceTime) => {
       Json.fromValues(Seq[Json](
         Json.fromDoubleOrNull(MathUtils.roundDouble(a.loc.getX, 5)), // TODO: Hardcoded. Should this be configurable?
         Json.fromDoubleOrNull(MathUtils.roundDouble(a.loc.getY, 5)), // TODO: Ditto.
