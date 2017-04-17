@@ -198,7 +198,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 
 					// Update gradient
 					diffLoss = 0;
-					double scaler = 500/70000;
+					double scaler = 10000/70000;
 //					scaler = 1;
 					log.info("valListBetaTemp size: " + valListBetaTemp.size());
 					log.info("valListBetaPlus size: " + valListBetaPlus.size());
