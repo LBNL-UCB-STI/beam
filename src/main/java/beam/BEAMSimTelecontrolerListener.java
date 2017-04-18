@@ -174,7 +174,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					}
 
 					// Re-initialize params
-					logitParamsTemp 	= (Element) logitParams.clone(); 	 // Temporary logit params
+//					logitParamsTemp 	= (Element) logitParams.clone(); 	 // Temporary logit params
 					logitParamsPlus 	= (Element) logitParamsTemp.clone(); // Positive perturbed logit params
 					logitParamsMinus 	= (Element) logitParamsTemp.clone(); // Negative perturbed logit params
 				}
@@ -202,13 +202,11 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 
 					// Update gradient
 					diffLoss = 0;
-					double scaler = 10000/70000;
-					scaler = 1;
 					for(int i = 0; i< valListBetaPlus.size(); i++){
 						try{
 							// Get loss function
-							diffLoss += Math.pow(valListObserved.get(i) *scaler- valListBetaPlus.get(i),2)
-									- Math.pow(valListObserved.get(i)*scaler- valListBetaMinus.get(i),2);
+							diffLoss += Math.pow(valListObserved.get(i) - valListBetaPlus.get(i),2)
+									- Math.pow(valListObserved.get(i) - valListBetaMinus.get(i),2);
 						}catch(Exception e){break;}
 					}
 					if(Math.abs(diffLoss) >= maxDiffLoss) maxDiffLoss = Math.abs(diffLoss);
