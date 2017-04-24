@@ -8,14 +8,22 @@ import io.circe.syntax._
 import scala.xml.XML
 
 /**
+  * [[Encoder]]s, implicit encoders, and output serialization utilities
   * Created by sfeygin on 3/28/17.
   */
 object JsonUtils {
 
-  implicit val encodeLeg: Encoder[BeamLeg] = (a: BeamLeg) => {
-    val jsonBuilder: Map[String, Json] = Map(
-      "typ" -> Json.fromString("trajectory"), "mode" -> a.mode.asJson, "shp" -> a.graphPath.asJson)
-    Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
+  // Put global implicit encoders here. Can import wholesale in implementing code.
+  object syntax {
+    implicit val encodeLeg: Encoder[BeamLeg] = (a: BeamLeg) => {
+      val jsonBuilder: Map[String, Json] = Map(
+        "typ" -> Json.fromString("trajectory"), "mode" -> a.mode.asJson, "shp" -> a.graphPath.asJson)
+      Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
+    }
+
+    implicit val encodeCoord: Encoder[Coord]=(a:Coord)=>{
+      Json.fromValues(Seq(Json.fromDoubleOrNull(MathUtils.roundDouble(a.getX,5)),Json.fromDoubleOrNull(MathUtils.roundDouble(a.getY,5))))
+    }
   }
 
   def processEventsFileVizData(inFile: String, outFile: String): Unit = {

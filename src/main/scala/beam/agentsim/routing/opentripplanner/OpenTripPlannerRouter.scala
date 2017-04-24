@@ -50,8 +50,8 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
   def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    val fromPosTransformed = GeoUtils.transform(fromFacility.getCoord)
-    val toPosTransformed = GeoUtils.transform(toFacility.getCoord)
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
     request.dateTime = baseTime + departureTime.toLong % (24L * 3600L)
