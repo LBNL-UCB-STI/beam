@@ -5,13 +5,16 @@ import java.time.ZonedDateTime
 import java.util
 import java.util.Locale
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.Props
+import beam.agentsim.core.Modes.BeamMode
+import beam.agentsim.core.Modes.BeamMode._
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
+import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
-import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
@@ -19,8 +22,7 @@ import org.matsim.facilities.Facility
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
-import org.opentripplanner.routing.core.{State, TraverseMode}
-import org.opentripplanner.routing.edgetype._
+import org.opentripplanner.routing.edgetype.{StreetTransitLink, _}
 import org.opentripplanner.routing.error.{PathNotFoundException, TrivialPathException}
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
@@ -45,135 +47,125 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
   var transform: Option[MathTransform] = None
   val baseTime: Long = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse = {
-    var request = new org.opentripplanner.routing.core.RoutingRequest()
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
+    val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    val fromPos = new DirectPosition2D(fromFacility.getCoord.getX, fromFacility.getCoord.getY)
-    val toPos = new DirectPosition2D(toFacility.getCoord.getX, toFacility.getCoord.getY)
-    val fromPosTransformed = new DirectPosition2D(fromFacility.getCoord.getX, fromFacility.getCoord.getY)
-    val toPosTransformed = new DirectPosition2D(toFacility.getCoord.getX, toFacility.getCoord.getY)
-    if (fromFacility.getCoord.getX > 400.0 | fromFacility.getCoord.getX < -400.0) {
-      transform.get.transform(fromPos, fromPosTransformed)
-      transform.get.transform(toPos, toPosTransformed)
-    }
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
     request.dateTime = baseTime + departureTime.toLong % (24L * 3600L)
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
-    val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     request.clearModes()
-    request.addMode(TraverseMode.WALK)
-    request.addMode(TraverseMode.CAR)
+    request.addMode(WALK)
+
+    if (isTransit) {
+      request.addMode(TRANSIT)
+      request.addMode(BUS)
+      request.addMode(RAIL)
+      request.addMode(SUBWAY)
+      request.addMode(LEG_SWITCH)
+      request.addMode(CABLE_CAR)
+      request.addMode(FERRY)
+      request.addMode(TRAM)
+      request.addMode(FUNICULAR)
+      request.addMode(GONDOLA)
+    } else {
+      request.addMode(CAR)
+    }
+    request
+  }
+
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse = {
+    val drivingRequest = buildRequest(fromFacility, toFacility, departureTime)
+
+    val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     var gpFinder = new GraphPathFinder(router.get)
     try {
-      paths.addAll(gpFinder.graphPathFinderEntryPoint(request))
+      paths.addAll(gpFinder.graphPathFinderEntryPoint(drivingRequest))
     } catch {
       case e: NullPointerException =>
         log.error(e.getCause.toString)
       case e: PathNotFoundException =>
-//        log.error("PathNotFoundException")
+      //        log.error("PathNotFoundException")
       case e: TrivialPathException =>
-//        log.error("TrivialPathException")
-    }
-    request = new org.opentripplanner.routing.core.RoutingRequest()
-    request.routerId = routerIds.head
-    request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
-    request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
-    request.dateTime = baseTime + departureTime.toLong % (24L * 3600L)
-    request.maxWalkDistance = 804.672
-    request.locale = Locale.ENGLISH
-    request.clearModes()
-    request.addMode(TraverseMode.WALK)
-    request.addMode(TraverseMode.TRANSIT)
-    request.addMode(TraverseMode.BUS)
-    request.addMode(TraverseMode.RAIL)
-    request.addMode(TraverseMode.SUBWAY)
-    request.addMode(TraverseMode.LEG_SWITCH)
-    request.addMode(TraverseMode.CABLE_CAR)
-    request.addMode(TraverseMode.FERRY)
-    request.addMode(TraverseMode.TRAM)
-    request.addMode(TraverseMode.FUNICULAR)
-    request.addMode(TraverseMode.GONDOLA)
-    gpFinder = new GraphPathFinder(router.get)
-    try {
-      paths.addAll(gpFinder.graphPathFinderEntryPoint(request))
-    } catch {
-      case e: NullPointerException =>
-        log.error("NullPointerException encountered in OpenTripPlanner router for request: " + request.toString)
-      case e: PathNotFoundException =>
-//        log.error("PathNotFoundException")
-      case e: TrivialPathException =>
-//        log.error("TrivialPathException")
+      //        log.error("TrivialPathException")
     }
 
-    //TODO replace filter here that skips paths starting more than 30 minutes of departure time with something more robust
-    val beamTrips = for (path: GraphPath <- paths.asScala.toVector if path.states.get(0).getTimeSeconds - baseTime - 1800 <= departureTime) yield {
+    val transitRequest = buildRequest(fromFacility, toFacility, departureTime, isTransit = true)
+
+    gpFinder = new GraphPathFinder(router.get)
+    try {
+      paths.addAll(gpFinder.graphPathFinderEntryPoint(transitRequest))
+    } catch {
+      case e: NullPointerException =>
+        log.error("NullPointerException encountered in OpenTripPlanner router for request: " + transitRequest.toString)
+      case e: PathNotFoundException =>
+      //        log.error("PathNotFoundException")
+      case e: TrivialPathException =>
+      //        log.error("TrivialPathException")
+    }
+
+
+    val beamTrips = for (path: GraphPath <- paths.asScala.toVector) yield {
       val statesInGraphPath = path.states.asScala.toVector
       val edgesInGraphPath = path.edges.asScala.toVector
-      var runningTime = statesInGraphPath.head.getTimeSeconds - baseTime
-      val timesAlongGraphPath = for(state <- statesInGraphPath)yield()
       var edgesModesTimes: Vector[EdgeModeTime] = Vector()
       var stateIndex = 0
       var prevTime = statesInGraphPath(stateIndex).getTimeSeconds - baseTime
-      while(stateIndex < statesInGraphPath.length - 1){
+      while (stateIndex < statesInGraphPath.length - 1) {
         val state = statesInGraphPath(stateIndex)
-        if(!state.isInstanceOf[PatternDwell]) {
-          val theMode: String = if (state.getBackMode != null) {
-            if (state.getBackMode.name().equalsIgnoreCase("leg_switch")) {
-              state.getBackEdge match {
-                case _: StreetTransitLink =>
-                  "PRE_BOARD"
-                case _: PreAlightEdge =>
-                  "PRE_ALIGHT"
-                case _: PreBoardEdge =>
-                  "WAITING"
-                case alight: TransitBoardAlight =>
-                  if (alight.boarding) {
-                    "BOARDING"
-                  } else {
-                    "ALIGHTING"
-                  }
-                case _ =>
-                  state.getBackMode.name()
-              }
-            } else {
-              state.getBackMode.name()
+        val theMode: BeamMode = if (state.getBackMode != null) {
+          if (state.getBackMode.name().equalsIgnoreCase(LEG_SWITCH.value)) {
+            state.getBackEdge match {
+              case _: StreetTransitLink =>
+                PRE_BOARD
+              case _: PreAlightEdge =>
+                PRE_ALIGHT
+              case _: PreBoardEdge =>
+                WAITING
+              case alight:TransitBoardAlight =>
+                if (alight.boarding) BOARDING else ALIGHTING
+              case _ =>
+                BeamMode.withValue(state.getBackMode.name().toLowerCase())
             }
           } else {
-            state.getNonTransitMode.name()
+            BeamMode.withValue(state.getBackMode.name().toLowerCase())
           }
-          if (stateIndex == 0  || edgesInGraphPath(stateIndex-1).getGeometry == null || edgesInGraphPath(stateIndex-1).getGeometry.getCoordinates.length == 0) {
-            val toCoord = new Coord(state.getVertex.getX, state.getVertex.getY)
-            val fromCoord = if (state.getBackEdge == null) {
-              toCoord
-            } else {
-              new Coord(state.getBackEdge.getFromVertex.getX, state.getBackEdge.getFromVertex.getY)
-            }
-            edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
-          } else {
-            val coords = (for (coordinate <- edgesInGraphPath(stateIndex-1).getGeometry.getCoordinates) yield (new Coord(coordinate.x, coordinate.y))).toVector
-            val coordIt = coords.iterator
-            var runningTime = prevTime
-            val timeIncrement = (state.getTimeSeconds - baseTime - prevTime) / coords.length
-            var fromCoord = if (coords.length > 0) {
-              coords.head
-            } else {
-              null
-            }
-            while (coordIt.hasNext) {
-              val toCoord = coordIt.next()
-              edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, runningTime, fromCoord, toCoord)
-              fromCoord = toCoord
-              runningTime = runningTime + timeIncrement
-            }
-
-          }
-          prevTime = state.getTimeSeconds - baseTime
+        } else {
+          BeamMode.withValue(state.getNonTransitMode.name().toLowerCase())
         }
+        if (stateIndex == 0 || edgesInGraphPath(stateIndex - 1).getGeometry == null || edgesInGraphPath(stateIndex - 1).getGeometry.getCoordinates.length == 0) {
+          val toCoord = new Coord(state.getVertex.getX, state.getVertex.getY)
+          val fromCoord = if (state.getBackEdge == null) {
+            toCoord
+          } else {
+            new Coord(state.getBackEdge.getFromVertex.getX, state.getBackEdge.getFromVertex.getY)
+          }
+          edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, state.getTimeSeconds - baseTime, fromCoord, toCoord)
+        } else {
+          val coords = (for (coordinate <- edgesInGraphPath(stateIndex - 1).getGeometry.getCoordinates) yield new Coord(coordinate.x, coordinate.y)).toVector
+          val coordIt = coords.iterator
+          var runningTime = prevTime
+          val timeIncrement = (state.getTimeSeconds - baseTime - prevTime) / coords.length
+          var fromCoord = if (coords.nonEmpty) {
+            coords.head
+          } else {
+            null
+          }
+          while (coordIt.hasNext) {
+            val toCoord = coordIt.next()
+            edgesModesTimes = edgesModesTimes :+ EdgeModeTime(state.getVertex.getLabel, theMode, runningTime, fromCoord, toCoord)
+            fromCoord = toCoord
+            runningTime = runningTime + timeIncrement
+          }
+
+        }
+        prevTime = state.getTimeSeconds - baseTime
         stateIndex = stateIndex + 1
       }
-      edgesModesTimes = edgesModesTimes.filter(t => !(t.mode.equals("PRE_BOARD") | t.mode.equals("PRE_ALIGHT")))
+      edgesModesTimes = edgesModesTimes.filter(t => !(t.mode.equals(PRE_BOARD) | t.mode.equals(PRE_ALIGHT)))
 
       val it = edgesModesTimes.iterator.buffered
       var activeEdgeModeTime = it.next()
@@ -198,7 +190,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
         }
         if (activeEdgeModeTime.mode != activeMode) {
           beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart,
-            BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
+            BeamGraphPath(activeLinkIds, activeCoords, activeTimes))
           activeLinkIds = Vector[String]()
           activeCoords = Vector[Coord]()
           activeTimes = Vector[Long]()
@@ -208,8 +200,8 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
       }
 
       // CAR only
-      val beamLeg = BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart, BeamGraphPath(activeLinkIds, Some(activeCoords), Some(activeTimes)))
-      beamLegs = if (activeMode == "CAR") {
+      val beamLeg = BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart, BeamGraphPath(activeLinkIds, activeCoords, activeTimes))
+      beamLegs = if (activeMode == CAR) {
         beamLegs :+ BeamLeg.dummyWalk(activeStart) :+ beamLeg :+ BeamLeg.dummyWalk(edgesModesTimes.last.time)
       } else {
         beamLegs :+ beamLeg
@@ -302,36 +294,51 @@ object OpenTripPlannerRouter {
 
   case class RoutingResponse(itinerary: Vector[BeamTrip])
 
-  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0){
-    val tripClassifier: String =if( legs map(_.mode) contains "CAR"){"CAR"} else {"PT"}
+  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0) {
+    lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
+      CAR
+    } else {
+      TRANSIT
+    }
     val totalTravelTime: Long = legs.map(_.travelTime).sum
+
   }
 
   object BeamTrip {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
+
   }
 
-  case class BeamLeg(startTime: Long, mode: String, travelTime: Long, graphPath: BeamGraphPath)
+  case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long, graphPath: BeamGraphPath)
 
   object BeamLeg {
-    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, "WALK", 0, BeamGraphPath.empty())
+
+    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty)
+
   }
 
   case class BeamGraphPath(linkIds: Vector[String],
-                           latLons: Option[Vector[Coord]],
-                           entryTimes: Option[Vector[Long]])
+                           latLons: Vector[Coord],
+                           entryTimes: Vector[Long]) {
+
+    lazy val trajectory: Vector[SpaceTime] = {
+      latLons zip entryTimes map {
+        SpaceTime(_)
+      }
+    }
+  }
 
   object BeamGraphPath {
-    def empty(): BeamGraphPath = new BeamGraphPath(Vector[String](), None, None)
+    val emptyTimes: Vector[Long] = Vector[Long]()
+    val errorPoints: Vector[Coord] = Vector[Coord](new Coord(0.0, 0.0))
+    val errorTime: Vector[Long] = Vector[Long](-1L)
+
+    val empty: BeamGraphPath = new BeamGraphPath(Vector[String](), errorPoints, emptyTimes)
+
+
   }
 
-  case class PathSegment(from: Coord, to: Coord) {
+  case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
 
-    import beam.agentsim.utils.GeoUtils._
-
-    val lengthInMeters: Double = distLatLon2Meters(from.getX, from.getY, to.getX, to.getY)
-  }
-
-  case class EdgeModeTime(fromVertexLabel: String, mode: String, time: Long, fromCoord: Coord, toCoord: Coord)
 
 }

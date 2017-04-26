@@ -2,72 +2,69 @@ package beam.agentsim.events
 
 import java.util
 
-import beam.agentsim.events.PointProcessEvent._
-import org.geotools.geometry.DirectPosition2D
-import org.geotools.referencing.CRS
+import beam.agentsim.events.PointProcessEvent.PointProcessType
+import beam.agentsim.events.PointProcessEvent.PointProcessType.Choice
+import beam.agentsim.utils.GeoUtils._
+import beam.agentsim.utils.JsonUtils.syntax._
+import enumeratum._
+import io.circe.syntax._
+import io.circe.{Json, JsonObject}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.internal.HasPersonId
 
-import scala.math._
+import scala.collection.immutable
 
 /**
-  * BEAM
+  * Events that encode vizualization data for beam-viz that take the form of points that display for a specified period of time
   */
-class PointProcessEvent (time: Double, id: Id[Person], pointProcessType: String, location: Coord, intensity: Double = 1.0 ) extends Event(time) with HasPersonId {
+class PointProcessEvent(time: Double, id: Id[Person],
+                        pointProcessType: PointProcessType,
+                        location: Coord,
+                        intensity: Double = 1.0)
+  extends Event(time) with HasPersonId {
 
-
-  val ATTRIBUTE_VIZ_DATA: String = "viz_data"
-  val ATTRIBUTE_LOCATION: String = "location"
-  val ATTRIBUTE_INTENSITY: String = "intensity"
-  val ATTRIBUTE_POINT_PROCESS_TYPE: String = "type"
-  val ATTRIBUTE_AGENT_ID: String = "agent_id"
+  import beam.agentsim.events.PointProcessEvent._
 
   override def getEventType: String = EVENT_TYPE
 
   override def getPersonId: Id[Person] = id
 
-  def createStarBurst(time: Double, location: Coord, intensity: Double, pointProcessType: String,
-                      radialLength: Double = 350, paceInTicksPerFrame: Double = 25, numRays: Int = 10,
-                      directionOut: Boolean = true, numFrames: Int = 4, doTransform: Boolean = false) : String = {
-    val radiusFromOrigin : Vector[Double] = (for(i <- 0 until numFrames) yield radialLength * i / (numFrames - 1)).toVector
-    val deltaRadian = 2.0 * Pi / numRays
-    val frameIndices = if(directionOut){ 0 until numFrames}else{ numFrames - 1 to 0}
-    val vizData = for(rayIndex <- 0 until numRays) yield {
-      for(frameIndex <- frameIndices)  yield {
-        val len = radiusFromOrigin(frameIndex)
-        var x = location.getX + len * cos(deltaRadian * rayIndex)
-        var y = location.getY + len * sin(deltaRadian * rayIndex)
-        if(doTransform){
-          val thePos = new DirectPosition2D(x,y)
-          val thePosTransformed = new DirectPosition2D(x,y)
-          transform.transform(thePos, thePosTransformed)
-          x = thePosTransformed.x
-          y = thePosTransformed.y
-        }
-        s"""\"shp\":[%.6f,%.6f],\"tim\":""".format(x, y) + (time + paceInTicksPerFrame*frameIndex) mkString
-      }
-    }
-    val resultStr = (for (x <- vizData) yield x.mkString("},{")).mkString("},{")
-    "[{\"typ\":\"" + pointProcessType + "\",\"val\":"+ s"""%.3f""".format(intensity) +","+resultStr+"}]"
+  def createStarBurst(time: Double, location: Coord, intensity: Double): Json = {
+
+    val jsonBuilder: Map[String, Json] = Map(
+      "typ" -> Json.fromString(EVENT_TYPE),
+      "kind" -> Json.fromString(PointProcessType.Choice.name),
+      "startTime" -> Json.fromLong(time.toLong),
+      "shp" -> transform.Utm2Wgs(location).asJson,
+      "attrib" -> Json.fromJsonObject(JsonObject.fromMap(Map("val" -> intensity.asJson)))
+    )
+    Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
   }
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
-    val doTheTransform = location.getX < -400 | location.getX > 400
-    val vizString = createStarBurst(time,location,intensity,pointProcessType,doTransform = doTheTransform)
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
-    attr.put(ATTRIBUTE_VIZ_DATA, vizString)
+    attr.put(ATTRIBUTE_VIZ_DATA, if (this.pointProcessType.equals(Choice)) createStarBurst(time, location, intensity).noSpaces else "")
     attr
   }
 }
 
 object PointProcessEvent {
+
   val EVENT_TYPE = "pointProcess"
-  val transform = CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false)
+  val ATTRIBUTE_VIZ_DATA: String = "viz_data"
+  val ATTRIBUTE_INTENSITY: String = "intensity"
+  val ATTRIBUTE_POINT_PROCESS_TYPE: String = "type"
+  val ATTRIBUTE_AGENT_ID: String = "agent_id"
+
+  sealed abstract class PointProcessType(val name: String) extends EnumEntry
+
+  case object PointProcessType extends Enum[PointProcessType] with CirceEnum[PointProcessType] {
+    val values: immutable.IndexedSeq[PointProcessType] = findValues
+    case object Choice extends PointProcessType("CHOICE")
+
+  }
+
 }
-
-/* For debugging in REPL
-
-*/

@@ -1,9 +1,28 @@
 package beam.agentsim.utils
 
+import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
+
+
 /**
   * Created by sfeygin on 4/2/17.
   */
 object GeoUtils {
+
+
+  object transform{
+    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+
+    def Utm2Wgs(coord:Coord):Coord={
+      if (coord.getX > 400.0 | coord.getX < -400.0) {
+        utm2Wgs.transform(coord)
+      } else {
+        coord
+      }
+    }
+  }
+
+
 
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
     //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java

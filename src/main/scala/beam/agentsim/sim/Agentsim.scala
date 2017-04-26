@@ -42,7 +42,9 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   import AgentsimServices._
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[Agentsim])
-  private val popMap: Map[Id[Person], Person] = ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
+  private val popMap: Map[Id[Person], Person] =
+    ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons)
+      .toSeq.sortBy(_._1): _*)
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
@@ -112,7 +114,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
-    for ((k, v) <- popMap) {
+    for ((k, v) <- popMap.take(beamConfig.beam.sim.numAgents)) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
