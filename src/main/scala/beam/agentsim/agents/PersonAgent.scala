@@ -83,15 +83,7 @@ object PersonAgent {
   }
 
   def altUtility(mode: BeamMode, travelTime: Double): Double = {
-    val intercept = if (mode.equals(CAR)) {
-      -5.0
-    } else {
-      if (mode.equals(TAXI)) {
-        0.0
-      } else {
-        0.0
-      }
-    }
+    val intercept = if(mode.equals(CAR)){ -3.0 }else{ if(mode.equals(TAXI)){ -5.0}else{0.0} }
     intercept + -0.001 * travelTime
   }
 
