@@ -109,6 +109,8 @@ public class EVGlobalData {
 	public String CHARGING_PLUG_TYPES_FILEPATH;
 	public String CHARGING_POINTS_FILEPATH;
 	public String CHARGING_STRATEGIES_FILEPATH;
+	public String UPDATED_CHARGING_STRATEGIES_FILEPATH;
+	public String UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH;
 	public String VEHICLE_TYPES_FILEPATH;
 	public String PERSON_VEHICLE_TYPES_FILEPATH;
 	public String TRAVEL_TIME_FILEPATH;
@@ -117,7 +119,9 @@ public class EVGlobalData {
 	public int ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
 	public String LINK_ATTRIBUTE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
-	public boolean SHOULD_DO_PARAM_CALIBRATION;
+	public boolean SHOULD_CALIBRATE_PARAMS;
+	public boolean SHOULD_RESUME_CALIBRATION;
+	public int ITER_SET_LENGTH;
 
 	public ChargingInfrastructureManagerImpl chargingInfrastructureManager;
 	public ChargingQueueImpl fastChargingQueue;

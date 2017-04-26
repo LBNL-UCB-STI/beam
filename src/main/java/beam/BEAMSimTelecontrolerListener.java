@@ -10,6 +10,8 @@ import org.apache.log4j.Logger;
 import org.jdom.Document;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
+import org.jdom.output.Format;
+import org.jdom.output.XMLOutputter;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.AfterMobsimEvent;
 import org.matsim.core.controler.events.BeforeMobsimEvent;
@@ -107,7 +109,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	public void notifyIterationStarts(IterationStartsEvent event) {
 		log.info("notifyIterationStarts is called");
 
-		if(EVGlobalData.data.SHOULD_DO_PARAM_CALIBRATION){
+		if(EVGlobalData.data.SHOULD_CALIBRATE_PARAMS){
 
 		/*
 		 * Here is where you would either initialize the algorithm (if this is iteration 0) or do the update.
@@ -116,24 +118,39 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		 * read in the simulated loads, calculate the objective function, generate a new set of parameters to simulate
 		 * (either from the random draw or from the update step).
 		 */
-			int iterPeriod = 4;
+			int iterPeriod = EVGlobalData.data.ITER_SET_LENGTH;
 			String valueType = "pluggednum"; // "chargingload" or "pluggednum"
 			isFirstIteration		= (event.getIteration() == 0);
 			shouldUpdateBetaPlus 	= (event.getIteration() % iterPeriod == 1);
 			shouldUpdateBetaMinus 	= (event.getIteration() % iterPeriod == 2);
-			if(iterPeriod==4) shouldUpdateBetaTemp 	= (event.getIteration() % iterPeriod == 3);
-			else if(iterPeriod==3) shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 0) && !isFirstIteration;
+			shouldUpdateBetaTemp	= (iterPeriod>=4? (event.getIteration() % iterPeriod == 3) : ((event.getIteration()%iterPeriod == 0) && !isFirstIteration));
+			if(iterPeriod < 3) throw new WrongIterationPeriodException("Iteration set period can't be less than 3!");
+//			if(iterPeriod==4) 		shouldUpdateBetaTemp 	= (event.getIteration() % iterPeriod == 3);
+//			else if(iterPeriod==3)  shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 0) && !isFirstIteration;
 
 			if(isFirstIteration){
-				// load parameters from logit model XML
-				try {
-					logitParams = loadChargingStrategies();
-					paramsList 	= getUtilityParams(logitParams);
-				} catch (Exception e) {
-					e.printStackTrace();
+				// If we resume the calibration
+				if(EVGlobalData.data.SHOULD_RESUME_CALIBRATION){
+					// Initialize the parameters from the backup file
+					try {
+						logitParams = loadChargingStrategies(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}else{
+					// load parameters from logit model XML
+					try {
+						logitParams = loadChargingStrategies();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
 				}
-				valHmObserved = getHashMapFromFile(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH,valueType);
+				paramsList 			= getUtilityParams(logitParams);
+				valHmObserved 		= getHashMapFromFile(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH,valueType);
 				logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
+
+				// This is for test
+//				backupUpdatedParams((Element)logitParams.clone());
 			}else{
 				if(shouldUpdateBetaPlus){
 					// Update algorithmic params
@@ -163,18 +180,22 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					// Update parameter if we have an improvement in residuals
 					if(event.getIteration() >= iterPeriod && residual <= minResidual){ // Check if we have an improvement with the updated parameter
 						log.info("origin params: " + getUtilityParams(logitParams));
+
 						// Update the parameter if the perturbation made an improvement
 						minResidual = residual; // update the threshold
 						logitParams = (Element) logitParamsTemp.clone(); // update the parameter
 						log.info("current params: " + getUtilityParams(logitParams));
 						log.info("YES, Parameters are updated.");
+
+						// Write XML of the updated params
+						backupUpdatedParams((Element)logitParams.clone());
 					}else{
 						log.info("current params: " + getUtilityParams(logitParams));
 						log.warn("NO, Parameters are not updated.");
 					}
 
 					// Re-initialize params
-//					logitParamsTemp 	= (Element) logitParams.clone(); 	 // Temporary logit params
+					logitParamsTemp 	= (Element) logitParams.clone(); 	 // Temporary logit params
 					logitParamsPlus 	= (Element) logitParamsTemp.clone(); // Positive perturbed logit params
 					logitParamsMinus 	= (Element) logitParamsTemp.clone(); // Negative perturbed logit params
 				}
@@ -333,6 +354,34 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			}
 		}else{
 			log.warn("We do not calibrate parameter. Set \"shouldDoParamCalibration\" true in config to estimate parameter.");
+		}
+	}
+
+	/**
+	 * Write updated params in the backup file
+	 * @param element
+	 */
+	private void backupUpdatedParams(Element element) {
+		// Detach element from parent
+		element.detach();
+
+		// Set root element
+		Element strategies = new Element("strategies");
+		Document doc = new Document(strategies);
+		doc.setRootElement(strategies);
+
+		// Add strategy
+		Element strategy = new Element("strategy");
+		strategy.addContent(element);
+		doc.getRootElement().addContent(strategy);
+
+		XMLOutputter xmlOutput = new XMLOutputter();
+		xmlOutput.setFormat(Format.getPrettyFormat());
+		try {
+			xmlOutput.output(doc, new FileWriter(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH));
+			log.info("updated params are saved in the backup file: " + EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -877,11 +926,18 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	 * Load the recent charging strategies from XML
 	 */
 	private Element loadChargingStrategies() throws Exception {
+		return loadChargingStrategies(EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH);
+	}
+
+	/**
+	 * Load the recent charging strategies from XML
+	 */
+	private Element loadChargingStrategies(String filePath) throws Exception {
 		SAXBuilder saxBuilder = new SAXBuilder();
 		FileInputStream stream;
 		Document document = null;
 		try {
-			stream = new FileInputStream(EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH);
+			stream = new FileInputStream(filePath);
 			document = saxBuilder.build(stream);
 		} catch (JDOMException | IOException e) {
 			DebugLib.stopSystemAndReportInconsistency(e.getMessage());
@@ -963,4 +1019,14 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		BEAMSimTelecontrolerListener.logitParams = params;
 	}
 
+	/**
+	 * Customized exception here
+	 */
+	public class WrongIterationPeriodException extends RuntimeException{
+		public WrongIterationPeriodException(String message) {
+			super(message);
+		}
+
+	}
 }
+

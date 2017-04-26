@@ -8,7 +8,6 @@ package beam;
  */
 
 import beam.sim.LinkAttributeLoader;
-import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import com.google.inject.Provider;
 
 import org.geotools.referencing.CRS;
@@ -47,9 +46,6 @@ import beam.events.EventLogger;
 import beam.parking.lib.DebugLib;
 import beam.charging.vehicle.ParseVehicleTypes;
 import beam.replanning.ChargingStrategyManager;
-import beam.scoring.EVScoreAccumulator;
-import beam.scoring.EVScoreEventGenerator;
-import beam.scoring.rangeAnxiety.LogRangeAnxityScoringEventsAtEndOfDay;
 import beam.sim.AdaptedQSimUtils;
 import beam.sim.AdaptedTeleportationEngine;
 import beam.sim.traveltime.BeamRouterImpl;
@@ -330,6 +326,13 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
 		if(evModule.getValue("chargingStrategiesValidationFile")!= null)
 			EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesValidationFile");
+		if(evModule.getValue("updatedChargingStrategiesFile")!= null)
+			EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("updatedChargingStrategiesFile");
+		if(evModule.getValue("updatedChargingStrategiesBackupFile")!= null)
+			EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH = inputDirectory + evModule.getValue("updatedChargingStrategiesBackupFile");
+		if(evModule.getValue("iterationSetLength")!= null)
+			EVGlobalData.data.ITER_SET_LENGTH = Integer.valueOf(evModule.getValue("iterationSetLength"));
+		else EVGlobalData.data.ITER_SET_LENGTH = 4;
 		EVGlobalData.data.VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("vehicleTypesFile");
 		EVGlobalData.data.PERSON_VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("personVehicleTypesFile");
 		EVGlobalData.data.TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("travelTimeFile");
@@ -363,8 +366,10 @@ public class EVSimTeleController {
 
 		EVGlobalData.data.IS_DEBUG_MODE = Boolean.parseBoolean(evModule.getValue("isDebugMode"));
 
-		if(evModule.getValue("shouldDoParamCalibration")!=null)
-			EVGlobalData.data.SHOULD_DO_PARAM_CALIBRATION = Boolean.parseBoolean(evModule.getValue("shouldDoParamCalibration"));
+		if(evModule.getValue("shouldCalibrateParams")!=null)
+			EVGlobalData.data.SHOULD_CALIBRATE_PARAMS = Boolean.parseBoolean(evModule.getValue("shouldCalibrateParams"));
+		if(evModule.getValue("shouldResumeCalibration")!=null)
+			EVGlobalData.data.SHOULD_RESUME_CALIBRATION = Boolean.parseBoolean(evModule.getValue("shouldResumeCalibration"));
 		
 		EVGlobalData.data.BETA_CHARGING_COST = Double.parseDouble(evModule.getValue("betaChargingCost"));
 		EVGlobalData.data.BETA_PARKING_COST = Double.parseDouble(evModule.getValue("betaParkingCost"));
