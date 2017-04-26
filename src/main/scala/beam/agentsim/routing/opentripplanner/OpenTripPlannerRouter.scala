@@ -107,7 +107,8 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 //        log.error("TrivialPathException")
     }
 
-    val beamTrips = for (path: GraphPath <- paths.asScala.toVector) yield {
+    //TODO replace filter here that skips paths starting more than 30 minutes of departure time with something more robust
+    val beamTrips = for (path: GraphPath <- paths.asScala.toVector if path.states.get(0).getTimeSeconds - baseTime - 1800 <= departureTime) yield {
       val statesInGraphPath = path.states.asScala.toVector
       val edgesInGraphPath = path.edges.asScala.toVector
       var runningTime = statesInGraphPath.head.getTimeSeconds - baseTime

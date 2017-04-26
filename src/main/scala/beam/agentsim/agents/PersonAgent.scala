@@ -74,7 +74,7 @@ object PersonAgent {
     alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
   }
   def altUtility(mode: String, travelTime: Double): Double = {
-    val intercept = if(mode.equalsIgnoreCase("CAR")){ -5.0 }else{ if(mode.equalsIgnoreCase("TAXI")){ 0.0}else{0.0} }
+    val intercept = if(mode.equalsIgnoreCase("CAR")){ -3.0 }else{ if(mode.equalsIgnoreCase("TAXI")){ -5.0}else{0.0} }
     intercept + -0.001 * travelTime
   }
   def randomChoice(alternatives: Vector[BeamTrip], taxiAlternatives: Vector[ActorRef]): BeamTrip = {
@@ -251,7 +251,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
           self ! FinishWrapper(tick, triggerId)
         },
         nextAct => {
-          logInfo(s"going to ${nextAct.getType}")
+          logInfo(s"going to ${nextAct.getType} @ ${tick}")
           val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick, id)).mapTo[RoutingResponse] map { result =>
             val theRoute = result.itinerary
             RouteResponseWrapper(tick, triggerId, theRoute)
@@ -479,7 +479,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
    * Helper methods
    */
   def logInfo(msg: String): Unit = {
-    //    log.info(s"PersonAgent $id: $msg")
+//    log.info(s"PersonAgent $id: $msg")
   }
 
   def logWarn(msg: String): Unit = {
