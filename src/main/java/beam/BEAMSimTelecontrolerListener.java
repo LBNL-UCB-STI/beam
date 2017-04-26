@@ -39,6 +39,8 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	private static final Logger log = Logger.getLogger(BEAMSimTelecontrolerListener.class);
 	private static Element logitParams, logitParamsTemp, logitParamsPlus, logitParamsMinus;
 	private double a0=0.5f, c0=0.5f, alpha=1f, gamma= 0.4f, a,c, diffLoss, maxDiffLoss = 0, grad, residual, minResidual;
+
+	//TODO: REMOVE UNNCESSARY VARIABLES
 	private boolean
 			shouldUpdateBeta = true, // true when updating objective function
 			shouldUpdateBetaTemp = true,
@@ -125,18 +127,26 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			shouldUpdateBetaMinus 	= (event.getIteration() % iterPeriod == 2);
 			shouldUpdateBetaTemp	= (iterPeriod>=4? (event.getIteration() % iterPeriod == 3) : ((event.getIteration()%iterPeriod == 0) && !isFirstIteration));
 			if(iterPeriod < 3) throw new WrongIterationPeriodException("Iteration set period can't be less than 3!");
-//			if(iterPeriod==4) 		shouldUpdateBetaTemp 	= (event.getIteration() % iterPeriod == 3);
-//			else if(iterPeriod==3)  shouldUpdateBetaTemp 	= (event.getIteration()%iterPeriod == 0) && !isFirstIteration;
 
 			if(isFirstIteration){
 				// If we resume the calibration
 				if(EVGlobalData.data.SHOULD_RESUME_CALIBRATION){
 					// Initialize the parameters from the backup file
-					try {
-						logitParams = loadChargingStrategies(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
-					} catch (Exception e) {
-						e.printStackTrace();
+					if(new File(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH).exists()){
+						try {
+							logitParams = loadChargingStrategies(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}else{
+						// load parameters from logit model XML
+						try {
+							logitParams = loadChargingStrategies();
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
 					}
+
 				}else{
 					// load parameters from logit model XML
 					try {
