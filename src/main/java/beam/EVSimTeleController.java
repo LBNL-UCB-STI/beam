@@ -324,13 +324,13 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_SITES_FILEPATH = inputDirectory + evModule.getValue("chargingSitesFile");
 		EVGlobalData.data.CHARGING_POINTS_FILEPATH = inputDirectory + evModule.getValue("chargingPointsFile");
 		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
-		if(evModule.getValue("chargingStrategiesValidationFile")!= null)
+		if (evModule.getValue("chargingStrategiesValidationFile") != null)
 			EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesValidationFile");
-		if(evModule.getValue("updatedChargingStrategiesFile")!= null)
+		if (evModule.getValue("updatedChargingStrategiesFile") != null)
 			EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("updatedChargingStrategiesFile");
-		if(evModule.getValue("updatedChargingStrategiesBackupFile")!= null)
+		if (evModule.getValue("updatedChargingStrategiesBackupFile") != null)
 			EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH = inputDirectory + evModule.getValue("updatedChargingStrategiesBackupFile");
-		if(evModule.getValue("iterationSetLength")!= null)
+		if (evModule.getValue("iterationSetLength") != null)
 			EVGlobalData.data.ITER_SET_LENGTH = Integer.valueOf(evModule.getValue("iterationSetLength"));
 		else EVGlobalData.data.ITER_SET_LENGTH = 4;
 		EVGlobalData.data.VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("vehicleTypesFile");
@@ -339,9 +339,9 @@ public class EVSimTeleController {
 		EVGlobalData.data.LINK_ATTRIBUTE_FILEPATH = inputDirectory + evModule.getValue("linkAttributesFile");
 		EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH = ((new File(evModule.getValue("routerCacheFileRead"))).isAbsolute())
 				? evModule.getValue("routerCacheFileRead") : inputDirectory + evModule.getValue("routerCacheFileRead");
-		if(!evModule.getValue("routerCacheFileWrite").trim().equals("")){
+		if (!evModule.getValue("routerCacheFileWrite").trim().equals("")) {
 			EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH = ((new File(evModule.getValue("routerCacheFileWrite"))).isAbsolute())
-				? evModule.getValue("routerCacheFileWrite") : inputDirectory + evModule.getValue("routerCacheFileWrite");
+					? evModule.getValue("routerCacheFileWrite") : inputDirectory + evModule.getValue("routerCacheFileWrite");
 		}
 		EVGlobalData.data.INITIAL_SEARCH_RADIUS = Double.parseDouble(evModule.getValue("initialSearchRadius"));
 		EVGlobalData.data.SEARCH_RADIUS_INCREMENTATION_FACTOR = Double.parseDouble(evModule.getValue("searchRadiusIncrementationFactor"));
@@ -366,48 +366,46 @@ public class EVSimTeleController {
 
 		EVGlobalData.data.IS_DEBUG_MODE = Boolean.parseBoolean(evModule.getValue("isDebugMode"));
 
-		if(evModule.getValue("shouldCalibrateParams")!=null)
-			EVGlobalData.data.SHOULD_CALIBRATE_PARAMS = Boolean.parseBoolean(evModule.getValue("shouldCalibrateParams"));
-		if(evModule.getValue("shouldResumeCalibration")!=null)
-			EVGlobalData.data.SHOULD_RESUME_CALIBRATION = Boolean.parseBoolean(evModule.getValue("shouldResumeCalibration"));
-		
+		EVGlobalData.data.SHOULD_CALIBRATE_PARAMS = evModule.getValue("shouldCalibrateParams") != null && Boolean.parseBoolean(evModule.getValue("shouldCalibrateParams"));
+		EVGlobalData.data.SHOULD_RESUME_CALIBRATION = evModule.getValue("shouldResumeCalibration") != null && Boolean.parseBoolean(evModule.getValue("shouldResumeCalibration"));
+
 		EVGlobalData.data.BETA_CHARGING_COST = Double.parseDouble(evModule.getValue("betaChargingCost"));
 		EVGlobalData.data.BETA_PARKING_COST = Double.parseDouble(evModule.getValue("betaParkingCost"));
 		EVGlobalData.data.BETA_PARKING_WALK_TIME = Double.parseDouble(evModule.getValue("betaParkingWalkTime"));
 		EVGlobalData.data.BETA_LEG_TRAVEL_TIME = Double.parseDouble(evModule.getValue("betaLegTravelTime"));
 		EVGlobalData.data.OVERHEAD_SCORE_PLUG_CHANGE = Double.parseDouble(evModule.getValue("overheadScorePlugChange"));
-		
+
 		// optional parameters
-		if (evModule.getValue("dumpPlansAtEndOfRun")!=null){
+		if (evModule.getValue("dumpPlansAtEndOfRun") != null) {
 			EVGlobalData.data.DUMP_PLANS_AT_END_OF_RUN = Boolean.parseBoolean(evModule.getValue("dumpPlansAtEndOfRun"));
 		}
-		
-		if (evModule.getValue("eventsFileOutputFormats")!=null){
+
+		if (evModule.getValue("eventsFileOutputFormats") != null) {
 			EVGlobalData.data.EVENTS_FILE_OUTPUT_FORMATS = evModule.getValue("eventsFileOutputFormats");
 		}
-		
-		if (evModule.getValue("chargingPointReferenceUtilizationDataFile")!=null){
+
+		if (evModule.getValue("chargingPointReferenceUtilizationDataFile") != null) {
 			EVGlobalData.data.CHARGING_POINT_REFERENCE_UTILIZATION_DATA_FILE = evModule.getValue("chargingPointReferenceUtilizationDataFile");
 		}
-		
-		if (evModule.getValue("dumpPlanCsv")!=null){
+
+		if (evModule.getValue("dumpPlanCsv") != null) {
 			EVGlobalData.data.DUMP_PLAN_CSV = Boolean.parseBoolean(evModule.getValue("dumpPlanCsv"));
 		}
-		
-		if (evModule.getValue("dumpPlanCsvInterval")!=null){
+
+		if (evModule.getValue("dumpPlanCsvInterval") != null) {
 			EVGlobalData.data.DUMP_PLAN_CSV_INTERVAL = Integer.parseInt(evModule.getValue("dumpPlanCsvInterval"));
 		}
-		
-		if (evModule.getValue("maxNumberOfEVDailyPlansInMemory")!=null){
+
+		if (evModule.getValue("maxNumberOfEVDailyPlansInMemory") != null) {
 			EVGlobalData.data.MAX_NUMBER_OF_EV_DAILY_PLANS_IN_MEMORY = Integer.parseInt(evModule.getValue("maxNumberOfEVDailyPlansInMemory"));
 		}
-		
-		if (evModule.getValue("selectedEVDailyPlansFileName")!=null){
+
+		if (evModule.getValue("selectedEVDailyPlansFileName") != null) {
 			EVGlobalData.data.SELECTED_EV_DAILY_PLANS_FILE_NAME = evModule.getValue("selectedEVDailyPlansFileName");
 		}
-		if(evModule.getParams().get("routerCacheInMemoryTripLimit") != null) {
+		if (evModule.getParams().get("routerCacheInMemoryTripLimit") != null) {
 			EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT = Integer.parseInt(evModule.getParams().get("routerCacheInMemoryTripLimit"));
-		}else{
+		} else {
 			EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT = 10000;
 		}
 
