@@ -514,7 +514,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				} else {
 					String time = CSVUtil.getValue("time",row,headerMap);
 					if(!time.contains(".")) time += ".0";
-					if(!filePath.toLowerCase().contains("validation")){
+					if(!filePath.toLowerCase().contains("validation")){ // simulated files
 						if(Double.valueOf(time) >= 27 && Double.valueOf(time) <= 51){
 							time = String.valueOf(Double.valueOf(time)-27);
 							String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
@@ -542,100 +542,11 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
 							}
 						}
-					}else{
+					}else{ // validation file
 						String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
 						String siteType = CSVUtil.getValue("site.type",row,headerMap);
 						String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
 						String chargingLoad = CSVUtil.getValue(valueColumn,row,headerMap);
-						if(hashMap.containsKey(time)){
-							if(hashMap.get(time).containsKey(spatialGroup)){
-								if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
-									if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
-										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-								}else{
-									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-								}
-							}else{
-								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-							}
-						}else{
-							hashMap.put(time, new LinkedHashMap<>());
-							hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-							hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-							hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-						}
-					}
-				}
-			}
-		};
-		fileParser.parse(fileParserConfig, handler);
-		return hashMap;
-	}
-
-	/**
-	 * Return LinkedHashMap that contains Plugged-in count with associated time, spatial group, site type, charger type.
-	 * @param filePath
-	 * @return
-	 */
-	private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getPluggedNumHashMap(String filePath) {
-		LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap = new LinkedHashMap<>();
-		TabularFileParser fileParser = new TabularFileParser();
-		TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
-		fileParserConfig.setFileName(filePath);
-		fileParserConfig.setDelimiterRegex(",");
-		TabularFileHandler handler = new TabularFileHandler() {
-			LinkedHashMap<String, Integer> headerMap;
-
-			@Override
-			public void startRow(String[] row) {
-				if (headerMap == null) {
-					headerMap = new LinkedHashMap<String, Integer>();
-					for (int i = 0; i < row.length; i++) {
-						String colName = row[i].toLowerCase();
-						if (colName.startsWith("\"")) {
-							colName = colName.substring(1, colName.length() - 1);
-						}
-						headerMap.put(colName, i);
-					}
-				} else {
-					String time = CSVUtil.getValue("time",row,headerMap);
-					if(!time.contains(".")) time += ".0";
-					if(!filePath.toLowerCase().contains("validation")){
-						if(Double.valueOf(time) >= 27 && Double.valueOf(time) <= 51){
-							time = String.valueOf(Double.valueOf(time)-27);
-							String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
-							String siteType = CSVUtil.getValue("site.type",row,headerMap);
-							String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
-							String chargingLoad = CSVUtil.getValue("num.plugged.in",row,headerMap);
-							if(hashMap.containsKey(time)){
-								if(hashMap.get(time).containsKey(spatialGroup)){
-									if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
-										if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
-											hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-									}else{
-										hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-										hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-									}
-								}else{
-									hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-									hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-									hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-								}
-							}else{
-								hashMap.put(time, new LinkedHashMap<>());
-								hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-								hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
-								hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
-							}
-						}
-					}else{
-						String spatialGroup = CSVUtil.getValue("spatial.group",row,headerMap);
-						String siteType = CSVUtil.getValue("site.type",row,headerMap);
-						String chargerType = CSVUtil.getValue("charger.type",row,headerMap);
-						String chargingLoad = CSVUtil.getValue("num.plugged.in",row,headerMap);
 						if(hashMap.containsKey(time)){
 							if(hashMap.get(time).containsKey(spatialGroup)){
 								if(hashMap.get(time).get(spatialGroup).containsKey(siteType)){
@@ -833,9 +744,10 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			}
 		}
 
+		log.info("keySet: " + hashMapMerged.keySet());
 		// Get merged array
 		int count = 0;
-		for (String timeKey : new TreeSet<>(hashMapMerged.keySet())) {
+		for (String timeKey : (hashMapMerged.keySet())) {
 			for (String spatialGroupKey : new TreeSet<>(hashMapMerged.get(timeKey).keySet())) {
 				for (String siteTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).keySet())) {
 					for (String chargerTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet())) {
@@ -862,6 +774,34 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 				}
 			}
 		}
+
+//		for (String timeKey : new TreeSet<>(hashMapMerged.keySet())) {
+//			for (String spatialGroupKey : new TreeSet<>(hashMapMerged.get(timeKey).keySet())) {
+//				for (String siteTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).keySet())) {
+//					for (String chargerTypeKey : new TreeSet<>(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).keySet())) {
+//						mergedArray.add(count++, Double.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)));
+//						try {
+//							switch (type) {
+//								case "chargingload":
+//									CSVUtil.writeLine(writer, Arrays.asList(timeKey, spatialGroupKey, siteTypeKey, chargerTypeKey,
+//											String.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey)), ""));
+//
+//									break;
+//								case "pluggednum":
+//									CSVUtil.writeLine(writer, Arrays.asList(timeKey, spatialGroupKey, siteTypeKey, chargerTypeKey,
+//											"", String.valueOf(hashMapMerged.get(timeKey).get(spatialGroupKey).get(siteTypeKey).get(chargerTypeKey))));
+//									break;
+//								default:
+//									throw new IllegalArgumentException("Value type is wrong! The value type must be either chargingload or pluggednum");
+//							}
+//							writer.flush();
+//						} catch (IOException e) {
+//							e.printStackTrace();
+//						}
+//					}
+//				}
+//			}
+//		}
 
 		return mergedArray;
 	}
