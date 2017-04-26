@@ -333,6 +333,9 @@ public class EVSimTeleController {
 		if (evModule.getValue("iterationSetLength") != null)
 			EVGlobalData.data.ITER_SET_LENGTH = Integer.valueOf(evModule.getValue("iterationSetLength"));
 		else EVGlobalData.data.ITER_SET_LENGTH = 4;
+		if (evModule.getValue("validationValueType") != null)
+			EVGlobalData.data.VALIDATION_VALUE_TYPE = evModule.getValue("validationValueType");
+		else EVGlobalData.data.VALIDATION_VALUE_TYPE = "chargingload";
 		EVGlobalData.data.VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("vehicleTypesFile");
 		EVGlobalData.data.PERSON_VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("personVehicleTypesFile");
 		EVGlobalData.data.TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("travelTimeFile");

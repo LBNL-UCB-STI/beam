@@ -121,7 +121,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		 * (either from the random draw or from the update step).
 		 */
 			int iterPeriod = EVGlobalData.data.ITER_SET_LENGTH;
-			String valueType = "pluggednum"; // "chargingload" or "pluggednum"
+			String valueType = EVGlobalData.data.VALIDATION_VALUE_TYPE; // "chargingload" or "pluggednum"
 			isFirstIteration		= (event.getIteration() == 0);
 			shouldUpdateBetaPlus 	= (event.getIteration() % iterPeriod == 1);
 			shouldUpdateBetaMinus 	= (event.getIteration() % iterPeriod == 2);

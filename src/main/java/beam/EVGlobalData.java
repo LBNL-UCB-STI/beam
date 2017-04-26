@@ -43,6 +43,7 @@ public class EVGlobalData {
 	public CoordinateReferenceSystem wgs84CoordinateSystem;
 
 
+
 	public static void simulationStaticVariableInitializer() {
 		data = new EVGlobalData();
 		ChargingStrategyManager.init();
@@ -122,6 +123,7 @@ public class EVGlobalData {
 	public boolean SHOULD_CALIBRATE_PARAMS;
 	public boolean SHOULD_RESUME_CALIBRATION;
 	public int ITER_SET_LENGTH;
+	public String VALIDATION_VALUE_TYPE;
 
 	public ChargingInfrastructureManagerImpl chargingInfrastructureManager;
 	public ChargingQueueImpl fastChargingQueue;
