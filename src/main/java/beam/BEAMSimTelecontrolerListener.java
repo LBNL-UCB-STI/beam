@@ -38,7 +38,7 @@ import java.util.*;
 public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, AfterMobsimListener, ShutdownListener, IterationStartsListener, IterationEndsListener {
 	private static final Logger log = Logger.getLogger(BEAMSimTelecontrolerListener.class);
 	private static Element logitParams, logitParamsTemp, logitParamsPlus, logitParamsMinus;
-	private double a0=0.5f, c0=0.5f, alpha=1f, gamma= 0.4f, a,c, diffLoss, maxDiffLoss = 0, grad, residual, minResidual;
+	private double a0=0.5f, c0=0.5f, alpha=1f, gamma= 0.4f, a,c, diffLoss, maxDiffLoss = 0, grad, residual, minResidual=Double.POSITIVE_INFINITY, lastIterSetNum=0, currentIterSetNum=0;
 
 	//TODO: REMOVE UNNCESSARY VARIABLES
 	private boolean
@@ -135,6 +135,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					if(new File(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH).exists()){
 						try {
 							logitParams = loadChargingStrategies(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
+							maxDiffLoss = getUpdateArgsFromPrevSim(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH, "maxDiffLoss");
+							minResidual = getUpdateArgsFromPrevSim(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH, "minResidual");
+							lastIterSetNum = getUpdateArgsFromPrevSim(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH, "lastIterSetNum");
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
@@ -164,9 +167,10 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			}else{
 				if(shouldUpdateBetaPlus){
 					// Update algorithmic params
-					log.info("Math.ceil(event.getIteration()/iterPeriod): " + Math.ceil((double)event.getIteration()/(double)iterPeriod));
-					a 	= a0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod),alpha));
-					c 	= c0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod),gamma));
+//					log.info("Math.ceil(event.getIteration()/iterPeriod): " + Math.ceil((double)event.getIteration()/(double)iterPeriod));
+					a 	= a0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod) + lastIterSetNum,alpha));
+					c 	= c0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod) + lastIterSetNum,gamma));
+					currentIterSetNum = Math.ceil((double)event.getIteration()/(double)iterPeriod);
 
 					// Load and merge observed & simulated data
 					String prevLoadFile = EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+
@@ -184,7 +188,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 						residual += Math.pow(valListObserved.get(i)- valListBetaTemp.get(i),2);
 					}
 					log.info("residual (observed - modeled)^2 = " + residual);
-					if(event.getIteration() == 1) minResidual = residual;
+					if((!EVGlobalData.data.SHOULD_RESUME_CALIBRATION && event.getIteration() == 1)) minResidual = residual;
 					log.info("min Residual: " + minResidual);
 
 					// Update parameter if we have an improvement in residuals
@@ -208,6 +212,9 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 					logitParamsTemp 	= (Element) logitParams.clone(); 	 // Temporary logit params
 					logitParamsPlus 	= (Element) logitParamsTemp.clone(); // Positive perturbed logit params
 					logitParamsMinus 	= (Element) logitParamsTemp.clone(); // Negative perturbed logit params
+
+					// TEST
+					backupUpdatedParams((Element)logitParams.clone());
 				}
 
 				// Update Logit params
@@ -240,7 +247,10 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 									- Math.pow(valListObserved.get(i) - valListBetaMinus.get(i),2);
 						}catch(Exception e){break;}
 					}
-					if(Math.abs(diffLoss) >= maxDiffLoss) maxDiffLoss = Math.abs(diffLoss);
+					if(Math.abs(diffLoss) >= maxDiffLoss){
+						maxDiffLoss = Math.abs(diffLoss);
+						backupUpdatedParams(maxDiffLoss);
+					}
 					log.info("HERE!!!!! diffLoss: " + diffLoss);
 					log.info("HERE!!!!! max diffLoss: " + maxDiffLoss);
 				}
@@ -368,6 +378,47 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	}
 
 	/**
+	 * Get minimum residual from the previous simulation
+	 * @param filePath
+	 * @return
+	 */
+	private double getUpdateArgsFromPrevSim(String filePath, String argName) throws Exception {
+		log.info("getting update args");
+		SAXBuilder saxBuilder = new SAXBuilder();
+		FileInputStream stream;
+		Document document = null;
+		boolean updateArgsExist = false;
+		try {
+			stream = new FileInputStream(filePath);
+			document = saxBuilder.build(stream);
+		} catch (JDOMException | IOException e) {
+			DebugLib.stopSystemAndReportInconsistency(e.getMessage());
+		}
+
+		log.info("root element children size: " + document.getRootElement().getChildren().size());
+		for(int i = 0; i < (document != null ? document.getRootElement().getChildren().size() : 0); i++){
+			Element elem = (Element)document.getRootElement().getChildren().get(i);
+			log.info("elem name: " + elem.getName());
+			if(elem.getName().equals("updateArgs")){
+				updateArgsExist = true;
+//				Element updateArgs = elem.getChild("updateArgs");
+				for (Object o : elem.getChildren()) {
+					Element subElem = (Element) o;
+//					log.info(subElem.getName() + ": " + subElem.getText());
+					if (subElem.getName().equals(argName)) {
+						log.info(argName + ": " + subElem.getText());
+						return Double.valueOf(subElem.getText());
+					}
+				}
+			}
+		}
+		if(!updateArgsExist)
+			throw new Exception("Error in loading update arguments: no child element named updateArgs!");
+		else
+			throw new Exception("Error in loading update arguments: no child element named " + argName + "!");
+	}
+
+	/**
 	 * Write updated params in the backup file
 	 * @param element
 	 */
@@ -384,6 +435,49 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 		Element strategy = new Element("strategy");
 		strategy.addContent(element);
 		doc.getRootElement().addContent(strategy);
+
+		// Add normalizer
+		Element updateArgs = new Element("updateArgs");
+		updateArgs.addContent(new Element("maxDiffLoss").setText(String.valueOf(maxDiffLoss)));
+		updateArgs.addContent(new Element("minResidual").setText(String.valueOf(minResidual)));
+		updateArgs.addContent(new Element("lastIterSetNum").setText(String.valueOf(currentIterSetNum)));
+		doc.getRootElement().addContent(updateArgs);
+
+		XMLOutputter xmlOutput = new XMLOutputter();
+		xmlOutput.setFormat(Format.getPrettyFormat());
+		try {
+			xmlOutput.output(doc, new FileWriter(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH));
+			log.info("updated params are saved in the backup file: " + EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Write updated params in the backup file
+	 * @param maxDiffLoss
+	 */
+	private void backupUpdatedParams(Double maxDiffLoss) {
+		Element element = (Element) logitParams.clone();
+		// Detach element from parent
+		element.detach();
+
+		// Set root element
+		Element strategies = new Element("strategies");
+		Document doc = new Document(strategies);
+		doc.setRootElement(strategies);
+
+		// Add strategy
+		Element strategy = new Element("strategy");
+		strategy.addContent(element);
+		doc.getRootElement().addContent(strategy);
+
+		// Add normalizer
+		Element updateArgs = new Element("updateArgs");
+		updateArgs.addContent(new Element("maxDiffLoss").setText(String.valueOf(maxDiffLoss)));
+		updateArgs.addContent(new Element("minResidual").setText(String.valueOf(minResidual)));
+		updateArgs.addContent(new Element("lastIterSetNum").setText(String.valueOf(currentIterSetNum)));
+		doc.getRootElement().addContent(updateArgs);
 
 		XMLOutputter xmlOutput = new XMLOutputter();
 		xmlOutput.setFormat(Format.getPrettyFormat());
@@ -619,7 +713,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			}
 		}
 
-		log.info("keySet: " + hashMapMerged.keySet());
+//		log.info("keySet: " + hashMapMerged.keySet());
 		// Get merged array
 		int count = 0;
 		for (String timeKey : (hashMapMerged.keySet())) {
