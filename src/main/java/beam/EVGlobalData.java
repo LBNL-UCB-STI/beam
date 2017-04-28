@@ -7,7 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Random;
 
 import beam.charging.management.ChargingQueueImpl;
-import beam.sim.traveltime.TripInfoCache;
+import beam.sim.traveltime.*;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import org.apache.log4j.Logger;
@@ -27,9 +27,6 @@ import beam.parking.lib.obj.DoubleValueHashMap;
 import beam.replanning.ChargingStrategyManager;
 import beam.sim.GlobalActions;
 import beam.sim.scheduler.Scheduler;
-import beam.sim.traveltime.BeamRouter;
-import beam.sim.traveltime.ExogenousTravelTime;
-import beam.sim.traveltime.TripInformation;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 //TODO: load all parameters from config in the end
@@ -160,7 +157,7 @@ public class EVGlobalData {
 	public double now;
 	public BeamRouter router;
 	public ExogenousTravelTime travelTimeFunction;
-	public TripInfoCache newTripInformationCache;
+	public TripInfoCacheMapDB newTripInformationCache;
 	public LinkQuadTree linkQuadTree;
 	public HashMap<String, Class> modeRouterMapping = new HashMap<>();
 	public double averageWalkingTimeFromParkToActivity = 120;

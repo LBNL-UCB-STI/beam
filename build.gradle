@@ -35,6 +35,7 @@ dependencies {
     //compile group: 'com.google.guava', name: 'guava', version: '21.0'
     //compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.1.4'
     compile group: 'org.postgresql', name: 'postgresql', version: '9.4.1212'
+    compile group: 'org.mapdb', name: 'mapdb', version: '3.0.4'
 }
 
 //////////////////////////////////////////////////////////////////////

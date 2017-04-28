@@ -50,10 +50,10 @@ public class BeamRouterImpl extends BeamRouter {
 			EVGlobalData.data.travelTimeFunction = ExogenousTravelTime.LoadTravelTimeFromSerializedData(travelTimeFunctionSerialPath);
 		}
 		if(EVGlobalData.data.newTripInformationCache == null) {
-			EVGlobalData.data.newTripInformationCache = new TripInfoCache();
-			if((new File(routerCacheSerialPath)).exists()){
-				EVGlobalData.data.newTripInformationCache.deserializeHotCacheKryo(routerCacheSerialPath);
-            }
+			EVGlobalData.data.newTripInformationCache = new TripInfoCacheMapDB(routerCacheSerialPath);
+//			if((new File(routerCacheSerialPath)).exists()){
+//				EVGlobalData.data.newTripInformationCache.deserializeHotCacheKryo(routerCacheSerialPath);
+//            }
 		}
 	}
 	
@@ -144,7 +144,7 @@ public class BeamRouterImpl extends BeamRouter {
 		return EmptyStageActivityTypes.INSTANCE;
 	}
 	public String toString(){
-		return "BeamRouter: hot cache contains "+EVGlobalData.data.newTripInformationCache.hotCache.size()+" trips, current cache miss rate: "+this.cachMiss+"/"+this.getCount;
+		return "BeamRouter: hot cache contains "+EVGlobalData.data.newTripInformationCache.getCacheSize()+" trips, current cache miss rate: "+this.cachMiss+"/"+this.getCount;
 	}
 }
 
