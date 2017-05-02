@@ -22,7 +22,7 @@ public class LinkAttributeLoader {
         LinkedHashMap<String,LinkedHashMap<String,String>> result = new LinkedHashMap<String,LinkedHashMap<String,String>>();
 
         if((new File(EVGlobalData.data.LINK_ATTRIBUTE_FILEPATH)).exists()) {
-            log.info("Loading link attribute data...")
+            log.info("Loading link attribute data...");
 
             TabularFileParser fileParser = new TabularFileParser();
             TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
