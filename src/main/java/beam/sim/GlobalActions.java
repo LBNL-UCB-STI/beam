@@ -34,9 +34,15 @@ public class GlobalActions {
 		log.info("Handling Day Tracking: Set estimated travel distance in day for all agents.");
 		EVGlobalData.data.currentDay++;
 		log.info(EVGlobalData.data.router);
+		int i = 1, multiplier=1;
 
 		for (final Person person : EVGlobalData.data.controler.getScenario().getPopulation().getPersons().values()) {
 			PlugInVehicleAgent.getAgent(person.getId()).setEstimatedTravelDistanceInDay();
+			if(i == multiplier){
+				log.info("person # "+i);
+				multiplier *= 2;
+				i++;
+			}
 		}
 //		if (EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH != null)
 //			EVGlobalData.data.newTripInformationCache.serializeHotCacheKryo(EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH);
