@@ -3,6 +3,7 @@ package beam.sim;
 import beam.EVGlobalData;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSitePolicy;
 import beam.utils.CSVUtil;
+import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileHandler;
 import org.matsim.core.utils.io.tabularFileParser.TabularFileParser;
@@ -15,10 +16,13 @@ import java.util.LinkedHashMap;
  * BEAM
  */
 public class LinkAttributeLoader {
+    private static final Logger log = Logger.getLogger(GlobalActions.class);
+
     public static LinkedHashMap<String,LinkedHashMap<String,String>> loadLinkAttributes() {
         LinkedHashMap<String,LinkedHashMap<String,String>> result = new LinkedHashMap<String,LinkedHashMap<String,String>>();
 
         if((new File(EVGlobalData.data.LINK_ATTRIBUTE_FILEPATH)).exists()) {
+            log.info("Loading link attribute data...")
 
             TabularFileParser fileParser = new TabularFileParser();
             TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
@@ -51,6 +55,8 @@ public class LinkAttributeLoader {
                 }
             };
             fileParser.parse(fileParserConfig, handler);
+        }else{
+            log.warn("No link attribute file found @ " + EVGlobalData.data.LINK_ATTRIBUTE_FILEPATH);
         }
         for(Link link : EVGlobalData.data.controler.getScenario().getNetwork().getLinks().values()){
             if(!result.containsKey(link.getId().toString())) {
