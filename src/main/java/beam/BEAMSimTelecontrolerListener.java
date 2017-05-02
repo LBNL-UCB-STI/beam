@@ -139,7 +139,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 							logitParams = loadChargingStrategies(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
 							maxDiffLoss = getUpdateArgsFromPrevSim(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH, "maxDiffLoss");
 							minResidual = getUpdateArgsFromPrevSim(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH, "minResidual");
-							lastIterSetNum = getUpdateArgsFromPrevSim(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH, "lastIterSetNum");
+							lastIterSetNum = getUpdateArgsFromPrevSim(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH, "lastIterSetNum")-1;
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
