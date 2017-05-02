@@ -555,8 +555,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 		Activity lastActivity = null, nextActivity = null;
 		int i = 0;
 		while (true) {
-			if (getCurrentLegIndex() + i + 1 > planElements.size())
-				break;
+			if (getCurrentLegIndex() + i + 1 > planElements.size()) break;
 			PlanElement elem = planElements.get(getCurrentLegIndex() + i);
 			if ((elem instanceof Activity)) {
 				lastActivity = (Activity) elem;
@@ -572,7 +571,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 				lastActivity = null;
 			}
 			i++;
-			if(i % 10 == 0)log.info("plan element" + i);
+			if(i % 10 == 0){
+				log.info("person " + this.getPersonId() + " plan element " + i);
+			}
 		}
 	}
 
