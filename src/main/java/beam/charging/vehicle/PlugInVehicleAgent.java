@@ -571,9 +571,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 				lastActivity = null;
 			}
 			i++;
-//			if(i % 10 == 0){
-//				log.info("person " + this.getPersonId() + " plan element " + i);
-//			}
+			if(i % 10 == 0){
+				log.info("person " + this.getPersonId() + " plan element " + i);
+			}
 		}
 	}
 
