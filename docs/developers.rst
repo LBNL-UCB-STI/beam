@@ -5,6 +5,25 @@ Developer's Guide
 .. IntelliJ IDEA Setup
    ^^^^^^^^^^
 
+Repositories
+^^^^^^^^^^^^^
+The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`
+
+The convention for merging into the master branch is that the three main model components (AgentSim, PhysSim, Router) need to be functional and the overall model must be able to run. In addition, all classes should compile and all tests should pass.
+
+The three componenet branches (agentsim, physsim, router) are for gradual development of new features. Commits to these branches should also be functional in the sense that they don't interfere with other team members working on the same component.
+
+The pev-only and pev-only-calibration branches hold a previous version of BEAM (v1.X) which is inconpatible with master but is still used for modeling and analysis work.
+
+The following branches are deperecated and will be deleted in the near future:
+
+  akka 
+  calibration 
+  development 
+  sangjae 
+  akka-router-parallization 
+
+
 Configuration
 ^^^^^^^^^^^^^
 
