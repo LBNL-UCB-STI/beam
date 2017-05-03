@@ -13,4 +13,7 @@ libs
 .cache*
 target/
 beam.iml
-out
+out/
+beam.ipr
+beam.iws
+docs/_build
