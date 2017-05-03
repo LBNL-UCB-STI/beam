@@ -279,65 +279,67 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 			if(!isFirstIteration && itr != null){
 				while (itr.hasNext()) { //TODO: arrival/departure
 					Element element = (Element) itr.next();
-					Iterator itrElem = element.getChildren().iterator();
-					paramIndex = 0;
-					while (itrElem.hasNext()) { //TODO: yescharge/nocharge
-						Element subElement = ((Element) itrElem.next());
-						if(subElement.getName().toLowerCase().equals("nestedlogit")){
-							for (Object obj1 : subElement.getChildren()) { //TODO: genericSitePlug...
-								Element childElement = ((Element) obj1);
-								if (childElement.getName().toLowerCase().equals("nestedlogit")) {
-									for (Object obj2 : (childElement.getChild("utility")).getChildren()) { //TODO: parameters
-										Element utilityElement = ((Element) obj2);
-										if (utilityElement.getName().equals("param")) {
-											// Only update intercept
-											if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
-												if (shouldUpdateBetaPlus) {
-													boolean delta = StdRandom.bernoulli();
-													paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
-												} else if (shouldUpdateBetaMinus) {
-													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
-												} else if (shouldUpdateBetaTemp) {
-													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-													grad = (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
+					if(element.getAttributeValue("name").toLowerCase().equals("arrival")){
+						Iterator itrElem = element.getChildren().iterator();
+						paramIndex = 0;
+						while (itrElem.hasNext()) { //TODO: yescharge/nocharge
+							Element subElement = ((Element) itrElem.next());
+							if(subElement.getName().toLowerCase().equals("nestedlogit")){
+								for (Object obj1 : subElement.getChildren()) { //TODO: genericSitePlug...
+									Element childElement = ((Element) obj1);
+									if (childElement.getName().toLowerCase().equals("nestedlogit")) {
+										for (Object obj2 : (childElement.getChild("utility")).getChildren()) { //TODO: parameters
+											Element utilityElement = ((Element) obj2);
+											if (utilityElement.getName().equals("param")) {
+												// Only update intercept
+												if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
+													if (shouldUpdateBetaPlus) {
+														boolean delta = StdRandom.bernoulli();
+														paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
+														utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
+													} else if (shouldUpdateBetaMinus) {
+														utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
+													} else if (shouldUpdateBetaTemp) {
+														log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
+														grad = (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
 //													grad = (diffLoss) / (2 * c * paramsDelta.get(paramIndex++));
-													log.info("grad: " + grad);
-													double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
-													if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
-														if(updatedParam >= 0) updatedParam = paramMaxConst;
-														if(updatedParam < 0) updatedParam = paramMinConst;
+														log.info("grad: " + grad);
+														double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
+														if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
+															if(updatedParam >= 0) updatedParam = paramMaxConst;
+															if(updatedParam < 0) updatedParam = paramMinConst;
+														}
+														utilityElement.setText(String.valueOf(updatedParam));
+														log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 													}
-													utilityElement.setText(String.valueOf(updatedParam));
-													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												}
 											}
 										}
-									}
-								} else if (childElement.getName().toLowerCase().equals("utility")) {
-									for (Object o : childElement.getChildren()) {
-										Element utilityElement = (Element) o;
-										if (utilityElement.getName().equals("param")) {
-											// Only update intercept
-											if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
-												if (shouldUpdateBetaPlus) {
-													boolean delta = StdRandom.bernoulli();
-													paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
-												} else if (shouldUpdateBetaMinus) {
-													utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
-												} else if (shouldUpdateBetaTemp) {
-													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-													grad = (diffLoss / maxDiffLoss)*paramMaxConst/ (2 * c * paramsDelta.get(paramIndex++));
+									} else if (childElement.getName().toLowerCase().equals("utility")) {
+										for (Object o : childElement.getChildren()) {
+											Element utilityElement = (Element) o;
+											if (utilityElement.getName().equals("param")) {
+												// Only update intercept
+												if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
+													if (shouldUpdateBetaPlus) {
+														boolean delta = StdRandom.bernoulli();
+														paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
+														utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
+													} else if (shouldUpdateBetaMinus) {
+														utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
+													} else if (shouldUpdateBetaTemp) {
+														log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
+														grad = (diffLoss / maxDiffLoss)*paramMaxConst/ (2 * c * paramsDelta.get(paramIndex++));
 //													grad = (diffLoss)/ (2 * c * paramsDelta.get(paramIndex++));
-													log.info("grad: " + grad);
-													double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
-													if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
-														if(updatedParam >= 0) updatedParam = paramMaxConst;
-														if(updatedParam < 0) updatedParam = paramMinConst;
+														log.info("grad: " + grad);
+														double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
+														if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
+															if(updatedParam >= 0) updatedParam = paramMaxConst;
+															if(updatedParam < 0) updatedParam = paramMinConst;
+														}
+														utilityElement.setText(String.valueOf(updatedParam));
+														log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 													}
-													utilityElement.setText(String.valueOf(updatedParam));
-													log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
 												}
 											}
 										}
