@@ -7,7 +7,7 @@ Developer's Guide
 
 Repositories
 ^^^^^^^^^^^^^
-The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`
+The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
 The convention for merging into the master branch is that the three main model components (AgentSim, PhysSim, Router) need to be functional and the overall model must be able to run. In addition, all classes should compile and all tests should pass.
 
