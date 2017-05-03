@@ -1,4 +1,4 @@
-package beam.playground.physicalSimProtoType.scheduler;
+package beam.playground.physicalSimProtoType.AkkaJDEQSim.scheduler;
 
 import java.util.PriorityQueue;
 import java.util.SortedSet;
@@ -53,7 +53,7 @@ public class Scheduler extends UntypedActor {
 			// TODO: replace this message!!!!!!
 		}
 		
-		setWindowStartTick(GlobalLibAndConfig.getTick(triggers.peek().getTime()));
+		setWindowStartTick(GlobalLibAndConfig.getTick(triggers.peek().getMessageArrivalTime()));
 	}
 
 	@Override
@@ -158,10 +158,10 @@ public class Scheduler extends UntypedActor {
 	}
 
 	private void sendTriggerMessagesWithinWindow() {
-		while (triggers.size()>0 && triggers.peek().getTime() <= GlobalLibAndConfig.getTime(getLastWindowTick())) {
+		while (triggers.size()>0 && triggers.peek().getMessageArrivalTime() <= GlobalLibAndConfig.getTime(getLastWindowTick())) {
 			TriggerMessage trigger = triggers.poll();
-			trigger.getAgentRef().tell(trigger, getSelf());
-			numberOfResponsesPending.increment(GlobalLibAndConfig.getTick(trigger.getTime()));
+			trigger.getReceivingActorRef().tell(trigger, getSelf());
+			numberOfResponsesPending.increment(trigger.getTick());
 			//consistencyCheck_noOpenAckMessageAllowedBeforeWindowStart();
 		}
 	}
