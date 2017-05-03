@@ -1,4 +1,4 @@
-package beam.playground.physicalSimProtoType.scheduler;
+package beam.playground.physicalSimProtoType.AkkaJDEQSim.scheduler;
 
 import java.util.LinkedList;
 
