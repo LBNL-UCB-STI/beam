@@ -41,8 +41,8 @@ public class GlobalActions {
 			if(i == multiplier){
 				log.info("person # "+i);
 				multiplier *= 2;
-				i++;
 			}
+			i++;
 		}
 //		if (EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH != null)
 //			EVGlobalData.data.newTripInformationCache.serializeHotCacheKryo(EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH);
