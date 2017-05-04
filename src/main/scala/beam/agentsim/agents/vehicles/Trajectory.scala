@@ -3,7 +3,7 @@ package beam.agentsim.agents.vehicles
 /**
   * BEAM
   */
-class LocationManager {
+class Trajectory {
 
 
 }
