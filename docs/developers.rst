@@ -15,7 +15,7 @@ The three componenet branches (agentsim, physsim, router) are for gradual develo
 
 The pev-only and pev-only-calibration branches hold a previous version of BEAM (v1.X) which is inconpatible with master but is still used for modeling and analysis work.
 
-The following branches are deperecated and will be deleted in the near future:
+The following branches are deprecated and will be deleted in the near future, please do not commit to these:
 
   akka 
   calibration 
