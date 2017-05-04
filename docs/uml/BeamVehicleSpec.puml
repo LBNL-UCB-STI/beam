@@ -1,0 +1,45 @@
+@startuml
+scale 900 height
+
+' See this page for diagram conventions:
+' http://plantuml.com/class-diagram
+
+/'
+NOTES:
+A driver is a BeamAgent and does NOT need to be physically inside vehicle
+passengers are BeamVehicles and are physically in vehicle and move with the vehicle
+(e.g. a PersonAgent who is driving alone would be the driver of the vehicle and his/her
+HumanBodyVehicle would be a passenger)
+HumanBody is a special case, it has no passengers, just a driver
+ '/
+
+class BeamAgent {
+}
+
+class VehicleAgent {
+  enclosingVehicle: Option[VehicleAgent]
+  driver: Option[BeamAgent]
+  passengers: List[VehicleAgent]
+  locationManager: LocationManager
+  location(time) -> match enclosingVehicle { \n\tSome=>enclosingVehicle.location\n\tNone=>locationManager.getLocation(time) )\n}
+}
+
+class LocationManager {
+   location: Either[Coord,Trajectory]
+   getLocation(time) -> match location\n\tCoord => coord\n\tTrajectory=>trajectory.getLocation(time)
+}
+
+class Trajectory {
+   table: Table<Coord,Time>
+   getLocation(time) -> table.interpolate(time)
+}
+
+BeamAgent <|-- VehicleAgent
+
+VehicleAgent *-- LocationManager : hasOne
+LocationManager *-- Trajectory : mayHaveOne
+
+
+
+
+@enduml

@@ -1,7 +1,8 @@
-package beam.agentsim.agents
+package beam.agentsim.agents.vehicles
 
+import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.BeamAgentData
-import beam.agentsim.agents.VehicleAgent.VehicleData
+import beam.agentsim.agents.vehicles.VehicleAgent.VehicleData
 import org.matsim.api.core.v01.Id
 
 
