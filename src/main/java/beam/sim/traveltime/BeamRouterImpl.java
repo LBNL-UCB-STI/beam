@@ -110,6 +110,9 @@ public class BeamRouterImpl extends BeamRouter {
 			cachMiss++;
 			resultTrip = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
 			EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
+			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 50000 == 0){
+				EVGlobalData.data.newTripInformationCache.persistStore();
+			}
 		}
 		resultTrip.departureTime = time;
 		return resultTrip;
