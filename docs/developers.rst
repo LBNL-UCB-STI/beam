@@ -9,9 +9,26 @@ Repositories
 ^^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
-The convention for merging into the master branch is that the three main model components (AgentSim, PhysSim, Router) need to be functional and the overall model must be able to run. In addition, all classes should compile and all tests should pass.
+The convention for merging into the master branch is that the three main model components (AgentSim, PhysSim, Router) need to be functional and the overall model must be able to run. In addition, all classes should compile and all tests should pass. The BEAM project managers will be responsible for merging between master and the three main components (see below). Pull requests will be the mechanism to notify the project managers.
 
-The three componenet branches (agentsim, physsim, router) are for gradual development of new features. Commits to these branches should also be functional in the sense that they don't interfere with other team members working on the same component.
+The three componenet branches (agentsim, physsim, router) are for gradual development of new features. Commits to these branches should also be functional in the sense that they don't interfere with other team members working on the same component. 
+
++ master
+    + agentsim
+        + agentsim-new-feature-1 
+        + agentsim-new-feature-2
+    + physsim
+    + router
+        + router-new-feature
+
+An example workflow for contributing a new feature to the router branch might look like this:
+
++ create a new branch off of the router (e.g. router-new-feature)
++ work in router-new-feature
++ get it to compile, pass tests
++ merge back into router
++ create pull request
+
 
 The pev-only and pev-only-calibration branches hold a previous version of BEAM (v1.X) which is inconpatible with master but is still used for modeling and analysis work.
 
