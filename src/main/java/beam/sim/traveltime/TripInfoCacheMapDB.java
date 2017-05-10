@@ -33,7 +33,7 @@ public class TripInfoCacheMapDB {
             FileUtils.deleteQuietly(dbTempFile);
         }
         db = DBMaker.fileDB(dbTempFile).make();
-        cache = (HTreeMap<String, TripInformation>) db.hashMap("cache").expireMaxSize(50 * 1024 * 1024 * 1024).createOrOpen();
+        cache = (HTreeMap<String, TripInformation>) db.hashMap("cache").createOrOpen();
 //            log.info("Postgres host found and connection made successfully.");
 //            kryo = new Kryo();
 //            kryo.register(TripInfoAndCount.class, 0);
