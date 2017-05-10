@@ -370,6 +370,7 @@ public class EVSimTeleController {
 		EVGlobalData.data.IS_DEBUG_MODE = Boolean.parseBoolean(evModule.getValue("isDebugMode"));
 
 		EVGlobalData.data.SHOULD_CALIBRATE_PARAMS = evModule.getValue("shouldCalibrateParams") != null && Boolean.parseBoolean(evModule.getValue("shouldCalibrateParams"));
+		EVGlobalData.data.SHOULD_CALIBRATE_SITES = evModule.getValue("shouldCalibrateSites") != null && Boolean.parseBoolean(evModule.getValue("shouldCalibrateSites"));
 		EVGlobalData.data.SHOULD_RESUME_CALIBRATION = evModule.getValue("shouldResumeCalibration") != null && Boolean.parseBoolean(evModule.getValue("shouldResumeCalibration"));
 
 		EVGlobalData.data.BETA_CHARGING_COST = Double.parseDouble(evModule.getValue("betaChargingCost"));
