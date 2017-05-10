@@ -118,6 +118,7 @@ public class EVGlobalData {
 	public String LINK_ATTRIBUTE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
 	public boolean SHOULD_CALIBRATE_PARAMS;
+	public boolean SHOULD_CALIBRATE_SITES;
 	public boolean SHOULD_RESUME_CALIBRATION;
 	public int ITER_SET_LENGTH;
 	public String VALIDATION_VALUE_TYPE;
