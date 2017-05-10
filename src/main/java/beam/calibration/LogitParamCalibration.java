@@ -413,6 +413,7 @@ final public class LogitParamCalibration {
         updateArgs.addContent(new Element("lastIterSetNum").setText(String.valueOf(currentIterSetNum)));
         doc.getRootElement().addContent(updateArgs);
 
+        // Export
         XMLOutputter xmlOutput = new XMLOutputter();
         xmlOutput.setFormat(Format.getPrettyFormat());
         try {
@@ -449,6 +450,7 @@ final public class LogitParamCalibration {
         updateArgs.addContent(new Element("lastIterSetNum").setText(String.valueOf(currentIterSetNum)));
         doc.getRootElement().addContent(updateArgs);
 
+        // Export
         XMLOutputter xmlOutput = new XMLOutputter();
         xmlOutput.setFormat(Format.getPrettyFormat());
         try {

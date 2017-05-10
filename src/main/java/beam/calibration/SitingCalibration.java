@@ -29,13 +29,14 @@ final public class SitingCalibration {
     public void run(IterationStartsEvent event){
         log.info("initiating the charging site calibration for iteration: " + event.getIteration());
 
-        // TODO: CHECK OVERALL UTILITY SCORE OF THE PREVIOUS SIMULATION
+        // TODO: CHECK TOTAL UTILITY SCORE OF THE PREVIOUS SIMULATION
         // SET YOUR THRESHOLD TO STOP SITING NEW CHARGERS
 
-        // TODO: TRACK EXPECTED MAXIMUM UTILITY
+        // TODO: TRACK EXPECTED MAXIMUM UTILITY BY SPATIAL GROUP
         //
 
         // TODO: SITE NEW CHARGERS AT WHERE EXPECTED MAXIMUM UTILITIES ARE HIGH
+        // 
 
     }
 }
