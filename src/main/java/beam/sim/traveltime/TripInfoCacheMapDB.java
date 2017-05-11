@@ -64,7 +64,7 @@ public class TripInfoCacheMapDB {
             e.printStackTrace();
         }
         db = DBMaker.fileDB(dbTempFile).make();
-        cache = (HTreeMap<String, TripInformation>) db.hashMap("cache").expireMaxSize(50 * 1024 * 1024 * 1024).createOrOpen();
+        cache = (HTreeMap<String, TripInformation>) db.hashMap("cache").createOrOpen();
     }
     public void close(){
         db.close();
