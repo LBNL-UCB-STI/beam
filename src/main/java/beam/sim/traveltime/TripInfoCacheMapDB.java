@@ -36,7 +36,7 @@ public class TripInfoCacheMapDB {
         cache = (HTreeMap<String, TripInformation>) db.hashMap("cache").createOrOpen();
     }
     public synchronized TripInformation getTripInformation(String key){
-        return cache.get(key);
+        return cache.isClosed() ? null : cache.get(key);
     }
 
     public Integer getCacheSize() {
@@ -47,13 +47,14 @@ public class TripInfoCacheMapDB {
     }
 
     public synchronized void putTripInformation(String key, TripInformation tripInfo){
-        cache.put(key,tripInfo);
+        if(!cache.isClosed())cache.put(key,tripInfo);
     }
     public String toString(){
         return "MapDB Cache contains "+cache.size()+" trips.";
     }
 
     public synchronized void persistStore(){
+        cache.close();
         db.close();
         try {
             FileUtils.copyFile(dbTempFile,dbFile);
