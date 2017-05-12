@@ -34,11 +34,8 @@ public class TripInfoCacheMapDB {
         }
         db = DBMaker.fileDB(dbTempFile).make();
         cache = (HTreeMap<String, TripInformation>) db.hashMap("cache").createOrOpen();
-//            log.info("Postgres host found and connection made successfully.");
-//            kryo = new Kryo();
-//            kryo.register(TripInfoAndCount.class, 0);
     }
-    public TripInformation getTripInformation(String key){
+    public synchronized TripInformation getTripInformation(String key){
         return cache.get(key);
     }
 
@@ -49,14 +46,14 @@ public class TripInfoCacheMapDB {
     private void flushHotCache() {
     }
 
-    public void putTripInformation(String key, TripInformation tripInfo){
+    public synchronized void putTripInformation(String key, TripInformation tripInfo){
         cache.put(key,tripInfo);
     }
     public String toString(){
         return "MapDB Cache contains "+cache.size()+" trips.";
     }
 
-    public void persistStore(){
+    public synchronized void persistStore(){
         db.close();
         try {
             FileUtils.copyFile(dbTempFile,dbFile);
