@@ -79,7 +79,7 @@ public class GlobalActions {
 				worker.setName(fromGroup);
 				waitingThreads.push(worker);
 			}
-			int maxThreads = 32;
+			int maxThreads = 32, persistCounter = 0;
 			do {
 				List<Thread> threadsToRemove = new LinkedList<Thread>();
 				for (Thread thread : runningThreads) {
@@ -97,7 +97,11 @@ public class GlobalActions {
 					threadToStart.start();
 					runningThreads.push(threadToStart);
 				}
-				System.out.println("We have " + runningThreads.size() + " running threads and " + waitingThreads.size() + " waiting to run.");
+				log.info("We have " + runningThreads.size() + " running threads and " + waitingThreads.size() + " waiting to run.");
+				if(persistCounter++ % 30 == 0){
+					log.info("Persisting store");
+					EVGlobalData.data.newTripInformationCache.persistStore();
+				}
 				try {
 					Thread.sleep(30000);
 				} catch (InterruptedException e) {
