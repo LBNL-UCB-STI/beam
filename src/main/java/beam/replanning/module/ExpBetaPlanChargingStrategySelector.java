@@ -52,6 +52,7 @@ public class ExpBetaPlanChargingStrategySelector<T extends BasicPlan, I> impleme
 	public ExpBetaPlanChargingStrategySelector( final double logitScaleFactor ) {
 		this.beta = logitScaleFactor ;
 	}
+	public ExpBetaPlanChargingStrategySelector(){ this.beta = 1.0;}
 
 	public ExpBetaPlanChargingStrategySelector(PlanCalcScoreConfigGroup charyparNagelScoringConfigGroup) {
 		this( charyparNagelScoringConfigGroup.getBrainExpBeta() ) ;
@@ -124,7 +125,7 @@ public class ExpBetaPlanChargingStrategySelector<T extends BasicPlan, I> impleme
 	 *
 	 * @return a map containing the weights of all plans
 	 */
-	Map<EVDailyPlan, Double> calcWeights(final HasPlansAndId<T, ?> person) {
+	public Map<EVDailyPlan, Double> calcWeights(final HasPlansAndId<T, ?> person) {
 		EVDailyReplanable replanable = ChargingStrategyManager.data.getReplanable(person.getId());
 		LinkedList<EVDailyPlan> evDailyPlans = replanable.getEVDailyPlans();
 		
