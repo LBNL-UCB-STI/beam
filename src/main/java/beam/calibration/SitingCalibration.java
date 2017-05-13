@@ -3,10 +3,15 @@ package beam.calibration;
 import beam.EVGlobalData;
 import beam.events.NestedLogitDecisionEvent;
 import beam.events.NestedLogitDecisionEventHandler;
+import beam.replanning.EVDailyPlan;
+import beam.replanning.module.ExpBetaPlanChargingStrategySelector;
 import beam.utils.MathUtil;
 import org.apache.log4j.Logger;
+import org.matsim.api.core.v01.population.HasPlansAndId;
 import org.matsim.core.controler.events.IterationStartsEvent;
+import scala.reflect.internal.util.HasClassPath;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
 /**
@@ -54,6 +59,17 @@ final public class SitingCalibration implements NestedLogitDecisionEventHandler{
          * Check total utility score of the previous simulation and determine whether continue the siting
          * TODO: SET YOUR THRESHOLD TO DETERMINE WHETHER CONTINUE OR STOP SITING NEW CHARGERS
          */
+        // Get persons from the previous iteration
+//        LinkedHashMap<EVDailyPlan, Double> totalWeight = new LinkedHashMap<>();
+//        ArrayList<HasPlansAndId> prevPP = ...;
+//        for(HasPlansAndId person:prevPP){
+//        LinkedHashMap<EVDailyPlan, Double> weight = new ExpBetaPlanChargingStrategySelector().calcWeights(person);
+//        totalWeight += weight;
+//        }
+
+        // Get the improvement rate
+
+        // Determine whether continue or stop siting new chargers
         shouldContinueSiting = true;
 
 
@@ -62,6 +78,7 @@ final public class SitingCalibration implements NestedLogitDecisionEventHandler{
          */
         if(event.getIteration()!=0 && shouldContinueSiting){
             // TODO: DETERMINE HOW MANY NEW CHARGERS TO INSTALL
+            // This depends on the threshold
 
 
             // TODO: DETERMINE CHARGER SITES BASED ON THE MAXIMUM EXPECTED UTILITY
