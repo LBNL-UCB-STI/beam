@@ -9,7 +9,6 @@ import beam.utils.MathUtil;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.population.HasPlansAndId;
 import org.matsim.core.controler.events.IterationStartsEvent;
-import scala.reflect.internal.util.HasClassPath;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
