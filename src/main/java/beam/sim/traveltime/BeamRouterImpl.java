@@ -110,7 +110,7 @@ public class BeamRouterImpl extends BeamRouter {
 			cachMiss++;
 			resultTrip = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
 			EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
-			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 5000 == 0){
+			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 1000 == 0){
 				log.info("Persisting cache @ "+EVGlobalData.data.newTripInformationCache.getCacheSize());
 				EVGlobalData.data.newTripInformationCache.persistStore();
 			}
