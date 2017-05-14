@@ -99,7 +99,7 @@ public class GlobalActions {
 				}
 				log.info("We have " + runningThreads.size() + " running threads and " + waitingThreads.size() + " waiting to run.");
 				if(persistCounter++ % 30 == 0){
-					log.info("Persisting store");
+					log.info("Persisting store of size "+EVGlobalData.data.newTripInformationCache.getCacheSize());
 					EVGlobalData.data.newTripInformationCache.persistStore();
 				}
 				try {
