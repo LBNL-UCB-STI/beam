@@ -117,3 +117,64 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_SHARED_INPUTS.plist`::
         <false/>
       </dict>
     </plist>
+
+Deploying on NERSC
+^^^^^^^^^^^^^^^^^^
+
+Note, the following assumes you have configured your NERSC account to use bash as your default shell. To configure this go to the [NERSC NIM site](https://nim.nersc.gov/) and "Actions" -> "Change Shell".
+
+Log into system::
+
+    ssh <user>@cori.nersc.gov
+
+Configure your bash environment if you haven't already done so. Add an environment variable to your bash profile by opening ~/.bash_profile.ext and adding these lines::
+
+    export DIR=/project/projectdirs/m1927
+    export BEAMLIB=/project/projectdirs/m1927/beam/beamlib
+
+The first gives you a handy way to jump into our project directory (e.g. "cd $DIR") the second is what gradle will use to find the matsim static jar file. 
+Go to shared project directory::
+
+    cp /project/projectdirs/m1927/beam/
+
+Build and deploy model if necessary (if new changes have occurred)::
+
+    ./build-beam.sh
+
+Submit job to batch schedule::
+
+    cd batch
+    sbatch sf-bay.sl
+
+Monitor job::
+
+    sqs
+
+Setting up in Eclipse
+^^^^^^^^^^^^^^^^^^^^^
+
+Setup Matsim as a Dependency:
+
+* Eclipse -> New Project -> Import Projects from Git
+* Clone URI: git@github.com:colinsheppard/matsim.git
+* Host: github.com
+* Authenticate 
+* Folder: e.g. C:\Users\Admin\git\matsim
+* Then import just the "matsim" and "examples" subfolders as two independent projects
+* Finally add "matsim-examples" as a project dependency to "matsim"
+
+Pulling code from github:
+
+* Eclipse -> New Project -> Import Projects from Git
+* Clone URI: git@github.com:colinsheppard/beam.git 
+* Host: github.com
+* Authenticate 
+* Folder: e.g. C:\Users\Admin\git\beam
+* Import as generic project
+* Add "matsim" as a project dependency to "beam"
+
+Create gradle project:
+
+* Import -> gradle project
+* Project root: C:\Users\Admin\git\beam\
+    
