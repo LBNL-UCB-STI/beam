@@ -110,23 +110,12 @@ public class BeamRouterImpl extends BeamRouter {
 			cachMiss++;
 			resultTrip = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
 			EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
-			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 1000 == 0){
-				log.info("Persisting cache @ "+EVGlobalData.data.newTripInformationCache.getCacheSize());
+			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 10000 == 0){
 				EVGlobalData.data.newTripInformationCache.persistStore();
 			}
 		}
 		resultTrip.departureTime = time;
 		return resultTrip;
-		/*
-		if(!EVGlobalData.data.tripInformationCache.containsKey(key)){
-			cachMiss++;
-			TripInformation newInfo = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
-			synchronized (EVGlobalData.data.tripInformationCache) {
-				EVGlobalData.data.tripInformationCache.put(key, newInfo);
-			}
-		}
-		*/
-//		return EVGlobalData.data.tripInformationCache.get(key);
 	}
 	private TripInformation getTripInformation(double departureTime, Id<Link> fromLinkId, Id<Link> toLinkId) {
 		if(network==null)configure();

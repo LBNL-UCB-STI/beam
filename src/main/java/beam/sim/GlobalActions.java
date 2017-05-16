@@ -97,9 +97,9 @@ public class GlobalActions {
 					threadToStart.start();
 					runningThreads.push(threadToStart);
 				}
-				log.info("We have " + runningThreads.size() + " running threads and " + waitingThreads.size() + " waiting to run.");
+				log.info("We have " + runningThreads.size() + " running threads and " + waitingThreads.size() + " waiting to run and cache "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
 				if(persistCounter++ % 30 == 0){
-					log.info("Persisting store of size "+EVGlobalData.data.newTripInformationCache.getCacheSize());
+					log.info("Persisting store, "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
 					EVGlobalData.data.newTripInformationCache.persistStore();
 				}
 				try {
