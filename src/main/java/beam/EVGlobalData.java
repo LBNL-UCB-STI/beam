@@ -174,6 +174,7 @@ public class EVGlobalData {
 	public int DUMP_PLAN_CSV_INTERVAL = 1;
 	public int MAX_NUMBER_OF_EV_DAILY_PLANS_IN_MEMORY = 5;
 	public String SELECTED_EV_DAILY_PLANS_FILE_NAME = "selectedEVDailyPlans.csv.gz";
+	public int NUM_THREADS = 1;
 
 	public String toString() {
 		return (new Double(data.now)).toString();

@@ -79,7 +79,7 @@ public class GlobalActions {
 				worker.setName(fromGroup);
 				waitingThreads.push(worker);
 			}
-			int maxThreads = 32, persistCounter = 0;
+			int maxThreads = EVGlobalData.data.NUM_THREADS, persistCounter = 0;
 			do {
 				List<Thread> threadsToRemove = new LinkedList<Thread>();
 				for (Thread thread : runningThreads) {

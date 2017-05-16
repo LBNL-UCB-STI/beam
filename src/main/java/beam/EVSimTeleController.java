@@ -325,6 +325,8 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_SITES_FILEPATH = inputDirectory + evModule.getValue("chargingSitesFile");
 		EVGlobalData.data.CHARGING_POINTS_FILEPATH = inputDirectory + evModule.getValue("chargingPointsFile");
 		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
+		if (evModule.getValue("numberOfThreads") != null)
+			EVGlobalData.data.NUM_THREADS = Integer.valueOf(evModule.getValue("numberOfThreads"));
 		if (evModule.getValue("chargingStrategiesValidationFile") != null)
 			EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesValidationFile");
 		if (evModule.getValue("updatedChargingStrategiesFile") != null)
