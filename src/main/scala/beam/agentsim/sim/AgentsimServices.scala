@@ -10,7 +10,7 @@ import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.controler.BeamControler
 import beam.agentsim.utils.FileUtils
-import beam.agentsim.routing.BoundingBox
+import beam.router.BoundingBox
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.ConfigFactory
 import glokka.Registry

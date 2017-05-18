@@ -10,8 +10,8 @@ import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.TaxiAgent.TaxiData
 import beam.agentsim.agents._
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
-import beam.agentsim.routing.RoutingMessages.InitializeRouter
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
+import beam.router.RoutingMessages.InitializeRouter
+import beam.router.opentripplanner.OpenTripPlannerRouter
 import beam.agentsim.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry

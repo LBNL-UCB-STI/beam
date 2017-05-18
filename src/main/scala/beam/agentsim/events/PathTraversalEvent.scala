@@ -2,7 +2,7 @@ package beam.agentsim.events
 
 import java.util
 
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamLeg
+import beam.router.opentripplanner.OpenTripPlannerRouter.BeamLeg
 import io.circe.syntax._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event

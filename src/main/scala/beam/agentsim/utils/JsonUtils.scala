@@ -1,6 +1,6 @@
 package beam.agentsim.utils
 
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamGraphPath, BeamLeg}
+import beam.router.opentripplanner.OpenTripPlannerRouter.{BeamGraphPath, BeamLeg}
 import io.circe.{Encoder, Json, JsonObject}
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.io.IOUtils
