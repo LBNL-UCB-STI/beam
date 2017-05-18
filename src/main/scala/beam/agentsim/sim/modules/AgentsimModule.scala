@@ -1,7 +1,7 @@
 package beam.agentsim.sim.modules
 
 import beam.agentsim.events.BeamEventsHandling
-import beam.router.BeamRouterModuleProvider
+//import beam.router.BeamRouterModuleProvider
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 import org.matsim.core.controler.corelisteners.EventsHandling
@@ -14,7 +14,7 @@ import org.matsim.core.router.RoutingModule
   */
 class AgentsimModule  extends AbstractModule with ScalaModule {
   override def configure(): Unit = {
-    bind[RoutingModule].toProvider[BeamRouterModuleProvider]
+//    bind[RoutingModule].toProvider[BeamRouterModuleProvider]
     bind[EventsHandling].to[BeamEventsHandling]
   }
 }

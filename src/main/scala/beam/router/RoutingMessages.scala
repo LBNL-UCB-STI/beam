@@ -1,6 +1,7 @@
 package beam.router
 
 import beam.agentsim.agents.PersonAgent
+import beam.router.BeamRouter.BeamTrip
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.router.ActivityWrapperFacility
@@ -19,4 +20,5 @@ object RoutingMessages {
       new RoutingRequest(new ActivityWrapperFacility(fromActivity), new ActivityWrapperFacility(toActivity), departureTime, personId)
     }
   }
+  case class RoutingResponse(itinerary: Vector[BeamTrip])
 }

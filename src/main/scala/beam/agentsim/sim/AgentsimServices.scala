@@ -14,7 +14,8 @@ import beam.router.BoundingBox
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.ConfigFactory
 import glokka.Registry
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim
@@ -22,6 +23,7 @@ import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
 
 object AgentsimServices {
@@ -65,10 +67,11 @@ object AgentsimServices {
   val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve())
   //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
   var beamRouter : ActorRef = _
+  var physSim: ActorRef = _
   var schedulerRef: ActorRef =_
   var taxiManager: ActorRef = _
   val bbox: BoundingBox = new BoundingBox()
-
+  var popMap: Option[Map[Id[Person], Person]] = None
 }
 
 /**

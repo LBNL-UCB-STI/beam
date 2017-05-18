@@ -13,6 +13,9 @@ import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathT
 import beam.router.RoutingMessages.InitializeRouter
 import beam.router.opentripplanner.OpenTripPlannerRouter
 import beam.agentsim.utils.JsonUtils
+import beam.physsim.PhysSim.InitializePhysSim
+import beam.physsim.{DummyPhysSim, PhysSim}
+import beam.router.DummyRouter
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
@@ -42,9 +45,6 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   import AgentsimServices._
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[Agentsim])
-  private val popMap: Map[Id[Person], Person] =
-    ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons)
-      .toSeq.sortBy(_._1): _*)
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
@@ -54,6 +54,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
+    popMap = Some(ListMap(scala.collection.JavaConverters
+      .mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*))
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
     subscribe(ActivityStartEvent.EVENT_TYPE)
@@ -71,10 +73,16 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     val schedulerFuture = registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler]))
     schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
-    val routerFuture = registry ? Registry.Register("router", Props(classOf[OpenTripPlannerRouter], services))
+    val routerFuture = registry ? Registry.Register("router", DummyRouter.props(services))
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
+
+    val physSimFuture = registry ? Registry.Register("physSim", DummyPhysSim.props(services))
+    physSim = Await.result(physSimFuture, timeout.duration).asInstanceOf[Created].ref
+    val physSimInitFuture = physSim ? InitializePhysSim
+    Await.result(physSimInitFuture, timeout.duration)
+
     val taxiManagerFuture = registry ? Registry.Register("taxiManager", Props(classOf[TaxiManager]))
     taxiManager = Await.result(taxiManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
@@ -114,7 +122,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
-    for ((k, v) <- popMap.take(beamConfig.beam.sim.numAgents)) {
+    for ((k, v) <- popMap.get.take(beamConfig.beam.sim.numAgents)) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
@@ -122,7 +130,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     // Generate taxis and intialize them to be located within ~initialLocationJitter km of a subset of agents
     val taxiFraction = 0.1
     val initialLocationJitter = 2000 // meters
-    for((k,v) <- popMap.take(math.round(taxiFraction * popMap.size).toInt)){
+    for((k,v) <- popMap.get.take(math.round(taxiFraction * popMap.size).toInt)){
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
       val taxiInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5),personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
       val props = Props(classOf[TaxiAgent], Id.create(k.toString,TaxiAgent.getClass), TaxiData(taxiInitialLocation))

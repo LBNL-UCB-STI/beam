@@ -13,8 +13,8 @@ import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
-import beam.router.RoutingMessages.RoutingRequest
-import beam.router.opentripplanner.OpenTripPlannerRouter.{BeamLeg, BeamTrip, RoutingResponse}
+import beam.router.RoutingMessages._
+import beam.router.BeamRouter._
 import beam.utils.DebugLib
 import glokka.Registry
 import org.matsim.api.core.v01.events._
