@@ -1,22 +1,14 @@
 package beam.router
 
-import akka.actor.{ActorRef, Props}
-import beam.agentsim.agents.BeamAgentScheduler.ScheduleTrigger
-import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.PersonAgent.PersonData
+import akka.actor.{Props}
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.sim.AgentsimServices
-import beam.agentsim.sim.AgentsimServices._
 import beam.router.BeamRouter.{BeamGraphPath, BeamLeg, BeamTrip}
 import beam.router.RoutingMessages._
 import com.vividsolutions.jts.geom.Coordinate
 import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
+import org.matsim.api.core.v01.population.{ Person }
 
-/**
-  * Created by sfeygin on 2/28/17.
-  */
-//TODO tripRouter not being used, remove?
 class DummyRouter(agentsimServices: AgentsimServices) extends BeamRouter {
   import beam.agentsim.sim.AgentsimServices._
 
@@ -36,7 +28,7 @@ class DummyRouter(agentsimServices: AgentsimServices) extends BeamRouter {
       )
       val leg = BeamLeg(departureTime.toLong+1,BeamMode.CAR,100,path)
       val dummyWalkEnd = BeamLeg.dummyWalk(departureTime.toLong+101)
-      
+
       val trip = BeamTrip(Vector[BeamLeg](dummyWalkStart,leg,dummyWalkEnd))
       sender() ! RoutingResponse(Vector[BeamTrip](trip))
   }
@@ -44,6 +36,5 @@ class DummyRouter(agentsimServices: AgentsimServices) extends BeamRouter {
 }
 
 object DummyRouter {
-  //TODO test if this is being used anywhere
   def props(agentsimServices: AgentsimServices) = Props(classOf[DummyRouter],agentsimServices)
 }

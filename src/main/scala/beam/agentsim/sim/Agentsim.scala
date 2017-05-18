@@ -11,7 +11,6 @@ import beam.agentsim.agents.TaxiAgent.TaxiData
 import beam.agentsim.agents._
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.router.RoutingMessages.InitializeRouter
-import beam.router.opentripplanner.OpenTripPlannerRouter
 import beam.agentsim.utils.JsonUtils
 import beam.physsim.PhysSim.InitializePhysSim
 import beam.physsim.{DummyPhysSim, PhysSim}

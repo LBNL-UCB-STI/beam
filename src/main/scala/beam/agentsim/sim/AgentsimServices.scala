@@ -20,10 +20,8 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
-import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.ListMap
 import scala.collection.mutable.ListBuffer
 
 object AgentsimServices {
