@@ -21,25 +21,31 @@ class VehicleAgent {
   driver: Option[BeamAgent]
   passengers: List[VehicleAgent]
   locationManager: LocationManager
+  powertrain: Powertrain
   location(time) -> match enclosingVehicle { \n\tSome=>enclosingVehicle.location\n\tNone=>locationManager.getLocation(time) )\n}
 }
 
+'Either make this an actor or remove and have trajectory under VehAgent
 class LocationManager {
-   location: Either[Coord,Trajectory]
-   getLocation(time) -> match location\n\tCoord => coord\n\tTrajectory=>trajectory.getLocation(time)
+   location: Option[Trajectory]
 }
 
 class Trajectory {
-   table: Table<Coord,Time>
+   table: SomeIndexedTable<SpacetimeCoord>
    getLocation(time) -> table.interpolate(time)
+   appendToTrajectory(List<SpacetimeCoord>)
 }
 
-BeamAgent <|-- VehicleAgent
+class SpacetimeCoord {
+    time: double
+    coord: org.matsim.api.core.v01.Coord
+}
+
+BeamAgent <|-- VehicleAgent : extends
 
 VehicleAgent *-- LocationManager : hasOne
 LocationManager *-- Trajectory : mayHaveOne
-
-
+Trajectory *-- SpacetimeCoord: hasMany
 
 
 @enduml
