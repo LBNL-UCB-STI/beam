@@ -1,4 +1,4 @@
-package beam.agentsim.routing
+package beam.router
 
 import beam.agentsim.agents.PersonAgent
 import org.matsim.api.core.v01.Id

@@ -1,7 +1,6 @@
-package beam.agentsim.routing
+package beam.router
 
 import com.vividsolutions.jts.geom.Coordinate
-import BoundingBox._
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 

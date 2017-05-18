@@ -1,4 +1,4 @@
-package beam.agentsim.routing
+package beam.router
 
 import akka.actor.Actor
 

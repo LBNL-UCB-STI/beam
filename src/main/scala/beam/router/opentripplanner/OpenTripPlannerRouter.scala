@@ -1,4 +1,4 @@
-package beam.agentsim.routing.opentripplanner
+package beam.router.opentripplanner
 
 import java.io.File
 import java.time.ZonedDateTime
@@ -9,12 +9,12 @@ import akka.actor.Props
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter._
+import beam.router.opentripplanner.OpenTripPlannerRouter._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
+import beam.router.BeamRouter
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person

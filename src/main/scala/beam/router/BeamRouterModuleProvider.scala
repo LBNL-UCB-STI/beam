@@ -1,9 +1,7 @@
-package beam.agentsim.routing
+package beam.router
 
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import beam.agentsim.sim.AgentsimServices
 import com.google.inject.{Inject, Provider}
-import glokka.Registry
 import org.matsim.core.router.{RoutingModule, TripRouter}
 
 /**

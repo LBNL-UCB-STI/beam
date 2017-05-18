@@ -1,4 +1,4 @@
-package beam.agentsim.routing.opentripplanner
+package beam.router.opentripplanner
 
 import java.util
 
