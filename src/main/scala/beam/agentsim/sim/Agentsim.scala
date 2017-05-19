@@ -9,6 +9,7 @@ import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.TaxiAgent.TaxiData
 import beam.agentsim.agents._
+import beam.agentsim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
@@ -36,7 +37,8 @@ import scala.util.Random
   * Created by sfeygin on 2/8/17.
   */
 class Agentsim @Inject()(private val actorSystem: ActorSystem,
-                         private val services: AgentsimServices
+                         private val services: AgentsimServices,
+                         beamConfig : BeamConfig
                         ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
   import AgentsimServices._
@@ -71,7 +73,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     val schedulerFuture = registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler]))
     schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
-    val routerFuture = registry ? Registry.Register("router", Props(classOf[OpenTripPlannerRouter], services))
+    val routerFuture = registry ? Registry.Register("router", Props(classOf[OpenTripPlannerRouter], services, beamConfig))
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
@@ -114,8 +116,8 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
-    for ((k, v) <- popMap.take(beamConfig.beam.sim.numAgents)) {
-      val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
+    for ((k, v) <- popMap.take(beamConfig.beam.agentsim.numAgents)) {
+      val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan), beamConfig)
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
