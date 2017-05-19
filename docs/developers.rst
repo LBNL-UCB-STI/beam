@@ -9,9 +9,26 @@ Repositories
 ^^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
-The convention for merging into the master branch is that the three main model components (AgentSim, PhysSim, Router) need to be functional and the overall model must be able to run. In addition, all classes should compile and all tests should pass.
+The convention for merging into the master branch is that the three main model components (AgentSim, PhysSim, Router) need to be functional and the overall model must be able to run. In addition, all classes should compile and all tests should pass. The BEAM project managers will be responsible for merging between master and the three main components (see below). Pull requests will be the mechanism to notify the project managers.
 
-The three componenet branches (agentsim, physsim, router) are for gradual development of new features. Commits to these branches should also be functional in the sense that they don't interfere with other team members working on the same component.
+The three componenet branches (agentsim, physsim, router) are for gradual development of new features. Commits to these branches should also be functional in the sense that they don't interfere with other team members working on the same component. 
+
++ master
+    + agentsim
+        + agentsim-new-feature-1 
+        + agentsim-new-feature-2
+    + physsim
+    + router
+        + router-new-feature
+
+An example workflow for contributing a new feature to the router branch might look like this:
+
++ create a new branch off of the router (e.g. router-new-feature)
++ work in router-new-feature
++ get it to compile, pass tests
++ merge back into router
++ create pull request
+
 
 The pev-only and pev-only-calibration branches hold a previous version of BEAM (v1.X) which is inconpatible with master but is still used for modeling and analysis work.
 
@@ -100,3 +117,64 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_SHARED_INPUTS.plist`::
         <false/>
       </dict>
     </plist>
+
+Deploying on NERSC
+^^^^^^^^^^^^^^^^^^
+
+Note, the following assumes you have configured your NERSC account to use bash as your default shell. To configure this go to the [NERSC NIM site](https://nim.nersc.gov/) and "Actions" -> "Change Shell".
+
+Log into system::
+
+    ssh <user>@cori.nersc.gov
+
+Configure your bash environment if you haven't already done so. Add an environment variable to your bash profile by opening ~/.bash_profile.ext and adding these lines::
+
+    export DIR=/project/projectdirs/m1927
+    export BEAMLIB=/project/projectdirs/m1927/beam/beamlib
+
+The first gives you a handy way to jump into our project directory (e.g. "cd $DIR") the second is what gradle will use to find the matsim static jar file. 
+Go to shared project directory::
+
+    cp /project/projectdirs/m1927/beam/
+
+Build and deploy model if necessary (if new changes have occurred)::
+
+    ./build-beam.sh
+
+Submit job to batch schedule::
+
+    cd batch
+    sbatch sf-bay.sl
+
+Monitor job::
+
+    sqs
+
+Setting up in Eclipse
+^^^^^^^^^^^^^^^^^^^^^
+
+Setup Matsim as a Dependency:
+
+* Eclipse -> New Project -> Import Projects from Git
+* Clone URI: git@github.com:colinsheppard/matsim.git
+* Host: github.com
+* Authenticate 
+* Folder: e.g. C:\Users\Admin\git\matsim
+* Then import just the "matsim" and "examples" subfolders as two independent projects
+* Finally add "matsim-examples" as a project dependency to "matsim"
+
+Pulling code from github:
+
+* Eclipse -> New Project -> Import Projects from Git
+* Clone URI: git@github.com:colinsheppard/beam.git 
+* Host: github.com
+* Authenticate 
+* Folder: e.g. C:\Users\Admin\git\beam
+* Import as generic project
+* Add "matsim" as a project dependency to "beam"
+
+Create gradle project:
+
+* Import -> gradle project
+* Project root: C:\Users\Admin\git\beam\
+    
