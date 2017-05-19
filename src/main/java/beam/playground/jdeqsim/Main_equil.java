@@ -31,11 +31,12 @@ public class Main_equil {
 	static double linkCapacity=10;
 	static double gapTravelSpeed=7.5;
 	static boolean isQSim=true;
-	
+
+	@Deprecated // See beam.agentsim.sim.AgentsimServices
 	public static void main(String[] args) {
 
 		Random rand = new Random();
-		
+
 		Config config = ConfigUtils.loadConfig(
 				"C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
 		
