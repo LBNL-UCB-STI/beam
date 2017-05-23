@@ -111,7 +111,7 @@ object PersonAgent {
       * @param plan : The plan having at least some `Activities`
       * @return `PersonData`
       */
-    def apply(plan: Plan): PersonData = PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), Vector[Double](), mnlChoice, None)
+    def apply(plan: Plan): PersonData = PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), mnlChoice, None)
 
     def planToVec(plan: Plan): Vector[Activity] = {
       scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
@@ -124,7 +124,6 @@ object PersonAgent {
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0,
                         currentRoute: BeamTrip = BeamTrip.noneTrip,
                         currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip](),
-                        taxiAlternatives: Vector[Double] = Vector[Double](),
                         choiceCalculator: ChoiceCalculator,
                         currentVehicle: Option[ActorRef]) extends BeamAgentData {
 
@@ -278,15 +277,6 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         TaxiInquiryResponseWrapper(routeResult.tick, routeResult.triggerId, routeResult.alternatives, taxiResult.timesToCustomer)
       } pipeTo self
       stay()
-    case Event(result: TaxiInquiryResponseWrapper, info: BeamAgentInfo[PersonData]) =>
-      val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick,self))
-      if (info.id.toString.equals("3")) {
-        DebugLib.emptyFunctionForSettingBreakPoint()
-      }
-      // Send CN directly to scheduler.
-      // Can't reply as usual here, since execution context post-pipe captures self as sender via closure.
-      schedulerRef ! completionNotice
-      goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives, taxiAlternatives = result.timesToCustomer))
     case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
       schedulerRef ! CompletionNotice(msg.triggerId)
       goto(Error)

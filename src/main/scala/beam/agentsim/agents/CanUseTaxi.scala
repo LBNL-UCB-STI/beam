@@ -8,6 +8,7 @@ import BeamAgent._
 import PersonAgent._
 import beam.agentsim.agents.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
+import beam.utils.DebugLib
 import org.matsim.api.core.v01.events.ActivityStartEvent
 import org.matsim.api.core.v01.Id
 
@@ -21,8 +22,12 @@ object CanUseTaxi{
 
   case class ReserveTaxiResponseWrapper(tick: Double, triggerId: Long, taxi: Option[ActorRef], timeToCustomer: Double, tripChoice: BeamTrip) extends Trigger
 }
+trait CanUseTaxiData{
+}
 trait CanUseTaxi extends Behavior with TriggerShortcuts{
   import beam.agentsim.sim.AgentsimServices._
+
+  var taxiAlternatives: Vector[Double] = Vector[Double]()
 
   override def registerBehaviors(behaviors: Map[BeamAgentState,StateFunction]): Map[BeamAgentState,StateFunction] = {
     var newBehaviors = behaviors
@@ -40,6 +45,13 @@ trait CanUseTaxi extends Behavior with TriggerShortcuts{
     Uninitialized -> {
       case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
         goto(Initialized) replying CompletionNotice(triggerId)
+    },
+    PerformingActivity -> {
+      case Event(result: TaxiInquiryResponseWrapper, info: BeamAgentInfo[PersonData]) =>
+        val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick, self))
+        taxiAlternatives = result.timesToCustomer
+        schedulerRef ! completionNotice
+        goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives)
     }
   )
 
