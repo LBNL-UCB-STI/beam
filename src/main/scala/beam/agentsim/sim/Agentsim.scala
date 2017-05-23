@@ -9,7 +9,7 @@ import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.TaxiAgent.TaxiData
 import beam.agentsim.agents._
-import beam.agentsim.config.{BeamConfig, ConfigModule}
+import beam.agentsim.config.BeamConfig
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
@@ -117,7 +117,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
   def resetPop(iter: Int): Unit = {
     for ((k, v) <- popMap.take(beamConfig.beam.agentsim.numAgents)) {
-      val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan), beamConfig)
+      val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }

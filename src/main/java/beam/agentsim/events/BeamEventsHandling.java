@@ -37,12 +37,11 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
         this.eventsManager = eventsManager;
         this.services = services;
         this.beamServices = beamServices;
-        this.beamConfig = beamConfig;
-
     }
 
     @Override
     public void notifyBeforeMobsim(BeforeMobsimEvent event) {
+        this.beamConfig = AgentsimServices.beamConfig();
         if(this.eventsLogger == null) this.eventsLogger = new BeamEventsLogger(beamServices,services);
         eventsManager.resetHandlers(event.getIteration());
         boolean writeThisIteration = (beamConfig.beam().outputs().writeEventsInterval() > 0) && (event.getIteration() % beamConfig.beam().outputs().writeEventsInterval() == 0);

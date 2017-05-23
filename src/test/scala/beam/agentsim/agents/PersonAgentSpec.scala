@@ -45,7 +45,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       plan.addActivity(homeActivity)
       val data = PersonData(plan)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, ConfigModule.beamConfig))
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)

@@ -97,7 +97,7 @@ object PersonAgent {
   def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = Random.shuffle(alternatives.toList).head
 
   // syntactic sugar for props creation
-  def props(personId: Id[PersonAgent], personData: PersonData) = Props(classOf[PersonAgent], personId, personData, ConfigModule.beamConfig)
+  def props(personId: Id[PersonAgent], personData: PersonData) = Props(classOf[PersonAgent], personId, personData)
 
   //////////////////////////////
   // PersonData Begin... //
@@ -229,7 +229,7 @@ object PersonAgent {
 
 }
 
-class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data: PersonData,  beamConfig : BeamConfig) extends BeamAgent[PersonData] {
+class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
   import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
