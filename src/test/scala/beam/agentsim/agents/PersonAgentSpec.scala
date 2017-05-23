@@ -70,7 +70,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber1")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
-      agentSimEventsBus.subscribe(eventSubscriber, actEndDummy)
+      agentSimEventsBus.subscribe(eventSubscriber, ActivityEndEvent.EVENT_TYPE)
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setEndTime(28800)  // 8:00:00 AM
@@ -94,7 +94,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber2")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
-      agentSimEventsBus.subscribe(eventSubscriber,actEndDummy)
+      agentSimEventsBus.subscribe(eventSubscriber,ActivityEndEvent.EVENT_TYPE)
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
