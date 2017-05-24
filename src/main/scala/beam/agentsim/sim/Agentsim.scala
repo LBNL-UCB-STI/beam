@@ -12,6 +12,7 @@ import beam.agentsim.agents._
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
+import beam.agentsim.routing.r5.R5Router
 import beam.agentsim.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
@@ -71,7 +72,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     val schedulerFuture = registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler]))
     schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
-    val routerFuture = registry ? Registry.Register("router", Props(classOf[OpenTripPlannerRouter], services))
+    val routerFuture = registry ? Registry.Register("router", Props(classOf[R5Router], services))
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
