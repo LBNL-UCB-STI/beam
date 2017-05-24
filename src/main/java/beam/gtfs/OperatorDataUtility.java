@@ -14,8 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static beam.gtfs.SFBayPT2MATSim.CONFIG_FILE;
-
 /**
  * Takes care of retrieving {@link Operator} data.
  *
@@ -26,10 +24,9 @@ public class OperatorDataUtility {
     private static final Logger log = Logger.getLogger(TransitDataDownloader.class);
     private String opMapPath;
     private String apiKey;
-    private static final BeamConfig BEAM_CONFIG = BeamConfig.apply(ConfigFactory.parseFile(CONFIG_FILE).resolve());
 
-    public OperatorDataUtility(){
-        opMapPath= BEAM_CONFIG.beam().routing().gtfs().operatorsFile();
+    public OperatorDataUtility(BeamConfig config){
+        opMapPath= config.beam().routing().gtfs().operatorsFile();
 //        apiKey=BEAM_CONFIG.beam().routing().gtfs().apiKey();
     }
 

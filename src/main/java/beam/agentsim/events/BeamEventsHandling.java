@@ -33,7 +33,7 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
     private BeamConfig beamConfig;
 
     @Inject
-    BeamEventsHandling(EventsManager eventsManager, AgentsimServices beamServices, MatsimServices services) {
+    BeamEventsHandling(EventsManager eventsManager, AgentsimServices beamServices, MatsimServices services, BeamConfig beamConfig) {
         this.eventsManager = eventsManager;
         this.services = services;
         this.beamServices = beamServices;

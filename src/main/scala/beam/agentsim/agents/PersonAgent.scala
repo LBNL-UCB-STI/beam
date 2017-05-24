@@ -9,6 +9,7 @@ import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
 import beam.agentsim.agents.TaxiAgent.DropOffCustomer
 import beam.agentsim.agents.TaxiManager.{ReserveTaxi, ReserveTaxiConfirmation, TaxiInquiry, TaxiInquiryResponse}
+import beam.agentsim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
@@ -16,6 +17,7 @@ import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamLeg, BeamTrip, RoutingResponse}
 import beam.utils.DebugLib
+import com.google.inject.Inject
 import glokka.Registry
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -227,7 +229,7 @@ object PersonAgent {
 
 }
 
-class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
+class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
   import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
@@ -525,6 +527,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   case class ProcessedData(nextLeg: BeamLeg, restTrip: BeamTrip, nextStart: Double)
 
   private def publishPathTraversal(event: PathTraversalEvent): Unit = {
+    //TODO: convert pathTraversalEvents to hashset
     if (beamConfig.beam.events.pathTraversalEvents contains event.beamLeg.mode.value.toLowerCase()) {
       agentSimEventsBus.publish(MatsimEvent(event))
 
