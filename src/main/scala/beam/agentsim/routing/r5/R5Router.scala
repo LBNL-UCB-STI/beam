@@ -52,12 +52,16 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
   private def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person) = {
 
     val streetRouter = new StreetRouter(transportNetwork.streetLayer)
-
-    streetRouter.profileRequest = buildRequest(fromFacility, toFacility, departureTime)
+    val profileRequest = buildRequest(fromFacility, toFacility, departureTime)
+    streetRouter.profileRequest = profileRequest
     streetRouter.streetMode = StreetMode.WALK
 
     // TODO use target pruning instead of a distance limit
     streetRouter.distanceLimitMeters = 100000
+
+    streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)
+    streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)
+
     streetRouter.route
 
     //Gets lowest weight state for end coordinate split
@@ -70,7 +74,7 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
       //      if (!(edgeIdx == -1 || edgeIdx == null)) {
       //        val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
       //      }
-      totalDistance = totalDistance+state.distance
+      totalDistance = totalDistance + state.distance / 1000 //convert distance from mm to m
     }
     totalDistance
   }
