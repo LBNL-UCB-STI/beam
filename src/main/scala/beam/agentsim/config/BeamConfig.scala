@@ -69,7 +69,7 @@ object BeamConfig {
           defaultLoggingLevel     = if(c.hasPathOrNull("defaultLoggingLevel")) c.getInt("defaultLoggingLevel") else 1,
           eventsFileOutputFormats = if(c.hasPathOrNull("eventsFileOutputFormats")) c.getString("eventsFileOutputFormats") else "csv",
           explodeEventsIntoFiles  = c.hasPathOrNull("explodeEventsIntoFiles") && c.getBoolean("explodeEventsIntoFiles"),
-          outputDirectory         = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/home/dserdiuk/Projects/upwork/7Summits/beam/test/output",
+          outputDirectory         = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "test/output",
           overrideLoggingLevels   = $_LBeamConfig_Beam_Outputs_OverrideLoggingLevels$Elm(c.getList("overrideLoggingLevels")),
           writeEventsInterval     = if(c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
           writePlansInterval      = if(c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
@@ -96,7 +96,7 @@ object BeamConfig {
           BeamConfig.Beam.Routing.Gtfs(
             crs           = if(c.hasPathOrNull("crs")) c.getString("crs") else "epsg:26910",
             operatorsFile = if(c.hasPathOrNull("operatorsFile")) c.getString("operatorsFile") else "src/main/resources/GTFSOperators.csv",
-            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "/home/dserdiuk/Projects/upwork/7Summits/beam/test/output/gtfs"
+            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "test/output/gtfs"
           )
         }
       }
@@ -128,7 +128,7 @@ object BeamConfig {
         events       = BeamConfig.Beam.Events(c.getConfig("events")),
         outputs      = BeamConfig.Beam.Outputs(c.getConfig("outputs")),
         routing      = BeamConfig.Beam.Routing(c.getConfig("routing")),
-        sharedInputs = if(c.hasPathOrNull("sharedInputs")) c.getString("sharedInputs") else "/home/dserdiuk/Projects/upwork/7Summits/beam/test/input/beam/sf-bay/"
+        sharedInputs = if(c.hasPathOrNull("sharedInputs")) c.getString("sharedInputs") else "test/input/beam/sf-bay/"
       )
     }
   }
