@@ -15,7 +15,7 @@ import org.matsim.core.controler.listener.BeforeMobsimListener;
 import org.matsim.core.controler.listener.IterationEndsListener;
 import org.matsim.core.controler.listener.ShutdownListener;
 import org.matsim.core.events.algorithms.EventWriter;
-import beam.agentsim.sim.AgentsimServices;
+import beam.sim.BeamServices;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -27,13 +27,13 @@ import java.util.List;
 public final class BeamEventsHandling implements EventsHandling, BeforeMobsimListener, AfterMobsimListener, IterationEndsListener, ShutdownListener {
     private final EventsManager eventsManager;
     private List<EventWriter> eventWriters = new LinkedList<>();
-    private AgentsimServices beamServices;
+    private BeamServices beamServices;
     private MatsimServices services;
     private BeamEventsLogger eventsLogger;
     private BeamConfig beamConfig;
 
     @Inject
-    BeamEventsHandling(EventsManager eventsManager, AgentsimServices beamServices, MatsimServices services) {
+    BeamEventsHandling(EventsManager eventsManager, BeamServices beamServices, MatsimServices services) {
         this.eventsManager = eventsManager;
         this.services = services;
         this.beamServices = beamServices;
@@ -41,7 +41,7 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
 
     @Override
     public void notifyBeforeMobsim(BeforeMobsimEvent event) {
-        this.beamConfig = AgentsimServices.beamConfig();
+        this.beamConfig = BeamServices.beamConfig();
         if(this.eventsLogger == null) this.eventsLogger = new BeamEventsLogger(beamServices,services);
         eventsManager.resetHandlers(event.getIteration());
         boolean writeThisIteration = (beamConfig.beam().outputs().writeEventsInterval() > 0) && (event.getIteration() % beamConfig.beam().outputs().writeEventsInterval() == 0);

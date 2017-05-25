@@ -32,17 +32,17 @@ import scala.util.Random
 
 /**
   * AgentSim entrypoint.
-  * Should instantiate the [[ActorSystem]], [[AgentsimServices]] and interact concurrently w/ the QSim.
+  * Should instantiate the [[ActorSystem]], [[BeamServices]] and interact concurrently w/ the QSim.
   *
   * Created by sfeygin on 2/8/17.
   */
-class Agentsim @Inject()(private val actorSystem: ActorSystem,
-                         private val services: AgentsimServices
+class BeamSim @Inject()(private val actorSystem: ActorSystem,
+                        private val services: BeamServices
                         ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
-  import AgentsimServices._
+  import BeamServices._
 
-  private val logger: Logger = LoggerFactory.getLogger(classOf[Agentsim])
+  private val logger: Logger = LoggerFactory.getLogger(classOf[BeamSim])
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _

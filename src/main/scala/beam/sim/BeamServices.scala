@@ -24,9 +24,7 @@ import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-object AgentsimServices {
-  import beam.agentsim._
-  import net.codingwell.scalaguice.InjectorExtensions._
+object BeamServices {
 
   // Inject and use tsConfig instead here
   // Make implict to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
@@ -54,12 +52,21 @@ object AgentsimServices {
         // Beam -> MATSim Wirings
 
         bindMobsim().to(classOf[QSim]) //TODO: This will change
-        addControlerListenerBinding().to(classOf[Agentsim])
+        addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
       }
     }))
 
-  val controler: ControlerI = injector.instance[ControlerI]
+}
+
+/**
+  * Created by sfeygin on 2/11/17.
+  */
+@Singleton
+case class BeamServices @Inject()(protected val injector: Injector) extends ActorInject {
+  val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
+  val bbox: BoundingBox = new BoundingBox()
+  val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
   val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve())
@@ -69,13 +76,4 @@ object AgentsimServices {
   var schedulerRef: ActorRef =_
   var taxiManager: ActorRef = _
   var popMap: Option[Map[Id[Person], Person]] = None
-}
-
-/**
-  * Created by sfeygin on 2/11/17.
-  */
-@Singleton
-case class AgentsimServices @Inject()(protected val injector: Injector) extends ActorInject {
-  val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
-  val bbox: BoundingBox = new BoundingBox()
 }

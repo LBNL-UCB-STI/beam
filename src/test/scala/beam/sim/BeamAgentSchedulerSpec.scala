@@ -1,4 +1,4 @@
-package beam.agentsim.sim
+package beam.sim
 
 import akka.actor.{Actor, ActorRef, ActorSystem}
 import akka.event.Logging

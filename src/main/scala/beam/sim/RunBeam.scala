@@ -1,4 +1,4 @@
-package beam.agentsim.sim
+package beam.sim
 
 object RunBeam extends App{
 
@@ -11,7 +11,7 @@ object RunBeam extends App{
 //  Console.println(beamConfig.beam.outputs.overrideLoggingLevels(1).classname)
 //  Console.println(if (beamConfig.beam.outputs.explodeEventsIntoFiles) "yes" else "no")
 
-  import AgentsimServices.controler
+  import BeamServices.controler
   controler.run()
 
 }

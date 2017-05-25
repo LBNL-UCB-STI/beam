@@ -1,4 +1,4 @@
-package beam.agentsim.sim.modules
+package beam.sim.modules
 
 import beam.agentsim.events.BeamEventsHandling
 //import beam.router.BeamRouterModuleProvider

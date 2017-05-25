@@ -1,9 +1,9 @@
-package beam.agentsim.sim.modules
+package beam.sim.modules
 
 import akka.actor.ActorSystem
 import beam.agentsim.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
-import beam.agentsim.sim.AgentsimServices
-import beam.agentsim.sim.modules.BeamAgentModule.ActorSystemProvider
+import beam.sim.BeamServices
+import beam.sim.modules.BeamAgentModule.ActorSystemProvider
 import com.google.inject.{AbstractModule, Inject, Injector, Provider}
 import com.typesafe.config.Config
 import net.codingwell.scalaguice.ScalaModule
@@ -31,7 +31,7 @@ object BeamAgentModule {
 class BeamAgentModule extends AbstractModule with AkkaGuiceSupport with ScalaModule {
   override def configure(): Unit = {
     bind[ActorSystem].toProvider[ActorSystemProvider].asEagerSingleton()
-    bind[AgentsimServices].asEagerSingleton()
+    bind[BeamServices].asEagerSingleton()
 //    bind[BeamAgentScheduler].asEagerSingleton()
   }
 }
