@@ -1,10 +1,10 @@
 package beam.sim
 
-import java.io.File
-
 import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
+import beam.agentsim.controler.BeamControler
+import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.events.AgentsimEventsBus
 import beam.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
@@ -26,18 +26,17 @@ import scala.collection.mutable.ListBuffer
 
 object BeamServices {
 
+  var beamConfig: BeamConfig = _
   // Inject and use tsConfig instead here
-  // Make implict to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
-  val matsimConfig: org.matsim.core.config.Config = ConfigUtils.loadConfig(MatSimConfigLoc + MatSimConfigFilename)
-
-  FileUtils.setConfigOutputFile(OutputDirectoryBase, SimName, matsimConfig)
-  val scenario: Scenario = ScenarioUtils.loadScenario(matsimConfig)
+  // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
+  FileUtils.setConfigOutputFile(ConfigModule.beamConfig.beam.outputs.outputDirectory, SimName, ConfigModule.matSimConfig)
   val injector: com.google.inject.Injector =
-    org.matsim.core.controler.Injector.createInjector(matsimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
+    org.matsim.core.controler.Injector.createInjector(ConfigModule.matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
         // MATSim defaults
+        val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
         install(new NewControlerModule)
-        install(new ScenarioByConfigModule)
+        install(new ScenarioByInstanceModule(scenario))
         install(new ControlerDefaultsModule)
         install(new BeamControllerCoreListenersModule)
 
@@ -69,7 +68,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
-  val beamConfig : BeamConfig = BeamConfig(ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve())
+
   //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
   var beamRouter : ActorRef = _
   var physSim: ActorRef = _

@@ -2,7 +2,7 @@ package beam.sim
 
 object RunBeam extends App{
 
-//  val tsConfig: Config = ConfigFactory.parseFile(new File("src/main/resources/config-template.conf")).resolve();
+//  val tsConfig: Config = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve();
 //  val beamConfig = BeamConfig(tsConfig)
 //
 //  Console.println(beamConfig.beam.outputs.defaultLoggingLevel)

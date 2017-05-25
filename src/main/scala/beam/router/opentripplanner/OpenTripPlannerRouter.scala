@@ -6,6 +6,7 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
+import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.SpaceTime
@@ -15,7 +16,7 @@ import beam.router.opentripplanner.OpenTripPlannerRouter._
 import beam.sim.BeamServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
-import beam.router.BeamRouter
+import com.google.inject.Inject
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
@@ -232,7 +233,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
     log.info("Loading graph..")
 
     val graphService = new GraphService()
-    graphService.graphSourceFactory = new InputStreamGraphSource.FileFactory(baseDirectory)
+    graphService.graphSourceFactory = new InputStreamGraphSource.FileFactory(otpGraphBaseDirectory)
 
     val params = makeParams()
 
@@ -257,7 +258,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
 
   private def makeParams(): CommandLineParameters = {
     val params = new CommandLineParameters
-    params.basePath = baseDirectory.getAbsolutePath
+    params.basePath = otpGraphBaseDirectory.getAbsolutePath
     params.port = 338080
     params.securePort = 338081
     params.routerIds = routerIds.asJava
@@ -270,7 +271,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
   private def buildAndPersistGraph(graphService: GraphService, params: CommandLineParameters): Unit = {
     routerIds.foreach(routerId => {
       val graphDirectory = new File(s"${
-        baseDirectory.getAbsolutePath
+        otpGraphBaseDirectory.getAbsolutePath
       }/graphs/$routerId")
       val graphBuilder = GraphBuilder.forDirectory(params, graphDirectory)
       graphBuilder.setAlwaysRebuild(false)

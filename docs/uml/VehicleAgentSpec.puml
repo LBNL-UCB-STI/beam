@@ -11,15 +11,15 @@ passengers are BeamVehicles and are physically in vehicle and move with the vehi
 (e.g. a PersonAgent who is driving alone would be the driver of the vehicle and his/her
 HumanBodyVehicle would be a passenger)
 HumanBody is a special case, it has no passengers, just a driver
+Transit Vehicles will need a boardAlightDelayFunction
  '/
 
-class BeamAgent {
-}
-
-class VehicleAgent {
+class BeamVehicle {
   enclosingVehicle: Option[VehicleAgent]
   driver: Option[BeamAgent]
   passengers: List[VehicleAgent]
+  capacity: Int
+  length: Double
   locationManager: LocationManager
   powertrain: Powertrain
   location(time) -> match enclosingVehicle { \n\tSome=>enclosingVehicle.location\n\tNone=>locationManager.getLocation(time) )\n}
@@ -41,9 +41,8 @@ class SpacetimeCoord {
     coord: org.matsim.api.core.v01.Coord
 }
 
-BeamAgent <|-- VehicleAgent : extends
-
-VehicleAgent *-- LocationManager : hasOne
+Actor *-- BeamVehicle : extends
+BeamVehicle *-- LocationManager : hasOne
 LocationManager *-- Trajectory : mayHaveOne
 Trajectory *-- SpacetimeCoord: hasMany
 
