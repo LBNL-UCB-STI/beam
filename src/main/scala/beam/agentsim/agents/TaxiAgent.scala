@@ -45,7 +45,7 @@ object TaxiAgent {
 
 class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData) extends BeamAgent[TaxiData] {
 
-  import beam.agentsim.sim.AgentsimServices._
+  import beam.sim.BeamServices._
 
   private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 

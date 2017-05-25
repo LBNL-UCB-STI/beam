@@ -1,7 +1,7 @@
 package beam.agentsim.events;
 
 import beam.agentsim.config.BeamConfig;
-import beam.agentsim.sim.AgentsimServices;
+import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.controler.MatsimServices;
 
@@ -16,13 +16,13 @@ import java.util.HashSet;
 public class BeamEventsLogger {
     HashMap<Class<?>, Integer> levels = new HashMap<>();
     private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog=new HashSet<>();
-    private AgentsimServices beamServices;
+    private BeamServices beamServices;
     private MatsimServices services;
     private BeamConfig beamConfig;
     private String eventsFileFormats;
     private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
 
-    public BeamEventsLogger(AgentsimServices beamServices, MatsimServices services) {
+    public BeamEventsLogger(BeamServices beamServices, MatsimServices services) {
 
         this.beamConfig = beamServices.beamConfig();
 

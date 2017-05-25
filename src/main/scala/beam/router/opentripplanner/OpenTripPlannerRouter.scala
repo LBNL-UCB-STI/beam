@@ -12,7 +12,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.RoutingMessages._
 import beam.router.BeamRouter._
 import beam.router.opentripplanner.OpenTripPlannerRouter._
-import beam.agentsim.sim.AgentsimServices
+import beam.sim.BeamServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
 import beam.router.BeamRouter
@@ -36,9 +36,9 @@ import scala.collection.immutable.Queue
 
 /**
   */
-class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRouter {
+class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
 
-  import beam.agentsim.sim.AgentsimServices._
+  import beam.sim.BeamServices._
 
   val baseDirectory: File = new File(beamConfig.beam.sim.sharedInputs + beamConfig.beam.routing.otp.directory)
   val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
@@ -247,7 +247,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     }
 
     graphService.getRouter.graph.getVertices.forEach(vertex =>
-      bbox.observeCoord(vertex.getCoordinate)
+      agentsimServices.bbox.observeCoord(vertex.getCoordinate)
     )
 
     log.info("Graph loaded successfully")
@@ -290,5 +290,5 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 }
 
 object OpenTripPlannerRouter {
-  def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
+  def props(agentsimServices: BeamServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
 }

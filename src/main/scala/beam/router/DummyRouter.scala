@@ -2,21 +2,21 @@ package beam.router
 
 import akka.actor.{Props}
 import beam.agentsim.core.Modes.BeamMode
-import beam.agentsim.sim.AgentsimServices
+import beam.sim.BeamServices
 import beam.router.BeamRouter.{BeamGraphPath, BeamLeg, BeamTrip}
 import beam.router.RoutingMessages._
 import com.vividsolutions.jts.geom.Coordinate
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{ Person }
 
-class DummyRouter(agentsimServices: AgentsimServices) extends BeamRouter {
-  import beam.agentsim.sim.AgentsimServices._
+class DummyRouter(theAgentsimServices: BeamServices) extends BeamRouter {
+  val agentsimServices = theAgentsimServices
 
   override def receive: Receive = {
     case InitializeRouter =>
       log.info("Initializing Dummy Router")
-      bbox.observeCoord(new Coordinate(-1e12,-1e12))
-      bbox.observeCoord(new Coordinate(1e12,1e12))
+      agentsimServices.bbox.observeCoord(new Coordinate(-1e12,-1e12))
+      agentsimServices.bbox.observeCoord(new Coordinate(1e12,1e12))
       sender() ! RouterInitialized
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
@@ -36,5 +36,5 @@ class DummyRouter(agentsimServices: AgentsimServices) extends BeamRouter {
 }
 
 object DummyRouter {
-  def props(agentsimServices: AgentsimServices) = Props(classOf[DummyRouter],agentsimServices)
+  def props(agentsimServices: BeamServices) = Props(classOf[DummyRouter],agentsimServices)
 }

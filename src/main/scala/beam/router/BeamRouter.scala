@@ -4,7 +4,7 @@ import akka.actor.Actor
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.sim.AgentsimServices
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord
 import org.slf4j.{Logger, LoggerFactory}
 

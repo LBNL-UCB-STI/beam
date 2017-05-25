@@ -230,7 +230,7 @@ object PersonAgent {
 class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
   import akka.pattern.{ask, pipe}
-  import beam.agentsim.sim.AgentsimServices._
+  import beam.sim.BeamServices._
 
 
   private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)

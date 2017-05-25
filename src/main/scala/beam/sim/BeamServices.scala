@@ -1,4 +1,4 @@
-package beam.agentsim.sim
+package beam.sim
 
 import java.io.File
 
@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.events.AgentsimEventsBus
-import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
+import beam.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.controler.BeamControler
 import beam.agentsim.utils.FileUtils
@@ -68,7 +68,6 @@ object AgentsimServices {
   var physSim: ActorRef = _
   var schedulerRef: ActorRef =_
   var taxiManager: ActorRef = _
-  val bbox: BoundingBox = new BoundingBox()
   var popMap: Option[Map[Id[Person], Person]] = None
 }
 
@@ -78,4 +77,5 @@ object AgentsimServices {
 @Singleton
 case class AgentsimServices @Inject()(protected val injector: Injector) extends ActorInject {
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
+  val bbox: BoundingBox = new BoundingBox()
 }

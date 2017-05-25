@@ -1,6 +1,6 @@
 //package beam.router
 //
-//import beam.agentsim.sim.AgentsimServices
+//import beam.sim.AgentsimServices
 //import com.google.inject.{Inject, Provider}
 //import org.matsim.core.router.{RoutingModule, TripRouter}
 //

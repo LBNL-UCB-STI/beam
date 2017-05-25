@@ -1,4 +1,4 @@
-package beam.agentsim.sim
+package beam.sim
 
 import java.util.concurrent.TimeUnit
 
@@ -12,8 +12,7 @@ import beam.agentsim.agents._
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.router.RoutingMessages.InitializeRouter
 import beam.agentsim.utils.JsonUtils
-import beam.physsim.PhysSim.InitializePhysSim
-import beam.physsim.{DummyPhysSim, PhysSim}
+import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.DummyRouter
 import com.google.inject.Inject
 import glokka.Registry
@@ -79,10 +78,10 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
 
     val physSimFuture = registry ? Registry.Register("physSim", DummyPhysSim.props(services))
     physSim = Await.result(physSimFuture, timeout.duration).asInstanceOf[Created].ref
-    val physSimInitFuture = physSim ? InitializePhysSim
+    val physSimInitFuture = physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
 
-    val taxiManagerFuture = registry ? Registry.Register("taxiManager", Props(classOf[TaxiManager]))
+    val taxiManagerFuture = registry ? Registry.Register("taxiManager", TaxiManager.props(services))
     taxiManager = Await.result(taxiManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
   }
