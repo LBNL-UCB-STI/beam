@@ -29,7 +29,7 @@ object ConfigModule {
     config
   }
 
-  protected [agentsim] lazy val matSimConfig: MatSimConfig = {
+  protected [beam] lazy val matSimConfig: MatSimConfig = {
     try {
       val configBuilder = new MatSimBeamConfigBuilder(typesafeConfig)
       configBuilder.buildMatSamConf()

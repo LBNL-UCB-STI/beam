@@ -6,17 +6,14 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
-import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
-import beam.agentsim.events.SpaceTime
 import beam.router.RoutingMessages._
 import beam.router.BeamRouter._
-import beam.router.opentripplanner.OpenTripPlannerRouter._
 import beam.sim.BeamServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
-import com.google.inject.Inject
+import beam.router.BeamRouter
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
@@ -30,19 +27,18 @@ import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
 import org.opentripplanner.routing.spt.GraphPath
 import org.opentripplanner.standalone.{CommandLineParameters, Router}
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Queue
 
 /**
   */
-class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
+class OpenTripPlannerRouter(val services: BeamServices) extends BeamRouter {
 
   import beam.sim.BeamServices._
 
-  val baseDirectory: File = new File(beamConfig.beam.sim.sharedInputs + beamConfig.beam.routing.otp.directory)
-  val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
+  val baseDirectory: File = new File(services.beamConfig.beam.sharedInputs + services.beamConfig.beam.routing.otp.directory)
+  val routerIds: List[String] = services.beamConfig.beam.routing.otp.routerIds
   var graphService: Option[GraphService] = None
   var router: Option[Router] = None
   var transform: Option[MathTransform] = None
@@ -182,7 +178,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
         activeEdgeModeTime = it.next()
         val dist = distLatLon2Meters(activeEdgeModeTime.fromCoord.getX, activeEdgeModeTime.fromCoord.getY,
           activeEdgeModeTime.toCoord.getX, activeEdgeModeTime.toCoord.getY)
-        if (dist > beamConfig.beam.events.filterDist) {
+        if (dist > services.beamConfig.beam.events.filterDist) {
           log.warn(s"$activeEdgeModeTime, $dist")
         } else {
           activeLinkIds = activeLinkIds :+ activeEdgeModeTime.fromVertexLabel
@@ -222,7 +218,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
       sender() ! RouterInitialized()
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       //      log.info(s"OTP Router received routing request from person $personId ($sender)")
-      val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+      val person: Person = services.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val senderRef = sender()
       senderRef ! calcRoute(fromFacility, toFacility, departureTime, person)
     case msg =>
@@ -233,7 +229,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
     log.info("Loading graph..")
 
     val graphService = new GraphService()
-    graphService.graphSourceFactory = new InputStreamGraphSource.FileFactory(otpGraphBaseDirectory)
+    graphService.graphSourceFactory = new InputStreamGraphSource.FileFactory(new File(services.beamConfig.beam.routing.otp.directory))
 
     val params = makeParams()
 
@@ -248,7 +244,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
     }
 
     graphService.getRouter.graph.getVertices.forEach(vertex =>
-      agentsimServices.bbox.observeCoord(vertex.getCoordinate)
+      services.bbox.observeCoord(vertex.getCoordinate)
     )
 
     log.info("Graph loaded successfully")
@@ -258,7 +254,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
 
   private def makeParams(): CommandLineParameters = {
     val params = new CommandLineParameters
-    params.basePath = otpGraphBaseDirectory.getAbsolutePath
+    params.basePath = (new File(services.beamConfig.beam.routing.otp.directory)).getAbsolutePath
     params.port = 338080
     params.securePort = 338081
     params.routerIds = routerIds.asJava
@@ -271,7 +267,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
   private def buildAndPersistGraph(graphService: GraphService, params: CommandLineParameters): Unit = {
     routerIds.foreach(routerId => {
       val graphDirectory = new File(s"${
-        otpGraphBaseDirectory.getAbsolutePath
+        (new File(services.beamConfig.beam.routing.otp.directory)).getAbsolutePath
       }/graphs/$routerId")
       val graphBuilder = GraphBuilder.forDirectory(params, graphDirectory)
       graphBuilder.setAlwaysRebuild(false)
@@ -284,7 +280,7 @@ class OpenTripPlannerRouter(agentsimServices: BeamServices) extends BeamRouter {
     })
   }
 
-  def filterSegment(a: Coord, b: Coord): Boolean = distLatLon2Meters(a.getX, b.getY, a.getX, b.getY) > beamConfig.beam.events.filterDist
+  def filterSegment(a: Coord, b: Coord): Boolean = distLatLon2Meters(a.getX, b.getY, a.getX, b.getY) > services.beamConfig.beam.events.filterDist
 
   def filterLatLonList(latLons: Vector[Coord], thresh: Double): Vector[Coord] = for ((a, b) <- latLons zip latLons.drop(1) if distLatLon2Meters(a.getX, a.getY, b.getX, b.getY) < thresh) yield b
 
