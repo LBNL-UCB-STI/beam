@@ -39,7 +39,7 @@ public class BeamRouterImpl extends BeamRouter {
 	Network network;
 	int cachMiss = 0, getCount = 0;
 
-	BeamRouterImpl(){ 
+	BeamRouterImpl(){
 		this(EVGlobalData.data.TRAVEL_TIME_FILEPATH,EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
 	}
 	/*
@@ -56,14 +56,14 @@ public class BeamRouterImpl extends BeamRouter {
 //            }
 		}
 	}
-	
+
 	/*
 	 * Construct a BeamRouter where the travel time data are extracted from an object of type TravelTimeCalculator
 	 */
 	public BeamRouterImpl(String validationTravelTimeDataFilePath){
 		EVGlobalData.data.travelTimeFunction = ExogenousTravelTime.LoadTravelTimeFromValidationData(validationTravelTimeDataFilePath,true);
 	}
-	
+
 	//TODO this class should use dependency injection instead of hard-coded configuration
 	private void configure(){
 		network = EVGlobalData.data.controler.getScenario().getNetwork();
@@ -71,7 +71,7 @@ public class BeamRouterImpl extends BeamRouter {
 		preProcessData.run(network);
 		routingAlg = new AStarEuclidean(network, preProcessData, EVGlobalData.data.travelTimeFunction);
 	}
-	
+
 	public LinkedList<RouteInformationElement> calcRoute(Link fromLink, Link toLink, double departureTime, Person person) {
 		if(network == null)configure();
 		Path path = null;
@@ -97,7 +97,7 @@ public class BeamRouterImpl extends BeamRouter {
 		}
 		return routeInformation;
 	}
-	
+
 	public TripInformation getTripInformation(double time, Link startLink, Link endLink) {
 
 		double roundedTime = MathUtil.roundDownToNearestInterval(time,60.0*60.0);

@@ -8,6 +8,7 @@ package beam;
  */
 
 import beam.sim.LinkAttributeLoader;
+import beam.sim.traveltime.BeamRouterR5;
 import com.google.inject.Provider;
 
 import org.geotools.referencing.CRS;
@@ -96,8 +97,8 @@ public class EVSimTeleController {
 	}
 
 	protected void initModeRouters() {
-		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterImpl.class);
-		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES, BeamRouterImpl.class);
+		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES, BeamRouterR5.class);
 	}
 
 	public void startSimulation() {
@@ -298,7 +299,8 @@ public class EVSimTeleController {
 	}
 
 	protected void loadRouter() {
-		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
+//		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
+		EVGlobalData.data.router = new BeamRouterR5();
 	}
 
 	public static void scheduleGlobalActions() {

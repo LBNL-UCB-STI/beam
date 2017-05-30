@@ -172,18 +172,22 @@ public class ExogenousTravelTime implements TravelTime, LinkToLinkTravelTime, Tr
 
 	@Override
 	public double getLinkTravelTime(Link link, double time, Person person, Vehicle vehicle) {
-		if(!this.linkTravelTimes.containsKey(link.getId().hashCode())){
-//			log.warn("No link travel time is available for link " + link.getId());
-			double[] fakeTravelTimes = new double[numSlots];
-			Arrays.fill(fakeTravelTimes,Double.MAX_VALUE);
-			this.linkTravelTimes.put(link.getId().hashCode(),fakeTravelTimes);
-		}
-		int slot = convertTimeToBin(time);
-		if(slot < 0 || slot > numSlots || this.linkTravelTimes.get(link.getId().hashCode())[slot] < 0.0){
-			return Double.MAX_VALUE;
-		}else{
-			return this.linkTravelTimes.get(link.getId().hashCode())[slot];
-		}
+		return link.getLength() / (link.getFreespeed() > 0.0 ? link.getFreespeed() : 1.0);
+//		if(!this.linkTravelTimes.containsKey(link.getId().hashCode())){
+////			log.warn("No link travel time is available for link " + link.getId());
+//			double[] fakeTravelTimes = new double[numSlots];
+//			Arrays.fill(fakeTravelTimes,link.getLength() / (link.getFreespeed() > 0.0 ? link.getFreespeed() : 1.0));
+//			this.linkTravelTimes.put(link.getId().hashCode(),fakeTravelTimes);
+//		}
+//		int slot = convertTimeToBin(time);
+//		if(slot >= 0 && slot < numSlots && this.linkTravelTimes.get(link.getId().hashCode())[slot] > 86400.0){
+//			return link.getLength() / (link.getFreespeed() > 0.0 ? link.getFreespeed() : 1.0);
+//		}
+//		if(slot < 0 || slot > numSlots || this.linkTravelTimes.get(link.getId().hashCode())[slot] < 0.0){
+//			return link.getLength() / (link.getFreespeed() > 0.0 ? link.getFreespeed() : 1.0);
+//		}else{
+//			return this.linkTravelTimes.get(link.getId().hashCode())[slot];
+//		}
 	}
 
 	public static int convertTimeToBin(double time, boolean mapAbsoluteTimeToTimeOfDay, double timeSlice) {

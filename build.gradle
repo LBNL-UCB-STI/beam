@@ -11,13 +11,22 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 repositories {
-    maven { url "http://download.osgeo.org/webdav/geotools" }
-    maven { url "http://repo.boundlessgeo.com/main/" }
+    maven { url "http://maven.geotoolkit.org/" }
     maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-    maven { url "http://central.maven.org/maven2"}
+    maven { url "http://central.maven.org/maven2" }
     maven { url "http://repo.maven.apache.org/maven2" }
+    maven { url "http://repo1.maven.org/maven2" }
+    maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
-    maven { url "http://oss.jfrog.org/libs-snapshot" }
+    maven { url "https://maven.conveyal.com/" }
+    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+    maven { url "http://download.java.net/maven/2/" }
+    maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
+    maven { url "http://dl.bintray.com/andimarek/graphql-java" }
+    maven { url "http://maven.geo-solutions.it" }
+    maven { url "http://dl.bintray.com/scalaz/releases" }
+    mavenLocal()
+    mavenCentral()
     jcenter()
     maven { url "https://jitpack.io" }
 }
@@ -35,7 +44,9 @@ dependencies {
     //compile group: 'com.google.guava', name: 'guava', version: '21.0'
     //compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.1.4'
     compile group: 'org.postgresql', name: 'postgresql', version: '9.4.1212'
-    compile group: 'org.mapdb', name: 'mapdb', version: '3.0.4'
+//    compile group: 'org.mapdb', name: 'mapdb', version: '3.0.4'
+    runtime files('/Users/critter/.gradle/caches/modules-2/files-2.1/com.conveyal/jackson2-geojson/0.8/4419e90e57b8eaa1a0065a8341f53553c37193ee/jackson2-geojson-0.8.jar')
+    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -47,6 +58,8 @@ dependencies {
 buildscript {
     repositories {
         jcenter()
+        mavenLocal()
+        mavenCentral()
     }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'

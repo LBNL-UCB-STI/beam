@@ -12,6 +12,11 @@ public class RouteInformationElement implements Serializable {
 	// Zero-arg constructor necessary to use kyro for serailization
 	public RouteInformationElement(){
 	}
+	public RouteInformationElement(String linkId, double linkTravelTime, double linkTravelDistance) {
+		this.linkId = linkId;
+		this.travelTime = linkTravelTime;
+		this.travelDistance = linkTravelDistance;
+    }
 	public RouteInformationElement(Link link, double linkTravelTime) {
 		this.linkId = link.getId().toString();
 		this.travelTime = linkTravelTime;

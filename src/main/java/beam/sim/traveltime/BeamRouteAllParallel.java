@@ -37,10 +37,15 @@ public class BeamRouteAllParallel implements Runnable {
     @Override
     public void run() {
         log.info("Routing from group "+fromGroup);
-        for (Double time = 0.01; time < 24.0; time += 1.0) {
-            log.info("Group " + fromGroup + " time " + time);
+        for (Double time = 0.01; time < 24.0*3600.0; time += 3600.0) {
+            log.info("Group " + fromGroup + " hour " + time / 3600.0);
             for (String toGroup : toGroups.keySet()) {
-                TripInformation resultTrip = EVGlobalData.data.router.getTripInformation(time, fromGroups.get(fromGroup), toGroups.get(toGroup));
+                double roundedTime = MathUtil.roundDownToNearestInterval(time,60.0*60.0);
+                String key = fromGroup + "---" + toGroup + "---" +
+                        EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
+                if(!EVGlobalData.data.newTripInformationCache.containsKey(key)) {
+                    TripInformation resultTrip = EVGlobalData.data.router.getTripInformation(time, fromGroups.get(fromGroup), toGroups.get(toGroup));
+                }
             }
         }
         log.info("Completed from group "+fromGroup);

@@ -7,7 +7,9 @@ import beam.sim.traveltime.BeamRouteAllParallel;
 import beam.sim.traveltime.TripInformation;
 import beam.utils.MathUtil;
 import org.apache.log4j.Logger;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
+import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Person;
 
 import beam.EVGlobalData;
@@ -38,7 +40,12 @@ public class GlobalActions {
 
 	public void handleDayTracking() throws InterruptedException, ExecutionException {
 		if (!hasWarmedCache) {
+			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt1865864808"));
+			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt311688371"));
+			log.info("Link connection test: "+areLinksConnected("sfpt2867882737", "sfpt90424609"));
+			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt65630829"));
 			log.info("Warming up cache");
+			fixLinkLengthIssues();
 			warmUpCache();
 			hasWarmedCache = true;
 		}
@@ -59,6 +66,15 @@ public class GlobalActions {
 		//EVGlobalData.data.newTripInformationCache.persistStore();
 		if (EVGlobalData.data.scheduler.getSize() > 0) {
 			EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.now + 86400.0, this, "handleDayTracking", -1.0);
+		}
+	}
+
+	private void fixLinkLengthIssues() {
+		for(Link link: EVGlobalData.data.controler.getScenario().getNetwork().getLinks().values()) {
+			double euclid = Math.sqrt(Math.pow(link.getToNode().getCoord().getX() - link.getFromNode().getCoord().getX(), 2.0) + Math.pow(link.getToNode().getCoord().getY() - link.getFromNode().getCoord().getY(), 2.0));
+			if (link.getLength() < euclid) {
+				link.setLength(euclid + 1e-6);
+			}
 		}
 	}
 
@@ -109,6 +125,37 @@ public class GlobalActions {
 				}
 			} while (waitingThreads.size() > 0);
 
+	}
+	public Boolean areLinksConnected(String from, String to){
+		Id<Node> fromId = Id.createNodeId(from), toId = Id.createNodeId(to);
+		Link fromLink = EVGlobalData.data.controler.getScenario().getNetwork().getNodes().get(fromId).getOutLinks().values().iterator().next();
+		Link toLink = EVGlobalData.data.controler.getScenario().getNetwork().getNodes().get(toId).getOutLinks().values().iterator().next();
+		Link currentLink = fromLink;
+
+		HashSet<Link> visited = new HashSet<>();
+		LinkedList<Link> toVisit = new LinkedList<>();
+
+		while(true){
+			for(double i = 0.0; i <= 24.0; i+=0.5) {
+				double tt = EVGlobalData.data.travelTimeFunction.getLinkTravelTime(currentLink, i, null, null);
+				if(tt >= 86400.0){
+					return true;
+				}else if (tt< 0.0){
+					return true;
+				}
+			}
+			if(currentLink==toLink){
+				return true;
+			}
+			visited.add(currentLink);
+			toVisit.addAll(currentLink.getToNode().getOutLinks().values());
+			toVisit.addAll(currentLink.getFromNode().getInLinks().values());
+
+			while(visited.contains(currentLink)){
+			    if(toVisit.size()==0)return false;
+				currentLink = toVisit.poll();
+			}
+		}
 	}
 }
 

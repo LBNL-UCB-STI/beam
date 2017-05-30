@@ -28,12 +28,13 @@ public class ConvertOSMToMATSimNetwork {
 //		osmReader.setHierarchyLayer(51.671, 2.177, 49.402, 6.764, 4);
 
 		// converting the merged OSM network into matsim format
-		osmReader.parse("/Users/critter/Downloads/ontario-motorways-trunks.osm");
-		new NetworkWriter(network).write("/Users/critter/Downloads/ontario-motorways-trunks.xml");
+		osmReader.parse("/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/network.osm");
+		new NetworkWriter(network).write("/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/net-from-osm.xml");
 
 		// writing out a cleaned matsim network and loading it
 		// into the scenario
-		(new NetworkCleaner()).run("/Users/critter/Downloads/ontario-motorways-trunks.xml", "/Users/critter/Downloads/ontario-motorways-trunks-clean.xml.gz");
+		(new NetworkCleaner()).run("/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/net-from-osm.xml",
+				"/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/net-from-osm-cleaned.xml");
 		Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
 
 		/*
