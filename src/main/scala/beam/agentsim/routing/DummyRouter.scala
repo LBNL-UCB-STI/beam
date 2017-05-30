@@ -1,7 +1,6 @@
 package beam.agentsim.routing
 
 import java.util
-import java.util.List
 
 import akka.actor.Props
 import beam.agentsim.routing.DummyRouter.RoutingResponse
