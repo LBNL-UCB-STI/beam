@@ -13,11 +13,11 @@ public class PointToPointMain {
 
     private static final Logger LOG = LoggerFactory.getLogger(PointToPointMain.class);
 
-    public static void main(String commandArguments[]) {
+    public static void main(String directoryPath[]) {
 
         final boolean inMemory = false;
 
-        File dir = new File(commandArguments[1]);
+        File dir = new File(directoryPath[0]);
 
         if (!dir.isDirectory() && dir.canRead()) {
             LOG.error("'{}' is not a readable directory.", dir);
