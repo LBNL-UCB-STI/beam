@@ -3,11 +3,11 @@ package beam.agentsim.routing.r5
 import java.io.File
 import java.util
 
+import akka.actor.Props
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
-import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
@@ -111,4 +111,8 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
 
     profileRequest
   }
+}
+
+object R5Router {
+  def props(agentsimServices: AgentsimServices) = Props(classOf[R5Router], agentsimServices)
 }

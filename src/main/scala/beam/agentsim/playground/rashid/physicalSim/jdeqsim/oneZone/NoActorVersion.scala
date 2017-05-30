@@ -1,12 +1,10 @@
 package beam.agentsim.playground.rashid.physicalSim.jdeqsim.oneZone
 
-import org.matsim.core.config.ConfigUtils
-import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.core.events.EventsUtils
 import beam.playground.jdeqsim.CountEnterLinkEvents
-import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
-import org.matsim.core.mobsim.jdeqsim.JDEQSimulation
+import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
+import org.matsim.core.mobsim.jdeqsim.{JDEQSimConfigGroup, JDEQSimulation}
+import org.matsim.core.scenario.ScenarioUtils
 
 object NoActorVersion {
 

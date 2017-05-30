@@ -2,6 +2,7 @@ package beam.agentsim.akkaguice
 
 import akka.actor._
 import com.google.inject.Injector
+
 import scala.reflect.ClassTag
 
 /**

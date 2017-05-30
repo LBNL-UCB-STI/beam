@@ -16,9 +16,9 @@ import beam.agentsim.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}

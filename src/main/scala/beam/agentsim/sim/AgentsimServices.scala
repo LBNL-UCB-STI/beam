@@ -5,12 +5,12 @@ import java.io.File
 import akka.actor.{ActorRef, ActorSystem}
 import beam.agentsim.akkaguice.ActorInject
 import beam.agentsim.config.{BeamConfig, ConfigModule}
-import beam.agentsim.events.AgentsimEventsBus
-import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
-import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.controler.BeamControler
-import beam.agentsim.utils.FileUtils
+import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
+import beam.agentsim.events.AgentsimEventsBus
 import beam.agentsim.routing.BoundingBox
+import beam.agentsim.sim.modules.{AgentsimModule, BeamAgentModule}
+import beam.agentsim.utils.FileUtils
 import com.google.inject.{Inject, Injector, Singleton}
 import com.typesafe.config.ConfigFactory
 import glokka.Registry
@@ -19,7 +19,6 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByConfigModule, ScenarioUtils}
-import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer

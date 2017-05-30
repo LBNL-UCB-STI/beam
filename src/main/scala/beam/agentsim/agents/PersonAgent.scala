@@ -2,8 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Props
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
@@ -13,13 +12,13 @@ import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
-import beam.agentsim.routing.RoutingMessages.RoutingRequest
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamLeg, BeamTrip, RoutingResponse}
+import beam.agentsim.routing.RoutingMessages.{RoutingRequest, RoutingResponse}
+import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip}
 import beam.utils.DebugLib
 import glokka.Registry
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
-import org.matsim.api.core.v01.{Id, TransportMode}
 import org.matsim.core.api.experimental.events.AgentWaitingForPtEvent
 import org.matsim.pt.transitSchedule.api.TransitStopFacility
 import org.slf4j.LoggerFactory
