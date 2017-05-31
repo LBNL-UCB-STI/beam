@@ -11,7 +11,6 @@ If you want to run a BEAM model for your region, you will need the following dat
 * Charging Infrastructure
 * Vehicle Characteristics and Composition
 
-You can download [templates of the required input files here](https://www.dropbox.com/s/hya6dlw969d3jfw/beam-inputs-template.zip?dl=1).
 
 Installing
 ^^^^^^^^^^
