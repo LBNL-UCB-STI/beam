@@ -328,7 +328,10 @@ object OpenTripPlannerRouter {
         SpaceTime(_)
       }
     }
+
+    def size  = latLons.size
   }
+
 
   object BeamGraphPath {
     val emptyTimes: Vector[Long] = Vector[Long]()
