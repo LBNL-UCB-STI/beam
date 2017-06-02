@@ -15,10 +15,13 @@ import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConversions._
 
 class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
+
+  val log: Logger = LoggerFactory.getLogger(getClass)
   var transportNetwork: TransportNetwork = null
 
   override def receive: Receive = {
@@ -68,13 +71,21 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
     val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
     val streetPath = new StreetPath(lastState, transportNetwork)
 
+    var stateIdx = 0
     var totalDistance = 0
     for (state <- streetPath.getStates) {
-      //      val edgeIdx = state.backEdge
-      //      if (!(edgeIdx == -1 || edgeIdx == null)) {
-      //        val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
-      //      }
-      totalDistance = totalDistance + state.distance / 1000 //convert distance from mm to m
+      val edgeIdx = state.backEdge
+      if (!((edgeIdx eq -(1)) || edgeIdx == null)) {
+        val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
+        log.info("{} - Lat/Long for edgeIndex [{}] are [{}]", stateIdx, edgeIdx, edge.getGeometry)
+        log.info("\tmode [{}]", state.streetMode)
+        log.info("\tweight [{}]", state.weight)
+        log.info("\tduration sec [{}:{}]", state.getDurationSeconds / 60, state.getDurationSeconds % 60)
+        log.info("\tdistance [{}]", state.distance / 1000) //convert distance from mm to m
+        stateIdx += 1
+        totalDistance = state.distance / 1000
+      }
+
     }
     totalDistance
   }
