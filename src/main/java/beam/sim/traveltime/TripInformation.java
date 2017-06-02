@@ -45,7 +45,8 @@ public class TripInformation implements Serializable {
 		//TODO this used to have a cache, add it back
 		double energyConsumed = 0.0;
 		for(RouteInformationElement elem : routeInformationElements){
-			energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()), vehicle, elem.getAverageSpeed());
+//			energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()), vehicle, elem.getAverageSpeed());
+			energyConsumed += model.getEnergyConsumptionForLinkInJoule(elem.getLinkTravelDistance(), vehicle, elem.getAverageSpeed());
 		}
 		return energyConsumed;
 	}

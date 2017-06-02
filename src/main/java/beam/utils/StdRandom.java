@@ -200,7 +200,7 @@ public final class StdRandom {
      *         (mean 0 and standard deviation 1).
      */
     public static double gaussian() {
-        // use the polar form of the Box-Muller transform
+        // use the polar form of the Box-Muller transformToWgs
         double r, x, y;
         do {
             x = uniform(-1.0, 1.0);

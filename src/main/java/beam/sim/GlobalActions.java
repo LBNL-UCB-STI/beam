@@ -39,16 +39,16 @@ public class GlobalActions {
 	}
 
 	public void handleDayTracking() throws InterruptedException, ExecutionException {
-		if (!hasWarmedCache) {
-			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt1865864808"));
-			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt311688371"));
-			log.info("Link connection test: "+areLinksConnected("sfpt2867882737", "sfpt90424609"));
-			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt65630829"));
-			log.info("Warming up cache");
-			fixLinkLengthIssues();
-			warmUpCache();
-			hasWarmedCache = true;
-		}
+//		if (!hasWarmedCache) {
+//			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt1865864808"));
+//			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt311688371"));
+//			log.info("Link connection test: "+areLinksConnected("sfpt2867882737", "sfpt90424609"));
+//			log.info("Link connection test: "+areLinksConnected("sfpt56154022", "sfpt65630829"));
+//			log.info("Warming up cache");
+//			fixLinkLengthIssues();
+//			warmUpCache();
+//			hasWarmedCache = true;
+//		}
 		log.info("Handling Day Tracking: Set estimated travel distance in day for all agents.");
 		EVGlobalData.data.currentDay++;
 		log.info(EVGlobalData.data.router);

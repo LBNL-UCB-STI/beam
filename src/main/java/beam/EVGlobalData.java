@@ -10,8 +10,10 @@ import beam.charging.management.ChargingQueueImpl;
 import beam.sim.traveltime.*;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
+import com.conveyal.r5.transit.TransportNetwork;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
 import org.matsim.core.mobsim.qsim.QSim;
@@ -161,6 +163,8 @@ public class EVGlobalData {
 	public ExogenousTravelTime travelTimeFunction;
 	public TripInfoCacheMapDB newTripInformationCache;
 	public LinkQuadTree linkQuadTree;
+	public TransportNetwork networkR5;
+	public LinkedHashMap<Id<Link>,Id<Link>> matsimLinksToR5Links = new LinkedHashMap<>();
 	public HashMap<String, Class> modeRouterMapping = new HashMap<>();
 	public double averageWalkingTimeFromParkToActivity = 120;
 

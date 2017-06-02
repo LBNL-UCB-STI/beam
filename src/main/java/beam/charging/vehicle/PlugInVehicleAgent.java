@@ -559,10 +559,16 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			PlanElement elem = planElements.get(getCurrentLegIndex() + i);
 			if ((elem instanceof Activity)) {
 				lastActivity = (Activity) elem;
+				if(lastActivity.getLinkId().toString().substring(0,2).equals("sf")){
+					lastActivity.setLinkId(EVGlobalData.data.matsimLinksToR5Links.get(lastActivity.getLinkId()));
+				}
 			} else if (elem instanceof Leg && lastActivity != null) {
 				int departDay = (new Double(Math.ceil((lastActivity.getEndTime() - EVGlobalData.data.timeMarkingNewDay) / 86400.0))).intValue();
 				if (departDay == EVGlobalData.data.currentDay) {
 					nextActivity = (Activity) planElements.get(getCurrentLegIndex() + i + 1);
+					if(nextActivity.getLinkId().toString().substring(0,2).equals("sf")){
+						nextActivity.setLinkId(EVGlobalData.data.matsimLinksToR5Links.get(nextActivity.getLinkId()));
+					}
 					this.remainingTravelDistanceInDayInMeters += getTripInformation(lastActivity.getEndTime(), lastActivity.getLinkId(),
 							nextActivity.getLinkId()).getTripDistance();
 				} else if (departDay > EVGlobalData.data.currentDay) {

@@ -8,7 +8,10 @@ package beam;
  */
 
 import beam.sim.LinkAttributeLoader;
-import beam.sim.traveltime.BeamRouterR5;
+import beam.sim.traveltime.*;
+import com.conveyal.r5.streets.EdgeStore;
+import com.google.inject.Inject;
+import com.google.inject.Injector;
 import com.google.inject.Provider;
 
 import org.geotools.referencing.CRS;
@@ -32,9 +35,14 @@ import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.framework.Mobsim;
 import org.matsim.core.mobsim.qsim.QSim;
 import org.matsim.core.mobsim.qsim.interfaces.MobsimEngine;
+import org.matsim.core.mobsim.qsim.interfaces.NetsimNetwork;
 import org.matsim.core.network.LinkQuadTree;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.routes.LinkNetworkRouteImpl;
+import org.matsim.core.router.LeastCostPathCalculatorModule;
+import org.matsim.core.router.RoutingModule;
+import org.matsim.core.router.util.LeastCostPathCalculator;
+import org.matsim.core.router.util.LeastCostPathCalculatorFactory;
 import org.matsim.core.scenario.ScenarioUtils;
 
 import beam.analysis.ChargingLoadProfile;
@@ -49,7 +57,6 @@ import beam.charging.vehicle.ParseVehicleTypes;
 import beam.replanning.ChargingStrategyManager;
 import beam.sim.AdaptedQSimUtils;
 import beam.sim.AdaptedTeleportationEngine;
-import beam.sim.traveltime.BeamRouterImpl;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import beam.transEnergySim.vehicles.api.Vehicle;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
@@ -97,8 +104,13 @@ public class EVSimTeleController {
 	}
 
 	protected void initModeRouters() {
-		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterR5.class);
+//		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterR5.class);
 		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES, BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("pt", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("car", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("ride", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("bike", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("undefined", BeamRouterR5.class);
 	}
 
 	public void startSimulation() {
@@ -163,6 +175,10 @@ public class EVSimTeleController {
 			public void install() {
 				bind(BeamEventHandlers.class).asEagerSingleton();
 				bind(ChargingLoadProfile.class).asEagerSingleton();
+				bind(RoutingModule.class).toProvider(BeamRouterR5Provider.class);
+				bind(LeastCostPathCalculatorFactory.class).to(BeamLeastCostPathCalculatorFactory.class);
+				bind(LeastCostPathCalculator.class).to(BeamLeastCostPathCalculator.class);
+				bind(NetsimNetwork.class).to(BeamNetsimNetwork.class);
 				// addEventHandlerBinding().toInstance(observer);
 				// bind(MySimulationObserver.class).toInstance(observer);
 
@@ -173,6 +189,7 @@ public class EVSimTeleController {
 			}
 		});
 
+		loadRouter();
 		attachLinkTree();
 		loadLinkAttributes();
 
@@ -182,7 +199,6 @@ public class EVSimTeleController {
 
 		initializeChargingInfrastructure(controler);
 
-		loadRouter();
 		initializeVehicleFleet(controler);
 		//scheduleGlobalActions();
 
@@ -255,8 +271,10 @@ public class EVSimTeleController {
 				PlanElement pe = planElements.get(i);
 				if (pe instanceof Activity) {
 					Activity act = (Activity) pe;
-					Link link = NetworkUtils.getNearestLink(network, ((Activity) pe).getCoord());
-					act.setLinkId(link.getId());
+					if(act.getLinkId()==null) {
+						Link link = NetworkUtils.getNearestLink(network, act.getCoord());
+						if (link != null) act.setLinkId(link.getId());
+					}
 				}
 			}
 
@@ -298,7 +316,7 @@ public class EVSimTeleController {
 		EVGlobalData.data.linkAttributes = LinkAttributeLoader.loadLinkAttributes();
 	}
 
-	protected void loadRouter() {
+	protected void loadRouter(){
 //		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
 		EVGlobalData.data.router = new BeamRouterR5();
 	}

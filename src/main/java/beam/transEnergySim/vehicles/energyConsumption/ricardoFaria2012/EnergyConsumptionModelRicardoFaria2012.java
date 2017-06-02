@@ -74,4 +74,9 @@ public class EnergyConsumptionModelRicardoFaria2012 extends AbstractInterpolated
 	public double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed) {
 		return getInterpolatedEnergyConsumption(link.getLength(), averageSpeed);
 	}
+
+	@Override
+	public double getEnergyConsumptionForLinkInJoule(double distance, VehicleWithBattery vehicle, double averageSpeed) {
+		return getInterpolatedEnergyConsumption(distance, averageSpeed);
+	}
 }

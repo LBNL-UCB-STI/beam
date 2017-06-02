@@ -81,10 +81,10 @@ public class EnergyConsumptionModelGalus extends AbstractInterpolatedEnergyConsu
 		return getInterpolatedEnergyConsumption(link.getLength(), averageSpeed);
 	}
 
-	
+	@Override
+	public double getEnergyConsumptionForLinkInJoule(double distance, VehicleWithBattery vehicle, double averageSpeed) {
+		return getInterpolatedEnergyConsumption(distance, averageSpeed);
+	}
 
-	
-
-	
 
 }

@@ -16,12 +16,15 @@ import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.core.population.routes.LinkNetworkRouteImpl;
 import org.matsim.core.router.AStarEuclidean;
 import org.matsim.core.router.EmptyStageActivityTypes;
+import org.matsim.core.router.RoutingModule;
 import org.matsim.core.router.StageActivityTypes;
+import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.LeastCostPathCalculator.Path;
 import org.matsim.core.router.util.PreProcessEuclidean;
 import org.matsim.facilities.Facility;
@@ -31,6 +34,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 import beam.EVGlobalData;
+import org.matsim.vehicles.Vehicle;
 
 public class BeamRouterImpl extends BeamRouter {
 	private static final Logger log = Logger.getLogger(BeamRouterImpl.class);
@@ -98,6 +102,11 @@ public class BeamRouterImpl extends BeamRouter {
 		return routeInformation;
 	}
 
+	@Override
+	public Path calcRoute(Node fromNode, Node toNode, double starttime, Person person, Vehicle vehicle) {
+		return null;
+	}
+
 	public TripInformation getTripInformation(double time, Link startLink, Link endLink) {
 
 		double roundedTime = MathUtil.roundDownToNearestInterval(time,60.0*60.0);
@@ -139,5 +148,6 @@ public class BeamRouterImpl extends BeamRouter {
 	public String toString(){
 		return "BeamRouter: hot cache contains "+EVGlobalData.data.newTripInformationCache.getCacheSize()+" trips, current cache miss rate: "+this.cachMiss+"/"+this.getCount;
 	}
+
 }
 

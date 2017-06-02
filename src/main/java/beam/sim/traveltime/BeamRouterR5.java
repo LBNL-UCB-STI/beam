@@ -1,28 +1,34 @@
 package beam.sim.traveltime;
 
 import beam.EVGlobalData;
+import beam.parking.lib.DebugLib;
 import beam.utils.GeoUtils;
-import beam.utils.MathUtil;
 import com.conveyal.r5.api.ProfileResponse;
 import com.conveyal.r5.api.util.*;
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery;
 import com.conveyal.r5.profile.ProfileRequest;
+import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.transit.TransportNetwork;
-import com.vividsolutions.jts.geom.*;
+import com.google.inject.Singleton;
+import com.vividsolutions.jts.geom.Coordinate;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
+import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.routes.LinkNetworkRouteImpl;
-import org.matsim.core.router.AStarEuclidean;
 import org.matsim.core.router.EmptyStageActivityTypes;
+import org.matsim.core.router.RoutingModule;
 import org.matsim.core.router.StageActivityTypes;
+import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.LeastCostPathCalculator.Path;
-import org.matsim.core.router.util.PreProcessEuclidean;
+import org.matsim.core.utils.collections.QuadTree;
 import org.matsim.facilities.Facility;
+import org.matsim.vehicles.Vehicle;
 
 import java.io.File;
 import java.util.*;
@@ -30,50 +36,148 @@ import java.util.*;
 public class BeamRouterR5 extends BeamRouter {
 	private static final Logger log = Logger.getLogger(BeamRouterR5.class);
 
-	TransportNetwork transportNetwork;
-	Network network;
+	private static Network network;
 	int cachMiss = 0, getCount = 0;
+	private static QuadTree<String> edgeQuadTree;
+	LinkedHashMap<Id<Link>,Id<Link>> matsimLinksToR5Links = EVGlobalData.data.matsimLinksToR5Links;
+	private EdgeStore.Edge cursor;
 
 	public BeamRouterR5(){
+	    if(network==null){
+			configure();
+		}
 	}
+
 	//TODO this class should use dependency injection instead of hard-coded configuration
 	private void configure(){
-		File networkFile = new File(EVGlobalData.data.R5_FILEPATH + File.separator + "r5-transport-network.dat");
-	    if(networkFile.exists()){
-			try {
-				this.transportNetwork = TransportNetwork.read(networkFile);
-			} catch (Exception e) {
-				e.printStackTrace();
+	    if(EVGlobalData.data.networkR5 == null) {
+			File networkFile = new File(EVGlobalData.data.R5_FILEPATH + File.separator + "r5-transport-network.dat");
+			TransportNetwork transportNetwork = null;
+			if (networkFile.exists()) {
+				try {
+					transportNetwork = TransportNetwork.read(networkFile);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			} else {
+				networkFile = new File(EVGlobalData.data.R5_FILEPATH);
+				try {
+					transportNetwork = TransportNetwork.fromDirectory(networkFile);
+					networkFile = new File(EVGlobalData.data.R5_FILEPATH + File.separator + "r5-transport-network.dat");
+					transportNetwork.write(networkFile);
+					transportNetwork = TransportNetwork.read(networkFile);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			}
-		}else {
-			networkFile = new File(EVGlobalData.data.R5_FILEPATH);
-			try {
-				this.transportNetwork = TransportNetwork.fromDirectory(networkFile);
-				networkFile = new File(EVGlobalData.data.R5_FILEPATH + File.separator + "r5-transport-network.dat");
-				this.transportNetwork.write(networkFile);
-				this.transportNetwork = TransportNetwork.read(networkFile);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+			EVGlobalData.data.networkR5 = transportNetwork;
+			indexEdges();
+			updateMatsimNetwork();
 		}
+
 		if(EVGlobalData.data.travelTimeFunction == null){
 			EVGlobalData.data.travelTimeFunction = ExogenousTravelTime.LoadTravelTimeFromSerializedData(EVGlobalData.data.TRAVEL_TIME_FILEPATH);
 		}
 
+
 //		val mapdbFile = new File(getClass.getResource("osm.mapdb").getFile)
 //		transportNetwork.readOSM(mapdbFile)
 
+	}
+
+	private void updateMatsimNetwork() {
+		Double maxLat = Double.NEGATIVE_INFINITY, maxLon = Double.NEGATIVE_INFINITY, minLat = Double.POSITIVE_INFINITY, minLon = Double.POSITIVE_INFINITY;
 		network = EVGlobalData.data.controler.getScenario().getNetwork();
+		LinkedList<Id<Link>> linksToRemove = new LinkedList<>();
+		linksToRemove.addAll(network.getLinks().keySet());
+		HashSet<Node> nodesToRemove = new HashSet<>();
+		for(Link link : network.getLinks().values()){
+			Id<Link> r5NearestEdgeId = Id.createLinkId(edgeQuadTree.getClosest(link.getCoord().getX(),link.getCoord().getY()));
+			nodesToRemove.add(link.getFromNode());
+			nodesToRemove.add(link.getToNode());
+			matsimLinksToR5Links.put(link.getId(), r5NearestEdgeId);
+			Coord coord = link.getFromNode().getCoord();
+			if(coord.getX() < minLon)minLon = coord.getX();
+			if(coord.getY() < minLat)minLat = coord.getY();
+			if(coord.getX() > maxLon)maxLon = coord.getX();
+			if(coord.getY() > maxLat)maxLat = coord.getY();
+		}
+		minLon -= 1000;
+		maxLon += 1000;
+		minLat -= 1000;
+		maxLat += 1000;
+
+		LinkedList<Link> linksToAdd = new LinkedList<>();
+		cursor = EVGlobalData.data.networkR5.streetLayer.edgeStore.getCursor();
+		while(cursor.advance()){
+		    Integer idx = cursor.getEdgeIndex();
+			double length = cursor.getLengthM();
+			double speed = cursor.getSpeedMs();
+			Coord coord = GeoUtils.transformToUtm(cursor.getGeometry().getCoordinate());
+			if(coord.getX() > minLon && coord.getY() > minLat && coord.getX() < maxLon && coord.getY() < maxLat) {
+				Node dummyFromNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "from"), coord);
+				Node dummyToNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "to"), coord);
+				Link r5Link = NetworkUtils.createLink(Id.createLinkId(idx.toString()), dummyFromNode, dummyToNode, network, length, speed, 1.0, 1.0);
+				linksToAdd.add(r5Link);
+			}
+        }
+
+		for(Id<Link> linkId : linksToRemove){
+			network.removeLink(linkId);
+		}
+		for(Link link : linksToAdd){
+			network.addLink(link);
+		}
+		for(Node node : nodesToRemove){
+			network.removeNode(node.getId());
+		}
+		log.info("MATSim Network updated to hold R5 edges.");
+	}
+
+	private void indexEdges() {
+	    Double maxLat = Double.NEGATIVE_INFINITY, maxLon = Double.NEGATIVE_INFINITY, minLat = Double.POSITIVE_INFINITY, minLon = Double.POSITIVE_INFINITY;
+		cursor = EVGlobalData.data.networkR5.streetLayer.edgeStore.getCursor();
+		while(cursor.advance()){
+			Coord coord = GeoUtils.transformToUtm(cursor.getGeometry().getCoordinate());
+            if(coord.getX() < minLon)minLon = coord.getX();
+			if(coord.getY() < minLat)minLat = coord.getY();
+			if(coord.getX() > maxLon)maxLon = coord.getX();
+			if(coord.getY() > maxLat)maxLat = coord.getY();
+		}
+		Coord minCoord = new Coord(minLon, minLat);
+		Coord maxCoord = new Coord(maxLon, maxLat);
+		BeamRouterR5.edgeQuadTree = new QuadTree<>(minCoord.getX(),minCoord.getY(),maxCoord.getX(),maxCoord.getY());
+		cursor = EVGlobalData.data.networkR5.streetLayer.edgeStore.getCursor();
+		while(cursor.advance()){
+			Coord coord = GeoUtils.transformToUtm(cursor.getGeometry().getCoordinate());
+			try {
+				edgeQuadTree.put(coord.getX(), coord.getY(), Integer.toString(cursor.getEdgeIndex()));
+			}catch(IllegalArgumentException e){
+				DebugLib.emptyFunctionForSettingBreakPoint();
+			}
+		}
+		cursor = EVGlobalData.data.networkR5.streetLayer.edgeStore.getCursor();
 	}
 
 	public LinkedList<RouteInformationElement> calcRoute(Link fromLink, Link toLink, double departureTime, Person person) {
 		if(network == null)configure();
 		Path path = null;
-        PointToPointQuery query = new PointToPointQuery(transportNetwork);
+        PointToPointQuery query = new PointToPointQuery(EVGlobalData.data.networkR5);
         ProfileResponse response = query.getPlan(buildRequest(fromLink.getCoord(),toLink.getCoord()));
 
 		double now = departureTime;
 		LinkedList<RouteInformationElement> routeInformation = new LinkedList<>();
+		if(response.getOptions().size()==0){
+		    log.warn("empty route");
+			try {
+				cursor.seek(Integer.parseInt(fromLink.getId().toString()));
+				double linkTravelTime = cursor.getLengthM() / cursor.getSpeedMs();
+				routeInformation.add(new RouteInformationElement(fromLink, linkTravelTime));
+			} catch (NumberFormatException e) {
+				e.printStackTrace();
+			}
+			return routeInformation;
+		}
         ProfileOption option = response.getOptions().get(0);
         StreetSegment segment = option.access.get(0);
         Double totalDuration = Double.valueOf(segment.duration);
@@ -85,15 +189,12 @@ public class BeamRouterR5 extends BeamRouter {
             routeInformation.add(new RouteInformationElement(edge.edgeId.toString(),edgeDist * totalDuration / totalDistance, edgeDist));
 		}
 
-//		if(path==null)return routeInformation;
-//		if(path.links.size()==0){
-//			double linkTravelTime = EVGlobalData.data.travelTimeFunction.getLinkTravelTime(fromLink, now, person, null);
-//			routeInformation.add(new RouteInformationElement(fromLink, linkTravelTime));
-//		}else{
-//			for(Link link : path.links){
-//			}
-//		}
 		return routeInformation;
+	}
+
+	@Override
+	public Path calcRoute(Node fromNode, Node toNode, double starttime, Person person, Vehicle vehicle) {
+		return null;
 	}
 
 	public TripInformation getTripInformation(double time, Link startLink, Link endLink) {
@@ -137,15 +238,16 @@ public class BeamRouterR5 extends BeamRouter {
 		return EmptyStageActivityTypes.INSTANCE;
 	}
 	public String toString(){
-		return "BeamRouter: hot cache contains "+EVGlobalData.data.newTripInformationCache.getCacheSize()+" trips, current cache miss rate: "+this.cachMiss+"/"+this.getCount;
+//		return "BeamRouter: hot cache contains "+EVGlobalData.data.newTripInformationCache.getCacheSize()+" trips, current cache miss rate: "+this.cachMiss+"/"+this.getCount;
+		return "BeamRouter";
 	}
 
 	public ProfileRequest buildRequest(Coord fromCoord, Coord toCoord){
         ProfileRequest profileRequest = new ProfileRequest();
-        profileRequest.zoneId = transportNetwork.getTimeZone();
+        profileRequest.zoneId = EVGlobalData.data.networkR5.getTimeZone();
 
-        Coord fromPosTransformed = GeoUtils.transform(fromCoord);
-        Coord toPosTransformed = GeoUtils.transform(toCoord);
+        Coord fromPosTransformed = GeoUtils.transformToWgs(fromCoord);
+        Coord toPosTransformed = GeoUtils.transformToWgs(toCoord);
 
         profileRequest.fromLat = fromPosTransformed.getY();
         profileRequest.fromLon = fromPosTransformed.getX();

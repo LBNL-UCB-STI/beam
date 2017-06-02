@@ -24,6 +24,11 @@ public class EnergyConsumptionModelConstant extends AbstractInterpolatedEnergyCo
 
     @Override
     public double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed) {
-        return link.getLength() * vehicle.getAverageElectricConsumptionRateInJoulesPerMeter();
+        return getEnergyConsumptionForLinkInJoule(link.getLength(), vehicle, averageSpeed);
+    }
+
+    @Override
+    public double getEnergyConsumptionForLinkInJoule(double distance, VehicleWithBattery vehicle, double averageSpeed) {
+        return distance * vehicle.getAverageElectricConsumptionRateInJoulesPerMeter();
     }
 }
