@@ -217,7 +217,7 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
       graphService = Some(makeGraphService())
       router = Some(graphService.get.getRouter(routerIds.head))
       transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
-      sender() ! RouterInitialized()
+      sender() ! RouterInitialized
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       //      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)

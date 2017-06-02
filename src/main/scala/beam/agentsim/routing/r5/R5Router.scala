@@ -21,14 +21,13 @@ import scala.collection.JavaConversions._
 
 class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
 
-  val log: Logger = LoggerFactory.getLogger(getClass)
   var transportNetwork: TransportNetwork = null
 
   override def receive: Receive = {
     case InitializeRouter =>
       //  InitializeRouter responding with RouterInitialized
       init
-      sender() ! RouterInitialized()
+      sender() ! RouterInitialized
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       // RoutingRequest(fromFacility, toFacility, departureTime, personId) responding with RoutingResponse
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
