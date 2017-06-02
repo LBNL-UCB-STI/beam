@@ -23,13 +23,12 @@ import org.matsim.facilities.Facility
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
-import org.opentripplanner.routing.edgetype.{StreetTransitLink, _}
+import org.opentripplanner.routing.edgetype._
 import org.opentripplanner.routing.error.{PathNotFoundException, TrivialPathException}
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
 import org.opentripplanner.routing.spt.GraphPath
 import org.opentripplanner.standalone.{CommandLineParameters, Router}
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Queue
@@ -40,7 +39,6 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
 
   import beam.agentsim.sim.AgentsimServices._
 
-  val log: Logger = LoggerFactory.getLogger(getClass)
   val otpGraphBaseDirectory: File = new File(beamConfig.beam.routing.otp.directory)
   val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
   var graphService: Option[GraphService] = None
@@ -183,7 +181,7 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
         val dist = distLatLon2Meters(activeEdgeModeTime.fromCoord.getX, activeEdgeModeTime.fromCoord.getY,
           activeEdgeModeTime.toCoord.getX, activeEdgeModeTime.toCoord.getY)
         if (dist > beamConfig.beam.events.filterDist) {
-          log.warn(s"$activeEdgeModeTime, $dist")
+          log.warning(s"$activeEdgeModeTime, $dist")
         } else {
           activeLinkIds = activeLinkIds :+ activeEdgeModeTime.fromVertexLabel
           activeCoords = activeCoords :+ activeEdgeModeTime.fromCoord
@@ -287,10 +285,8 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
   def filterSegment(a: Coord, b: Coord): Boolean = distLatLon2Meters(a.getX, b.getY, a.getX, b.getY) > beamConfig.beam.events.filterDist
 
   def filterLatLonList(latLons: Vector[Coord], thresh: Double): Vector[Coord] = for ((a, b) <- latLons zip latLons.drop(1) if distLatLon2Meters(a.getX, a.getY, b.getX, b.getY) < thresh) yield b
-
 }
 
 object OpenTripPlannerRouter {
   def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
-
 }

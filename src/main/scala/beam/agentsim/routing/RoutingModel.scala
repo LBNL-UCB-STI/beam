@@ -16,20 +16,16 @@ object RoutingModel {
       TRANSIT
     }
     val totalTravelTime: Long = legs.map(_.travelTime).sum
-
   }
 
   object BeamTrip {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
-
   }
 
   case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long, graphPath: BeamGraphPath)
 
   object BeamLeg {
-
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty)
-
   }
 
   case class BeamGraphPath(linkIds: Vector[String],
@@ -51,8 +47,6 @@ object RoutingModel {
     val errorTime: Vector[Long] = Vector[Long](-1L)
 
     val empty: BeamGraphPath = new BeamGraphPath(Vector[String](), errorPoints, emptyTimes)
-
-
   }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
