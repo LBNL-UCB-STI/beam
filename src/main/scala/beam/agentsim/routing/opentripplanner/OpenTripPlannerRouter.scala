@@ -6,6 +6,7 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
+import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.routing.BeamRouter
@@ -14,6 +15,7 @@ import beam.agentsim.routing.RoutingModel.{BeamGraphPath, BeamLeg, BeamTrip, Edg
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
+import com.google.inject.Inject
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
@@ -34,12 +36,12 @@ import scala.collection.immutable.Queue
 
 /**
   */
-class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRouter {
+class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamConfig : BeamConfig) extends BeamRouter {
 
   import beam.agentsim.sim.AgentsimServices._
 
   val log: Logger = LoggerFactory.getLogger(getClass)
-  val baseDirectory: File = new File(beamConfig.beam.sim.sharedInputs + beamConfig.beam.routing.otp.directory)
+  val otpGraphBaseDirectory: File = new File(beamConfig.beam.routing.otp.directory)
   val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
   var graphService: Option[GraphService] = None
   var router: Option[Router] = None
@@ -231,7 +233,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
     log.info("Loading graph..")
 
     val graphService = new GraphService()
-    graphService.graphSourceFactory = new InputStreamGraphSource.FileFactory(baseDirectory)
+    graphService.graphSourceFactory = new InputStreamGraphSource.FileFactory(otpGraphBaseDirectory)
 
     val params = makeParams()
 
@@ -256,7 +258,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
 
   private def makeParams(): CommandLineParameters = {
     val params = new CommandLineParameters
-    params.basePath = baseDirectory.getAbsolutePath
+    params.basePath = otpGraphBaseDirectory.getAbsolutePath
     params.port = 338080
     params.securePort = 338081
     params.routerIds = routerIds.asJava
@@ -269,7 +271,7 @@ class OpenTripPlannerRouter(agentsimServices: AgentsimServices) extends BeamRout
   private def buildAndPersistGraph(graphService: GraphService, params: CommandLineParameters): Unit = {
     routerIds.foreach(routerId => {
       val graphDirectory = new File(s"${
-        baseDirectory.getAbsolutePath
+        otpGraphBaseDirectory.getAbsolutePath
       }/graphs/$routerId")
       val graphBuilder = GraphBuilder.forDirectory(params, graphDirectory)
       graphBuilder.setAlwaysRebuild(false)

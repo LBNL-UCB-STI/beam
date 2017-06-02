@@ -17,7 +17,7 @@ object FileUtils {
     val outputDirectoryName =  simulationName + "_" + timestamp
     val outputDirectory = new File(outputDirectoryBasePath + File.separator + outputDirectoryName)
     outputDirectory.mkdir()
-    config.controler setOutputDirectory outputDirectory.getAbsolutePath
+    config.controler.setOutputDirectory(outputDirectory.getAbsolutePath)
   }
 
 

@@ -75,9 +75,11 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
     var totalDistance = 0
     for (state <- streetPath.getStates) {
       val edgeIdx = state.backEdge
-      if (!((edgeIdx eq -(1)) || edgeIdx == null)) {
+      if (!(edgeIdx == null || edgeIdx == -1)) {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
-        log.info("{} - Lat/Long for edgeIndex [{}] are [{}]", stateIdx, edgeIdx, edge.getGeometry)
+
+        log.info("{} - EdgeIndex [{}]", stateIdx, edgeIdx)
+        log.info("\t Lat/Long [{}]", edge.getGeometry)
         log.info("\tmode [{}]", state.streetMode)
         log.info("\tweight [{}]", state.weight)
         log.info("\tduration sec [{}:{}]", state.getDurationSeconds / 60, state.getDurationSeconds % 60)

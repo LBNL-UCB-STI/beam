@@ -7,13 +7,14 @@ import org.matsim.core.scenario.ScenarioUtils
 object ActorVersionJDEQSim {
   
   class ActorJDEQSim extends Actor{
+    @deprecated ("See beam.agentsim.sim.AgentsimServices")
     def receive = {
       case "start" => {
         val config = ConfigUtils.loadConfig(
-      "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
+      "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml")
 
-        val scenario = ScenarioUtils.loadScenario(config);
-    
+        val scenario = ScenarioUtils.loadScenario(config)
+
         //val eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
         //val eventsManager = new AkkaEventHandlerAdapter();
         //val countEnterLinkEvents = new CountEnterLinkEvents();

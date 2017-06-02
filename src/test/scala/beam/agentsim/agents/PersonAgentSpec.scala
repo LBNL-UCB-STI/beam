@@ -10,6 +10,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Initialized
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.config.ConfigModule
 import beam.agentsim.events.EventsSubscriber
 import beam.agentsim.events.AgentsimEventsBus
 import glokka.Registry
@@ -40,7 +41,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
-      val data = PersonData(Vector(homeActivity))
+      val plan = PopulationUtils.getFactory.createPlan()
+      plan.addActivity(homeActivity)
+      val data = PersonData(plan)
 
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
@@ -56,7 +59,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val registry = Registry.start(this.system, "actor-registry")
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val name = "0"
-      val data = PersonData(Vector(homeActivity))
+      val plan = PopulationUtils.getFactory.createPlan()
+      plan.addActivity(homeActivity)
+      val data = PersonData(plan)
       val props = Props(classOf[PersonAgent], Id.createPersonId(name), data)
       val future = registry ? Registry.Register(name, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]

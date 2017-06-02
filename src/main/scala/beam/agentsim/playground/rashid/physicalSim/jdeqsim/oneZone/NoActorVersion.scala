@@ -8,6 +8,7 @@ import org.matsim.core.scenario.ScenarioUtils
 
 object NoActorVersion {
 
+  @deprecated ("See beam.agentsim.sim.AgentsimServices")
   def main(args: Array[String]) {
     val config = ConfigUtils.loadConfig(
       "C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
