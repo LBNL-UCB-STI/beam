@@ -11,7 +11,7 @@ import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
-import beam.agentsim.routing.RoutingModel.{BeamGraphPath, BeamLeg, BeamTrip, EdgeModeTime}
+import beam.agentsim.routing.RoutingModel._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
@@ -217,7 +217,7 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
       graphService = Some(makeGraphService())
       router = Some(graphService.get.getRouter(routerIds.head))
       transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
-      sender() ! RouterInitialized()
+      sender() ! RouterInitialized
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       //      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
