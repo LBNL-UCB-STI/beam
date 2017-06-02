@@ -41,6 +41,8 @@ object RoutingModel {
         SpaceTime(_)
       }
     }
+
+    def size  = latLons.size
   }
 
   object BeamGraphPath {

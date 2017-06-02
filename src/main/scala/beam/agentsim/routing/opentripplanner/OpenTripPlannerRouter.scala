@@ -292,4 +292,5 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
 
 object OpenTripPlannerRouter {
   def props(agentsimServices: AgentsimServices) = Props(classOf[OpenTripPlannerRouter], agentsimServices)
+
 }
