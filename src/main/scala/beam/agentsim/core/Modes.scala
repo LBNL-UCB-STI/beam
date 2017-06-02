@@ -1,6 +1,5 @@
 package beam.agentsim.core
 
-import beam.agentsim.core.Modes.BeamMode.CAR
 import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode
 import org.opentripplanner.routing.core.TraverseMode
