@@ -11,7 +11,7 @@ import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
-import beam.agentsim.routing.RoutingModel.{BeamGraphPath, BeamLeg, BeamTrip, EdgeModeTime}
+import beam.agentsim.routing.RoutingModel._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
