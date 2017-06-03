@@ -1,5 +1,4 @@
 
-import beam.agentsim.events.PointProcessEvent._
 import beam.agentsim.utils.GeoUtils
 import org.geotools.geometry.DirectPosition2D
 import org.matsim.api.core.v01.Coord
