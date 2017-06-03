@@ -60,7 +60,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	private static InternalInterface internalInterface;
 
 	private Plan selectedPlan;
-	int currentPlanElementIndex;
+	int currentPlanElementIndex = 0;
 	private Person person;
 	private Id<PlugInVehicleAgent> agentId;
 	private MobsimAgent mobsimAgent;
@@ -143,10 +143,6 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			this.homePlug = new ChargingPlugImpl(Id.create("-" + this.getPersonId(), ChargingPlug.class), this.homePoint, homePlugType, useInCalibration);
 			this.homePoint.createSlowChargingQueue(1);
 		}
-	}
-
-	public PersonDriverAgentImpl getPersonDriverAgentImpl() {
-		return (PersonDriverAgentImpl) getMobsimAgent();
 	}
 
 	public AgentChargingState getChargingState() {
@@ -678,6 +674,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			}
 			selectedChargingPlug = null;
 		}
+		if((!this.shouldDepartAfterChargingSession && this.currentPlanElementIndex % 2 != 0) || (this.shouldDepartAfterChargingSession && this.currentPlanElementIndex % 2 == 0)){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
 		if (!this.shouldDepartAfterChargingSession) {
 			updateActivityTrackingOnEnd();
 			updateTravelInformationOnDeparture();
@@ -692,6 +691,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
 			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
+		if(this.currentPlanElementIndex % 2 == 0){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
 		this.currentLinkId = this.nextActivity.getLinkId();
 		updateEnergyUse();
 		decrementRemainingTravelInDay(this.tripInfoAsOfDeparture.getTripDistance());
@@ -703,12 +705,17 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			if (this.currentActivity != null)
 				return; // Skip if driver already engaged in an activity
 			setCurrentCoord(getLinkCoordOfNextActivity());
-			getMobsimAgent().notifyArrivalOnLinkByNonNetworkMode(getMobsimAgent().getDestinationLinkId());
+//			getMobsimAgent().notifyArrivalOnLinkByNonNetworkMode(getMobsimAgent().getDestinationLinkId());
 			EVGlobalData.data.controler.getEvents().processEvent(
-					new TeleportationArrivalEvent(EVGlobalData.data.now, getMobsimAgent().getId(), this.tripInfoAsOfDeparture.getTripDistance()));
-			getMobsimAgent().endLegAndComputeNextState(EVGlobalData.data.now);
-			PlugInVehicleAgent.internalInterface.arrangeNextAgentState(getMobsimAgent());
+					new TeleportationArrivalEvent(EVGlobalData.data.now, getPersonId(), this.tripInfoAsOfDeparture.getTripDistance()));
+//			getMobsimAgent().endLegAndComputeNextState(EVGlobalData.data.now);
+//			PlugInVehicleAgent.internalInterface.arrangeNextAgentState(getMobsimAgent());
 			updateActivityTrackingOnStart();
+			if(this.currentActivity.getEndTime() <= EVGlobalData.data.now){
+				handleDeparture();
+			}else{
+				EVGlobalData.data.scheduler.addCallBackMethod(this.currentActivity.getEndTime(), this,"handleDeparture", 0.0);
+			}
 		} catch (Exception e) {
 			EVGlobalData.data.testingHooks.errorDuringExecution = true;
 			DebugLib.stopSystemAndReportInconsistency(e.getMessage());
@@ -716,7 +723,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void updateActivityTrackingOnStart() {
-		updateCurrentPlanElementIndex();
+		this.currentPlanElementIndex++;
 		if (this.nextActivity == null)
 			this.nextActivity = getActivityFollowingCurrentPlanElement(0);
 		this.currentActivity = this.nextActivity;
@@ -729,7 +736,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void updateActivityTrackingOnEnd() {
-		updateCurrentPlanElementIndex();
+		this.currentPlanElementIndex++;
 		this.previousActivity = getActivityPreviousToCurrentPlanElement(-1);
 		this.currentActivity = null;
 		this.currentLinkId = this.previousActivity.getLinkId();
@@ -766,26 +773,6 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			}
 		}
 		return null;
-	}
-
-	private void updateCurrentPlanElementIndex() {
-		Field f;
-		try {
-			f = getPersonDriverAgentImpl().getClass().getDeclaredField("basicAgentDelegate");
-			f.setAccessible(true);
-			BasicPlanAgentImpl basicPlanAgent = (BasicPlanAgentImpl) f.get(getPersonDriverAgentImpl());
-			f = basicPlanAgent.getClass().getDeclaredField("currentPlanElementIndex");
-			f.setAccessible(true);
-			this.currentPlanElementIndex = (Integer) f.get(basicPlanAgent);
-		} catch (NoSuchFieldException e) {
-			e.printStackTrace();
-		} catch (SecurityException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		}
 	}
 
 	private void updateTravelInformationOnDeparture() {
@@ -932,10 +919,6 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 				chargingStrategyForLeg.resetInternalTracking();
 			}
 		}
-	}
-
-	public MobsimAgent getMobsimAgent() {
-		return mobsimAgent;
 	}
 
 	// information cached on agent

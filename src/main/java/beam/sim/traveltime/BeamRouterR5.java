@@ -78,6 +78,9 @@ public class BeamRouterR5 extends BeamRouter {
 		if(EVGlobalData.data.travelTimeFunction == null){
 			EVGlobalData.data.travelTimeFunction = ExogenousTravelTime.LoadTravelTimeFromSerializedData(EVGlobalData.data.TRAVEL_TIME_FILEPATH);
 		}
+		if(EVGlobalData.data.newTripInformationCache == null) {
+			EVGlobalData.data.newTripInformationCache = new TripInfoCacheMapDB(EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
+		}
 
 
 //		val mapdbFile = new File(getClass.getResource("osm.mapdb").getFile)
@@ -163,7 +166,8 @@ public class BeamRouterR5 extends BeamRouter {
 		if(network == null)configure();
 		Path path = null;
         PointToPointQuery query = new PointToPointQuery(EVGlobalData.data.networkR5);
-        ProfileResponse response = query.getPlan(buildRequest(fromLink.getCoord(),toLink.getCoord()));
+        ProfileRequest request = buildRequest(fromLink.getCoord(),toLink.getCoord());
+        ProfileResponse response = query.getPlan(request);
 
 		double now = departureTime;
 		LinkedList<RouteInformationElement> routeInformation = new LinkedList<>();
@@ -206,15 +210,15 @@ public class BeamRouterR5 extends BeamRouter {
 			EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group") + "---" +
 			EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
 		getCount++;
-//		TripInformation resultTrip = EVGlobalData.data.newTripInformationCache.getTripInformation(key);
-//		if(resultTrip==null){
+		TripInformation resultTrip = EVGlobalData.data.newTripInformationCache.getTripInformation(key);
+		if(resultTrip==null){
 			cachMiss++;
-			TripInformation resultTrip = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
-//			EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
-//			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 10000 == 0){
-//				EVGlobalData.data.newTripInformationCache.persistStore();
-//			}
-//		}
+			resultTrip = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
+			EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
+			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 10000 == 0){
+				EVGlobalData.data.newTripInformationCache.persistStore();
+			}
+		}
 		resultTrip.departureTime = time;
 		return resultTrip;
 	}

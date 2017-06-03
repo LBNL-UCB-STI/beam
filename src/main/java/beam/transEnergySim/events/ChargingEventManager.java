@@ -22,7 +22,7 @@ import org.matsim.core.mobsim.qsim.interfaces.MobsimEngine;
 
 import beam.transEnergySim.vehicles.api.Vehicle;
 
-public abstract class ChargingEventManager extends EventManager<EVSimEngineEventHandler> {
+public class ChargingEventManager extends EventManager<EVSimEngineEventHandler> {
 	protected EventManagerDelegate delegate;
 	HashMap<Id<Person>, Id<Vehicle>> personToVehicleMapping;
 

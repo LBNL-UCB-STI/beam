@@ -40,46 +40,36 @@ public class TripInfoCacheMapDB {
         } else if (dbTempFile.exists()) {
             FileUtils.deleteQuietly(dbTempFile);
         }
-//        openDBs();
+        openDBs();
         log.info("In memory cache opened of size: "+inMemory.size()+" with on disk overflow of size "+onDisk.size());
     }
 
-//    public void openDBs(){
-//        dbDisk = DBMaker
-//                .fileDB(dbTempFile)
-//                .make();
-//
-//        dbMemory = DBMaker
-//                .memoryDB()
-//                .make();
-//
-//        // Big map populated with data expired from cache
-//        onDisk = (HTreeMap<String, TripInformation>)dbDisk
-//                .hashMap("onDisk")
-//                .keySerializer(Serializer.STRING)
-//                .createOrOpen();
-//
-//        // fast in-memory collection with limited size
-//        inMemory = (HTreeMap<String, TripInformation>) dbMemory
-//                .hashMap("inMemory")
-//                .keySerializer(Serializer.STRING)
-//                .expireStoreSize(10*1024*1024*1024)
-//                .expireAfterCreate()
-//                //this registers overflow to `onDisk`
+    public void openDBs(){
+        dbDisk = DBMaker.newFileDB(dbTempFile).make();
+
+        dbMemory = DBMaker.newMemoryDB().sizeLimit(1*1024*1024*1024).make();
+
+        // Big map populated with data expired from cache
+        onDisk = dbDisk.getHashMap("onDisk");
+
+        // fast in-memory collection with limited size
+        inMemory = dbMemory
+                .getHashMap("inMemory");
+                //this registers overflow to `onDisk`
 //                .expireOverflow((HTreeMap) onDisk)
-//                //good idea is to enable background expiration
+                //good idea is to enable background expiration
 //                .expireExecutor(Executors.newScheduledThreadPool(2))
 //                .create();
-//
-//        // Populate the keySet for fast "containsKey" query
-//        keySet.addAll(onDisk.keySet());
-//
-//        analyze();
-//    }
+
+        // Populate the keySet for fast "containsKey" query
+        keySet.addAll(onDisk.keySet());
+
+        analyze();
+    }
 
     public synchronized TripInformation getTripInformation(String key){
 //        return inMemory.isClosed() ? null : inMemory.get(key);
-        return null;
+        return inMemory.get(key);
     }
 
     public synchronized boolean containsKey(String key){
@@ -98,8 +88,8 @@ public class TripInfoCacheMapDB {
 
     public synchronized void putTripInformation(String key, TripInformation tripInfo){
 //        if(!inMemory.isClosed()){
-//            inMemory.put(key,tripInfo);
-//            keySet.add(key);
+            inMemory.put(key,tripInfo);
+            keySet.add(key);
 //        }
     }
     public String toString(){
@@ -114,7 +104,7 @@ public class TripInfoCacheMapDB {
         } catch (IOException e) {
             e.printStackTrace();
         }
-//        openDBs();
+        openDBs();
         log.info("In memory cache now persisted of size: "+inMemory.size()+" with on disk overflow of size "+onDisk.size());
     }
     public void close() {

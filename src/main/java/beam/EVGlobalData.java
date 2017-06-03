@@ -10,17 +10,18 @@ import beam.charging.management.ChargingQueueImpl;
 import beam.sim.traveltime.*;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
+import beam.transEnergySim.events.ChargingEventManager;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
+import org.matsim.core.mobsim.framework.Mobsim;
 import org.matsim.core.mobsim.qsim.QSim;
 import org.matsim.core.network.LinkQuadTree;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
 
-import beam.charging.ChargingEventManagerImpl;
 import beam.charging.infrastructure.ChargingInfrastructureManagerImpl;
 import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.controller.EVController;
@@ -134,7 +135,7 @@ public class EVGlobalData {
 	public Double EQUALITY_EPSILON;
 	public Double TIME_TO_ENGAGE_NEXT_FAST_CHARGING_SESSION;
 
-	public ChargingEventManagerImpl chargingEventManagerImpl;
+	public ChargingEventManager chargingEventManagerImp;
 	public EVController controler;
 
 	public Config config;
@@ -154,7 +155,9 @@ public class EVGlobalData {
 
 	public final double NUMBER_OF_SECONDS_IN_ONE_DAY = 3600 * 24;
 
+	@Deprecated
 	public QSim qsim;
+	public Mobsim beamMobsim;
 	public Scheduler scheduler = new Scheduler();
 	public GlobalActions globalActions = new GlobalActions();
 	public EventLogger eventLogger;

@@ -3,7 +3,9 @@ package beam;
 import beam.calibration.LogitParamCalibration;
 import beam.calibration.SitingCalibration;
 import org.apache.log4j.Logger;
+import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.core.controler.events.AfterMobsimEvent;
 import org.matsim.core.controler.events.BeforeMobsimEvent;
 import org.matsim.core.controler.events.IterationEndsEvent;
@@ -26,11 +28,7 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 	@Override
 	public void notifyBeforeMobsim(BeforeMobsimEvent event) {
 		log.info("In controler at iteration " + event.getIteration());
-		for (Person person : event.getServices().getScenario().getPopulation().getPersons().values()) {
-			PlugInVehicleAgent agent = PlugInVehicleAgent.getAgent(person.getId());
-			agent.resetAll();
-		}
-		
+
 		for (Person person : event.getServices().getScenario().getPopulation().getPersons().values()) {
 			ChargingStrategyManager.data.getReplanable(person.getId()).trimEVDailyPlanMemoryIfNeeded();
 			ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategiesForTheDay().resetScore();
@@ -42,6 +40,14 @@ public class BEAMSimTelecontrolerListener implements BeforeMobsimListener, After
 
 		EVGlobalData.data.currentDay = 0;
 		EVSimTeleController.scheduleGlobalActions();
+
+		// Schedule this first person departure for each person
+		for (Person person : event.getServices().getScenario().getPopulation().getPersons().values()) {
+			PlugInVehicleAgent agent = PlugInVehicleAgent.getAgent(person.getId());
+			agent.resetAll();
+			Activity firstActivity = (Activity)agent.getSelectedPersonPlan().getPlanElements().get(0);
+            EVGlobalData.data.scheduler.addCallBackMethod(firstActivity.getEndTime(),agent,"handleDeparture",0.0);
+		}
 	}
 
 	@Override

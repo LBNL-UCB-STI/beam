@@ -48,10 +48,10 @@ public class LinkAttributeLoader {
                     } else {
                         String linkId = CSVUtil.getValue("linkid",row,headerMap);
                         linkId = EVGlobalData.data.matsimLinksToR5Links.get(Id.createLinkId(linkId)).toString();
-                        if(linkId==null){
+                        String groupId = CSVUtil.getValue("group",row,headerMap);
+                        if(linkId==null || Integer.parseInt(groupId) > 800){
                             DebugLib.emptyFunctionForSettingBreakPoint();
                         }
-                        String groupId = CSVUtil.getValue("group",row,headerMap);
 
                         LinkedHashMap<String, String> linkMap = new LinkedHashMap<String, String>();
                         linkMap.put("group", groupId);
@@ -64,13 +64,16 @@ public class LinkAttributeLoader {
         }else{
             log.warn("No link attribute file found @ " + EVGlobalData.data.LINK_ATTRIBUTE_FILEPATH);
         }
+        int i = 0;
         for(Link link : EVGlobalData.data.controler.getScenario().getNetwork().getLinks().values()){
             if(!result.containsKey(link.getId().toString())) {
+                i++;
                 LinkedHashMap<String, String> linkMap = new LinkedHashMap<String, String>();
                 linkMap.put("group", link.getId().toString());
                 result.put(link.getId().toString(), linkMap);
             }
         }
+        DebugLib.emptyFunctionForSettingBreakPoint();
 
         return result;
     }

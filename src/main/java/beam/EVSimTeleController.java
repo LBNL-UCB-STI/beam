@@ -7,8 +7,10 @@ package beam;
  * ...\output
  */
 
+import beam.sim.BeamMobsim;
 import beam.sim.LinkAttributeLoader;
 import beam.sim.traveltime.*;
+import beam.transEnergySim.events.ChargingEventManager;
 import com.conveyal.r5.streets.EdgeStore;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -129,42 +131,43 @@ public class EVSimTeleController {
 				bindMobsim().toProvider(new Provider<Mobsim>() {
 					@Override
 					public Mobsim get() {
-						EVGlobalData.data.qsim = (QSim) AdaptedQSimUtils.createDefaultQSim(controler.getScenario(), controler.getEvents());
-
-						Field f;
-						try {
-							f = EVGlobalData.data.qsim.getClass().getDeclaredField("mobsimEngines");
-							f.setAccessible(true);
-							Collection<MobsimEngine> mobsimEngines = (Collection<MobsimEngine>) f.get(EVGlobalData.data.qsim);
-
-							for (MobsimEngine mobilityEngine : mobsimEngines) {
-								if (mobilityEngine instanceof AdaptedTeleportationEngine) {
-									EVGlobalData.data.qsim.addDepartureHandler((AdaptedTeleportationEngine) mobilityEngine);
-									// the MobSimEngine and DepartureHandler are
-									// working together. Therefore we need to
-									// add the same
-									// handler at the end here.
-								}
-
-							}
-						} catch (NoSuchFieldException e) {
-							e.printStackTrace();
-						} catch (SecurityException e) {
-							e.printStackTrace();
-						} // NoSuchFieldException
-						catch (IllegalArgumentException e) {
-							e.printStackTrace();
-						} catch (IllegalAccessException e) {
-							e.printStackTrace();
-						}
-
-						// TODO: figure out, if this can be packed into
-						// listeners in abstract class and avoid static
-						// reference!
-						// e.g. use injection
-						EVGlobalData.data.chargingEventManagerImpl.addEngine(EVGlobalData.data.qsim);
-
-						return EVGlobalData.data.qsim;
+					   return new BeamMobsim();
+//						EVGlobalData.data.qsim = (QSim) AdaptedQSimUtils.createDefaultQSim(controler.getScenario(), controler.getEvents());
+//
+//						Field f;
+//						try {
+//							f = EVGlobalData.data.qsim.getClass().getDeclaredField("mobsimEngines");
+//							f.setAccessible(true);
+//							Collection<MobsimEngine> mobsimEngines = (Collection<MobsimEngine>) f.get(EVGlobalData.data.qsim);
+//
+//							for (MobsimEngine mobilityEngine : mobsimEngines) {
+//								if (mobilityEngine instanceof AdaptedTeleportationEngine) {
+//									EVGlobalData.data.qsim.addDepartureHandler((AdaptedTeleportationEngine) mobilityEngine);
+//									// the MobSimEngine and DepartureHandler are
+//									// working together. Therefore we need to
+//									// add the same
+//									// handler at the end here.
+//								}
+//
+//							}
+//						} catch (NoSuchFieldException e) {
+//							e.printStackTrace();
+//						} catch (SecurityException e) {
+//							e.printStackTrace();
+//						} // NoSuchFieldException
+//						catch (IllegalArgumentException e) {
+//							e.printStackTrace();
+//						} catch (IllegalAccessException e) {
+//							e.printStackTrace();
+//						}
+//
+//						// TODO: figure out, if this can be packed into
+//						// listeners in abstract class and avoid static
+//						// reference!
+//						// e.g. use injection
+////						EVGlobalData.data.chargingEventManagerImp.addEngine(EVGlobalData.data.beamMobsim);
+//
+//						return EVGlobalData.data.qsim;
 					}
 				});
 			}
@@ -271,10 +274,8 @@ public class EVSimTeleController {
 				PlanElement pe = planElements.get(i);
 				if (pe instanceof Activity) {
 					Activity act = (Activity) pe;
-					if(act.getLinkId()==null) {
-						Link link = NetworkUtils.getNearestLink(network, act.getCoord());
-						if (link != null) act.setLinkId(link.getId());
-					}
+                    Link link = NetworkUtils.getNearestLink(network, act.getCoord());
+                    if (link != null) act.setLinkId(link.getId());
 				}
 			}
 
@@ -472,7 +473,7 @@ public class EVSimTeleController {
 		HashMap<Id<Person>, Id<Vehicle>> personToVehicleMapping = null;
 		HashSet<String> travelModeFilter = new HashSet<>();
 		travelModeFilter.add(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES);
-		EVGlobalData.data.chargingEventManagerImpl = new ChargingEventManagerImpl(personToVehicleMapping, controler, travelModeFilter);
+		EVGlobalData.data.chargingEventManagerImp = new ChargingEventManager(personToVehicleMapping, controler, travelModeFilter);
 	}
 
 	private void initializeVehicleFleet(final EVController controler) {
