@@ -47,7 +47,9 @@ public class LinkAttributeLoader {
                         }
                     } else {
                         String linkId = CSVUtil.getValue("linkid",row,headerMap);
-                        linkId = EVGlobalData.data.matsimLinksToR5Links.get(Id.createLinkId(linkId)).toString();
+                        if(EVGlobalData.data.matsimLinksToR5Links.containsKey(Id.createLinkId(linkId))) {
+                            linkId = EVGlobalData.data.matsimLinksToR5Links.get(Id.createLinkId(linkId)).toString();
+                        }
                         String groupId = CSVUtil.getValue("group",row,headerMap);
                         if(linkId==null || Integer.parseInt(groupId) > 800){
                             DebugLib.emptyFunctionForSettingBreakPoint();

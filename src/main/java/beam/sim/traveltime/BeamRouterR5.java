@@ -2,6 +2,7 @@ package beam.sim.traveltime;
 
 import beam.EVGlobalData;
 import beam.parking.lib.DebugLib;
+import beam.utils.CSVUtil;
 import beam.utils.GeoUtils;
 import com.conveyal.r5.api.ProfileResponse;
 import com.conveyal.r5.api.util.*;
@@ -16,6 +17,7 @@ import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.network.NetworkWriter;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
@@ -31,6 +33,8 @@ import org.matsim.facilities.Facility;
 import org.matsim.vehicles.Vehicle;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class BeamRouterR5 extends BeamRouter {
@@ -72,7 +76,7 @@ public class BeamRouterR5 extends BeamRouter {
 			}
 			EVGlobalData.data.networkR5 = transportNetwork;
 			indexEdges();
-			updateMatsimNetwork();
+//			updateMatsimNetwork();
 		}
 
 		if(EVGlobalData.data.travelTimeFunction == null){
@@ -111,19 +115,36 @@ public class BeamRouterR5 extends BeamRouter {
 		maxLat += 1000;
 
 		LinkedList<Link> linksToAdd = new LinkedList<>();
-		cursor = EVGlobalData.data.networkR5.streetLayer.edgeStore.getCursor();
-		while(cursor.advance()){
-		    Integer idx = cursor.getEdgeIndex();
-			double length = cursor.getLengthM();
-			double speed = cursor.getSpeedMs();
-			Coord coord = GeoUtils.transformToUtm(cursor.getGeometry().getCoordinate());
-			if(coord.getX() > minLon && coord.getY() > minLat && coord.getX() < maxLon && coord.getY() < maxLat) {
-				Node dummyFromNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "from"), coord);
-				Node dummyToNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "to"), coord);
-				Link r5Link = NetworkUtils.createLink(Id.createLinkId(idx.toString()), dummyFromNode, dummyToNode, network, length, speed, 1.0, 1.0);
-				linksToAdd.add(r5Link);
+		try {
+			String linkAttribsFilename = EVGlobalData.data.OUTPUT_DIRECTORY.getAbsolutePath() + File.separator + "r5-link-attribs.csv";
+			FileWriter fileWriter = new FileWriter(linkAttribsFilename);
+			LinkedList<String> theLine = new LinkedList<>();
+			theLine.add("LinkId");
+			theLine.add("x");
+			theLine.add("y");
+			CSVUtil.writeLine(fileWriter,theLine);
+			cursor = EVGlobalData.data.networkR5.streetLayer.edgeStore.getCursor();
+			while (cursor.advance()) {
+				Integer idx = cursor.getEdgeIndex();
+				double length = cursor.getLengthM();
+				double speed = cursor.getSpeedMs();
+				Coord coord = GeoUtils.transformToUtm(cursor.getGeometry().getCoordinate());
+				if (coord.getX() > minLon && coord.getY() > minLat && coord.getX() < maxLon && coord.getY() < maxLat) {
+					Node dummyFromNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "from"), coord);
+					Node dummyToNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "to"), coord);
+					Link r5Link = NetworkUtils.createLink(Id.createLinkId(idx.toString()), dummyFromNode, dummyToNode, network, length, speed, 1.0, 1.0);
+					linksToAdd.add(r5Link);
+					theLine = new LinkedList<>();
+					theLine.add(idx.toString());
+					theLine.add(Double.toString(coord.getX()));
+					theLine.add(Double.toString(coord.getY()));
+					CSVUtil.writeLine(fileWriter,theLine);
+				}
 			}
-        }
+			fileWriter.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
 		for(Id<Link> linkId : linksToRemove){
 			network.removeLink(linkId);
@@ -134,6 +155,8 @@ public class BeamRouterR5 extends BeamRouter {
 		for(Node node : nodesToRemove){
 			network.removeNode(node.getId());
 		}
+		(new NetworkWriter(network)).write(EVGlobalData.data.OUTPUT_DIRECTORY.getAbsolutePath()+ File.separator + "r5-network.xml");
+
 		log.info("MATSim Network updated to hold R5 edges.");
 	}
 
