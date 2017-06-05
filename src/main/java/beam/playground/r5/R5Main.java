@@ -87,7 +87,7 @@ public class R5Main {
     // Gets lowest weight state for end coordinate split
     StreetRouter.State lastState = streetRouter.getState(streetRouter.getDestinationSplit());
 
-    StreetPath streetPath = new StreetPath(lastState, transportNetwork);
+    StreetPath streetPath = new StreetPath(lastState, transportNetwork, false);
 
     long totalDistance = 0;
     int stateIdx = 0;

@@ -1,6 +1,6 @@
 package beam.agentsim.routing.r5
 
-import java.io.File
+import java.io.{BufferedInputStream, File, FileInputStream}
 import java.util
 
 import akka.actor.Props
@@ -15,7 +15,6 @@ import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConversions._
 
@@ -43,6 +42,8 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
   private def loadGraph(graphName: String): Unit = {
     //Loading graph
     val networkFile = new File(getClass.getResource(graphName).getFile)
+//    val inputStream = new BufferedInputStream(new FileInputStream(networkFile))
+
     transportNetwork = TransportNetwork.read(networkFile)
 
 //    Optional used to get street names:
@@ -68,7 +69,7 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
 
     //Gets lowest weight state for end coordinate split
     val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
-    val streetPath = new StreetPath(lastState, transportNetwork)
+    val streetPath = new StreetPath(lastState, transportNetwork, false)
 
     var stateIdx = 0
     var totalDistance = 0
