@@ -19,7 +19,6 @@ repositories {
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
     maven { url "https://maven.conveyal.com/" }
-    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
     maven { url "http://download.java.net/maven/2/" }
     maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
     maven { url "http://dl.bintray.com/andimarek/graphql-java" }
@@ -28,6 +27,7 @@ repositories {
     mavenLocal()
     mavenCentral()
     jcenter()
+    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
     maven { url "https://jitpack.io" }
 }
 
