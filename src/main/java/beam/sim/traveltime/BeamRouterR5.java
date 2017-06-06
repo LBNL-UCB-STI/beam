@@ -54,12 +54,14 @@ public class BeamRouterR5 extends BeamRouter {
 			File networkFile = new File(EVGlobalData.data.NETWORK_FILEPATH + File.separator + "r5-transport-network.dat");
 			TransportNetwork transportNetwork = null;
 			if (networkFile.exists()) {
+				log.info("Found R5 Trasnport Network file, loading....");
 				try {
 					transportNetwork = TransportNetwork.read(networkFile);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			} else {
+				log.info("Loading R5 network data from directory: "+EVGlobalData.data.NETWORK_FILEPATH);
 				networkFile = new File(EVGlobalData.data.NETWORK_FILEPATH);
 				try {
 					transportNetwork = TransportNetwork.fromDirectory(networkFile);
