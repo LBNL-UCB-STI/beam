@@ -44,7 +44,7 @@ dependencies {
     //compile group: 'com.google.guava', name: 'guava', version: '21.0'
     //compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '3.1.4'
     compile group: 'org.postgresql', name: 'postgresql', version: '9.4.1212'
-//    compile group: 'org.mapdb', name: 'mapdb', version: '3.0.4'
+    compile group: 'org.mapdb', name: 'mapdb', version: '3.0.4'
     runtime files('/Users/critter/.gradle/caches/modules-2/files-2.1/com.conveyal/jackson2-geojson/0.8/4419e90e57b8eaa1a0065a8341f53553c37193ee/jackson2-geojson-0.8.jar')
     compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
 }

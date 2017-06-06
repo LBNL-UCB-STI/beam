@@ -5,7 +5,6 @@ import org.apache.log4j.Logger;
 import org.mapdb.DB;
 import org.mapdb.DBMaker;
 import org.mapdb.HTreeMap;
-import org.mapdb.Serializer;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +12,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * BEAM
@@ -23,7 +21,8 @@ public class TripInfoCacheMapDB {
 
     private File dbFile, dbTempFile;
     public DB dbDisk, dbMemory;
-    public HTreeMap<String, TripInformation> onDisk, inMemory;
+    public HTreeMap<?, ?> onDisk;
+    public HTreeMap<String, TripInformation> inMemory;
     public HashSet<String> keySet = new HashSet<>();
 
     public TripInfoCacheMapDB(String dbPath) {
@@ -45,16 +44,18 @@ public class TripInfoCacheMapDB {
     }
 
     public void openDBs(){
-        dbDisk = DBMaker.newFileDB(dbTempFile).make();
+        dbDisk = DBMaker.fileDB(dbTempFile).make();
 
-        dbMemory = DBMaker.newMemoryDB().sizeLimit(20*1024*1024*1024).make();
+        dbMemory = DBMaker.memoryDB().make(); //sizeLimit(20*1024*1024*1024).make();
 
         // Big map populated with data expired from cache
-        onDisk = dbDisk.getHashMap("onDisk");
+        onDisk = dbDisk.hashMap("onDisk").createOrOpen();
 
         // fast in-memory collection with limited size
-        inMemory = dbMemory
-                .getHashMap("inMemory");
+        inMemory = dbMemory.hashMap("inMemory").
+                expireOverflow((HTreeMap)onDisk).
+                expireExecutor(Executors.newScheduledThreadPool(2)).
+                create();
                 //this registers overflow to `onDisk`
 //                .expireOverflow((HTreeMap) onDisk)
                 //good idea is to enable background expiration
@@ -69,7 +70,7 @@ public class TripInfoCacheMapDB {
 
     public synchronized TripInformation getTripInformation(String key){
 //        return inMemory.isClosed() ? null : inMemory.get(key);
-        return inMemory.get(key);
+        return (TripInformation) inMemory.get(key);
     }
 
     public synchronized boolean containsKey(String key){
@@ -119,7 +120,7 @@ public class TripInfoCacheMapDB {
         LinkedHashMap<String,Integer> badTimeCount = new LinkedHashMap<>();
         for(Object key : onDisk.keySet()){
             String keyStr = (String)key;
-            TripInformation trip = onDisk.get(keyStr);
+            TripInformation trip = (TripInformation) onDisk.get(keyStr);
             if(trip.getRouteInfoElements().size()==0) {
                 badKeys.add(keyStr);
                 String time = keyStr.split("---")[2];
