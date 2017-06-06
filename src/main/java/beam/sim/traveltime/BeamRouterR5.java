@@ -10,8 +10,6 @@ import com.conveyal.r5.point_to_point.builder.PointToPointQuery;
 import com.conveyal.r5.profile.ProfileRequest;
 import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.transit.TransportNetwork;
-import com.google.inject.Singleton;
-import com.vividsolutions.jts.geom.Coordinate;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
@@ -24,9 +22,7 @@ import org.matsim.api.core.v01.population.PlanElement;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.routes.LinkNetworkRouteImpl;
 import org.matsim.core.router.EmptyStageActivityTypes;
-import org.matsim.core.router.RoutingModule;
 import org.matsim.core.router.StageActivityTypes;
-import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.LeastCostPathCalculator.Path;
 import org.matsim.core.utils.collections.QuadTree;
 import org.matsim.facilities.Facility;
@@ -55,7 +51,7 @@ public class BeamRouterR5 extends BeamRouter {
 	//TODO this class should use dependency injection instead of hard-coded configuration
 	private void configure(){
 	    if(EVGlobalData.data.networkR5 == null) {
-			File networkFile = new File(EVGlobalData.data.R5_FILEPATH + File.separator + "r5-transport-network.dat");
+			File networkFile = new File(EVGlobalData.data.NETWORK_FILEPATH + File.separator + "r5-transport-network.dat");
 			TransportNetwork transportNetwork = null;
 			if (networkFile.exists()) {
 				try {
@@ -64,10 +60,10 @@ public class BeamRouterR5 extends BeamRouter {
 					e.printStackTrace();
 				}
 			} else {
-				networkFile = new File(EVGlobalData.data.R5_FILEPATH);
+				networkFile = new File(EVGlobalData.data.NETWORK_FILEPATH);
 				try {
 					transportNetwork = TransportNetwork.fromDirectory(networkFile);
-					networkFile = new File(EVGlobalData.data.R5_FILEPATH + File.separator + "r5-transport-network.dat");
+					networkFile = new File(EVGlobalData.data.NETWORK_FILEPATH + File.separator + "r5-transport-network.dat");
 					transportNetwork.write(networkFile);
 					transportNetwork = TransportNetwork.read(networkFile);
 				} catch (Exception e) {

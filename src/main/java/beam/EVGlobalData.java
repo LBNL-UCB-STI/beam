@@ -118,7 +118,7 @@ public class EVGlobalData {
 	public String ROUTER_CACHE_READ_FILEPATH;
 	public String ROUTER_CACHE_WRITE_FILEPATH;
 	public int ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
-	public String R5_FILEPATH = "/Users/critter/Dropbox/ucb/vto/beam-developers/model-inputs/otp/graphs/sf/";
+	public String NETWORK_FILEPATH;
 	public String LINK_ATTRIBUTE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
 	public boolean SHOULD_CALIBRATE_PARAMS;

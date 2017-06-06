@@ -12,9 +12,6 @@ import beam.sim.BeamMobsim;
 import beam.sim.LinkAttributeLoader;
 import beam.sim.traveltime.*;
 import beam.transEnergySim.events.ChargingEventManager;
-import com.conveyal.r5.streets.EdgeStore;
-import com.google.inject.Inject;
-import com.google.inject.Injector;
 import com.google.inject.Provider;
 
 import org.geotools.referencing.CRS;
@@ -31,26 +28,21 @@ import org.matsim.core.config.ConfigGroup;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
-import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.corelisteners.EventsHandling;
 import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.controler.listener.ShutdownListener;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.framework.Mobsim;
-import org.matsim.core.mobsim.qsim.QSim;
-import org.matsim.core.mobsim.qsim.interfaces.MobsimEngine;
 import org.matsim.core.mobsim.qsim.interfaces.NetsimNetwork;
 import org.matsim.core.network.LinkQuadTree;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.routes.LinkNetworkRouteImpl;
-import org.matsim.core.router.LeastCostPathCalculatorModule;
 import org.matsim.core.router.RoutingModule;
 import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.LeastCostPathCalculatorFactory;
 import org.matsim.core.scenario.ScenarioUtils;
 
 import beam.analysis.ChargingLoadProfile;
-import beam.charging.*;
 import beam.charging.infrastructure.ChargingInfrastructureManagerImpl;
 import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.controller.EVController;
@@ -59,8 +51,6 @@ import beam.events.EventLogger;
 import beam.parking.lib.DebugLib;
 import beam.charging.vehicle.ParseVehicleTypes;
 import beam.replanning.ChargingStrategyManager;
-import beam.sim.AdaptedQSimUtils;
-import beam.sim.AdaptedTeleportationEngine;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import beam.transEnergySim.vehicles.api.Vehicle;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
@@ -347,6 +337,7 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_SITES_FILEPATH = inputDirectory + evModule.getValue("chargingSitesFile");
 		EVGlobalData.data.CHARGING_POINTS_FILEPATH = inputDirectory + evModule.getValue("chargingPointsFile");
 		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
+		EVGlobalData.data.NETWORK_FILEPATH = inputDirectory + evModule.getValue("networkFilePath");
 		if (evModule.getValue("numberOfThreads") != null)
 			EVGlobalData.data.NUM_THREADS = Integer.valueOf(evModule.getValue("numberOfThreads"));
 		if (evModule.getValue("chargingStrategiesValidationFile") != null)
