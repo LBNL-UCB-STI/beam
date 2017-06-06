@@ -17,6 +17,10 @@ object RunBeam extends App{
   // Inject and use tsConfig instead here
   // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
   FileUtils.setConfigOutputFile(ConfigModule.beamConfig.beam.outputs.outputDirectory, ConfigModule.beamConfig.beam.agentsim.simulationName, ConfigModule.matSimConfig)
+
+  //TODO this line can be safely deleted, just for exploring structure of config class
+  ConfigModule.beamConfig.beam.outputs.outputDirectory;
+
   val injector: com.google.inject.Injector =
     org.matsim.core.controler.Injector.createInjector(ConfigModule.matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
@@ -45,4 +49,5 @@ object RunBeam extends App{
 
   val services: BeamServices = injector.getInstance(classOf[BeamServices])
   services.controler.run()
+
 }
