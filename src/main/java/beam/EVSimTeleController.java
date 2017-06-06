@@ -7,6 +7,7 @@ package beam;
  * ...\output
  */
 
+import beam.controller.corelisteners.EventsHandlingImpl;
 import beam.sim.BeamMobsim;
 import beam.sim.LinkAttributeLoader;
 import beam.sim.traveltime.*;
@@ -31,6 +32,7 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.matsim.core.controler.corelisteners.EventsHandling;
 import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.controler.listener.ShutdownListener;
 import org.matsim.core.gbl.MatsimRandom;
@@ -122,8 +124,6 @@ public class EVSimTeleController {
 	}
 
 	public void prepareSimulation(final EVController controler) {
-		controler.getConfig().controler().setOverwriteFileSetting(false ? OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
-				: OutputDirectoryHierarchy.OverwriteFileSetting.failIfDirectoryExists);
 
 		controler.addOverridingModule(new AbstractModule() {
 			@Override
@@ -176,6 +176,7 @@ public class EVSimTeleController {
 		controler.addOverridingModule(new AbstractModule() {
 			@Override
 			public void install() {
+				bind(EventsHandling.class).to(EventsHandlingImpl.class);
 				bind(BeamEventHandlers.class).asEagerSingleton();
 				bind(ChargingLoadProfile.class).asEagerSingleton();
 				bind(RoutingModule.class).toProvider(BeamRouterR5Provider.class);
@@ -195,6 +196,7 @@ public class EVSimTeleController {
 		loadRouter();
 		attachLinkTree();
 		loadLinkAttributes();
+		avoidRoutingDuringInitialization(controler);
 
 		ChargingStrategyManager.data.loadChargingStrategies();
 
@@ -218,11 +220,10 @@ public class EVSimTeleController {
 			}
 		});
 
-		integrateChargingEventManagerIntoSimulation(controler);
+//		integrateChargingEventManagerIntoSimulation(controler);
 //		new EVScoreEventGenerator(controler).setInternalRangeAnxityEventHandler(new LogRangeAnxityScoringEventsAtEndOfDay());
 //		new EVScoreAccumulator(controler);
 
-		avoidRoutingDuringInitialization(controler);
 		setLastActivityEndTimeToBeginActivityEndTime(controler);
 	}
 

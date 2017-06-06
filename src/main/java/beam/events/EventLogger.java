@@ -72,12 +72,12 @@ public class EventLogger {
 	}
 
 	public void processEvent(final Event event) {
-		//if (EVGlobalData.data.controler.getIterationNumber() % getWriteEVEventsInterval() == 0) {
-		//	if ((levels.containsKey(event.getEventType()) && levels.get(event.getEventType()) > 0)
-		//			|| (!levels.containsKey(event.getEventType()) && getDefaultLevel() > 0)) {
+//		if (EVGlobalData.data.controler.getIterationNumber() % getWriteEVEventsInterval() == 0) {
+//			if ((levels.containsKey(event.getEventType()) && levels.get(event.getEventType()) > 0)
+//					|| (!levels.containsKey(event.getEventType()) && getDefaultLevel() > 0)) {
 				EVGlobalData.data.controler.getEvents().processEvent(event);
-		//	}
-		//}
+//			}
+//		}
 	}
 
 	public int getWriteEVEventsInterval() {

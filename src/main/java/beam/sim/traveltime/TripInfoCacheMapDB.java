@@ -47,7 +47,7 @@ public class TripInfoCacheMapDB {
     public void openDBs(){
         dbDisk = DBMaker.newFileDB(dbTempFile).make();
 
-        dbMemory = DBMaker.newMemoryDB().sizeLimit(1*1024*1024*1024).make();
+        dbMemory = DBMaker.newMemoryDB().sizeLimit(20*1024*1024*1024).make();
 
         // Big map populated with data expired from cache
         onDisk = dbDisk.getHashMap("onDisk");

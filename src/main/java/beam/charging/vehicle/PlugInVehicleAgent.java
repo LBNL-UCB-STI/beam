@@ -6,6 +6,7 @@ import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Identifiable;
+import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.events.PersonStuckEvent;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Activity;
@@ -689,6 +690,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			this.shouldDepartAfterChargingSession = false;
 		}
 		performChargingDecisionAlgorithmOnDeparture();
+		EVGlobalData.data.eventLogger.processEvent(new PersonDepartureEvent(EVGlobalData.data.now,getPersonId(),getCurrentLink(),EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE));
 	}
 
 	public void handleArrival() {
@@ -710,7 +712,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 				return; // Skip if driver already engaged in an activity
 			setCurrentCoord(getLinkCoordOfNextActivity());
 //			getMobsimAgent().notifyArrivalOnLinkByNonNetworkMode(getMobsimAgent().getDestinationLinkId());
-			EVGlobalData.data.controler.getEvents().processEvent(
+			EVGlobalData.data.eventLogger.processEvent(
 					new TeleportationArrivalEvent(EVGlobalData.data.now, getPersonId(), this.tripInfoAsOfDeparture.getTripDistance()));
 //			getMobsimAgent().endLegAndComputeNextState(EVGlobalData.data.now);
 //			PlugInVehicleAgent.internalInterface.arrangeNextAgentState(getMobsimAgent());
