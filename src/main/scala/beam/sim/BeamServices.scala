@@ -19,7 +19,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
   val bbox: BoundingBox = new BoundingBox()
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
-  var beamConfig: BeamConfig = _
+  var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 

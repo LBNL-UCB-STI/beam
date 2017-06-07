@@ -14,6 +14,20 @@ import scala.collection.mutable.ListBuffer
 
 object RunBeam extends App{
 
+  def parseArgs() = {
+
+    args.sliding(2, 1).toList.collect {
+      case Array("--config", configName: String) if configName.trim.nonEmpty => ("config", configName)
+      //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
+      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
+    }.toMap
+  }
+
+  val argsMap = parseArgs()
+
+  //set config filename before Guice start init procedure
+  ConfigModule.ConfigFileName = argsMap.get("config")
+
   // Inject and use tsConfig instead here
   // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
   FileUtils.setConfigOutputFile(ConfigModule.beamConfig.beam.outputs.outputDirectory, ConfigModule.beamConfig.beam.agentsim.simulationName, ConfigModule.matSimConfig)

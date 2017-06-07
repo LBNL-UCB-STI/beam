@@ -1,13 +1,15 @@
 package beam.agentsim.config
 
+import java.io.File
+import java.net.URI
+import java.nio.file.{Files, Paths}
+
 import beam.agentsim.config.ConfigModule.{BeamConfigProvider, ConfigProvider}
 import com.google.inject.{AbstractModule, Inject, Provider}
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import net.codingwell.scalaguice.ScalaModule
 import org.matsim.core.config.{Config => MatSimConfig}
 import org.slf4j.{Logger, LoggerFactory}
-
-import scala.collection.JavaConverters._
 
 /**
   * Unified factory for building config objects( BEAM, MATSim and low-level typesafe) .
@@ -18,15 +20,27 @@ import scala.collection.JavaConverters._
   */
 object ConfigModule {
   val DefaultConfigFileName = "beam.conf"
+  var ConfigFileName: Option[String] = None
   private val logger: Logger = LoggerFactory.getLogger(ConfigModule.getClass)
 
   protected [agentsim] lazy val typesafeConfig: TypesafeConfig = {
-    if (logger.isInfoEnabled()) {
-      val location = getClass.getClassLoader.getResources(DefaultConfigFileName).asScala.toList.headOption.map(_.toURI.toString)
-      logger.info(s"Loading BEAM config from $location ")
+
+    val inputDir = Option(System.getenv().get("BEAM_SHARED_INPUTS"))
+    val config = ConfigFileName match {
+      case Some(fileName) if Files.exists(Paths.get(fileName)) =>
+        ConfigFactory.parseFile(Paths.get(fileName).toFile)
+      case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
+        ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile)
+      case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
+        ConfigFactory.parseResources(fileName)
+      case _ =>
+        ConfigFactory.parseResources(DefaultConfigFileName)
     }
-    val config = ConfigFactory.parseResources(DefaultConfigFileName).resolve()
-    config
+    if (logger.isInfoEnabled()) {
+      val location = config.origin().url()
+      logger.info(s"Loaded BEAM config from $location ")
+    }
+    config.resolve()
   }
 
   protected [beam] lazy val matSimConfig: MatSimConfig = {
