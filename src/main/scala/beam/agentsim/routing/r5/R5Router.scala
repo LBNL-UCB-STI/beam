@@ -15,44 +15,42 @@ import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
+import com.conveyal.r5.transit.TransportNetwork
+import java.nio.file.Files.{exists, isReadable}
+import java.nio.file.Path
+import java.nio.file.Paths.get
+
+import beam.agentsim.agents.PersonAgent
+import beam.agentsim.config.BeamConfig
+import org.matsim.api.core.v01.Id
 
 import scala.collection.JavaConversions._
 
-class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
-
+class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) extends BeamRouter {
+  private val GRAPH_FILE = "/network.dat"
+  private val OSM_FILE = "/osm.mapdb"
+  private lazy val networkDir = beamConfig.beam.routing.otp.directory
   var transportNetwork: TransportNetwork = null
 
-  override def receive: Receive = {
-    case InitializeRouter =>
-      //  InitializeRouter responding with RouterInitialized
-      init
-      sender() ! RouterInitialized
-    case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
-      // RoutingRequest(fromFacility, toFacility, departureTime, personId) responding with RoutingResponse
-      val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+  override def loadMap = {
+    var networkFile: File = null
+    var mapdbFile: File = null
+    if (exists(get(networkDir))) {
+      val networkPath = get(networkDir, GRAPH_FILE)
+      if (isReadable(networkPath)) networkFile = networkPath.toFile
+      val osmPath = get(networkDir, OSM_FILE)
+      if (isReadable(osmPath)) mapdbFile = osmPath.toFile
+    }
+    if (networkFile == null) networkFile = get(System.getProperty("user.home"),"beam", "network", GRAPH_FILE).toFile
 
-      sender() ! calcRoute(fromFacility, toFacility, departureTime, person)
-  }
-
-  private def init = {
-    //TODO: network.dat and its paths need to externalize
-    loadGraph("/network.dat")
-  }
-
-  private def loadGraph(graphName: String): Unit = {
-    //Loading graph
-    val networkFile = new File(getClass.getResource(graphName).getFile)
-//    val inputStream = new BufferedInputStream(new FileInputStream(networkFile))
-
+    if (mapdbFile == null) mapdbFile = get(System.getProperty("user.home"),"beam", "network", OSM_FILE).toFile
+    // Loading graph
     transportNetwork = TransportNetwork.read(networkFile)
-
-//    Optional used to get street names:
-//TODO: osm.mapdb and its paths need to externalize
-    val mapdbFile = new File(getClass.getResource("osm.mapdb").getFile)
+    // Optional used to get street names:
     transportNetwork.readOSM(mapdbFile)
   }
 
-  private def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person) = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person) = {
 
     val streetRouter = new StreetRouter(transportNetwork.streetLayer)
     val profileRequest = buildRequest(fromFacility, toFacility, departureTime)
@@ -87,9 +85,8 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
         stateIdx += 1
         totalDistance = state.distance / 1000
       }
-
     }
-    totalDistance
+    new RoutingResponse(null)
   }
 
   private def calcRoute2(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person) = {
@@ -99,7 +96,7 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
     pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime))
   }
 
-  private def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false) : ProfileRequest = {
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
@@ -124,6 +121,8 @@ class R5Router(agentsimServices: AgentsimServices) extends BeamRouter {
 
     profileRequest
   }
+
+  override def getPerson(personId: Id[PersonAgent]): Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 }
 
 object R5Router {

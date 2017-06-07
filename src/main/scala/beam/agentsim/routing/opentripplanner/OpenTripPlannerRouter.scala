@@ -6,6 +6,7 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
+import beam.agentsim.agents.PersonAgent
 import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
@@ -17,7 +18,7 @@ import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
 import com.google.inject.Inject
 import org.geotools.referencing.CRS
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
 import org.opengis.referencing.operation.MathTransform
@@ -46,7 +47,15 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
   var transform: Option[MathTransform] = None
   val baseTime: Long = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
+  override def loadMap: Unit = {
+    graphService = Some(makeGraphService())
+    router = Some(graphService.get.getRouter(routerIds.head))
+    transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
+  }
+
+  override def getPerson(personId: Id[PersonAgent]): Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+
+  override def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
@@ -76,7 +85,7 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
     request
   }
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse = {
     val drivingRequest = buildRequest(fromFacility, toFacility, departureTime)
 
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
@@ -180,13 +189,15 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
         activeEdgeModeTime = it.next()
         val dist = distLatLon2Meters(activeEdgeModeTime.fromCoord.getX, activeEdgeModeTime.fromCoord.getY,
           activeEdgeModeTime.toCoord.getX, activeEdgeModeTime.toCoord.getY)
-        if (dist > beamConfig.beam.events.filterDist) {
+        if (dist > beamConfig.beam.events.filterDist) { //filter edge if it has distance smaller then filterDist
           log.warning(s"$activeEdgeModeTime, $dist")
         } else {
+          // queue edge details
           activeLinkIds = activeLinkIds :+ activeEdgeModeTime.fromVertexLabel
           activeCoords = activeCoords :+ activeEdgeModeTime.fromCoord
           activeTimes = activeTimes :+ activeEdgeModeTime.time
         }
+        //start tracking new/different mode, reinitialize collections
         if (activeEdgeModeTime.mode != activeMode) {
           beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart,
             BeamGraphPath(activeLinkIds, activeCoords, activeTimes))
@@ -209,22 +220,6 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
       BeamTrip(beamLegs.toVector)
     }
     RoutingResponse(beamTrips)
-  }
-
-  override def receive: Receive = {
-    case InitializeRouter =>
-      log.info("Initializing OTP Router")
-      graphService = Some(makeGraphService())
-      router = Some(graphService.get.getRouter(routerIds.head))
-      transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
-      sender() ! RouterInitialized
-    case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
-      //      log.info(s"OTP Router received routing request from person $personId ($sender)")
-      val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
-      val senderRef = sender()
-      senderRef ! calcRoute(fromFacility, toFacility, departureTime, person)
-    case msg =>
-      log.info(s"unknown message received by OTPRouter $msg")
   }
 
   private def makeGraphService(): GraphService = {
