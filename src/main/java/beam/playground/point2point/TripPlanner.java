@@ -33,7 +33,7 @@ public class TripPlanner {
         //Loading graph
         String dir = "";
         if (args == null || args.length == 0) {
-            dir = System.getProperty("user.home") + "/beam/r5/berkeley";
+            dir = System.getProperty("user.home") + "/beam/network";
         } else {
             dir = args[0];
         }
@@ -60,11 +60,23 @@ public class TripPlanner {
         profileRequest.directModes = EnumSet.of(WALK, BICYCLE);
         //Gets a response:
         ProfileResponse profileResponse = pointToPointQuery.getPlan(profileRequest);
+        logProfileResponse(profileResponse);
+    }
 
+    private static void logProfileResponse(ProfileResponse profileResponse) {
         LOG.info("{} OPTIONS returned in the profileResponse", profileResponse.getOptions().size());
 
-        ifPresentThenForEach(profileResponse.getOptions(), option ->  {
+        ifPresentThenForEach(profileResponse.getOptions(), option -> {
+            LOG.info("*****OPTION START*****");
+            LOG.info("Option start with summary: {}", option.summary);
+            Stats stats = option.stats;
+            LOG.info("Average: {}", stats.avg);
+            LOG.info("MIN: {}", stats.min);
+            LOG.info("MAX: {}", stats.max);
+            LOG.info("NUM: {}", stats.num);
+
             ifPresentThenForEach(option.itinerary, iten -> {
+                LOG.info("*****ITINERARY START*****");
                 LOG.info("Total Distance is: {}", iten.distance);
                 LOG.info("Total Duration is: {}", convertIntToTimeFormat(iten.duration));
                 LOG.info("Start Time is: {}", iten.startTime);
@@ -74,47 +86,47 @@ public class TripPlanner {
                 LOG.info("Total Walk Time is: {}", convertIntToTimeFormat(iten.walkTime));
 
                 PointToPointConnection conn = iten.connection;
+
+                ifPresentThenForEach(conn.transit, transit -> {
+                    LOG.info("*****TRANSIT START*****");
+                    LOG.info("Transit Time: {}", convertIntToTimeFormat(transit.time));
+                    LOG.info("Transit Pattern: {}", transit.pattern);
+                    LOG.info("*****TRANSIT END*****");
+                });
+
                 LOG.info("P2P Connection Access: {}", conn.access);
                 LOG.info("P2P Connection Egress: {}", conn.egress);
 
-                List<TransitJourneyID> transits = conn.transit;
-                ifPresentThenForEach(conn.transit, transit -> {
-                    LOG.info("Transit Time: {}", convertIntToTimeFormat(transit.time));
-                    LOG.info("Transit Pattern: {}", transit.pattern);
-                });
-                Stats stats = option.stats;
-                LOG.info("Average: {}", stats.avg);
-                LOG.info("MIN: {}", stats.min);
-                LOG.info("MAX: {}", stats.max);
-                LOG.info("NUM: {}", stats.num);
-
-                ifPresentThenForEach(option.access, segment -> {
-                    LOG.info("*****SEGMENT DESCRIPTION*****");
-
-                    LOG.info("Access MODE: {}", segment.mode);
-                    LOG.info("Access Distance: {}", segment.distance);
-                    LOG.info("Access Elevation: {}", segment.elevation);
-                    LOG.info("Access Duration: {}", convertIntToTimeFormat(segment.duration));
-
-                    LineString geom = segment.geometry;
-                    LOG.info("Segment Area: {}", geom.getArea());
-                    LOG.info("Coordinates: {}", geom.getCoordinate());
-                    LOG.info("Boundary Dimensions are: {}", geom.getBoundaryDimension());
-                    LOG.info("Segment Starting Point: {}", geom.getStartPoint());
-                    LOG.info("End Point is: {}", geom.getEndPoint());
-                    LOG.info("Geometry Dimensions: {}", geom.getDimension());
-                    LOG.info("Geometry Type: {}", geom.getGeometryType());
-                    LOG.info("Segment Length: {}", geom.getLength());
-                    LOG.info("Segment Num Points: {}", geom.getNumPoints());
-
-                    Coordinate coordinate = geom.getCoordinate();
-                    LOG.info("Coordinate-X: {}", coordinate.x);
-                    LOG.info("Coordinate-Y: {}", coordinate.y);
-                    LOG.info("Coordinate-Z: {}", coordinate.z);
-
-                    LOG.info("*************************");
-                });
+                LOG.info("*****ITINERARY END*****");
             });
+
+            ifPresentThenForEach(option.access, segment -> {
+                LOG.info("*****SEGMENT START*****");
+
+                LOG.info("Access MODE: {}", segment.mode);
+                LOG.info("Access Distance: {}", segment.distance);
+                LOG.info("Access Elevation: {}", segment.elevation);
+                LOG.info("Access Duration: {}", convertIntToTimeFormat(segment.duration));
+
+                LineString geom = segment.geometry;
+                LOG.info("Segment Area: {}", geom.getArea());
+                LOG.info("Coordinates: {}", geom.getCoordinate());
+                LOG.info("Boundary Dimensions are: {}", geom.getBoundaryDimension());
+                LOG.info("Segment Starting Point: {}", geom.getStartPoint());
+                LOG.info("End Point is: {}", geom.getEndPoint());
+                LOG.info("Geometry Dimensions: {}", geom.getDimension());
+                LOG.info("Geometry Type: {}", geom.getGeometryType());
+                LOG.info("Segment Length: {}", geom.getLength());
+                LOG.info("Segment Num Points: {}", geom.getNumPoints());
+
+                Coordinate coordinate = geom.getCoordinate();
+                LOG.info("Coordinate-X: {}", coordinate.x);
+                LOG.info("Coordinate-Y: {}", coordinate.y);
+                LOG.info("Coordinate-Z: {}", coordinate.z);
+
+                LOG.info("*****SEGMENT END*****");
+            });
+            LOG.info("*****OPTION END*****");
         });
         LOG.info("{} PATTERNS returned in the profileResponse", profileResponse.getPatterns().size());
     }
