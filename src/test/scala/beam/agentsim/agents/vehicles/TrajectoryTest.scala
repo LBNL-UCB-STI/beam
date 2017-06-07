@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamGraphPath
+import beam.agentsim.routing.RoutingModel.BeamGraphPath
 import org.matsim.api.core.v01.Coord
 import org.scalatest.{FlatSpec, Matchers}
 
