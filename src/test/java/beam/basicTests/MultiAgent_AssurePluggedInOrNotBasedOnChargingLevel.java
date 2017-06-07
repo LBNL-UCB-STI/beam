@@ -1,3 +1,4 @@
+/*
 package beam.basicTests;
 
 
@@ -58,3 +59,4 @@ public class MultiAgent_AssurePluggedInOrNotBasedOnChargingLevel extends SingleA
         if(isSlowCharger && !isQueued) assertTrue(!isUnplugged);
     }
 }
+*/
