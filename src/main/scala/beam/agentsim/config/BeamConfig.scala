@@ -3,6 +3,8 @@
 
 package beam.agentsim.config
 
+import scala.collection.JavaConverters._
+
 case class BeamConfig(
   beam : BeamConfig.Beam
 )
@@ -76,8 +78,7 @@ object BeamConfig {
         )
       }
       private def $_LBeamConfig_Beam_Outputs_OverrideLoggingLevels$Elm(cl:com.typesafe.config.ConfigList): scala.List[BeamConfig.Beam.Outputs.OverrideLoggingLevels$Elm] = {
-        import scala.collection.JavaConversions._
-        cl.map(cv => BeamConfig.Beam.Outputs.OverrideLoggingLevels$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
+        cl.asScala.map(cv => BeamConfig.Beam.Outputs.OverrideLoggingLevels$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
       }
     }
           
@@ -140,8 +141,7 @@ object BeamConfig {
   }
 
   private def $_L$_str(cl:com.typesafe.config.ConfigList): scala.List[java.lang.String] = {
-    import scala.collection.JavaConversions._
-    cl.map(cv => $_str(cv)).toList
+    cl.asScala.map(cv => $_str(cv)).toList
   }
   private def $_expE(cv:com.typesafe.config.ConfigValue, exp:java.lang.String) = {
     val u: Any = cv.unwrapped

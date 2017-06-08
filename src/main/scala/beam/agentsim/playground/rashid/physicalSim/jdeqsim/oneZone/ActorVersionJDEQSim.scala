@@ -7,7 +7,7 @@ import org.matsim.core.scenario.ScenarioUtils
 object ActorVersionJDEQSim {
   
   class ActorJDEQSim extends Actor{
-    @deprecated ("See beam.agentsim.sim.AgentsimServices")
+    @deprecated ("See beam.agentsim.sim.AgentsimServices", "2.0")
     def receive = {
       case "start" => {
         val config = ConfigUtils.loadConfig(

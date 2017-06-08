@@ -15,14 +15,14 @@ import org.matsim.facilities.Facility
   */
 class DummyRouter(agentsimServices: AgentsimServices, val tripRouter: TripRouter) extends RoutingModule with Actor {
 
-  override def calcRoute(fromFacility: Facility[_ <: Facility[_]], toFacility: Facility[_ <: Facility[_]], departureTime: Double, person: Person): util.List[_ <: PlanElement] = {
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): java.util.LinkedList[PlanElement] = {
     new util.LinkedList[PlanElement]()
   }
 
   override def receive: Receive = {
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
-      sender() ! calcRoute(fromFacility, toFacility, departureTime, person)
+      sender() ! RoutingResponse(calcRoute(fromFacility, toFacility, departureTime, person))
   }
 
   override def getStageActivityTypes: StageActivityTypes = new StageActivityTypes {

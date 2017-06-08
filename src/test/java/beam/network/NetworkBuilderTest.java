@@ -1,6 +1,7 @@
 package beam.network;
 
 import beam.playground.point2point.NetworkBuilderMain;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.BeforeClass;
 
@@ -19,6 +20,7 @@ public class NetworkBuilderTest {
     }
 
     @Test
+    @Ignore
     public void testNetworkBuilder(){
         builderMain.buildNetwork(DIRECTORY_PATH);
     }

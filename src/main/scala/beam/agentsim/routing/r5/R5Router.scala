@@ -1,9 +1,13 @@
 package beam.agentsim.routing.r5
 
-import java.io.{BufferedInputStream, File, FileInputStream}
+import java.io.File
+import java.nio.file.Files.{exists, isReadable}
+import java.nio.file.Paths.get
 import java.util
 
 import akka.actor.Props
+import beam.agentsim.agents.PersonAgent
+import beam.agentsim.config.BeamConfig
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
 import beam.agentsim.sim.AgentsimServices
@@ -13,18 +17,11 @@ import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
-import com.conveyal.r5.transit.TransportNetwork
-import java.nio.file.Files.{exists, isReadable}
-import java.nio.file.Path
-import java.nio.file.Paths.get
 
-import beam.agentsim.agents.PersonAgent
-import beam.agentsim.config.BeamConfig
-import org.matsim.api.core.v01.Id
-
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) extends BeamRouter {
   private val GRAPH_FILE = "/network.dat"
@@ -71,7 +68,8 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
 
     var stateIdx = 0
     var totalDistance = 0
-    for (state <- streetPath.getStates) {
+
+    for (state <- streetPath.getStates.asScala) {
       val edgeIdx = state.backEdge
       if (!(edgeIdx == null || edgeIdx == -1)) {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
