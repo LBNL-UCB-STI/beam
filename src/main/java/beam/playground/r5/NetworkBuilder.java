@@ -1,4 +1,4 @@
-package beam.playground.point2point;
+package beam.playground.r5;
 
 import com.conveyal.r5.transit.TransportNetwork;
 import org.apache.commons.lang3.StringUtils;
@@ -21,9 +21,9 @@ import java.nio.file.Paths;
  * In case the argument is not provided, the system will search for the osm file in USER_HOME/beam/network folder.
  * </p>
  */
-public class NetworkBuilderMain {
+public class NetworkBuilder {
 
-    private static final Logger LOG = LoggerFactory.getLogger(NetworkBuilderMain.class);
+    private static final Logger LOG = LoggerFactory.getLogger(NetworkBuilder.class);
 
     public static void main(String args[]) {
 

@@ -1,6 +1,6 @@
 package beam.network;
 
-import beam.playground.point2point.NetworkBuilderMain;
+import beam.playground.r5.NetworkBuilder;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.BeforeClass;
@@ -10,13 +10,13 @@ import org.junit.BeforeClass;
  */
 public class NetworkBuilderTest {
 
-    private static NetworkBuilderMain builderMain;
+    private static NetworkBuilder builderMain;
 
     private static final String DIRECTORY_PATH = "src/test/resources/router";
 
     @BeforeClass
     public static void beforeClass(){
-        builderMain = new NetworkBuilderMain();
+        builderMain = new NetworkBuilder();
     }
 
     @Test
