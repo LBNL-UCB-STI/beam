@@ -8,10 +8,13 @@ import java.util
 import akka.actor.Props
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.config.BeamConfig
+import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
+import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip}
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
+import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
@@ -48,9 +51,55 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
   }
 
   override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person) = {
+    //Gets a response:
+    val pointToPointQuery = new PointToPointQuery(transportNetwork)
+    val plan = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime))
+    buildResponse(plan)
+  }
+
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false) : ProfileRequest = {
+    val profileRequest = new ProfileRequest()
+    //Set timezone to timezone of transport network
+    profileRequest.zoneId = transportNetwork.getTimeZone
+
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
+
+    profileRequest.fromLat = fromPosTransformed.getX
+    profileRequest.fromLon = fromPosTransformed.getY
+    profileRequest.toLat = toPosTransformed.getX
+    profileRequest.toLon = toPosTransformed.getY
+    profileRequest.wheelchair = false
+    profileRequest.bikeTrafficStress = 4
+    //TODO: time need to get from request
+    profileRequest.setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
+    if(isTransit) {
+      profileRequest.transitModes = util.EnumSet.of(TransitModes.TRANSIT, TransitModes.BUS, TransitModes.SUBWAY, TransitModes.RAIL)
+    }
+    profileRequest.accessModes = util.EnumSet.of(LegMode.WALK)
+    profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
+    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
+
+    profileRequest
+  }
+
+  def buildResponse(plan: ProfileResponse): RoutingResponse = {
+//    RoutingResponse((for(option: ProfileOption <- plan.options.asScala) yield
+//      BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
+//        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, null)
+//      ).toVector)
+//    ).toVector)
+
+    RoutingResponse(plan.options.asScala.map(option =>
+      BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
+        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, null)
+        ).toVector)
+      ).toVector)
+  }
+
+  private def buildPath(profileRequest: ProfileRequest) = {
 
     val streetRouter = new StreetRouter(transportNetwork.streetLayer)
-    val profileRequest = buildRequest(fromFacility, toFacility, departureTime)
     streetRouter.profileRequest = profileRequest
     streetRouter.streetMode = StreetMode.WALK
 
@@ -85,39 +134,6 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
       }
     }
     new RoutingResponse(null)
-  }
-
-  private def calcRoute2(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person) = {
-
-    //Gets a response:
-    val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime))
-  }
-
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false) : ProfileRequest = {
-    val profileRequest = new ProfileRequest()
-    //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
-
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
-
-    profileRequest.fromLat = fromPosTransformed.getX
-    profileRequest.fromLon = fromPosTransformed.getY
-    profileRequest.toLat = toPosTransformed.getX
-    profileRequest.toLon = toPosTransformed.getY
-    profileRequest.wheelchair = false
-    profileRequest.bikeTrafficStress = 4
-    //TODO: time need to get from request
-    profileRequest.setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
-    if(isTransit) {
-      profileRequest.transitModes = util.EnumSet.of(TransitModes.TRANSIT, TransitModes.BUS, TransitModes.SUBWAY, TransitModes.RAIL)
-    }
-    profileRequest.accessModes = util.EnumSet.of(LegMode.WALK)
-    profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
-    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
-
-    profileRequest
   }
 
   override def getPerson(personId: Id[PersonAgent]): Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
