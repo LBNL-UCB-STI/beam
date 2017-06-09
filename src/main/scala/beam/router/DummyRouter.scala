@@ -1,13 +1,13 @@
 package beam.router
 
-import akka.actor.{Props}
+import akka.actor.Props
 import beam.agentsim.core.Modes.BeamMode
 import beam.sim.BeamServices
-import beam.router.BeamRouter.{BeamGraphPath, BeamLeg, BeamTrip}
 import beam.router.RoutingMessages._
+import beam.router.RoutingModel.{BeamGraphPath, BeamLeg, BeamTrip}
 import com.vividsolutions.jts.geom.Coordinate
 import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.population.{ Person }
+import org.matsim.api.core.v01.population.Person
 
 class DummyRouter(theAgentsimServices: BeamServices) extends BeamRouter {
   val agentsimServices = theAgentsimServices

@@ -33,7 +33,7 @@ object RunBeam extends App{
   FileUtils.setConfigOutputFile(ConfigModule.beamConfig.beam.outputs.outputDirectory, ConfigModule.beamConfig.beam.agentsim.simulationName, ConfigModule.matSimConfig)
 
   //TODO this line can be safely deleted, just for exploring structure of config class
-  ConfigModule.beamConfig.beam.outputs.outputDirectory;
+//  ConfigModule.beamConfig.beam.outputs.outputDirectory;
 
   val injector: com.google.inject.Injector =
     org.matsim.core.controler.Injector.createInjector(ConfigModule.matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {

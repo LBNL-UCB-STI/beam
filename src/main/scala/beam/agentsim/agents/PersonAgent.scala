@@ -13,8 +13,9 @@ import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
-import beam.agentsim.routing.RoutingMessages.{RoutingRequest, RoutingResponse}
-import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip}
+import beam.router.RoutingModel.{BeamLeg, BeamTrip}
+import beam.router.RoutingMessages.{RoutingRequest, RoutingResponse}
+import beam.sim.BeamServices
 import beam.utils.DebugLib
 import com.google.inject.Inject
 import glokka.Registry
@@ -231,7 +232,6 @@ object PersonAgent {
 class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data: PersonData, val services: BeamServices) extends BeamAgent[PersonData] {
 
   import akka.pattern.{ask, pipe}
-  import beam.sim.BeamServices._
 
 
   private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)

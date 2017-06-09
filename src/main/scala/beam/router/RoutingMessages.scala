@@ -1,7 +1,7 @@
 package beam.router
 
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.routing.RoutingModel.BeamTrip
+import RoutingModel.BeamTrip
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.router.ActivityWrapperFacility

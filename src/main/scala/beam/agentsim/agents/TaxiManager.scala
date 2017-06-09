@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.{Actor, ActorRef, Props}
 import beam.agentsim.agents.TaxiAgent.PickupCustomer
 import beam.agentsim.agents.TaxiManager._
-import beam.agentsim.sim.AgentsimServices._
+import beam.sim.BeamServices
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
