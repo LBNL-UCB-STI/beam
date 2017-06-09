@@ -1,6 +1,6 @@
 package beam.agentsim.utils
 
-import beam.router.BeamRouter._
+import beam.agentsim.routing.RoutingModel.{BeamGraphPath, BeamLeg}
 import io.circe.{Encoder, Json, JsonObject}
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.io.IOUtils

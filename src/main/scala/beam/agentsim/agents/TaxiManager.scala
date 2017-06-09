@@ -3,12 +3,12 @@ package beam.agentsim.agents
 import akka.actor.{Actor, ActorRef, Props}
 import beam.agentsim.agents.TaxiAgent.PickupCustomer
 import beam.agentsim.agents.TaxiManager._
-import beam.sim.BeamServices
-import org.slf4j.LoggerFactory
-import org.matsim.api.core.v01.Coord
-import org.matsim.core.utils.collections.QuadTree
+import beam.agentsim.sim.AgentsimServices._
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
+import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.collections.QuadTree
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 

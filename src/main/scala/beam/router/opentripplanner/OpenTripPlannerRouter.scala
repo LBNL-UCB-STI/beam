@@ -8,9 +8,10 @@ import java.util.Locale
 import akka.actor.Props
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
-import beam.router.RoutingMessages._
-import beam.router.BeamRouter._
-import beam.sim.BeamServices
+import beam.agentsim.routing.BeamRouter
+import beam.agentsim.routing.RoutingMessages._
+import beam.agentsim.routing.RoutingModel._
+import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
 import beam.router.BeamRouter
@@ -21,7 +22,7 @@ import org.matsim.facilities.Facility
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
-import org.opentripplanner.routing.edgetype.{StreetTransitLink, _}
+import org.opentripplanner.routing.edgetype._
 import org.opentripplanner.routing.error.{PathNotFoundException, TrivialPathException}
 import org.opentripplanner.routing.impl._
 import org.opentripplanner.routing.services.GraphService
@@ -37,8 +38,8 @@ class OpenTripPlannerRouter(val services: BeamServices) extends BeamRouter {
 
   import beam.sim.BeamServices._
 
-  val baseDirectory: File = new File(services.beamConfig.beam.sharedInputs + services.beamConfig.beam.routing.otp.directory)
-  val routerIds: List[String] = services.beamConfig.beam.routing.otp.routerIds
+  val otpGraphBaseDirectory: File = new File(beamConfig.beam.routing.otp.directory)
+  val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
   var graphService: Option[GraphService] = None
   var router: Option[Router] = None
   var transform: Option[MathTransform] = None
@@ -178,8 +179,8 @@ class OpenTripPlannerRouter(val services: BeamServices) extends BeamRouter {
         activeEdgeModeTime = it.next()
         val dist = distLatLon2Meters(activeEdgeModeTime.fromCoord.getX, activeEdgeModeTime.fromCoord.getY,
           activeEdgeModeTime.toCoord.getX, activeEdgeModeTime.toCoord.getY)
-        if (dist > services.beamConfig.beam.events.filterDist) {
-          log.warn(s"$activeEdgeModeTime, $dist")
+        if (dist > beamConfig.beam.events.filterDist) {
+          log.warning(s"$activeEdgeModeTime, $dist")
         } else {
           activeLinkIds = activeLinkIds :+ activeEdgeModeTime.fromVertexLabel
           activeCoords = activeCoords :+ activeEdgeModeTime.fromCoord
@@ -215,7 +216,7 @@ class OpenTripPlannerRouter(val services: BeamServices) extends BeamRouter {
       graphService = Some(makeGraphService())
       router = Some(graphService.get.getRouter(routerIds.head))
       transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
-      sender() ! RouterInitialized()
+      sender() ! RouterInitialized
     case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
       //      log.info(s"OTP Router received routing request from person $personId ($sender)")
       val person: Person = services.matsimServices.getScenario.getPopulation.getPersons.get(personId)
@@ -283,7 +284,6 @@ class OpenTripPlannerRouter(val services: BeamServices) extends BeamRouter {
   def filterSegment(a: Coord, b: Coord): Boolean = distLatLon2Meters(a.getX, b.getY, a.getX, b.getY) > services.beamConfig.beam.events.filterDist
 
   def filterLatLonList(latLons: Vector[Coord], thresh: Double): Vector[Coord] = for ((a, b) <- latLons zip latLons.drop(1) if distLatLon2Meters(a.getX, a.getY, b.getX, b.getY) < thresh) yield b
-
 }
 
 object OpenTripPlannerRouter {
