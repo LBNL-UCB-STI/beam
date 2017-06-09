@@ -52,7 +52,7 @@ public class MultiGTFSMerger {
         agencyId2TransitSchedule = new HashMap<>();
         agencyId2Vehicles = new HashMap<>();
 
-        OperatorDataUtility operatorDataUtility = new OperatorDataUtility();
+        OperatorDataUtility operatorDataUtility = new OperatorDataUtility(BEAM_CONFIG);
         agency2AgencyId = filterValidAgencies(operatorDataUtility.getOperatorMap());
 
         final String fileType = ".xml.gz";

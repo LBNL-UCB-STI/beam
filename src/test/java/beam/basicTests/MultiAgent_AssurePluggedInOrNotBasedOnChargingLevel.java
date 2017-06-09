@@ -1,9 +1,10 @@
+/*
 package beam.basicTests;
 
 
 import static org.junit.Assert.*;
 
-import beam.EVGlobalData;
+import beamaa.EVGlobalData;
 import beam.TestUtilities;
 import beam.charging.vehicle.AgentChargingState;
 import beam.charging.vehicle.PlugInVehicleAgent;
@@ -58,3 +59,4 @@ public class MultiAgent_AssurePluggedInOrNotBasedOnChargingLevel extends SingleA
         if(isSlowCharger && !isQueued) assertTrue(!isUnplugged);
     }
 }
+*/

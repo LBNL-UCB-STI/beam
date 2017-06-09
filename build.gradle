@@ -20,6 +20,10 @@ configurations.all {
     resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 }
 
+ext {
+    env = "sf-bay"
+}
+
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'scala'
@@ -37,11 +41,20 @@ targetCompatibility = 1.8
 def scalaBinaryVersion = "2.12"
 def akkaBinaryVersion = "2.4.16"
 def circeBinaryVersion="0.7.1"
-
+def slf4jVersion = "1.7.12"
 
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
 sourceSets.main.java.srcDirs = []
 
+if (project.hasProperty('env')) {
+    sourceSets {
+        main {
+            resources {
+                srcDirs "src/main/resources", "test/input/beam/" + project.getProperty('env')
+            }
+        }
+    }
+}
 
 
 repositories {
@@ -52,7 +65,7 @@ repositories {
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
     maven { url "http://maven.conveyal.com/" }
-    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+//    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
     maven { url "http://repo1.maven.org/maven2" }
     maven { url "http://download.java.net/maven/2/" }
     maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
@@ -71,7 +84,6 @@ dependencies {
     // Java dependencies
     ////////////////////////////
 
-    compile group: 'jdom', name: 'jdom', version: '1.1'
     compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
@@ -95,7 +107,6 @@ dependencies {
     compile group: 'org.objenesis', name: 'objenesis', version: '2.4'
     compile group: 'javax.jms', name: 'jms', version: '1.1'
     compile group: 'javax.media', name: 'jai_core', version: '1.1.3'
-    testCompile group: 'junit', name: 'junit', version: '4.4'
     compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
     compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
@@ -109,7 +120,12 @@ dependencies {
     compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: true
     compile group: 'com.github.colinsheppard', name: 'OpenTripPlanner', version: 'otp-1.0.0-beam-SNAPSHOT', changing: true
     compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: true
-    compile group: 'com.conveyal', name: 'r5', version: '2.1.1', changing: true
+    compile group: 'com.conveyal', name: 'r5', version: '2.2.0', changing: true
+
+    testCompile group: 'junit', name: 'junit', version: '4.4'
+    // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
+    testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
+
 
     /////////////////////////////////
     // Scala dependencies
@@ -166,6 +182,7 @@ dependencies {
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
+    compile "org.slf4j:slf4j-api:${slf4jVersion}"
 
 }
 
@@ -212,7 +229,7 @@ task generateConfig {
             main = "-jar";
             args = [
                     "build/tscfg-0.8.0.jar",
-                    "--spec", "src/main/resources/config-template.conf",
+                    "--spec", "src/main/resources/beam-template.conf",
                     "--scala",
                     "--pn", "beam.agentsim.config",
                     "--cn", "BeamConfig",

@@ -2,13 +2,13 @@ package beam.agentsim.events
 
 import java.util
 
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamLeg
+import beam.agentsim.routing.RoutingModel.BeamLeg
+import beam.agentsim.utils.JsonUtils.syntax._
 import io.circe.syntax._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
-import beam.agentsim.utils.JsonUtils.syntax._
 
 /**
   * Created by sfeygin on 3/27/17.

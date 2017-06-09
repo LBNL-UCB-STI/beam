@@ -2,8 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Props
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
@@ -13,13 +12,14 @@ import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
-import beam.agentsim.routing.RoutingMessages.RoutingRequest
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.{BeamLeg, BeamTrip, RoutingResponse}
+import beam.agentsim.routing.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip, DiscreteTime}
 import beam.utils.DebugLib
+import com.google.inject.Inject
 import glokka.Registry
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
-import org.matsim.api.core.v01.{Id, TransportMode}
 import org.matsim.core.api.experimental.events.AgentWaitingForPtEvent
 import org.matsim.pt.transitSchedule.api.TransitStopFacility
 import org.slf4j.LoggerFactory
@@ -227,7 +227,7 @@ object PersonAgent {
 
 }
 
-class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
+class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] {
 
   import akka.pattern.{ask, pipe}
   import beam.agentsim.sim.AgentsimServices._
@@ -263,7 +263,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ ${tick}")
-          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick, id)).mapTo[RoutingResponse] map { result =>
+          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, DiscreteTime(tick.toInt), Vector(BeamMode.WAITING, BeamMode.BIKE), id)).mapTo[RoutingResponse] map { result =>
             val theRoute = result.itinerary
             RouteResponseWrapper(tick, triggerId, theRoute)
           } pipeTo self
@@ -525,6 +525,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   case class ProcessedData(nextLeg: BeamLeg, restTrip: BeamTrip, nextStart: Double)
 
   private def publishPathTraversal(event: PathTraversalEvent): Unit = {
+    //TODO: convert pathTraversalEvents to hashset
     if (beamConfig.beam.events.pathTraversalEvents contains event.beamLeg.mode.value.toLowerCase()) {
       agentSimEventsBus.publish(MatsimEvent(event))
 

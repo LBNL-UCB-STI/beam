@@ -17,7 +17,7 @@ import org.slf4j.{Logger, LoggerFactory}
 object BeamAgentModule {
   private val logger: Logger = LoggerFactory.getLogger(classOf[BeamAgentModule])
 
-  class ActorSystemProvider @Inject()(val injector: Injector)(implicit config: Config) extends Provider[ActorSystem] {
+  class ActorSystemProvider @Inject()(val injector: Injector, config: Config) extends Provider[ActorSystem] {
     override def get(): ActorSystem = {
       val system = ActorSystem("beam-actor-system", config)
       // add the GuiceAkkaExtension to the system, and initialize it with the Guice injector

@@ -2,16 +2,15 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.pattern.{ask, pipe}
 import akka.actor.Props
+import akka.pattern.{ask, pipe}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.TaxiAgent._
-import beam.agentsim.agents.TaxiManager.{RegisterTaxiAvailable, RegisterTaxiUnavailable, TaxiAvailableAck, TaxiUnavailableAck}
+import beam.agentsim.agents.TaxiManager.{RegisterTaxiAvailable, TaxiAvailableAck}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**

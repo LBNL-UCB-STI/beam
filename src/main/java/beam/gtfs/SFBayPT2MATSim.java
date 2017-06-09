@@ -1,7 +1,7 @@
 package beam.gtfs;
 
 import beam.agentsim.config.BeamConfig;
-import com.typesafe.config.ConfigFactory;
+import beam.agentsim.sim.AgentsimServices;
 import org.matsim.pt.utils.TransitScheduleValidator;
 import org.xml.sax.SAXException;
 
@@ -32,9 +32,7 @@ public class SFBayPT2MATSim {
 
     private String outputDir;
     private String apiKey;
-    static final File CONFIG_FILE = new File("src/main/resources/config-template.conf");
-    private static final com.typesafe.config.Config CONFIG = ConfigFactory.parseFile(CONFIG_FILE).resolve();
-    public static final BeamConfig BEAM_CONFIG = BeamConfig.apply(CONFIG);
+    public static final BeamConfig BEAM_CONFIG  = AgentsimServices.beamConfig();
 
     public SFBayPT2MATSim() {
         outputDir = BEAM_CONFIG.beam().routing().gtfs().outputDir();

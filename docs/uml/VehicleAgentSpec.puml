@@ -10,36 +10,41 @@ A driver is a BeamAgent and does NOT need to be physically inside vehicle
 passengers are BeamVehicles and are physically in vehicle and move with the vehicle
 (e.g. a PersonAgent who is driving alone would be the driver of the vehicle and his/her
 HumanBodyVehicle would be a passenger)
-HumanBody is a special case, it has no passengers, just a driver
+HumanBodyVehicle is a special case, it has no passengers, just a driver
+Transit Vehicles will need a boardAlightDelayFunction
  '/
 
-class BeamAgent {
-}
-
-class VehicleAgent {
+class BeamVehicle {
   enclosingVehicle: Option[VehicleAgent]
   driver: Option[BeamAgent]
   passengers: List[VehicleAgent]
+  capacity: Int
+  length: Double
   locationManager: LocationManager
+  powertrain: Powertrain
   location(time) -> match enclosingVehicle { \n\tSome=>enclosingVehicle.location\n\tNone=>locationManager.getLocation(time) )\n}
 }
 
+'Either make this an actor or remove and have trajectory under VehAgent
 class LocationManager {
-   location: Either[Coord,Trajectory]
-   getLocation(time) -> match location\n\tCoord => coord\n\tTrajectory=>trajectory.getLocation(time)
+   location: Option[Trajectory]
 }
 
 class Trajectory {
-   table: Table<Coord,Time>
+   table: SomeIndexedTable<SpacetimeCoord>
    getLocation(time) -> table.interpolate(time)
+   appendToTrajectory(List<SpacetimeCoord>)
 }
 
-BeamAgent <|-- VehicleAgent
+class SpacetimeCoord {
+    time: double
+    coord: org.matsim.api.core.v01.Coord
+}
 
-VehicleAgent *-- LocationManager : hasOne
+Actor *-- BeamVehicle : extends
+BeamVehicle *-- LocationManager : hasOne
 LocationManager *-- Trajectory : mayHaveOne
-
-
+Trajectory *-- SpacetimeCoord: hasMany
 
 
 @enduml

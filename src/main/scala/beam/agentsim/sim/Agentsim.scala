@@ -9,17 +9,18 @@ import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.TaxiAgent.TaxiData
 import beam.agentsim.agents._
+import beam.agentsim.config.BeamConfig
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
-import beam.agentsim.routing.RoutingMessages.InitializeRouter
+import beam.agentsim.routing.BeamRouter.InitializeRouter
 import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter
 import beam.agentsim.routing.r5.R5Router
 import beam.agentsim.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
@@ -37,7 +38,8 @@ import scala.util.Random
   * Created by sfeygin on 2/8/17.
   */
 class Agentsim @Inject()(private val actorSystem: ActorSystem,
-                         private val services: AgentsimServices
+                         private val services: AgentsimServices,
+                         beamConfig : BeamConfig
                         ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
   import AgentsimServices._
@@ -72,7 +74,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
     val schedulerFuture = registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler]))
     schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
-    val routerFuture = registry ? Registry.Register("router", Props(classOf[R5Router], services))
+    val routerFuture = registry ? Registry.Register("router", Props(classOf[OpenTripPlannerRouter], services, beamConfig))
     beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
@@ -115,7 +117,7 @@ class Agentsim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
-    for ((k, v) <- popMap.take(beamConfig.beam.sim.numAgents)) {
+    for ((k, v) <- popMap.take(beamConfig.beam.agentsim.numAgents)) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan))
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)

@@ -13,7 +13,7 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.scenario.ScenarioUtils;
 
 public class Main_equil_bareBone {
-
+	@Deprecated // See beam.agentsim.sim.AgentsimServices
 	public static void main(String[] args) {
 		Config config = ConfigUtils.loadConfig(
 				"C:/Users/rwaraich/git/matsim_1/examples/scenarios/equil/config.xml");
