@@ -3,7 +3,6 @@ package beam.agentsim.routing.r5
 import java.io.File
 import java.nio.file.Files.{exists, isReadable}
 import java.nio.file.Paths.get
-import java.time.{Instant, ZonedDateTime}
 import java.util
 
 import akka.actor.Props
@@ -11,7 +10,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.routing.BeamRouter
-import beam.agentsim.routing.RoutingMessages._
+import beam.agentsim.routing.BeamRouter.RoutingResponse
 import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTime, BeamTrip, WindowTime}
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
@@ -51,14 +50,14 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
     transportNetwork.readOSM(mapdbFile)
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, person: Person) = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false) = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val plan = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime))
+    val plan = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, accessMode, considerTransit))
     buildResponse(plan)
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, isTransit: Boolean = false) : ProfileRequest = {
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
@@ -83,7 +82,9 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
     }
     profileRequest.accessModes = util.EnumSet.of(LegMode.WALK)
     profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
-    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
+
+    profileRequest.directModes = util.EnumSet.copyOf(accessMode.map(m => LegMode.valueOf(m.value)).asJavaCollection)
+//    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
 
     profileRequest
   }

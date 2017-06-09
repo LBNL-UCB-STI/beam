@@ -1,6 +1,5 @@
 package beam.playground.r5;
 
-import beam.agentsim.routing.RoutingModel;
 import com.conveyal.r5.api.ProfileResponse;
 import com.conveyal.r5.api.util.*;
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery;

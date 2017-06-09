@@ -3,8 +3,8 @@ package beam.agentsim.routing
 import java.util
 
 import akka.actor.{Actor, Props}
+import beam.agentsim.routing.BeamRouter.RoutingRequest
 import beam.agentsim.routing.DummyRouter.RoutingResponse
-import beam.agentsim.routing.RoutingMessages.RoutingRequest
 import beam.agentsim.routing.RoutingModel.DiscreteTime
 import beam.agentsim.sim.AgentsimServices
 import org.matsim.api.core.v01.population.{Person, PlanElement}
@@ -21,7 +21,7 @@ class DummyRouter(agentsimServices: AgentsimServices, val tripRouter: TripRouter
   }
 
   override def receive: Receive = {
-    case RoutingRequest(fromFacility, toFacility, departureTime, personId) =>
+    case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId, considerTransit) =>
       val person: Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val time = departureTime.asInstanceOf[DiscreteTime]
       sender() ! RoutingResponse(calcRoute(fromFacility, toFacility, time.atTime, person))

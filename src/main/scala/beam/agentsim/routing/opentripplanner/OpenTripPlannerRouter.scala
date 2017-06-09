@@ -11,15 +11,15 @@ import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.routing.BeamRouter
-import beam.agentsim.routing.RoutingMessages._
+import beam.agentsim.routing.BeamRouter.RoutingResponse
 import beam.agentsim.routing.RoutingModel._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import beam.agentsim.utils.GeoUtils._
 import com.google.inject.Inject
 import org.geotools.referencing.CRS
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.facilities.Facility
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
@@ -55,7 +55,7 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
 
   override def getPerson(personId: Id[PersonAgent]): Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 
-  override def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
+  override def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
@@ -86,8 +86,8 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
     request
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, person: Person): RoutingResponse = {
-    val drivingRequest = buildRequest(fromFacility, toFacility, departureTime)
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false): RoutingResponse = {
+    val drivingRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode, considerTransit)
 
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     var gpFinder = new GraphPathFinder(router.get)
@@ -102,7 +102,7 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
       //        log.error("TrivialPathException")
     }
 
-    val transitRequest = buildRequest(fromFacility, toFacility, departureTime, isTransit = true)
+    val transitRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode, isTransit = true)
 
     gpFinder = new GraphPathFinder(router.get)
     try {

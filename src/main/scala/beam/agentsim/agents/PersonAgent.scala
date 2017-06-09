@@ -8,12 +8,11 @@ import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
 import beam.agentsim.agents.TaxiAgent.DropOffCustomer
 import beam.agentsim.agents.TaxiManager.{ReserveTaxi, ReserveTaxiConfirmation, TaxiInquiry, TaxiInquiryResponse}
-import beam.agentsim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
-import beam.agentsim.routing.RoutingMessages.{RoutingRequest, RoutingResponse}
+import beam.agentsim.routing.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip, DiscreteTime}
 import beam.utils.DebugLib
 import com.google.inject.Inject
@@ -264,7 +263,7 @@ class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ ${tick}")
-          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, DiscreteTime(tick.toInt), id)).mapTo[RoutingResponse] map { result =>
+          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, DiscreteTime(tick.toInt), Vector(BeamMode.WAITING, BeamMode.BIKE), id)).mapTo[RoutingResponse] map { result =>
             val theRoute = result.itinerary
             RouteResponseWrapper(tick, triggerId, theRoute)
           } pipeTo self
