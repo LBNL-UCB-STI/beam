@@ -50,4 +50,16 @@ object RoutingModel {
   }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
+
+  /**
+    * Represent the time in seconds since midnight.
+    * @param atTime seconds since midnight
+    */
+  abstract class BeamTime(atTime: Int)
+  case class DiscreteTime(atTime: Int) extends BeamTime(atTime)
+  case class WindowTime(atTime: Int, timeFrame: Int) extends BeamTime(atTime) {
+    lazy val fromTime: Int = atTime - (timeFrame/2) -(timeFrame%2)
+    lazy val toTime: Int = atTime + (timeFrame/2)
+  }
+
 }

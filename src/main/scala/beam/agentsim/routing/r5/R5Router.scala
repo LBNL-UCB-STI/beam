@@ -3,6 +3,7 @@ package beam.agentsim.routing.r5
 import java.io.File
 import java.nio.file.Files.{exists, isReadable}
 import java.nio.file.Paths.get
+import java.time.{Instant, ZonedDateTime}
 import java.util
 
 import akka.actor.Props
@@ -11,7 +12,7 @@ import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.RoutingMessages._
-import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip}
+import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTime, BeamTrip, WindowTime}
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import com.conveyal.r5.api.ProfileResponse
@@ -50,14 +51,14 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
     transportNetwork.readOSM(mapdbFile)
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person) = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, person: Person) = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val plan = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime))
     buildResponse(plan)
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false) : ProfileRequest = {
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, isTransit: Boolean = false) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
@@ -71,8 +72,12 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
     profileRequest.toLon = toPosTransformed.getY
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
-    //TODO: time need to get from request
-    profileRequest.setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
+
+    //setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
+    val time = departureTime.asInstanceOf[WindowTime]
+    profileRequest.fromTime = time.fromTime
+    profileRequest.toTime = time.toTime
+
     if(isTransit) {
       profileRequest.transitModes = util.EnumSet.of(TransitModes.TRANSIT, TransitModes.BUS, TransitModes.SUBWAY, TransitModes.RAIL)
     }

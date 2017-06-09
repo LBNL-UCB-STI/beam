@@ -3,7 +3,7 @@ package beam.agentsim.routing
 import akka.actor.{Actor, ActorLogging}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.routing.RoutingMessages.{InitializeRouter, RouterInitialized, RoutingRequest, RoutingResponse}
-import org.geotools.referencing.CRS
+import beam.agentsim.routing.RoutingModel.BeamTime
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
@@ -30,9 +30,9 @@ trait BeamRouter extends Actor with ActorLogging {
 
   def loadMap
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false) : Any
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, isTransit: Boolean = false) : Any
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, person: Person): RoutingResponse
 
   def getPerson(personId: Id[PersonAgent]): Person
 }

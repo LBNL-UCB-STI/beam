@@ -55,14 +55,15 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
 
   override def getPerson(personId: Id[PersonAgent]): Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 
-  override def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
+  override def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
     val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
-    request.dateTime = baseTime + departureTime.toLong % (24L * 3600L)
+    val time = departureTime.asInstanceOf[DiscreteTime]
+    request.dateTime = baseTime + time.atTime
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
     request.clearModes()
@@ -85,7 +86,7 @@ class OpenTripPlannerRouter @Inject() (agentsimServices: AgentsimServices, beamC
     request
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: Double, person: Person): RoutingResponse = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, person: Person): RoutingResponse = {
     val drivingRequest = buildRequest(fromFacility, toFacility, departureTime)
 
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()

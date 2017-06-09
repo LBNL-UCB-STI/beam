@@ -14,7 +14,7 @@ import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.routing.RoutingMessages.{RoutingRequest, RoutingResponse}
-import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip}
+import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTrip, DiscreteTime}
 import beam.utils.DebugLib
 import com.google.inject.Inject
 import glokka.Registry
@@ -264,7 +264,7 @@ class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ ${tick}")
-          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick, id)).mapTo[RoutingResponse] map { result =>
+          val routerFuture = (beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, DiscreteTime(tick.toInt), id)).mapTo[RoutingResponse] map { result =>
             val theRoute = result.itinerary
             RouteResponseWrapper(tick, triggerId, theRoute)
           } pipeTo self
