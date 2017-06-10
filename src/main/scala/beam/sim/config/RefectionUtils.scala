@@ -1,4 +1,4 @@
-package beam.agentsim.config
+package beam.sim.config
 
 import java.lang.reflect.Modifier.{isAbstract, isInterface}
 

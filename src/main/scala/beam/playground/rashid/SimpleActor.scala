@@ -1,4 +1,4 @@
-package beam.agentsim.playground.rashid
+package beam.playground.rashid
 
 import akka.actor.{Actor, ActorSystem, Props}
 

@@ -1,4 +1,4 @@
-package beam.agentsim.utils
+package beam.utils
 
 import java.io.{ByteArrayInputStream, File}
 import java.text.SimpleDateFormat

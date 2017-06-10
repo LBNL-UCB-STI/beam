@@ -1,10 +1,10 @@
-package beam.agentsim.config
+package beam.sim.config
 
 import java.io.File
 import java.net.URI
 import java.nio.file.{Files, Paths}
 
-import beam.agentsim.config.ConfigModule.{BeamConfigProvider, ConfigProvider}
+import beam.sim.config.ConfigModule.{BeamConfigProvider, ConfigProvider}
 import com.google.inject.{AbstractModule, Inject, Provider}
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import net.codingwell.scalaguice.ScalaModule

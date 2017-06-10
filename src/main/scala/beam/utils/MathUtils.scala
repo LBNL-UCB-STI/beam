@@ -1,4 +1,4 @@
-package beam.agentsim.utils
+package beam.utils
 
 /**
   * Created by sfeygin on 4/10/17.

@@ -1,6 +1,6 @@
-package beam.agentsim.utils.scripts
+package beam.utils.scripts
 
-import beam.agentsim.utils.JsonUtils
+import beam.utils.JsonUtils
 
 /**
   * Created by sfeygin on 3/28/17.

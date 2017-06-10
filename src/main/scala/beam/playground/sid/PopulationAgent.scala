@@ -1,10 +1,10 @@
-package beam.agentsim.playground.sid
+package beam.playground.sid
 
 import akka.actor.SupervisorStrategy.{Restart, Resume, Stop}
 import akka.actor.{Actor, OneForOneStrategy}
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.playground.sid.BeamExceptions.{BeamAgentRestartException, BeamAgentResumeException, BeamAgentStopException}
-import beam.agentsim.playground.sid.PopulationAgent.PopulationAgentProtocol.CreateChildAgent
+import beam.playground.sid.BeamExceptions.{BeamAgentRestartException, BeamAgentResumeException, BeamAgentStopException}
+import beam.playground.sid.PopulationAgent.PopulationAgentProtocol.CreateChildAgent
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 

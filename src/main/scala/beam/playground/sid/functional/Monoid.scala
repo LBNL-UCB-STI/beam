@@ -1,4 +1,4 @@
-package beam.agentsim.playground.sid.functional
+package beam.playground.sid.functional
 
 /**
   * Created by sfeygin on 4/10/17.

@@ -1,4 +1,4 @@
-package beam.agentsim.utils
+package beam.utils
 
 import beam.router.RoutingModel.{BeamGraphPath, BeamLeg}
 import io.circe.{Encoder, Json, JsonObject}

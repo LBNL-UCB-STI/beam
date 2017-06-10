@@ -1,4 +1,4 @@
-package beam.agentsim.utils
+package beam.utils
 
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation

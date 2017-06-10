@@ -1,4 +1,4 @@
-package beam.agentsim.playground.rashid.physicalSim.jdeqsim.oneZone
+package beam.playground.rashid.physicalSim.jdeqsim.oneZone
 
 import akka.actor.{Actor, ActorSystem, Props}
 import org.matsim.core.config.ConfigUtils

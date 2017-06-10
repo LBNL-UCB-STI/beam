@@ -1,4 +1,4 @@
-package beam.agentsim.playground.sid.functional
+package beam.playground.sid.functional
 
 import scala.language.higherKinds
 
