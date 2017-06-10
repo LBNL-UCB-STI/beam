@@ -4,6 +4,7 @@ import java.lang.Double
 
 import akka.actor.{Actor, ActorRef}
 import akka.event.Logging
+import beam.agentsim.scheduler.BeamAgentScheduler._
 import com.google.common.collect.TreeMultimap
 
 import scala.collection.mutable
@@ -15,6 +16,20 @@ object BeamAgentScheduler {
   case class CompletionNotice(id: Long, newTriggers: Vector[ScheduleTrigger] = Vector[ScheduleTrigger]()) extends SchedulerMessage
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage{
 //    require(trigger.tick>=0, "Negative ticks not supported!")
+  }
+  case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef, priority: Int) extends Ordered[ScheduledTrigger] {
+    // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
+    //   smaller tick => then higher priority value => then lower triggerId
+    def compare(that: ScheduledTrigger): Int =
+    that.triggerWithId.trigger.tick compare triggerWithId.trigger.tick match {
+      case 0 =>
+        priority compare that.priority match {
+          case 0 =>
+            that.triggerWithId.triggerId compare triggerWithId.triggerId
+          case c => c
+        }
+      case c => c
+    }
   }
 }
 
@@ -28,7 +43,7 @@ class BeamAgentScheduler extends Actor {
   var maxWindow: Double = 0.0
   var startSender: ActorRef = self
 
-  def scheduleTrigger(triggerToSchedule: ScheduledTrigger): Unit = {
+  def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
     val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
     triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority ))
@@ -73,25 +88,11 @@ class BeamAgentScheduler extends Actor {
 //      log.info(s"recieved notice that trigger id: $id is complete")
       awaitingResponse.remove(triggerIdToTick(id), id)
       triggerIdToTick -= id
-      newTriggers.foreach {scheduleTrigger}
+      newTriggers.foreach{scheduleTrigger}
 
     case triggerToSchedule: ScheduleTrigger => scheduleTrigger(triggerToSchedule)
 
     case msg => log.info(s"received unknown message: $msg")
   }
 
-  case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef, priority: Int) extends Ordered[ScheduledTrigger] {
-    // Compare is on 3 levels with higher priority (i.e. front of the queue) for:
-    //   smaller tick => then higher priority value => then lower triggerId
-    def compare(that: ScheduledTrigger): Int =
-    that.triggerWithId.trigger.tick compare triggerWithId.trigger.tick match {
-      case 0 =>
-        priority compare that.priority match {
-          case 0 =>
-            that.triggerWithId.triggerId compare triggerWithId.triggerId
-          case c => c
-        }
-      case c => c
-    }
-  }
 }

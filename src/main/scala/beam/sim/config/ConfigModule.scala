@@ -23,7 +23,7 @@ object ConfigModule {
   var ConfigFileName: Option[String] = None
   private val logger: Logger = LoggerFactory.getLogger(ConfigModule.getClass)
 
-  protected [agentsim] lazy val typesafeConfig: TypesafeConfig = {
+  protected [sim] lazy val typesafeConfig: TypesafeConfig = {
 
     val inputDir = Option(System.getenv().get("BEAM_SHARED_INPUTS"))
     val config = ConfigFileName match {
