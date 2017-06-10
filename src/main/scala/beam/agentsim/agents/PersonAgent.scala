@@ -13,8 +13,8 @@ import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
-import beam.router.RoutingModel.{BeamLeg, BeamTrip}
 import beam.router.RoutingMessages.{RoutingRequest, RoutingResponse}
+import beam.router.RoutingModel.{BeamLeg, BeamTrip}
 import beam.sim.BeamServices
 import beam.utils.DebugLib
 import com.google.inject.Inject
@@ -232,6 +232,7 @@ object PersonAgent {
 class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data: PersonData, val services: BeamServices) extends BeamAgent[PersonData] {
 
   import akka.pattern.{ask, pipe}
+  import beam.sim.BeamServices._
 
 
   private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
@@ -489,7 +490,7 @@ class PersonAgent @Inject() (override val id: Id[PersonAgent], override val data
    * Helper methods
    */
   def logInfo(msg: String): Unit = {
-//    log.info(s"PersonAgent $id: $msg")
+    //    log.info(s"PersonAgent $id: $msg")
   }
 
   def logWarn(msg: String): Unit = {
