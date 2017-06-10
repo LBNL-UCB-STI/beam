@@ -48,9 +48,9 @@ public class TripPlanner {
         if (parms != null && parms.length > 0) {
             // first preference, command line arguments also allow to override configuration for a run.
             networkDir = parms[0];
-        } else { //TODO: second preference, configuration file - need to itegrate with @BeamConfig after discussion with @Colin
+        } else { //TODO: second preference, configuration file - need to integrate with @BeamConfig after discussion with @Colin
             //last preference, if nither of the above are defined then go with some default burned option
-            networkDir = Paths.get(System.getProperty("user.home"),"beam", "network").toString();
+            networkDir = Paths.get(System.getProperty("user.home"),"beam", "output").toString();
         }
 
         loadGraph(networkDir);
@@ -239,7 +239,6 @@ public class TripPlanner {
 
     private static String convertIntToTimeFormat(final int timeInSeconds) {
 
-//        long longVal = timeInSeconds.longValue();
         int hours = timeInSeconds / 3600;
         int remainder = timeInSeconds % 3600;
         int mins = remainder / 60;
@@ -247,11 +246,5 @@ public class TripPlanner {
         int secs = remainder;
 
         return String.format("%02d:%02d:%02d", hours, mins, secs);
-
-//        long hours = TimeUnit.SECONDS.toHours(timeInSeconds);
-//        long remainMinute = timeInSeconds - TimeUnit.HOURS.toMinutes(hours);
-//        long remainSeconds = timeInSeconds - TimeUnit.MINUTES.toSeconds(remainMinute);
-//        String result = String.format("%02d", hours) + ":" + String.format("%02d", remainMinute)+ ":" + String.format("%02d", remainSeconds);
-//        return result;
     }
 }
