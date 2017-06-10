@@ -1,4 +1,4 @@
-package beam.agentsim.core
+package beam.router
 
 import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode

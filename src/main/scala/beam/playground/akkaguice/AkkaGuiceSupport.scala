@@ -1,4 +1,4 @@
-package beam.agentsim.akkaguice
+package beam.playground.akkaguice
 
 import java.lang.reflect.Method
 

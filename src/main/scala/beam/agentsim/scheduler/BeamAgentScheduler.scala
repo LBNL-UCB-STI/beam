@@ -28,7 +28,7 @@ class BeamAgentScheduler extends Actor {
   var maxWindow: Double = 0.0
   var startSender: ActorRef = self
 
-  def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
+  def scheduleTrigger(triggerToSchedule: ScheduledTrigger): Unit = {
     this.idCount += 1
     val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
     triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority ))
