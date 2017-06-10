@@ -8,9 +8,10 @@ import akka.pattern.ask
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Initialized
-import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.events.{AgentsimEventsBus, EventsSubscriber}
+import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.router.RoutingModel.BeamTrip
 import beam.sim.BeamServices
 import glokka.Registry

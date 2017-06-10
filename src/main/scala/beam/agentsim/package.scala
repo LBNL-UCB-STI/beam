@@ -9,12 +9,8 @@ import org.matsim.api.core.v01.population.Person
   */
 package object agentsim {
 
-  val SimName: String = "sf-bay"
-
   implicit def personId2PersonAgentId(id: Id[Person]): Id[PersonAgent] = Id.create(id, classOf[PersonAgent])
 
   implicit def personAgentId2PersonId(id: Id[PersonAgent]): Id[Person] = Id.createPersonId(id)
-
-
 
 }

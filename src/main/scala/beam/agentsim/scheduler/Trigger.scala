@@ -1,5 +1,4 @@
-package beam.agentsim.agents
-
+package beam.agentsim.scheduler
 
 trait Trigger {
   def tick: Double

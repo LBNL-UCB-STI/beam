@@ -1,7 +1,7 @@
 package beam.router
 
-import beam.agentsim.core.Modes.BeamMode
-import beam.agentsim.core.Modes.BeamMode.{CAR, TRANSIT, WALK}
+import Modes.BeamMode
+import Modes.BeamMode.{CAR, TRANSIT, WALK}
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.Coord
 

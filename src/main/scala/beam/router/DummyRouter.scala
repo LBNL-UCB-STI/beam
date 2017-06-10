@@ -1,7 +1,7 @@
 package beam.router
 
 import akka.actor.Props
-import beam.agentsim.core.Modes.BeamMode
+import Modes.BeamMode
 import beam.sim.BeamServices
 import beam.router.RoutingMessages._
 import beam.router.RoutingModel.{BeamGraphPath, BeamLeg, BeamTrip}

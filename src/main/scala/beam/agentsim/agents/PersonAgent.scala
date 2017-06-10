@@ -4,15 +4,16 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.BeamAgentScheduler._
+import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
 import beam.agentsim.agents.TaxiAgent.DropOffCustomer
 import beam.agentsim.agents.TaxiManager.{ReserveTaxi, ReserveTaxiConfirmation, TaxiInquiry, TaxiInquiryResponse}
 import beam.sim.config.{BeamConfig, ConfigModule}
-import beam.agentsim.core.Modes.BeamMode
-import beam.agentsim.core.Modes.BeamMode._
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
+import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingMessages.{RoutingRequest, RoutingResponse}
 import beam.router.RoutingModel.{BeamLeg, BeamTrip}
 import beam.sim.BeamServices

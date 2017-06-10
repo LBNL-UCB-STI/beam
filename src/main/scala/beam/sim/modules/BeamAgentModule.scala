@@ -1,7 +1,7 @@
 package beam.sim.modules
 
 import akka.actor.ActorSystem
-import beam.agentsim.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
+import beam.playground.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
 import beam.sim.BeamServices
 import beam.sim.modules.BeamAgentModule.ActorSystemProvider
 import com.google.inject.{AbstractModule, Inject, Injector, Provider}

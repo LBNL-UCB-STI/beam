@@ -1,8 +1,8 @@
 package beam.router
 
 import akka.actor.Actor
-import beam.agentsim.core.Modes.BeamMode
-import beam.agentsim.core.Modes.BeamMode._
+import Modes.BeamMode
+import Modes.BeamMode._
 import beam.agentsim.events.SpaceTime
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord

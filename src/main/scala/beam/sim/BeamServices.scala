@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.{ActorRef, ActorSystem}
-import beam.agentsim.akkaguice.ActorInject
+import beam.playground.akkaguice.ActorInject
 import beam.sim.config.{BeamConfig }
 import beam.agentsim.events.AgentsimEventsBus
 import beam.router.BoundingBox
