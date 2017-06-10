@@ -1,6 +1,6 @@
 package beam.agentsim.events;
 
-import beam.agentsim.config.BeamConfig;
+import beam.sim.config.BeamConfig;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.matsim.core.api.experimental.events.EventsManager;

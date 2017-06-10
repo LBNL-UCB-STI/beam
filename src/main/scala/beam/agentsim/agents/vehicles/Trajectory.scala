@@ -1,7 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.Trajectory._
-import beam.agentsim.config.ConfigModule._
+import beam.sim.config.ConfigModule._
 import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel.BeamGraphPath
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator

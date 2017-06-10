@@ -1,7 +1,6 @@
 package beam.gtfs;
 
-import beam.agentsim.config.BeamConfig;
-import com.typesafe.config.ConfigFactory;
+import beam.sim.config.BeamConfig;
 import org.apache.log4j.Logger;
 import org.matsim.core.utils.io.IOUtils;
 import org.supercsv.io.CsvMapReader;

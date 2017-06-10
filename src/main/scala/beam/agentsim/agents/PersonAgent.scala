@@ -8,7 +8,7 @@ import beam.agentsim.agents.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
 import beam.agentsim.agents.TaxiAgent.DropOffCustomer
 import beam.agentsim.agents.TaxiManager.{ReserveTaxi, ReserveTaxiConfirmation, TaxiInquiry, TaxiInquiryResponse}
-import beam.agentsim.config.{BeamConfig, ConfigModule}
+import beam.sim.config.{BeamConfig, ConfigModule}
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.core.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent

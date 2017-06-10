@@ -12,8 +12,8 @@
 //import beam.agentsim.routing.RoutingMessages._
 //import beam.agentsim.routing.RoutingModel._
 //import beam.agentsim.sim.AgentsimServices
-//import beam.agentsim.utils.GeoUtils
-//import beam.agentsim.utils.GeoUtils._
+//import beam.utils.GeoUtils
+//import beam.utils.GeoUtils._
 //import beam.router.BeamRouter
 //import beam.sim.BeamServices
 //import org.geotools.referencing.CRS

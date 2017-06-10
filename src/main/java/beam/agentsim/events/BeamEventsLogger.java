@@ -1,6 +1,6 @@
 package beam.agentsim.events;
 
-import beam.agentsim.config.BeamConfig;
+import beam.sim.config.BeamConfig;
 import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.controler.MatsimServices;

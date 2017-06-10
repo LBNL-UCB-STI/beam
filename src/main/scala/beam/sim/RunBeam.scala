@@ -1,10 +1,10 @@
 package beam.sim
 
-import beam.agentsim.config.{ConfigModule}
+import beam.sim.config.{ConfigModule}
 import beam.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.agentsim.controler.BeamControler
-import beam.agentsim.utils.FileUtils
+import beam.utils.FileUtils
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}

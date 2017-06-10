@@ -3,7 +3,7 @@ package beam.agentsim.events
 import java.util
 
 import beam.router.RoutingModel.BeamLeg
-import beam.agentsim.utils.JsonUtils.syntax._
+import beam.utils.JsonUtils.syntax._
 import io.circe.syntax._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event

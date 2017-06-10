@@ -1,5 +1,5 @@
 
-import beam.agentsim.utils.GeoUtils
+import beam.utils.GeoUtils
 import org.geotools.geometry.DirectPosition2D
 import org.matsim.api.core.v01.Coord
 
