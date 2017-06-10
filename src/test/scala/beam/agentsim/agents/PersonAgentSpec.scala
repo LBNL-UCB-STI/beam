@@ -11,7 +11,7 @@ import beam.agentsim.agents.BeamAgent.Initialized
 import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.events.{AgentsimEventsBus, EventsSubscriber}
-import beam.agentsim.routing.RoutingModel.BeamTrip
+import beam.router.RoutingModel.BeamTrip
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
