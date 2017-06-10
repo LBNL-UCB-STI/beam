@@ -1,6 +1,6 @@
-package beam.network;
+package beam.playground.r5;
 
-import beam.playground.point2point.NetworkBuilder;
+import beam.playground.r5.NetworkBuilder;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -24,7 +24,7 @@ public class NetworkBuilderTest {
     private static final String OUTPUT_FILES_DIRECTORY = "C:\\Users\\ahmar_000\\beam\\output";
 
     @BeforeClass
-    public static void setup(){
+    public static void beforeClass(){
         builderMain = new NetworkBuilder();
     }
 
