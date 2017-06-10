@@ -2,8 +2,8 @@ package beam.sim
 
 import beam.sim.config.{ConfigModule}
 import beam.sim.modules.{AgentsimModule, BeamAgentModule}
-import beam.agentsim.controler.corelisteners.BeamControllerCoreListenersModule
-import beam.agentsim.controler.BeamControler
+import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
+import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim

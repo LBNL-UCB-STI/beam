@@ -1,4 +1,4 @@
-package beam.agentsim.controler;
+package beam.sim.controler;
 /* *********************************************************************** *
  * project: org.matsim.*
  * Controler.java
