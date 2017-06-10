@@ -1,4 +1,4 @@
-package beam.gtfs;
+package beam.utils.gtfs;
 
 import java.io.File;
 import java.util.function.BiFunction;

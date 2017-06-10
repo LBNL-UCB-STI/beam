@@ -18,7 +18,7 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.agentsim.controler.corelisteners;
+package beam.sim.controler.corelisteners;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;

@@ -1,4 +1,4 @@
-package beam.agentsim.controler.corelisteners;
+package beam.sim.controler.corelisteners;
 
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.corelisteners.DumpDataAtEnd;

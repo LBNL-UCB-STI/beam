@@ -1,4 +1,4 @@
-package beam.gtfs;
+package beam.utils.gtfs;
 
 import java.io.*;
 import java.util.zip.ZipEntry;

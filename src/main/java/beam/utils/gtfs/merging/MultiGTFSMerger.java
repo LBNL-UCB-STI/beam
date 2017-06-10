@@ -1,6 +1,6 @@
-package beam.gtfs.merging;
+package beam.utils.gtfs.merging;
 
-import beam.gtfs.OperatorDataUtility;
+import beam.utils.gtfs.OperatorDataUtility;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.NetworkWriter;
 import org.matsim.core.config.ConfigUtils;
@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static beam.gtfs.SFBayPT2MATSim.BEAM_CONFIG;
+import static beam.utils.gtfs.SFBayPT2MATSim.BEAM_CONFIG;
 
 
 /**

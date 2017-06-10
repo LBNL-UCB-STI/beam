@@ -1,4 +1,4 @@
-package beam.gtfs;
+package beam.utils.gtfs;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;

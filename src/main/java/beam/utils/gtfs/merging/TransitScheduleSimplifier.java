@@ -1,4 +1,4 @@
-package beam.gtfs.merging;
+package beam.utils.gtfs.merging;
 
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;

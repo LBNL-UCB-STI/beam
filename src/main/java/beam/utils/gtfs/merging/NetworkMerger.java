@@ -19,7 +19,7 @@
  * *********************************************************************** *
  */
 
-package beam.gtfs.merging;
+package beam.utils.gtfs.merging;
 
 import com.google.common.collect.Sets;
 import org.apache.log4j.Logger;

@@ -1,4 +1,4 @@
-package beam.gtfs;
+package beam.utils.gtfs;
 
 import beam.sim.config.BeamConfig;
 import beam.sim.config.ConfigModule;
@@ -10,8 +10,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
-import static beam.gtfs.GtfsFunctions.isFilePresent;
-import static beam.gtfs.GtfsFunctions.opNameToPath;
+import static beam.utils.gtfs.GtfsFunctions.isFilePresent;
+import static beam.utils.gtfs.GtfsFunctions.opNameToPath;
 
 //import org.matsim.pt2matsim.config.CreateDefaultConfig;
 //import org.matsim.pt2matsim.config.PublicTransitMappingConfigGroup;

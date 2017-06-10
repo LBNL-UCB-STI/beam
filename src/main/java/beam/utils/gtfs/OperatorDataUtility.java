@@ -1,4 +1,4 @@
-package beam.gtfs;
+package beam.utils.gtfs;
 
 import beam.sim.config.BeamConfig;
 import org.apache.log4j.Logger;
