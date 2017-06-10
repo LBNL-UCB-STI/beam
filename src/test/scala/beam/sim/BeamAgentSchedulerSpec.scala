@@ -6,7 +6,8 @@ import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents._
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
+import beam.agentsim.scheduler.BeamAgentScheduler._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.scalatest.Matchers._
