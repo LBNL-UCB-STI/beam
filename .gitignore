@@ -17,3 +17,6 @@ out/
 beam.ipr
 beam.iws
 docs/_build
+population-500.xml
+/test/input/beam/sf-bay/model-inputs/otp/graphs
+/src/main/scala/beam/agentsim/config/BeamConfig.scala

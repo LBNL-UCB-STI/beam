@@ -1,0 +1,35 @@
+@startuml
+scale 300 height
+
+' See this page for diagram conventions:
+' http://plantuml.com/class-diagram
+
+/'
+NOTES:
+ '/
+
+class ResourceManager{
+  resources: List[T<:BeamAgents]
+  users: List[T<:BeamAgents]
+  authenticate(user): Boolean
+}
+
+class Household{
+  resources: List[VehicleAgent]
+  users: List[PersonAgent]
+}
+class TransportationNetworkCompany {
+  resources: List[VehicleAgent]
+  users: List[PersonAgent]
+}
+class ChargingNetwork{
+  resources: List[Chargers]
+  users: List[PersonAgent]
+}
+
+ResourceManager <|-- Household : extends
+ResourceManager <|-- TransportationNetworkCompany : extends
+ResourceManager <|-- ChargingNetwork : extends
+
+
+@enduml

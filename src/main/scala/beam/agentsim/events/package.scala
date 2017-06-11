@@ -1,6 +1,6 @@
 package beam.agentsim
 
-import beam.agentsim.utils.MathUtils
+import beam.utils.MathUtils
 import io.circe.{Encoder, Json}
 import org.matsim.api.core.v01.Coord
 
