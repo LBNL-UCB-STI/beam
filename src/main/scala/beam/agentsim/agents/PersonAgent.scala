@@ -41,9 +41,9 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  type ChoiceCalculator = (Vector[BeamTrip], Vector[Double]) => BeamTrip
+  type ChoiceCalculator = (Vector[BeamTrip]) => BeamTrip
 
-  def mnlChoice(alternatives: Vector[BeamTrip], taxiAlternatives: Vector[Double]): BeamTrip = {
+  def mnlChoice(alternatives: Vector[BeamTrip]): BeamTrip = {
     var alternativesWithTaxi = Vector[BeamTrip]()
     alternativesWithTaxi = alternativesWithTaxi ++ alternatives
     var containsDriveAlt = -1
@@ -64,18 +64,18 @@ object PersonAgent {
       }
       (altMode, travelTime)
     }
-    if (containsDriveAlt >= 0 && taxiAlternatives.nonEmpty) {
-      //TODO replace magic number here (5 minute wait time) with calculated wait time
-      val minTimeToCustomer = taxiAlternatives.foldLeft(Double.PositiveInfinity)((r, c) => if (c < r) {
-        c
-      } else r)
-      altModesAndTimes = altModesAndTimes :+ (TAXI, (for (alt <- altModesAndTimes if alt._1.equals(CAR)) yield alt._2 + minTimeToCustomer).head)
-      alternativesWithTaxi = alternativesWithTaxi :+ BeamTrip(alternatives(containsDriveAlt).legs.map(leg => leg.copy(mode = if (leg.mode.equals(CAR)) {
-        TAXI
-      } else {
-        leg.mode
-      })))
-    }
+//    if (containsDriveAlt >= 0 && taxiAlternatives.nonEmpty) {
+//      //TODO replace magic number here (5 minute wait time) with calculated wait time
+//      val minTimeToCustomer = taxiAlternatives.foldLeft(Double.PositiveInfinity)((r, c) => if (c < r) {
+//        c
+//      } else r)
+//      altModesAndTimes = altModesAndTimes :+ (TAXI, (for (alt <- altModesAndTimes if alt._1.equals(CAR)) yield alt._2 + minTimeToCustomer).head)
+//      alternativesWithTaxi = alternativesWithTaxi :+ BeamTrip(alternatives(containsDriveAlt).legs.map(leg => leg.copy(mode = if (leg.mode.equals(CAR)) {
+//        TAXI
+//      } else {
+//        leg.mode
+//      })))
+//    }
     val altUtilities = for (alt <- altModesAndTimes) yield altUtility(alt._1, alt._2)
     val sumExpUtilities = altUtilities.foldLeft(0.0)(_ + math.exp(_))
     val altProbabilities = for (util <- altUtilities) yield math.exp(util) / sumExpUtilities
@@ -90,12 +90,9 @@ object PersonAgent {
     intercept + -0.001 * travelTime
   }
 
-  def randomChoice(alternatives: Vector[BeamTrip], taxiAlternatives: Vector[ActorRef]): BeamTrip = {
+  def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = {
     Random.shuffle(alternatives.toList).head
   }
-
-
-  def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = Random.shuffle(alternatives.toList).head
 
   // syntactic sugar for props creation
   def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices) = Props(new PersonAgent(personId, personData, services))
@@ -104,7 +101,6 @@ object PersonAgent {
   // PersonData Begin... //
   /////////////////////////////
   object PersonData {
-
     import scala.collection.JavaConverters._
 
     /**
@@ -125,7 +121,7 @@ object PersonAgent {
     implicit def plan2PersonData(plan: Plan): PersonData = PersonData(plan)
 
     def defaultPersonData(vector: Vector[Activity]):PersonData = {
-      PersonData(vector, 0, BeamTrip.noneTrip, Vector[BeamTrip](), Vector[Double](), mnlChoice, None)
+      PersonData(vector, 0, BeamTrip.noneTrip, Vector[BeamTrip](),  mnlChoice, None)
     }
 
   }
@@ -235,11 +231,12 @@ object PersonAgent {
 
 }
 
-class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with
-  CanUseTaxi with TriggerShortcuts {
+class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData, val beamServices: BeamServices) extends BeamAgent[PersonData] with
+  CanUseTaxi with TriggerShortcuts with HasServices {
+
+  override var services: BeamServices = beamServices
 
   import akka.pattern.{ask, pipe}
-  import beam.sim.BeamServices._
 
   override def registerBehaviors(behaviors: Map[BeamAgentState,StateFunction]): Map[BeamAgentState,StateFunction] = {
     super.registerBehaviors(behaviors)
@@ -249,7 +246,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     Initialized -> {
       case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
         val currentActivity = info.data.currentActivity
-        agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
+        services.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
         // Since this is the first activity of the day, we don't increment the currentActivityIndex
         logInfo(s"starting at ${currentActivity.getType}")
         goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime,self))
@@ -298,7 +295,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         logError("going to Error b/c empty route received")
         goto(Error) replying CompletionNotice(triggerId)
       } else {
-        val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives, info.data.taxiAlternatives)
+        val tripChoice: BeamTrip = info.data.choiceCalculator(info.data.currentAlternatives)
         val procData = procStateData(tripChoice, tick)
         // Here, we actually need to do an extra step of look-ahead to get the correct (non-walk) mode
         val restTrip = procData.restTrip
@@ -343,7 +340,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       taxi match {
         case Some(theTaxi) =>
           services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, CAR.matsimMode)))
-          services.schedulerRef ! completed(triggerId, schedule[PersonEntersTaxiTrigger](tick + timeToCustomer))
+          services.schedulerRef ! completed(triggerId, schedule[PersonEntersTaxiTrigger](tick + timeToCustomer, self))
           goto(Walking) using BeamAgentInfo(id, info.data.copy(currentRoute = tripChoice, currentVehicle = taxi))
         case None =>
           logError(s"going to Error on trigger $triggerId in ChoosingMode due to no taxi")
@@ -388,7 +385,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       logInfo(s"arrived at ${nextAct.getType} at $arrivalTime")
       // Agent should arrive before next activity ends, schedule trigger accordingly
       val actEndTriggerTime = Math.max(tick + minActDuration, nextAct.getEndTime)
-      services.schedulerRef ! completed(triggerId, schedule[ActivityEndTrigger](actEndTriggerTime))
+      services.schedulerRef ! completed(triggerId, schedule[ActivityEndTrigger](actEndTriggerTime, self))
       goto(PerformingActivity) using stateData.copy(id, info.data.copy(currentActivityIndex = info.data.currentActivityIndex + 1))
   }
 

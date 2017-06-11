@@ -1,7 +1,8 @@
 package beam.agentsim.agents
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.Trigger
 
 /**
   * BEAM

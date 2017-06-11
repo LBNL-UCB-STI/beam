@@ -1,16 +1,14 @@
 package beam.agentsim.agents
 
-import akka.actor.{ActorRef, FSM}
+import akka.actor.ActorRef
 import beam.agentsim.agents.BeamAgent.{BeamAgentInfo, BeamAgentState}
 import beam.agentsim.agents.PersonAgent.{PersonData, RouteResponseWrapper}
-import beam.agentsim.routing.opentripplanner.OpenTripPlannerRouter.BeamTrip
 import BeamAgent._
 import PersonAgent._
-import beam.agentsim.agents.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
-import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.utils.DebugLib
-import org.matsim.api.core.v01.events.ActivityStartEvent
-import org.matsim.api.core.v01.Id
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.TriggerWithId
+import beam.agentsim.scheduler.Trigger
+import beam.router.RoutingModel.BeamTrip
 
 /**
   * BEAM
@@ -24,9 +22,7 @@ object CanUseTaxi{
 }
 trait CanUseTaxiData{
 }
-trait CanUseTaxi extends Behavior with TriggerShortcuts{
-  import beam.agentsim.sim.AgentsimServices._
-
+trait CanUseTaxi extends Behavior with TriggerShortcuts with HasServices{
   var taxiAlternatives: Vector[Double] = Vector[Double]()
 
   override def registerBehaviors(behaviors: Map[BeamAgentState,StateFunction]): Map[BeamAgentState,StateFunction] = {
@@ -50,8 +46,8 @@ trait CanUseTaxi extends Behavior with TriggerShortcuts{
       case Event(result: TaxiInquiryResponseWrapper, info: BeamAgentInfo[PersonData]) =>
         val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick, self))
         taxiAlternatives = result.timesToCustomer
-        schedulerRef ! completionNotice
-        goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives)
+        services.schedulerRef ! completionNotice
+        goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
     }
   )
 
