@@ -8,10 +8,12 @@ import akka.pattern.ask
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Initialized
-import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.events.EventsSubscriber
-import beam.agentsim.events.AgentsimEventsBus
+import beam.agentsim.events.{AgentsimEventsBus, EventsSubscriber}
+import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.router.RoutingModel.BeamTrip
+import beam.sim.BeamServices
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
@@ -34,15 +36,19 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   private val agentSimEventsBus = new AgentsimEventsBus
 
+  val services: BeamServices = ???
+
   describe("A PersonAgent FSM") {
 
     it("should allow scheduler to set the first activity") {
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
-      val data = PersonData(Vector(homeActivity))
+      val plan = PopulationUtils.getFactory.createPlan()
+      plan.addActivity(homeActivity)
+      val data = PersonData(plan)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -56,7 +62,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val registry = Registry.start(this.system, "actor-registry")
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val name = "0"
-      val data = PersonData(Vector(homeActivity))
+      val plan = PopulationUtils.getFactory.createPlan()
+      plan.addActivity(homeActivity)
+      val data = PersonData(plan)
       val props = Props(classOf[PersonAgent], Id.createPersonId(name), data)
       val future = registry ? Registry.Register(name, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
@@ -70,15 +78,16 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber1")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
-      agentSimEventsBus.subscribe(eventSubscriber, actEndDummy)
+      agentSimEventsBus.subscribe(eventSubscriber, ActivityEndEvent.EVENT_TYPE)
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setEndTime(28800)  // 8:00:00 AM
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
       workActivity.setEndTime(61200) //5:00:00 PM
-      val data = PersonData(Vector(homeActivity, workActivity))
+      val data = PersonData(Vector(homeActivity, workActivity),
+        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -94,13 +103,14 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber2")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
-      agentSimEventsBus.subscribe(eventSubscriber,actEndDummy)
+      agentSimEventsBus.subscribe(eventSubscriber,ActivityEndEvent.EVENT_TYPE)
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      val data = PersonData(Vector(homeActivity, workActivity,homeActivity))
+      val data = new PersonData(Vector(homeActivity, workActivity,homeActivity),
+        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)

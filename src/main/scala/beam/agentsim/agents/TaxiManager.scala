@@ -1,14 +1,14 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import beam.agentsim.agents.TaxiAgent.PickupCustomer
 import beam.agentsim.agents.TaxiManager._
-import org.slf4j.LoggerFactory
-import org.matsim.api.core.v01.Coord
-import org.matsim.core.utils.collections.QuadTree
-import beam.agentsim.sim.AgentsimServices._
+import beam.sim.BeamServices
 import org.geotools.geometry.DirectPosition2D
 import org.geotools.referencing.CRS
+import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.collections.QuadTree
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 
@@ -16,6 +16,8 @@ import scala.collection.mutable
   * BEAM
   */
 object TaxiManager {
+  def props(services: BeamServices) = Props(classOf[TaxiManager],services)
+
   val log = LoggerFactory.getLogger(classOf[TaxiManager])
   val taxiToCoord = new mutable.HashMap[ActorRef,Coord]()
 
@@ -29,12 +31,14 @@ object TaxiManager {
   case class RegisterTaxiUnavailable(ref: ActorRef, location: Coord )
   case object TaxiUnavailableAck
   case object TaxiAvailableAck
+
 }
-class TaxiManager extends Actor {
+class TaxiManager(theServices: BeamServices)  extends Actor {
   import scala.collection.JavaConverters._
+  val services = theServices
   val bbBuffer = 100000
   val travelTimeToCustomerInSecPerMeter = 0.075 // ~30 mph
-  val quadTree = new QuadTree[ActorRef](bbox.minX - bbBuffer,bbox.minY - bbBuffer,bbox.maxX + bbBuffer,bbox.maxY + bbBuffer)
+  val quadTree = new QuadTree[ActorRef](services.bbox.minX - bbBuffer,services.bbox.minY - bbBuffer,services.bbox.maxX + bbBuffer,services.bbox.maxY + bbBuffer)
   val transform = CRS.findMathTransform(CRS.decode("EPSG:4326", true), CRS.decode("EPSG:26910", true), false)
 
   override def receive: Receive = {
