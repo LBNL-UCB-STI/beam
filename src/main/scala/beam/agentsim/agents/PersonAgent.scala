@@ -98,7 +98,7 @@ object PersonAgent {
   def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = Random.shuffle(alternatives.toList).head
 
   // syntactic sugar for props creation
-  def props(personId: Id[PersonAgent], personData: PersonData) = Props(new PersonAgent(personId, personData))
+  def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices) = Props(new PersonAgent(personId, personData, services))
 
   //////////////////////////////
   // PersonData Begin... //
