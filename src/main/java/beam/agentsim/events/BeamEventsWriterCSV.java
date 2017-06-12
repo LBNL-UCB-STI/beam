@@ -1,6 +1,6 @@
 package beam.agentsim.events;
 
-import beam.agentsim.sim.AgentsimServices;
+import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import beam.utils.IntegerValueHashMap;
 import org.matsim.api.core.v01.events.Event;
@@ -17,7 +17,7 @@ import java.util.Map;
 public class BeamEventsWriterCSV extends BeamEventsWriterBase{
     IntegerValueHashMap<String> attributeToColumnIndexMapping = new IntegerValueHashMap<>();
 
-    public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, MatsimServices services, AgentsimServices beamServices, Class<?> eventTypeToLog) {
+    public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, MatsimServices services, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, eventLogger, services, beamServices, eventTypeToLog);
 
         if(eventTypeToLog==null){
