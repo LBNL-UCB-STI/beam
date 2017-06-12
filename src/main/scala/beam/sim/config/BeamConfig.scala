@@ -333,8 +333,7 @@ object BeamConfig {
           )
         }
         private def $_LBeamConfig_Matsim_Modules_PlanCalcScore_Parameterset$Elm(cl:com.typesafe.config.ConfigList): scala.List[BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm] = {
-          import scala.collection.JavaConversions._
-          cl.map(cv => BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
+          cl.asScala.map(cv => BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
         }
       }
             
