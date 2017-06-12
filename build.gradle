@@ -230,7 +230,7 @@ task generateConfig {
                     "--scala",
                     "--pn", "beam.sim.config",
                     "--cn", "BeamConfig",
-                    "--dd", "src/main/scala/beam/agentsim/config/"
+                    "--dd", "src/main/scala/beam/sim/config/"
             ]
         }
     }
