@@ -1,6 +1,6 @@
 package beam.agentsim.events;
 
-import beam.agentsim.config.BeamConfig;
+import beam.sim.config.BeamConfig;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -15,7 +15,7 @@ import org.matsim.core.controler.listener.BeforeMobsimListener;
 import org.matsim.core.controler.listener.IterationEndsListener;
 import org.matsim.core.controler.listener.ShutdownListener;
 import org.matsim.core.events.algorithms.EventWriter;
-import beam.agentsim.sim.AgentsimServices;
+import beam.sim.BeamServices;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -27,22 +27,22 @@ import java.util.List;
 public final class BeamEventsHandling implements EventsHandling, BeforeMobsimListener, AfterMobsimListener, IterationEndsListener, ShutdownListener {
     private final EventsManager eventsManager;
     private List<EventWriter> eventWriters = new LinkedList<>();
-    private AgentsimServices beamServices;
-    private MatsimServices services;
+    private BeamServices services;
+    private MatsimServices matsimServices;
     private BeamEventsLogger eventsLogger;
     private BeamConfig beamConfig;
 
     @Inject
-    BeamEventsHandling(EventsManager eventsManager, AgentsimServices beamServices, MatsimServices services) {
+    BeamEventsHandling(EventsManager eventsManager, BeamServices beamServices) {
         this.eventsManager = eventsManager;
-        this.services = services;
-        this.beamServices = beamServices;
+        this.matsimServices = beamServices.matsimServices();
+        this.services = beamServices;
     }
 
     @Override
     public void notifyBeforeMobsim(BeforeMobsimEvent event) {
-        this.beamConfig = AgentsimServices.beamConfig();
-        if(this.eventsLogger == null) this.eventsLogger = new BeamEventsLogger(beamServices,services);
+        this.beamConfig = this.services.beamConfig();
+        if(this.eventsLogger == null) this.eventsLogger = new BeamEventsLogger(services, matsimServices);
         eventsManager.resetHandlers(event.getIteration());
         boolean writeThisIteration = (beamConfig.beam().outputs().writeEventsInterval() > 0) && (event.getIteration() % beamConfig.beam().outputs().writeEventsInterval() == 0);
         if(writeThisIteration){
@@ -71,7 +71,7 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
             xmlEventFileName += ".xml";
             createXMLWriter = true;
         }
-        if(createXMLWriter)this.eventWriters.add(new BeamEventsWriterXML(services.getControlerIO().getIterationFilename(iterationNum, xmlEventFileName),eventsLogger,services,beamServices, eventTypeToLog));
+        if(createXMLWriter)this.eventWriters.add(new BeamEventsWriterXML(matsimServices.getControlerIO().getIterationFilename(iterationNum, xmlEventFileName),eventsLogger, matsimServices, services, eventTypeToLog));
 
         String csvEventFileName = fileNameBase;
         Boolean createCSVWriter = false;
@@ -82,7 +82,7 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
             csvEventFileName += ".csv";
             createCSVWriter = true;
         }
-        if(createCSVWriter)this.eventWriters.add(new BeamEventsWriterCSV(services.getControlerIO().getIterationFilename(iterationNum, csvEventFileName),eventsLogger,services,beamServices, eventTypeToLog));
+        if(createCSVWriter)this.eventWriters.add(new BeamEventsWriterCSV(matsimServices.getControlerIO().getIterationFilename(iterationNum, csvEventFileName),eventsLogger, matsimServices, services, eventTypeToLog));
     }
 
     @Override
