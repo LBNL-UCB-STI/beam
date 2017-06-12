@@ -3,6 +3,8 @@
 
 package beam.sim.config
 
+import scala.collection.JavaConverters._
+
 case class BeamConfig(
   akka              : BeamConfig.Akka,
   beam              : BeamConfig.Beam,
