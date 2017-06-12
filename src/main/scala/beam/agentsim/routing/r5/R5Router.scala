@@ -11,16 +11,17 @@ import beam.agentsim.config.BeamConfig
 import beam.agentsim.core.Modes.BeamMode
 import beam.agentsim.routing.BeamRouter
 import beam.agentsim.routing.BeamRouter.RoutingResponse
-import beam.agentsim.routing.RoutingModel.{BeamLeg, BeamTime, BeamTrip, WindowTime}
+import beam.agentsim.routing.RoutingModel._
 import beam.agentsim.sim.AgentsimServices
 import beam.agentsim.utils.GeoUtils
 import com.conveyal.r5.api.ProfileResponse
-import com.conveyal.r5.api.util.{LegMode, TransitModes}
+import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment, TransitModes}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Id
+import com.vividsolutions.jts.geom.LineString
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
 
@@ -98,16 +99,32 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
 
     RoutingResponse(plan.options.asScala.map(option =>
       BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
-        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, null)
+        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, buildGraphPath(access))
         ).toVector)
       ).toVector)
   }
 
-  private def buildPath(profileRequest: ProfileRequest) = {
+  def buildGraphPath(segment: StreetSegment): BeamGraphPath = {
+    var activeLinkIds = Vector[String]()
+    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
+    var activeCoords = Vector[Coord]()
+    var activeTimes = Vector[Long]()
+    for(edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
+      activeLinkIds = activeLinkIds :+ edge.edgeId.toString
+      activeCoords = activeCoords :+ toCoord(edge.geometry)
+    }
+    BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
+  }
+
+  def toCoord(geometry: LineString): Coord = {
+    new Coord(geometry.getCoordinate.x, geometry.getCoordinate.y, geometry.getCoordinate.z)
+  }
+
+  private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode) = {
 
     val streetRouter = new StreetRouter(transportNetwork.streetLayer)
     streetRouter.profileRequest = profileRequest
-    streetRouter.streetMode = StreetMode.WALK
+    streetRouter.streetMode = streetMode
 
     // TODO use target pruning instead of a distance limit
     streetRouter.distanceLimitMeters = 100000
@@ -122,24 +139,21 @@ class R5Router(agentsimServices: AgentsimServices, beamConfig : BeamConfig) exte
     val streetPath = new StreetPath(lastState, transportNetwork, false)
 
     var stateIdx = 0
-    var totalDistance = 0
+    var activeLinkIds = Vector[String]()
+    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
+    var activeCoords = Vector[Coord]()
+    var activeTimes = Vector[Long]()
 
     for (state <- streetPath.getStates.asScala) {
       val edgeIdx = state.backEdge
       if (!(edgeIdx == null || edgeIdx == -1)) {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
-
-        log.info("{} - EdgeIndex [{}]", stateIdx, edgeIdx)
-        log.info("\t Lat/Long [{}]", edge.getGeometry)
-        log.info("\tmode [{}]", state.streetMode)
-        log.info("\tweight [{}]", state.weight)
-        log.info("\tduration sec [{}:{}]", state.getDurationSeconds / 60, state.getDurationSeconds % 60)
-        log.info("\tdistance [{}]", state.distance / 1000) //convert distance from mm to m
-        stateIdx += 1
-        totalDistance = state.distance / 1000
+        activeLinkIds = activeLinkIds :+ edgeIdx.toString
+        activeCoords = activeCoords :+ toCoord(edge.getGeometry)
+        activeTimes = activeTimes :+ state.getDurationSeconds.toLong
       }
     }
-    new RoutingResponse(null)
+    BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
   }
 
   override def getPerson(personId: Id[PersonAgent]): Person = agentsimServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
