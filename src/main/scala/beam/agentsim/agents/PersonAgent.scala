@@ -8,7 +8,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
 import beam.agentsim.agents.TaxiAgent.DropOffCustomer
 import beam.agentsim.agents.TaxiManager.{ReserveTaxi, ReserveTaxiConfirmation, TaxiInquiry, TaxiInquiryResponse}
-import beam.sim.config.{BeamConfig, ConfigModule}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
@@ -17,8 +16,6 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingMessages.{RoutingRequest, RoutingResponse}
 import beam.router.RoutingModel.{BeamLeg, BeamTrip}
 import beam.sim.BeamServices
-import beam.utils.DebugLib
-import com.google.inject.Inject
 import glokka.Registry
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
