@@ -4,8 +4,8 @@ import java.util
 
 import beam.agentsim.events.PointProcessEvent.PointProcessType
 import beam.agentsim.events.PointProcessEvent.PointProcessType.Choice
-import beam.agentsim.utils.GeoUtils._
-import beam.agentsim.utils.JsonUtils.syntax._
+import beam.utils.GeoUtils._
+import beam.utils.JsonUtils.syntax._
 import enumeratum._
 import io.circe.syntax._
 import io.circe.{Json, JsonObject}

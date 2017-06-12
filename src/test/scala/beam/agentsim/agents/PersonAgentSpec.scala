@@ -8,10 +8,12 @@ import akka.pattern.ask
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Initialized
-import beam.agentsim.agents.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.events.{AgentsimEventsBus, EventsSubscriber}
-import beam.agentsim.routing.RoutingModel.BeamTrip
+import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.router.RoutingModel.BeamTrip
+import beam.sim.BeamServices
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
@@ -34,6 +36,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   private val agentSimEventsBus = new AgentsimEventsBus
 
+  val services: BeamServices = ???
+
   describe("A PersonAgent FSM") {
 
     it("should allow scheduler to set the first activity") {
@@ -44,7 +48,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       plan.addActivity(homeActivity)
       val data = PersonData(plan)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -83,7 +87,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val data = PersonData(Vector(homeActivity, workActivity),
         choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -106,7 +110,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val data = new PersonData(Vector(homeActivity, workActivity,homeActivity),
         choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data))
+      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
