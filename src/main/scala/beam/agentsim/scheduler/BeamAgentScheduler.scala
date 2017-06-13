@@ -15,6 +15,9 @@ object BeamAgentScheduler {
   case class DoSimStep(tick: Double) extends SchedulerMessage
   case class CompletionNotice(id: Long, newTriggers: Vector[ScheduleTrigger] = Vector[ScheduleTrigger]()) extends SchedulerMessage
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage{
+  def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
+    CompletionNotice(triggerId, scheduleTriggers)
+  }
 //    require(trigger.tick>=0, "Negative ticks not supported!")
   }
   case class ScheduledTrigger(triggerWithId: TriggerWithId, agent: ActorRef, priority: Int) extends Ordered[ScheduledTrigger] {

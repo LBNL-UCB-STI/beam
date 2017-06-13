@@ -1,5 +1,5 @@
 @startuml
-scale 300 height
+scale 1000 height
 
 ' See this page for diagram conventions:
 ' http://plantuml.com/class-diagram
@@ -7,18 +7,66 @@ scale 300 height
 /'
 NOTES:
  '/
+class Resource << (T,skyblue) >>{
+}
+class BeamVehicle << (T,skyblue) >>{
+}
 
-class ResourceManager{
-  resources: List[T<:BeamAgents]
+class ResourceManager << (T,skyblue) >>{
+  resources: List[Resource]
   users: List[T<:BeamAgents]
   authenticate(user): Boolean
+  receives()\n \t T<:AccessRequest repliesWith T<:AccessResponse \n \t T<:ReservationRequest repliesWithReservationResponse
+}
+class ReservationRequest << (T,skyblue) >>{
+    resource: Resource
+}
+class ReservationResponse << (T,skyblue) >>{
+    response: Either[AccessInfo,AccessResponse]
+}
+class VehicleReservationRequest << (M,#FF7700) >>{
+    resource: BeamVehicle
+}
+class VehicleReservationResponse << (M,#FF7700) >>{
+    response: Either[VehicleAccessInfo,VehicleAccessResponse]
+}
+class AccessRequest << (T,skyblue) >>{
+    user: Id
+    timePeriod: Period
+    requestLocation: Coord
+}
+class AccessResponse << (T,skyblue) >>{
+    accessInformation: Vector[AccessInfo]
+}
+class AccessInfo << (T,skyblue) >>{
+    resource: Option[Resource]
+    timePeriodAvailable: Period
+    pointOfAccess: Coord
+}
+class VehicleAccessResponse << (M,#FF7700) >>{
+    accessInformation: Vector[VehicleAccessInfo]
+}
+class VehicleAccessRequest << (M,#FF7700) >>{
+    modes: Vector[Mode]
+}
+class VehicleAccessInfo << (M,#FF7700) >>{
+    mode: Mode
+}
+
+class VehicleManager << (T,skyblue) >>{
+  resources: List[BeamVehicle]
+  receives()\n \t VehicleAccessRequest repliesWith VehicleAccessResponse
 }
 
 class Household{
   resources: List[VehicleAgent]
   users: List[PersonAgent]
 }
-class TransportationNetworkCompany {
+class RideHailingCompany {
+  resources: List[VehicleAgent]
+  users: List[PersonAgent]
+}
+class VehicleSharingCompany {
   resources: List[VehicleAgent]
   users: List[PersonAgent]
 }
@@ -27,9 +75,22 @@ class ChargingNetwork{
   users: List[PersonAgent]
 }
 
-ResourceManager <|-- Household : extends
-ResourceManager <|-- TransportationNetworkCompany : extends
+ResourceManager <|-- VehicleManager : extends
+VehicleManager <|-- Household : extends
+VehicleManager <|-- RideHailingCompany: extends
+VehicleManager <|-- VehicleSharingCompany: extends
 ResourceManager <|-- ChargingNetwork : extends
 
+AccessRequest <|-- VehicleAccessRequest : extends
+AccessResponse --|> AccessInfo: hasMany
+AccessResponse <|-- VehicleAccessResponse: extends
+VehicleAccessResponse --|> VehicleAccessInfo: hasMany
+AccessInfo <|-- VehicleAccessInfo: extends
+
+Resource <|-- BeamVehicle : extends
+
+AccessRequest <|-- ReservationRequest : extends
+ReservationRequest <|-- VehicleReservationRequest : extends
+ReservationResponse <|-- VehicleReservationResponse : extends
 
 @enduml
