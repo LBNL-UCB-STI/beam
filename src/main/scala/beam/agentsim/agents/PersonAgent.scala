@@ -4,17 +4,17 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.agents.PersonAgent.{Driving, _}
 import beam.agentsim.agents.TaxiAgent.DropOffCustomer
 import beam.agentsim.agents.TaxiManager.{ReserveTaxi, ReserveTaxiConfirmation, TaxiInquiry, TaxiInquiryResponse}
-import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
+import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.router.RoutingMessages.{RoutingRequest, RoutingResponse}
-import beam.router.RoutingModel.{BeamLeg, BeamTrip}
+import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
+import beam.router.RoutingModel.{BeamLeg, BeamTrip, DiscreteTime}
 import beam.sim.{BeamServices, HasServices}
 import glokka.Registry
 import org.matsim.api.core.v01.Id
@@ -269,7 +269,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ ${tick}")
-          val routerFuture = (services.beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, tick, id)).mapTo[RoutingResponse] map { result =>
+          val routerFuture = (services.beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, DiscreteTime(tick.toInt), Vector(BeamMode.WAITING, BeamMode.BIKE), id)).mapTo[RoutingResponse] map { result =>
             val theRoute = result.itinerary
             RouteResponseWrapper(tick, triggerId, theRoute)
           } pipeTo self

@@ -5,21 +5,21 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.TaxiAgent.TaxiData
 import beam.agentsim.agents._
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.router.RoutingMessages.InitializeRouter
-import beam.utils.JsonUtils
+import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
+import beam.router.BeamRouter.InitializeRouter
 import beam.router.DummyRouter
+import beam.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
