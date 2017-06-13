@@ -40,9 +40,9 @@ public class GlobalActions {
 
 	public void handleDayTracking() throws InterruptedException, ExecutionException {
 		if (!hasWarmedCache) {
-			log.info("Warming up cache");
+//			log.info("Warming up cache");
 //			fixLinkLengthIssues();
-			warmUpCache();
+//			warmUpCache();
 			hasWarmedCache = true;
 		}
 		log.info("Handling Day Tracking: Set estimated travel distance in day for all agents.");
