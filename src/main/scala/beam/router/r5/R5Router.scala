@@ -160,5 +160,5 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
 }
 
 object R5Router {
-  def props(beamServices: BeamServices) = Props(classOf[R5Router], beamServices)
+  def props(beamServices: BeamServices, beamConfig : BeamConfig) = Props(classOf[R5Router], beamServices, beamConfig)
 }

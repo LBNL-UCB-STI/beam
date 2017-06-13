@@ -1,18 +1,14 @@
 package beam.router
 
 import akka.actor.{Actor, ActorLogging}
-import Modes.BeamMode
-import Modes.BeamMode._
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RoutingRequest, RoutingResponse}
+import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
-import beam.sim.BeamServices
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.router.ActivityWrapperFacility
 import org.matsim.facilities.Facility
-import org.slf4j.{Logger, LoggerFactory}
 
 trait BeamRouter extends Actor with ActorLogging {
   override def receive: Receive = {
