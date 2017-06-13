@@ -121,8 +121,8 @@ public class GlobalActions {
 				}
 			} while (waitingThreads.size() > 0);
 
-            log.info("Persisting store, "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
-            EVGlobalData.data.newTripInformationCache.persistStore();
+//            log.info("Persisting store, "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
+//            EVGlobalData.data.newTripInformationCache.persistStore();
 
 	}
 	public Boolean areLinksConnected(String from, String to){
