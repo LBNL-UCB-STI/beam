@@ -1,6 +1,4 @@
-package beam.agentsim.agents
-
-import beam.sim.BeamServices
+package beam.sim
 
 /**
   * BEAM
