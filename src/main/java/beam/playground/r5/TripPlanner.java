@@ -35,21 +35,6 @@ public class TripPlanner {
     private static final String GRAPH_FILE = "network.dat";
     private static final String OSM_FILE = "osm.mapdb";
 
-//    private TransportNetwork transportNetwork = null;
-
-    public static void main(String[] args) throws Exception {
-
-        /*TripPlanner self = new TripPlanner();
-        // Loading graph
-        TransportNetwork transportNetwork = self.init(args);
-
-        ProfileRequest request = self.buildRequest(false, 45.547716775429045,
-                -122.68020629882812, 45.554628830194815, -122.66613006591795,
-                false, 4, LocalDateTime.now(), LocalDateTime.now(), transportNetwork.getTimeZone());
-        //calculate Route
-        self.logProfileResponse(self.calcRoute2(transportNetwork, request));*/
-    }
-
     /**
      * Initialize the transport network.
      *
