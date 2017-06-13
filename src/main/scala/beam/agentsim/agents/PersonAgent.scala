@@ -24,6 +24,7 @@ import org.matsim.core.api.experimental.events.AgentWaitingForPtEvent
 import org.matsim.pt.transitSchedule.api.TransitStopFacility
 import org.slf4j.LoggerFactory
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
@@ -92,8 +93,12 @@ object PersonAgent {
   }
 
   // syntactic sugar for props creation
-  def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices, behaviorsToMixIn: Vector[Behavior]) = {
-    Props(new PersonAgent(personId, personData, services))
+  def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices, behaviorsToMixIn: mutable.HashSet[Class[_]]) = {
+    if(behaviorsToMixIn.contains(CanUseTaxi.getClass)){
+      Props(new PersonAgent(personId, personData, services) with CanUseTaxi)
+    }else{
+      Props(new PersonAgent(personId, personData, services))
+    }
   }
 
   //////////////////////////////
@@ -240,7 +245,11 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
     super.registerBehaviors(behaviors)
   }
 
-  var behaviors = registerBehaviors(Map[BeamAgentState,StateFunction](
+  var behaviors: Map[BeamAgentState,StateFunction] = registerBehaviors(Map[BeamAgentState,StateFunction](
+    Uninitialized -> {
+      case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
+        goto(Initialized) replying CompletionNotice(triggerId)
+    },
     Initialized -> {
       case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
         val currentActivity = info.data.currentActivity

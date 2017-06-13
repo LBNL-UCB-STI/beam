@@ -27,9 +27,6 @@ object BeamAgent {
     override def identifier: String = s"Error!"
   }
 
-  /**
-    * Agent info consists of next MATSim plan element for agent to transition
-    */
   sealed trait Info
 
   trait BeamAgentData

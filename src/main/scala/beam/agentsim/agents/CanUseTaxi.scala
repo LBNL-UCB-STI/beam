@@ -24,7 +24,7 @@ object CanUseTaxi{
 trait CanUseTaxiData{
 }
 trait CanUseTaxi extends Behavior with TriggerShortcuts with HasServices{
-  this: PersonAgent =>
+//  this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   var taxiAlternatives: Vector[Double] = Vector[Double]()
 
@@ -41,10 +41,6 @@ trait CanUseTaxi extends Behavior with TriggerShortcuts with HasServices{
   }
 
   private var taxiBehaviors = Map[BeamAgentState,StateFunction](
-    Uninitialized -> {
-      case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
-        goto(Initialized) replying CompletionNotice(triggerId)
-    },
     PerformingActivity -> {
       case Event(result: TaxiInquiryResponseWrapper, info: BeamAgentInfo[PersonData]) =>
         val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick, self))

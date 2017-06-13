@@ -28,6 +28,7 @@ import org.matsim.core.events.EventsUtils
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.util.Random
 
@@ -118,8 +119,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
+    val behaviorsToIncludeInPop: mutable.HashSet[Class[_]] = mutable.HashSet(CanUseTaxi.getClass)
     for ((k, v) <- services.popMap.take(services.beamConfig.beam.agentsim.numAgents).flatten) {
-      val props = Props(classOf[PersonAgent with CanUseTaxi], k, PersonData(v.getSelectedPlan),services)
+      val props = PersonAgent.props(k,PersonData(v.getSelectedPlan),services,behaviorsToIncludeInPop)
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }

@@ -7,5 +7,8 @@ import beam.agentsim.agents.PersonAgent.PersonData
   * BEAM
   */
 trait Behavior extends BeamAgent[PersonData]{
-  def registerBehaviors(behaviors: Map[BeamAgentState,StateFunction]): Map[BeamAgentState,StateFunction]
+  def registerBehaviors(behaviors: Map[BeamAgentState,StateFunction]): Map[BeamAgentState,StateFunction] = {
+    behaviors
+  }
 }
+
