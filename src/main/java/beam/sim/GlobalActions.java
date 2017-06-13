@@ -110,16 +110,19 @@ public class GlobalActions {
 					runningThreads.push(threadToStart);
 				}
 				log.info("We have " + runningThreads.size() + " running threads and " + waitingThreads.size() + " waiting to run and cache "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
-				if(persistCounter++ % 20 == 0){
-					log.info("Persisting store, "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
-					EVGlobalData.data.newTripInformationCache.persistStore();
-				}
+//				if(persistCounter++ % 20 == 0){
+//					log.info("Persisting store, "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
+//					EVGlobalData.data.newTripInformationCache.persistStore();
+//				}
 				try {
 					Thread.sleep(30000);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 			} while (waitingThreads.size() > 0);
+
+            log.info("Persisting store, "+EVGlobalData.data.newTripInformationCache.cacheSizeAsString());
+            EVGlobalData.data.newTripInformationCache.persistStore();
 
 	}
 	public Boolean areLinksConnected(String from, String to){
