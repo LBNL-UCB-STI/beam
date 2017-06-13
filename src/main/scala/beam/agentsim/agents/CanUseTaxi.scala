@@ -24,6 +24,8 @@ object CanUseTaxi{
 trait CanUseTaxiData{
 }
 trait CanUseTaxi extends Behavior with TriggerShortcuts with HasServices{
+  this: PersonAgent =>
+
   var taxiAlternatives: Vector[Double] = Vector[Double]()
 
   override def registerBehaviors(behaviors: Map[BeamAgentState,StateFunction]): Map[BeamAgentState,StateFunction] = {

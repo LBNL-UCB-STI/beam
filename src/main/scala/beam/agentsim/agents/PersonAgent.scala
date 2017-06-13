@@ -92,7 +92,9 @@ object PersonAgent {
   }
 
   // syntactic sugar for props creation
-  def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices) = Props(new PersonAgent(personId, personData, services))
+  def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices, behaviorsToMixIn: Vector[Behavior]) = {
+    Props(new PersonAgent(personId, personData, services))
+  }
 
   //////////////////////////////
   // PersonData Begin... //
@@ -228,8 +230,7 @@ object PersonAgent {
 
 }
 
-class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData, val beamServices: BeamServices) extends BeamAgent[PersonData] with
-  CanUseTaxi with TriggerShortcuts with HasServices {
+class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData, val beamServices: BeamServices) extends BeamAgent[PersonData] with TriggerShortcuts with HasServices with Behavior {
 
   override var services: BeamServices = beamServices
 

@@ -119,7 +119,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   def resetPop(iter: Int): Unit = {
     for ((k, v) <- services.popMap.take(services.beamConfig.beam.agentsim.numAgents).flatten) {
-      val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan),services)
+      val props = Props(classOf[PersonAgent with CanUseTaxi], k, PersonData(v.getSelectedPlan),services)
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
