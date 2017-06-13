@@ -9,6 +9,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.agentsim.scheduler.Trigger
 import beam.router.RoutingModel.BeamTrip
+import beam.sim.HasServices
 
 /**
   * BEAM

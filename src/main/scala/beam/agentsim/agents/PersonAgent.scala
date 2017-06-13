@@ -15,7 +15,7 @@ import beam.agentsim.events.{PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingMessages.{RoutingRequest, RoutingResponse}
 import beam.router.RoutingModel.{BeamLeg, BeamTrip}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, HasServices}
 import glokka.Registry
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
