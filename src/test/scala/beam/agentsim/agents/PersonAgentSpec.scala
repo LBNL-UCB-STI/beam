@@ -84,8 +84,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       homeActivity.setEndTime(28800)  // 8:00:00 AM
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
       workActivity.setEndTime(61200) //5:00:00 PM
-      val data = PersonData(Vector(homeActivity, workActivity),
-        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
+      val data = PersonData(Vector(homeActivity, workActivity))
+//        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
@@ -107,8 +107,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      val data = new PersonData(Vector(homeActivity, workActivity,homeActivity),
-        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
+      val data = PersonData(Vector(homeActivity, workActivity,homeActivity))
+//        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
       val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
