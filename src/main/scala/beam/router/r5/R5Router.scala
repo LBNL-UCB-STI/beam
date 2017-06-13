@@ -6,13 +6,11 @@ import java.nio.file.Paths.get
 import java.util
 
 import akka.actor.Props
-import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter
-import beam.router.BeamRouter.RoutingResponse
+import beam.router.BeamRouter.{HasProps, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
 import beam.utils.GeoUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment, TransitModes}
@@ -21,16 +19,19 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.LineString
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.facilities.Facility
 
 import scala.collection.JavaConverters._
 
-class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends BeamRouter {
+class R5Router(beamServices: BeamServices) extends BeamRouter {
   private val GRAPH_FILE = "/network.dat"
   private val OSM_FILE = "/osm.mapdb"
-  private lazy val networkDir = beamConfig.beam.routing.otp.directory
+
+  override var services: BeamServices = beamServices
+
+  private lazy val networkDir = beamServices.beamConfig.beam.routing.r5.directory
   var transportNetwork: TransportNetwork = null
 
   override def loadMap = {
@@ -155,10 +156,8 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
     }
     BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
   }
-
-  override def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 }
 
-object R5Router {
-  def props(beamServices: BeamServices, beamConfig : BeamConfig) = Props(classOf[R5Router], beamServices, beamConfig)
+object R5Router extends HasProps {
+  override def props(beamServices: BeamServices) = Props(classOf[R5Router], beamServices)
 }

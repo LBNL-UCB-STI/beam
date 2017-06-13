@@ -12,10 +12,6 @@ import org.matsim.vehicles.Vehicle
 /**
   * Created by sfeygin on 3/27/17.
   */
-class RouteUtils {
-
-}
-
 object RouteUtils {
   private def calcRouteTravelTime(route: NetworkRoute, startTime: Double, travelTime: TravelTime, network: Network, eventQueue: util.Queue[Event], agentId: Id[Vehicle]) = {
     var tt = 0.0

@@ -6,20 +6,18 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
-import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter
-import beam.router.BeamRouter.RoutingResponse
+import beam.router.BeamRouter.{HasProps, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
 import beam.utils.GeoUtils
 import beam.utils.GeoUtils._
 import com.google.inject.Inject
 import org.geotools.referencing.CRS
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.facilities.Facility
 import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
@@ -36,10 +34,11 @@ import scala.collection.immutable.Queue
 
 /**
   */
-class OpenTripPlannerRouter @Inject() (beamServices: BeamServices, beamConfig : BeamConfig) extends BeamRouter {
+class OpenTripPlannerRouter @Inject() (beamServices: BeamServices) extends BeamRouter {
+  override var services: BeamServices = beamServices
 
-  val otpGraphBaseDirectory: File = new File(beamConfig.beam.routing.otp.directory)
-  val routerIds: List[String] = beamConfig.beam.routing.otp.routerIds
+  val otpGraphBaseDirectory: File = new File(beamServices.beamConfig.beam.routing.otp.directory)
+  val routerIds: List[String] = beamServices.beamConfig.beam.routing.otp.routerIds
   var graphService: Option[GraphService] = None
   var router: Option[Router] = None
   var transform: Option[MathTransform] = None
@@ -50,8 +49,6 @@ class OpenTripPlannerRouter @Inject() (beamServices: BeamServices, beamConfig : 
     router = Some(graphService.get.getRouter(routerIds.head))
     transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
   }
-
-  override def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 
   override def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
@@ -188,7 +185,7 @@ class OpenTripPlannerRouter @Inject() (beamServices: BeamServices, beamConfig : 
         activeEdgeModeTime = it.next()
         val dist = distLatLon2Meters(activeEdgeModeTime.fromCoord.getX, activeEdgeModeTime.fromCoord.getY,
           activeEdgeModeTime.toCoord.getX, activeEdgeModeTime.toCoord.getY)
-        if (dist > beamConfig.beam.events.filterDist) { //filter edge if it has distance smaller then filterDist
+        if (dist > beamServices.beamConfig.beam.events.filterDist) { //filter edge if it has distance smaller then filterDist
           log.warning(s"$activeEdgeModeTime, $dist")
         } else {
           // queue edge details
@@ -276,11 +273,11 @@ class OpenTripPlannerRouter @Inject() (beamServices: BeamServices, beamConfig : 
     })
   }
 
-  def filterSegment(a: Coord, b: Coord): Boolean = distLatLon2Meters(a.getX, b.getY, a.getX, b.getY) > beamConfig.beam.events.filterDist
+  def filterSegment(a: Coord, b: Coord): Boolean = distLatLon2Meters(a.getX, b.getY, a.getX, b.getY) > beamServices.beamConfig.beam.events.filterDist
 
   def filterLatLonList(latLons: Vector[Coord], thresh: Double): Vector[Coord] = for ((a, b) <- latLons zip latLons.drop(1) if distLatLon2Meters(a.getX, a.getY, b.getX, b.getY) < thresh) yield b
 }
 
-object OpenTripPlannerRouter {
-  def props(beamServices: BeamServices, beamConfig : BeamConfig) = Props(classOf[OpenTripPlannerRouter], beamServices,  beamConfig)
+object OpenTripPlannerRouter extends HasProps {
+  override def props(beamServices: BeamServices) = Props(classOf[OpenTripPlannerRouter], beamServices)
 }
