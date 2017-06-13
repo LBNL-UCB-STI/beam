@@ -79,9 +79,8 @@ public class TripInfoCacheMapDB {
     }
 
     public String cacheSizeAsString() {
-//        return "InMem size: "+(inMemory.isClosed()?"<closed>":inMemory.size())+
-//                " DiskOverflow size: "+(onDisk.isClosed()?"<closed>":onDisk.size());
-        return "";
+        return "InMem size: "+(inMemory.isClosed()?"<closed>":inMemory.size())+
+                " DiskOverflow size: "+(onDisk.isClosed()?"<closed>":onDisk.size());
     }
 
     public synchronized void putTripInformation(String key, TripInformation tripInfo){
