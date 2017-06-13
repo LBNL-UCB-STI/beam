@@ -337,7 +337,7 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_SITES_FILEPATH = inputDirectory + evModule.getValue("chargingSitesFile");
 		EVGlobalData.data.CHARGING_POINTS_FILEPATH = inputDirectory + evModule.getValue("chargingPointsFile");
 		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
-		EVGlobalData.data.NETWORK_FILEPATH = inputDirectory + evModule.getValue("networkFilePath");
+		EVGlobalData.data.NETWORK_FILEPATH = (evModule.getValue("networkFilePath").substring(0,1).equals("/")) ? evModule.getValue("networkFilePath") : inputDirectory + evModule.getValue("networkFilePath");
 		if (evModule.getValue("numberOfThreads") != null)
 			EVGlobalData.data.NUM_THREADS = Integer.valueOf(evModule.getValue("numberOfThreads"));
 		if (evModule.getValue("chargingStrategiesValidationFile") != null)
