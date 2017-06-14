@@ -13,7 +13,16 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 object RunBeam extends App{
+  print("""
+  ________
+  ___  __ )__________ _______ ___
+  __  __  |  _ \  __ `/_  __ `__ \
+  _  /_/ //  __/ /_/ /_  / / / / /
+  /_____/ \___/\__,_/ /_/ /_/ /_/
 
+ _____________________________________
+
+ """)
   def parseArgs() = {
 
     args.sliding(2, 1).toList.collect {

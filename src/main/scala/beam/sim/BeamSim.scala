@@ -12,8 +12,8 @@ import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathT
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
+import beam.router.BeamRouter
 import beam.router.BeamRouter.InitializeRouter
-import beam.router.{BeamRouter, DummyRouter}
 import beam.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry

@@ -59,8 +59,7 @@ class OpenTripPlannerRouter @Inject() (beamServices: BeamServices) extends BeamR
     val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
-    val time = departureTime.asInstanceOf[DiscreteTime]
-    request.dateTime = baseTime + time.atTime
+    request.dateTime = baseTime + departureTime.atTime
     request.maxWalkDistance = 804.672
     request.locale = Locale.ENGLISH
     request.clearModes()
