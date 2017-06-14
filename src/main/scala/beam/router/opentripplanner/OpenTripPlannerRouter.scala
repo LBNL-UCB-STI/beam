@@ -44,13 +44,15 @@ class OpenTripPlannerRouter @Inject() (beamServices: BeamServices) extends BeamR
   var transform: Option[MathTransform] = None
   val baseTime: Long = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
-  override def loadMap: Unit = {
+  override def init = loadMap
+
+  def loadMap: Unit = {
     graphService = Some(makeGraphService())
     router = Some(graphService.get.getRouter(routerIds.head))
     transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
   }
 
-  override def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)

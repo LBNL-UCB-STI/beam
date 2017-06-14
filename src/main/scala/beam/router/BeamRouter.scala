@@ -26,15 +26,10 @@ trait BeamRouter extends Actor with ActorLogging with HasServices {
 
   def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, isTransit: Boolean = false): RoutingResponse
 
-  protected def init = {
-    loadMap
-  }
-
-  protected def loadMap
-
-  protected def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false) : Any
+  def init
 
   protected def getPerson(personId: Id[PersonAgent]): Person = services.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+
 }
 
 object BeamRouter {
@@ -56,6 +51,14 @@ object BeamRouter {
 
   trait HasProps {
     def props(beamServices: BeamServices): Props
+  }
+
+  def getRouterProps(routerClass: String, services: BeamServices): Props = {
+    val runtimeMirror = scala.reflect.runtime.universe.runtimeMirror(getClass.getClassLoader)
+    val module = runtimeMirror.staticModule(routerClass)
+    val obj = runtimeMirror.reflectModule(module)
+    val routerObject:HasProps = obj.instance.asInstanceOf[HasProps]
+    routerObject.props(services)
   }
 }
 

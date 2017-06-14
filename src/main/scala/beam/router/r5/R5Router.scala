@@ -1,8 +1,8 @@
 package beam.router.r5
 
-import java.io.File
+import java.io.{File, FileInputStream, InputStream}
 import java.nio.file.Files.{exists, isReadable}
-import java.nio.file.Paths.get
+import java.nio.file.Paths
 import java.util
 
 import akka.actor.Props
@@ -27,29 +27,28 @@ import scala.collection.JavaConverters._
 
 class R5Router(beamServices: BeamServices) extends BeamRouter {
   private val GRAPH_FILE = "/network.dat"
-  private val OSM_FILE = "/osm.mapdb"
 
   override var services: BeamServices = beamServices
 
   private lazy val networkDir = beamServices.beamConfig.beam.routing.r5.directory
   var transportNetwork: TransportNetwork = null
 
-  override def loadMap = {
-    var networkFile: File = null
-    var mapdbFile: File = null
-    if (exists(get(networkDir))) {
-      val networkPath = get(networkDir, GRAPH_FILE)
-      if (isReadable(networkPath)) networkFile = networkPath.toFile
-      val osmPath = get(networkDir, OSM_FILE)
-      if (isReadable(osmPath)) mapdbFile = osmPath.toFile
-    }
-    if (networkFile == null) networkFile = get(System.getProperty("user.home"),"beam", "network", GRAPH_FILE).toFile
+  override def init = loadMap
 
-    if (mapdbFile == null) mapdbFile = get(System.getProperty("user.home"),"beam", "network", OSM_FILE).toFile
-    // Loading graph
-    transportNetwork = TransportNetwork.read(networkFile)
-    // Optional used to get street names:
-    transportNetwork.readOSM(mapdbFile)
+  def loadMap = {
+    val networkDirPath = Paths.get(networkDir)
+    if (!exists(networkDirPath)) {
+      Paths.get(networkDir).toFile.mkdir();
+    }
+    val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
+    val networkFile : File = networkFilePath.toFile
+    if (exists(networkFilePath)) {
+      transportNetwork = TransportNetwork.read(networkFile)
+    }else {
+      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      transportNetwork.write(networkFile);
+      transportNetwork = TransportNetwork.read(networkFile);
+    }
   }
 
   override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false) = {
@@ -137,7 +136,7 @@ class R5Router(beamServices: BeamServices) extends BeamRouter {
 
     //Gets lowest weight state for end coordinate split
     val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
-    val streetPath = new StreetPath(lastState, transportNetwork, false)
+    val streetPath = new StreetPath(lastState, transportNetwork)
 
     var stateIdx = 0
     var activeLinkIds = Vector[String]()

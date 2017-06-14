@@ -130,7 +130,7 @@ public class TripPlanner {
         // Gets lowest weight state for end coordinate split
         StreetRouter.State lastState = streetRouter.getState(streetRouter.getDestinationSplit());
 
-        StreetPath streetPath = new StreetPath(lastState, transportNetwork, false);
+        StreetPath streetPath = new StreetPath(lastState, transportNetwork);
 
         long totalDistance = 0;
         int stateIdx = 0;

@@ -120,7 +120,7 @@ dependencies {
     compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: true
     compile group: 'com.github.colinsheppard', name: 'OpenTripPlanner', version: 'otp-1.0.0-beam-SNAPSHOT', changing: true
     compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: true
-    compile group: 'com.conveyal', name: 'r5', version: '2.2.0', changing: true
+    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
 
     testCompile group: 'junit', name: 'junit', version: '4.4'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
