@@ -17,7 +17,7 @@ public class BeamMobsim implements Mobsim {
 
         for(Double time = 0.0; time <= EVGlobalData.data.config.qsim().getEndTime(); time += 1.0){
             if(Math.round(time) % 3600 == 0){
-                log.info("BeamMobsim at simulation time: "+Math.round(time/3600.0)+" hours");
+                log.info("BeamMobsim at simulation time: "+Math.round(time/3600.0)+" hours "+(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/(Math.pow(1000,3))+"(GB)");
             }
             doSimStep(time);
         }
