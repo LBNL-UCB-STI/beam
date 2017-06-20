@@ -87,7 +87,12 @@ class R5Router(beamServices: BeamServices) extends BeamRouter {
     profileRequest.accessModes = util.EnumSet.of(LegMode.WALK)
     profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
 
-    profileRequest.directModes = util.EnumSet.copyOf(accessMode.map(m => LegMode.valueOf(m.value)).asJavaCollection)
+    profileRequest.directModes = util.EnumSet.copyOf(accessMode.map(
+      m => m match {
+        case BeamMode.BIKE => LegMode.BICYCLE
+        case BeamMode.WAITING => LegMode.WALK
+        case _ => LegMode.CAR
+      }).asJavaCollection)
 //    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
 
     profileRequest
@@ -102,9 +107,13 @@ class R5Router(beamServices: BeamServices) extends BeamRouter {
 
     RoutingResponse(plan.options.asScala.map(option =>
       BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
-        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, buildGraphPath(access))
-        ).toVector)
+        BeamLeg(itinerary.startTime.toEpochSecond, access.mode match {
+          case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
+          case LegMode.WALK => BeamMode.WAITING
+          case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
+        }, itinerary.duration, buildGraphPath(access))
       ).toVector)
+    ).toVector)
   }
 
   def buildGraphPath(segment: StreetSegment): BeamGraphPath = {
