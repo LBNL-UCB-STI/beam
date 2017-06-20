@@ -12,8 +12,8 @@ import org.matsim.api.core.v01.{Id }
 import org.matsim.core.controler._
 
 /**
-  * Created by sfeygin on 2/11/17.
   */
+
 @Singleton
 case class BeamServices @Inject()(protected val injector: Injector) extends ActorInject {
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])

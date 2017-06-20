@@ -74,7 +74,7 @@ repositories {
     mavenLocal()
     mavenCentral()
     jcenter()
-//    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
     maven { url "https://jitpack.io" }
 }
 
@@ -84,7 +84,6 @@ dependencies {
     // Java dependencies
     ////////////////////////////
 
-    compile group: 'jdom', name: 'jdom', version: '1.1'
     compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
@@ -108,7 +107,6 @@ dependencies {
     compile group: 'org.objenesis', name: 'objenesis', version: '2.4'
     compile group: 'javax.jms', name: 'jms', version: '1.1'
     compile group: 'javax.media', name: 'jai_core', version: '1.1.3'
-    testCompile group: 'junit', name: 'junit', version: '4.4'
     compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
     compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
@@ -122,6 +120,12 @@ dependencies {
     compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: true
     compile group: 'com.github.colinsheppard', name: 'OpenTripPlanner', version: 'otp-1.0.0-beam-SNAPSHOT', changing: true
     compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: true
+    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
+
+    testCompile group: 'junit', name: 'junit', version: '4.4'
+    // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
+    testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
+
 
     /////////////////////////////////
     // Scala dependencies
@@ -241,4 +245,3 @@ task repl(type: JavaExec) {
     standardInput System.in
     args '-usejavacp'
 }
-
