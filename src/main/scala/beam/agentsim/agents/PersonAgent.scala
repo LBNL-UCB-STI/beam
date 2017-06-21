@@ -235,34 +235,41 @@ object PersonAgent {
 
 }
 
-class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData, val beamServices: BeamServices) extends BeamAgent[PersonData] with TriggerShortcuts with HasServices with Behavior {
+class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData, val beamServices: BeamServices) extends BeamAgent[PersonData] with TriggerShortcuts with HasServices with CanUseTaxi {
 
+  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   override var services: BeamServices = beamServices
 
   import akka.pattern.{ask, pipe}
 
-  override def registerBehaviors(behaviors: Map[BeamAgentState,StateFunction]): Map[BeamAgentState,StateFunction] = {
-    super.registerBehaviors(behaviors)
+//  var behaviors: Map[BeamAgentState,StateFunction] = registerBehaviors(Map[BeamAgentState,StateFunction](
+//    Uninitialized ->
+//    Initialized -> {
+//      case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+//        val currentActivity = info.data.currentActivity
+//        services.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
+//        // Since this is the first activity of the day, we don't increment the currentActivityIndex
+//        logInfo(s"starting at ${currentActivity.getType}")
+//        goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime,self))
+//  }))
+//  when(Uninitialized)(behaviors(Uninitialized))
+//  when(Initialized)(behaviors(Initialized))
+
+  when(Uninitialized) {
+    case ev @ Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
+      log.info("From PersonAgent")
+      goto(Initialized) replying CompletionNotice(triggerId)
+  }
+  when(Initialized) {
+    case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      val currentActivity = info.data.currentActivity
+      services.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
+      // Since this is the first activity of the day, we don't increment the currentActivityIndex
+      logInfo(s"starting at ${currentActivity.getType}")
+      goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime, self))
   }
 
-  var behaviors: Map[BeamAgentState,StateFunction] = registerBehaviors(Map[BeamAgentState,StateFunction](
-    Uninitialized -> {
-      case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
-        goto(Initialized) replying CompletionNotice(triggerId)
-    },
-    Initialized -> {
-      case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-        val currentActivity = info.data.currentActivity
-        services.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
-        // Since this is the first activity of the day, we don't increment the currentActivityIndex
-        logInfo(s"starting at ${currentActivity.getType}")
-        goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime,self))
-  }))
 
-  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
-
-  when(Uninitialized)(behaviors(Uninitialized))
-  when(Initialized)(behaviors(Initialized))
 
   when(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
