@@ -255,8 +255,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 //  when(Uninitialized)(behaviors(Uninitialized))
 //  when(Initialized)(behaviors(Initialized))
 
-  when(Uninitialized) {
-    case ev @ Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
+  chainedWhen(Uninitialized){
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       log.info("From PersonAgent")
       goto(Initialized) replying CompletionNotice(triggerId)
   }

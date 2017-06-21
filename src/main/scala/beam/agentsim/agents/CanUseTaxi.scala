@@ -31,7 +31,7 @@ trait CanUseTaxi extends BeamAgent[PersonData] with TriggerShortcuts with HasSer
   chainedWhen(Uninitialized){
       case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
         log.info("From CanUseTaxi")
-        goto(Initialized) replying CompletionNotice(triggerId)
+        goto(Initialized)
   }
 
   when(PerformingActivity) {
