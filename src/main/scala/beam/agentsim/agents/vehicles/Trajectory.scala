@@ -22,8 +22,9 @@ object Trajectory {
   */
 class Trajectory(initialRoute: BeamGraphPath) {
 
-  require(initialRoute.latLons.nonEmpty)
-  require(initialRoute.entryTimes.nonEmpty)
+  def this()= {
+    this(BeamGraphPath.empty.copy())
+  }
   private var _route = initialRoute
 
   def coordinateSystem = defaultCoordinateSystem
@@ -37,11 +38,12 @@ class Trajectory(initialRoute: BeamGraphPath) {
   }
 
   def location(time: Double): SpaceTime = {
+    require(_route.size > 0)
     require(_route.latLons.length == _route.entryTimes.length)
     val timeL = Math.floor(time).toLong
     _route.entryTimes.search(timeL) match {
       case found: Found =>
-        SpaceTime((_route.latLons(found.foundIndex), timeL))
+        SpaceTime(_route.latLons(found.foundIndex), timeL)
       case InsertionPoint(closestIndex) =>
         //closestPosition = [0, array.len ]
         //TODO: consider some cache for interpolated coords because it's heavy process
@@ -63,9 +65,11 @@ class Trajectory(initialRoute: BeamGraphPath) {
         .interpolate(timeFunction, yFunc)
       SpaceTime(xInterpolator.value(time), yInterpolator.value(time), timeL)
     } else if (closestPosition == _route.size) {
-      SpaceTime((_route.latLons.last, timeL))
+      SpaceTime(_route.latLons.last, timeL)
+    } else if (_route.latLons.nonEmpty){
+      SpaceTime(_route.latLons.head, timeL)
     } else {
-      SpaceTime((_route.latLons.head, timeL))
+      SpaceTime(_route.latLons.head, timeL)
     }
   }
 
