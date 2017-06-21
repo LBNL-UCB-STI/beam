@@ -1,7 +1,7 @@
 package beam.router.r5
 
-import java.io.{File, FileInputStream, InputStream}
-import java.nio.file.Files.{exists, isReadable}
+import java.io.File
+import java.nio.file.Files.exists
 import java.nio.file.Paths
 import java.util
 
@@ -47,7 +47,7 @@ class R5Router(beamServices: BeamServices) extends BeamRouter {
     }else {
       transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
       transportNetwork.write(networkFile);
-      transportNetwork = TransportNetwork.read(networkFile);
+//      transportNetwork = TransportNetwork.read(networkFile);
     }
   }
 
@@ -89,9 +89,9 @@ class R5Router(beamServices: BeamServices) extends BeamRouter {
 
     profileRequest.directModes = util.EnumSet.copyOf(accessMode.map(
       m => m match {
+        case BeamMode.CAR => LegMode.CAR
         case BeamMode.BIKE => LegMode.BICYCLE
-        case BeamMode.WAITING => LegMode.WALK
-        case _ => LegMode.CAR
+        case BeamMode.WALK | _ => LegMode.WALK
       }).asJavaCollection)
 //    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
 
@@ -109,7 +109,7 @@ class R5Router(beamServices: BeamServices) extends BeamRouter {
       BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
         BeamLeg(itinerary.startTime.toEpochSecond, access.mode match {
           case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
-          case LegMode.WALK => BeamMode.WAITING
+          case LegMode.WALK => BeamMode.WALK
           case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
         }, itinerary.duration, buildGraphPath(access))
       ).toVector)
