@@ -1,6 +1,6 @@
 package beam.router
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, Props, Stash}
 import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
@@ -11,15 +11,22 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.router.ActivityWrapperFacility
 import org.matsim.facilities.Facility
 
-trait BeamRouter extends Actor with ActorLogging with HasServices {
+trait BeamRouter extends Actor with Stash with ActorLogging with HasServices {
   override final def receive: Receive = {
     case InitializeRouter =>
       log.info("Initializing Router")
       init
       sender() ! RouterInitialized
-    case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId, considerTransit) =>
-      //      log.info(s"Router received routing request from person $personId ($sender)")
-      sender() ! calcRoute(fromFacility, toFacility, departureTime, accessMode, getPerson(personId), considerTransit)
+      unstashAll()
+      context.become({
+        case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId, considerTransit) =>
+          //      log.info(s"Router received routing request from person $personId ($sender)")
+          sender() ! calcRoute(fromFacility, toFacility, departureTime, accessMode, getPerson(personId), considerTransit)
+        case InitializeRouter =>
+          log.info("Router already initialized.")
+      })
+    case RoutingRequest =>
+      stash()
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
