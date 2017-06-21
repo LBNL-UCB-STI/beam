@@ -3,6 +3,12 @@
 
 package beam.sim.config
 
+import java.util.concurrent.TimeUnit
+
+import akka.util.Timeout
+
+import scala.concurrent.duration.FiniteDuration
+
 case class BeamConfig(
   akka              : BeamConfig.Akka,
   beam              : BeamConfig.Beam,
@@ -16,6 +22,7 @@ object BeamConfig {
     remote   : BeamConfig.Akka.Remote
   )
   object Akka {
+    implicit val askTimeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
     case class Actor(
       debug : BeamConfig.Akka.Actor.Debug
     )
