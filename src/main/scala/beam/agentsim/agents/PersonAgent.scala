@@ -254,13 +254,21 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 //  }))
 //  when(Uninitialized)(behaviors(Uninitialized))
 //  when(Initialized)(behaviors(Initialized))
+  when(PerformingActivity) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+  }
+  when(ChoosingMode) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+  }
 
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       log.info("From PersonAgent")
       goto(Initialized) replying CompletionNotice(triggerId)
   }
-  when(Initialized) {
+  chainedWhen(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentActivity = info.data.currentActivity
       services.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
@@ -268,14 +276,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       logInfo(s"starting at ${currentActivity.getType}")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime, self))
   }
-
-
-
-  when(PerformingActivity) {
+  chainedWhen(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentActivity = info.data.currentActivity
-
-      // Activity ends, so publish to EventBus
       services.agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType)))
 
       info.data.nextActivity.fold(
@@ -285,25 +288,26 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ ${tick}")
-          val routerFuture = (services.beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, DiscreteTime(tick.toInt), Vector(BeamMode.WAITING, BeamMode.BIKE), id)).mapTo[RoutingResponse] map { result =>
-            val theRoute = result.itinerary
-            RouteResponseWrapper(tick, triggerId, theRoute)
-          } pipeTo self
         }
       )
-      stay()
-    case Event(routeResult: RouteResponseWrapper, info: BeamAgentInfo[PersonData]) =>
-      val taxiManagerFuture = (services.taxiManager ? TaxiInquiry(info.data.currentActivity.getCoord, 2000)).mapTo[TaxiInquiryResponse] map { taxiResult =>
-        TaxiInquiryResponseWrapper(routeResult.tick, routeResult.triggerId, routeResult.alternatives, taxiResult.timesToCustomer)
-      } pipeTo self
-      stay()
+      goto(ChoosingMode)
     case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
       services.schedulerRef ! CompletionNotice(msg.triggerId)
       goto(Error)
   }
 
   // TODO: Deal with case of arriving too late at next activity
-  when(ChoosingMode) {
+  chainedWhen(ChoosingMode) {
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      val routerFuture = (services.beamRouter ? RoutingRequest(info.data.currentActivity, nextAct, DiscreteTime(tick.toInt), Vector(BeamMode.WAITING, BeamMode.BIKE), id)).mapTo[RoutingResponse] map { result =>
+        val theRoute = result.itinerary
+        RouteResponseWrapper(tick, triggerId, theRoute)
+      } pipeTo self
+    case Event(routeResult: RouteResponseWrapper, info: BeamAgentInfo[PersonData]) =>
+      val taxiManagerFuture = (services.taxiManager ? TaxiInquiry(info.data.currentActivity.getCoord, 2000)).mapTo[TaxiInquiryResponse] map { taxiResult =>
+        TaxiInquiryResponseWrapper(routeResult.tick, routeResult.triggerId, routeResult.alternatives, taxiResult.timesToCustomer)
+      } pipeTo self
+      stay()
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       if (info.data.currentAlternatives.isEmpty) {
         logError("going to Error b/c empty route received")
@@ -485,8 +489,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   onTransition {
     case Uninitialized -> Initialized =>
       services.registry ! Registry.Tell("scheduler", ScheduleTrigger(ActivityStartTrigger(0.0), self))
-    case PerformingActivity -> ChoosingMode =>
-      logInfo(s"going from PerformingActivity to ChoosingMode")
+    case _ -> ChoosingMode =>
+      logInfo(s"entering to ChoosingMode")
     case ChoosingMode -> Walking =>
       logInfo(s"going from ChoosingMode to Walking")
     case Walking -> Driving =>

@@ -101,6 +101,10 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
     case ev @ Event(_,_) =>
       handleEvent(stateName, ev)
   }
+  when(Initialized){
+    case ev @ Event(_,_) =>
+      handleEvent(stateName, ev)
+  }
 
   when(Finished) {
     case Event(StopEvent, _) =>
