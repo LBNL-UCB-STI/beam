@@ -45,7 +45,7 @@ trait VehicleData extends BeamAgentData with Vehicle {
 
 object BeamVehicle {
 
-  def energyByType(vehicleTypeId: Id[VehicleType]): Double = {
+  def energyPerUnitByType(vehicleTypeId: Id[VehicleType]): Double = {
     //TODO: add energy type registry
       0.0
   }
