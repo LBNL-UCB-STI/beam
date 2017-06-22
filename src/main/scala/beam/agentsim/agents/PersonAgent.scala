@@ -98,7 +98,7 @@ object PersonAgent {
   def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = Random.shuffle(alternatives.toList).head
 
   // syntactic sugar for props creation
-  def props(personId: Id[PersonAgent], personData: PersonData) = Props(classOf[PersonAgent], personId, personData)
+  def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices) = Props(new PersonAgent(personId, personData, services))
 
   //////////////////////////////
   // PersonData Begin... //
@@ -114,13 +114,19 @@ object PersonAgent {
       * @param plan : The plan having at least some `Activities`
       * @return `PersonData`
       */
-    def apply(plan: Plan): PersonData = PersonData(planToVec(plan), 0, BeamTrip.noneTrip, Vector[BeamTrip](), Vector[Double](), mnlChoice, None)
+    def apply(plan: Plan): PersonData = defaultPersonData(planToVec(plan))
+
+    def apply(activities:Vector[Activity]):PersonData = defaultPersonData(activities)
 
     def planToVec(plan: Plan): Vector[Activity] = {
       scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p.isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
     }
 
     implicit def plan2PersonData(plan: Plan): PersonData = PersonData(plan)
+
+    def defaultPersonData(vector: Vector[Activity]):PersonData = {
+      PersonData(vector, 0, BeamTrip.noneTrip, Vector[BeamTrip](), Vector[Double](), mnlChoice, None)
+    }
 
   }
 
