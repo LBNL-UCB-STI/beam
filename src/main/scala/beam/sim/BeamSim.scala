@@ -67,7 +67,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     subscribe(PersonArrivalEvent.EVENT_TYPE)
     subscribe(PointProcessEvent.EVENT_TYPE)
 
-    val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler]))
+    val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler],3600*9.0, 300.0))
     services.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
     val routerFuture = services.registry ? Registry.Register("router", DummyRouter.props(services))
@@ -92,7 +92,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()
-    Await.result(services.schedulerRef ? StartSchedule(3600*9.0, 300.0), timeout.duration)
+    Await.result(services.schedulerRef ? StartSchedule(), timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

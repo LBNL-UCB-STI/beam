@@ -28,19 +28,10 @@ trait CanUseTaxi extends BeamAgent[PersonData] with TriggerShortcuts with HasSer
 
   var taxiAlternatives: Vector[Double] = Vector[Double]()
 
-  chainedWhen(Uninitialized){
-      case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
-        log.info("From CanUseTaxi")
-        goto(Initialized)
-  }
-
-  when(PerformingActivity) {
-    case Event(result: TaxiInquiryResponseWrapper, info: BeamAgentInfo[PersonData]) =>
-      val completionNotice = completed(result.triggerId, schedule[PersonDepartureTrigger](result.tick, self))
-      taxiAlternatives = result.timesToCustomer
-      services.schedulerRef ! completionNotice
-      goto(ChoosingMode) using stateData.copy(id, info.data.copy(currentAlternatives = result.alternatives))
-  }
-
+//  chainedWhen(Uninitialized){
+//      case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
+//        log.info("From CanUseTaxi")
+//        goto(Initialized)
+//  }
 
 }

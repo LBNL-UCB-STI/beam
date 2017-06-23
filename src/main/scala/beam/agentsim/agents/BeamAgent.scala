@@ -1,8 +1,11 @@
 package beam.agentsim.agents
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{FSM, LoggingFSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
@@ -37,9 +40,10 @@ object BeamAgent {
 
   trait BeamAgentData
 
-  case class NoData() extends BeamAgentData
-
-  case class BeamAgentInfo[T <: BeamAgentData](id: Id[_], implicit val data: T) extends Info
+  case class BeamAgentInfo[T <: BeamAgentData](id: Id[_],
+                                               implicit val data: T,
+                                               val triggerId: Option[Long] = None,
+                                               val tick: Option[Double] = None) extends Info
 
 }
 
@@ -54,28 +58,33 @@ sealed trait MemoryEvent extends Event
 /**
   * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
-  *
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] {
 
   def id: Id[_]
   def data: T
+  protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
   private val chainedStateFunctions = new HashMap[BeamAgentState, Set[StateFunction]] with MultiMap[BeamAgentState,StateFunction]
   final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit =
     chainedStateFunctions.addBinding(stateName,stateFunction)
 
-  //TODO error check for duplicate completion notices
   def handleEvent(state: BeamAgentState, event: Event): State = {
     var theStateData = event.stateData
-    var theEvent = event
+    event match {
+      case Event(TriggerWithId(trigger, triggerId), _) =>
+        theStateData = theStateData.copy(triggerId = Some(triggerId), tick = Some(trigger.tick))
+      case Event(_, _) =>
+        // do nothing
+    }
+    var theEvent = event.copy(stateData = theStateData)
     if(chainedStateFunctions.contains(state)) {
       var resultingBeamStates = List[BeamAgentState]()
       var resultingReplies = List[Any]()
       chainedStateFunctions(state).foreach { stateFunction =>
         if(stateFunction isDefinedAt (theEvent)){
           val fsmState: State = stateFunction(theEvent)
-          theStateData = fsmState.stateData
+          theStateData = fsmState.stateData.copy(triggerId = theStateData.triggerId, tick = theStateData.tick)
           theEvent = Event(event.event,theStateData)
           resultingBeamStates = resultingBeamStates :+ fsmState.stateName
           resultingReplies = resultingReplies ::: fsmState.replies
@@ -83,13 +92,22 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       }
       val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
       if (newStates.size == 0 || !allStatesSame(newStates)){
-        FSM.State(state, event.stateData)
+        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition to for BeamAgent ${stateData.id}")
       } else {
+        val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
+        if(numCompletionNotices>1){
+          throw new RuntimeException(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}")
+        }else if(numCompletionNotices == 1){
+          theStateData = theStateData.copy(triggerId = None)
+        }
         FSM.State(newStates.head, theStateData, None, None, resultingReplies)
       }
     }else{
       FSM.State(state, event.stateData)
     }
+  }
+  def numCompletionNotices(theReplies: List[Any]): Int = {
+    theReplies.count(_.isInstanceOf[CompletionNotice])
   }
   def allStatesSame(theStates: List[BeamAgentState]): Boolean = {
     theStates.foldLeft(true)((result,stateToTest) => result && stateToTest == theStates.head)
