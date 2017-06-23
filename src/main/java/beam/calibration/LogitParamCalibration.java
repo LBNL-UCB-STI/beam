@@ -51,17 +51,17 @@ final public class LogitParamCalibration {
             paramsPlus = new ArrayList<>(),
             paramsMinus = new ArrayList<>(),
             paramsDelta = new ArrayList<>();
-    private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>>
-            valHmObserved = new LinkedHashMap<>(),
-            valHmBeta =new LinkedHashMap<>(),
-            valHmBetaTemp =new LinkedHashMap<>(),
-            valHmBetaPlus = new LinkedHashMap<>(),
-            valHmBetaMinus = new LinkedHashMap<>(),
-            hmObservedNum = new LinkedHashMap<>(),
-            hmBetaNum =new LinkedHashMap<>(),
-            hmBetaTempNum =new LinkedHashMap<>(),
-            hmBetaPlusNum = new LinkedHashMap<>(),
-            hmBetaMinusNum = new LinkedHashMap<>();
+    private TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>>
+            valHmObserved = new TreeMap<>(),
+            valHmBeta =new TreeMap<>(),
+            valHmBetaTemp =new TreeMap<>(),
+            valHmBetaPlus = new TreeMap<>(),
+            valHmBetaMinus = new TreeMap<>(),
+            hmObservedNum = new TreeMap<>(),
+            hmBetaNum =new TreeMap<>(),
+            hmBetaTempNum =new TreeMap<>(),
+            hmBetaPlusNum = new TreeMap<>(),
+            hmBetaMinusNum = new TreeMap<>();
     private ArrayList<Double>
             loadProfileBeta = new ArrayList<>(),
             valListBetaTemp = new ArrayList<>(),
@@ -273,7 +273,7 @@ final public class LogitParamCalibration {
                                                     utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-                                                    grad = (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
+                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
                                                     log.info("grad: " + grad);
                                                     double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
                                                     if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
@@ -462,12 +462,12 @@ final public class LogitParamCalibration {
     }
 
     /**
-     * Return LinkedHashMap that contains charging load in kW with associated time, spatial group, site type, charger type.
+     * Return TreeMap that contains charging load in kW with associated time, spatial group, site type, charger type.
      * @param filePath: charging load profile csv file path
      * @return hashMap: charging load hashMap
      */
-    private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getHashMapFromFile(String filePath) {
-        LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap = new LinkedHashMap<>();
+    private TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> getHashMapFromFile(String filePath) {
+        TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> hashMap = new TreeMap<>();
         TabularFileParser fileParser = new TabularFileParser();
         TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
         fileParserConfig.setFileName(filePath);
@@ -502,18 +502,18 @@ final public class LogitParamCalibration {
                                         if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
                                             hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                     }else{
-                                        hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                        hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                         hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                     }
                                 }else{
-                                    hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                    hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                    hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                                    hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                     hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                 }
                             }else{
-                                hashMap.put(time, new LinkedHashMap<>());
-                                hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                hashMap.put(time, new TreeMap<>());
+                                hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                                hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                 hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                             }
                         }
@@ -528,18 +528,18 @@ final public class LogitParamCalibration {
                                     if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
                                         hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                 }else{
-                                    hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                    hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                     hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                 }
                             }else{
-                                hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                                hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                 hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                             }
                         }else{
-                            hashMap.put(time, new LinkedHashMap<>());
-                            hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                            hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                            hashMap.put(time, new TreeMap<>());
+                            hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                            hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                             hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                         }
                     }
@@ -551,13 +551,13 @@ final public class LogitParamCalibration {
     }
 
     /**
-     * Return LinkedHashMap that contains charging load/Plugged-in num in kW with associated time, spatial group, site type, charger type.
+     * Return TreeMap that contains charging load/Plugged-in num in kW with associated time, spatial group, site type, charger type.
      * @param filePath
      * @param valueType
      * @return
      */
-    private LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> getHashMapFromFile(String filePath, String valueType) {
-        LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap = new LinkedHashMap<>();
+    private TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> getHashMapFromFile(String filePath, String valueType) {
+        TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> hashMap = new TreeMap<>();
         TabularFileParser fileParser = new TabularFileParser();
         TabularFileParserConfig fileParserConfig = new TabularFileParserConfig();
         fileParserConfig.setFileName(filePath);
@@ -593,18 +593,18 @@ final public class LogitParamCalibration {
                                         if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
                                             hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                     }else{
-                                        hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                        hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                         hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                     }
                                 }else{
-                                    hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                    hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                    hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                                    hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                     hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                 }
                             }else{
-                                hashMap.put(time, new LinkedHashMap<>());
-                                hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                hashMap.put(time, new TreeMap<>());
+                                hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                                hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                 hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                             }
                         }
@@ -619,18 +619,18 @@ final public class LogitParamCalibration {
                                     if(!hashMap.get(time).get(spatialGroup).get(siteType).containsKey(chargerType))
                                         hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                 }else{
-                                    hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                    hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                     hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                                 }
                             }else{
-                                hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                                hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                 hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                             }
                         }else{
-                            hashMap.put(time, new LinkedHashMap<>());
-                            hashMap.get(time).put(spatialGroup, new LinkedHashMap<>());
-                            hashMap.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                            hashMap.put(time, new TreeMap<>());
+                            hashMap.get(time).put(spatialGroup, new TreeMap<>());
+                            hashMap.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                             hashMap.get(time).get(spatialGroup).get(siteType).put(chargerType, chargingLoad);
                         }
                     }
@@ -648,10 +648,10 @@ final public class LogitParamCalibration {
      * @return mergedArray: Array list of load profile hashMap1
      */
     private ArrayList<Double> getMergedArray(FileWriter writer,
-                                             LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
-                                             LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2, String type){
+                                             TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> hashMap1,
+                                             TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> hashMap2, String type){
 
-        LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMapMerged = new LinkedHashMap<>(hashMap1);
+        TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, String>>>> hashMapMerged = new TreeMap<>(hashMap1);
         ArrayList<Double> mergedArray = new ArrayList<>();
 
         // Get merged hash map
@@ -666,18 +666,18 @@ final public class LogitParamCalibration {
                                         hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                                     }
                                 }else{
-                                    hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                    hashMapMerged.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                     hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                                 }
                             }else{
-                                hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                hashMapMerged.get(time).put(spatialGroup, new TreeMap<>());
+                                hashMapMerged.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                 hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                             }
                         }else{
-                            hashMapMerged.put(time, new LinkedHashMap<>());
-                            hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
-                            hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                            hashMapMerged.put(time, new TreeMap<>());
+                            hashMapMerged.get(time).put(spatialGroup, new TreeMap<>());
+                            hashMapMerged.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                             hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                         }
                     }
@@ -723,11 +723,11 @@ final public class LogitParamCalibration {
      * @param hashMap2
      * @return
      */
-    private LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> getMergedHashMap(
-            LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap1,
-            LinkedHashMap<String, LinkedHashMap<String,LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMap2){
+    private TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, String>>>> getMergedHashMap(
+            TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> hashMap1,
+            TreeMap<String, TreeMap<String,TreeMap<String, TreeMap<String, String>>>> hashMap2){
 
-        LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, LinkedHashMap<String, String>>>> hashMapMerged = new LinkedHashMap<>(hashMap1);
+        TreeMap<String, TreeMap<String, TreeMap<String, TreeMap<String, String>>>> hashMapMerged = new TreeMap<>(hashMap1);
         ArrayList<Double> mergedArray = new ArrayList<>();
 
         // Get merged hash map
@@ -742,18 +742,18 @@ final public class LogitParamCalibration {
                                         hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                                     }
                                 }else{
-                                    hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                    hashMapMerged.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                     hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                                 }
                             }else{
-                                hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
-                                hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                                hashMapMerged.get(time).put(spatialGroup, new TreeMap<>());
+                                hashMapMerged.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                                 hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                             }
                         }else{
-                            hashMapMerged.put(time, new LinkedHashMap<>());
-                            hashMapMerged.get(time).put(spatialGroup, new LinkedHashMap<>());
-                            hashMapMerged.get(time).get(spatialGroup).put(siteType, new LinkedHashMap<>());
+                            hashMapMerged.put(time, new TreeMap<>());
+                            hashMapMerged.get(time).put(spatialGroup, new TreeMap<>());
+                            hashMapMerged.get(time).get(spatialGroup).put(siteType, new TreeMap<>());
                             hashMapMerged.get(time).get(spatialGroup).get(siteType).put(chargerType, String.valueOf(0));
                         }
                     }
