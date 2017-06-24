@@ -149,7 +149,9 @@ public class ChargingLoadProfile implements BeginChargingSessionEventHandler, En
 
 	@Override
 	public void handleEvent(BeginChargingSessionEvent event) {
-		if(!event.getPlug().useInCalibration())return;
+		if(!event.getPlug().useInCalibration()){
+			return;
+		}
 		// Aggregate
 		numPluggedIn++;
 		chargingLoadInKw += event.getChargingPowerInKw();

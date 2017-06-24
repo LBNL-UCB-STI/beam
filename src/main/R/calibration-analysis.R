@@ -1,7 +1,7 @@
 
 load.libraries(c('sp','maptools','rgdal'))
 
-calib.name <- 'calibration_2017-06-23_16-30-00'
+calib.name <- 'calibration_2017-06-23_19-15-57'
 iter.dir <- pp('~/Documents/beam/beam-output/',calib.name,'/ITERS/')
 
 iters <- sort(unlist(lapply(strsplit(list.files(iter.dir),"\\."),function(ll){ as.numeric(ll[2])})))
@@ -18,6 +18,19 @@ load.all <- rbindlist(load.all)
 ggplot(dt,aes(x=time,y=num.plugged.in,colour=site.type))+geom_bar(stat='identity',position='stack')+facet_wrap(charger.type~spatial.group)
 ggplot(load.all[time>=27 & time<=51,list(num.plugged.in=sum(num.plugged.in)),by=c('iter','time','site.type')],aes(x=time,y=num.plugged.in,fill=site.type))+geom_bar(stat='identity',position='stack')+facet_wrap(~iter)
 ggplot(load.all[time>=27 & time<=51,list(num.plugged.in=sum(num.plugged.in)),by=c('iter','time')],aes(x=time,y=num.plugged.in))+geom_line()+facet_wrap(~iter)
+
+cp <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/cp-data-for-validation-500.csv'))
+cp[time>=3,time:=time+24]
+cp[time<3,time:=time+48]
+
+both <- join.on(cp,load.all[iter==0 & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),'num.plugged.in','pred.')
+both[is.na(pred.num.plugged.in),pred.num.plugged.in:=0]
+
+ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)
+ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=charger.type))+geom_point()+geom_abline(slope=1,intercept=0)
+
+ggplot(melt(both,id.vars=c('time','spatial.group','site.type','charger.type'),measure.vars=c('num.plugged.in','pred.num.plugged.in'))[,list(value=sum(value)),by=c('time','variable')],aes(x= time, y=value,colour=variable))+geom_line()
+
 
 
 xy.to.latlon <- function(str){
