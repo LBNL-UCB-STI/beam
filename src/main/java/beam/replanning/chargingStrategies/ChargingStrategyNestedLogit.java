@@ -245,7 +245,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 		ArrayList<NestedLogit> alternativeNests = new ArrayList<NestedLogit>();
 		LinkedHashMap<String, ChargingDecisionAlternative> sitePlugAlternatives = new LinkedHashMap<String, ChargingDecisionAlternative>();
 		LinkedHashMap<String, LinkedHashMap<String, Double>> inputData = new LinkedHashMap<String, LinkedHashMap<String, Double>>();
-		ArrayList<ChargingSite> foundSites = new ArrayList<ChargingSite>();
+		LinkedHashSet<ChargingSite> foundSites = new LinkedHashSet<ChargingSite>();
 		foundSites.addAll(EVGlobalData.data.chargingInfrastructureManager.getAllAccessibleAndCompatibleChargingSitesInArea(agent.getLinkCoordOfPreviouActivity(),agent.getCurrentSearchRadius(),agent));
 		foundSites.addAll(EVGlobalData.data.chargingInfrastructureManager.getAllAccessibleAndCompatibleChargingSitesAlongRoute(agent.getReachableRouteInfoAlongTrip(),agent.getCurrentSearchRadius(),agent));
 		if(agent.canReachDestinationPlusSearchDistance()){
@@ -281,7 +281,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 										Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
 								altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
 								double[] extraEnergyAndTimeRequiredToUseSite = agent.getExtraEnergyAndTimeToChargeAt(site, plugType);
-								altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0]/2.77778e-7);
+								altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0]/3.6e6);
 								altData.put("extraTimeRequired", extraEnergyAndTimeRequiredToUseSite[1]/3600);
 								inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
 								break;
@@ -310,7 +310,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 										Math.min(agent.getVehicleWithBattery().getMaxChargingPowerInKW(plugType), plugType.getChargingPowerInKW()));
 								altData.put("distanceToActivity", agent.getDistanceToNextActivityInMiles(site.getCoord()));
 								double[] extraEnergyAndTimeRequiredToUseSite = agent.getExtraEnergyAndTimeToChargeAt(site, plugType);
-								altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0] / 2.77778e-7);
+								altData.put("extraEnergyRequired", extraEnergyAndTimeRequiredToUseSite[0] / 3.6e6);
 								altData.put("extraTimeRequired", extraEnergyAndTimeRequiredToUseSite[1] / 3600);
 								inputData.put(alt.toString(), ((LinkedHashMap<String, Double>) altData.clone()));
 								break;

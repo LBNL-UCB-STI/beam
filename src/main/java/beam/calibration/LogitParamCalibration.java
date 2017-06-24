@@ -240,7 +240,7 @@ final public class LogitParamCalibration {
 		 */
         Iterator itr = null;
         int paramIndex = 0;
-        double paramMaxConst = 10, paramMinConst = -10;
+        double paramMaxConst = 20, paramMinConst = -20;
         // reinitialize logitParamsPlus and logitParamsMinus
         if(shouldUpdateBetaPlus) {
             paramsDelta = new ArrayList<>();
@@ -273,7 +273,7 @@ final public class LogitParamCalibration {
                                                     utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss / maxDiffLoss)*paramMaxConst / (2 * c * paramsDelta.get(paramIndex++));
+                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) / (c * paramsDelta.get(paramIndex++));
                                                     log.info("grad: " + grad);
                                                     double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
                                                     if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
@@ -300,7 +300,7 @@ final public class LogitParamCalibration {
                                                     utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-                                                    grad = (diffLoss / maxDiffLoss)*paramMaxConst/ (2 * c * paramsDelta.get(paramIndex++));
+                                                    grad = (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) / (c * paramsDelta.get(paramIndex++));
 //													grad = (diffLoss)/ (2 * c * paramsDelta.get(paramIndex++));
                                                     log.info("grad: " + grad);
                                                     double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;

@@ -2,6 +2,7 @@
 
 package beam.sim.traveltime;
 
+import beam.EVGlobalData;
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 import org.beammapdb.DB;
@@ -55,7 +56,7 @@ public class TripInfoCacheMapDB {
 
         // fast in-memory collection with limited size
         inMemory = dbMemory.hashMap("inMemory").
-                expireMaxSize(20*1024*1024*1024).
+                expireMaxSize(EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT*1024*1024*1024).
                 expireOverflow((HTreeMap)onDisk).
                 expireExecutor(Executors.newScheduledThreadPool(2)).
                 create();
