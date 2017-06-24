@@ -2,6 +2,7 @@ package beam.calibration;
 
 import beam.BEAMSimTelecontrolerListener;
 import beam.EVGlobalData;
+import beam.logit.NestedLogit;
 import beam.parking.lib.DebugLib;
 import beam.replanning.ChargingStrategy;
 import beam.replanning.ChargingStrategyManager;
@@ -73,6 +74,8 @@ final public class LogitParamCalibration {
             listBetaPlusNum = new ArrayList<>(),
             listBetaMinusNum = new ArrayList<>(),
             listObservedNum = new ArrayList<>();
+    private ArrayList<String> progressMonitoringData = new ArrayList<>();
+    private FileWriter progressMonitoringWriter = null;
 
     /**
      * Make the class singleton
@@ -141,6 +144,29 @@ final public class LogitParamCalibration {
             paramsList 			= getUtilityParams(logitParams);
             valHmObserved 		= getHashMapFromFile(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH,valueType);
             logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
+            try {
+                progressMonitoringWriter = new FileWriter(EVGlobalData.data.OUTPUT_DIRECTORY.getAbsolutePath() + File.separator + "calibration.csv");
+                progressMonitoringData.add("iter");
+                progressMonitoringData.add("group");
+                progressMonitoringData.add("SSR");
+                progressMonitoringData.add("minSSR");
+                progressMonitoringData.add("diffLoss");
+                progressMonitoringData.add("maxDiffLoss");
+                progressMonitoringData.add("yesCharge");
+                progressMonitoringData.add("tryChargingLater");
+                progressMonitoringData.add("continueSearchInLargerArea");
+                progressMonitoringData.add("abort");
+                progressMonitoringData.add("departureYes");
+                progressMonitoringData.add("departureNo");
+                try {
+                    CSVUtil.writeLine(progressMonitoringWriter,progressMonitoringData);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                progressMonitoringData.clear();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
         }else{
             if(shouldUpdateBetaPlus){
@@ -163,6 +189,7 @@ final public class LogitParamCalibration {
                 residual = 0;
                 for(int i = 0; i< valListBetaTemp.size(); i++){
                     residual += Math.pow(valListObserved.get(i)- valListBetaTemp.get(i),2);
+//                    log.info("observed: "+valListObserved.get(i)+" modeled: "+valListBetaTemp.get(i));
                 }
                 log.info("residual (observed - modeled)^2 = " + residual);
                 if((!EVGlobalData.data.SHOULD_RESUME_CALIBRATION && event.getIteration() == 1)) minResidual = residual;
@@ -170,13 +197,18 @@ final public class LogitParamCalibration {
 
                 // Update parameter if we have an improvement in residuals
                 if(event.getIteration() >= iterPeriod && residual <= minResidual){ // Check if we have an improvement with the updated parameter
-                    log.info("origin params: " + getUtilityParams(logitParams));
+                    log.info("YES, update params.");
+
+                    log.info("original params: " + getUtilityParams(logitParams));
+                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(0)).toStringRecursive(0));
+                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(1)).toStringRecursive(0));
 
                     // Update the parameter if the perturbation made an improvement
                     minResidual = residual; // update the threshold
                     logitParams = (Element) logitParamsTemp.clone(); // update the parameter
-                    log.info("current params: " + getUtilityParams(logitParams));
-                    log.info("YES, Parameters are updated.");
+                    log.info("updated params: " + getUtilityParams(logitParams));
+                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(0)).toStringRecursive(0));
+                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(1)).toStringRecursive(0));
 
                     // Write XML of the updated params
                     backupUpdatedParams((Element)logitParams.clone());
@@ -270,7 +302,7 @@ final public class LogitParamCalibration {
                                                     paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
                                                     utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
                                                 } else if (shouldUpdateBetaMinus) {
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
+                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - c * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
                                                     grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) / (c * paramsDelta.get(paramIndex++));
@@ -297,7 +329,7 @@ final public class LogitParamCalibration {
                                                     paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
                                                     utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
                                                 } else if (shouldUpdateBetaMinus) {
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * paramsDelta.get(paramIndex++)));
+                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - c * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
                                                     grad = (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) / (c * paramsDelta.get(paramIndex++));
@@ -344,9 +376,34 @@ final public class LogitParamCalibration {
                     }
                 }
             }
+            log.info("Parameters used in next iteration.");
+            NestedLogit arrival = NestedLogit.NestedLogitFactory((Element)elem.getChildren().get(0));
+            NestedLogit departure = NestedLogit.NestedLogitFactory((Element)elem.getChildren().get(1));
+            log.info(arrival.toStringRecursive(0));
+            log.info(departure.toStringRecursive(0));
+            progressMonitoringData.add(Integer.toString(event.getIteration()));
+            progressMonitoringData.add(Double.toString(Math.floor((event.getIteration() - 1) / 3)+1.0));
+            progressMonitoringData.add(Double.toString(residual));
+            progressMonitoringData.add(Double.toString(minResidual));
+            progressMonitoringData.add(Double.toString(diffLoss));
+            progressMonitoringData.add(Double.toString(maxDiffLoss));
+            progressMonitoringData.add(arrival.children.get(0).children.getFirst().data.getUtility().getCoefficientValue("intercept").toString());
+            progressMonitoringData.add(arrival.children.get(1).children.get(0).data.getUtility().getCoefficientValue("intercept").toString());
+            progressMonitoringData.add(arrival.children.get(1).children.get(1).data.getUtility().getCoefficientValue("intercept").toString());
+            progressMonitoringData.add(arrival.children.get(1).children.get(2).data.getUtility().getCoefficientValue("intercept").toString());
+            progressMonitoringData.add(departure.children.get(0).children.get(0).data.getUtility().getCoefficientValue("intercept").toString());
+            progressMonitoringData.add(departure.children.get(1).data.getUtility().getCoefficientValue("intercept").toString());
+            try {
+                CSVUtil.writeLine(progressMonitoringWriter,progressMonitoringData);
+                progressMonitoringWriter.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            progressMonitoringData.clear();
         }else{
             log.warn("Run another iteration without updating parameters to get the simulation result converges..");
         }
+        int jjj = 0;
     }
 
     /**

@@ -1,7 +1,7 @@
 
 load.libraries(c('sp','maptools','rgdal'))
 
-calib.name <- 'calibration_2017-06-23_19-15-57'
+calib.name <- 'calibration_2017-06-23_21-52-19'
 iter.dir <- pp('~/Documents/beam/beam-output/',calib.name,'/ITERS/')
 
 iters <- sort(unlist(lapply(strsplit(list.files(iter.dir),"\\."),function(ll){ as.numeric(ll[2])})))
@@ -22,6 +22,8 @@ ggplot(load.all[time>=27 & time<=51,list(num.plugged.in=sum(num.plugged.in)),by=
 cp <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/cp-data-for-validation-500.csv'))
 cp[time>=3,time:=time+24]
 cp[time<3,time:=time+48]
+
+ggplot(cp[,list(num.plugged.in=sum(num.plugged.in)),by=c('time')],aes(x=time,y=num.plugged.in))+geom_line()
 
 both <- join.on(cp,load.all[iter==200 & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),'num.plugged.in','pred.')
 both[is.na(pred.num.plugged.in),pred.num.plugged.in:=0]

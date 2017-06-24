@@ -453,27 +453,7 @@ public class ChargingStrategyNestedLogit implements ChargingStrategy {
 	}
 	public String toString(){
 		if(this.arrivalModel==null)return "null";
-		return toStringRecursive(arrivalModel,0);
-	}
-	public String toStringRecursive(NestedLogit nest,int depth){
-		String result = "";
-		String tabs = "", tabsPlusOne = "  ";
-		for(int i=0; i<depth; i++){
-			tabs += "  ";
-			tabsPlusOne += "  ";
-		}
-		result += tabs + nest.data.getNestName() + "\n";
-		if((nest.children==null || nest.children.isEmpty()) && nest.data.getUtility()!=null){
-			result += tabsPlusOne + nest.data.getUtility().toString() + "\n";
-		}else if (nest.data.getNestName().equals("yesCharge")) {
-			result += tabsPlusOne + this.arrivalSitePlugTypeAlternativeTemplate.data.getUtility().toString() + "\n";
-		}else{
-			for (NestedLogit subnest : nest.children) {
-				result += toStringRecursive(subnest,depth+1);
-			}
-		}
-		return result;
-
+		return arrivalModel.toStringRecursive(0);
 	}
 	public String getChoiceUtility() {
 		return this.choiceExpectedMaximumUtility.toString();
