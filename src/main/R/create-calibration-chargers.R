@@ -1,8 +1,8 @@
 
 load.libraries(c('maptools','sp'))
 
-counties <- readShapePoly('~/Dropbox/ucb/vto/beam-developers/spatial-data/ca-counties/ca-counties.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
-zips <- readShapePoly('~/Dropbox/ucb/vto/beam-developers/spatial-data/ca-zips/sf-bay-area-zips.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
+counties <- readShapePoly('~/Dropbox/ucb/vto/beam-core/spatial-data/ca-counties/ca-counties.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
+zips <- readShapePoly('~/Dropbox/ucb/vto/beam-core/spatial-data/ca-zips/sf-bay-area-zips.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
 sf.county.inds <- counties$NAME %in% c('Alameda','San Mateo','Sonoma','Marin','Contra Costa','Napa','Solano','Santa Clara','San Francisco')
 zips.in.sf <- which(!is.na(over(zips,counties[sf.county.inds,])$NAME))
 sf.zips <- spTransform(zips[zips.in.sf,],CRS("+proj=longlat +datum=WGS84"))
@@ -55,7 +55,7 @@ add.tz <- function(date.str,timezone){
 round.to.minute <- function(dt,mins=30*60){
   to.posix(format(to.posix('1970-01-01',tz='GMT') + round(as.numeric(dt)/mins)*mins,'%Y-%m-%d %H:%M',tz='America/Los_Angeles'),'%Y-%m-%d %H:%M',tz='America/Los_Angeles')
 }
-cp.base <- pp(matsim.shared,'/data/chargepoint/')
+cp.base <- pp('/Users/critter/Dropbox/ucb/vto/beam-core/data/chargepoint/')
 do.or.load(pp(cp.base,'cp.Rdata'),function(){
   cp <- list()
   for(the.file in c('cp-comm-2017-10.csv','cp-comm-2017-11.csv','cp-comm-2017-12.csv','cp-res-2017-Q4.csv')){
@@ -200,36 +200,38 @@ cp[,list(kwh=sum(max.kwh),n.devices=length(u(device.id)),kwh.per.device=sum(max.
 n.min <- 15
 cp[,start.round:=round.to.minute(start,n.min*60)]
 cp[,end.round:=round.to.minute(end,n.min*60)]
-cp.samp <- cp[,list(t=seq(start.round,end.round,by=n.min*60),kw=kw,category=category,port.type=port.type,month=start.month,county=county),by='id']
-cp.samp[,month:=month(t)]
-cp.samp[,wday:=wday(t)]
-cp.samp[,mday:=mday(t)]
-cp.samp[,hour:=hour(t)]
-cp.samp[,dec.hour:= hour(t) + as.numeric(t)/3600 - floor(as.numeric(t)/3600)]
-cp.samp[,site.type:='Non-Residential']
-cp.samp[grep('residential|Home',category,perl=T),site.type:='Residential']
-cp.samp[,spatial.group:=county]
-cp.samp[,charger.type:=c('CHAdeMO'='CHAdeMO','J1772'='J-1772-2','NEMA'='J-1772-1','SAE-Combo-CCS1'='SAE-Combo-3')[as.character(port.type)]]
+if(F){
+  cp.samp <- cp[,list(t=seq(start.round,end.round,by=n.min*60),kw=kw,category=category,port.type=port.type,month=start.month,county=county),by='id']
+  cp.samp[,month:=month(t)]
+  cp.samp[,wday:=wday(t)]
+  cp.samp[,mday:=mday(t)]
+  cp.samp[,hour:=hour(t)]
+  cp.samp[,dec.hour:= hour(t) + as.numeric(t)/3600 - floor(as.numeric(t)/3600)]
+  cp.samp[,site.type:='Non-Residential']
+  cp.samp[grep('residential|Home',category,perl=T),site.type:='Residential']
+  cp.samp[,spatial.group:=county]
+  cp.samp[,charger.type:=c('CHAdeMO'='CHAdeMO','J1772'='J-1772-2','NEMA'='J-1772-1','SAE-Combo-CCS1'='SAE-Combo-3')[as.character(port.type)]]
 
-cp.load <- cp.samp[wday>1 & wday<7,list(kw=sum(kw),num.plugged.in=length(kw)),by=c('dec.hour','port.type','category','county','month','mday')]
-cp.load <- cp.load[,list(kw=mean(kw),num.plugged.in=round(mean(num.plugged.in))),by=c('dec.hour','port.type','category','county')]
+  cp.load <- cp.samp[wday>1 & wday<7,list(kw=sum(kw),num.plugged.in=length(kw)),by=c('dec.hour','port.type','category','county','month','mday')]
+  cp.load <- cp.load[,list(kw=mean(kw),num.plugged.in=round(mean(num.plugged.in))),by=c('dec.hour','port.type','category','county')]
 
-ggplot(cp.load[,list(kw=sum(kw)),by=c('dec.hour','port.type','category')],aes(x=dec.hour,y=kw,colour=port.type))+geom_line()+facet_wrap(~category,scales='free_y')
-cp.load.sum <- cp.load[,list(kw=sum(kw)),by=c('dec.hour','county','category')]
-setkey(cp.load.sum,county,dec.hour,category)
-ggplot(cp.load.sum,aes(x=dec.hour,y=kw,fill=county))+geom_bar(stat='identity')+facet_wrap(~category,scales='free_y')
+  ggplot(cp.load[,list(kw=sum(kw)),by=c('dec.hour','port.type','category')],aes(x=dec.hour,y=kw,colour=port.type))+geom_line()+facet_wrap(~category,scales='free_y')
+  cp.load.sum <- cp.load[,list(kw=sum(kw)),by=c('dec.hour','county','category')]
+  setkey(cp.load.sum,county,dec.hour,category)
+  ggplot(cp.load.sum,aes(x=dec.hour,y=kw,fill=county))+geom_bar(stat='identity')+facet_wrap(~category,scales='free_y')
 
-cp.load <- cp.samp[wday>1 & wday<7,list(kw=sum(kw),num.plugged.in=length(kw)),by=c('dec.hour','charger.type','site.type','spatial.group','month','mday')]
-cp.load <- cp.load[,list(kw=mean(kw),num.plugged.in=round(mean(num.plugged.in))),by=c('dec.hour','charger.type','site.type','spatial.group')]
-to.export <- cp.load[!is.na(charger.type),list(time=dec.hour,spatial.group,site.type,charger.type=tolower(charger.type),charging.load=kw,num.plugged.in)]
-setkey(to.export,spatial.group,site.type,charger.type,time)
-write.csv(to.export,file='/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/calibration-v2/cp-data-for-validation.csv',row.names=F)
+  cp.load <- cp.samp[wday>1 & wday<7,list(kw=sum(kw),num.plugged.in=length(kw)),by=c('dec.hour','charger.type','site.type','spatial.group','month','mday')]
+  cp.load <- cp.load[,list(kw=mean(kw),num.plugged.in=round(mean(num.plugged.in))),by=c('dec.hour','charger.type','site.type','spatial.group')]
+  to.export <- cp.load[!is.na(charger.type),list(time=dec.hour,spatial.group,site.type,charger.type=tolower(charger.type),charging.load=kw,num.plugged.in)]
+  setkey(to.export,spatial.group,site.type,charger.type,time)
+  write.csv(to.export,file='/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/calibration-v2/cp-data-for-validation.csv',row.names=F)
+}
 
 # Revise BEAM inputs, decide which public and residential chargers to include in outputs for calibration
 
-points <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-points.csv',stringsAsFactors=F))
-sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-sites-with-counties.csv',stringsAsFactors=F))
-plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-plug-types.csv'))
+points <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points.csv',stringsAsFactors=F))
+sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-with-counties.csv',stringsAsFactors=F))
+plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-plug-types.csv'))
 plug.types[,cp.type:=c('CHAdeMO'='CHAdeMO','J-1772-2'='J1772','J-1772-1'='NEMA','SAE-Combo-3'='SAE-Combo-CCS1')[as.character(plugTypeName)]]
 
 points <- join.on(points,sites,'siteID','id',c('latitude','longitude'))
@@ -256,7 +258,7 @@ n.new.points[,num:=cp.n-n]
 drop.points <- both[cp.n < n]
 drop.points[,num:=n-cp.n]
 
-do.or.load('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/work.Rdata',function(){
+do.or.load('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/work.Rdata',function(){
   load('/Users/critter/Documents/beam/input/run0-201-plans-all.Rdata')
   load('/Users/critter/Documents/beam/input/sf-bay-sampled-plans.Rdata')
   plans <- plans[id%in%sampled.reg$smart.id]
@@ -315,8 +317,25 @@ for(i in 1:nrow(drop.points)){
 all.points <- rbindlist(list(points[,list(id,siteID,plugTypeID,numPlugs,numParkingSpacesPerPoint,useInCalibration)],new.points),use.names=T)
 all.points[,use:=ifelse(useInCalibration==0,'FALSE','TRUE')]
 all.points[,':='(useInCalibration=use,use=NULL)]
-all.sites <- rbindlist(list(data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-sites-with-counties.csv')),new.sites),use.names=T)
+all.sites <- rbindlist(list(data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-with-counties.csv')),new.sites),use.names=T)
 
-write.csv(all.points,file='/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-points-cp.csv',row.names=F)
-write.csv(all.sites,file='/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-sites-cp.csv',row.names=F)
+write.csv(all.points,file='/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points-cp.csv',row.names=F)
+write.csv(all.sites,file='/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp.csv',row.names=F)
+
+# now work on residential chargers to include in calibration
+
+person.att <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group.csv'))
+
+cp.sum <- cp[type=='Residential' & start.month==12,list(n=length(u(device.id))),by=c('county')]
+
+person.att <- join.on(person.att,cp.sum,'spatialGroup','county','n')
+person.att[,useInCalibration:=F]
+for(county in u(person.att[!is.na(n)]$spatialGroup)){
+ n.row <- nrow(person.att[spatialGroup==county])
+ to.use <- rep(F,n.row)
+ to.use[sample(n.row,person.att[spatialGroup==county][1]$n)] <- T
+ person.att[spatialGroup==county,useInCalibration:=to.use]
+}
+person.att[,n:=NULL]
+write.csv(person.att,file='~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group-calib.csv',row.names=F)
 

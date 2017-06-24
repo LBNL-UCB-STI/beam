@@ -23,13 +23,14 @@ cp <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v
 cp[time>=3,time:=time+24]
 cp[time<3,time:=time+48]
 
-both <- join.on(cp,load.all[iter==0 & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),'num.plugged.in','pred.')
+both <- join.on(cp,load.all[iter==200 & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),'num.plugged.in','pred.')
 both[is.na(pred.num.plugged.in),pred.num.plugged.in:=0]
+both[,hr:=floor(time)]
 
 ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)
 ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=charger.type))+geom_point()+geom_abline(slope=1,intercept=0)
 
-ggplot(melt(both,id.vars=c('time','spatial.group','site.type','charger.type'),measure.vars=c('num.plugged.in','pred.num.plugged.in'))[,list(value=sum(value)),by=c('time','variable')],aes(x= time, y=value,colour=variable))+geom_line()
+ggplot(melt(both,id.vars=c('time','hr','spatial.group','site.type','charger.type'),measure.vars=c('num.plugged.in','pred.num.plugged.in'))[,list(value=sum(value)),by=c('hr','variable')],aes(x= hr, y=value/4,colour=variable))+geom_line()
 
 
 
