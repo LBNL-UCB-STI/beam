@@ -1,7 +1,7 @@
 
 load.libraries(c('sp','maptools','rgdal'))
 
-calib.name <- 'calibration_2017-06-25_00-04-20'
+calib.name <- 'calibration_2017-06-25_00-20-29'
 iter.dir <- pp('~/Documents/beam/beam-output/',calib.name,'/ITERS/')
 
 iters <- sort(unlist(lapply(strsplit(list.files(iter.dir),"\\."),function(ll){ as.numeric(ll[2])})))
@@ -35,7 +35,7 @@ cp[time<3,time:=time+48]
 
 ggplot(cp[,list(num.plugged.in=sum(num.plugged.in)),by=c('time')],aes(x=time,y=num.plugged.in))+geom_line()
 
-both <- join.on(cp,load.all[iter==68 & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),c('num.plugged.in','charging.load.in.kw'),'pred.')
+both <- join.on(cp,load.all[iter==50 & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),c('num.plugged.in','charging.load.in.kw'),'pred.')
 both[is.na(pred.num.plugged.in),pred.num.plugged.in:=0]
 both[is.na(pred.charging.load.in.kw),pred.charging.load.in.kw:=0]
 both[,hr:=floor(time)]
