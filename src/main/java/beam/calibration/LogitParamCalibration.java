@@ -207,7 +207,7 @@ final public class LogitParamCalibration {
             progressMonitoringData.clear();
 
             // Update parameter if we have an improvement in residuals
-            if(event.getIteration() >= iterPeriod && residual <= minResidual){ // Check if we have an improvement with the updated parameter
+            if(event.getIteration() >= iterPeriod && residual <= minResidual*1.05){ // Check if we have an improvement with the updated parameter
                 log.info("YES, update params.");
 
                 log.info("original params: " + getUtilityParams(logitParams));
