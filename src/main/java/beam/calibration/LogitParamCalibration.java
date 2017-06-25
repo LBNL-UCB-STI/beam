@@ -194,6 +194,18 @@ final public class LogitParamCalibration {
             if((!EVGlobalData.data.SHOULD_RESUME_CALIBRATION && event.getIteration() == 1)) minResidual = residual;
             log.info("min Residual: " + minResidual);
 
+            if(progressMonitoringData.size()>=4){
+                progressMonitoringData.set(2,Double.toString(residual));
+                progressMonitoringData.set(3,Double.toString(minResidual));
+            }
+            try {
+                CSVUtil.writeLine(progressMonitoringWriter,progressMonitoringData);
+                progressMonitoringWriter.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            progressMonitoringData.clear();
+
             // Update parameter if we have an improvement in residuals
             if(event.getIteration() >= iterPeriod && residual <= minResidual){ // Check if we have an improvement with the updated parameter
                 log.info("YES, update params.");
@@ -208,8 +220,10 @@ final public class LogitParamCalibration {
                     logitParams = (Element) logitParamsTemp.clone(); // update the parameter
                 }else if(shouldUpdateBetaMinus) {
                     logitParams = (Element) logitParamsPlus.clone(); // update the parameter
+                    logitParamsTemp = (Element) logitParamsPlus.clone(); // update the parameter
                 }else {
                     logitParams = (Element) logitParamsMinus.clone(); // update the parameter
+                    logitParamsTemp = (Element) logitParamsMinus.clone(); // update the parameter
                 }
                 log.info("updated params: " + getUtilityParams(logitParams));
                 log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(0)).toStringRecursive(0));
@@ -289,9 +303,8 @@ final public class LogitParamCalibration {
         if(!isFirstIteration && itr != null){
             while (itr.hasNext()) { // arrival/departure
                 Element element = (Element) itr.next();
-                if(element.getAttributeValue("name").toLowerCase().equals("arrival")){
+//                if(element.getAttributeValue("name").toLowerCase().equals("arrival")){
                     Iterator itrElem = element.getChildren().iterator();
-                    paramIndex = 0;
                     while (itrElem.hasNext()) { // yescharge/nocharge
                         Element subElement = ((Element) itrElem.next());
                         if(subElement.getName().toLowerCase().equals("nestedlogit")){
@@ -305,15 +318,18 @@ final public class LogitParamCalibration {
                                             if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
                                                 if (shouldUpdateBetaPlus) {
                                                     boolean delta = StdRandom.bernoulli();
-                                                    paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
+                                                    paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
+                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + 0.5 * paramsDelta.get(paramsDelta.size()-1)));
+                                                    break;
                                                 } else if (shouldUpdateBetaMinus) {
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - c * paramsDelta.get(paramIndex++)));
+                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - 0.5 * paramsDelta.get(paramIndex++)));
+                                                    break;
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 3.0 / (c * paramsDelta.get(paramIndex++));
+//                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 6.0 / (c * paramsDelta.get(paramIndex++));
+                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? -1 : 1) * 10.0 / (c * paramsDelta.get(paramIndex++));
                                                     log.info("grad: " + grad);
-                                                    double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
+                                                    double updatedParam = Double.valueOf(utilityElement.getText()) + a * grad;
                                                     if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
                                                         if(updatedParam >= 0) updatedParam = paramMaxConst;
                                                         if(updatedParam < 0) updatedParam = paramMinConst;
@@ -321,6 +337,7 @@ final public class LogitParamCalibration {
                                                     utilityElement.setText(String.valueOf(updatedParam));
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
                                                 }
+                                                break;
                                             }
                                         }
                                     }
@@ -332,16 +349,16 @@ final public class LogitParamCalibration {
                                             if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
                                                 if (shouldUpdateBetaPlus) {
                                                     boolean delta = StdRandom.bernoulli();
-                                                    paramsDelta.add(paramIndex++, (double) ((delta ? 1 : 0) * 2 - 1));
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + c * ((delta ? 1 : 0) * 2 - 1)));
+                                                    paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
+                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + 0.5 * paramsDelta.get(paramsDelta.size()-1)));
                                                 } else if (shouldUpdateBetaMinus) {
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - c * paramsDelta.get(paramIndex++)));
+                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - 0.5 * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-                                                    grad = (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 3.0 / (c * paramsDelta.get(paramIndex++));
-//													grad = (diffLoss)/ (2 * c * paramsDelta.get(paramIndex++));
+//                                                    grad = (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 6.0 / (c * paramsDelta.get(paramIndex++));
+                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? -1 : 1) * 10.0 / (c * paramsDelta.get(paramIndex++));
                                                     log.info("grad: " + grad);
-                                                    double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
+                                                    double updatedParam = Double.valueOf(utilityElement.getText()) + a * grad;
                                                     if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
                                                         if(updatedParam >= 0) updatedParam = paramMaxConst;
                                                         if(updatedParam < 0) updatedParam = paramMinConst;
@@ -356,7 +373,7 @@ final public class LogitParamCalibration {
                             }
                         }
                     }
-                }
+//                }
             }
         }
 
@@ -399,13 +416,6 @@ final public class LogitParamCalibration {
             progressMonitoringData.add(arrival.children.get(1).children.get(2).data.getUtility().getCoefficientValue("intercept").toString());
             progressMonitoringData.add(departure.children.get(0).children.get(0).data.getUtility().getCoefficientValue("intercept").toString());
             progressMonitoringData.add(departure.children.get(1).data.getUtility().getCoefficientValue("intercept").toString());
-            try {
-                CSVUtil.writeLine(progressMonitoringWriter,progressMonitoringData);
-                progressMonitoringWriter.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            progressMonitoringData.clear();
         }else{
             log.warn("Run another iteration without updating parameters to get the simulation result converges..");
         }

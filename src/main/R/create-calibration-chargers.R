@@ -91,7 +91,7 @@ do.or.load(pp(cp.base,'cp.Rdata'),function(){
 
   cp[id%in%cp[duration>0,list(id=id,kw=max.kwh/duration)][kw>100]$id,end:=NA]
   cp[id%in%cp[duration>0,list(id=id,kw=max.kwh/duration)][kw>100]$id,duration:=NA]
-  cp <- cp[duration>0] # non-session session or one's with a tiny amount of energy delivered, just igore
+  cp <- cp[duration>0] # non-session session or ones with a tiny amount of energy delivered, just igore
   cp <- cp[!category%in%c('','Demo Unit')]
 
   cp[,hour.of.week:=(start.wday-1)*24+start.hour]
@@ -201,7 +201,8 @@ n.min <- 15
 cp[,start.round:=round.to.minute(start,n.min*60)]
 cp[,end.round:=round.to.minute(end,n.min*60)]
 if(F){
-  cp.samp <- cp[,list(t=seq(start.round,end.round,by=n.min*60),kw=kw,category=category,port.type=port.type,month=start.month,county=county),by='id']
+  cp.samp <- cp[,list(t=seq(start.round,end.round,by=n.min*60),kw=kw,kwh=max.kwh,category=category,port.type=port.type,month=start.month,county=county),by='id']
+  cp.samp <- cp.samp[,list(t=t,kw=ifelse(kw*length(kw)/4<=kwh[1],kw,c(rep(kw[1],floor(kwh[1]/kw[1]*4)),rep(0,length(kw)-floor(kwh[1]/kw[1]*4)))),category=category,port.type=port.type,month=month,county=county),by='id']
   cp.samp[,month:=month(t)]
   cp.samp[,wday:=wday(t)]
   cp.samp[,mday:=mday(t)]
@@ -222,7 +223,7 @@ if(F){
 
   cp.load <- cp.samp[wday>1 & wday<7,list(kw=sum(kw),num.plugged.in=length(kw)),by=c('dec.hour','charger.type','site.type','spatial.group','month','mday')]
   cp.load <- cp.load[,list(kw=mean(kw),num.plugged.in=round(mean(num.plugged.in))),by=c('dec.hour','charger.type','site.type','spatial.group')]
-  to.export <- cp.load[!is.na(charger.type),list(time=dec.hour,spatial.group,site.type,charger.type=tolower(charger.type),charging.load=kw,num.plugged.in)]
+  to.export <- cp.load[!is.na(charger.type),list(time=dec.hour,spatial.group,site.type,charger.type=tolower(charger.type),charging.load.in.kw=kw,num.plugged.in)]
   setkey(to.export,spatial.group,site.type,charger.type,time)
   write.csv(to.export,file='/Users/critter/Dropbox/ucb/vto/beam-colin/analysis/calibration-v2/cp-data-for-validation.csv',row.names=F)
 }
