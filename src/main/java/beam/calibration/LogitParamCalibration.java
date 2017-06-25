@@ -169,54 +169,60 @@ final public class LogitParamCalibration {
             }
 
         }else{
-            if(shouldUpdateBetaPlus){
-                // Update algorithmic params
-                a 	= a0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod) + lastIterSetNum,alpha));
-                c 	= c0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod) + lastIterSetNum,gamma));
-                currentIterSetNum = Math.ceil((double)event.getIteration()/(double)iterPeriod);
+            // Update algorithmic params
+            a 	= a0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod) + lastIterSetNum,alpha));
+            c 	= c0 / (Math.pow(Math.ceil((double)event.getIteration()/(double)iterPeriod) + lastIterSetNum,gamma));
+            currentIterSetNum = Math.ceil((double)event.getIteration()/(double)iterPeriod);
 
-                // Load and merge observed & simulated data
-                String prevLoadFile = EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+
-                        EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator +
-                        "ITERS" + File.separator +
-                        "it." + (event.getIteration()-1) + File.separator +
-                        "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
-                valHmBeta = getHashMapFromFile(prevLoadFile,valueType);
-                valListBetaTemp = getMergedArray(initDisaggFileWriter(event.getIteration(),"beta"), valHmBeta, valHmObserved, valueType);
-                valListObserved = getMergedArray(initDisaggFileWriter(event.getIteration(),"observed"), valHmObserved, valHmBeta, valueType);
+            // Load and merge observed & simulated data
+            String prevLoadFile = EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+
+                    EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator +
+                    "ITERS" + File.separator +
+                    "it." + (event.getIteration()-1) + File.separator +
+                    "run0."+ (event.getIteration()-1) + ".disaggregateLoadProfile.csv";
+            valHmBeta = getHashMapFromFile(prevLoadFile,valueType);
+            valListBetaTemp = getMergedArray(initDisaggFileWriter(event.getIteration(),"beta"), valHmBeta, valHmObserved, valueType);
+            valListObserved = getMergedArray(initDisaggFileWriter(event.getIteration(),"observed"), valHmObserved, valHmBeta, valueType);
 
-                // Calculate residuals
-                residual = 0;
-                for(int i = 0; i< valListBetaTemp.size(); i++){
-                    residual += Math.pow(valListObserved.get(i)- valListBetaTemp.get(i),2);
+            // Calculate residuals
+            residual = 0;
+            for(int i = 0; i< valListBetaTemp.size(); i++){
+                residual += Math.pow(valListObserved.get(i)- valListBetaTemp.get(i),2);
 //                    log.info("observed: "+valListObserved.get(i)+" modeled: "+valListBetaTemp.get(i));
-                }
-                log.info("residual (observed - modeled)^2 = " + residual);
-                if((!EVGlobalData.data.SHOULD_RESUME_CALIBRATION && event.getIteration() == 1)) minResidual = residual;
-                log.info("min Residual: " + minResidual);
+            }
+            log.info("residual (observed - modeled)^2 = " + residual);
+            if((!EVGlobalData.data.SHOULD_RESUME_CALIBRATION && event.getIteration() == 1)) minResidual = residual;
+            log.info("min Residual: " + minResidual);
 
-                // Update parameter if we have an improvement in residuals
-                if(event.getIteration() >= iterPeriod && residual <= minResidual){ // Check if we have an improvement with the updated parameter
-                    log.info("YES, update params.");
+            // Update parameter if we have an improvement in residuals
+            if(event.getIteration() >= iterPeriod && residual <= minResidual){ // Check if we have an improvement with the updated parameter
+                log.info("YES, update params.");
 
-                    log.info("original params: " + getUtilityParams(logitParams));
-                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(0)).toStringRecursive(0));
-                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(1)).toStringRecursive(0));
+                log.info("original params: " + getUtilityParams(logitParams));
+                log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(0)).toStringRecursive(0));
+                log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(1)).toStringRecursive(0));
 
-                    // Update the parameter if the perturbation made an improvement
-                    minResidual = residual; // update the threshold
+                // Update the parameter if the perturbation made an improvement
+                minResidual = residual; // update the threshold
+                if(shouldUpdateBetaPlus) {
                     logitParams = (Element) logitParamsTemp.clone(); // update the parameter
-                    log.info("updated params: " + getUtilityParams(logitParams));
-                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(0)).toStringRecursive(0));
-                    log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(1)).toStringRecursive(0));
-
-                    // Write XML of the updated params
-                    backupUpdatedParams((Element)logitParams.clone());
-                }else{
-                    log.info("current params: " + getUtilityParams(logitParams));
-                    log.warn("NO, Parameters are not updated.");
+                }else if(shouldUpdateBetaMinus) {
+                    logitParams = (Element) logitParamsPlus.clone(); // update the parameter
+                }else {
+                    logitParams = (Element) logitParamsMinus.clone(); // update the parameter
                 }
+                log.info("updated params: " + getUtilityParams(logitParams));
+                log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(0)).toStringRecursive(0));
+                log.info(NestedLogit.NestedLogitFactory((Element)logitParams.getChildren().get(1)).toStringRecursive(0));
 
+                // Write XML of the updated params
+                backupUpdatedParams((Element)logitParams.clone());
+            }else{
+                log.info("current params: " + getUtilityParams(logitParams));
+                log.warn("NO, Parameters are not updated.");
+            }
+
+            if(shouldUpdateBetaPlus) {
                 // Re-initialize params
                 logitParamsTemp 	= (Element) logitParams.clone(); 	 // Temporary logit params
                 logitParamsPlus 	= (Element) logitParamsTemp.clone(); // Positive perturbed logit params
@@ -225,7 +231,7 @@ final public class LogitParamCalibration {
 
             // Update Logit params
             else if(shouldUpdateBetaTemp){
-                String prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator
+                prevLoadFile 		= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator
                         + "it." + (event.getIteration()-3) + File.separator + "run0."+ (event.getIteration()-3) + ".disaggregateLoadProfile.csv";
                 String betaPlusLoadFile 	= EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH +File.separator+ EVGlobalData.data.OUTPUT_DIRECTORY_NAME + File.separator + "ITERS" + File.separator
                         + "it." + (event.getIteration()-2) + File.separator + "run0."+ (event.getIteration()-2) + ".disaggregateLoadProfile.csv";
@@ -305,7 +311,7 @@ final public class LogitParamCalibration {
                                                     utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - c * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) / (c * paramsDelta.get(paramIndex++));
+                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 3.0 / (c * paramsDelta.get(paramIndex++));
                                                     log.info("grad: " + grad);
                                                     double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;
                                                     if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
@@ -332,7 +338,7 @@ final public class LogitParamCalibration {
                                                     utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - c * paramsDelta.get(paramIndex++)));
                                                 } else if (shouldUpdateBetaTemp) {
                                                     log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-                                                    grad = (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) / (c * paramsDelta.get(paramIndex++));
+                                                    grad = (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 3.0 / (c * paramsDelta.get(paramIndex++));
 //													grad = (diffLoss)/ (2 * c * paramsDelta.get(paramIndex++));
                                                     log.info("grad: " + grad);
                                                     double updatedParam = Double.valueOf(utilityElement.getText()) - a * grad;

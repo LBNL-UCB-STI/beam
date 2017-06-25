@@ -216,7 +216,8 @@ public class ChargingInfrastructureManagerImpl {
 					Coordinate jtsCoord = null;
 					Point jtsPoint = null;
 					try {
-					    jtsCoord = new Coordinate(Double.parseDouble(getValue("longitude",row,headerMap)),Double.parseDouble(getValue("latitude",row,headerMap)));
+						// Be careful, JTS reverses the x and y at some point!
+					    jtsCoord = new Coordinate(Double.parseDouble(getValue("latitude",row,headerMap)),Double.parseDouble(getValue("longitude",row,headerMap)));
 						jtsPoint = geomFactory.createPoint(jtsCoord);
 						transformedPoint = JTS.transform(jtsPoint, CRS.findMathTransform(EVGlobalData.data.wgs84CoordinateSystem,EVGlobalData.data.targetCoordinateSystem));
 					} catch (TransformException e) {
