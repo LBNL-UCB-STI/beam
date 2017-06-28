@@ -5,6 +5,7 @@ import java.util.*;
 
 import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
 import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
+import beam.utils.GeoUtils;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
@@ -192,7 +193,6 @@ public class ChargingInfrastructureManagerImpl {
 		/*
 		 * /* LOAD CHARGING SITES
 		 */
-		GeometryFactory geomFactory = JTSFactoryFinder.getGeometryFactory();
 		fileParser.parse(fileParserConfig, handler);
 		fileParserConfig.setFileName(EVGlobalData.data.CHARGING_SITES_FILEPATH);
 		fileParserConfig.setDelimiterRegex(",");
@@ -211,21 +211,7 @@ public class ChargingInfrastructureManagerImpl {
 						headerMap.put(colName, i);
 					}
 				} else {
-					//  Coordinate of the charging site
-					Geometry transformedPoint = null;
-					Coordinate jtsCoord = null;
-					Point jtsPoint = null;
-					try {
-						// Be careful, JTS reverses the x and y at some point!
-					    jtsCoord = new Coordinate(Double.parseDouble(getValue("latitude",row,headerMap)),Double.parseDouble(getValue("longitude",row,headerMap)));
-						jtsPoint = geomFactory.createPoint(jtsCoord);
-						transformedPoint = JTS.transform(jtsPoint, CRS.findMathTransform(EVGlobalData.data.wgs84CoordinateSystem,EVGlobalData.data.targetCoordinateSystem));
-					} catch (TransformException e) {
-						e.printStackTrace();
-					} catch (FactoryException e) {
-						e.printStackTrace();
-					}
-					Coord theCoord = new Coord(transformedPoint.getCentroid().getX(),transformedPoint.getCentroid().getY());
+					Coord theCoord = GeoUtils.transformToUtm(new Coord(Double.parseDouble(getValue("longitude",row,headerMap)),Double.parseDouble(getValue("latitude",row,headerMap))));
 
 					// Charging site spatial group -- this can be separated from this loop once we have a separate file for charging site spatial groups
 					if(headerMap.containsKey("spatialgroup") && !chargingSiteSpatialGroupMap.containsKey(getValue("spatialgroup",row,headerMap))){

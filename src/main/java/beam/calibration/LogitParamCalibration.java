@@ -145,18 +145,18 @@ final public class LogitParamCalibration {
             for(int i=0; i<burnInNum; i++) {
                 EVGlobalData.data.rand.nextDouble();
             }
-            ((Element)logitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(0)).setText(
-                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
-            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
-                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
-            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
-                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
-            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(3)).getChild("utility").getChildren().get(0)).setText(
-                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
-            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(1)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
-                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
-            ((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
-                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
+//            ((Element)logitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(0)).setText(
+//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 10.0 - 5.0));
+//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
+//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 5));
+//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
+//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 3.5));
+//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(3)).getChild("utility").getChildren().get(0)).setText(
+//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 + 2.5));
+//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(1)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
+//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 7.5));
+//            ((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
+//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 + 2.5));
 
             backupUpdatedParams(logitParams);
             paramsList 			= getUtilityParams(logitParams);
