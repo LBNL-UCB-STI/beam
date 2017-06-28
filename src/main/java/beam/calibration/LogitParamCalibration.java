@@ -141,6 +141,24 @@ final public class LogitParamCalibration {
                     e.printStackTrace();
                 }
             }
+            int burnInNum = new Random().nextInt(10000);
+            for(int i=0; i<burnInNum; i++) {
+                EVGlobalData.data.rand.nextDouble();
+            }
+            ((Element)logitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(0)).setText(
+                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
+            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
+                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
+            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
+                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
+            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(3)).getChild("utility").getChildren().get(0)).setText(
+                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
+            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(1)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
+                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
+            ((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
+                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 20.0 - 10.0));
+
+            backupUpdatedParams(logitParams);
             paramsList 			= getUtilityParams(logitParams);
             valHmObserved 		= getHashMapFromFile(EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH,valueType);
             logitParamsTemp 	= (Element) logitParams.clone(); // Temporary logit params
@@ -490,8 +508,9 @@ final public class LogitParamCalibration {
         XMLOutputter xmlOutput = new XMLOutputter();
         xmlOutput.setFormat(Format.getPrettyFormat());
         try {
-            xmlOutput.output(doc, new FileWriter(EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH));
-            log.info("updated params are saved in the backup file: " + EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH);
+            String fileName = EVGlobalData.data.OUTPUT_DIRECTORY + File.separator + "charging-strategies-nested-logit-updated-backup.xml";
+            xmlOutput.output(doc, new FileWriter(fileName));
+            log.info("updated params are saved in the backup file: " + fileName);
         } catch (IOException e) {
             e.printStackTrace();
         }
