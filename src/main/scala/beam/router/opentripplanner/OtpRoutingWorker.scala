@@ -6,11 +6,12 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
-import beam.router.BeamRouter
-import beam.router.BeamRouter.{HasProps, RoutingResponse}
+import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
+import beam.router.RoutingWorker
+import beam.router.RoutingWorker.HasProps
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import beam.utils.GeoUtils._
@@ -34,7 +35,7 @@ import scala.collection.immutable.Queue
 
 /**
   */
-class OpenTripPlannerRouter @Inject() (beamServices: BeamServices) extends BeamRouter {
+class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWorker {
   override var services: BeamServices = beamServices
 
   val otpGraphBaseDirectory: File = new File(beamServices.beamConfig.beam.routing.otp.directory)
@@ -279,6 +280,6 @@ class OpenTripPlannerRouter @Inject() (beamServices: BeamServices) extends BeamR
   def filterLatLonList(latLons: Vector[Coord], thresh: Double): Vector[Coord] = for ((a, b) <- latLons zip latLons.drop(1) if distLatLon2Meters(a.getX, a.getY, b.getX, b.getY) < thresh) yield b
 }
 
-object OpenTripPlannerRouter extends HasProps {
-  override def props(beamServices: BeamServices) = Props(classOf[OpenTripPlannerRouter], beamServices)
+object OtpRoutingWorker extends HasProps {
+  override def props(beamServices: BeamServices) = Props(classOf[OtpRoutingWorker], beamServices)
 }

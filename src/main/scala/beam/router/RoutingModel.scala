@@ -63,6 +63,5 @@ object RoutingModel {
     lazy val fromTime: Int = atTime - (timeFrame/2) -(timeFrame%2)
     lazy val toTime: Int = atTime + (timeFrame/2)
   }
-
 }
 
