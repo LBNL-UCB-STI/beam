@@ -6,10 +6,12 @@ import java.nio.file.Paths
 import java.util
 
 import akka.actor.Props
-import beam.router.BeamRouter
-import beam.router.BeamRouter.{HasProps, RoutingResponse}
+import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
+import beam.router.RoutingWorker
+import beam.router.RoutingWorker.HasProps
+import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, transportNetwork}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import com.conveyal.r5.api.ProfileResponse
@@ -25,17 +27,14 @@ import org.matsim.facilities.Facility
 
 import scala.collection.JavaConverters._
 
-class R5Router(beamServices: BeamServices) extends BeamRouter {
-  private val GRAPH_FILE = "/network.dat"
+class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
   override var services: BeamServices = beamServices
-
-  private lazy val networkDir = beamServices.beamConfig.beam.routing.r5.directory
-  var transportNetwork: TransportNetwork = null
 
   override def init = loadMap
 
   def loadMap = {
+    val networkDir = beamServices.beamConfig.beam.routing.r5.directory
     val networkDirPath = Paths.get(networkDir)
     if (!exists(networkDirPath)) {
       Paths.get(networkDir).toFile.mkdir();
@@ -169,6 +168,10 @@ class R5Router(beamServices: BeamServices) extends BeamRouter {
   }
 }
 
-object R5Router extends HasProps {
-  override def props(beamServices: BeamServices) = Props(classOf[R5Router], beamServices)
+object R5RoutingWorker extends HasProps {
+  val GRAPH_FILE = "/network.dat"
+
+  var transportNetwork: TransportNetwork = null
+
+  override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 }
