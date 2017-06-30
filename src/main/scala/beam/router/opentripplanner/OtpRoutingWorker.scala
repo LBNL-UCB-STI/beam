@@ -12,6 +12,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker
 import beam.router.RoutingWorker.HasProps
+import beam.router.opentripplanner.OtpRoutingWorker.router
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import beam.utils.GeoUtils._
@@ -20,7 +21,6 @@ import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
-import org.opengis.referencing.operation.MathTransform
 import org.opentripplanner.common.model.GenericLocation
 import org.opentripplanner.graph_builder.GraphBuilder
 import org.opentripplanner.routing.edgetype._
@@ -40,17 +40,14 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
 
   val otpGraphBaseDirectory: File = new File(beamServices.beamConfig.beam.routing.otp.directory)
   val routerIds: List[String] = beamServices.beamConfig.beam.routing.otp.routerIds
-  var graphService: Option[GraphService] = None
-  var router: Option[Router] = None
-  var transform: Option[MathTransform] = None
   val baseTime: Long = ZonedDateTime.parse("2016-10-17T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
   override def init = loadMap
 
   def loadMap: Unit = {
-    graphService = Some(makeGraphService())
+    val graphService = Some(makeGraphService())
     router = Some(graphService.get.getRouter(routerIds.head))
-    transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
+    val transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
   }
 
   def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
@@ -281,5 +278,7 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
 }
 
 object OtpRoutingWorker extends HasProps {
+  var router: Option[Router] = None
+
   override def props(beamServices: BeamServices) = Props(classOf[OtpRoutingWorker], beamServices)
 }
