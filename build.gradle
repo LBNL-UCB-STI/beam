@@ -74,7 +74,7 @@ repositories {
     mavenLocal()
     mavenCentral()
     jcenter()
-//    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
     maven { url "https://jitpack.io" }
 }
 
