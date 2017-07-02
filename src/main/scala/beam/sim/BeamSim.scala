@@ -9,6 +9,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedul
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.TaxiAgent.TaxiData
 import beam.agentsim.agents._
+import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.router.RoutingMessages.InitializeRouter
@@ -25,11 +27,15 @@ import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsMa
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.core.events.EventsUtils
+import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.Await
 import scala.util.Random
+import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 /**
   * AgentSim entrypoint.
@@ -46,12 +52,17 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
   var currentIter = 0
+  var vehicleActors: Option[Map[Id[Vehicle], ActorRef]] = None
+  var householdActors: Option[Map[Id[Household], ActorRef]] = None
 
   private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
+    val scenario = services.matsimServices.getScenario
     services.popMap = Some(ListMap(scala.collection.JavaConverters
-      .mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*))
+      .mapAsScalaMap(scenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*))
+    services.vehicles = scenario.getVehicles.getVehicles.asScala.toMap
+    services.households = scenario.getHouseholds.getHouseholds.asScala.toMap
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
     subscribe(ActivityStartEvent.EVENT_TYPE)
@@ -96,6 +107,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     cleanupWriter()
+    cleanupVehicle()
+    cleanupHouseHolder()
   }
 
   private def cleanupWriter() = {
@@ -105,6 +118,24 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     writer = null
     JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.xml.gz"),
       services.matsimServices.getControlerIO.getOutputFilename("trips.json"))
+  }
+
+  private def cleanupVehicle() = {
+    for ( actors <- vehicleActors) {
+      for ( vehicleActor <- actors) {
+        logger.debug(s"Stopping ${vehicleActor._2.path.name} ")
+        actorSystem.stop(vehicleActor._2)
+      }
+    }
+  }
+
+  private def cleanupHouseHolder() = {
+    for ( actors <- householdActors) {
+      for ( idAndHouseholdActor <- actors) {
+        logger.debug(s"Stopping ${idAndHouseholdActor._2.path.name} ")
+        actorSystem.stop(idAndHouseholdActor._2)
+      }
+    }
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -118,10 +149,12 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
+    val personAgents = mutable.Map[Id[Person], ActorRef]()
     for ((k, v) <- services.popMap.take(services.beamConfig.beam.agentsim.numAgents).flatten) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan),services)
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
+      personAgents +=((k, ref))
     }
     // Generate taxis and intialize them to be located within ~initialLocationJitter km of a subset of agents
     //TODO put these in config
@@ -134,14 +167,40 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       val ref: ActorRef = actorSystem.actorOf(props, s"taxi_${k.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
+    val iterId = Option(iter.toString)
+    vehicleActors = initVehicleActors(iterId)
+    householdActors = initHouseholds(personAgents, iterId)
   }
 
+  private def initHouseholds(personAgents: mutable.Map[Id[Person], ActorRef]  ,iterId: Option[String])  = {
+    val actors = Option(services.households.map { case (householdId, matSimHousehold) =>
+      val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map { vehicleId =>
+        val vehicleActRef = vehicleActors.get.apply(vehicleId)
+        (vehicleId, vehicleActRef)
+      }.toMap
+      val membersActors = matSimHousehold.getMemberIds.asScala.map { personId => (personId, personAgents(personId)) }.toMap
+      val props = HouseholdActor.props(householdId, matSimHousehold, houseHoldVehicles, membersActors)
+      val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
+      householdActor ! InitializeTrigger(0)
+      (householdId, householdActor)
+    })
+    actors
+  }
+
+  private def initVehicleActors(iterId: Option[String]) = {
+    val actors = Option(services.vehicles.map { case (vehicleId, matSimVehicle) =>
+      val props = BeamVehicleAgent.props(vehicleId, matSimVehicle, new Trajectory(),
+        new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)))
+      val beamVehicle = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId, iterId))
+      beamVehicle ! InitializeTrigger(0)
+      (vehicleId, beamVehicle)
+    })
+    actors
+  }
 
   def subscribe(eventType: String): Unit = {
     services.agentSimEventsBus.subscribe(eventSubscriber, eventType)
   }
-
-
 }
 
 
