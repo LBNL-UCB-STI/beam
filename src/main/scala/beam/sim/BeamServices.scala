@@ -30,7 +30,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var physSim: ActorRef = _
   var schedulerRef: ActorRef =_
   var taxiManager: ActorRef = _
-  var popMap: Option[Map[Id[Person], Person]] = None
+  var persons: Map[Id[Person], Person] = Map()
   var vehicles: Map[Id[Vehicle], Vehicle] = Map()
   var households : Map[Id[Household], Household] = Map()
 }

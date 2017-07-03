@@ -15,26 +15,29 @@ import scala.concurrent.ExecutionContext.Implicits.global
   */
 object BeamVehicleAgent {
 
-  def props(vehicleId: Id[Vehicle], matSimVehicle: Vehicle, trajectory: Trajectory, powertrain: Powertrain) = {
+  def props(vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain) = {
     //TODO: trajectory looks irrelevant here,
     //we need to have person/owner of vehicle to build trajectory from activity plan, right ?
     Props(classOf[BeamVehicleAgent], vehicleId,
-      VehicleData.vehicle2vehicleData(matSimVehicle), powertrain, trajectory, None, Nil, None )
+      VehicleData.vehicle2vehicleData(matSimVehicle), powertrain, None, Nil, None )
   }
 }
 
 class BeamVehicleAgent(val id: Id[Vehicle], val vehicleData: VehicleData,
                        val powerTrain: Powertrain,
-                       val trajectory: Trajectory,
                        var carrier: Option[ActorRef] = None,
                        var passengers: List[ActorRef] = Nil,
                        var driver: Option[ActorRef] = None) extends BeamVehicle {
+
+  private var _trajectory: Trajectory = null
 
   private var positionOnTrajectory = 0
 
   def moveNext() = {
     positionOnTrajectory = positionOnTrajectory + 1
   }
+
+  override def trajectory: Trajectory = _trajectory
 
   override def receive: Receive = {
     case GetVehicleLocationEvent(time) =>

@@ -52,15 +52,15 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
   var currentIter = 0
-  var vehicleActors: Option[Map[Id[Vehicle], ActorRef]] = None
-  var householdActors: Option[Map[Id[Household], ActorRef]] = None
+  var vehicleActors: Map[Id[Vehicle], ActorRef] = Map()
+  var householdActors: Map[Id[Household], ActorRef] = Map()
 
   private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
     val scenario = services.matsimServices.getScenario
-    services.popMap = Some(ListMap(scala.collection.JavaConverters
-      .mapAsScalaMap(scenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*))
+    services.persons = ListMap(scala.collection.JavaConverters
+      .mapAsScalaMap(scenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
     services.vehicles = scenario.getVehicles.getVehicles.asScala.toMap
     services.households = scenario.getHouseholds.getHouseholds.asScala.toMap
 
@@ -121,20 +121,17 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def cleanupVehicle() = {
-    for ( actors <- vehicleActors) {
-      for ( vehicleActor <- actors) {
-        logger.debug(s"Stopping ${vehicleActor._2.path.name} ")
-        actorSystem.stop(vehicleActor._2)
-      }
+    for ( (_, actorRef) <- vehicleActors) {
+      logger.debug(s"Stopping ${actorRef.path.name} ")
+      actorSystem.stop(actorRef)
+
     }
   }
 
   private def cleanupHouseHolder() = {
-    for ( actors <- householdActors) {
-      for ( idAndHouseholdActor <- actors) {
-        logger.debug(s"Stopping ${idAndHouseholdActor._2.path.name} ")
-        actorSystem.stop(idAndHouseholdActor._2)
-      }
+    for ( (_,  householdActor) <- householdActors) {
+       logger.debug(s"Stopping ${householdActor.path.name} ")
+       actorSystem.stop(householdActor)
     }
   }
 
@@ -150,7 +147,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   def resetPop(iter: Int): Unit = {
     val personAgents = mutable.Map[Id[Person], ActorRef]()
-    for ((k, v) <- services.popMap.take(services.beamConfig.beam.agentsim.numAgents).flatten) {
+    for ((k, v) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
       val props = Props(classOf[PersonAgent], k, PersonData(v.getSelectedPlan),services)
       val ref: ActorRef = actorSystem.actorOf(props, s"${k.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
@@ -160,10 +157,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     //TODO put these in config
     val taxiFraction = 0.1
     val initialLocationJitter = 2000 // meters
-    for((k,v) <- services.popMap.get.take(math.round(taxiFraction * services.popMap.size).toInt)){
+    for((k,v) <- services.persons.take(math.round(taxiFraction * services.persons.size).toInt)){
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
       val taxiInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5),personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
-      val props = Props(classOf[TaxiAgent], Id.create(k.toString,TaxiAgent.getClass), TaxiData(taxiInitialLocation))
+      val props = Props(classOf[TaxiAgent], Id.create(k.toString,TaxiAgent.getClass), TaxiData(taxiInitialLocation), services)
       val ref: ActorRef = actorSystem.actorOf(props, s"taxi_${k.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     }
@@ -172,29 +169,30 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     householdActors = initHouseholds(personAgents, iterId)
   }
 
-  private def initHouseholds(personAgents: mutable.Map[Id[Person], ActorRef]  ,iterId: Option[String])  = {
-    val actors = Option(services.households.map { case (householdId, matSimHousehold) =>
+  private def initHouseholds(personAgents: mutable.Map[Id[Person], ActorRef]  ,iterId: Option[String] = None)  = {
+    val actors = services.households.map { case (householdId, matSimHousehold) =>
       val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map { vehicleId =>
-        val vehicleActRef = vehicleActors.get.apply(vehicleId)
+        val vehicleActRef = vehicleActors.get(vehicleId)
         (vehicleId, vehicleActRef)
-      }.toMap
-      val membersActors = matSimHousehold.getMemberIds.asScala.map { personId => (personId, personAgents(personId)) }.toMap
+      }.collect { case (vehicleId, Some(vehicleAgent)) => (vehicleId, vehicleAgent) }.toMap
+      val membersActors = matSimHousehold.getMemberIds.asScala.map { personId =>
+        (personId, personAgents.get(personId))
+      }.collect { case (personId, Some(personAgent)) => (personId, personAgent) }.toMap
       val props = HouseholdActor.props(householdId, matSimHousehold, houseHoldVehicles, membersActors)
       val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
       householdActor ! InitializeTrigger(0)
       (householdId, householdActor)
-    })
+    }
     actors
   }
 
-  private def initVehicleActors(iterId: Option[String]) = {
-    val actors = Option(services.vehicles.map { case (vehicleId, matSimVehicle) =>
-      val props = BeamVehicleAgent.props(vehicleId, matSimVehicle, new Trajectory(),
-        new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)))
+  private def initVehicleActors(iterId: Option[String] = None) = {
+    val actors = services.vehicles.map { case (vehicleId, matSimVehicle) =>
+      val props = BeamVehicleAgent.props(vehicleId, matSimVehicle, new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)))
       val beamVehicle = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId, iterId))
       beamVehicle ! InitializeTrigger(0)
       (vehicleId, beamVehicle)
-    })
+    }
     actors
   }
 
