@@ -294,9 +294,9 @@ final public class LogitParamCalibration {
                 // LASSO here
                 ArrayList params = getUtilityParams(logitParams);
                 int diffLossSign = diffLoss > 0? 1:-1;
-                double lassoScaler = 10000; // ADJUST THE PENLATY SCALE
-                for(int i=0;i<params.size();i++){
-                    diffLoss += diffLossSign * lassoScaler * Math.abs((Double) params.get(i));
+                double lassoScalar = 10000; // ADJUST THE PENALTY SCALE
+                for (Object param : params) {
+                    diffLoss += diffLossSign * lassoScalar * Math.abs((Double) param);
                 }
 
                 if(Math.abs(diffLoss) >= maxDiffLoss){
