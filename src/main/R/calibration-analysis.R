@@ -1,25 +1,43 @@
 
-load.libraries(c('sp','maptools','rgdal'))
+load.libraries(c('sp','maptools','rgdal','GGally'))
 
-calib.name <- 'calibration_2017-06-27_21-06-15'
-iter.dir <- pp('~/Documents/beam/beam-output/',calib.name,'/ITERS/')
+best.only <- T
+last.change <- function(x,minSSR){
+  x[tail(which(diff(minSSR)<0),1)]
+}
 
-iters <- sort(unlist(lapply(strsplit(list.files(iter.dir),"\\."),function(ll){ as.numeric(ll[2])})))
+calib.names <- c('calibration_2017-06-27_22-57-55',pp('calibration_2017-06-27_23-02-',c(14,17,19,20,22)),
+                 pp('calibration_2017-06-28_11-',c('04-02','04-04','19-09','19-16','34-31','49-29','52-48','57-06')))
 
+calib.name <- calib.names[1]
 load.all <- list()
+cal.all <- list()
 ev.all <- list()
-for(the.iter in iters){
-  load.file <- pp(iter.dir,'it.',the.iter,'/run0.',the.iter,'.disaggregateLoadProfile.csv')
-  dt <- data.table(read.csv(load.file))
-  dt[,iter:=the.iter]
-  load.all[[length(load.all)+1]] <- dt
-  ev.file <- pp(iter.dir,'it.',the.iter,'/run0.',the.iter,'.events.csv')
-  if(file.exists(ev.file)){
-    dt <- data.table(read.csv(ev.file))
+for(calib.name in calib.names){
+  iter.dir <- pp('~/Documents/beam/beam-output/',calib.name,'/ITERS/')
+  dt <- data.table(read.csv(pp(iter.dir,'../calibration.csv')))
+  dt[,calib.run:=calib.name]
+  cal.all[[length(cal.all)+1]] <- dt
+  iters <- sort(unlist(lapply(strsplit(list.files(iter.dir),"\\."),function(ll){ as.numeric(ll[2])})))
+  if(best.only){
+    iters <- last.change(cal.all[[length(cal.all)]]$iter,cal.all[[length(cal.all)]]$minSSR)
+  }
+  for(the.iter in iters){
+    load.file <- pp(iter.dir,'it.',the.iter,'/run0.',the.iter,'.disaggregateLoadProfile.csv')
+    dt <- data.table(read.csv(load.file))
     dt[,iter:=the.iter]
-    ev.all[[length(ev.all)+1]] <- dt
+    dt[,calib.run:=calib.name]
+    load.all[[length(load.all)+1]] <- dt
+    ev.file <- pp(iter.dir,'it.',the.iter,'/run0.',the.iter,'.events.csv')
+    if(file.exists(ev.file)){
+      dt <- data.table(read.csv(ev.file))
+      dt[,iter:=the.iter]
+      dt[,calib.run:=calib.name]
+      ev.all[[length(ev.all)+1]] <- dt
+    }
   }
 }
+cal.all <- rbindlist(cal.all)
 load.all <- rbindlist(load.all)
 ev.all <- rbindlist(ev.all)
 
@@ -38,12 +56,20 @@ cp[time<3,time:=time+48]
 
 #ggplot(cp[,list(num.plugged.in=sum(num.plugged.in)),by=c('time')],aes(x=time,y=num.plugged.in))+geom_line()
 
-both <- join.on(cp,load.all[iter==0 & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),c('num.plugged.in','charging.load.in.kw'),'pred.')
-both[is.na(pred.num.plugged.in),pred.num.plugged.in:=0]
-both[is.na(pred.charging.load.in.kw),pred.charging.load.in.kw:=0]
-both[,hr:=floor(time)]
+both.all <- list()
+for(the.calib.run in u(load.all$calib.run)){
+  both <- join.on(cp,load.all[calib.run==the.calib.run & time>=27 & time<=51],c('time','spatial.group','site.type','charger.type'),c('time','spatial.group','site.type','charger.type'),c('num.plugged.in','charging.load.in.kw'),'pred.')
+  both[is.na(pred.num.plugged.in),pred.num.plugged.in:=0]
+  both[is.na(pred.charging.load.in.kw),pred.charging.load.in.kw:=0]
+  both[,hr:=floor(time)]
+  both[,calib.run:=the.calib.run]
+  both[,SSR:=round(cal.all[calib.run==the.calib.run,last.change(SSR,minSSR)])]
+  both.all[[length(both.all)+1]] <- both
+}
+both.all <- rbindlist(both.all)
+both.all[,key:=pp(calib.run,' SSR=',SSR)]
 
-ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)
+ggplot(both.all,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
 
 
 ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=charger.type))+geom_point()+geom_abline(slope=1,intercept=0)
@@ -53,6 +79,10 @@ ggplot(both,aes(x= charging.load.in.kw,y= pred.charging.load.in.kw,colour=charge
 
 ggplot(melt(both,id.vars=c('time','hr','spatial.group','site.type','charger.type'),measure.vars=c('num.plugged.in','pred.num.plugged.in'))[,list(value=sum(value)),by=c('hr','variable')],aes(x= hr, y=value/4,colour=variable))+geom_line()
 
+ggplot(melt(cal.all,id.vars=c('iter','SSR','calib.run'),measure.vars=c('yesCharge','tryChargingLater','continueSearchInLargerArea','abort','departureYes','departureNo')),
+       aes(x=variable,y=value,colour=log10(SSR),size=iter))+geom_point()+facet_wrap(~calib.run)
+
+cal.all.fin <- cal.all[,list(SSR=last.change(SSR,minSSR),yesCharge=last.change(yesCharge,minSSR),tryChargingLater=last.change(tryChargingLater,minSSR),continueSearchInLargerArea=last.change(continueSearchInLargerArea,minSSR),abort=last.change(abort,minSSR),departureYes=last.change(departureYes,minSSR),departureNo=last.change(departureNo,minSSR)),by='calib.run']
 
 
 xy.to.latlon <- function(str){
