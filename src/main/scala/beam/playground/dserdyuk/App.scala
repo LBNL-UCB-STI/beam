@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 /**
   * @author dserdiuk on 6/18/17.
   */
-object VehicleLoadExample extends App {
+object VehicleLoader extends App {
 
   val config  = ConfigModule.matSimConfig
 
