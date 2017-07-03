@@ -1,6 +1,6 @@
 # BEAM
 
-[![Build Status](https://travis-ci.org/zishanbilal/beam.svg?branch=master)](https://travis-ci.org/zishanbilal/beam)
+[![Build Status](https://travis-ci.org/LBNL-UCB-STI/beam.svg?branch=master)](https://travis-ci.org/LBNL-UCB-STI/beam)
 
 The Framework for Modeling Behavior, Energy, Autonomy, and Mobility in Transportation Systems
 
