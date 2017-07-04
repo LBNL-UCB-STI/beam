@@ -65,7 +65,6 @@ repositories {
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
     maven { url "http://maven.conveyal.com/" }
-//    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
     maven { url "http://repo1.maven.org/maven2" }
     maven { url "http://download.java.net/maven/2/" }
     maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
@@ -216,16 +215,16 @@ shadowJar {
 //////////////////////////////////////////////////////////////////////
 task generateConfig {
     doLast {
-        if (!project.file('build/tscfg-0.8.0.jar').exists()) {
+        if (!project.file('build/tscfg-0.8.1.jar').exists()) {
             download {
-                src 'https://github.com/carueda/tscfg/releases/download/v0.8.0/tscfg-0.8.0.jar'
+                src 'https://github.com/carueda/tscfg/releases/download/v0.8.1/tscfg-0.8.1.jar'
                 dest buildDir
             }
         }
         javaexec {
             main = "-jar";
             args = [
-                    "build/tscfg-0.8.0.jar",
+                    "build/tscfg-0.8.1.jar",
                     "--spec", "src/main/resources/beam-template.conf",
                     "--scala",
                     "--pn", "beam.sim.config",
