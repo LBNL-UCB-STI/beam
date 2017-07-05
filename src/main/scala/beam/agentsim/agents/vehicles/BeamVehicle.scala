@@ -43,13 +43,13 @@ trait VehicleData extends BeamAgentData with Vehicle {
 
 object BeamVehicle {
 
-  def energyByType(vehicleTypeId: Id[VehicleType]): Double = {
+  def energyPerUnitByType(vehicleTypeId: Id[VehicleType]): Double = {
     //TODO: add energy type registry
       0.0
   }
 
-  def buildActorName(vehicleId: Id[Vehicle]) = {
-    s"vehicle-${vehicleId.toString}"
+  def buildActorName(vehicleId: Id[Vehicle], iterationName: Option[String] = None) = {
+    s"vehicle-${vehicleId.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
 }
 

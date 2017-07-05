@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 /**
   * @author dserdiuk on 6/18/17.
   */
-object VehicleLoadExample extends App {
+object VehicleLoader extends App {
 
   val config  = ConfigModule.matSimConfig
 
@@ -27,7 +27,7 @@ object VehicleLoadExample extends App {
   val vehicleActors  = vehicles.getVehicles.asScala.map { case (vehicleId,matSimVehicle) =>
       val beamVehicle  =  actorSystem.actorOf(Props(classOf[BeamVehicleAgent],  vehicleId,
         VehicleData.vehicle2vehicleData(matSimVehicle),
-        new Powertrain(BeamVehicle.energyByType(matSimVehicle.getType.getId)),
+        new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)),
         //TODO: trajectory looks irrelevant here,
         //we need to have person/owner of vehicle to build trajectory from activity plan, right ?
         new Trajectory(), None, Nil, None
