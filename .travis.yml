@@ -18,7 +18,7 @@ cache:
 notifications:
   webhooks:
     urls:
-      - https://hooks.glip.com/webhook/fd2285df-8ed2-427e-b8af-70f4cb4e4709
+      - https://hooks.glip.com/webhook/d238705c-0001-4d98-81c1-3402db81911b
     on_success: change 
     on_failure: always 
     on_start: never 
