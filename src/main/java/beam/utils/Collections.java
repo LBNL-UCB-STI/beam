@@ -2,6 +2,7 @@ package beam.utils;
 
 import java.util.Collection;
 import java.util.function.Consumer;
+import static org.apache.commons.collections4.CollectionUtils.*;
 
 /**
  * Created by ahmar.nadeem on 6/6/2017.
@@ -20,24 +21,5 @@ public final class Collections {
         if (isNotEmpty(collection)) {
             collection.forEach(action);
         }
-    }
-
-    /**
-     *
-     * @param collection
-     * @return
-     */
-    public static boolean isNotEmpty(Collection collection) {
-        return !isEmpty(collection);
-    }
-
-    /**
-     *
-     *
-     * @param collection
-     * @return
-     */
-    public static boolean isEmpty(Collection collection){
-        return ( collection == null || collection.isEmpty() );
     }
 }

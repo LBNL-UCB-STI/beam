@@ -1,4 +1,4 @@
-package beam.router
+package beam.sim
 
 import com.vividsolutions.jts.geom.Coordinate
 import org.geotools.geometry.DirectPosition2D

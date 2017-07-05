@@ -12,8 +12,8 @@ import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathT
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
+import beam.router.{RoutingWorker, BeamRouter}
 import beam.router.BeamRouter.InitializeRouter
-import beam.router.DummyRouter
 import beam.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
@@ -70,7 +70,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler],3600*9.0, 300.0))
     services.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
-    val routerFuture = services.registry ? Registry.Register("router", DummyRouter.props(services))
+    val routerFuture = services.registry ? Registry.Register("router", BeamRouter.props(services));
     services.beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = services.beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)

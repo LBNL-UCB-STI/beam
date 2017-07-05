@@ -2,13 +2,12 @@ package beam.sim
 
 import akka.actor.{ActorRef, ActorSystem}
 import beam.playground.akkaguice.ActorInject
-import beam.sim.config.{BeamConfig }
+import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
-import beam.router.BoundingBox
 import com.google.inject.{Inject, Injector, Singleton}
 import glokka.Registry
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Id }
+import org.matsim.api.core.v01.Id
 import org.matsim.core.controler._
 
 /**

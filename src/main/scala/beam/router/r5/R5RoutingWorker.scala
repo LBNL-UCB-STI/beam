@@ -1,18 +1,18 @@
 package beam.router.r5
 
 import java.io.File
-import java.nio.file.Files.{exists, isReadable}
-import java.nio.file.Paths.get
+import java.nio.file.Files.exists
+import java.nio.file.Paths
 import java.util
 
 import akka.actor.Props
-import beam.agentsim.agents.PersonAgent
-import beam.router.BeamRouter
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
+import beam.router.RoutingWorker
+import beam.router.RoutingWorker.HasProps
+import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, transportNetwork}
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
 import beam.utils.GeoUtils
 import beam.utils.CollectionUtils.onContains
 import com.conveyal.r5.api.ProfileResponse
@@ -22,34 +22,33 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.LineString
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.facilities.Facility
 
 import scala.collection.JavaConverters._
 
-class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends BeamRouter {
-  private val GRAPH_FILE = "/network.dat"
-  private val OSM_FILE = "/osm.mapdb"
-  private lazy val networkDir = beamConfig.beam.routing.otp.directory
-  var transportNetwork: TransportNetwork = null
+class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
-  override def loadMap = {
-    var networkFile: File = null
-    var mapdbFile: File = null
-    if (exists(get(networkDir))) {
-      val networkPath = get(networkDir, GRAPH_FILE)
-      if (isReadable(networkPath)) networkFile = networkPath.toFile
-      val osmPath = get(networkDir, OSM_FILE)
-      if (isReadable(osmPath)) mapdbFile = osmPath.toFile
+  override var services: BeamServices = beamServices
+
+  override def init = loadMap
+
+  def loadMap = {
+    val networkDir = beamServices.beamConfig.beam.routing.r5.directory
+    val networkDirPath = Paths.get(networkDir)
+    if (!exists(networkDirPath)) {
+      Paths.get(networkDir).toFile.mkdir();
     }
-    if (networkFile == null) networkFile = get(System.getProperty("user.home"),"beam", "network", GRAPH_FILE).toFile
-
-    if (mapdbFile == null) mapdbFile = get(System.getProperty("user.home"),"beam", "network", OSM_FILE).toFile
-    // Loading graph
-    transportNetwork = TransportNetwork.read(networkFile)
-    // Optional used to get street names:
-    transportNetwork.readOSM(mapdbFile)
+    val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
+    val networkFile : File = networkFilePath.toFile
+    if (exists(networkFilePath)) {
+      transportNetwork = TransportNetwork.read(networkFile)
+    }else {
+      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      transportNetwork.write(networkFile);
+//      transportNetwork = TransportNetwork.read(networkFile);
+    }
   }
 
   override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode], person: Person) = {
@@ -75,7 +74,10 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
     profileRequest.bikeTrafficStress = 4
 
     //setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
-    val time = departureTime.asInstanceOf[WindowTime]
+    val time = departureTime match {
+      case time: DiscreteTime => WindowTime(time.atTime)
+      case time: WindowTime => time
+    }
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
 
@@ -103,9 +105,13 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
 
     RoutingResponse(plan.options.asScala.map(option =>
       BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
-        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, buildGraphPath(access))
-        ).toVector)
+        BeamLeg(itinerary.startTime.toEpochSecond, access.mode match {
+          case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
+          case LegMode.WALK => BeamMode.WALK
+          case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
+        }, itinerary.duration, buildGraphPath(access))
       ).toVector)
+    ).toVector)
   }
 
   def buildGraphPath(segment: StreetSegment): BeamGraphPath = {
@@ -140,7 +146,7 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
 
     //Gets lowest weight state for end coordinate split
     val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
-    val streetPath = new StreetPath(lastState, transportNetwork, false)
+    val streetPath = new StreetPath(lastState, transportNetwork)
 
     var stateIdx = 0
     var activeLinkIds = Vector[String]()
@@ -177,6 +183,10 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
   }
 }
 
-object R5Router {
-  def props(beamServices: BeamServices, beamConfig : BeamConfig) = Props(classOf[R5Router], beamServices, beamConfig)
+object R5RoutingWorker extends HasProps {
+  val GRAPH_FILE = "/network.dat"
+
+  var transportNetwork: TransportNetwork = null
+
+  override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 }

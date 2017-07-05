@@ -117,7 +117,7 @@ object RouterApp extends App{
     streetRouter.route()
     // Gets lowest weight state for end coordinate split
     val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
-    val streetPath = new StreetPath(lastState, transportNetwork, false)
+    val streetPath = new StreetPath(lastState, transportNetwork)
     val totalDistance = 0
     var stateIdx = 0
     // TODO: this can be improved since end and start vertices are the same
