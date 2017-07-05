@@ -21,11 +21,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
   var taxiResult: Option[TaxiInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
 
-  def completeChoiceIfReady(): State = {
+  def completeChoiceIfReady(theTriggerId: Option[Long]): State = {
     if (hasReceivedCompleteChoiceTrigger && routerResult != None && taxiResult != None) {
       // Choice happens here
       hasReceivedCompleteChoiceTrigger = false
-      goto(Walking) using stateData.copy(triggerId = None, tick = None) replying completed(stateData.triggerId.get, schedule[TeleportationArrivalTrigger](stateData.tick.get, self))
+      val theTriggerIdAsLong = if(theTriggerId == None){ stateData.triggerId.get }else{ theTriggerId.get }
+      goto(Walking) using stateData.copy(triggerId = None, tick = None) replying completed(theTriggerIdAsLong, schedule[TeleportationArrivalTrigger](stateData.tick.get, self))
     } else {
       stay()
     }
@@ -50,16 +51,16 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
      */
     case Event(theRouterResult: RoutingResponse, info: BeamAgentInfo[PersonData]) =>
       routerResult = Some(theRouterResult)
-      completeChoiceIfReady()
+      completeChoiceIfReady(None)
     case Event(theTaxiResult: TaxiInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       taxiResult = Some(theTaxiResult)
-      completeChoiceIfReady()
+      completeChoiceIfReady(None)
     /*
      * Finishing choice.
      */
     case Event(TriggerWithId(FinalizeModeChoiceTrigger(tick), theTriggerId), info: BeamAgentInfo[PersonData]) =>
       hasReceivedCompleteChoiceTrigger = true
-      val result : State = completeChoiceIfReady()
+      val result : State = completeChoiceIfReady(Some(theTriggerId))
       if(result.stateName == ChoosesMode){
         stay() using info.copy(triggerId = Some(theTriggerId))
       }else{
