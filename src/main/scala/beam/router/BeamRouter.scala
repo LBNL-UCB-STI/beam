@@ -64,13 +64,12 @@ object BeamRouter {
   case object RouterInitialized extends RouterMessage
 
   case class RoutingRequest(fromFacility: Facility[_ <: Facility[_]], toFacility: Facility[_ <: Facility[_]],
-                            departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent],
-                            considerTransit: Boolean = false) extends RouterMessage
+                            departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent]) extends RouterMessage
   case class RoutingResponse(itinerary: Vector[BeamTrip]) extends RouterMessage
 
   object RoutingRequest {
-    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent]): RoutingRequest = {
-      new RoutingRequest(new ActivityWrapperFacility(fromActivity), new ActivityWrapperFacility(toActivity), departureTime, accessMode, personId)
+    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, modes: Vector[BeamMode], personId: Id[PersonAgent]): RoutingRequest = {
+      new RoutingRequest(new ActivityWrapperFacility(fromActivity), new ActivityWrapperFacility(toActivity), departureTime, modes, personId)
     }
   }
 

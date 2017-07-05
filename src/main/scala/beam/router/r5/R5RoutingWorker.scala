@@ -6,6 +6,7 @@ import java.nio.file.Paths
 import java.util
 
 import akka.actor.Props
+import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
@@ -22,6 +23,7 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.LineString
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility

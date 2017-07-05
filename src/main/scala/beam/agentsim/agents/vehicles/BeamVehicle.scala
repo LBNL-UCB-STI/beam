@@ -10,9 +10,7 @@ import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
-import akka.pattern.pipe
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * @author dserdiuk
