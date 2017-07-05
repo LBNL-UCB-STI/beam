@@ -19,7 +19,7 @@ class DummyRouter(theBeamServices: BeamServices) extends Actor with ActorLogging
       beamServices.bbox.observeCoord(new Coordinate(-1e12,-1e12))
       beamServices.bbox.observeCoord(new Coordinate(1e12,1e12))
       sender() ! RouterInitialized
-    case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId, considerTransit) =>
+    case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId) =>
       log.info(s"Serving Route Request from $personId @ $departureTime")
       val person: Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val dTime = departureTime.asInstanceOf[DiscreteTime]

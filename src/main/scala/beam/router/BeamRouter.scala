@@ -16,9 +16,9 @@ trait BeamRouter extends Actor with ActorLogging {
       log.info("Initializing Router")
       init
       sender() ! RouterInitialized
-    case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId, considerTransit) =>
+    case RoutingRequest(fromFacility, toFacility, departureTime, modes, personId) =>
       //      log.info(s"Router received routing request from person $personId ($sender)")
-      sender() ! calcRoute(fromFacility, toFacility, departureTime, accessMode, getPerson(personId), considerTransit)
+      sender() ! calcRoute(fromFacility, toFacility, departureTime, modes, getPerson(personId))
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
@@ -29,9 +29,9 @@ trait BeamRouter extends Actor with ActorLogging {
 
   def loadMap
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false) : Any
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode]) : Any
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, isTransit: Boolean = false): RoutingResponse
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode], person: Person): RoutingResponse
 
   def getPerson(personId: Id[PersonAgent]): Person
 }
@@ -40,7 +40,7 @@ object BeamRouter {
   case object InitializeRouter
   case object RouterInitialized
 
-  case class RoutingRequest(fromFacility: Facility[_ <: Facility[_]], toFacility: Facility[_ <: Facility[_]], departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent], considerTransit: Boolean = false)
+  case class RoutingRequest(fromFacility: Facility[_ <: Facility[_]], toFacility: Facility[_ <: Facility[_]], departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent] )
 
   object RoutingRequest {
     def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent]): RoutingRequest = {

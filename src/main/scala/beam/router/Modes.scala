@@ -75,6 +75,6 @@ object Modes {
   }
 
   implicit def beamMode2OtpMode(beamMode: BeamMode): TraverseMode = beamMode.otpMode.get
-
+  implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode,TransitModes] = beamMode.r5Mode.get
 
 }

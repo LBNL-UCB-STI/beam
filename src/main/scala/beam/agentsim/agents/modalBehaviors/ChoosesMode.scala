@@ -41,7 +41,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${stateData.tick}")
       val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
-      services.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, DiscreteTime(stateData.tick.get.toInt), Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK), id)
+      services.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, DiscreteTime(stateData.tick.get.toInt), Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance
       services.taxiManager ! TaxiInquiry(stateData.data.currentActivity.getCoord, 2000)
       stay() using stateData.copy(triggerId = Some(triggerId)) replying completed(triggerId, schedule[FinalizeModeChoiceTrigger](tick, self))

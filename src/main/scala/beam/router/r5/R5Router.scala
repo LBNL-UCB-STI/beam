@@ -14,6 +14,7 @@ import beam.router.RoutingModel._
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.GeoUtils
+import beam.utils.CollectionUtils.onContains
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment, TransitModes}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -51,14 +52,14 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
     transportNetwork.readOSM(mapdbFile)
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false) = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode], person: Person) = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val plan = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, accessMode, considerTransit))
+    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, modes))
     buildResponse(plan)
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false) : ProfileRequest = {
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode]) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
@@ -78,14 +79,17 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
 
-    if(isTransit) {
-      profileRequest.transitModes = util.EnumSet.of(TransitModes.TRANSIT, TransitModes.BUS, TransitModes.SUBWAY, TransitModes.RAIL)
-    }
-    profileRequest.accessModes = util.EnumSet.of(LegMode.WALK)
-    profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
+    val legModes : Vector[LegMode] = (for(m <- modes if isR5LegMode(m)) yield m.r5Mode.get.left.get)
+    profileRequest.directModes = util.EnumSet.copyOf( legModes.asJavaCollection )
 
-    profileRequest.directModes = util.EnumSet.copyOf(accessMode.map(m => LegMode.valueOf(m.value)).asJavaCollection)
-//    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
+    val isTransit = legModes.size < modes.size
+
+    if(isTransit){
+      val transitModes : Vector[TransitModes] = (for(m <- modes if isR5TransitMode(m)) yield m.r5Mode.get.right.get)
+      profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
+      profileRequest.accessModes = profileRequest.directModes
+      profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
+    }
 
     profileRequest
   }
@@ -157,6 +161,20 @@ class R5Router(beamServices: BeamServices, beamConfig : BeamConfig) extends Beam
   }
 
   override def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+  def isR5TransitMode(beamMode: BeamMode): Boolean = {
+    beamMode.r5Mode match {
+      case Some(Right(_)) =>
+        true
+      case _ => false
+    }
+  }
+  def isR5LegMode(beamMode: BeamMode): Boolean = {
+    beamMode.r5Mode match {
+      case Some(Left(_)) =>
+        true
+      case _ => false
+    }
+  }
 }
 
 object R5Router {
