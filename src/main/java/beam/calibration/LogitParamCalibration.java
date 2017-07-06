@@ -280,6 +280,14 @@ final public class LogitParamCalibration {
                                 - Math.pow(valListObserved.get(i) - valListBetaMinus.get(i),2);
                     }catch(Exception e){break;}
                 }
+                // LASSO here
+                ArrayList params = getUtilityParams(logitParams);
+                int diffLossSign = diffLoss > 0? 1:-1;
+                double lassoScalar = 10000; // ADJUST THE PENALTY SCALE
+                for (Object param : params) {
+                    diffLoss += diffLossSign * lassoScalar * Math.abs((Double) param);
+                }
+
                 if(Math.abs(diffLoss) >= maxDiffLoss){
                     maxDiffLoss = Math.abs(diffLoss);
                     backupUpdatedParams(maxDiffLoss);
