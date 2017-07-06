@@ -14,7 +14,7 @@ import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathT
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
-import beam.router.{RoutingWorker, BeamRouter}
+import beam.router.{BeamRouter, RoutingWorker}
 import beam.router.BeamRouter.InitializeRouter
 import beam.utils.JsonUtils
 import com.google.inject.Inject
@@ -22,6 +22,7 @@ import glokka.Registry
 import glokka.Registry.Created
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
@@ -37,6 +38,7 @@ import scala.concurrent.Await
 import scala.util.Random
 import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.concurrent.duration.FiniteDuration
 
 /**
   * AgentSim entrypoint.
@@ -155,16 +157,16 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       personAgents +=((k, ref))
     }
     // Generate taxis and intialize them to be located within ~initialLocationJitter km of a subset of agents
-    //TODO put these in config
-    val taxiFraction = 0.1
-    val initialLocationJitter = 2000 // meters
-    for((k,v) <- services.persons.take(math.round(taxiFraction * services.persons.size).toInt)){
-      val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-      val taxiInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5),personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
-      val props = Props(classOf[TaxiAgent], Id.create(k.toString,TaxiAgent.getClass), TaxiData(taxiInitialLocation), services)
-      val ref: ActorRef = actorSystem.actorOf(props, s"taxi_${k.toString}_$iter")
-      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
-    }
+    //TODO re-enable the following based on config params and after TaxiAgents have been re-factored
+//    val taxiFraction = 0.1
+//    val initialLocationJitter = 2000 // meters
+//    for((k,v) <- services.persons.take(math.round(taxiFraction * services.persons.size).toInt)){
+//      val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+//      val taxiInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5),personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
+//      val props = Props(classOf[TaxiAgent], Id.create(k.toString,TaxiAgent.getClass), TaxiData(taxiInitialLocation), services)
+//      val ref: ActorRef = actorSystem.actorOf(props, s"taxi_${k.toString}_$iter")
+//      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
+//    }
     val iterId = Option(iter.toString)
     vehicleActors = initVehicleActors(iterId)
     householdActors = initHouseholds(personAgents, iterId)
@@ -200,6 +202,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   def subscribe(eventType: String): Unit = {
     services.agentSimEventsBus.subscribe(eventSubscriber, eventType)
   }
+}
+
+object BeamSim {
+  implicit val askTimeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 }
 
 

@@ -269,8 +269,8 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
-      services.schedulerRef ! ScheduleTrigger(ActivityStartTrigger(0.0), self)
-      goto(Initialized) replying CompletionNotice(triggerId)
+//      services.schedulerRef ! ScheduleTrigger(ActivityStartTrigger(0.0), self)
+      goto(Initialized) replying completed(triggerId,schedule[ActivityStartTrigger](0.0,self))
   }
   chainedWhen(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>

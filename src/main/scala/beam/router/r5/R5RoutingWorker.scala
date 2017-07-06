@@ -3,6 +3,7 @@ package beam.router.r5
 import java.io.File
 import java.nio.file.Files.exists
 import java.nio.file.Paths
+import java.time.{LocalDate, ZonedDateTime}
 import java.util
 
 import akka.actor.Props
@@ -31,6 +32,9 @@ import org.matsim.facilities.Facility
 import scala.collection.JavaConverters._
 
 class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
+  //TODO this needs to be inferred from the TransitNetwork or configured
+  val localDateAsString: String = "2016-10-17"
+  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
   override var services: BeamServices = beamServices
 
@@ -82,6 +86,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     }
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
+    profileRequest.date = LocalDate.parse(localDateAsString)
 
     val legModes : Vector[LegMode] = (for(m <- modes if isR5LegMode(m)) yield m.r5Mode.get.left.get)
     profileRequest.directModes = util.EnumSet.copyOf( legModes.asJavaCollection )
