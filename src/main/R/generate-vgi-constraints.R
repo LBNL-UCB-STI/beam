@@ -1,6 +1,8 @@
 
 load.libraries(c('Hmisc','sqldf','GEOquery'))
 
+source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/debug.R')
+
 repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
     if (!forward) x = rev(x)           # reverse x twice if carrying backward
     ind = which(!is.na(x))             # get positions of nonmissing values
@@ -66,17 +68,19 @@ my.read.csv.sql <- function(file, sql = "select * from file", header = TRUE, sep
 
 # Get person attributes and vehicle types and join
 
-peeps <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group.csv'))
-vehs <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/vehicle-types.csv'))
-plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-plug-types.csv'))
+peeps <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group.csv'))
+vehs <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/vehicle-types.csv'))
+plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-plug-types.csv'))
 peeps <- join.on(peeps,vehs,'vehicleTypeId','id',c('batteryCapacityInKWh','vehicleClassName'))
 peeps[,veh.type:='BEV']
 peeps[vehicleClassName=='PHEV',veh.type:='PHEV']
 peeps[vehicleClassName=='NEV',veh.type:='NEV']
 
-out.dirs <- list( 'v1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-03_20-48-12/',0),
-                  'v2.0'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',0),
-                  'v2.10'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',10))
+#out.dirs <- list( 'v1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-03_20-48-12/',0),
+                  #'v2.0'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',0),
+                  #'v2.10'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',10))
+out.dirs <- list( 'v1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-05_16-18-44/',84))
+
 
 scens <- names(out.dirs)
 
@@ -119,10 +123,10 @@ ev[type=='BeginChargingSessionEvent' & is.na(actType),actType:='Home',by=c('scen
 ev <- ev[!type%in%c('arrival','departure','travelled','actend','PreChargeEvent')]
 
 # categorize each charger into Home, Work, Public
-sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-sites-cp.csv',stringsAsFactors=F))
+sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp.csv',stringsAsFactors=F))
 sites[,siteType:='Public']
 sites[policyID==7,siteType:='Work']
-#points <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-developers/model-inputs/calibration-v2/charging-points-cp.csv',stringsAsFactors=F))
+#points <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points-cp.csv',stringsAsFactors=F))
 #points <- join.on(points,sites,'siteID','id','policyID')
 
 ev[,site:=as.numeric(site)]
