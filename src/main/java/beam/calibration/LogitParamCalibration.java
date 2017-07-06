@@ -145,18 +145,6 @@ final public class LogitParamCalibration {
             for(int i=0; i<burnInNum; i++) {
                 EVGlobalData.data.rand.nextDouble();
             }
-//            ((Element)logitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(0)).setText(
-//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 10.0 - 5.0));
-//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
-//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 5));
-//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
-//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 3.5));
-//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(3)).getChild("utility").getChildren().get(0)).setText(
-//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 + 2.5));
-//            ((Element)((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(1)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(
-//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 7.5));
-//            ((Element)((Element)((Element)logitParams.getChildren().get(1)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(
-//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 + 2.5));
 
             backupUpdatedParams(logitParams);
             paramsList 			= getUtilityParams(logitParams);
@@ -171,6 +159,7 @@ final public class LogitParamCalibration {
                 progressMonitoringData.add("diffLoss");
                 progressMonitoringData.add("maxDiffLoss");
                 progressMonitoringData.add("yesCharge");
+                progressMonitoringData.add("isHomeActivityAndHomeCharger");
                 progressMonitoringData.add("tryChargingLater");
                 progressMonitoringData.add("continueSearchInLargerArea");
                 progressMonitoringData.add("abort");
@@ -308,91 +297,52 @@ final public class LogitParamCalibration {
 		 * a bunch of logit here to change the parameters appropriately for the the arrival and departure models (for
 		 * starters, feel free to only change the arrival model but we will need to do both eventually)
 		 */
-        Iterator itr = null;
+//        Iterator itr = null;
         int paramIndex = 0;
         double paramMaxConst = 20, paramMinConst = -20;
         // reinitialize logitParamsPlus and logitParamsMinus
         if(shouldUpdateBetaPlus) {
             paramsDelta = new ArrayList<>();
-            itr = (logitParamsPlus.getChildren()).iterator();
-        }else if(shouldUpdateBetaMinus) itr = (logitParamsMinus.getChildren()).iterator();
-        else if(shouldUpdateBetaTemp)itr = (logitParamsTemp.getChildren()).iterator();
+            paramsList = getUtilityParams(logitParamsPlus);
+//            itr = (logitParamsPlus.getChildren()).iterator();
+        }else if(shouldUpdateBetaMinus){
+            paramsList = getUtilityParams(logitParamsMinus);
+//            itr = (logitParamsMinus.getChildren()).iterator();
+        }else if(shouldUpdateBetaTemp){
+            paramsList = getUtilityParams(logitParamsTemp);
+//            itr = (logitParamsTemp.getChildren()).iterator();
+        }
 
-        if(!isFirstIteration && itr != null){
-            while (itr.hasNext()) { // arrival/departure
-                Element element = (Element) itr.next();
-//                if(element.getAttributeValue("name").toLowerCase().equals("arrival")){
-                    Iterator itrElem = element.getChildren().iterator();
-                    while (itrElem.hasNext()) { // yescharge/nocharge
-                        Element subElement = ((Element) itrElem.next());
-                        if(subElement.getName().toLowerCase().equals("nestedlogit")){
-                            for (Object obj1 : subElement.getChildren()) { // genericSitePlug...
-                                Element childElement = ((Element) obj1);
-                                if (childElement.getName().toLowerCase().equals("nestedlogit")) {
-                                    for (Object obj2 : (childElement.getChild("utility")).getChildren()) { // parameters
-                                        Element utilityElement = ((Element) obj2);
-                                        if (utilityElement.getName().equals("param")) {
-                                            // Only update intercept
-                                            if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
-                                                if (shouldUpdateBetaPlus) {
-                                                    boolean delta = StdRandom.bernoulli();
-                                                    paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + 0.5 * paramsDelta.get(paramsDelta.size()-1)));
-                                                    break;
-                                                } else if (shouldUpdateBetaMinus) {
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - 0.5 * paramsDelta.get(paramIndex++)));
-                                                    break;
-                                                } else if (shouldUpdateBetaTemp) {
-                                                    log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
+        if(!isFirstIteration){
+            for(int i = 0; i < paramsList.size(); i++){
+                if (shouldUpdateBetaPlus) {
+                    boolean delta = StdRandom.bernoulli();
+                    paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
+                    paramsList.set(i,paramsList.get(i) + 0.5 * paramsDelta.get(i));
+                } else if (shouldUpdateBetaMinus) {
+                    paramsList.set(i,paramsList.get(i) - 0.5 * paramsDelta.get(i));
+                } else if (shouldUpdateBetaTemp) {
+                    log.info("(param update) attribute #: " + i + " origin param: " + paramsList.get(i));
 //                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 6.0 / (c * paramsDelta.get(paramIndex++));
-                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? -1 : 1) * 10.0 / (c * paramsDelta.get(paramIndex++));
-                                                    log.info("grad: " + grad);
-                                                    double updatedParam = Double.valueOf(utilityElement.getText()) + a * grad;
-                                                    if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
-                                                        if(updatedParam >= 0) updatedParam = paramMaxConst;
-                                                        if(updatedParam < 0) updatedParam = paramMinConst;
-                                                    }
-                                                    utilityElement.setText(String.valueOf(updatedParam));
-                                                    log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
-                                                }
-                                                break;
-                                            }
-                                        }
-                                    }
-                                } else if (childElement.getName().toLowerCase().equals("utility")) {
-                                    for (Object o : childElement.getChildren()) {
-                                        Element utilityElement = (Element) o;
-                                        if (utilityElement.getName().equals("param")) {
-                                            // Only update intercept
-                                            if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
-                                                if (shouldUpdateBetaPlus) {
-                                                    boolean delta = StdRandom.bernoulli();
-                                                    paramsDelta.add((double) ((delta ? 1 : 0) * 2 - 1));
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) + 0.5 * paramsDelta.get(paramsDelta.size()-1)));
-                                                } else if (shouldUpdateBetaMinus) {
-                                                    utilityElement.setText(String.valueOf(Double.valueOf(utilityElement.getText()) - 0.5 * paramsDelta.get(paramIndex++)));
-                                                } else if (shouldUpdateBetaTemp) {
-                                                    log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " origin param: " + utilityElement.getText());
-//                                                    grad = (diffLoss > 0 ? 1 : -1) * Math.sqrt(Math.abs(diffLoss) / maxDiffLoss) * 6.0 / (c * paramsDelta.get(paramIndex++));
-                                                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? -1 : 1) * 10.0 / (c * paramsDelta.get(paramIndex++));
-                                                    log.info("grad: " + grad);
-                                                    double updatedParam = Double.valueOf(utilityElement.getText()) + a * grad;
-                                                    if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
-                                                        if(updatedParam >= 0) updatedParam = paramMaxConst;
-                                                        if(updatedParam < 0) updatedParam = paramMinConst;
-                                                    }
-                                                    utilityElement.setText(String.valueOf(updatedParam));
-                                                    log.info("(param update) attribute: " + utilityElement.getAttributeValue("name") + " updated param: " + utilityElement.getText());
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    grad = maxDiffLoss == 0.0 ? 0.0 : (diffLoss > 0 ? -1 : 1) * 10.0 / (c * paramsDelta.get(paramIndex++));
+                    log.info("grad: " + grad);
+                    double updatedParam = paramsList.get(i) + a * grad;
+                    if(updatedParam >= paramMaxConst || updatedParam <= paramMinConst){
+                        if(updatedParam >= 0) updatedParam = paramMaxConst;
+                        if(updatedParam < 0) updatedParam = paramMinConst;
                     }
-//                }
+                    paramsList.set(i,updatedParam);
+                    log.info("(param update) attribute #: " + i + " updated param: " + paramsList.get(i));
+                }
             }
+        }
+
+        if(shouldUpdateBetaPlus) {
+            updateElementWithParams(logitParamsPlus,paramsList);
+        }else if(shouldUpdateBetaMinus){
+            updateElementWithParams(logitParamsMinus,paramsList);
+        }else if(shouldUpdateBetaTemp){
+            updateElementWithParams(logitParamsTemp,paramsList);
         }
 
 
@@ -429,6 +379,7 @@ final public class LogitParamCalibration {
             progressMonitoringData.add(Double.toString(diffLoss));
             progressMonitoringData.add(Double.toString(maxDiffLoss));
             progressMonitoringData.add(arrival.children.get(0).children.getFirst().data.getUtility().getCoefficientValue("intercept").toString());
+            progressMonitoringData.add(arrival.children.get(0).children.getFirst().data.getUtility().getCoefficientValue("isHomeActivityAndHomeCharger").toString());
             progressMonitoringData.add(arrival.children.get(1).children.get(0).data.getUtility().getCoefficientValue("intercept").toString());
             progressMonitoringData.add(arrival.children.get(1).children.get(1).data.getUtility().getCoefficientValue("intercept").toString());
             progressMonitoringData.add(arrival.children.get(1).children.get(2).data.getUtility().getCoefficientValue("intercept").toString());
@@ -438,6 +389,43 @@ final public class LogitParamCalibration {
             log.warn("Run another iteration without updating parameters to get the simulation result converges..");
         }
         int jjj = 0;
+    }
+//                    String.valueOf(EVGlobalData.data.rand.nextDouble() * 10.0 - 5.0));
+//            String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 5));
+//            String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 3.5));
+//            String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 + 2.5));
+//            String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 - 7.5));
+//            String.valueOf(EVGlobalData.data.rand.nextDouble() * 5.0 + 2.5));
+    /**
+     * Return utility params in double array list
+     * @param theLogitParams: nested logit strategy elements
+     * @return theParams: ArrayList that contains logit parameters in double type
+     */
+    private ArrayList<Double> getUtilityParams(Element theLogitParams){
+        ArrayList<Double> theParams = new ArrayList<>();
+        theParams.add(Double.valueOf(((Element)theLogitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(0)).getText()));
+        theParams.add(Double.valueOf(((Element)theLogitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(8)).getText()));
+        theParams.add(Double.valueOf(((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(1)).getChild("utility").getChildren().get(0)).getText()));
+        theParams.add(Double.valueOf(((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(2)).getChild("utility").getChildren().get(0)).getText()));
+        theParams.add(Double.valueOf(((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(3)).getChild("utility").getChildren().get(0)).getText()));
+        theParams.add(Double.valueOf(((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(1)).getChildren().get(1)).getChildren().get(1)).getChild("utility").getChildren().get(0)).getText()));
+        theParams.add(Double.valueOf(((Element)((Element)((Element)theLogitParams.getChildren().get(1)).getChildren().get(2)).getChild("utility").getChildren().get(0)).getText()));
+        return theParams;
+    }
+
+    /**
+     * Set utility params in the Element using side effects
+     * @param theLogitParams: nested logit strategy elements
+     * @return theParams: ArrayList that contains logit parameters in double type
+     */
+    public void updateElementWithParams(Element theLogitParams, ArrayList<Double> theParams){
+        ((Element)theLogitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(0)).setText(String.valueOf(theParams.get(0)));
+        ((Element)theLogitParams.getChild("nestedLogit").getChild("nestedLogit").getChild("nestedLogit").getChild("utility").getChildren().get(8)).setText(String.valueOf(theParams.get(1)));
+        ((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(String.valueOf(theParams.get(2)));
+        ((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(String.valueOf(theParams.get(3)));
+        ((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(0)).getChildren().get(2)).getChildren().get(3)).getChild("utility").getChildren().get(0)).setText(String.valueOf(theParams.get(4)));
+        ((Element)((Element)((Element)((Element)theLogitParams.getChildren().get(1)).getChildren().get(1)).getChildren().get(1)).getChild("utility").getChildren().get(0)).setText(String.valueOf(theParams.get(5)));
+        ((Element)((Element)((Element)theLogitParams.getChildren().get(1)).getChildren().get(2)).getChild("utility").getChildren().get(0)).setText(String.valueOf(theParams.get(6)));
     }
 
     /**
@@ -907,53 +895,6 @@ final public class LogitParamCalibration {
         return null;
     }
 
-    /**
-     * Return utility params in double array list
-     * @param rootElem: nested logit strategy elements
-     * @return paramArr: ArrayList that contains logit parameters in double type
-     */
-    private ArrayList<Double> getUtilityParams(Element rootElem){
-        ArrayList<Double> paramArr = new ArrayList<>();
-
-        Iterator itr = (rootElem.getChildren()).iterator();
-        while (itr != null && itr.hasNext()) { // arrival/departure
-            Element element = (Element) itr.next();
-            Iterator itrElem = element.getChildren().iterator();
-            while (itrElem.hasNext()) { // yescharge/nocharge
-                Element subElement = ((Element) itrElem.next());
-                if(subElement.getName().toLowerCase().equals("nestedlogit")){
-                    for (Object obj1 : subElement.getChildren()) { // genericSitePlug...
-                        Element childElement = ((Element) obj1);
-                        if (childElement.getName().toLowerCase().equals("nestedlogit")) {
-                            for (Object obj2 : (childElement.getChild("utility")).getChildren()) { // parameters
-                                Element utilityElement = ((Element) obj2);
-                                if (utilityElement.getName().equals("param")) {
-                                    if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
-                                        log.info("parameter: " + utilityElement.getAttributeValue("name") + "value: " + utilityElement.getText());
-                                        paramArr.add(Double.valueOf(utilityElement.getText()));
-                                    }
-                                }
-                            }
-                        } else if (childElement.getName().toLowerCase().equals("utility")) {
-                            for (Object o : childElement.getChildren()) {
-                                Element utilityElement = (Element) o;
-                                if (utilityElement.getName().equals("param")) {
-                                    // Only update intercept
-                                    if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
-                                        if (utilityElement.getAttributeValue("name").toLowerCase().equals("intercept")) {
-                                            log.info("parameter: " + utilityElement.getAttributeValue("name") + "value: " + utilityElement.getText());
-                                            paramArr.add(Double.valueOf(utilityElement.getText()));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return paramArr;
-    }
 
     public static void setInitialLogitParams(Element params){
         logitParams = params;
