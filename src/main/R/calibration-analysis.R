@@ -6,15 +6,41 @@ last.change <- function(x,minSSR){
   x[tail(which(diff(minSSR)<0),1)]
 }
 
-calib.names <- c('calibration_2017-06-27_22-57-55',pp('calibration_2017-06-27_23-02-',c(14,17,19,20,22)),
-                 pp('calibration_2017-06-28_11-',c('04-02','04-04','19-09','19-16','34-31','49-29','52-48','57-06')))
+to.download <- c('calibration_2017-07-06_02-02-32','calibration_2017-07-06_06-08-43','calibration_2017-07-06_06-31-09') #,'calibration_2017-07-06_07-56-34') #,'calibration_2017-07-06_08-28-28')
+to.download <- c()
+calib.names <- c( #'calibration_2017-06-27_22-57-55',pp('calibration_2017-06-27_23-02-',c(14,17,19,20,22)),
+                 #pp('calibration_2017-06-28_11-',c('04-02','04-04','19-09','19-16','34-31','49-29','52-48','57-06')),
+                 'calibration_2017-07-03_07-38-22',pp('calibration_2017-07-03_08-',c('29-21','39-16','39-13','40-03','40-13','40-08','44-49')),
+                 'calibration_2017-07-05_16-18-44','calibration_2017-07-06_00-33-15-20kw',
+                 'calibration_2017-07-06_02-02-32','calibration_2017-07-06_06-08-43','calibration_2017-07-06_06-31-09'
+                 )
+docs.base <- '/Volumes/critter/Documents'
+docs.base <- '/Users/critter/Documents'
 
 calib.name <- calib.names[1]
+calib.name <- to.download[1]
 load.all <- list()
 cal.all <- list()
 ev.all <- list()
+for(calib.name in to.download){
+  nersc.dir <- pp('/global/cscratch1/sd/csheppar/',calib.name)
+  calib.dir <- pp(docs.base,'/beam/beam-output/',calib.name)
+  iter.dir <- pp(calib.dir,'/ITERS')
+  make.dir(calib.dir)
+  make.dir(iter.dir)
+  system(pp('scp csheppar@cori.nersc.gov:',nersc.dir,'/calibration.csv ',calib.dir,'/'))
+  dt <- data.table(read.csv(pp(iter.dir,'/../calibration.csv')))
+  iters <- dt$iter
+  if(best.only){
+    iters <- last.change(dt$iter,dt$minSSR)
+  }
+  for(the.iter in iters){
+    system(pp('scp -r csheppar@cori.nersc.gov:',nersc.dir,'/ITERS/it.',the.iter,' ',iter.dir,'/'))
+  }
+  calib.names <- c(calib.names,calib.name)
+}
 for(calib.name in calib.names){
-  iter.dir <- pp('~/Documents/beam/beam-output/',calib.name,'/ITERS/')
+  iter.dir <- pp(docs.base,'/beam/beam-output/',calib.name,'/ITERS/')
   dt <- data.table(read.csv(pp(iter.dir,'../calibration.csv')))
   dt[,calib.run:=calib.name]
   cal.all[[length(cal.all)+1]] <- dt
@@ -41,7 +67,7 @@ cal.all <- rbindlist(cal.all)
 load.all <- rbindlist(load.all)
 ev.all <- rbindlist(ev.all)
 
-ev.all[,list(chargeArrPub=sum(choice=='charge' & site>0,na.rm=T),chargeArrHome=sum(choice=='charge' & site<0,na.rm=T),chargeDep=sum(choice=='engageWithOriginalPlug')),by='iter']
+ev.all[,list(chargeArrPub=sum(choice=='charge' & site>0,na.rm=T),chargeArrHome=sum(choice=='charge' & site<0,na.rm=T),chargeDepHome=sum(choice=='engageWithOriginalPlug'& site<0),chargeDepPub=sum(choice=='engageWithOriginalPlug'& site>0)),by=c('calib.run','iter')]
 
 #ggplot(dt,aes(x=time,y=num.plugged.in,colour=site.type))+geom_bar(stat='identity',position='stack')+facet_wrap(charger.type~spatial.group)
 #ggplot(load.all[time>=27 & time<=51,list(num.plugged.in=sum(num.plugged.in)),by=c('iter','time','site.type')],aes(x=time,y=num.plugged.in,fill=site.type))+geom_bar(stat='identity',position='stack')+facet_wrap(~iter)
@@ -68,8 +94,12 @@ for(the.calib.run in u(load.all$calib.run)){
 }
 both.all <- rbindlist(both.all)
 both.all[,key:=pp(calib.run,' SSR=',SSR)]
+both.all[,hour:=floor(time)]
 
 ggplot(both.all,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
+ggplot(both.all[,list(pred.num.plugged.in=sum(pred.num.plugged.in),num.plugged.in=sum(num.plugged.in)),by=c('spatial.group','key','hour')],aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
+
+ggplot(both.all,aes(x= charging.load.in.kw,y= pred.charging.load.in.kw,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
 
 
 ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=charger.type))+geom_point()+geom_abline(slope=1,intercept=0)
@@ -84,6 +114,7 @@ ggplot(melt(cal.all,id.vars=c('iter','SSR','calib.run'),measure.vars=c('yesCharg
 
 cal.all.fin <- cal.all[,list(SSR=last.change(SSR,minSSR),yesCharge=last.change(yesCharge,minSSR),tryChargingLater=last.change(tryChargingLater,minSSR),continueSearchInLargerArea=last.change(continueSearchInLargerArea,minSSR),abort=last.change(abort,minSSR),departureYes=last.change(departureYes,minSSR),departureNo=last.change(departureNo,minSSR)),by='calib.run']
 
+ggpairs(as.data.frame(cal.all.fin),columns=2:8, mapping=ggplot2::aes(colour=calib.run))
 
 xy.to.latlon <- function(str){
   x <- as.numeric(strsplit(str,'"')[[1]][2])
