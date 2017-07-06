@@ -204,9 +204,5 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 }
 
-object BeamSim {
-  implicit val askTimeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
-}
-
 
 

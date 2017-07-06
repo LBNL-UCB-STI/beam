@@ -75,7 +75,7 @@ trait BeamVehicle extends Resource with Actor with ActorLogging {
   def location(time: Double): Future[SpaceTime] = {
     carrier match {
       case Some(carrierVehicle) =>
-        import beam.sim.BeamSim.askTimeout
+        import beam.sim.BeamServices.askTimeout
         (carrierVehicle ? GetVehicleLocationEvent(time)).mapTo[SpaceTime].recover[SpaceTime] {
           case error: Throwable =>
           log.warning(s"Failed to get location of from carrier. ", error)
