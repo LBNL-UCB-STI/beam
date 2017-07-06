@@ -72,10 +72,10 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
     val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
 
-    profileRequest.fromLat = fromPosTransformed.getX
-    profileRequest.fromLon = fromPosTransformed.getY
-    profileRequest.toLat = toPosTransformed.getX
-    profileRequest.toLon = toPosTransformed.getY
+    profileRequest.fromLon = fromPosTransformed.getX
+    profileRequest.fromLat = fromPosTransformed.getY
+    profileRequest.toLon = toPosTransformed.getX
+    profileRequest.toLat = toPosTransformed.getY
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
 

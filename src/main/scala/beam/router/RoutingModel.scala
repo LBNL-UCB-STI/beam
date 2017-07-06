@@ -2,8 +2,11 @@ package beam.router
 
 import Modes.BeamMode
 import Modes.BeamMode.{CAR, TRANSIT, WALK}
+import beam.agentsim.agents.vehicles.BeamVehicleAgent
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 
 /**
   * BEAM
@@ -22,10 +25,10 @@ object RoutingModel {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
   }
 
-  case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long, graphPath: BeamGraphPath)
+  case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long,  graphPath: BeamGraphPath, beamVehicleId: Option[Id[Vehicle]])
 
   object BeamLeg {
-    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty)
+    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty, None)
   }
 
   case class BeamGraphPath(linkIds: Vector[String],

@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
 import beam.agentsim.agents.BeamAgent.BeamAgentInfo
+import beam.agentsim.agents.BeamAgent.Error
 import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TaxiManager.{TaxiInquiry, TaxiInquiryResponse}
@@ -27,8 +28,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       // Choice happens here
       hasReceivedCompleteChoiceTrigger = false
       val theTriggerIdAsLong = if(theTriggerId == None){ stateData.triggerId.get }else{ theTriggerId.get }
-      services.schedulerRef ! completed(theTriggerIdAsLong,schedule[TeleportationArrivalTrigger](stateData.tick.get, self))
-      goto(Walking) using stateData.copy(triggerId = None, tick = None)
+//      services.schedulerRef ! completed(theTriggerIdAsLong,ScheduleTrigger(TeleportationArrivalTrigger(stateData.tick.get),self)
+//      goto(Walking) using stateData.copy(triggerId = None, tick = None) replying completed(theTriggerIdAsLong, )
+      services.schedulerRef ! completed(theTriggerIdAsLong)
+      goto(Error)
     } else {
       stay()
     }
