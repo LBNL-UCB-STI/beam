@@ -60,13 +60,11 @@ object RoutingModel {
     val atTime: Int
   }
   case class DiscreteTime(override val atTime: Int) extends BeamTime
-  case class WindowTime(override val atTime: Int, timeFrame: Int) extends BeamTime {
+  case class WindowTime(override val atTime: Int, timeFrame: Int = 15 * 60) extends BeamTime {
     lazy val fromTime: Int = atTime - (timeFrame/2) -(timeFrame%2)
     lazy val toTime: Int = atTime + (timeFrame/2)
   }
   object WindowTime {
-    def apply(atTime: Int, timeFrame: Int = 15 * 60): WindowTime =
-      new WindowTime(atTime, timeFrame)
     def apply(atTime: Int, r5: BeamConfig.Beam.Routing.R5): WindowTime =
       new WindowTime(atTime, r5.departureWindow * 60)
   }
