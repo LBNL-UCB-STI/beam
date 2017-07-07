@@ -3,6 +3,7 @@ package beam.router
 import Modes.BeamMode
 import Modes.BeamMode.{CAR, TRANSIT, WALK}
 import beam.agentsim.events.SpaceTime
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Coord
 
 /**
@@ -59,9 +60,15 @@ object RoutingModel {
     val atTime: Int
   }
   case class DiscreteTime(override val atTime: Int) extends BeamTime
-  case class WindowTime(override val atTime: Int, timeFrame: Int = 15*60) extends BeamTime {
+  case class WindowTime(override val atTime: Int, timeFrame: Int) extends BeamTime {
     lazy val fromTime: Int = atTime - (timeFrame/2) -(timeFrame%2)
     lazy val toTime: Int = atTime + (timeFrame/2)
+  }
+  object WindowTime {
+    def apply(atTime: Int, timeFrame: Int = 15 * 60): WindowTime =
+      new WindowTime(atTime, timeFrame)
+    def apply(atTime: Int, r5: BeamConfig.Beam.Routing.R5): WindowTime =
+      new WindowTime(atTime, r5.departureWindow * 60)
   }
 }
 

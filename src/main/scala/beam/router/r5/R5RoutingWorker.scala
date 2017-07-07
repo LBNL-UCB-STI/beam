@@ -3,6 +3,8 @@ package beam.router.r5
 import java.io.File
 import java.nio.file.Files.exists
 import java.nio.file.Paths
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor.Props
@@ -72,13 +74,13 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
 
-    //setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
     val time = departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime)
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
       case time: WindowTime => time
     }
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
+    profileRequest.date = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate).toLocalDate
 
     if(isTransit) {
       profileRequest.transitModes = util.EnumSet.of(TransitModes.TRANSIT, TransitModes.BUS, TransitModes.SUBWAY, TransitModes.RAIL)
@@ -97,16 +99,22 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     profileRequest
   }
 
+  def toBaseMidnightSecond(time: ZonedDateTime): Long = {
+    val baseDate = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate)
+//    (time.getDayOfYear - baseDate.getDayOfYear) * 86400 + time.getHour * 3600 + time.getMinute * 60 + time.getSecond
+    ChronoUnit.SECONDS.between(time, baseDate)
+  }
+
   def buildResponse(plan: ProfileResponse): RoutingResponse = {
 //    RoutingResponse((for(option: ProfileOption <- plan.options.asScala) yield
 //      BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
-//        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, null)
+//        BeamLeg(toBaseMidnightSecond(itinerary.startTime), BeamMode.withValue(access.mode.name()), itinerary.duration, null)
 //      ).toVector)
 //    ).toVector)
 
     RoutingResponse(plan.options.asScala.map(option =>
       BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
-        BeamLeg(itinerary.startTime.toEpochSecond, access.mode match {
+        BeamLeg(toBaseMidnightSecond(itinerary.startTime), access.mode match {
           case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
           case LegMode.WALK => BeamMode.WALK
           case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
