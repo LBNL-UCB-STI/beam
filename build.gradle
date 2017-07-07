@@ -194,7 +194,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/test', '-o']
     classpath = sourceSets.test.runtimeClasspath
 }
-test.dependsOn spec
+// test.dependsOn spec
 //////////////////////////////////////////////////////////////////////
 // BUNDLING FOR EXECUTION
 //
