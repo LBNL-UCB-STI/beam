@@ -3,17 +3,21 @@ load.libraries(c('sp','maptools','rgdal','GGally'))
 
 best.only <- T
 last.change <- function(x,minSSR){
-  x[tail(which(diff(minSSR)<0),1)]
+  if(any(diff(minSSR)<0)){
+    x[tail(which(diff(minSSR)<0),1)]
+  }else{
+    tail(x,1)
+  }
 }
 
-to.download <- c('calibration_2017-07-06_02-02-32','calibration_2017-07-06_06-08-43','calibration_2017-07-06_06-31-09') #,'calibration_2017-07-06_07-56-34') #,'calibration_2017-07-06_08-28-28')
+to.download <- c('calibration_2017-07-06_02-02-32','calibration_2017-07-06_06-08-43','calibration_2017-07-06_06-31-09','calibration_2017-07-06_07-56-34','calibration_2017-07-06_08-28-28')
 to.download <- c()
-calib.names <- c( #'calibration_2017-06-27_22-57-55',pp('calibration_2017-06-27_23-02-',c(14,17,19,20,22)),
+calib.names <- c( 'calibration_2017-07-06_13-18-47-7param-1k','calibration_2017-07-06_13-52-56-7param-1k','calibration_2017-07-06_15-05-49-7param-1k','calibration_2017-07-06_15-52-25-7param-1k','calibration_2017-07-06_17-32-18-7param-1k')
                  #pp('calibration_2017-06-28_11-',c('04-02','04-04','19-09','19-16','34-31','49-29','52-48','57-06')),
-                 'calibration_2017-07-03_07-38-22',pp('calibration_2017-07-03_08-',c('29-21','39-16','39-13','40-03','40-13','40-08','44-49')),
-                 'calibration_2017-07-05_16-18-44','calibration_2017-07-06_00-33-15-20kw',
-                 'calibration_2017-07-06_02-02-32','calibration_2017-07-06_06-08-43','calibration_2017-07-06_06-31-09'
-                 )
+                 #'calibration_2017-07-03_07-38-22',pp('calibration_2017-07-03_08-',c('29-21','39-16','39-13','40-03','40-13','40-08','44-49')),
+                 #'calibration_2017-07-05_16-18-44','calibration_2017-07-06_00-33-15-20kw',
+                 #'calibration_2017-07-06_02-02-32','calibration_2017-07-06_06-08-43','calibration_2017-07-06_06-31-09','calibration_2017-07-06_07-56-34','calibration_2017-07-06_08-28-28'
+                 #)
 docs.base <- '/Volumes/critter/Documents'
 docs.base <- '/Users/critter/Documents'
 
@@ -76,7 +80,7 @@ ev.all[,list(chargeArrPub=sum(choice=='charge' & site>0,na.rm=T),chargeArrHome=s
 #ggplot(load.all[iter==1374 & time>=27 & time<=51,list(num.plugged.in=sum(num.plugged.in)),by=c('iter','time')],aes(x=time,y=num.plugged.in,colour=factor(iter)))+geom_line()
 #ggplot(load.all[iter==1374 & time>=27 & time<=51,list(kw=sum(charging.load.in.kw)),by=c('iter','time')],aes(x=time,y=kw,colour=factor(iter)))+geom_line()
 
-cp <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/cp-data-for-validation-10000.csv'))
+cp <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/cp-data-for-validation-1000.csv'))
 cp[time>=3,time:=time+24]
 cp[time<3,time:=time+48]
 
@@ -97,9 +101,13 @@ both.all[,key:=pp(calib.run,' SSR=',SSR)]
 both.all[,hour:=floor(time)]
 
 ggplot(both.all,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
-ggplot(both.all[,list(pred.num.plugged.in=sum(pred.num.plugged.in),num.plugged.in=sum(num.plugged.in)),by=c('spatial.group','key','hour')],aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
-
+dev.new()
 ggplot(both.all,aes(x= charging.load.in.kw,y= pred.charging.load.in.kw,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
+
+
+ggplot(both.all[,list(pred.num.plugged.in=sum(pred.num.plugged.in),num.plugged.in=sum(num.plugged.in),charging.load.in.kw=sum(charging.load.in.kw),pred.charging.load.in.kw=sum(pred.charging.load.in.kw)),by=c('spatial.group','key','hour')],aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
+ggplot(both.all[,list(pred.num.plugged.in=sum(pred.num.plugged.in),num.plugged.in=sum(num.plugged.in),charging.load.in.kw=sum(charging.load.in.kw),pred.charging.load.in.kw=sum(pred.charging.load.in.kw)),by=c('spatial.group','key','hour')],aes(x= charging.load.in.kw,y= pred.charging.load.in.kw,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
+
 
 
 ggplot(both,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=charger.type))+geom_point()+geom_abline(slope=1,intercept=0)

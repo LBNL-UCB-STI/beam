@@ -79,7 +79,7 @@ peeps[vehicleClassName=='NEV',veh.type:='NEV']
 #out.dirs <- list( 'v1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-03_20-48-12/',0),
                   #'v2.0'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',0),
                   #'v2.10'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',10))
-out.dirs <- list( 'v1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-05_16-18-44/',84))
+out.dirs <- list( 'v2-7param-1k'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-06_22-58-25/',0))
 
 
 scens <- names(out.dirs)
@@ -223,7 +223,7 @@ soc[,cumul.energy:=cumsum(d.energy.level),by=c('scenario','person','siteType','a
 setkey(soc,scenario,hr,person,siteType,actType,constraint)
 soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','scenario','person','siteType','actType')]
 
-ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','siteType','actType')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(~siteType)
+ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','siteType')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(~siteType)
 ggplot(soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','constraint','actType')],aes(x=hr%%24,y=d.energy))+geom_line(lwd=1.5)+facet_wrap(~actType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 soc.sum <- soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','siteType','actType')]
 setkey(soc.sum,scenario,hr,actType)

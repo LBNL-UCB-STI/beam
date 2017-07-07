@@ -6,8 +6,7 @@ import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Identifiable;
-import org.matsim.api.core.v01.events.PersonDepartureEvent;
-import org.matsim.api.core.v01.events.PersonStuckEvent;
+import org.matsim.api.core.v01.events.*;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Leg;
@@ -50,6 +49,8 @@ import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPoint;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import beam.transEnergySim.vehicles.api.BatteryElectricVehicle;
 import beam.transEnergySim.vehicles.api.VehicleWithBattery;
+import org.matsim.facilities.ActivityFacility;
+import org.matsim.facilities.Facility;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -689,6 +690,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			this.tripInfoAsOfDeparture = getTripInformation(EVGlobalData.data.now, this.getCurrentLink(), this.nextActivity.getLinkId());
 			this.shouldDepartAfterChargingSession = false;
 		}
+		EVGlobalData.data.eventLogger.processEvent(new ActivityEndEvent(EVGlobalData.data.now,getPersonId(),this.getCurrentLink(),Id.create("NA", ActivityFacility.class), this.previousActivity.getType()));
 		performChargingDecisionAlgorithmOnDeparture();
 		EVGlobalData.data.eventLogger.processEvent(new PersonDepartureEvent(EVGlobalData.data.now,getPersonId(),getCurrentLink(),EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE));
 	}
@@ -700,6 +702,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 		if(this.currentPlanElementIndex % 2 == 0){
 			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
+		EVGlobalData.data.eventLogger.processEvent(new PersonArrivalEvent(EVGlobalData.data.now,getPersonId(),this.getCurrentLink(),EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES));
 		this.currentLinkId = this.nextActivity.getLinkId();
 		updateEnergyUse();
 		decrementRemainingTravelInDay(this.tripInfoAsOfDeparture.getTripDistance());
@@ -714,9 +717,11 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 //			getMobsimAgent().notifyArrivalOnLinkByNonNetworkMode(getMobsimAgent().getDestinationLinkId());
 			EVGlobalData.data.eventLogger.processEvent(
 					new TeleportationArrivalEvent(EVGlobalData.data.now, getPersonId(), this.tripInfoAsOfDeparture.getTripDistance()));
+
 //			getMobsimAgent().endLegAndComputeNextState(EVGlobalData.data.now);
 //			PlugInVehicleAgent.internalInterface.arrangeNextAgentState(getMobsimAgent());
 			updateActivityTrackingOnStart();
+			EVGlobalData.data.eventLogger.processEvent(new ActivityStartEvent(EVGlobalData.data.now,getPersonId(),this.getCurrentLink(),Id.create("NA", ActivityFacility.class), this.currentActivity.getType()));
 			if(this.currentActivity.getEndTime() <= EVGlobalData.data.now){
 				handleDeparture();
 			}else{
