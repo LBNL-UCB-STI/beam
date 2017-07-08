@@ -10,14 +10,16 @@ last.change <- function(x,minSSR){
   }
 }
 
+to.download <- c('calibration_2017-07-07_13-11-23','calibration_2017-07-07_14-05-31','calibration_2017-07-07_14-42-02','calibration_2017-07-07_14-14-42','calibration_2017-07-07_14-42-52','calibration_2017-07-07_14-49-15','calibration_2017-07-07_15-19-33','calibration_2017-07-07_16-03-06','calibration_2017-07-07_16-03-16','calibration_2017-07-07_16-34-53')
 to.download <- c()
-to.download <- c('calibration_2017-07-07_06-01-50')
 # 1k runs
 calib.names <- c( 'calibration_2017-07-06_23-10-37','calibration_2017-07-07_00-22-22','calibration_2017-07-07_00-52-48','calibration_2017-07-07_07-26-14')
+calib.names <- c()
 docs.base <- '/Users/critter/Documents'
 # 10k runs
-calib.names <- c( 'calibration_2017-07-06_23-23-58','calibration_2017-07-07_07-28-02')
-docs.base <- '/Volumes/critter/Documents'
+calib.names <- c('calibration_2017-07-07_13-11-23','calibration_2017-07-07_14-05-31','calibration_2017-07-07_14-42-02','calibration_2017-07-07_14-14-42','calibration_2017-07-07_14-42-52','calibration_2017-07-07_14-49-15','calibration_2017-07-07_15-19-33','calibration_2017-07-07_16-03-06','calibration_2017-07-07_16-03-16','calibration_2017-07-07_16-34-53',
+                 'calibration_2017-07-07_12-34-13-newinfra-10k','calibration_2017-07-07_16-51-02-newinfra-10k')
+#docs.base <- '/Volumes/critter/Documents'
 
 calib.name <- calib.names[1]
 calib.name <- to.download[1]
@@ -79,6 +81,7 @@ ev.all[,list(chargeArrPub=sum(choice=='charge' & site>0,na.rm=T),chargeArrHome=s
 #ggplot(load.all[iter==1374 & time>=27 & time<=51,list(kw=sum(charging.load.in.kw)),by=c('iter','time')],aes(x=time,y=kw,colour=factor(iter)))+geom_line()
 
 cp <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/cp-data-for-validation-10000.csv'))
+#cp <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/cp-data-for-validation.csv'))
 cp[time>=3,time:=time+24]
 cp[time<3,time:=time+48]
 
@@ -102,8 +105,7 @@ ggplot(both.all,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.grou
 dev.new()
 ggplot(both.all,aes(x= charging.load.in.kw,y= pred.charging.load.in.kw,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
 dev.new()
-ggplot(melt(cal.all,id.vars=c('iter','SSR','calib.run'),measure.vars=c('yesCharge','isHomeActivityAndHomeCharger','tryChargingLater','continueSearchInLargerArea','abort','departureYes','departureNo')),
-       aes(x=variable,y=value,colour=log10(SSR),size=iter))+geom_point()+facet_wrap(~calib.run)
+ggplot(melt(cal.all,id.vars=c('iter','SSR','calib.run'),measure.vars=c('yesCharge','isHomeActivityAndHomeCharger','tryChargingLater','continueSearchInLargerArea','abort','departureYes','departureNo')),aes(x=variable,y=value,colour=log10(SSR),size=iter))+geom_point()+facet_wrap(~calib.run)
 
 ggplot(both.all[,list(pred.num.plugged.in=sum(pred.num.plugged.in),num.plugged.in=sum(num.plugged.in),charging.load.in.kw=sum(charging.load.in.kw),pred.charging.load.in.kw=sum(pred.charging.load.in.kw)),by=c('spatial.group','key','hour')],aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
 ggplot(both.all[,list(pred.num.plugged.in=sum(pred.num.plugged.in),num.plugged.in=sum(num.plugged.in),charging.load.in.kw=sum(charging.load.in.kw),pred.charging.load.in.kw=sum(pred.charging.load.in.kw)),by=c('spatial.group','key','hour')],aes(x= charging.load.in.kw,y= pred.charging.load.in.kw,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
