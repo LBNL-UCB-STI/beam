@@ -18,18 +18,23 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 	private ChargingSite site;
 	private int decisionEventId;
 	private double chargingKw;
+	private double energyNeededForNextTrip;
 
 	public static final String ATTRIBUTE_DECISION_EVENT_ID=DepartureChargingDecisionEvent.ATTRIBUTE_DECISION_EVENT_ID;
 	public static final String ATTRIBUTE_PERSON = DepartureChargingDecisionEvent.ATTRIBUTE_PERSON;
 	public static final String ATTRIBUTE_PLUG = "plug";
 	public static final String ATTRIBUTE_SITE = "site";
-	
+	public static final String ATTRIBUTE_ENERGY_NEEDED = "kwhNeeded";
+
 	public BeginChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug, double chargingPowerInW) {
 		super(time);
 		this.agent = agent;
 		this.plug = plug;
 		this.site = plug.getChargingSite();
 		this.chargingKw = chargingPowerInW/1000.0;
+		this.energyNeededForNextTrip = agent.getNextLegTravelDistanceInMeters() - agent.getVehicleWithBattery().getRemainingRangeInMeters();
+		this.energyNeededForNextTrip = agent.getVehicleType().equals("PHEV") || this.energyNeededForNextTrip <= 0.0 ? 0.0 :
+				agent.getVehicleWithBattery().getRequiredEnergyInkWhToDriveDistance(this.energyNeededForNextTrip);
 		this.setDecisionEventId(agent.getCurrentDecisionEventId());
 	}
 
@@ -45,6 +50,7 @@ public class BeginChargingSessionEvent extends Event implements IdentifiableDeci
 		attributes.put(ATTRIBUTE_PLUG, plug.getId().toString());
 		attributes.put(ATTRIBUTE_SITE, site.getId().toString());
 		attributes.put(ATTRIBUTE_DECISION_EVENT_ID, Integer.toString(getDecisionEventId()));
+		attributes.put(ATTRIBUTE_ENERGY_NEEDED, Double.toString(energyNeededForNextTrip));
 		return attributes;
 	}
 
