@@ -188,7 +188,7 @@ object BeamConfig {
           gtfs        = BeamConfig.Beam.Routing.Gtfs(c.getConfig("gtfs")),
           otp         = BeamConfig.Beam.Routing.Otp(c.getConfig("otp")),
           r5          = BeamConfig.Beam.Routing.R5(c.getConfig("r5")),
-          routerClass = if(c.hasPathOrNull("routerClass")) c.getString("routerClass") else "beam.router.r5.R5Router"
+          routerClass = if(c.hasPathOrNull("routerClass")) c.getString("routerClass") else "beam.router.r5.R5RoutingWorker"
         )
       }
     }
