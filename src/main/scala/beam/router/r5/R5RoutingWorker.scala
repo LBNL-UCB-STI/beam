@@ -112,14 +112,29 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 //      ).toVector)
 //    ).toVector)
 
+    def mapMode(mode: LegMode): BeamMode = {
+      mode match {
+        case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
+        case LegMode.WALK => BeamMode.WALK
+        case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
+      }
+    }
+
     RoutingResponse(plan.options.asScala.map(option =>
-      BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
-        BeamLeg(toBaseMidnightSecond(itinerary.startTime), access.mode match {
-          case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
-          case LegMode.WALK => BeamMode.WALK
-          case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
-        }, itinerary.duration, buildGraphPath(access))
-      ).toVector)
+      BeamTrip( {
+        var legs = Vector[BeamLeg]()
+        for(itinerary <- option.itinerary.asScala) {
+          //TODO create separate BeamLeg for access, egress and transits
+          val access = option.access.get(itinerary.connection.access)
+          val egress = option.egress.get(itinerary.connection.egress)
+//        val transit = option.transit.get((itinerary.connection.transit))
+
+          //TODO find out what time and duration should use with separate legs for access, egress,etc
+          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapMode(access.mode), itinerary.duration, buildGraphPath(access))
+          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapMode(egress.mode), itinerary.duration, buildGraphPath(egress))
+        }
+        legs
+      })
     ).toVector)
   }
 
