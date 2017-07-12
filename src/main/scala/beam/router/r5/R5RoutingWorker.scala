@@ -17,7 +17,7 @@ import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, transportNetwork}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import com.conveyal.r5.api.ProfileResponse
-import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment, TransitModes}
+import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
@@ -52,7 +52,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     }
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false) = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false): RoutingResponse = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val plan = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, accessMode, considerTransit))
@@ -135,11 +135,24 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
   }
 
+  def buildGraphPath(segment: TransitSegment): BeamGraphPath = {
+    var activeLinkIds = Vector[String]()
+    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
+    var activeCoords = Vector[Coord]()
+    var activeTimes = Vector[Long]()
+    for(pattern: SegmentPattern <- segment.segmentPatterns.asScala) {
+      activeLinkIds = activeLinkIds :+ pattern.fromIndex.toString
+//      activeTimes = activeTimes :+ pattern.fromDepartureTime.
+//      activeCoords = activeCoords :+ toCoord(route.geometry)
+    }
+    BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
+  }
+
   def toCoord(geometry: LineString): Coord = {
     new Coord(geometry.getCoordinate.x, geometry.getCoordinate.y, geometry.getCoordinate.z)
   }
 
-  private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode) = {
+  private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode): BeamGraphPath = {
 
     val streetRouter = new StreetRouter(transportNetwork.streetLayer)
     streetRouter.profileRequest = profileRequest

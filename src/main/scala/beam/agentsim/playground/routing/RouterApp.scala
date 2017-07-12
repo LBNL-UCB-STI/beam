@@ -107,7 +107,7 @@ object RouterApp extends App{
 
   def calcRoute: Long = {
     val streetRouter = new StreetRouter(transportNetwork.streetLayer)
-    val profileRequest = buildRequest(false)
+    val profileRequest = buildRequest(true)
     streetRouter.profileRequest = profileRequest
     streetRouter.streetMode = StreetMode.WALK
     // TODO use target pruning instead of a distance limit
@@ -270,6 +270,27 @@ object RouterApp extends App{
 
           foo(route)
         })
+
+        LOG.info("\tTotal Segment Patterns are: {}", segment.segmentPatterns.size)
+        ifPresentThenForEach(segment.segmentPatterns, (pattern: SegmentPattern) => {
+          def foo(pattern: SegmentPattern) = {
+            LOG.info("\t\t*****Segment Pattern START*****")
+            LOG.info("\t\tPattern Id: {}", pattern.patternId)
+            LOG.info("\t\tPattern Index: {}", pattern.patternIdx)
+            LOG.info("\t\tRoute Index: {}", pattern.routeIndex)
+            LOG.info("\t\tFrom Index: {}", pattern.fromIndex)
+            LOG.info("\t\tFrom Arrival Time: {}", pattern.fromArrivalTime)
+            LOG.info("\t\tFrom Departure Time: {}", pattern.fromDepartureTime)
+            LOG.info("\t\tTo Index: {}", pattern.toIndex)
+            LOG.info("\t\tTo Arrival Time: {}", pattern.toArrivalTime)
+            LOG.info("\t\tTo Departure Time: {}", pattern.toDepartureTime)
+            LOG.info("\t\tReal Time: {}", pattern.realTime)
+            LOG.info("\t\tTrip Count: {}", pattern.nTrips)
+          }
+
+          foo(pattern)
+        })
+
         LOG.info("\t*****SEGMENT END*****")
       }
 
