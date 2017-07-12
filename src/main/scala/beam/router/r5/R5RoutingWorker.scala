@@ -116,7 +116,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
           case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
           case LegMode.WALK => BeamMode.WALK
           case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
-        }, itinerary.duration, buildGraphPath(access))
+        }, itinerary.duration, buildGraphPath(access), None)
       ).toVector)
     ).toVector)
   }

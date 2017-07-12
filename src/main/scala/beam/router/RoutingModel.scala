@@ -29,6 +29,8 @@ object RoutingModel {
 
   object BeamLeg {
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty, None)
+    def apply(time: Long, mode: beam.router.Modes.BeamMode, travelTime: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
+    BeamLeg(time, mode, travelTime, graphPath, None)
   }
 
   case class BeamGraphPath(linkIds: Vector[String],
