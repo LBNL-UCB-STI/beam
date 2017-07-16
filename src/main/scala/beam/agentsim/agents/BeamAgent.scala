@@ -44,6 +44,7 @@ object BeamAgent {
                                                implicit val data: T,
                                                val triggerId: Option[Long] = None,
                                                val tick: Option[Double] = None) extends Info
+  case class NoData() extends BeamAgentData
 
 }
 

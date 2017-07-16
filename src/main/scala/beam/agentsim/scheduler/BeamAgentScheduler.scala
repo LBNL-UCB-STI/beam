@@ -2,7 +2,7 @@ package beam.agentsim.scheduler
 
 import java.lang.Double
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import com.google.common.collect.TreeMultimap
@@ -33,6 +33,9 @@ object BeamAgentScheduler {
         }
       case c => c
     }
+  }
+  def SchedulerProps(stopTick: Double = 3600.0*24.0, maxWindow: Double = 1.0): Props = {
+    Props(classOf[BeamAgentScheduler],stopTick, maxWindow)
   }
 }
 
