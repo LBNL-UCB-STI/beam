@@ -4,7 +4,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentInfo
 import beam.agentsim.agents.BeamAgent.Error
 import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.TaxiManager.{TaxiInquiry, TaxiInquiryResponse}
+import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -24,19 +24,19 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
   val choiceCalculator: ChoiceCalculator = ChoosesMode.mnlChoice
   var routerResult: Option[RoutingResponse] = None
-  var taxiResult: Option[TaxiInquiryResponse] = None
+  var taxiResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
 
   def completeChoiceIfReady(theTriggerId: Option[Long]): State = {
-    if (hasReceivedCompleteChoiceTrigger && routerResult != None && taxiResult != None) {
+    if (hasReceivedCompleteChoiceTrigger && routerResult.isDefined && taxiResult.isDefined) {
 
       val chosenTrip = choiceCalculator(routerResult.get.itinerary)
       // Choice happens here
       hasReceivedCompleteChoiceTrigger = false
-      val theTriggerIdAsLong = if(theTriggerId == None){ stateData.triggerId.get }else{ theTriggerId.get }
+      val theTriggerIdAsLong = if(theTriggerId.isEmpty){ stateData.triggerId.get }else{ theTriggerId.get }
 //      services.schedulerRef ! completed(theTriggerIdAsLong,ScheduleTrigger(TeleportationArrivalTrigger(stateData.tick.get),self)
 //      goto(Walking) using stateData.copy(triggerId = None, tick = None) replying completed(theTriggerIdAsLong, )
-      services.schedulerRef ! completed(theTriggerIdAsLong)
+      beamServices.schedulerRef ! completed(theTriggerIdAsLong)
       goto(Error)
     } else {
       stay()
@@ -53,9 +53,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${stateData.tick}")
       val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
-      services.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, DiscreteTime(stateData.tick.get.toInt), Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
+      beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, DiscreteTime(stateData.tick.get.toInt), Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance
-      services.taxiManager ! TaxiInquiry(stateData.data.currentActivity.getCoord, 2000)
+      //services.taxiManager ! TaxiInquiry(info.id, stateData.data.currentActivity,  2000)
       stay() using stateData.copy(triggerId = Some(triggerId)) replying completed(triggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
     /*
      * Receive and store data needed for choice.
@@ -63,7 +63,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(theRouterResult: RoutingResponse, info: BeamAgentInfo[PersonData]) =>
       routerResult = Some(theRouterResult)
       completeChoiceIfReady(None)
-    case Event(theTaxiResult: TaxiInquiryResponse, info: BeamAgentInfo[PersonData]) =>
+    case Event(theTaxiResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       taxiResult = Some(theTaxiResult)
       completeChoiceIfReady(None)
     /*
@@ -72,7 +72,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(TriggerWithId(FinalizeModeChoiceTrigger(tick), theTriggerId), info: BeamAgentInfo[PersonData]) =>
       hasReceivedCompleteChoiceTrigger = true
       val result : State = completeChoiceIfReady(Some(theTriggerId))
-      if(result.stateName == ChoosesMode){
+      if(result.stateName == ChoosingMode){
         stay() using info.copy(triggerId = Some(theTriggerId))
       }else{
         result

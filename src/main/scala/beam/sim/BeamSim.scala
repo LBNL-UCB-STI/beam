@@ -29,7 +29,7 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.core.events.EventsUtils
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleType}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
@@ -93,7 +93,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val physSimInitFuture = services.physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
 
-    val taxiManagerFuture = services.registry ? Registry.Register("taxiManager", TaxiManager.props(services))
+    val taxiManagerFuture = services.registry ? Registry.Register("taxiManager", RideHailingManager.props("taxiManager",
+      fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles,
+      services))
     services.taxiManager = Await.result(taxiManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
   }

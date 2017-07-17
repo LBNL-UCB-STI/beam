@@ -8,7 +8,7 @@ import java.util
 
 import akka.actor.Props
 import beam.agentsim.agents.PersonAgent
-import beam.router.BeamRouter.RoutingResponse
+import beam.router.BeamRouter.{RouteLocation, RoutingRequest, RoutingRequestParams, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker
@@ -31,12 +31,10 @@ import org.matsim.facilities.Facility
 
 import scala.collection.JavaConverters._
 
-class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
+class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
   val localDateAsString: String = "2016-10-17"
   val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
-
-  override var services: BeamServices = beamServices
 
   override def init = loadMap
 
@@ -57,20 +55,21 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     }
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode], person: Person) = {
+  override def calcRoute(requestId: Id[RoutingRequest], fromFacility: RouteLocation, toFacility:RouteLocation, params: RoutingRequestParams, person: Person): RoutingResponse = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, modes))
-    buildResponse(plan)
+    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, params.departureTime, params.accessMode))
+    val alternatives = buildResponse(plan)
+    RoutingResponse(requestId, alternatives)
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode]) : ProfileRequest = {
+  protected def buildRequest(fromFacility: RouteLocation, toFacility: RouteLocation, departureTime: BeamTime, modes: Vector[BeamMode]) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
 
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility)
 
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
@@ -103,14 +102,14 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     profileRequest
   }
 
-  def buildResponse(plan: ProfileResponse): RoutingResponse = {
+  protected def buildResponse(plan: ProfileResponse)  = {
 //    RoutingResponse((for(option: ProfileOption <- plan.options.asScala) yield
 //      BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
 //        BeamLeg(itinerary.startTime.toEpochSecond, BeamMode.withValue(access.mode.name()), itinerary.duration, null)
 //      ).toVector)
 //    ).toVector)
 
-    RoutingResponse(plan.options.asScala.map(option =>
+    plan.options.asScala.map(option =>
       BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
         BeamLeg(itinerary.startTime.toEpochSecond, access.mode match {
           case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
@@ -118,7 +117,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
           case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
         }, itinerary.duration, buildGraphPath(access), None)
       ).toVector)
-    ).toVector)
+    ).toVector
   }
 
   def buildGraphPath(segment: StreetSegment): BeamGraphPath = {

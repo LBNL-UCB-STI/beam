@@ -1,7 +1,7 @@
 package beam.agentsim
 
 import akka.actor.{Actor, ActorRef}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Id, Identifiable}
 
 /**
   * Created by dserdiuk on 6/15/17.
@@ -14,8 +14,5 @@ trait Resource
 trait ResourceManager[IdType] {
 
   def findResource(resourceId : Id[IdType]) : Option[ActorRef]
-
-  def getAllResources() : Iterable[ActorRef]
-
 
 }
