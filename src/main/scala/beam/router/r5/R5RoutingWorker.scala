@@ -33,7 +33,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
   override var services: BeamServices = beamServices
 
-  override def init = loadMap
+  override def init: Unit = loadMap
 
   def loadMap = {
     val networkDir = beamServices.beamConfig.beam.routing.r5.directory
@@ -105,6 +105,8 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     ChronoUnit.SECONDS.between(time, baseDate)
   }
 
+
+
   def buildResponse(plan: ProfileResponse): RoutingResponse = {
 //    RoutingResponse((for(option: ProfileOption <- plan.options.asScala) yield
 //      BeamTrip( (for((itinerary, access) <- option.itinerary.asScala zip option.access.asScala) yield
@@ -112,11 +114,15 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 //      ).toVector)
 //    ).toVector)
 
-    def mapMode(mode: LegMode): BeamMode = {
-      mode match {
-        case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
-        case LegMode.WALK => BeamMode.WALK
-        case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
+    def mapLegMode(mode: LegMode): BeamMode = mode match {
+      case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
+      case LegMode.WALK => BeamMode.WALK
+      case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
+    }
+
+    def mapTransitMode(mode: TransitModes): BeamMode = {
+      mode match  {
+        case TransitModes.TRANSIT => BeamMode.TRANSIT
       }
     }
 
@@ -126,12 +132,17 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         for(itinerary <- option.itinerary.asScala) {
           //TODO create separate BeamLeg for access, egress and transits
           val access = option.access.get(itinerary.connection.access)
-          val egress = option.egress.get(itinerary.connection.egress)
-//        val transit = option.transit.get((itinerary.connection.transit))
-
           //TODO find out what time and duration should use with separate legs for access, egress,etc
-          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapMode(access.mode), itinerary.duration, buildGraphPath(access))
-          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapMode(egress.mode), itinerary.duration, buildGraphPath(egress))
+          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(access.mode), itinerary.duration, buildGraphPath(access))
+          for((conn, segment) <- itinerary.connection.transit.asScala zip option.transit.asScala) {
+            legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapTransitMode(segment.mode), itinerary.duration, buildGraphPath(segment))
+          }
+          val transit = option.transit.get((itinerary.connection.transit.get(0).pattern))
+          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(access.mode), itinerary.duration, buildGraphPath(access))
+          if(itinerary.connection.egress != null) {
+            val egress = option.egress.get(itinerary.connection.egress)
+            legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(egress.mode), itinerary.duration, buildGraphPath(egress))
+          }
         }
         legs
       })
@@ -155,11 +166,17 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
     var activeCoords = Vector[Coord]()
     var activeTimes = Vector[Long]()
-    for(pattern: SegmentPattern <- segment.segmentPatterns.asScala) {
-      activeLinkIds = activeLinkIds :+ pattern.fromIndex.toString
+    activeLinkIds = activeLinkIds :+ segment.from.stopId
+    activeLinkIds = activeLinkIds :+ segment.to.stopId
+    activeCoords = activeCoords :+ new Coord(segment.from.lat, segment.from.lon)
+    activeCoords = activeCoords :+ new Coord(segment.to.lat, segment.to.lon)
+//    activeTimes = activeTimes :+ segment.segmentPatterns.get(0).fromDepartureTime
+
+//    for(pattern: SegmentPattern <- segment.segmentPatterns.asScala) {
+//      activeLinkIds = activeLinkIds :+ pattern.fromIndex.toString
 //      activeTimes = activeTimes :+ pattern.fromDepartureTime.
 //      activeCoords = activeCoords :+ toCoord(route.geometry)
-    }
+//    }
     BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
   }
 
