@@ -77,4 +77,29 @@ object Modes {
   implicit def beamMode2OtpMode(beamMode: BeamMode): TraverseMode = beamMode.otpMode.get
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode,TransitModes] = beamMode.r5Mode.get
 
+  def isR5TransitMode(beamMode: BeamMode): Boolean = {
+    beamMode.r5Mode match {
+      case Some(Right(_)) =>
+        true
+      case _ => false
+    }
+  }
+  def isR5LegMode(beamMode: BeamMode): Boolean = {
+    beamMode.r5Mode match {
+      case Some(Left(_)) =>
+        true
+      case _ => false
+    }
+  }
+
+  def mapLegMode(mode: LegMode): BeamMode = mode match {
+    case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
+    case LegMode.WALK => BeamMode.WALK
+    case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
+  }
+
+  def mapTransitMode(mode: TransitModes): BeamMode = mode match  {
+    case TransitModes.TRANSIT => BeamMode.TRANSIT
+  }
+
 }
