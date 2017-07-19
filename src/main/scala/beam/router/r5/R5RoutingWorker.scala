@@ -27,6 +27,7 @@ import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 
@@ -102,10 +103,11 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
   def buildResponse(plan: ProfileResponse): RoutingResponse = {
 
-    RoutingResponse(plan.options.asScala.map(option =>
+    var trips = Vector[BeamTrip]()
+    for(option <- plan.options.asScala){
       /**
         * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
-        * itinerary has a PopintToPointConnection object that help relating access,
+        * itinerary has a PointToPointConnection object that help relating access,
         * egress and transit for the particular itinerary. That contains indexes of
         * access and egress and actual object anc be located from lists under option object,
         * as there are separate collections for each.
@@ -113,31 +115,39 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         * And after locating through these indexes, constructing BeamLeg for each and
         * finally add these legs back to BeamTrip.
         */
-      BeamTrip( {
+      for(itinerary <- option.itinerary.asScala) {
         var legs = Vector[BeamLeg]()
-        for(itinerary <- option.itinerary.asScala) {
 
-          val access = option.access.get(itinerary.connection.access)
+        val access = option.access.get(itinerary.connection.access)
 
-          // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as last argument of BeamLeg
-          // As access is nonnull, so using itinerary start time as access start
-          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(access.mode), access.duration, buildGraphPath(access))
-          // TODO filter transits for current itinerary and create legs using them, use segmentPattern to specify the start time of leg
-          for(segment <- option.transit.asScala) {
-            legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapTransitMode(segment.mode), itinerary.duration, buildGraphPath(segment))
-            // TODO calculate the distance and add it in start time to use middle start time
-            if(segment.middle != null) legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(segment.middle.mode), segment.middle.duration, buildGraphPath(segment.middle))
-          }
+        // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as last argument of BeamLeg
+        legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(access.mode), access.duration, buildGraphPath(access))
 
-          if(itinerary.connection.egress != null) {
-            val egress = option.egress.get(itinerary.connection.egress)
-            //TODO find out what time and duration should use with egress legs
-            legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(egress.mode), egress.duration, buildGraphPath(egress))
+        if(option.transit != null) {
+          for (transitSegment <- option.transit.asScala) {
+            for (segmentPattern <- transitSegment.segmentPatterns.asScala) {
+              // TODO when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
+              // TODO we should convert the toIndex from just an index to the actual ID
+              val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
+              legs = legs :+ new BeamLeg(toBaseMidnightSecond(segmentPattern.fromDepartureTime.get(0)),
+                mapTransitMode(transitSegment.mode),
+                segmentPattern.toDepartureTime.get(0).toEpochSecond - segmentPattern.fromDepartureTime.get(0).toEpochSecond,
+                buildGraphPath(transitSegment),
+                beamVehicleId = Some(Id.createVehicleId(segmentPattern.routeIndex.toString)),
+                endStopId = Some(toStopId))
+            }
           }
         }
-        legs
-      })
-    ).toVector)
+
+        if(itinerary.connection.egress != null) {
+          val egress = option.egress.get(itinerary.connection.egress)
+          //TODO find out what time and duration should use with egress legs
+          legs = legs :+ BeamLeg(toBaseMidnightSecond(itinerary.startTime), mapLegMode(egress.mode), egress.duration, buildGraphPath(egress))
+        }
+        trips = trips :+ BeamTrip(legs)
+      }
+    }
+    RoutingResponse(trips)
   }
 
   private def buildGraphPath(segment: StreetSegment): BeamGraphPath = {

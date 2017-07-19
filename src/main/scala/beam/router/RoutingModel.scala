@@ -26,7 +26,9 @@ object RoutingModel {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
   }
 
-  case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long,  graphPath: BeamGraphPath, beamVehicleId: Option[Id[Vehicle]] = None)
+  case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long,
+                     graphPath: BeamGraphPath, beamVehicleId: Option[Id[Vehicle]] = None,
+                     endStopId: Option[String] = None)
 
   object BeamLeg {
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty)

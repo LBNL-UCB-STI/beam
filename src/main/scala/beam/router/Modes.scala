@@ -100,6 +100,14 @@ object Modes {
 
   def mapTransitMode(mode: TransitModes): BeamMode = mode match  {
     case TransitModes.TRANSIT => BeamMode.TRANSIT
+    case TransitModes.SUBWAY => BeamMode.SUBWAY
+    case TransitModes.BUS => BeamMode.BUS
+    case TransitModes.FUNICULAR => BeamMode.FUNICULAR
+    case TransitModes.GONDOLA => BeamMode.GONDOLA
+    case TransitModes.CABLE_CAR => BeamMode.CABLE_CAR
+    case TransitModes.FERRY => BeamMode.FERRY
+    case TransitModes.RAIL => BeamMode.RAIL
+    case TransitModes.TRAM => BeamMode.TRAM
   }
 
 }
