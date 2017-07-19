@@ -15,14 +15,14 @@ Transit Vehicles will need a boardAlightDelayFunction
  '/
 
 class BeamVehicle {
-  enclosingVehicle: Option[VehicleAgent]
+  carrier: Option[BeamVehicle]
   driver: Option[BeamAgent]
   passengers: List[VehicleAgent]
   capacity: Int
   length: Double
   locationManager: LocationManager
   powertrain: Powertrain
-  location(time) -> match enclosingVehicle { \n\tSome=>enclosingVehicle.location\n\tNone=>locationManager.getLocation(time) )\n}
+  location(time) -> match carrier { \n\tSome=>carrier.location\n\tNone=>locationManager.getLocation(time) )\n}
 }
 
 'Either make this an actor or remove and have trajectory under VehAgent

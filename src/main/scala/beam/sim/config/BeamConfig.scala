@@ -151,7 +151,7 @@ object BeamConfig {
           BeamConfig.Beam.Routing.Gtfs(
             crs           = if(c.hasPathOrNull("crs")) c.getString("crs") else "epsg:26910",
             operatorsFile = if(c.hasPathOrNull("operatorsFile")) c.getString("operatorsFile") else "src/main/resources/GTFSOperators.csv",
-            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "/Users/critter/Documents/beam/beam-output/gtfs"
+            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "/Users/critter/Documents/beam/beam-output//gtfs"
           )
         }
       }
@@ -163,7 +163,7 @@ object BeamConfig {
       object Otp {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.Otp = {
           BeamConfig.Beam.Routing.Otp(
-            directory = if(c.hasPathOrNull("directory")) c.getString("directory") else "/Users/critter/Dropbox/ucb/vto/beam-developers/model-inputs/otp",
+            directory = if(c.hasPathOrNull("directory")) c.getString("directory") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-inputs/otp",
             routerIds = $_L$_str(c.getList("routerIds"))
           )
         }
@@ -177,7 +177,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
             departureWindow = if(c.hasPathOrNull("departureWindow")) c.getInt("departureWindow") else 15,
-            directory       = if(c.hasPathOrNull("directory")) c.getString("directory") else "/Users/critter/Dropbox/ucb/vto/beam-developers/model-inputs/r5"
+            directory = if(c.hasPathOrNull("directory")) c.getString("directory") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-inputs/r5"
           )
         }
       }
@@ -286,7 +286,7 @@ object BeamConfig {
       object Network {
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Network = {
           BeamConfig.Matsim.Modules.Network(
-            inputNetworkFile = if(c.hasPathOrNull("inputNetworkFile")) c.getString("inputNetworkFile") else "/Users/critter/Dropbox/ucb/vto/beam-developers//multimodalnetwork.xml"
+            inputNetworkFile = if(c.hasPathOrNull("inputNetworkFile")) c.getString("inputNetworkFile") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-input/dev/multimodalnetwork.xml"
           )
         }
       }
@@ -364,7 +364,7 @@ object BeamConfig {
       object Plans {
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Plans = {
           BeamConfig.Matsim.Modules.Plans(
-            inputPlansFile = if(c.hasPathOrNull("inputPlansFile")) c.getString("inputPlansFile") else "/Users/critter/Dropbox/ucb/vto/beam-developers/population-500.xml"
+            inputPlansFile = if(c.hasPathOrNull("inputPlansFile")) c.getString("inputPlansFile") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-inputs/dev/population-500.xml"
           )
         }
       }

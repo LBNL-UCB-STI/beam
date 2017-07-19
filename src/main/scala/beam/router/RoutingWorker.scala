@@ -17,14 +17,14 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
       init
       context.parent ! RouterInitialized
       sender() ! RouterInitialized
-    case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId, considerTransit) =>
+    case RoutingRequest(fromFacility, toFacility, departureTime, accessMode, personId) =>
           //      log.info(s"Router received routing request from person $personId ($sender)")
-          sender() ! calcRoute(fromFacility, toFacility, departureTime, accessMode, getPerson(personId), considerTransit)
+          sender() ! calcRoute(fromFacility, toFacility, departureTime, accessMode, getPerson(personId))
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
 
-  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, isTransit: Boolean = false): RoutingResponse
+  def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person): RoutingResponse
 
   def init
 

@@ -1,17 +1,26 @@
 package beam.agentsim.agents
 
-import akka.actor.LoggingFSM
+import java.util.concurrent.TimeUnit
+
+import akka.actor.{FSM, LoggingFSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.scheduler.Trigger
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
+
+import collection.mutable.{HashMap, MultiMap, Set}
+import scala.collection.mutable
+import scala.concurrent.duration.FiniteDuration
 
 
 object BeamAgent {
 
   // states
   trait BeamAgentState extends FSMState
+
+  case object Abstain extends BeamAgentState { override def identifier = "Abstain" }
 
   case object Uninitialized extends BeamAgentState { override def identifier = "Uninitialized" }
 
@@ -27,16 +36,15 @@ object BeamAgent {
     override def identifier: String = s"Error!"
   }
 
-  /**
-    * Agent info consists of next MATSim plan element for agent to transition
-    */
   sealed trait Info
 
   trait BeamAgentData
 
+  case class BeamAgentInfo[T <: BeamAgentData](id: Id[_],
+                                               implicit val data: T,
+                                               val triggerId: Option[Long] = None,
+                                               val tick: Option[Double] = None) extends Info
   case class NoData() extends BeamAgentData
-
-  case class BeamAgentInfo[T <: BeamAgentData](id: Id[_], implicit val data: T) extends Info
 
 }
 
@@ -45,26 +53,77 @@ case class InitializeTrigger(tick: Double) extends Trigger
   * MemoryEvents play a dual role. They not only act as persistence in Akka, but
   * also get piped to the MATSimEvent Handler.
   */
-//XXXX: May be useful to encapsulate the MATSimEvent and others in a
-//      separate trait and use the `with` syntax.
 sealed trait MemoryEvent extends Event
 
-//final case class ActivityTravelPlanMemory(time: Double, currentTask: PlanElement) extends MemoryEvent {
-//  override def getEventType: String = "ActivityTravelPlanMemory"
-//}
 
 /**
   * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
-  *
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] {
 
   def id: Id[_]
-
   def data: T
+  protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+
+  private val chainedStateFunctions = new HashMap[BeamAgentState, Set[StateFunction]] with MultiMap[BeamAgentState,StateFunction]
+  final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit =
+    chainedStateFunctions.addBinding(stateName,stateFunction)
+
+  def handleEvent(state: BeamAgentState, event: Event): State = {
+    var theStateData = event.stateData
+    event match {
+      case Event(TriggerWithId(trigger, triggerId), _) =>
+        theStateData = theStateData.copy(triggerId = Some(triggerId), tick = Some(trigger.tick))
+      case Event(_, _) =>
+        // do nothing
+    }
+    var theEvent = event.copy(stateData = theStateData)
+    if(chainedStateFunctions.contains(state)) {
+      var resultingBeamStates = List[BeamAgentState]()
+      var resultingReplies = List[Any]()
+      chainedStateFunctions(state).foreach { stateFunction =>
+        if(stateFunction isDefinedAt (theEvent)){
+          val fsmState: State = stateFunction(theEvent)
+          theStateData = fsmState.stateData.copy(triggerId = theStateData.triggerId, tick = theStateData.tick)
+          theEvent = Event(event.event,theStateData)
+          resultingBeamStates = resultingBeamStates :+ fsmState.stateName
+          resultingReplies = resultingReplies ::: fsmState.replies
+        }
+      }
+      val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
+      if (newStates.size == 0 || !allStatesSame(newStates)){
+        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition to for BeamAgent ${stateData.id}")
+      } else {
+        val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
+        if(numCompletionNotices>1){
+          throw new RuntimeException(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}")
+        }else if(numCompletionNotices == 1){
+          theStateData = theStateData.copy(triggerId = None)
+        }
+        FSM.State(newStates.head, theStateData, None, None, resultingReplies)
+      }
+    }else{
+      FSM.State(state, event.stateData)
+    }
+  }
+  def numCompletionNotices(theReplies: List[Any]): Int = {
+    theReplies.count(_.isInstanceOf[CompletionNotice])
+  }
+  def allStatesSame(theStates: List[BeamAgentState]): Boolean = {
+    theStates.foldLeft(true)((result,stateToTest) => result && stateToTest == theStates.head)
+  }
 
   startWith(Uninitialized, BeamAgentInfo[T](id, data))
+
+  when(Uninitialized){
+    case ev @ Event(_,_) =>
+      handleEvent(stateName, ev)
+  }
+  when(Initialized){
+    case ev @ Event(_,_) =>
+      handleEvent(stateName, ev)
+  }
 
   when(Finished) {
     case Event(StopEvent, _) =>
@@ -85,27 +144,3 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
 
 }
 
-//    case Event(Transition((data, firstActivity), BeamAgentInfo(currentTask)
-//    ) =>
-//      assert(currentTask == null)
-//      log.info(s"Agent with ID $stateName Received Start Event from scheduler")
-//      context.parent ! Ack
-//      stay() // Default behavior... we want to override this!
-
-
-//TODO: Add Persistence back in
-//
-//  override implicit def domainEventClassTag: ClassTag[MemoryEvent] = classTag[MemoryEvent]
-//
-//  override def applyEvent(domainEvent: MemoryEvent, currentData: BeamAgentInfo): BeamAgentInfo = {
-//    domainEvent match {
-//      case ActivityTravelPlanMemory(newPlanElement: PlanElement) => {
-//        logger.info("Old travel sequence component " + currentData.planElement + " and new data" + newPlanElement)
-//        BeamAgentInfo(newPlanElement)
-//      }
-//    }
-//  }
-//
-//  override def persistenceId: String = {
-//    "Name"
-//  }

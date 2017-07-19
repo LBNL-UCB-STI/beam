@@ -3,11 +3,12 @@ package beam.router.r5
 import java.io.File
 import java.nio.file.Files.exists
 import java.nio.file.Paths
-import java.time.ZonedDateTime
+import java.time.{LocalDate, ZonedDateTime}
 import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor.Props
+import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
@@ -16,6 +17,7 @@ import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, transportNetwork}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
+import beam.utils.CollectionUtils.onContains
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment, TransitModes}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -23,6 +25,7 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.LineString
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
@@ -30,6 +33,9 @@ import org.matsim.facilities.Facility
 import scala.collection.JavaConverters._
 
 class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
+  //TODO this needs to be inferred from the TransitNetwork or configured
+  val localDateAsString: String = "2016-10-17"
+  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
 
   override var services: BeamServices = beamServices
 
@@ -52,14 +58,14 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     }
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false) = {
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode], person: Person) = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val plan = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, accessMode, considerTransit))
+    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, modes))
     buildResponse(plan)
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false) : ProfileRequest = {
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode]) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
@@ -67,10 +73,10 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
     val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
 
-    profileRequest.fromLat = fromPosTransformed.getX
-    profileRequest.fromLon = fromPosTransformed.getY
-    profileRequest.toLat = toPosTransformed.getX
-    profileRequest.toLon = toPosTransformed.getY
+    profileRequest.fromLon = fromPosTransformed.getX
+    profileRequest.fromLat = fromPosTransformed.getY
+    profileRequest.toLon = toPosTransformed.getX
+    profileRequest.toLat = toPosTransformed.getY
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
 
@@ -82,19 +88,17 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     profileRequest.toTime = time.toTime
     profileRequest.date = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate).toLocalDate
 
-    if(isTransit) {
-      profileRequest.transitModes = util.EnumSet.of(TransitModes.TRANSIT, TransitModes.BUS, TransitModes.SUBWAY, TransitModes.RAIL)
-    }
-    profileRequest.accessModes = util.EnumSet.of(LegMode.WALK)
-    profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
+    val legModes : Vector[LegMode] = (for(m <- modes if isR5LegMode(m)) yield m.r5Mode.get.left.get)
+    profileRequest.directModes = util.EnumSet.copyOf( legModes.asJavaCollection )
 
-    profileRequest.directModes = util.EnumSet.copyOf(accessMode.map(
-      m => m match {
-        case BeamMode.CAR => LegMode.CAR
-        case BeamMode.BIKE => LegMode.BICYCLE
-        case BeamMode.WALK | _ => LegMode.WALK
-      }).asJavaCollection)
-//    profileRequest.directModes = util.EnumSet.of(LegMode.WALK, LegMode.BICYCLE)
+    val isTransit = legModes.size < modes.size
+
+    if(isTransit){
+      val transitModes : Vector[TransitModes] = (for(m <- modes if isR5TransitMode(m)) yield m.r5Mode.get.right.get)
+      profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
+      profileRequest.accessModes = profileRequest.directModes
+      profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
+    }
 
     profileRequest
   }
@@ -118,7 +122,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
           case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
           case LegMode.WALK => BeamMode.WALK
           case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
-        }, itinerary.duration, buildGraphPath(access))
+        }, itinerary.duration, buildGraphPath(access), None)
       ).toVector)
     ).toVector)
   }
@@ -173,6 +177,22 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
       }
     }
     BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
+  }
+
+  override def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
+  def isR5TransitMode(beamMode: BeamMode): Boolean = {
+    beamMode.r5Mode match {
+      case Some(Right(_)) =>
+        true
+      case _ => false
+    }
+  }
+  def isR5LegMode(beamMode: BeamMode): Boolean = {
+    beamMode.r5Mode match {
+      case Some(Left(_)) =>
+        true
+      case _ => false
+    }
   }
 }
 
