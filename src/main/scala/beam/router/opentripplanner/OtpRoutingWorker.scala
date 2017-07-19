@@ -50,7 +50,7 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
     val transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], isTransit: Boolean = false): org.opentripplanner.routing.core.RoutingRequest = {
+  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode]): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
@@ -63,6 +63,8 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
     request.clearModes()
     request.addMode(WALK)
 
+    //TODO should actually come from analysis of modes parameters
+    val isTransit = true
     if (isTransit) {
       request.addMode(TRANSIT)
       request.addMode(BUS)
@@ -80,8 +82,8 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
     request
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person, considerTransit: Boolean = false): RoutingResponse = {
-    val drivingRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode, considerTransit)
+  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person): RoutingResponse = {
+    val drivingRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode)
 
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     var gpFinder = new GraphPathFinder(router.get)
@@ -96,7 +98,7 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
       //        log.error("TrivialPathException")
     }
 
-    val transitRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode, isTransit = true)
+    val transitRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode)
 
     gpFinder = new GraphPathFinder(router.get)
     try {

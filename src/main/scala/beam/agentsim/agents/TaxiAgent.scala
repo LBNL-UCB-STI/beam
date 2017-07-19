@@ -9,7 +9,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.agents.TaxiAgent._
 import beam.agentsim.agents.TaxiManager.{RegisterTaxiAvailable, TaxiAvailableAck}
 import beam.agentsim.scheduler.TriggerWithId
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
 
@@ -44,11 +44,8 @@ object TaxiAgent {
   case class RegisterTaxiAvailableWrapper(triggerId: Long)
 }
 
-class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val services: BeamServices) extends BeamAgent[TaxiData] {
-
-  import beam.sim.BeamServices._
-
-  private implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val beamServices: BeamServices) extends BeamAgent[TaxiData] with HasServices {
+  override var services: BeamServices = beamServices
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TaxiData]) =>

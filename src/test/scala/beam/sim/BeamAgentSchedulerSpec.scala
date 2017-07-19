@@ -5,6 +5,7 @@ import akka.event.Logging
 import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.BeamAgent.NoData
 import beam.agentsim.agents._
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.agentsim.scheduler.BeamAgentScheduler._
@@ -21,12 +22,12 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
 
   describe("A BEAM Agent Scheduler") {
     it("should send trigger to a BeamAgent") {
-      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
+      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 10.0, maxWindow = 10.0))
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),beamAgentRef)
       beamAgentRef.stateName should be(Uninitialized)
-      beamAgentSchedulerRef ! StartSchedule(stopTick = 10.0, maxWindow = 10.0)
+      beamAgentSchedulerRef ! StartSchedule
       beamAgentRef.stateName should be(Initialized)
     }
     it("should fail to schedule events with negative tick value") {
@@ -52,7 +53,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       thrownTest.getClass should be(classOf[TestFailedException])
     }
     it("should dispatch triggers in chronological order") {
-      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
+      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 100.0, maxWindow = 100.0))
       val testReporter = TestActorRef[TestReporter]
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)) {
         override val reporterActor: ActorRef = testReporter.actorRef
@@ -64,7 +65,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       beamAgentSchedulerRef ! ScheduleTrigger(ReportState(5.0),beamAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(ReportState(15.0),beamAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(ReportState(9.0),beamAgentRef)
-      beamAgentSchedulerRef ! StartSchedule(stopTick = 100.0, maxWindow = 100.0)
+      beamAgentSchedulerRef ! StartSchedule
       Thread.sleep(100)
       beamAgentRef.stateName should be(Reporting)
       val future = testReporter.ask(ReportBack)(1 second)
