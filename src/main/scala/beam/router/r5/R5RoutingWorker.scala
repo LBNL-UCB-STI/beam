@@ -155,7 +155,6 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
   private def buildGraphPath(segment: StreetSegment): BeamGraphPath = {
     var activeLinkIds = Vector[String]()
-    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
     var activeCoords = Vector[Coord]()
     var activeTimes = Vector[Long]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
@@ -169,7 +168,6 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
   private def buildGraphPath(segment: TransitSegment): BeamGraphPath = {
     var activeLinkIds = Vector[String]()
-    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
     var activeCoords = Vector[Coord]()
     var activeTimes = Vector[Long]()
     activeLinkIds = activeLinkIds :+ segment.from.stopId
