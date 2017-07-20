@@ -6,6 +6,7 @@ import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TaxiManager.{TaxiInquiry, TaxiInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
+import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -13,6 +14,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel.{BeamTrip, DiscreteTime}
 import beam.sim.HasServices
+import org.matsim.api.core.v01.events.PersonDepartureEvent
 
 import scala.util.Random
 
@@ -31,13 +33,15 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     if (hasReceivedCompleteChoiceTrigger && routerResult != None && taxiResult != None) {
 
       val chosenTrip = choiceCalculator(routerResult.get.itinerary)
-      // Choice happens here
+
       hasReceivedCompleteChoiceTrigger = false
       val theTriggerIdAsLong = if(theTriggerId == None){ stateData.triggerId.get }else{ theTriggerId.get }
-//      services.schedulerRef ! completed(theTriggerIdAsLong,ScheduleTrigger(TeleportationArrivalTrigger(stateData.tick.get),self)
-//      goto(Walking) using stateData.copy(triggerId = None, tick = None) replying completed(theTriggerIdAsLong, )
       services.schedulerRef ! completed(theTriggerIdAsLong)
-      goto(Error)
+      services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(stateData.tick.get, id,
+        stateData.data.currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
+
+      goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
+        completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.startTime, self))
     } else {
       stay()
     }
