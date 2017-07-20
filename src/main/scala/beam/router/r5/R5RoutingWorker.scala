@@ -184,9 +184,12 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               val possibleWaitTime = toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)) - accessEndTime - 5
               if(possibleWaitTime > 0) {
                 legs = legs :+ BeamLeg.waiting(accessEndTime, possibleWaitTime)
+                // Boarding Leg with 5 sec duration
+                legs = legs :+ BeamLeg.boarding(accessEndTime + possibleWaitTime)
+              } else {
+                // in case of negative possibleWaitTime boarding duration would be less then 5 sec
+                legs = legs :+ BeamLeg.boarding(accessEndTime, 5 + possibleWaitTime)
               }
-              // Boarding Leg with 5 sec duration
-              legs = legs :+ BeamLeg.boarding(accessEndTime + possibleWaitTime)
             }
 
             // TODO we should convert the toIndex from just an index to the actual ID
