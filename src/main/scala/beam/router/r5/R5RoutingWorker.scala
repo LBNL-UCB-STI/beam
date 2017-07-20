@@ -142,7 +142,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
         if(option.egress != null) {
           val egress = option.egress.get(itinerary.connection.egress)
-          val startTime = legs(legs.size-1).startTime + legs(legs.size-1).travelTime
+          val startTime = legs(legs.size-1).startTime + legs(legs.size-1).duration
           legs = legs :+ BeamLeg(startTime, mapLegMode(egress.mode), egress.duration, buildGraphPath(egress))
         }
         trips = trips :+ BeamTrip(legs)
