@@ -24,10 +24,9 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.LineString
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.facilities.Facility
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 
@@ -189,10 +188,10 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               // possible wait time is difference in access time end time and departure time, additional five seconds for boarding
               val possibleWaitTime = toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)) - accessEndTime - 5
               if(possibleWaitTime > 0) {
-                legs = legs :+ BeamLeg(accessEndTime, BeamMode.WAITING, possibleWaitTime, null)
+                legs = legs :+ BeamLeg.waiting(accessEndTime, possibleWaitTime)
               }
               // Boarding Leg with 5 sec duration
-              legs = legs :+ BeamLeg(accessEndTime + possibleWaitTime, BeamMode.BOARDING, 5, null)
+              legs = legs :+ BeamLeg.boarding(accessEndTime + possibleWaitTime)
             }
 
             // TODO we should convert the toIndex from just an index to the actual ID
@@ -219,7 +218,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
             }
           }
           // Alighting leg with 5 sec duration
-          legs = legs :+ BeamLeg(toBaseMidnightSeconds(arrivalTime), BeamMode.ALIGHTING, 5, null)
+          legs = legs :+ BeamLeg.alighting(toBaseMidnightSeconds(arrivalTime))
 
           // egress would only be present if there is some transit, so its under transit presence check
           if(itinerary.connection.egress != null) {

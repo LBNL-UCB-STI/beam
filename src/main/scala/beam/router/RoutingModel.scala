@@ -1,12 +1,11 @@
 package beam.router
 
-import Modes.BeamMode
-import Modes.BeamMode.{CAR, TRANSIT, WALK}
-import beam.agentsim.agents.vehicles.BeamVehicleAgent
 import beam.agentsim.events.SpaceTime
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{ALIGHTING, BOARDING, CAR, TRANSIT, WAITING, WALK}
+import beam.router.RoutingModel.BeamGraphPath.empty
 import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -19,21 +18,24 @@ object RoutingModel {
     } else {
       TRANSIT
     }
-    val totalTravelTime: Long = legs.map(_.travelTime).sum
+    val totalTravelTime: Long = legs.map(_.duration).sum
   }
 
   object BeamTrip {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
   }
 
-  case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long,
-                     graphPath: BeamGraphPath, beamVehicleId: Option[Id[Vehicle]] = None,
+  case class BeamLeg(startTime: Long, mode: BeamMode, duration: Long,
+                     graphPath: BeamGraphPath = empty, beamVehicleId: Option[Id[Vehicle]] = None,
                      endStopId: Option[String] = None)
 
   object BeamLeg {
-    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty)
-    def apply(time: Long, mode: beam.router.Modes.BeamMode, travelTime: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
-    BeamLeg(time, mode, travelTime, graphPath, None)
+    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
+    def boarding(startTime: Long): BeamLeg = new BeamLeg(startTime, BOARDING, 5)
+    def alighting(startTime: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, 5)
+    def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
+    def apply(time: Long, mode: beam.router.Modes.BeamMode, duration: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
+      BeamLeg(time, mode, duration, graphPath)
   }
 
   case class BeamGraphPath(linkIds: Vector[String],
