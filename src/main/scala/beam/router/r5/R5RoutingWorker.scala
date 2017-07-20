@@ -35,6 +35,9 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
   val localDateAsString: String = "2016-10-17"
   val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
+  //TODO make this actually come from beamConfig
+//  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
+  val graphPathOutputsNeeded = true
 
   override var services: BeamServices = beamServices
 
@@ -151,69 +154,81 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
   }
 
   private def buildGraphPath(segment: StreetSegment): BeamGraphPath = {
-    var activeLinkIds = Vector[String]()
-    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
-    var activeCoords = Vector[Coord]()
-    var activeTimes = Vector[Long]()
-    for(edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
-      activeLinkIds = activeLinkIds :+ edge.edgeId.toString
-      activeCoords = activeCoords :+ toCoord(edge.geometry)
+    if(graphPathOutputsNeeded){
+      BeamGraphPath.empty
+    }else{
+      var activeLinkIds = Vector[String]()
+      //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
+      var activeCoords = Vector[Coord]()
+      var activeTimes = Vector[Long]()
+      for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
+        activeLinkIds = activeLinkIds :+ edge.edgeId.toString
+        activeCoords = activeCoords :+ toCoord(edge.geometry)
+      }
+      BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
     }
-    BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
   }
 
   private def buildGraphPath(segment: TransitSegment): BeamGraphPath = {
-    var activeLinkIds = Vector[String]()
-    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
-    var activeCoords = Vector[Coord]()
-    var activeTimes = Vector[Long]()
-    activeLinkIds = activeLinkIds :+ segment.from.stopId
-    activeLinkIds = activeLinkIds :+ segment.to.stopId
-    activeCoords = activeCoords :+ new Coord(segment.from.lon, segment.from.lat)
-    activeCoords = activeCoords :+ new Coord(segment.to.lon, segment.to.lat)
-    //    activeTimes = activeTimes :+ segment.segmentPatterns.get(0).fromDepartureTime
+    if(graphPathOutputsNeeded){
+      BeamGraphPath.empty
+    }else {
+      var activeLinkIds = Vector[String]()
+      //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
+      var activeCoords = Vector[Coord]()
+      var activeTimes = Vector[Long]()
+      activeLinkIds = activeLinkIds :+ segment.from.stopId
+      activeLinkIds = activeLinkIds :+ segment.to.stopId
+      activeCoords = activeCoords :+ new Coord(segment.from.lon, segment.from.lat)
+      activeCoords = activeCoords :+ new Coord(segment.to.lon, segment.to.lat)
+      //    activeTimes = activeTimes :+ segment.segmentPatterns.get(0).fromDepartureTime
 
-    //    for(pattern: SegmentPattern <- segment.segmentPatterns.asScala) {
-    //      activeLinkIds = activeLinkIds :+ pattern.fromIndex.toString
-    //      activeTimes = activeTimes :+ pattern.fromDepartureTime.
-    //      activeCoords = activeCoords :+ toCoord(route.geometry)
-    //    }
-    BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
+      //    for(pattern: SegmentPattern <- segment.segmentPatterns.asScala) {
+      //      activeLinkIds = activeLinkIds :+ pattern.fromIndex.toString
+      //      activeTimes = activeTimes :+ pattern.fromDepartureTime.
+      //      activeCoords = activeCoords :+ toCoord(route.geometry)
+      //    }
+      BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
+    }
   }
 
   private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode): BeamGraphPath = {
+    if(graphPathOutputsNeeded){
+      BeamGraphPath.empty
+    }else {
 
-    val streetRouter = new StreetRouter(transportNetwork.streetLayer)
-    streetRouter.profileRequest = profileRequest
-    streetRouter.streetMode = streetMode
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer)
+      streetRouter.profileRequest = profileRequest
+      streetRouter.streetMode = streetMode
 
-    // TODO use target pruning instead of a distance limit
-    streetRouter.distanceLimitMeters = 100000
+      // TODO use target pruning instead of a distance limit
+      streetRouter.distanceLimitMeters = 100000
 
-    streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)
-    streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)
+      streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)
+      streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)
 
-    streetRouter.route
+      streetRouter.route
 
-    //Gets lowest weight state for end coordinate split
-    val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
-    val streetPath = new StreetPath(lastState, transportNetwork)
+      //Gets lowest weight state for end coordinate split
+      val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
+      val streetPath = new StreetPath(lastState, transportNetwork)
 
-    var activeLinkIds = Vector[String]()
-    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
-    var activeCoords = Vector[Coord]()
-    var activeTimes = Vector[Long]()
+      var activeLinkIds = Vector[String]()
+      //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
+      var activeCoords = Vector[Coord]()
+      var activeTimes = Vector[Long]()
 
-    for (state <- streetPath.getStates.asScala) {
-      val edgeIdx = state.backEdge
-      if (!(edgeIdx == null || edgeIdx == -1)) {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
-        activeLinkIds = activeLinkIds :+ edgeIdx.toString
-        activeCoords = activeCoords :+ toCoord(edge.getGeometry)
-        activeTimes = activeTimes :+ state.getDurationSeconds.toLong
+      for (state <- streetPath.getStates.asScala) {
+        val edgeIdx = state.backEdge
+        if (!(edgeIdx == null || edgeIdx == -1)) {
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
+          activeLinkIds = activeLinkIds :+ edgeIdx.toString
+          activeCoords = activeCoords :+ toCoord(edge.getGeometry)
+          activeTimes = activeTimes :+ state.getDurationSeconds.toLong
+        }
       }
+      BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
     }
-    BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
   }
 
   private def toBaseMidnightSecond(time: ZonedDateTime): Long = {
