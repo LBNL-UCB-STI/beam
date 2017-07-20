@@ -260,10 +260,12 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
     activeLinkIds = activeLinkIds :+ segment.from.stopId
     activeLinkIds = activeLinkIds :+ segment.to.stopId
-    activeCoords = activeCoords :+ new Coord(segment.from.lon, segment.from.lat)
-    activeCoords = activeCoords :+ new Coord(segment.to.lon, segment.to.lat)
-    activeTimes = activeTimes :+ toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time))
-    activeTimes = activeTimes :+ toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
+    if(graphPathOutputsNeeded) {
+      activeCoords = activeCoords :+ new Coord(segment.from.lon, segment.from.lat)
+      activeCoords = activeCoords :+ new Coord(segment.to.lon, segment.to.lat)
+      activeTimes = activeTimes :+ toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time))
+      activeTimes = activeTimes :+ toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
+    }
 
     BeamGraphPath(activeLinkIds, activeCoords, activeTimes)
   }
