@@ -32,7 +32,7 @@ case class AggregatedRequest(requests: Map[ActorRef, List[Any]])
   * @param responseTo
   * @param transform function will be applied to aggregated response before sending in to responseTo actor
   */
-class AggregatorActor(responseTo: ActorRef, transform: Option[Any => Any]) extends Actor with Aggregator with ActorLogging  {
+class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[Any, Any]]) extends Actor with Aggregator with ActorLogging  {
 
 
   private var requests: Map[ActorRef, List[Any]] = null
@@ -69,7 +69,7 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[Any => Any]) exten
         MultipleAggregationResult(responses.toMap)
       }
       transform match {
-        case Some(transformFunc) =>
+        case Some(transformFunc) if transformFunc.isDefinedAt(result) =>
           responseTo ! transformFunc(result)
         case _ =>
           responseTo ! result

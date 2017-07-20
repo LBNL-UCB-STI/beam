@@ -1,14 +1,14 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.agents.TaxiAgent._
-import beam.agentsim.agents.RideHailingManager.{RegisterTaxiAvailable, TaxiAvailableAck}
+import beam.agentsim.agents.RideHailingManager.{RegisterTaxiAvailable, ReserveTaxiConfirmation, TaxiAvailableAck}
 import beam.agentsim.scheduler.TriggerWithId
+import beam.router.BeamRouter.RouteLocation
+import beam.router.RoutingModel.BeamTrip
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
@@ -39,7 +39,7 @@ object TaxiAgent {
   case object Traveling extends BeamAgentState {
     override def identifier = "Traveling"
   }
-  case object PickupCustomer
+  case class PickupCustomer(confirmation: ReserveTaxiConfirmation, pickUpLocation: RouteLocation, destination: RouteLocation, tripPlan: Option[BeamTrip])
   case class DropOffCustomer(newLocation: Coord)
 
   case class RegisterTaxiAvailableWrapper(triggerId: Long)

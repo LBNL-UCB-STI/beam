@@ -102,9 +102,7 @@ object ChoosesMode {
           TRANSIT
         }
       }
-      val travelTime = (for (leg <- alt.legs) yield leg.travelTime).foldLeft(0.0) {
-        _ + _
-      }
+      val travelTime = alt.totalTravelTime.toDouble
       (altMode, travelTime)
     }
     //    if (containsDriveAlt >= 0 && taxiAlternatives.nonEmpty) {
