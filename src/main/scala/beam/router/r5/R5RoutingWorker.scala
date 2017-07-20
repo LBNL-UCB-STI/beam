@@ -124,7 +124,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         legs = legs :+ BeamLeg(toBaseMidnightSeconds(itinerary.startTime), mapLegMode(access.mode), access.duration, buildGraphPath(access))
 
         if(option.transit != null) {
-          for (transitSegment <- option.transit.asScala) {
+          for ((transitSegment, index) <- option.transit.asScala zipWithIndex) {
             for (segmentPattern <- transitSegment.segmentPatterns.asScala) {
               // TODO when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
               // TODO we should convert the toIndex from just an index to the actual ID
@@ -132,7 +132,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               legs = legs :+ new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(0)),
                 mapTransitMode(transitSegment.mode),
                 segmentPattern.toDepartureTime.get(0).toEpochSecond - segmentPattern.fromDepartureTime.get(0).toEpochSecond,
-                buildGraphPath(transitSegment),
+                buildGraphPath(transitSegment, itinerary.connection.transit.get(index)),
                 beamVehicleId = Some(Id.createVehicleId(segmentPattern.routeIndex.toString)),
                 endStopId = Some(toStopId))
             }

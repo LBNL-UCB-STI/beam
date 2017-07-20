@@ -1,4 +1,4 @@
-package beam.agentsim.playground.routing
+package beam.playground.routing
 
 import java.io.File
 import java.nio.file.{Files, Paths}
@@ -265,7 +265,7 @@ object RouterApp extends App{
             LOG.info("\t\tRoute Id: {}", route.id)
             LOG.info("\t\tRoute Idx: {}", route.routeIdx)
             LOG.info("\t\tDesc: {}", route.description)
-            LOG.info("\t\t*****Edge END*****")
+            LOG.info("\t\t*****ROUTE END*****")
           }
 
           foo(route)
@@ -286,6 +286,7 @@ object RouterApp extends App{
             LOG.info("\t\tTo Departure Time: {}", pattern.toDepartureTime)
             LOG.info("\t\tReal Time: {}", pattern.realTime)
             LOG.info("\t\tTrip Count: {}", pattern.nTrips)
+            LOG.info("\t\t*****Segment Pattern END*****")
           }
 
           foo(pattern)
