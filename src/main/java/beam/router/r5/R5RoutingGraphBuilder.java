@@ -31,6 +31,7 @@ public class R5RoutingGraphBuilder {
         Modes.BeamMode mode = null;
         long travelTime = 0;
         Option<Id<Vehicle>> beamVehicleId = null ;
+        Option<String> stopId = null ;
         RoutingModel.BeamGraphPath graphPath = null;
 
         long arrivalTimeInMillis = 0;
@@ -60,9 +61,9 @@ public class R5RoutingGraphBuilder {
             }
         }
 
-        RoutingModel.BeamLeg WAITING = new RoutingModel.BeamLeg(startTime, mode, travelTime, graphPath, beamVehicleId, null);
-        RoutingModel.BeamLeg BOARDING = new RoutingModel.BeamLeg(arrivalTimeInMillis, mode, arrivalTimeInMillis + 5000, graphPath, beamVehicleId, null);
-        RoutingModel.BeamLeg ALIGHTING = new RoutingModel.BeamLeg(arrivalTimeInMillis + 5000, mode, arrivalTimeInMillis + 10000, graphPath, beamVehicleId, null);
+        RoutingModel.BeamLeg WAITING = new RoutingModel.BeamLeg(startTime, mode, travelTime, graphPath, beamVehicleId, stopId);
+        RoutingModel.BeamLeg BOARDING = new RoutingModel.BeamLeg(arrivalTimeInMillis, mode, arrivalTimeInMillis + 5000, graphPath, beamVehicleId, stopId);
+        RoutingModel.BeamLeg ALIGHTING = new RoutingModel.BeamLeg(arrivalTimeInMillis + 5000, mode, arrivalTimeInMillis + 10000, graphPath, beamVehicleId, stopId);
 
         Stop fromPosition = segment.from;
         Stop toPosition = segment.to;
