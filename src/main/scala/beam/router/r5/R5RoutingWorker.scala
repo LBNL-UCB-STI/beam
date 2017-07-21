@@ -99,55 +99,6 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
     var trips = Vector[BeamTrip]()
     for(option <- plan.options.asScala){
-      /**
-        * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
-        * itinerary has a PointToPointConnection object that help relating access,
-        * egress and transit for the particular itinerary. That contains indexes of
-        * access and egress and actual object anc be located from lists under option object,
-        * as there are separate collections for each.
-        *
-        * And after locating through these indexes, constructing BeamLeg for each and
-        * finally add these legs back to BeamTrip.
-        */
-      for(itinerary <- option.itinerary.asScala) {
-        var legs = Vector[BeamLeg]()
-
-        val access = option.access.get(itinerary.connection.access)
-
-        // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as last argument of BeamLeg
-        legs = legs :+ BeamLeg(toBaseMidnightSeconds(itinerary.startTime), mapLegMode(access.mode), access.duration, buildGraphPath(access))
-
-        if(option.transit != null) {
-          for (transitSegment <- option.transit.asScala) {
-            for (segmentPattern <- transitSegment.segmentPatterns.asScala) {
-              // TODO when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
-              // TODO we should convert the toIndex from just an index to the actual ID
-              val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
-              legs = legs :+ new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(0)),
-                mapTransitMode(transitSegment.mode),
-                segmentPattern.toDepartureTime.get(0).toEpochSecond - segmentPattern.fromDepartureTime.get(0).toEpochSecond,
-                buildGraphPath(transitSegment, itinerary.connection.transit.get(option.transit.indexOf(transitSegment))),
-                beamVehicleId = Some(Id.createVehicleId(segmentPattern.routeIndex.toString)),
-                endStopId = Some(toStopId))
-            }
-          }
-        }
-
-        if(itinerary.connection.egress != null) {
-          val egress = option.egress.get(itinerary.connection.egress)
-          //TODO find out what time and duration should use with egress legs
-          legs = legs :+ BeamLeg(toBaseMidnightSeconds(itinerary.startTime), mapLegMode(egress.mode), egress.duration, buildGraphPath(egress))
-        }
-        trips = trips :+ BeamTrip(legs)
-      }
-    }
-    RoutingResponse(trips)
-  }
-
-  def buildResponseV2(plan: ProfileResponse): RoutingResponse = {
-
-    var trips = Vector[BeamTrip]()
-    for(option <- plan.options.asScala){
       /*
         * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
         * itinerary has a PointToPointConnection object that help relating access,
@@ -206,7 +157,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               duration,
               buildGraphPath(transitSegment, transitJourneyID),
               //TODO shouldn't we use the id instead of index
-              beamVehicleId = Some(Id.createVehicleId(segmentPattern.routeIndex.toString)),
+              beamVehicleId = Some(Id.createVehicleId(transitSegment.routes.get(segmentPattern.routeIndex).id)),
               endStopId = Some(toStopId))
 
             arrivalTime = segmentPattern.toArrivalTime.get(transitJourneyID.time)
