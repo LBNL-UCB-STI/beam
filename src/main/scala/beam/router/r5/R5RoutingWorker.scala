@@ -10,7 +10,9 @@ import java.util
 import akka.actor.Props
 import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.RoutingResponse
+import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
+import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker
 import beam.router.RoutingWorker.HasProps
@@ -123,11 +125,18 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
         // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as last argument of BeamLeg
         // Using itinerary start as access leg's startTime
-        legs = legs :+ BeamLeg(toBaseMidnightSeconds(itinerary.startTime), mapLegMode(access.mode), access.duration, buildGraphPath(access))
+        val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
+        val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
+        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildGraphPath(access))
 
-        if(option.transit != null && option.transit.size() > 0) {
+        //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
+        if(access.mode != WALK) {
+          legs = dummyWalk(tripStartTime) +: legs
+          if(!isTransit) legs = legs :+ dummyWalk(tripStartTime + access.duration)
+        }
 
-          var arrivalTime: ZonedDateTime = null
+        if(isTransit) {
+          var arrivalTime: Long = Long.MinValue
           /*
            Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
            assuming that: For each transit in option there is a TransitJourneyID in connection
@@ -136,17 +145,16 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
             //for first iteration in an itinerary, arivalTime would be null, add Waiting and boarding legs
-            if(arrivalTime == null) {
-              val accessEndTime = toBaseMidnightSeconds(itinerary.startTime)+ access.duration
+            if(arrivalTime == Long.MinValue) {
+              val accessEndTime = tripStartTime + access.duration
               // possible wait time is difference in access time end time and departure time, additional five seconds for boarding
               val possibleWaitTime = toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)) - accessEndTime - 5
               if(possibleWaitTime > 0) {
-                legs = legs :+ BeamLeg.waiting(accessEndTime, possibleWaitTime)
-                // Boarding Leg with 5 sec duration
-                legs = legs :+ BeamLeg.boarding(accessEndTime + possibleWaitTime)
+                // Waiting and default 5 sec Boarding logs
+                legs = legs :+ waiting(accessEndTime, possibleWaitTime) :+ boarding(accessEndTime + possibleWaitTime)
               } else {
                 // in case of negative possibleWaitTime boarding duration would be less then 5 sec
-                legs = legs :+ BeamLeg.boarding(accessEndTime, 5 + possibleWaitTime)
+                legs = legs :+ boarding(accessEndTime, 5 + possibleWaitTime)
               }
             }
 
@@ -167,20 +175,21 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               beamVehicleId = Some(Id.createVehicleId(transitSegment.routes.get(segmentPattern.routeIndex).id)),
               endStopId = Some(toStopId))
 
-            arrivalTime = segmentPattern.toArrivalTime.get(transitJourneyID.time)
+            arrivalTime = toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
             if(transitSegment.middle != null) {
               //TODO may need to add boarding and alighting for every transfer
-              legs = legs :+ BeamLeg(toBaseMidnightSeconds(arrivalTime), mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, buildGraphPath(transitSegment.middle))
+              legs = legs :+ BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, buildGraphPath(transitSegment.middle))
             }
           }
           // Alighting leg with 5 sec duration
-          legs = legs :+ BeamLeg.alighting(toBaseMidnightSeconds(arrivalTime))
+          legs = legs :+ alighting(arrivalTime)
 
           // egress would only be present if there is some transit, so its under transit presence check
           if(itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             //start time would be the arival time of last stop and 5 second alighting
-            legs = legs :+ BeamLeg(toBaseMidnightSeconds(arrivalTime) + 5, mapLegMode(egress.mode), egress.duration, buildGraphPath(egress))
+            legs = legs :+ BeamLeg(arrivalTime + 5, mapLegMode(egress.mode), egress.duration, buildGraphPath(egress))
+            if(egress.mode != WALK) legs :+ dummyWalk(arrivalTime + 5 + egress.duration)
           }
         }
 
