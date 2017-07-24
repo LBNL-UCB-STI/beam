@@ -176,7 +176,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               buildGraphPath(transitSegment, transitJourneyID),
               // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as last argument of BeamLeg
               //TODO shouldn't we use the id instead of index
-              beamVehicleId = Some(Id.createVehicleId(transitSegment.routes.get(segmentPattern.routeIndex).id)),
+              beamVehicleId = Some(Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))),
               endStopId = Some(toStopId))
 
             arrivalTime = toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
