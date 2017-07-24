@@ -106,7 +106,7 @@ object ChoosesMode {
           TRANSIT
         }
       }
-      val travelTime = (for (leg <- alt.legs) yield leg.travelTime).foldLeft(0.0) {
+      val travelTime = (for (leg <- alt.legs) yield leg.duration).foldLeft(0.0) {
         _ + _
       }
       (altMode, travelTime)
