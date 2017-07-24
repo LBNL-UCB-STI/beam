@@ -132,7 +132,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildGraphPath(access))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
-        if(mapLegMode(access.mode) != WALK) {
+        if(access.mode != LegMode.WALK) {
           legs = dummyWalk(tripStartTime) +: legs
           if(!isTransit) legs = legs :+ dummyWalk(tripStartTime + access.duration)
         }
