@@ -35,7 +35,7 @@ object RoutingModel {
     def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
     def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
     def apply(time: Long, mode: beam.router.Modes.BeamMode, duration: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
-      BeamLeg(time, mode, duration, graphPath)
+      BeamLeg(time, mode, duration, graphPath, None, None)
     def apply(time: Long, mode: beam.router.Modes.BeamMode, travelTime: Long, graphPath: beam.router.RoutingModel.BeamGraphPath, beamVehicleId: Option[Id[Vehicle]]): BeamLeg =
       BeamLeg(time, mode, travelTime, graphPath, beamVehicleId, None)
   }

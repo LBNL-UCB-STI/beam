@@ -165,9 +165,9 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
             val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
-              segmentPattern.toDepartureTime.get(transitJourneyID.time).toEpochSecond
-            else
-              segmentPattern.toArrivalTime.get(transitJourneyID.time).toEpochSecond ) -
+                              segmentPattern.toDepartureTime.get(transitJourneyID.time).toEpochSecond
+                            else
+                              segmentPattern.toArrivalTime.get(transitJourneyID.time).toEpochSecond ) -
               segmentPattern.fromDepartureTime.get(transitJourneyID.time).toEpochSecond
 
             legs = legs :+ new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)),
