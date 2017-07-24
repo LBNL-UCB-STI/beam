@@ -11,7 +11,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
-import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.agentsim.scheduler.{BeamAgentScheduler, TriggerWithId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.{BeamRouter, RoutingWorker}
@@ -195,7 +195,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val actors = services.vehicles.map { case (vehicleId, matSimVehicle) =>
       val props = BeamVehicleAgent.props(vehicleId, matSimVehicle, new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)))
       val beamVehicle = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId, iterId))
-      beamVehicle ! InitializeTrigger(0)
+      beamVehicle ! TriggerWithId(InitializeTrigger(0.0), 0)
       (vehicleId, beamVehicle)
     }
     actors
