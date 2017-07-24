@@ -125,7 +125,7 @@ object RouterApp extends App{
 
     for (state <- streetPath.getStates.asScala) {
       val edgeIdx = state.backEdge
-      if (!(edgeIdx == null || edgeIdx == -1)) {
+      if (edgeIdx != -1) {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
         LOG.info("{} - EdgeIndex [{}]", stateIdx, edgeIdx)
         LOG.info("\t Lat/Long [{}]", edge.getGeometry)

@@ -31,8 +31,8 @@ object RoutingModel {
 
   object BeamLeg {
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
-    def boarding(startTime: Long, duration: Long = 5): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
-    def alighting(startTime: Long, duration: Long = 5): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
+    def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
+    def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
     def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
     def apply(time: Long, mode: beam.router.Modes.BeamMode, duration: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
       BeamLeg(time, mode, duration, graphPath)
