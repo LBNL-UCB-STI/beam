@@ -151,7 +151,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   def resetPop(iter: Int): Unit = {
     val personAgents = mutable.Map[Id[Person], ActorRef]()
     for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
-      val bodyVehicle = actorSystem.actorOf(HumanBodyVehicle.props(services, personId))
+//      val bodyVehicle = actorSystem.actorOf(HumanBodyVehicle.props(services, personId))
+      val bodyVehicle = null
       val props = Props(classOf[PersonAgent], personId, PersonData(matsimPerson.getSelectedPlan, bodyVehicle),services)
       val ref: ActorRef = actorSystem.actorOf(props, s"${personId.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)

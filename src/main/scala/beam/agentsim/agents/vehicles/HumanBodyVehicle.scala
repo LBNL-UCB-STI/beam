@@ -3,15 +3,18 @@ package beam.agentsim.agents.vehicles
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgent, PersonAgent}
-import beam.sim.BeamServices
+import beam.router.RoutingModel.BeamGraphPath
+import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles._
 
 
 
-class HumanBodyVehicle(val personId: Id[PersonAgent], val vehicleData: HumanBodyVehicleData,
-                       val trajectory: Trajectory, val powerTrain: Powertrain,
-                       var driver: Option[ActorRef] = None) extends BeamVehicle {
+class HumanBodyVehicle(val beamServices: BeamServices, val vehicleData: HumanBodyVehicleData,
+                       var trajectory: Trajectory, var powerTrain: Powertrain,
+                       var driver: Option[ActorRef] = None) extends BeamVehicle with HasServices{
+  override var services: BeamServices = beamServices
+
   //XXX: be careful with traversing,  possible recursion
   def passengers: List[ActorRef] = List(self)
 
@@ -53,5 +56,8 @@ case class HumanBodyVehicleData(personId: Id[PersonAgent], dim: HumanDimension) 
 
 object HumanBodyVehicle {
   //TODO make HumanDimension come from somewhere
-  def props(services: BeamServices, personId: Id[PersonAgent]) = Props(classOf[HumanBodyVehicle],services, personId, HumanDimension(1.7, 60.0))
+  def props(services: BeamServices, personId: Id[PersonAgent]) = Props(classOf[HumanBodyVehicle],services,
+    HumanBodyVehicleData(personId, HumanDimension(1.7, 60.0)),
+    new Trajectory(BeamGraphPath.empty),
+    None)
 }

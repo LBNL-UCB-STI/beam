@@ -335,48 +335,48 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   }
 
   // Transit-related states
-  chainedWhen(Waiting) {
-    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val processedData = processedStateData(info.data.currentRoute, tick)
-      val restTrip = processedData.restTrip
-      restTrip.legs.headOption match {
-        case Some(BeamLeg(_, WALK, _, _, _, _)) if restTrip.legs.length == 1 =>
-          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, WALK.matsimMode)))
-          info.data.humanBodyVehicle !
-          goto(Walking) using info replying completed(triggerId, schedule[TeleportationArrivalTrigger](tick + timeToChooseMode,self))
-        case Some(BeamLeg(_, WALK, _, _, _, _)) if restTrip.legs.length > 1 =>
-          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, WALK.matsimMode)))
-          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
-            completed(triggerId, schedule[TeleportationArrivalTrigger](tick + timeToChooseMode,self))
-        case Some(BeamLeg(_, CAR, _, _, _, _)) if restTrip.legs.length > 1 =>
-          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, CAR.matsimMode)))
-          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
-            completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode,self))
-//        case Some(BeamLeg(_, TAXI, _, _, _, _)) if restTrip.legs.length > 1 =>
-//          (services.taxiManager ? ReserveTaxi(info.data.currentActivity.getCoord)).mapTo[ReserveTaxiConfirmation] map { result =>
-//            ReserveTaxiResponseWrapper(tick, triggerId, result.taxi, result.timeToCustomer, tripChoice)
-//          } pipeTo self
-//          stay()
-        case Some(BeamLeg(_, WAITING, _, _, _, _)) =>
-          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TRANSIT.matsimMode)))
-          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
-            completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick + timeToChooseMode,self))
-        case Some(BeamLeg(_, _, _, _, _, _)) =>
-          logError(s"going to Error on trigger $triggerId in ChoosingMode due to unknown mode")
-          goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
-        case None | Some(_) =>
-          logError(s"going to Error on trigger $triggerId in ChoosingMode due to no next leg")
-          goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
-      }
-      goto(Walking) using stateData.copy(id, info.data.copy(currentRoute = processedData.restTrip)) replying
-        completed(triggerId, schedule[PersonArrivesTransitStopTrigger](processedData.nextStart,self))
-    case Event(TriggerWithId(PersonEntersBoardingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val procData = processedStateData(info.data.currentRoute, tick)
-      publishPathTraversal(PathTraversalEvent(id, procData.nextLeg))
-      services.agentSimEventsBus.publish(MatsimEvent(new AgentWaitingForPtEvent(tick, id, Id.create(Random.nextInt(), classOf[TransitStopFacility]), Id.create(Random.nextInt(), classOf[TransitStopFacility]))))
-      goto(Boarding) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
-        completed(triggerId, schedule[PersonArrivesTransitStopTrigger](procData.nextStart,self))
-  }
+//  chainedWhen(Waiting) {
+//    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+//      val processedData = processedStateData(info.data.currentRoute, tick)
+//      val restTrip = processedData.restTrip
+//      restTrip.legs.headOption match {
+//        case Some(BeamLeg(_, WALK, _, _, _, _)) if restTrip.legs.length == 1 =>
+//          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, WALK.matsimMode)))
+//          info.data.humanBodyVehicle !
+//          goto(Walking) using info replying completed(triggerId, schedule[TeleportationArrivalTrigger](tick + timeToChooseMode,self))
+//        case Some(BeamLeg(_, WALK, _, _, _, _)) if restTrip.legs.length > 1 =>
+//          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, WALK.matsimMode)))
+//          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
+//            completed(triggerId, schedule[TeleportationArrivalTrigger](tick + timeToChooseMode,self))
+//        case Some(BeamLeg(_, CAR, _, _, _, _)) if restTrip.legs.length > 1 =>
+//          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, CAR.matsimMode)))
+//          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
+//            completed(triggerId, schedule[PersonEntersVehicleTrigger](tick + timeToChooseMode,self))
+////        case Some(BeamLeg(_, TAXI, _, _, _, _)) if restTrip.legs.length > 1 =>
+////          (services.taxiManager ? ReserveTaxi(info.data.currentActivity.getCoord)).mapTo[ReserveTaxiConfirmation] map { result =>
+////            ReserveTaxiResponseWrapper(tick, triggerId, result.taxi, result.timeToCustomer, tripChoice)
+////          } pipeTo self
+////          stay()
+//        case Some(BeamLeg(_, WAITING, _, _, _, _)) =>
+//          services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, info.data.currentActivity.getLinkId, TRANSIT.matsimMode)))
+//          goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = tripChoice)) replying
+//            completed(triggerId, schedule[PersonArrivesTransitStopTrigger](tick + timeToChooseMode,self))
+//        case Some(BeamLeg(_, _, _, _, _, _)) =>
+//          logError(s"going to Error on trigger $triggerId in ChoosingMode due to unknown mode")
+//          goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
+//        case None | Some(_) =>
+//          logError(s"going to Error on trigger $triggerId in ChoosingMode due to no next leg")
+//          goto(Error) using stateData.copy(id, stateData.data.copy()) replying CompletionNotice(triggerId)
+//      }
+//      goto(Walking) using stateData.copy(id, info.data.copy(currentRoute = processedData.restTrip)) replying
+//        completed(triggerId, schedule[PersonArrivesTransitStopTrigger](processedData.nextStart,self))
+//    case Event(TriggerWithId(PersonEntersBoardingQueueTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+//      val procData = processedStateData(info.data.currentRoute, tick)
+//      publishPathTraversal(PathTraversalEvent(id, procData.nextLeg))
+//      services.agentSimEventsBus.publish(MatsimEvent(new AgentWaitingForPtEvent(tick, id, Id.create(Random.nextInt(), classOf[TransitStopFacility]), Id.create(Random.nextInt(), classOf[TransitStopFacility]))))
+//      goto(Boarding) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
+//        completed(triggerId, schedule[PersonArrivesTransitStopTrigger](procData.nextStart,self))
+//  }
 
   when(Boarding) {
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
