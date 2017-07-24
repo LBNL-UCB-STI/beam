@@ -10,15 +10,17 @@ last.change <- function(x,minSSR){
   }
 }
 
-to.download <- c('calibration_2017-07-07_13-11-23','calibration_2017-07-07_14-05-31','calibration_2017-07-07_14-42-02','calibration_2017-07-07_14-14-42','calibration_2017-07-07_14-42-52','calibration_2017-07-07_14-49-15','calibration_2017-07-07_15-19-33','calibration_2017-07-07_16-03-06','calibration_2017-07-07_16-03-16','calibration_2017-07-07_16-34-53')
 to.download <- c()
+to.download <- c('calibration_2017-07-08_04-26-21','calibration_2017-07-08_04-42-58','calibration_2017-07-08_04-42-56','calibration_2017-07-08_04-45-15','calibration_2017-07-08_05-00-24','calibration_2017-07-08_05-54-32','calibration_2017-07-08_05-54-36','calibration_2017-07-08_05-54-37')
 # 1k runs
-calib.names <- c( 'calibration_2017-07-06_23-10-37','calibration_2017-07-07_00-22-22','calibration_2017-07-07_00-52-48','calibration_2017-07-07_07-26-14')
 calib.names <- c()
+#calib.names <- c(calib.names,'calibration_2017-07-07_16-50-27-newinfra-1k','calibration_2017-07-07_15-54-20-newinfra-1k','calibration_2017-07-07_14-57-11-newinfra-1k','calibration_2017-07-07_13-57-10-newinfra-1k')
+#calib.names <- c(calib.names,'calibration_2017-07-07_18-03-36-newinfra-1k','calibration_2017-07-07_12-33-06-newinfra-1k')
 docs.base <- '/Users/critter/Documents'
 # 10k runs
-calib.names <- c('calibration_2017-07-07_13-11-23','calibration_2017-07-07_14-05-31','calibration_2017-07-07_14-42-02','calibration_2017-07-07_14-14-42','calibration_2017-07-07_14-42-52','calibration_2017-07-07_14-49-15','calibration_2017-07-07_15-19-33','calibration_2017-07-07_16-03-06','calibration_2017-07-07_16-03-16','calibration_2017-07-07_16-34-53',
-                 'calibration_2017-07-07_12-34-13-newinfra-10k','calibration_2017-07-07_16-51-02-newinfra-10k')
+#calib.names <- c('calibration_2017-07-07_13-11-23','calibration_2017-07-07_14-05-31','calibration_2017-07-07_14-42-02','calibration_2017-07-07_14-14-42','calibration_2017-07-#07_14-42-52','calibration_2017-07-07_14-49-15','calibration_2017-07-07_15-19-33','calibration_2017-07-07_16-03-06','calibration_2017-07-07_16-03-16','calibration_2017-07-07_16-34-#53',
+#calib.names <- c(calib.names,'calibration_2017-07-07_12-34-13-newinfra-10k','calibration_2017-07-07_16-51-02-newinfra-10k')
+#c('calibration_2017-07-07_13-11-23','calibration_2017-07-07_14-05-31','calibration_2017-07-07_14-42-02','calibration_2017-07-07_14-14-42','calibration_2017-07-07_14-42-52','calibration_2017-07-07_14-49-15','calibration_2017-07-07_15-19-33','calibration_2017-07-07_16-03-06','calibration_2017-07-07_16-03-16','calibration_2017-07-07_16-34-53')
 #docs.base <- '/Volumes/critter/Documents'
 
 calib.name <- calib.names[1]
@@ -71,7 +73,7 @@ cal.all <- rbindlist(cal.all)
 load.all <- rbindlist(load.all)
 ev.all <- rbindlist(ev.all)
 
-ev.all[,list(chargeArrPub=sum(choice=='charge' & site>0,na.rm=T),chargeArrHome=sum(choice=='charge' & site<0,na.rm=T),chargeDepHome=sum(choice=='engageWithOriginalPlug'& site<0),chargeDepPub=sum(choice=='engageWithOriginalPlug'& site>0)),by=c('calib.run','iter')]
+#ev.all[,list(chargeArrPub=sum(choice=='charge' & site>0,na.rm=T),chargeArrHome=sum(choice=='charge' & site<0,na.rm=T),chargeDepHome=sum(choice=='engageWithOriginalPlug'& site<0),chargeDepPub=sum(choice=='engageWithOriginalPlug'& site>0)),by=c('calib.run','iter')]
 
 #ggplot(dt,aes(x=time,y=num.plugged.in,colour=site.type))+geom_bar(stat='identity',position='stack')+facet_wrap(charger.type~spatial.group)
 #ggplot(load.all[time>=27 & time<=51,list(num.plugged.in=sum(num.plugged.in)),by=c('iter','time','site.type')],aes(x=time,y=num.plugged.in,fill=site.type))+geom_bar(stat='identity',position='stack')+facet_wrap(~iter)
@@ -101,6 +103,7 @@ both.all <- rbindlist(both.all)
 both.all[,key:=pp(calib.run,' SSR=',SSR)]
 both.all[,hour:=floor(time)]
 
+dev.new()
 ggplot(both.all,aes(x= num.plugged.in,y= pred.num.plugged.in,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)
 dev.new()
 ggplot(both.all,aes(x= charging.load.in.kw,y= pred.charging.load.in.kw,colour=spatial.group))+geom_point()+geom_abline(slope=1,intercept=0)+facet_wrap(~key)

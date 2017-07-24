@@ -2,69 +2,7 @@
 load.libraries(c('Hmisc','sqldf','GEOquery'))
 
 source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/debug.R')
-
-repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
-    if (!forward) x = rev(x)           # reverse x twice if carrying backward
-    ind = which(!is.na(x))             # get positions of nonmissing values
-    if (is.na(x[1]) && !na.rm)         # if it begins with NA
-        ind = c(1,ind)                 # add first pos
-    rep_times = diff(                  # diffing the indices + length yields how often
-        c(ind, length(x) + 1) )          # they need to be repeated
-    if (maxgap < Inf) {
-        exceed = rep_times - 1 > maxgap  # exceeding maxgap
-        if (any(exceed)) {               # any exceed?
-            ind = sort(c(ind[exceed] + 1, ind))      # add NA in gaps
-            rep_times = diff(c(ind, length(x) + 1) ) # diff again
-        }
-    }
-    x = rep(x[ind], times = rep_times) # repeat the values at these indices
-    if (!forward) x = rev(x)           # second reversion
-    x
-}
-read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
-  if(!is.na(header.word))match.words <- c(match.words,header.word)
-  match.string <- pp("'",pp(match.words,collapse="\\|"),"'")
-  return(data.table(my.read.csv.sql(filepath,filter=pp("grep ",match.string))))
-}
-my.read.csv.sql <- function(file, sql = "select * from file", header = TRUE, sep = ",", 
-    row.names, eol, skip, filter, nrows, field.types, colClasses, 
-    dbname = tempfile(), drv = "SQLite", ...){
-      file.format <- list(header = header, sep = sep)
-    if (!missing(eol)) 
-        file.format <- append(file.format, list(eol = eol))
-    if (!missing(row.names)) 
-        file.format <- append(file.format, list(row.names = row.names))
-    if (!missing(skip)) 
-        file.format <- append(file.format, list(skip = skip))
-    if (!missing(filter)) 
-        file.format <- append(file.format, list(filter = filter))
-    if (!missing(nrows)) 
-        file.format <- append(file.format, list(nrows = nrows))
-    if (!missing(field.types)) 
-        file.format <- append(file.format, list(field.types = field.types))
-    if (!missing(colClasses)) 
-        file.format <- append(file.format, list(colClasses = colClasses))
-    pf <- parent.frame()
-    if (missing(file) || is.null(file) || is.na(file)) 
-        file <- ""
-    tf <- NULL
-    if (substring(file, 1, 7) == "http://" || substring(file, 
-        1, 6) == "ftp://") {
-        tf <- tempfile()
-        on.exit(unlink(tf), add = TRUE)
-        download.file(file, tf, mode = "wb")
-        file <- tf
-    }
-    if(class(file)[1]=="character"){
-      p <- proto(pf, file = file(file))
-      p <- do.call(proto, list(pf, file = file(file)))
-    }else{
-      p <- proto(pf, file = file)
-      p <- do.call(proto, list(pf, file = file))
-    }
-    sqldf(sql, envir = p, file.format = file.format, dbname = dbname, 
-        drv = drv, ...)
-}
+source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/vgi-functions.R')
 
 # Get person attributes and vehicle types and join
 
@@ -79,9 +17,21 @@ peeps[vehicleClassName=='NEV',veh.type:='NEV']
 #out.dirs <- list( 'v1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-03_20-48-12/',0),
                   #'v2.0'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',0),
                   #'v2.10'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-03-20_10-53-55/',10))
-out.dirs <- list( 'v3-1k'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-07_14-57-11-newinfra-1k/',120))
-out.dirs <- list( 'v3-10k'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-07_12-34-13-newinfra-10k/',20))
+#out.dirs <- list( 'v3-1k'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-07_14-57-11-newinfra-1k/',120))
+#out.dirs <- list( 'v3-10k'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-07_12-34-13-newinfra-10k/',20),
+                  #'v3-10k-2'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-07_14-49-15/',149) )
+#out.dirs <- list( 'v3-10k-3'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_08-55-57-10k-1/',0) )
+#out.dirs <- list( 'v1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_09-41-50-10k-paramsV1/',0) )
+#out.dirs <- list( 'v1B'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_13-08-26-10k-paramsV1B/',0) )
+#out.dirs <- list( 'v1B84'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_13-53-27-10k-V1B-84hours/',0) )
+#out.dirs <- list( 'v2'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_09-54-59-10k-paramsV2/',0) )
+#out.dirs <- list( 'v3-68k-1'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-07_22-24-33-68k-1/',0))
 
+#out.dirs <- list( 'v1B-68k-0pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_16-13-53-68k-V1B-0pct-84hrs/',0) )
+#out.dirs <- list( 'v1B-68k-50pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_13-26-49-68k-V1B-50pct-60hours/',0) )
+#out.dirs <- list( 'v1B-68k-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_14-51-37-68k-V1B-100pct-84hrs/',0) )
+#out.dirs <- list( 'v1B-68k-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_19-51-29-68k-V1B-100pct-same-loc/',0) )
+out.dirs <- list( 'v1B-68k-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_17-39-32-68k-V1B-200pct-84hrs/',0) )
 
 scens <- names(out.dirs)
 
@@ -124,7 +74,15 @@ ev[type=='BeginChargingSessionEvent' & is.na(actType),actType:='Home',by=c('scen
 ev <- ev[!type%in%c('arrival','departure','travelled','actend','PreChargeEvent')]
 
 # categorize each charger into Home, Work, Public
-sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-revised-2017-07.csv',stringsAsFactors=F))
+if(length(grep('200pct',scen))>0){
+  sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-200pct.csv',stringsAsFactors=F))
+}else if(length(grep('100pct',scen))>0){
+  sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-100pct.csv',stringsAsFactors=F))
+}else if(length(grep('50pct',scen))>0){
+  sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-50pct.csv',stringsAsFactors=F))
+}else{
+  sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-revised-2017-07.csv',stringsAsFactors=F))
+}
 sites[,siteType:='Public']
 sites[policyID==7,siteType:='Work']
 #points <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points-cp-revised-2017-07.csv',stringsAsFactors=F))
@@ -139,7 +97,8 @@ setkey(ev,scenario,hr,native.order)
 ev[,soc:=ifelse(type=='BeginChargingSessionEvent',c(NA,head(soc,-1)),soc),by=c('scenario','person')]
 ev[,soc:=as.numeric(soc)]
 ev[,time:=as.numeric(time)]
-ev[,kwhNeeded:=as.numeric(kwhNeeded)]
+#ev[,kwhNeeded:=as.numeric(kwhNeeded)]
+kwhNeeded <- 0
 ev[plugType=='',plugType:=NA]
 ev[,plugType:=repeat_last(plugType),by=c('scenario','person')]
 
@@ -174,7 +133,7 @@ my.cat(pp('Removing ',length(bad.peeps),' peeps'))
 ev <- ev[!person%in%bad.peeps]
 
 ev[,':='(energy.level.min.phev.flex=c(energy.level[1],energy.level[1],ifelse(veh.type[1]=='PHEV',energy.level[1],energy.level[2])),
-         energy.level.min.full.flex=c(energy.level[1],energy.level[1],ifelse(veh.type[1]=='PHEV',energy.level[1],energy.level[1]+kwhNeeded[1])),
+         #energy.level.min.full.flex=c(energy.level[1],energy.level[1],ifelse(veh.type[1]=='PHEV',energy.level[1],energy.level[1]+kwhNeeded[1])),
          energy.level.min=c(energy.level[1],energy.level[1],energy.level[2]),
          hr.min=c(hr[1],hr[3] - (hr[2] - hr[1]),hr[3])),by=c('scenario','person','decisionEventId')]
 
@@ -190,6 +149,7 @@ ev <- ev[!person%in%peeps.to.skip]
 setkey(ev,scenario,hr,native.order)
 
 ev[,siteType:=repeat_last(siteType),by=c('scenario','person','decisionEventId')]
+if(any(is.na(ev$siteType))){ stop('wrong sites file was loaded') }
 ev[,actType:=repeat_last(actType),by=c('scenario','person','decisionEventId')]
 
 ev[,final.type:=ifelse(siteType=='Public' & actType=='Work','Public',actType)]
@@ -218,7 +178,7 @@ soc.raw <- ev[,list(hr=sort(c(ts,hr)),
                 energy.level=repeat_last(rev(repeat_last(rev(approx(hr,energy.level,xout=sort(c(ts,hr)),method='linear')$y)))),
                 energy.level.min=repeat_last(rev(repeat_last(rev(my.approx(hr.min,energy.level.min,xout=sort(c(ts,hr.min)),method='linear')$y)))),
                 energy.level.min.phev.flex=repeat_last(rev(repeat_last(rev(my.approx(hr.min,energy.level.min.phev.flex,xout=sort(c(ts,hr.min)),method='linear')$y)))),
-                energy.level.min.full.flex=repeat_last(rev(repeat_last(rev(my.approx(hr.min,energy.level.min.full.flex,xout=sort(c(ts,hr.min)),method='linear')$y)))),
+                #energy.level.min.full.flex=repeat_last(rev(repeat_last(rev(my.approx(hr.min,energy.level.min.full.flex,xout=sort(c(ts,hr.min)),method='linear')$y)))),
                 veh.type=veh.type[1]),
                  by=c('scenario','person','final.type')]
                 #,by=c('scenario','person','siteType','actType')]
@@ -234,6 +194,7 @@ if(F){
   ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','siteType')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(~siteType)
   ggplot(soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('hr','constraint','actType')],aes(x=hr%%24,y=d.energy))+geom_line(lwd=1.5)+facet_wrap(~actType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
   soc.sum <- soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','siteType','actType')]
+  #soc.sum <- soc[hr==floor(hr) & hr>=51 & hr<75 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','siteType','actType')]
   setkey(soc.sum,scenario,hr,actType)
   ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=actType))+geom_bar(stat='identity')+facet_wrap(scenario~siteType,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
@@ -244,9 +205,9 @@ if(F){
 }
 
 flex.scenario <- 'base'
-flex.scenario <- 'phev'
-flex.scenario <- 'full'
-for(flex.scenario in c('base','phev','full')){
+#flex.scenario <- 'phev'
+#flex.scenario <- 'full'
+#for(flex.scenario in c('base','phev','full')){
   if(flex.scenario=='base'){
     soc <- rbindlist(list(soc.raw[,list(scenario,person,hr,energy.level,kw,constraint='max',final.type,veh.type)],soc.raw[,list(scenario,person,hr=hr.min,energy.level=energy.level.min,kw=kw.min,constraint='min',final.type,veh.type)]))[hr==floor(hr)]
   }else if(flex.scenario=='phev'){
@@ -262,13 +223,16 @@ for(flex.scenario in c('base','phev','full')){
   soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','scenario','person','final.type')]
 
   # Final categorization of load
-  soc.sum <- soc[hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','final.type','veh.type')]
-  setkey(soc.sum,scenario,hr,final.type,veh.type)
-  ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_wrap(scenario~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
-  ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','final.type','veh.type')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(veh.type~final.type)
+  #soc.sum <- soc[hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','final.type','veh.type')]
+  #setkey(soc.sum,scenario,hr,final.type,veh.type)
+  #ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_wrap(scenario~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
+  #ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','final.type','veh.type')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(veh.type~final.type)
+  #soc.sum <- soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','final.type')]
+  #setkey(soc.sum,scenario,hr,final.type)
+  #ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=final.type))+geom_bar(stat='identity')+facet_wrap(scenario~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
   # Load CP data and create scaling factors for turning BEAM workday output into a full week of constraints
-  load(pp(matsim.shared,'/data/chargepoint/cp.Rdata'))
+  load(pp('/Users/critter/GoogleDriveUCB/beam-core/data/chargepoint/cp.Rdata'))
   cp[category=='Workplace',type:='Work']
   cp[type=='Commercial',type:='Public']
   wdays <- c('Sat'=0,'Sun'=1,'Mon'=2,'Tue'=3,'Wed'=4,'Thu'=5,'Fri'=6,'Sat'=7)
@@ -289,38 +253,8 @@ for(flex.scenario in c('base','phev','full')){
   soc.weekend[,':='(d.energy.level=shave.peak(hr,d.energy.level,shave.start,shave.end)),by=c('scenario','person','final.type','veh.type','constraint')]
   soc.weekend[,':='(cumul.energy=cumsum(d.energy.level)),by=c('scenario','person','final.type','veh.type','constraint')]
 
-  gap.analysis <- function(the.df){
-    setkey(the.df,hr,final.type,veh.type,constraint)
-    gap <- the.df[,list(max.en=cumul.energy[1],min.en=cumul.energy[2],gap=cumul.energy[1]-cumul.energy[2],plugged.in.capacity=plugged.in.capacity[1]),by=c('hr','final.type','veh.type')]
-    gap[,hr.cal:=(hr-1)%%24+1]
-    gap[,max.norm:=max.en-min(max.en),by=c('final.type','veh.type')]
-    gap[hr.cal<=4 & hr>30,max.norm:=max.norm - max(max.norm),by=c('final.type','veh.type')]
-    gap <- gap[hr>28]
-    setkey(gap,final.type,veh.type,hr.cal)
-    gap[hr>30 & hr.cal>=23]
-    max.start <- gap[hr>30 & hr.cal>=23,list(maxstart=diff(max.en)),by=c('final.type','veh.type')]
-    gap <- join.on(gap,max.start,c('final.type','veh.type'))
-    gap[,max.norm:=max.norm-min(max.norm)+maxstart,by=c('final.type','veh.type')]
-    gap[,min.norm:=max.norm-gap]
-    min.start <- gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
-    gap <- join.on(gap,min.start,c('final.type','veh.type'))
-    gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
-    gap
-  }
   gap.weekday <- gap.analysis(soc.weekday[hr>=28 & hr<=52,list(cumul.energy=sum(cumul.energy),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','constraint','final.type','veh.type')])
   gap.weekend <- gap.analysis(soc.weekend[hr>=28 & hr<=52,list(cumul.energy=sum(cumul.energy),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','constraint','final.type','veh.type')])
-
-  scale.the.gap <- function(the.gap,cp.day.norm,the.day){
-    day.name <- names(wdays[wdays==the.day])
-    the.gap <- join.on(the.gap,cp.day.norm[wday==day.name],'final.type','type','norm.load')
-    the.gap[,max.norm:=max.norm*norm.load]
-    the.gap[,min.norm:=max.norm-gap*norm.load]
-    the.gap[,plugged.in.capacity:=plugged.in.capacity*norm.load]
-    min.start <- the.gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
-    the.gap <- join.on(the.gap,min.start,c('final.type','veh.type'))
-    the.gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
-    the.gap 
-  }
 
   # Note, we pad with a day on both ends, this is designed for 2024 where Jan 1 is a Monday, so the padded day in the
   # front is a Sunday.
@@ -373,21 +307,25 @@ for(flex.scenario in c('base','phev','full')){
 
   # Finally, scale according to the scenarios developed by Julia
   scenarios <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/Scaling_factors_for_forecast_and_EV_counts_July72017.csv'))
-  scenarios <- melt(scenarios[,list(utility,Vehicle_category,Low_2024_energy_propCED13,Mid_2024_energy_propCED13,High_2024_energy_propCED13,
+  scenarios <- melt(scenarios[,list(Electric.Utility,Vehicle_category,Low_2024_energy_propCED13,Mid_2024_energy_propCED13,High_2024_energy_propCED13,
                                     Low_2024_energy_propCED15_2080,Low_2024_energy_propCED15_5050,Low_2024_energy_propCED15_8020,Low_2024_energy_propCED15_4060,Low_2024_energy_propCED15_6040,
                                     Mid_2024_energy_propCED15_2080,Mid_2024_energy_propCED15_5050,Mid_2024_energy_propCED15_8020,Mid_2024_energy_propCED15_4060,Mid_2024_energy_propCED15_6040,
                                     High_2024_energy_propCED15_2080,High_2024_energy_propCED15_5050,High_2024_energy_propCED15_8020,High_2024_energy_propCED15_4060,High_2024_energy_propCED15_6040
-                                    )],id.vars=c('utility','Vehicle_category'))
+                                    )],id.vars=c('Electric.Utility','Vehicle_category'))
   scenarios[,penetration:=unlist(lapply(str_split(variable,"_"),function(ll){ ll[1] }))]
   scenarios[,veh.type.split:=unlist(lapply(str_split(variable,"_"),function(ll){ ifelse(length(ll)==4,ll[4],ll[5]) }))]
   scenarios[,':='(veh.type=Vehicle_category,Vehicle_category=NULL)]
 
+  #flex.scenario <- '50-more-workplace'
+  flex.scenario <- '100-more-workplace'
+  #flex.scenario <- '100-more-workplace-sameloc'
+  #flex.scenario <- '200-more-workplace'
   results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-v3'
   make.dir(pp(results.dir.base,'/flex-',flex.scenario))
-  the.utility <- scenarios$utility[3]
+  the.utility <- scenarios$Electric.Utility[3]
   pen <- scenarios$penetration[1]
   veh.split <- scenarios$veh.type.split[1]
-  for(the.utility in u(scenarios$utility)){
+  for(the.utility in u(scenarios$Electric.Utility)){
     for(pen in u(scenarios$penetration)){
       for(veh.split in u(scenarios$veh.type.split)){
         to.write <- copy(plexos.constraints[hour>=1 & hour<=7*24])
@@ -399,7 +337,7 @@ for(flex.scenario in c('base','phev','full')){
         to.write <- rbindlist(to.write.all)
         to.write[,hour:=hour+(week-1)*168]
         to.write[,week:=NULL]
-        to.write <- join.on(to.write[hour<=366*24],scenarios[utility==the.utility & penetration==pen & veh.type.split==veh.split],'veh.type','veh.type','value')
+        to.write <- join.on(to.write[hour<=366*24],scenarios[Electric.Utility==the.utility & penetration==pen & veh.type.split==veh.split],'veh.type','veh.type','value')
         to.write <- to.write[,list(pev.inflexible.load.mw=sum(pev.inflexible.load.mw*value),
                        plexos.battery.max.mwh=sum(plexos.battery.max.mwh*value),
                        plexos.battery.min.mwh=sum(plexos.battery.min.mwh*value),
@@ -407,10 +345,17 @@ for(flex.scenario in c('base','phev','full')){
                        plexos.battery.max.charge=sum(plexos.battery.max.charge*value)
                        ),by='hour']
         write.csv(to.write,pp(results.dir.base,'/flex-',flex.scenario,'/',pen,'_',veh.split,'_',the.utility,'.csv'),row.names=F)
+        to.write[,Year:=2024]
+        to.write[,Month:=month(to.posix('2024-01-01')+(hour-1)*3600)]
+        to.write[,Day:=mday(to.posix('2024-01-01')+(hour-1)*3600)]
+        to.write[,Period:=(hour-1)%%24+1]
+        write.csv(to.write[,list(Year,Month,Day,Period,Value=plexos.battery.max.charge)],pp(results.dir.base,'/flex-',flex.scenario,'/',pen,'_',veh.split,'_',the.utility,'_max_charge.csv'),row.names=F)
+        write.csv(to.write[,list(Year,Month,Day,Period,Value=plexos.battery.max.discharge)],pp(results.dir.base,'/flex-',flex.scenario,'/',pen,'_',veh.split,'_',the.utility,'_max_discharge.csv'),row.names=F)
+        write.csv(to.write[,list(Year,Month,Day,Period,Value=plexos.battery.min.mwh/1000)],pp(results.dir.base,'/flex-',flex.scenario,'/',pen,'_',veh.split,'_',the.utility,'_min_volume.csv'),row.names=F)
       }
     }
   }
-}
+#}
 
 
 

@@ -202,6 +202,8 @@ public class BeamRouterR5 extends BeamRouter {
 				e.printStackTrace();
 			}
 			return routeInformation;
+		}else{
+			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
         ProfileOption option = response.getOptions().get(0);
         StreetSegment segment = option.access.get(0);

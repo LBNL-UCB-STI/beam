@@ -8,8 +8,7 @@ zips.in.sf <- which(!is.na(over(zips,counties[sf.county.inds,])$NAME))
 sf.zips <- spTransform(zips[zips.in.sf,],CRS("+proj=longlat +datum=WGS84"))
 sf.counties <- spTransform(counties[sf.county.inds,],CRS("+proj=longlat +datum=WGS84"))
 zip.to.county <- rbindlist(list(data.table(zip=sf.zips@data$ZCTA5CE10,county=over(sf.zips,sf.counties)$NAME),
-                                data.table(zip=c(94143,94497,94614, 94562),
-                                           county=c('San Francisco','San Mateo','Alameda','Napa'))))
+                                data.table(zip=c(94143,94497,94614, 94562),county=c('San Francisco','San Mateo','Alameda','Napa'))))
 
 
 dump.code <- 'backup-2017-01-24'
@@ -64,7 +63,8 @@ do.or.load(pp(cp.base,'cp.Rdata'),function(){
   }
   cp <- rbindlist(cp,use.names=T)
   cp[,type:='Commercial']
-  cp[file=='cp-res-2017-Q4.csv',type:='Residential']
+  cp[file=='cp-res-2017-Q4.csv',type:='
+     Colin/CoraResidential']
   cp[,session.time:=as.numeric(as.character(session.time))]
   cp[,start:=to.posix(add.tz(start,timezone),"%m/%d/%y %H:%M %z")]
   cp[,start:=to.posix(format(start,tz='America/Los_Angeles'),'%Y-%m-%d %H:%M:%S',tz='America/Los_Angeles')]
@@ -316,7 +316,7 @@ num.within.mile <- apply(dist.mat,1,function(x){ sum(x<0.01)}) # count number of
 ids.to.reassign <- sample(non.tesla.sites$id,tot.cp.workplace - tot.num.to.add,replace=F,prob=num.within.mile/max(num.within.mile))
 existing.sites[id%in%ids.to.reassign,policyID:=7]
 
-extra.work.pen <- 0
+extra.work.pen <- 2
 for(extra.work.pen in c(0,0.5,1)){
   n.new.points[,num.to.use:=num + round(extra.work.pen*num*tot.cp.workplace/tot.num.to.add)]
   site.id <- max(sites$id)+1
