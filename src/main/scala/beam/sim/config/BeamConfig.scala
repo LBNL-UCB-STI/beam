@@ -76,7 +76,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
           numAgents      = if(c.hasPathOrNull("numAgents")) c.getInt("numAgents") else 100,
-          simulationName = if(c.hasPathOrNull("simulationName")) c.getString("simulationName") else "dev"
+          simulationName = if(c.hasPathOrNull("simulationName")) c.getString("simulationName") else "sf-bay"
         )
       }
     }
@@ -135,6 +135,7 @@ object BeamConfig {
     }
           
     case class Routing(
+      baseDate    : java.lang.String,
       gtfs        : BeamConfig.Beam.Routing.Gtfs,
       otp         : BeamConfig.Beam.Routing.Otp,
       r5          : BeamConfig.Beam.Routing.R5,
@@ -170,11 +171,13 @@ object BeamConfig {
       }
             
       case class R5(
-        directory : java.lang.String
+        departureWindow : scala.Int,
+        directory       : java.lang.String
       )
       object R5 {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
+            departureWindow = if(c.hasPathOrNull("departureWindow")) c.getInt("departureWindow") else 15,
             directory = if(c.hasPathOrNull("directory")) c.getString("directory") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-inputs/r5"
           )
         }
@@ -182,10 +185,11 @@ object BeamConfig {
             
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing = {
         BeamConfig.Beam.Routing(
+          baseDate    = if(c.hasPathOrNull("baseDate")) c.getString("baseDate") else "2016-10-17T00:00:00-07:00",
           gtfs        = BeamConfig.Beam.Routing.Gtfs(c.getConfig("gtfs")),
           otp         = BeamConfig.Beam.Routing.Otp(c.getConfig("otp")),
           r5          = BeamConfig.Beam.Routing.R5(c.getConfig("r5")),
-          routerClass = if(c.hasPathOrNull("routerClass")) c.getString("routerClass") else "beam.router.r5.R5Router"
+          routerClass = if(c.hasPathOrNull("routerClass")) c.getString("routerClass") else "beam.router.r5.R5RoutingWorker"
         )
       }
     }
@@ -200,7 +204,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     def apply(c: com.typesafe.config.Config): BeamConfig.Beam = {
       BeamConfig.Beam(
         agentsim     = BeamConfig.Beam.Agentsim(c.getConfig("agentsim")),

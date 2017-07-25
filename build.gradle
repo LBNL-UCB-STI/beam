@@ -126,6 +126,7 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.4'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
     testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
+    testCompile group: "org.mockito", name: "mockito-all", version: "1.9.5"
 
 
     /////////////////////////////////
@@ -168,18 +169,18 @@ dependencies {
 
     // CORE Akka //
     compile group: 'com.typesafe.akka', name: "akka-actor_${scalaBinaryVersion}", version: akkaBinaryVersion
-    compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
-    compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
-    compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
+//    compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
+//    compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
+//    compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
-    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
+//    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
     // TEST Akka //
     testCompile group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
     // 3rd Party Akka //
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.7'
-    compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
+//    compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
@@ -193,7 +194,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/test', '-o']
     classpath = sourceSets.test.runtimeClasspath
 }
-
+// test.dependsOn spec
 //////////////////////////////////////////////////////////////////////
 // BUNDLING FOR EXECUTION
 //

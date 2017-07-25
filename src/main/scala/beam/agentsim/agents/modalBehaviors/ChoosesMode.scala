@@ -6,6 +6,7 @@ import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
+import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -13,6 +14,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel.{BeamTrip, DiscreteTime}
 import beam.sim.HasServices
+import org.matsim.api.core.v01.events.PersonDepartureEvent
 
 import scala.util.Random
 
@@ -31,13 +33,15 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     if (hasReceivedCompleteChoiceTrigger && routerResult.isDefined && taxiResult.isDefined) {
 
       val chosenTrip = choiceCalculator(routerResult.get.itinerary)
-      // Choice happens here
+
       hasReceivedCompleteChoiceTrigger = false
-      val theTriggerIdAsLong = if(theTriggerId.isEmpty){ stateData.triggerId.get }else{ theTriggerId.get }
-//      services.schedulerRef ! completed(theTriggerIdAsLong,ScheduleTrigger(TeleportationArrivalTrigger(stateData.tick.get),self)
-//      goto(Walking) using stateData.copy(triggerId = None, tick = None) replying completed(theTriggerIdAsLong, )
+      val theTriggerIdAsLong = if(theTriggerId == None){ stateData.triggerId.get }else{ theTriggerId.get }
       beamServices.schedulerRef ! completed(theTriggerIdAsLong)
-      goto(Error)
+      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(stateData.tick.get, id,
+        stateData.data.currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
+
+      goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
+        completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.startTime, self))
     } else {
       stay()
     }
@@ -55,7 +59,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
       beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, DiscreteTime(stateData.tick.get.toInt), Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance
-      //services.taxiManager ! TaxiInquiry(info.id, stateData.data.currentActivity,  2000)
+      //beamServices.taxiManager ! TaxiInquiry(info.id, stateData.data.currentActivity,  2000)
       stay() using stateData.copy(triggerId = Some(triggerId)) replying completed(triggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
     /*
      * Receive and store data needed for choice.
@@ -102,7 +106,9 @@ object ChoosesMode {
           TRANSIT
         }
       }
-      val travelTime = alt.totalTravelTime.toDouble
+      val travelTime = (for (leg <- alt.legs) yield leg.duration).foldLeft(0.0) {
+        _ + _
+      }
       (altMode, travelTime)
     }
     //    if (containsDriveAlt >= 0 && taxiAlternatives.nonEmpty) {
@@ -124,7 +130,11 @@ object ChoosesMode {
     //TODO replace with RNG in services
     val randDraw = Random.nextDouble()
     val chosenIndex = for (i <- 1 until cumulativeAltProbabilities.length if randDraw < cumulativeAltProbabilities(i)) yield i - 1
-    alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
+    if(chosenIndex.size > 0) {
+      alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
+    } else {
+      BeamTrip.noneTrip
+    }
   }
 
   def altUtility(mode: BeamMode, travelTime: Double): Double = {

@@ -1,9 +1,10 @@
 package beam.router
 
-import Modes.BeamMode
-import Modes.BeamMode.{CAR, TRANSIT, WALK}
-import beam.agentsim.agents.vehicles.BeamVehicleAgent
 import beam.agentsim.events.SpaceTime
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{ALIGHTING, BOARDING, CAR, TRANSIT, WAITING, WALK}
+import beam.router.RoutingModel.BeamGraphPath.empty
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.geometry.CoordUtils
@@ -19,7 +20,7 @@ object RoutingModel {
     } else {
       TRANSIT
     }
-    val totalTravelTime: Long = legs.map(_.travelTime).sum
+    val totalTravelTime: Long = legs.map(_.duration).sum
 
     def estimateCost( costPerMile: BigDecimal) = {
       legs.map(_.graphPath.pathLength * costPerMile)
@@ -30,12 +31,19 @@ object RoutingModel {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
   }
 
-  case class BeamLeg(startTime: Long, mode: BeamMode, travelTime: Long,  graphPath: BeamGraphPath, beamVehicleId: Option[Id[Vehicle]])
+  case class BeamLeg(startTime: Long, mode: BeamMode, duration: Long,
+                     graphPath: BeamGraphPath = empty, beamVehicleId: Option[Id[Vehicle]] = None,
+                     endStopId: Option[String] = None)
 
   object BeamLeg {
-    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamGraphPath.empty, None)
-    def apply(time: Long, mode: beam.router.Modes.BeamMode, travelTime: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
-    BeamLeg(time, mode, travelTime, graphPath, None)
+    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
+    def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
+    def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
+    def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
+    def apply(time: Long, mode: beam.router.Modes.BeamMode, duration: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
+      BeamLeg(time, mode, duration, graphPath, None, None)
+    def apply(time: Long, mode: beam.router.Modes.BeamMode, travelTime: Long, graphPath: beam.router.RoutingModel.BeamGraphPath, beamVehicleId: Option[Id[Vehicle]]): BeamLeg =
+      BeamLeg(time, mode, travelTime, graphPath, beamVehicleId, None)
   }
 
   case class BeamGraphPath(linkIds: Vector[String],
@@ -77,9 +85,13 @@ object RoutingModel {
     def within(from : Int, frame: Int = 15*60) = WindowTime(from, frame)
   }
   case class DiscreteTime(override val atTime: Int) extends BeamTime
-  case class WindowTime(override val atTime: Int, timeFrame: Int = 15*60) extends BeamTime {
+  case class WindowTime(override val atTime: Int, timeFrame: Int = 15 * 60) extends BeamTime {
     lazy val fromTime: Int = atTime - (timeFrame/2) -(timeFrame%2)
     lazy val toTime: Int = atTime + (timeFrame/2)
+  }
+  object WindowTime {
+    def apply(atTime: Int, r5: BeamConfig.Beam.Routing.R5): WindowTime =
+      new WindowTime(atTime, r5.departureWindow * 60)
   }
 }
 

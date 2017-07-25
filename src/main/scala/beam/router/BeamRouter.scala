@@ -22,34 +22,43 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
   })
 
   def receive = {
-
     case InitializeRouter =>
       log.info("Initializing Router.")
       router.route(InitializeRouter, sender())
-      context.become({
-        case RouterInitialized =>
-          unstashAll()
-          context.become({
-            case w: RoutingRequest =>
-              router.route(w, sender())
-            case InitializeRouter =>
-              log.info("Router already initialized.")
-            case Terminated(r) =>
-              handelTermination(r)
-          })
-        case InitializeRouter =>
-          log.info("Router initialization in-progress...")
-        case RoutingRequest =>
-          stash()
-        case Terminated(r) =>
-          handelTermination(r)
-      })
+      context.become(initializing)
     case RoutingRequest =>
       stash()
     case Terminated(r) =>
       handelTermination(r)
     case msg =>
-      log.info(s"Unknown message received by Router $msg")
+      log.info(s"Unknown message[$msg] received by Router.")
+  }
+
+  def initializing: Receive = {
+    case RouterInitialized if sender().path.parent == self.path =>
+      unstashAll()
+      context.become(initialized)
+    case InitializeRouter =>
+      log.debug("Router initialization in-progress...")
+      stash()
+    case RoutingRequest =>
+      stash()
+    case Terminated(r) =>
+      handelTermination(r)
+    case msg =>
+      log.info(s"Unknown message[$msg] received by Router.")
+  }
+
+  def initialized: Receive = {
+    case w: RoutingRequest =>
+      router.route(w, sender())
+    case InitializeRouter =>
+      log.debug("Router already initialized.")
+      sender() ! RouterInitialized
+    case Terminated(r) =>
+      handelTermination(r)
+    case msg =>
+      log.info(s"Unknown message[$msg] received by Router.")
   }
   private def handelTermination(r: ActorRef): Unit = {
     router = router.removeRoutee(r)

@@ -277,6 +277,22 @@ public class TripPlanner {
                 LOG.info("\t\t*****Edge END*****");
             });
 
+            LOG.info("\tTotal Segment Patterns are: {}", segment.segmentPatterns.size());
+            ifPresentThenForEach(segment.segmentPatterns, pattern -> {
+                LOG.info("\t\t*****Segment Pattern START*****");
+                LOG.info("\t\tPattern Id: {}", pattern.patternId);
+                LOG.info("\t\tPattern Index: {}", pattern.patternIdx);
+                LOG.info("\t\tRoute Index: {}", pattern.routeIndex);
+                LOG.info("\t\tFrom Index: {}", pattern.fromIndex);
+                LOG.info("\t\tFrom Arrival Time: {}", pattern.fromArrivalTime);
+                LOG.info("\t\tFrom Departure Time: {}", pattern.fromDepartureTime);
+                LOG.info("\t\tTo Index: {}", pattern.toIndex);
+                LOG.info("\t\tTo Arrival Time: {}", pattern.toArrivalTime);
+                LOG.info("\t\tTo Departure Time: {}", pattern.toDepartureTime);
+                LOG.info("\t\tReal Time: {}", pattern.realTime);
+                LOG.info("\t\tTrip Count: {}", pattern.nTrips);
+                LOG.info("\t\tTrip Count: {}", pattern.tripIds);
+            });
             LOG.info("\t*****SEGMENT END*****");
         });
     }
