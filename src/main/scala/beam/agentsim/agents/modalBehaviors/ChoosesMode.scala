@@ -39,9 +39,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       services.schedulerRef ! completed(theTriggerIdAsLong)
       services.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(stateData.tick.get, id,
         stateData.data.currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
-
-      goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
-        completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.startTime, self))
+      if(chosenTrip.legs.size==0){
+        goto(Error)
+      }else{
+        goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
+          completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.startTime, self))
+      }
     } else {
       stay()
     }

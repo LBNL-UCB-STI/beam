@@ -110,7 +110,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
     var trips = Vector[BeamTrip]()
     for(option <- plan.options.asScala) {
-      log.debug(s"Summary of trip is: $option")
+//      log.debug(s"Summary of trip is: $option")
       /*
         * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
         * itinerary has a PointToPointConnection object that help relating access,
