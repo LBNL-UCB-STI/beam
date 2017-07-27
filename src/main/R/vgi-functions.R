@@ -91,3 +91,29 @@ my.read.csv.sql <- function(file, sql = "select * from file", header = TRUE, sep
     sqldf(sql, envir = p, file.format = file.format, dbname = dbname, 
         drv = drv, ...)
 }
+xy.to.latlon <- function(str,print=T){
+  if(length(grep("\\[",str))>0){
+    tmp <- strsplit(strsplit(str,'\\[x=')[[1]][2],'\\]\\[y=')[[1]]
+    x <- as.numeric(tmp[1])
+    y <- as.numeric(strsplit(tmp[2],'\\]')[[1]][1])
+  }else if(length(grep('"',str))>0){
+    x <- as.numeric(strsplit(str,'"')[[1]][2])
+    y <- as.numeric(strsplit(str,'"')[[1]][4])
+  }else if(length(grep(',',str))>0){
+    x <- as.numeric(strsplit(str,',')[[1]][1])
+    y <- as.numeric(strsplit(str,',')[[1]][2])
+  }else if(length(grep(' ',str))>0){
+    x <- as.numeric(strsplit(str,' ')[[1]][1])
+    y <- as.numeric(strsplit(str,' ')[[1]][2])
+  }else{
+    return('Parse Error')
+  }
+  xy <- data.frame(x=x,y=y)
+  xy <- SpatialPoints(xy,proj4string=CRS("+init=epsg:26910"))
+  xy <- data.frame(coordinates(spTransform(xy,CRS("+init=epsg:4326"))))
+  if(print){
+    my.cat(pp(xy$y,',',xy$x))
+  }else{
+    return(pp(xy$y,',',xy$x))
+  }
+}

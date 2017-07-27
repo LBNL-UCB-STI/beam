@@ -9,7 +9,7 @@ source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/vgi-function
 peeps <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group.csv'))
 vehs <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/vehicle-types.csv'))
 plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-plug-types.csv'))
-peeps <- join.on(peeps,vehs,'vehicleTypeId','id',c('batteryCapacityInKWh','vehicleClassName'))
+peeps <- join.on(peeps,vehs,'vehicleTypeId','id',c('batteryCapacityInKWh','vehicleClassName','fuelEconomyInKwhPerMile'))
 peeps[,veh.type:='BEV']
 peeps[vehicleClassName=='PHEV',veh.type:='PHEV']
 peeps[vehicleClassName=='NEV',veh.type:='NEV']
@@ -31,7 +31,13 @@ peeps[vehicleClassName=='NEV',veh.type:='NEV']
 #out.dirs <- list( 'v1B-68k-50pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_13-26-49-68k-V1B-50pct-60hours/',0) )
 #out.dirs <- list( 'v1B-68k-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_14-51-37-68k-V1B-100pct-84hrs/',0) )
 #out.dirs <- list( 'v1B-68k-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_19-51-29-68k-V1B-100pct-same-loc/',0) )
-out.dirs <- list( 'v1B-68k-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_17-39-32-68k-V1B-200pct-84hrs/',0) )
+#out.dirs <- list( 'v1B-68k-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-08_17-39-32-68k-V1B-200pct-84hrs/',0) )
+#out.dirs <- list( 'batt-2x'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-25_01-13-31-batt2x/',0),
+                   #'batt-1.5x' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-24_23-36-42-batt1.5x/',0),
+                   #'base' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-24_21-54-01-batt1x/',0) )
+out.dirs <- list(  'batt-1.5x' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-24_23-36-42-batt1.5x/',0) )
+out.dirs <- list(  'vmt-1k' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-26_23-23-56/',0) )
+                  
 
 scens <- names(out.dirs)
 
@@ -51,7 +57,7 @@ for(scen in scens){
       system(pp('gunzip ',file.without.extension,'csv.gz'))
     }
     if(file.exists(pp(file.without.extension,'csv'))){
-      df <- read.data.table.with.filter(pp(file.without.extension,'csv'),c('DepartureChargingDecisionEvent','ArrivalChargingDecisionEvent','BeginChargingSessionEvent','EndChargingSessionEvent','UnplugEvent','actend'),'time')
+      df <- read.data.table.with.filter(pp(file.without.extension,'csv'),c('DepartureChargingDecisionEvent','ArrivalChargingDecisionEvent','BeginChargingSessionEvent','EndChargingSessionEvent','UnplugEvent','actend','travelled'),'time')
       save(df,file=pp(file.without.extension,'Rdata'))
     }
   }
@@ -65,6 +71,17 @@ for(scen in scens){
 }
 ev <- rbindlist(ev,use.names=T,fill=T)
 ev[,native.order:=1:nrow(ev)]
+
+# first extract VMT and eVMT data, then remove the travelled events
+ev <- join.on(ev,peeps,'person','personId',c('batteryCapacityInKWh','veh.type','fuelEconomyInKwhPerMile'))
+vmt <- ev[,list(miles=sum(as.numeric(distance),na.rm=T)*0.000621371,n.veh=length(u(person)),days=max(time)/24/3600),by='veh.type']
+weekday.to.weekend <- 1.25 # http://onlinepubs.trb.org/onlinepubs/archive/conferences/nhts/Pendyala-Agarwal.pdf   https://www.arb.ca.gov/research/weekendeffect/we-wd_fr_5-7-04.pdf
+vmt[,vmt:=miles/n.veh/days*(253 + 112/weekday.to.weekend)] # 261 weekdays per year - 8 holidays
+
+ev <- ev[!type=='travelled']
+
+
+setkey(ev,native.order)
 ev[,hr:=as.numeric(time)/3600]
 ev[,hour:=floor(hr)]
 ev[actType=="",actType:=NA]
@@ -109,7 +126,9 @@ ev <- ev[type%in%c('BeginChargingSessionEvent','EndChargingSessionEvent','Unplug
 
 # Assign battery cap and charging rates
 ev[,kw:=c("j-1772-2"=6.7,"sae-combo-3"=50,"j-1772-1"=1.9,"chademo"=50,"tesla-2"=20,"tesla-3"=120)[plugType]]
-ev <- join.on(ev,peeps,'person','personId',c('batteryCapacityInKWh','veh.type'))
+# For scenarios with bigger batteries, we need to adjust
+ev[scenario=='batt-1.5x',batteryCapacityInKWh:=batteryCapacityInKWh*1.5]
+ev[scenario=='batt-2x',batteryCapacityInKWh:=batteryCapacityInKWh*2]
 ev[,energy.level:=soc*batteryCapacityInKWh]
 setkey(ev,scenario,hr,native.order)
  
@@ -223,13 +242,13 @@ flex.scenario <- 'base'
   soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','scenario','person','final.type')]
 
   # Final categorization of load
-  #soc.sum <- soc[hr>=27 & hr<51 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','final.type','veh.type')]
-  #setkey(soc.sum,scenario,hr,final.type,veh.type)
-  #ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_wrap(scenario~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
-  #ggplot(soc[hr==floor(hr),list(cumul.energy=sum(cumul.energy)),by=c('hr','constraint','final.type','veh.type')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(veh.type~final.type)
-  #soc.sum <- soc[hr==floor(hr) & hr>=27 & hr<51 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','final.type')]
-  #setkey(soc.sum,scenario,hr,final.type)
-  #ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=final.type))+geom_bar(stat='identity')+facet_wrap(scenario~final.type,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
+  soc.sum <- soc& hr>=27+24*4 & hr<51+24*4 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','final.type','veh.type')]
+  setkey(soc.sum,scenario,hr,final.type,veh.type)
+  ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_grid(final.type~scenario,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
+  ggplot(soc[hr==floor(hr) & hr<160,list(cumul.energy=sum(cumul.energy)),by=c('scenario','hr','constraint','final.type','veh.type')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(scenario~veh.type~final.type)
+  soc.sum <- soc[hr==floor(hr) & hr>=27+24*5 & hr<51+24*5 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','final.type')]
+  setkey(soc.sum,scenario,hr,final.type)
+  ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=final.type))+geom_bar(stat='identity')+facet_grid(final.type~scenario,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
 
   # Load CP data and create scaling factors for turning BEAM workday output into a full week of constraints
   load(pp('/Users/critter/GoogleDriveUCB/beam-core/data/chargepoint/cp.Rdata'))

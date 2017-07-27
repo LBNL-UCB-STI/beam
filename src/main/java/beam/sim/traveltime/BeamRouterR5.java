@@ -40,6 +40,7 @@ public class BeamRouterR5 extends BeamRouter {
 	int cachMiss = 0, getCount = 0;
 	private static QuadTree<String> edgeQuadTree;
 	LinkedHashMap<Id<Link>,Id<Link>> matsimLinksToR5Links = EVGlobalData.data.matsimLinksToR5Links;
+	LinkedHashMap<String,Integer> attemptsToRouteKey = new LinkedHashMap<>();
 	private EdgeStore.Edge cursor;
 
 	public BeamRouterR5(){
@@ -75,6 +76,7 @@ public class BeamRouterR5 extends BeamRouter {
 			EVGlobalData.data.networkR5 = transportNetwork;
 			indexEdges();
 //			updateMatsimNetwork();
+//			System.exit(0);
 		}
 
 		if(EVGlobalData.data.travelTimeFunction == null){
@@ -127,7 +129,7 @@ public class BeamRouterR5 extends BeamRouter {
 				double length = cursor.getLengthM();
 				double speed = cursor.getSpeedMs();
 				Coord coord = GeoUtils.transformToUtm(cursor.getGeometry().getCoordinate());
-				if (coord.getX() > minLon && coord.getY() > minLat && coord.getX() < maxLon && coord.getY() < maxLat) {
+//				if (coord.getX() > minLon && coord.getY() > minLat && coord.getX() < maxLon && coord.getY() < maxLat) {
 					Node dummyFromNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "from"), coord);
 					Node dummyToNode = NetworkUtils.createAndAddNode(network, Id.createNodeId(idx.toString() + "to"), coord);
 					Link r5Link = NetworkUtils.createLink(Id.createLinkId(idx.toString()), dummyFromNode, dummyToNode, network, length, speed, 1.0, 1.0);
@@ -137,7 +139,7 @@ public class BeamRouterR5 extends BeamRouter {
 					theLine.add(Double.toString(coord.getX()));
 					theLine.add(Double.toString(coord.getY()));
 					CSVUtil.writeLine(fileWriter,theLine);
-				}
+//				}
 			}
 			fileWriter.close();
 		} catch (IOException e) {
@@ -208,14 +210,19 @@ public class BeamRouterR5 extends BeamRouter {
         ProfileOption option = response.getOptions().get(0);
         StreetSegment segment = option.access.get(0);
         Double totalDuration = Double.valueOf(segment.duration);
-		Double totalDistance = Double.valueOf(segment.distance) / 1000.0; // R5 is in millimeters
+		Double totalDistance = 0.0; // in meter
+		for(StreetEdgeInfo edge : segment.streetEdges) {
+			totalDistance += Double.valueOf(edge.distance) / 1000.0;
+		}
         for(StreetEdgeInfo edge : segment.streetEdges){
         	double edgeDist = Double.valueOf(edge.distance)/1000.0;
 //            com.vividsolutions.jts.geom.Coordinate coord = edge.geometry.getCoordinate();
 //            Link nearestLink = EVGlobalData.data.linkQuadTree.getNearest(coord.x,coord.y);
             routeInformation.add(new RouteInformationElement(edge.edgeId.toString(),edgeDist * totalDuration / totalDistance, edgeDist));
+			if(totalDistance==0.0){
+				DebugLib.emptyFunctionForSettingBreakPoint();
+			}
 		}
-
 		return routeInformation;
 	}
 
@@ -226,18 +233,41 @@ public class BeamRouterR5 extends BeamRouter {
 
 	public TripInformation getTripInformation(double time, Link startLink, Link endLink) {
 		if(network==null)configure();
+		String key = "";
+		double roundedTime = 0.0;
+		if(EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group").equals(
+				EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group")
+		)){
+			key = EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group") + "---" +
+					EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group") + "---" +
+					startLink.getId().toString() + "---" +
+					endLink.getId().toString() + "---" +
+					EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
+		}else{
+			key = EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group") + "---" +
+					EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group") + "---" +
+					EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
+		}
 
 //		double roundedTime = MathUtil.roundDownToNearestInterval(time,60.0*60.0);
-		double roundedTime = 0.0;
-		String key = EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group") + "---" +
-			EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group") + "---" +
-			EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
 		getCount++;
 		TripInformation resultTrip = EVGlobalData.data.newTripInformationCache.getTripInformation(key);
 		if(resultTrip==null){
 			cachMiss++;
 			resultTrip = new TripInformation(roundedTime, calcRoute(startLink, endLink, roundedTime, null));
-			EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
+			if(resultTrip.getRouteInfoElements().size()>1) {
+				EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
+			}else{
+				if(attemptsToRouteKey.containsKey(key)){
+					if(attemptsToRouteKey.get(key) > 10) {
+						EVGlobalData.data.newTripInformationCache.putTripInformation(key, resultTrip);
+					}else{
+						attemptsToRouteKey.put(key,attemptsToRouteKey.get(key)+1);
+					}
+				}else{
+					attemptsToRouteKey.put(key,1);
+				}
+			}
 //			if(EVGlobalData.data.newTripInformationCache.getCacheSize() % 10000 == 0){
 //				EVGlobalData.data.newTripInformationCache.persistStore();
 //			}

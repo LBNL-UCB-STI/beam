@@ -67,7 +67,7 @@ sf.counties <- spTransform(counties[sf.county.inds,],CRS("+init=epsg:26910"))
   #homes <- data.table(id=homes.id,x=homes.loc$V1,y=homes.loc$V2)
   #return(list('homes'=homes))
 #})
-do.or.load('/Users/critter/Documents/matsim/input/run0-201-leg-data.Rdata',function(){
+do.or.load('/Users/critter/Documents/beam/input/run0-201-leg-data.Rdata',function(){
   legs <- data.table(read.csv('/Users/critter/Documents/matsim/input/run0.201.leg.data.csv',stringsAsFactors=F,header=F))
   legs[V2=='',V2:=NA]
   legs[V3=='',V3:=NA]

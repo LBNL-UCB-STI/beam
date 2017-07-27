@@ -267,6 +267,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void performChargingDecisionAlgorithmOnDeparture() {
+		if(getId().toString().equals("1702340")){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
 		//DebugLib.traceAgent(this.getId(), "65263");
 
 		ChargingStrategy chargingStrategyForThisLeg = ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategyForLeg(getCurrentLegIndex());
@@ -546,6 +549,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void setEstimatedTravelDistanceInDay() {
+		if(getId().toString().equals("6153008")){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
 		if (this.chargingState != AgentChargingState.TRAVELING) {
 			this.remainingTravelDistanceInDayInMeters = 0.0;
 		}
@@ -696,8 +702,8 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void handleArrival() {
-		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			//DebugLib.emptyFunctionForSettingBreakPoint();
+		if(EVGlobalData.data.now / 3600.0 > 7.0){
+			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		if(this.currentPlanElementIndex % 2 == 0){
 			DebugLib.emptyFunctionForSettingBreakPoint();

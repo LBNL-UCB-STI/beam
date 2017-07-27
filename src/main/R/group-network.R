@@ -1,4 +1,12 @@
 
+# Grouping R5 links
+
+links <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/r5-link-attribs.csv'))
+
+links[,group:=kmeans(links[,list(x,y)],1200,iter.max=20)$cluster]
+
+write.csv(links,file='~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/r5-link-attribs-grouped.csv',row.names=F)
+
 load.libraries(c('XML','rgdal','dbscan'))
 
 do.or.load(pp(matsim.shared,"model-inputs/calibration-v2/network.Rdata"),function(){

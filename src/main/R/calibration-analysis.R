@@ -127,11 +127,3 @@ cal.all.fin <- cal.all[,list(SSR=last.change(SSR,minSSR),yesCharge=last.change(y
 
 ggpairs(as.data.frame(cal.all.fin),columns=2:8, mapping=ggplot2::aes(colour=calib.run))
 
-xy.to.latlon <- function(str){
-  x <- as.numeric(strsplit(str,'"')[[1]][2])
-  y <- as.numeric(strsplit(str,'"')[[1]][4])
-  xy <- data.frame(x=x,y=y)
-  xy <- SpatialPoints(xy,proj4string=CRS("+init=epsg:26910"))
-  xy <- data.frame(coordinates(spTransform(xy,CRS("+init=epsg:4326"))))
-  my.cat(pp(xy$y,',',xy$x))
-}

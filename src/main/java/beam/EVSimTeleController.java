@@ -306,6 +306,7 @@ public class EVSimTeleController {
 	}
 	public void loadLinkAttributes(){
 		EVGlobalData.data.linkAttributes = LinkAttributeLoader.loadLinkAttributes();
+
 	}
 
 	protected void loadRouter(){
@@ -315,7 +316,7 @@ public class EVSimTeleController {
 
 	public static void scheduleGlobalActions() {
 //		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.timeMarkingNewDay, EVGlobalData.data.globalActions, "handleDayTracking");
-		EVGlobalData.data.scheduler.addCallBackMethod(0.0, EVGlobalData.data.globalActions, "handleDayTracking");
+		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.timeMarkingNewDay, EVGlobalData.data.globalActions, "handleDayTracking");
 //		EVGlobalData.data.scheduler.addCallBackMethod(0.0, EVGlobalData.data.globalActions, "printRand");
 //		EVGlobalData.data.scheduler.addCallBackMethod(100*3600.0, EVGlobalData.data.globalActions, "pauseForHour");
 	}

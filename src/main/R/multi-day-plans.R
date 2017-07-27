@@ -85,7 +85,6 @@ legs[,element.i:=1:length(dist),by='id']
 legs <- join.on(legs,plans,c('id','element.i'),c('id','element.i'),c('end.dt','link.id','link.x','link.y'))
 legs[,dep.delay:=dep.dt - end.dt]
 
-
 # Now just deal with subset of plans data we're intersted in
 load('/Users/critter/Documents/beam/input/sf-bay-sampled-plans.Rdata')
 
@@ -105,7 +104,7 @@ plans[is.na(end.dt),end.dt:=to.posix(pp('1970-01-02 ',end.hour-24,':',end.minute
 home.to.home <- u(plans[,head(type,1)=='Home' & tail(type,1)=='Home',by='id'][V1==T]$id)
 other.types <- u(plans[,head(type,1)=='Home' & tail(type,1)=='Home',by='id'][V1==F]$id)
 
-n.more.days <- 6
+n.more.days <- 9
 
 new.plans <- list()
 for(person in home.to.home){
@@ -129,11 +128,11 @@ for(person in other.types){
 new.plans <- rbindlist(new.plans)
 new.plans[,link:=pp('sfpt',link)]
 new.legs <- new.plans[,list(start_link=head(link,-1),end_link=tail(link,-1),trav_time=1,distance=1),by='id']
-save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-7.Rdata')
-load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-7.Rdata')
+save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-10.Rdata')
+load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-10.Rdata')
 
-outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-7day.xml'
-outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-7day-500.xml'
+outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-10day.xml'
+outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-10day-500.xml'
 
 the.str <- '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">\n\n<population>\n'
 cat(the.str,file=outfile,append=F)

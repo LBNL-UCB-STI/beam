@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import beam.parking.lib.DebugLib;
 import beam.utils.MathUtil;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
@@ -108,6 +109,11 @@ public class BeamRouterImpl extends BeamRouter {
 	}
 
 	public TripInformation getTripInformation(double time, Link startLink, Link endLink) {
+		if(EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group").equals(
+				EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group")
+		)){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
 
 		double roundedTime = MathUtil.roundDownToNearestInterval(time,60.0*60.0);
 		String key = EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group") + "---" +
