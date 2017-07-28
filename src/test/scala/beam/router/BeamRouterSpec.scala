@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{DefaultTimeout, EventFilter, ImplicitSender, TestKit}
 import akka.util.Timeout
-import beam.router.BeamRouter.{InitializeRouter, RouterInitialized}
+import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigFactory
@@ -57,6 +57,13 @@ class BeamRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLi
       router ! "DUMP"
       expectNoMsg()
       EventFilter.info(start = "Unknown message", occurrences = 1)
+    }
+  }
+
+  "On RoutingRequest it" must {
+    "Respond RouterNeedInitialization, while uninitialized" in {
+      router ! RoutingRequest
+      expectMsg(RouterNeedInitialization)
     }
   }
 
