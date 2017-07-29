@@ -41,8 +41,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
       if(chosenTrip.legs.isEmpty) {
         log.error(s"No further PersonDepartureTrigger is going to be scheduled after triggerId=$theTriggerId ")
-        goto(Error)
-      }else{
+        goto(BeamAgent.Error)
+      } else {
         goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
           completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.startTime, self))
       }
