@@ -1,19 +1,18 @@
 package beam.agentsim.agents.modalBehaviors
 
 import beam.agentsim.agents.BeamAgent.BeamAgentInfo
-import beam.agentsim.agents.BeamAgent.Error
-import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
+import beam.agentsim.agents.{BeamAgent, PersonAgent, RideHailingManager, TriggerShortcuts}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel.{BeamTrip, DiscreteTime}
+import beam.router.RoutingModel.{BeamTime, BeamTrip}
 import beam.sim.HasServices
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
 
 import scala.util.Random
@@ -39,9 +38,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       beamServices.schedulerRef ! completed(theTriggerIdAsLong)
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(stateData.tick.get, id,
         stateData.data.currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
-
+      val departTrigger  = chosenTrip.legs.headOption.map(departLeg  => schedule[PersonDepartureTrigger](departLeg.startTime, self) ).getOrElse {
+        log.error(s"No further PersonDepartureTrigger is going to be scheduled after triggerId=$theTriggerId ")
+        Vector()
+      }
       goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
-        completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.startTime, self))
+        completed(triggerId = theTriggerIdAsLong, departTrigger)
     } else {
       stay()
     }
@@ -57,9 +59,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${stateData.tick}")
       val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
-      beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, DiscreteTime(stateData.tick.get.toInt), Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
+      val departTime = BeamTime.at(stateData.tick.get.toInt)
+      //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
+      beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance
-      //beamServices.taxiManager ! TaxiInquiry(info.id, stateData.data.currentActivity,  2000)
+      val pickUpLocation = stateData.data.currentActivity.getCoord
+      beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
+        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
+
       stay() using stateData.copy(triggerId = Some(triggerId)) replying completed(triggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
     /*
      * Receive and store data needed for choice.

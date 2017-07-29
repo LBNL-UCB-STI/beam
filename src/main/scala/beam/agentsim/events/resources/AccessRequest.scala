@@ -40,3 +40,14 @@ trait ReservationResponse[R <: Resource] {
   def response: Either[AccessInfo[R], AccessResponse[R]]
 
 }
+
+trait ReservationError {
+  def errorCode : ReservationErrorCode.ReservationErrorCode
+}
+
+object ReservationErrorCode extends Enumeration {
+  type ReservationErrorCode = ReservationErrorCode.Value
+  val ResourceUnAvailable = Value("NoResourceAvailable")
+  val ResourceCapacityExhausted = Value("ResourceCapacityExhausted")
+
+}

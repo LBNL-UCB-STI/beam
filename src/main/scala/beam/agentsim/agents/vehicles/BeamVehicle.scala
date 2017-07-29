@@ -76,6 +76,8 @@ case class LeaveVehicleTrigger(tick: Double, vehicleId: Id[Vehicle], driver: Opt
 
 case class NoEnoughSeats(tick: Double, vehicleId: Id[Vehicle], passengers: List[ActorRef], requiredSeats: Int)  extends Trigger
 
+case class DriverAlreadyAssigned(tick: Double, vehicleId: Id[Vehicle], currentDriver: ActorRef)  extends Trigger
+
 /**
   * Defines common behavior for any vehicle. Communicate with PersonAgent
   * VehicleManager.
@@ -131,14 +133,14 @@ trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShor
   }
 
   chainedWhen(Initialized) {
-    case Event(TriggerWithId(EnterVehicleTrigger(tick, vehicleId, newDriver, newPassengers), triggerId), _) =>
-      var responseTriggers = Vector[ScheduleTrigger]()
+    case Event(EnterVehicleTrigger(tick, vehicleId, newDriver, newPassengers), info) =>
       newDriver match {
         case Some(theDriver) if driver.isEmpty =>
           setDriver(theDriver)
-          responseTriggers = responseTriggers ++ schedule[PersonEntersVehicleTrigger](tick, theDriver)
+          theDriver ! PersonEntersVehicleTrigger(tick)
         case Some(theDriver) if driver.isDefined =>
-          //TODO: define change driver behaviour
+          val beamAgent = sender()
+          beamAgent ! DriverAlreadyAssigned(tick, vehicleId, driver.get)
         case None if driver.isDefined =>
           log.debug(s"Keep previous driver ${driver.get.path.name} in vehicle ${data.getId}")
         case None if driver.isEmpty =>
@@ -150,46 +152,48 @@ trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShor
           val available = fullCapacity - (theNewPassengers.size + passengers.size + driver.toList.size)
           if ( available >= 0) {
             pickupPassengers(theNewPassengers)
-            val notifyPassengerActors = theNewPassengers.map(personAgent => scheduleOne[PersonEntersVehicleTrigger](tick, personAgent))
-            responseTriggers = responseTriggers ++ notifyPassengerActors
-//            val beamVehicle = self
-//            // send AssignCarrier to update person's HumanVehicleBody ???
-//            responseTriggers = responseTriggers ++ theNewPassengers.flatMap(personAgent => scheduleOne[AssignCarrier](tick, personAgent, beamVehicle))
+            // send direct message to personAgent, no trigger!! + confirmation message with Ack
+            theNewPassengers.foreach{
+              personAgent =>
+                personAgent ! PersonEntersVehicleTrigger(tick)
+            }
+//          val beamVehicle = self
+//          // send AssignCarrier to update person's HumanVehicleBody ???
+//          responseTriggers = responseTriggers ++ theNewPassengers.flatMap(personAgent => scheduleOne[AssignCarrier](tick, personAgent, beamVehicle))
           } else {
             val leftSeats = fullCapacity - passengers.size
             val beamAgent = sender()
-            responseTriggers = responseTriggers :+ scheduleOne[NoEnoughSeats](tick, beamAgent, vehicleId, theNewPassengers, leftSeats)
+            beamAgent ! NoEnoughSeats(tick, vehicleId, theNewPassengers, leftSeats)
           }
         case _ =>
           //do nothing
       }
-
-      stay() replying completed(triggerId, responseTriggers)
+      stay()
       // we should either go to traveling mode or stay() and wait special event from driver StartTrip ??
       //goto(Traveling) replying completed(triggerId, triggers)
   }
   chainedWhen(Traveling) {
-    case Event(TriggerWithId(LeaveVehicleTrigger(tick, vehicleId, oldDriver, oldPassengers), triggerId), _) =>
-      var responseTriggers = Vector[ScheduleTrigger]()
+    case Event(LeaveVehicleTrigger(tick, vehicleId, oldDriver, oldPassengers), info) =>
       oldPassengers match {
         case Some(passengersToDrop) =>
           val offPassengers = dropOffPassengers(passengersToDrop)
-          responseTriggers ++= offPassengers.map(personAgent => scheduleOne[PersonLeavesVehicleTrigger](tick, personAgent))
+          offPassengers.foreach{ personAgent =>
+            personAgent ! PersonLeavesVehicleTrigger(tick)
+          }
           log.debug(s"Dropped ${offPassengers.size} passenger(s) vehicleId=$vehicleId")
         case _ =>
           log.debug(s"LeaveVehicleTrigger on tick=$tick, vehicleId=$vehicleId without passengers")
       }
       if (driver.isDefined && oldDriver.isDefined && driver.get == oldDriver.get) {
         setDriver(null)
-        responseTriggers = responseTriggers ++ schedule[PersonLeavesVehicleTrigger](tick, driver.get)
+        driver.get !  PersonLeavesVehicleTrigger(tick)
       }
-
       if (passengers.isEmpty) {
         //TODO: handle taxi case and notify taximanager for available taxi ???
-        goto(Initialized) replying completed(triggerId, responseTriggers)
+        goto(Initialized)
       } else {
         // is it allowed to travel without driver ? auto pilot?
-        stay() replying completed(triggerId, responseTriggers)
+        stay()
       }
   }
 

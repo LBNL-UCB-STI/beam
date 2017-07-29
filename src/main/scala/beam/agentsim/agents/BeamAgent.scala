@@ -93,7 +93,8 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       }
       val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
       if (newStates.isEmpty || !allStatesSame(newStates)){
-        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition to for BeamAgent ${stateData.id}")
+        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
+          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
       } else {
         val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
         if(numCompletionNotices>1){

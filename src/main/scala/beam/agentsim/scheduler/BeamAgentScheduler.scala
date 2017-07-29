@@ -51,7 +51,7 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Ac
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
     if(now - triggerToSchedule.trigger.tick > maxWindow){
-      throw new RuntimeException(s"Cannot schedule an event at tick ${triggerToSchedule.trigger.tick} when 'now' is at $now")
+      throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'now' is at $now sender=${sender()}")
     }
     val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
     triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority ))

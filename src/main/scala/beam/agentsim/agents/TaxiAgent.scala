@@ -5,7 +5,8 @@ import akka.pattern.{ask, pipe}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.agents.TaxiAgent._
-import beam.agentsim.agents.RideHailingManager.{RegisterTaxiAvailable, ReserveTaxiConfirmation, TaxiAvailableAck}
+import beam.agentsim.agents.RideHailingManager.{RegisterTaxiAvailable, ReserveTaxiResponse, TaxiAvailableAck}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.RouteLocation
 import beam.router.RoutingModel.BeamTrip
@@ -39,8 +40,8 @@ object TaxiAgent {
   case object Traveling extends BeamAgentState {
     override def identifier = "Traveling"
   }
-  case class PickupCustomer(confirmation: ReserveTaxiConfirmation, pickUpLocation: RouteLocation, destination: RouteLocation, tripPlan: Option[BeamTrip])
-  case class DropOffCustomer(newLocation: Coord)
+  case class PickupCustomer(confirmation: ReserveTaxiResponse, pickUpLocation: RouteLocation, destination: RouteLocation, tripPlan: Option[BeamTrip])
+  case class DropOffCustomer(newLocation: SpaceTime)
 
   case class RegisterTaxiAvailableWrapper(triggerId: Long)
 }
@@ -49,7 +50,8 @@ class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TaxiData]) =>
-      val managerFuture = (beamServices.taxiManager ? RegisterTaxiAvailable(self,info.data.vehicleId, info.data.location)).mapTo[TaxiAvailableAck.type].map(result =>
+      val taxiAvailable = RegisterTaxiAvailable(self, info.data.vehicleId, availableIn = SpaceTime(info.data.location, tick.toLong))
+      val managerFuture = (beamServices.taxiManager ? taxiAvailable).mapTo[TaxiAvailableAck.type].map(result =>
         RegisterTaxiAvailableWrapper(triggerId)
       )
       managerFuture pipeTo self
@@ -66,8 +68,8 @@ class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val
 
   when(Traveling) {
     case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[TaxiData]) =>
-      beamServices.taxiManager ? RegisterTaxiAvailable(self, info.data.vehicleId, newLocation)
-      goto(Idle) using BeamAgentInfo(id,info.data.copy(location = newLocation))
+      beamServices.taxiManager ? RegisterTaxiAvailable(self, info.data.vehicleId, availableIn =  newLocation)
+      goto(Idle) using BeamAgentInfo(id,info.data.copy(location = newLocation.loc))
   }
 
   /*
