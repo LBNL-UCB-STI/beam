@@ -204,6 +204,13 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       logError("unrec")
       goto(Error)
   }
+  when(Waiting) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case _ =>
+      logError("unrec")
+      goto(Error)
+  }
 
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
@@ -321,7 +328,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   }
 
   // Transit-related states
-//  chainedWhen(Waiting) {
+  chainedWhen(Waiting) {
 //    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
 //      val processedData = processedStateData(info.data.currentRoute, tick)
 //      val restTrip = processedData.restTrip
@@ -362,7 +369,9 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
 //      beamServices.agentSimEventsBus.publish(MatsimEvent(new AgentWaitingForPtEvent(tick, id, Id.create(Random.nextInt(), classOf[TransitStopFacility]), Id.create(Random.nextInt(), classOf[TransitStopFacility]))))
 //      goto(Boarding) using stateData.copy(id, info.data.copy(currentRoute = procData.restTrip)) replying
 //        completed(triggerId, schedule[PersonArrivesTransitStopTrigger](procData.nextStart,self))
-//  }
+      case Event(_,_) =>
+        goto(Finished)
+  }
 
   when(Boarding) {
     case Event(TriggerWithId(PersonArrivesTransitStopTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
