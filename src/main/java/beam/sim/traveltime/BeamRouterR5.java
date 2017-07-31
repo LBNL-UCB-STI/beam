@@ -197,11 +197,18 @@ public class BeamRouterR5 extends BeamRouter {
 		if(response.getOptions().size()==0){
 		    log.warn("empty route");
 			try {
-				cursor.seek(Integer.parseInt(fromLink.getId().toString()));
+				int i = Integer.parseInt(fromLink.getId().toString());
+				cursor.seek(i);
 				double linkTravelTime = cursor.getLengthM() / cursor.getSpeedMs();
 				routeInformation.add(new RouteInformationElement(fromLink, linkTravelTime));
 			} catch (NumberFormatException e) {
-				e.printStackTrace();
+				log.warn(e.getMessage());
+				double linkTravelTime = 10.0;
+				routeInformation.add(new RouteInformationElement(fromLink, linkTravelTime));
+			} catch (ArrayIndexOutOfBoundsException e) {
+				log.warn("Could not locate link id: "+fromLink.getId()+" in R5 edge store, error msg: "+e.getMessage());
+				double linkTravelTime = 10.0;
+				routeInformation.add(new RouteInformationElement(fromLink, linkTravelTime));
 			}
 			return routeInformation;
 		}else{
