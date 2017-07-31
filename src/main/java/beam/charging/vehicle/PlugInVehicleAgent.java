@@ -672,7 +672,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void handleDeparture() {
-		//DebugLib.traceAgent(this.getPersonId(),"1702340");
+		DebugLib.traceAgent(this.getPersonId(),"5886076");
 		if(this.chargingState == AgentChargingState.STRANDED)return;
 		if (this.chargingState == AgentChargingState.PRE_CHARGE || this.chargingState == AgentChargingState.CHARGING
 				|| this.chargingState == AgentChargingState.POST_CHARGE_PLUGGED || this.chargingState == AgentChargingState.POST_CHARGE_UNPLUGGED) {
@@ -702,6 +702,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void handleArrival() {
+		DebugLib.traceAgent(this.getPersonId(),"5886076");
 		if(EVGlobalData.data.now / 3600.0 > 7.0){
 			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
@@ -728,15 +729,24 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 //			PlugInVehicleAgent.internalInterface.arrangeNextAgentState(getMobsimAgent());
 			updateActivityTrackingOnStart();
 			EVGlobalData.data.eventLogger.processEvent(new ActivityStartEvent(EVGlobalData.data.now,getPersonId(),this.getCurrentLink(),Id.create("NA", ActivityFacility.class), this.currentActivity.getType()));
-			if(this.currentActivity.getEndTime() <= EVGlobalData.data.now){
-				handleDeparture();
-			}else{
-				EVGlobalData.data.scheduler.addCallBackMethod(this.currentActivity.getEndTime(), this,"handleDeparture", 0.0);
+
+			// Either schedule Activity End (if this is last activity) or Handle Departure
+			if(this.nextActivity == null){
+				EVGlobalData.data.scheduler.addCallBackMethod(this.currentActivity.getEndTime(), this,"endActivity", 0.0);
+			}else {
+				if (this.currentActivity.getEndTime() <= EVGlobalData.data.now) {
+					handleDeparture();
+				} else {
+					EVGlobalData.data.scheduler.addCallBackMethod(this.currentActivity.getEndTime(), this, "handleDeparture", 0.0);
+				}
 			}
 		} catch (Exception e) {
 			EVGlobalData.data.testingHooks.errorDuringExecution = true;
 			DebugLib.stopSystemAndReportInconsistency(e.getMessage());
 		}
+	}
+	public void endActivity() {
+		EVGlobalData.data.eventLogger.processEvent(new ActivityEndEvent(EVGlobalData.data.now, getPersonId(), this.getCurrentLink(), Id.create("NA", ActivityFacility.class), this.currentActivity.getType()));
 	}
 
 	public void updateActivityTrackingOnStart() {
