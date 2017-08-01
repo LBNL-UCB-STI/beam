@@ -23,7 +23,8 @@ state PerformingActivity #eb1921
 PerformingActivity: ActivityEndTrigger
 
 state ChoosingMode #eb1921
-ChoosingMode: PersonDepartureTrigger
+ChoosingMode: BeginModeChoiceTrigger
+ChoosingMode: FinalizeModeChoiceTrigger
 
 state Traveling #eb1921{
     Traveling: OnEnter: EnterBodyVehicle
@@ -67,7 +68,8 @@ state Traveling #eb1921{
 Initialized --> PerformingActivity
 PerformingActivity --> ChoosingMode
 Traveling --> PerformingActivity
-ChoosingMode --> Traveling
+ChoosingMode --> ChoosingMode
+ChoosingMode --> Waiting
 Walking --> Traveling: 3
 
 @enduml
