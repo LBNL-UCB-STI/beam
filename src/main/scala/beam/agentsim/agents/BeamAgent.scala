@@ -66,7 +66,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   def data: T
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
-  private val chainedStateFunctions = new HashMap[BeamAgentState, Set[StateFunction]] with MultiMap[BeamAgentState,StateFunction]
+  private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState,StateFunction]
   final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit =
     chainedStateFunctions.addBinding(stateName,stateFunction)
 
@@ -92,8 +92,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         }
       }
       val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
-      if (newStates.size == 0 || !allStatesSame(newStates)){
-        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition to for BeamAgent ${stateData.id}")
+      if (newStates.isEmpty || !allStatesSame(newStates)){
+        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
+          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
       } else {
         val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
         if(numCompletionNotices>1){
@@ -111,7 +112,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
     theReplies.count(_.isInstanceOf[CompletionNotice])
   }
   def allStatesSame(theStates: List[BeamAgentState]): Boolean = {
-    theStates.foldLeft(true)((result,stateToTest) => result && stateToTest == theStates.head)
+    theStates.forall(stateToTest => stateToTest == theStates.head)
   }
 
   startWith(Uninitialized, BeamAgentInfo[T](id, data))

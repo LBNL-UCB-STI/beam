@@ -30,8 +30,6 @@ class HouseholdActor(id: Id[households.Household], matSimHouseHold : org.matsim.
 
   override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = vehicleActors.get(vehicleId)
 
-  override def getAllResources(): Iterable[ActorRef] = vehicleActors.values
-
   override def receive: Receive = {
     case InitializeTrigger(_) =>
       log.debug(s"HouseHold ${self.path.name} has been initialized ")

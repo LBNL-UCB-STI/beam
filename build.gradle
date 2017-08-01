@@ -161,7 +161,7 @@ dependencies {
     compile group: 'io.circe', name: "circe-generic_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-parser_2.12
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
-
+    compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
     /////////////
     // Akka Dependencies

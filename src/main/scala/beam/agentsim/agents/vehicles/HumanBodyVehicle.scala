@@ -1,7 +1,6 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.{ActorRef, Props}
-import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.router.RoutingModel.BeamGraphPath
 import beam.sim.{BeamServices, HasServices}
@@ -10,20 +9,22 @@ import org.matsim.vehicles._
 
 
 
-class HumanBodyVehicle(val beamServices: BeamServices, val vehicleData: HumanBodyVehicleData,
+class HumanBodyVehicle(val personId: Id[PersonAgent], val beamServices: BeamServices, val data: HumanBodyVehicleData,
                        var trajectory: Trajectory, var powerTrain: Powertrain,
-                       var driver: Option[ActorRef] = None) extends BeamVehicle with HasServices{
-  override var services: BeamServices = beamServices
+                       var driver: Option[ActorRef] = None) extends BeamVehicle with HasServices {
 
   //XXX: be careful with traversing,  possible recursion
   def passengers: List[ActorRef] = List(self)
 
   def carrier = None
 
-  override def receive: Receive = {
-    case _ =>
-      throw new UnsupportedOperationException
-  }
+  override def id: Id[_] = personId
+
+  override protected def setDriver(newDriver: ActorRef): Unit = throw new UnsupportedOperationException
+
+  override protected def pickupPassengers(newPassengers: List[ActorRef]): Unit = throw new UnsupportedOperationException
+
+  override protected def dropOffPassengers(passengers: List[ActorRef]): List[ActorRef] = throw new UnsupportedOperationException
 }
 
 /**

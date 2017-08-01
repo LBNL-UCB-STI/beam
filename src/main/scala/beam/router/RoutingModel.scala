@@ -5,7 +5,9 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{ALIGHTING, BOARDING, CAR, TRANSIT, WAITING, WALK}
 import beam.router.RoutingModel.BeamGraphPath.empty
 import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.Id
+import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -19,6 +21,10 @@ object RoutingModel {
       TRANSIT
     }
     val totalTravelTime: Long = legs.map(_.duration).sum
+
+    def estimateCost( costPerMile: BigDecimal) = {
+      legs.map(_.graphPath.pathLength * costPerMile)
+    }
   }
 
   object BeamTrip {
@@ -49,8 +55,12 @@ object RoutingModel {
         SpaceTime(_)
       }
     }
+    private lazy val pathLengths = latLons.sliding(2).map{ case Vector(a,b) => CoordUtils.calcProjectedEuclideanDistance(a,b)}.toList
 
     def size  = latLons.size
+
+    def pathLength = pathLengths.sum
+
   }
 
   object BeamGraphPath {
@@ -69,6 +79,10 @@ object RoutingModel {
     */
   sealed trait BeamTime {
     val atTime: Int
+  }
+  object BeamTime {
+    def at(time: Int) = DiscreteTime(time)
+    def within(from : Int, frame: Int = 15*60) = WindowTime(from, frame)
   }
   case class DiscreteTime(override val atTime: Int) extends BeamTime
   case class WindowTime(override val atTime: Int, timeFrame: Int = 15 * 60) extends BeamTime {
