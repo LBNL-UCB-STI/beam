@@ -9,10 +9,11 @@ import java.util
 
 import akka.actor.Props
 import beam.agentsim.agents.PersonAgent
-import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
+import beam.router.BeamRouter.{RouteLocation, RoutingRequest, RoutingRequestParams, RoutingResponse}
+import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker
 import beam.router.RoutingWorker.HasProps
@@ -28,11 +29,10 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.facilities.Facility
 
 import scala.collection.JavaConverters._
 
-class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
+class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
   val localDateAsString: String = "2016-10-17"
   val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
@@ -40,7 +40,6 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
 
-  override var services: BeamServices = beamServices
   override def init: Unit = loadMap
 
   def loadMap = {
@@ -60,26 +59,26 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     }
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode], person: Person): RoutingResponse = {
+  override def calcRoute(requestId: Id[RoutingRequest], fromFacility: RouteLocation, toFacility:RouteLocation, params: RoutingRequestParams, person: Person): RoutingResponse = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, departureTime, modes))
-    log.debug("Plan executed successfully, started building response.")
-    buildResponse(plan)
+    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, params.departureTime, params.accessMode))
+    val alternatives = buildResponse(plan)
+    RoutingResponse(requestId, alternatives)
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, modes: Vector[BeamMode]): ProfileRequest = {
+  protected def buildRequest(fromFacility: RouteLocation, toFacility: RouteLocation, departureTime: BeamTime, modes: Vector[BeamMode]) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
 
-    val fromLocation = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
-    val toLocation = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility)
 
-    profileRequest.fromLon = fromLocation.getX
-    profileRequest.fromLat = fromLocation.getY
-    profileRequest.toLon = toLocation.getX
-    profileRequest.toLat = toLocation.getY
+    profileRequest.fromLon = fromPosTransformed.getX
+    profileRequest.fromLat = fromPosTransformed.getY
+    profileRequest.toLon = toPosTransformed.getX
+    profileRequest.toLat = toPosTransformed.getY
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
 
@@ -106,7 +105,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     profileRequest
   }
 
-  def buildResponse(plan: ProfileResponse): RoutingResponse = {
+  def buildResponse(plan: ProfileResponse) = {
 
     var trips = Vector[BeamTrip]()
     for(option <- plan.options.asScala) {
@@ -202,7 +201,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         trips = trips :+ BeamTrip(legs)
       }
     }
-    RoutingResponse(trips)
+    trips
   }
 
   private def boardingTime = {

@@ -44,7 +44,7 @@ class BeamRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLi
   val services: BeamServices = mock[BeamServices]
   var router: ActorRef = _
   override def beforeAll = {
-    when(services.beamConfig).thenReturn(BeamConfig(null, BeamConfig.Beam(null, "beam", null, null, BeamConfig.Beam.Routing(ConfigFactory.parseString(TEST_CONFIG)), null), null, null))
+    when(services.beamConfig).thenReturn(BeamConfig(null, BeamConfig.Beam(null, "beam", null, null, BeamConfig.Beam.Routing(ConfigFactory.parseString(TEST_CONFIG)), null, null), null, null))
     router = system.actorOf(BeamRouter.props(services))
   }
 

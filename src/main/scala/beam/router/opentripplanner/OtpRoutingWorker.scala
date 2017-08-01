@@ -6,7 +6,7 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
-import beam.router.BeamRouter.RoutingResponse
+import beam.router.BeamRouter.{RouteLocation, RoutingRequest, RoutingRequestParams, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
@@ -18,7 +18,7 @@ import beam.utils.GeoUtils
 import beam.utils.GeoUtils._
 import com.google.inject.Inject
 import org.geotools.referencing.CRS
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.facilities.Facility
 import org.opentripplanner.common.model.GenericLocation
@@ -35,8 +35,7 @@ import scala.collection.immutable.Queue
 
 /**
   */
-class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWorker {
-  override var services: BeamServices = beamServices
+class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends RoutingWorker {
 
   val otpGraphBaseDirectory: File = new File(beamServices.beamConfig.beam.routing.otp.directory)
   val routerIds: List[String] = beamServices.beamConfig.beam.routing.otp.routerIds
@@ -50,11 +49,11 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
     val transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
   }
 
-  def buildRequest(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode]): org.opentripplanner.routing.core.RoutingRequest = {
+  def buildRequest(fromFacility: RouteLocation, toFacility: RouteLocation, departureTime: BeamTime, accessMode: Vector[BeamMode]): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility.getCoord)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility.getCoord)
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility)
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
     request.dateTime = baseTime + departureTime.atTime
@@ -82,8 +81,8 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
     request
   }
 
-  override def calcRoute(fromFacility: Facility[_], toFacility: Facility[_], departureTime: BeamTime, accessMode: Vector[BeamMode], person: Person): RoutingResponse = {
-    val drivingRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode)
+  override def calcRoute(requestId: Id[RoutingRequest], fromFacility: RouteLocation, toFacility:RouteLocation, params: RoutingRequestParams, person: Person): RoutingResponse = {
+    val drivingRequest = buildRequest(fromFacility, toFacility, params.departureTime, params.accessMode)
 
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     var gpFinder = new GraphPathFinder(router.get)
@@ -98,7 +97,7 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
       //        log.error("TrivialPathException")
     }
 
-    val transitRequest = buildRequest(fromFacility, toFacility, departureTime, accessMode)
+    val transitRequest = buildRequest(fromFacility, toFacility, params.departureTime, params.accessMode)
 
     gpFinder = new GraphPathFinder(router.get)
     try {
@@ -216,7 +215,7 @@ class OtpRoutingWorker @Inject()(beamServices: BeamServices) extends RoutingWork
 
       BeamTrip(beamLegs.toVector)
     }
-    RoutingResponse(beamTrips)
+    RoutingResponse(requestId, beamTrips)
   }
 
   private def makeGraphService(): GraphService = {
