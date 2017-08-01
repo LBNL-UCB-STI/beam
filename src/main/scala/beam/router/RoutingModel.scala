@@ -3,16 +3,18 @@ package beam.router
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{ALIGHTING, BOARDING, CAR, TRANSIT, WAITING, WALK}
-import beam.router.RoutingModel.BeamGraphPath.empty
+import beam.router.RoutingModel.BeamStreetPath.empty
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
+import org.opentripplanner.routing.vertextype.TransitStop
 
 /**
   * BEAM
   */
 object RoutingModel {
-  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0) {
+  case class BeamTrip(legs: Vector[BeamLeg],
+                      choiceUtility: Double = 0.0) {
     lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
       CAR
     } else {
@@ -25,40 +27,37 @@ object RoutingModel {
     val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
   }
 
-  case class BeamLeg(startTime: Long, mode: BeamMode, duration: Long,
-                     graphPath: BeamGraphPath = empty, beamVehicleId: Option[Id[Vehicle]] = None,
-                     endStopId: Option[String] = None)
+  case class BeamLeg(startTime: Long,
+                     mode: BeamMode,
+                     duration: Long,
+                     travelPath: Either[BeamStreetPath, BeamTransitSegment] = Left(empty))
 
   object BeamLeg {
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
     def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
     def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
     def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
-    def apply(time: Long, mode: beam.router.Modes.BeamMode, duration: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
-      BeamLeg(time, mode, duration, graphPath, None, None)
-    def apply(time: Long, mode: beam.router.Modes.BeamMode, travelTime: Long, graphPath: beam.router.RoutingModel.BeamGraphPath, beamVehicleId: Option[Id[Vehicle]]): BeamLeg =
-      BeamLeg(time, mode, travelTime, graphPath, beamVehicleId, None)
+    def apply(time: Long, mode: BeamMode, duration: Long, streetPath: BeamStreetPath): BeamLeg =
+      BeamLeg(time, mode, duration, Left(streetPath))
+    def apply(time: Long, mode: BeamMode, duration: Long, transitSegment: BeamTransitSegment): BeamLeg =
+      BeamLeg(time, mode, duration, Right(transitSegment))
   }
 
-  case class BeamGraphPath(linkIds: Vector[String],
-                           latLons: Vector[Coord],
-                           entryTimes: Vector[Long]) {
+  case class BeamTransitSegment(beamVehicleId: Id[Vehicle],
+                                fromStopId: Id[TransitStop],
+                                toStopId: Id[TransitStop],
+                                departureTime: Long)
 
-    lazy val trajectory: Vector[SpaceTime] = {
-      latLons zip entryTimes map {
-        SpaceTime(_)
-      }
-    }
-
-    def size  = latLons.size
+  case class BeamStreetPath(linkIds: Vector[String],
+                            beamVehicleId: Option[Id[Vehicle]] = None,
+                            trajectory: Option[Vector[SpaceTime]] = None) {
+    def entryTimes = trajectory.get.map(_.time)
+    def latLons = trajectory.get.map(_.loc)
+    def size  = trajectory.size
   }
 
-  object BeamGraphPath {
-    val emptyTimes: Vector[Long] = Vector[Long]()
-    val errorPoints: Vector[Coord] = Vector[Coord](new Coord(0.0, 0.0))
-    val errorTime: Vector[Long] = Vector[Long](-1L)
-
-    val empty: BeamGraphPath = new BeamGraphPath(Vector[String](), errorPoints, emptyTimes)
+  object BeamStreetPath {
+    val empty: BeamStreetPath = new BeamStreetPath(Vector[String]())
   }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
