@@ -52,9 +52,11 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
     val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
     val networkFile : File = networkFilePath.toFile
     if (exists(networkFilePath)) {
+      log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
       transportNetwork = TransportNetwork.read(networkFile)
-    }else {
-      log.debug(s"Loading network from [$networkDirPath]")
+    } else {
+      log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
+      log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
       transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
       transportNetwork.write(networkFile);
     }
