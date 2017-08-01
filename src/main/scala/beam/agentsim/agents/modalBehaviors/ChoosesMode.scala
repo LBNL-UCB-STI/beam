@@ -102,7 +102,7 @@ object ChoosesMode {
           TRANSIT
         }
       }
-      val travelTime = (for (leg <- alt.legs) yield leg.travelTime).foldLeft(0.0) {
+      val travelTime = (for (leg <- alt.legs) yield leg.duration).foldLeft(0.0) {
         _ + _
       }
       (altMode, travelTime)
@@ -126,7 +126,11 @@ object ChoosesMode {
     //TODO replace with RNG in services
     val randDraw = Random.nextDouble()
     val chosenIndex = for (i <- 1 until cumulativeAltProbabilities.length if randDraw < cumulativeAltProbabilities(i)) yield i - 1
-    alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
+    if(chosenIndex.size > 0) {
+      alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
+    }else{
+      BeamTrip.noneTrip
+    }
   }
 
   def altUtility(mode: BeamMode, travelTime: Double): Double = {
