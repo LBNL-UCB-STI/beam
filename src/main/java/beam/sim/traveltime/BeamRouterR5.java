@@ -242,19 +242,19 @@ public class BeamRouterR5 extends BeamRouter {
 		if(network==null)configure();
 		String key = "";
 		double roundedTime = 0.0;
-		if(EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group").equals(
-				EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group")
-		)){
+//		if(EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group").equals(
+//				EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group")
+//		)){
 			key = EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group") + "---" +
 					EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group") + "---" +
 					startLink.getId().toString() + "---" +
 					endLink.getId().toString() + "---" +
 					EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
-		}else{
+//		}else{
 			key = EVGlobalData.data.linkAttributes.get(startLink.getId().toString()).get("group") + "---" +
 					EVGlobalData.data.linkAttributes.get(endLink.getId().toString()).get("group") + "---" +
 					EVGlobalData.data.travelTimeFunction.convertTimeToBin(roundedTime);
-		}
+//		}
 
 //		double roundedTime = MathUtil.roundDownToNearestInterval(time,60.0*60.0);
 		getCount++;
