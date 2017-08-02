@@ -33,7 +33,7 @@ class Trajectory(initialRoute: BeamStreetPath) {
     //val transformed = transformer.transform(coords._2.loc)
     val transformed = coords._2
     // x -> longitude, y -> latitude
-    this._route = this._route.copy(linkIds = this._route.linkIds :+ coords._1, trajectory = Option(this._route.trajectory.get:+ transformed))
+    this._route = this._route.copy(linkIds = this._route.linkIds :+ coords._1, trajectory = Option(this._route.trajectory.getOrElse(Vector()) :+ transformed))
   }
 
   def location(time: Double): SpaceTime = {

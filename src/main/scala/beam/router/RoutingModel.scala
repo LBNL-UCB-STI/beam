@@ -51,8 +51,8 @@ object RoutingModel {
   case class BeamStreetPath(linkIds: Vector[String],
                             beamVehicleId: Option[Id[Vehicle]] = None,
                             trajectory: Option[Vector[SpaceTime]] = None) {
-    def entryTimes = trajectory.get.map(_.time)
-    def latLons = trajectory.get.map(_.loc)
+    def entryTimes = trajectory.getOrElse(Vector()).map(_.time)
+    def latLons = trajectory.getOrElse(Vector()).map(_.loc)
     def size  = trajectory.size
   }
 
