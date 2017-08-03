@@ -17,6 +17,7 @@ Contents:
    users
    developers
    agents
+   protocols
 
 
 Indices and tables
