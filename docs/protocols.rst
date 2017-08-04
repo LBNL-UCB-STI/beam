@@ -104,8 +104,8 @@ Transit
 Transit itineraries are returned by the router in the Trip Planning Protocol. In order to follow one of these itineraries, the PersonAgent must reserve a spot on the transit vehicle according to the following protocol:
 
 1. PersonAgent sends ReservationRequest to the BeamVehicle.
-2. The BeamVehicle forwards the reservation request to the Driver of the vehicle. The drive is responsible for managing the schedule and accepting/rejecting reservations from customers.
-3. The Driver sends a ResrvationConfirmation directly to the PersonAgent.
+2. The BeamVehicle forwards the reservation request to the Driver of the vehicle. The driver is responsible for managing the schedule and accepting/rejecting reservations from customers.
+3. The Driver sends a ReservationConfirmation directly to the PersonAgent.
 4. When the BeamVehicle makes it to the confirmed stop for boarding, the Driver sends a BoardingNotice to the PersonAgent.
 5. The PersonAgent sends an EnterVehicle message to the BeamVehicle.
 6. The BeamVehicle sends a BoardingConfirmation message to the Driver.

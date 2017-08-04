@@ -175,6 +175,8 @@ object PersonAgent {
 
   case class TeleportationArrivalTrigger(tick: Double) extends Trigger
 
+  case class ScheduleBeginLegTrigger(tick: Double) extends Trigger
+
 
 }
 
