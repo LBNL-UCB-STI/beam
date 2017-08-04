@@ -365,7 +365,7 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
       publishPathTraversal(PathTraversalEvent(id, procData.nextLeg))
       services.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(procData.nextStart, id, Id.createVehicleId(s"car_$id"))))
       services.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(procData.nextStart, id, info.data.nextActivity.right.get.getLinkId, CAR.matsimMode)))
-      info.data.currentVehicle.get ! DropOffCustomer(procData.nextLeg.graphPath.latLons.headOption.get)
+      procData.nextLeg.travelPath.swap.foreach(_.latLons.headOption.foreach(info.data.currentVehicle.get ! DropOffCustomer(_)))
       goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
         completed(triggerId, schedule[TeleportationArrivalTrigger](procData.nextStart,self))
   }

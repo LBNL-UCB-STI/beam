@@ -30,12 +30,9 @@ case class PathTraversalEvent(id: Id[Person], beamLeg: BeamLeg) extends Event(be
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
-    attr.put(ATTRIBUTE_LINK_IDS, beamLeg.graphPath.linkIds.mkString(","))
+    beamLeg.travelPath.swap.foreach(sp => attr.put(ATTRIBUTE_LINK_IDS, sp.linkIds.mkString(",")))
     attr
-
-
   }
-
 }
 
 object PathTraversalEvent {

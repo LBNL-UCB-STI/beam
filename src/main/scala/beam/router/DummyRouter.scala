@@ -1,7 +1,7 @@
 package beam.router
 
-import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, Props}
+import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
@@ -24,9 +24,8 @@ class DummyRouter(theBeamServices: BeamServices) extends Actor with ActorLogging
       val person: Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val time = departureTime.atTime.toLong
       val dummyWalkStart = BeamLeg.dummyWalk(time)
-      val path = BeamGraphPath(Vector[String](fromFacility.getLinkId.toString,toFacility.getLinkId.toString),
-        Vector[Coord](fromFacility.getCoord,toFacility.getCoord),
-        Vector[Long](time+1,time+101)
+      val path = BeamStreetPath(Vector[String](fromFacility.getLinkId.toString,toFacility.getLinkId.toString), trajectory =
+        Option(Vector[Coord](fromFacility.getCoord,toFacility.getCoord) zip Vector[Long](time+1,time+101) map { SpaceTime(_) })
       )
       val leg = BeamLeg(time+1, BeamMode.CAR, 100, path)
       val dummyWalkEnd = BeamLeg.dummyWalk(time+101)
