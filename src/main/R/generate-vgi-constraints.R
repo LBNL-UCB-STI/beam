@@ -37,7 +37,7 @@ peeps[vehicleClassName=='NEV',veh.type:='NEV']
                    #'base' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-24_21-54-01-batt1x/',0) )
 out.dirs <- list(  'batt-1.5x' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-24_23-36-42-batt1.5x/',0) )
 out.dirs <- list(  'vmt-1k' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-26_23-23-56/',0) )
-out.dirs <- list(  'vmt-68k' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-31_19-29-25/',0) )
+out.dirs <- list(  'vmt-68k' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-31_19-29-25-final-base-for-plexos/',0) )
                   
 
 scens <- names(out.dirs)
@@ -73,7 +73,7 @@ for(scen in scens){
 ev <- rbindlist(ev,use.names=T,fill=T)
 ev[,native.order:=1:nrow(ev)]
 
-# first extract VMT and eVMT data, then remove the travelled events and stranded folks
+# first extract VMT data, then remove the travelled events and stranded folks, note that eVMT is estimated below
 ev <- join.on(ev,peeps,'person','personId',c('batteryCapacityInKWh','veh.type','fuelEconomyInKwhPerMile'))
 ev[,hr:=as.numeric(time)/3600]
 ev[,hour:=floor(hr)]
@@ -81,9 +81,9 @@ stranded.peeps <- u(ev[choice=='stranded']$person)
 vmt <- ev[!person%in%stranded.peeps,list(miles=sum(as.numeric(distance),na.rm=T)*0.000621371,n.veh=length(u(person)),days=round(max(time)/24/3600)-1),by='veh.type']
 weekday.to.weekend <- 1.25 # http://onlinepubs.trb.org/onlinepubs/archive/conferences/nhts/Pendyala-Agarwal.pdf   https://www.arb.ca.gov/research/weekendeffect/we-wd_fr_5-7-04.pdf
 vmt[,vmt:=miles/(n.veh)/days*(253 + 112/weekday.to.weekend)] # 261 weekdays per year - 8 holidays
+
 vmt[veh.type=='BEV',target:=11e3]
 vmt[veh.type=='PHEV',target:=7.6e3]
-vmt[,scale:=target/vmt]
 
 
 ev <- ev[!type=='travelled' & !person%in%stranded.peeps]
@@ -183,6 +183,13 @@ ev[final.type%in%c('Work','Home'),final.type.new:=actType]
 ev[final.type=='Home',final.type.new:='Residential']
 ev[,':='(final.type=final.type.new,final.type.new=NULL)]
 
+# Now back out the eVMT from the charge delivered
+evmt <- ev[,.(veh.type=veh.type[1],evmt=(energy.level[2]-energy.level[1])/fuelEconomyInKwhPerMile[1]),by=c('scenario','person','decisionEventId')]
+evmt <- evmt[,.(evmt=sum(evmt)/length(u(person))),by='veh.type']
+vmt <- join.on(vmt,evmt,'veh.type','veh.type')
+vmt[,evmt:=evmt*(253 + 112/weekday.to.weekend)/days]
+vmt[veh.type=='BEV',evmt:=vmt]
+vmt[,scale:=target/evmt]
 
 ##################################################################
 # First aggregate for plexos
@@ -338,10 +345,10 @@ flex.scenario <- 'base'
 
   # Finally, scale according to the scenarios developed by Julia
   scenarios <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/Scaling_factors_for_forecast_and_EV_counts_July24_2017.csv'))
-  scenarios <- melt(scenarios[,list(Electric.Utility,Vehicle_category,Low_2024_energy_propCED13,Mid_2024_energy_propCED13,High_2024_energy_propCED13,
-                                    Low_2024_energy_propCED15_2080,Low_2024_energy_propCED15_5050,Low_2024_energy_propCED15_8020,Low_2024_energy_propCED15_4060,Low_2024_energy_propCED15_6040,
-                                    Mid_2024_energy_propCED15_2080,Mid_2024_energy_propCED15_5050,Mid_2024_energy_propCED15_8020,Mid_2024_energy_propCED15_4060,Mid_2024_energy_propCED15_6040,
-                                    High_2024_energy_propCED15_2080,High_2024_energy_propCED15_5050,High_2024_energy_propCED15_8020,High_2024_energy_propCED15_4060,High_2024_energy_propCED15_6040
+  scenarios <- melt(scenarios[,list(Electric.Utility,Vehicle_category,
+                                    Low_2025_energy_propCED15_2080,Low_2025_energy_propCED15_5050,Low_2025_energy_propCED15_8020,Low_2025_energy_propCED15_4060,Low_2025_energy_propCED15_6040,
+                                    Mid_2025_energy_propCED15_2080,Mid_2025_energy_propCED15_5050,Mid_2025_energy_propCED15_8020,Mid_2025_energy_propCED15_4060,Mid_2025_energy_propCED15_6040,
+                                    High_2025_energy_propCED15_2080,High_2025_energy_propCED15_5050,High_2025_energy_propCED15_8020,High_2025_energy_propCED15_4060,High_2025_energy_propCED15_6040
                                     )],id.vars=c('Electric.Utility','Vehicle_category'))
   scenarios[,penetration:=unlist(lapply(str_split(variable,"_"),function(ll){ ll[1] }))]
   scenarios[,veh.type.split:=unlist(lapply(str_split(variable,"_"),function(ll){ ifelse(length(ll)==4,ll[4],ll[5]) }))]
@@ -358,6 +365,7 @@ flex.scenario <- 'base'
   pen <- scenarios$penetration[1]
   veh.split <- scenarios$veh.type.split[1]
   reservoirs.max <- list()
+  save.all <- list()
   for(the.utility in u(scenarios$Electric.Utility)){
     for(pen in u(scenarios$penetration)){
       for(veh.split in u(scenarios$veh.type.split)){
@@ -386,10 +394,13 @@ flex.scenario <- 'base'
         write.csv(to.write[,list(Year,Month,Day,Period,Value=plexos.battery.max.discharge)],pp(results.dir.base,'/',flex.scenario,'/',pen,'_',veh.split,'_',the.utility,'_max_discharge.csv'),row.names=F)
         write.csv(to.write[,list(Year,Month,Day,Period,Value=plexos.battery.min.mwh/1000)],pp(results.dir.base,'/',flex.scenario,'/',pen,'_',veh.split,'_',the.utility,'_min_volume.csv'),row.names=F)
         reservoirs.max[[length(reservoirs.max)+1]] <- data.table(Utility=the.utility,Year=2025,Scenario=pen,BEV_to_PHEV=veh.split,plexos.battery.max.GWh=to.write[1]$plexos.battery.max.mwh/1e3,plexos.battery.max.mwh=to.write[1]$plexos.battery.max.mwh)
+        to.write[,':='(util=the.utility,pen=pen,split=veh.split)]
+        save.all[[length(save.all)+1]] <- to.write
       }
     }
   }
   reservoirs.max <- rbindlist(reservoirs.max)
+  save.all <- rbindlist(save.all)
   write.csv(reservoirs.max,pp(results.dir.base,'/',flex.scenario,'/Table_of_Max_Volume_of_Smart_Charging_Reservoirs.csv'),row.names=F)
 #}
 
