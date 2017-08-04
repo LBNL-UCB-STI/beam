@@ -49,7 +49,7 @@ object RoutingModel {
                                 departureTime: Long)
 
   case class BeamStreetPath(linkIds: Vector[String],
-                            beamVehicleId: Option[Id[Vehicle]] = None,
+                            beamVehicleAssignment: Option[Id[BeamVehicleAssignment]] = None,
                             trajectory: Option[Vector[SpaceTime]] = None) {
     def entryTimes = trajectory.getOrElse(Vector()).map(_.time)
     def latLons = trajectory.getOrElse(Vector()).map(_.loc)
@@ -59,6 +59,8 @@ object RoutingModel {
   object BeamStreetPath {
     val empty: BeamStreetPath = new BeamStreetPath(Vector[String]())
   }
+
+  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean)
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
 
