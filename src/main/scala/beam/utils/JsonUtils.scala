@@ -19,9 +19,12 @@ object JsonUtils {
     implicit val encodeLeg: Encoder[BeamLeg] = (a: BeamLeg) => {
       val jsonBuilder: Map[String, Json] = Map(
         "typ" -> Json.fromString("trajectory"), "mode" -> a.mode.asJson, "shp" -> (a.travelPath match {
-          case Left(s) => s.asJson
-          case Right(t) => t.asJson
+//          case Left(s) => s.asJson
+          case s: BeamStreetPath => s.asJson
+//          case Right(t) => t.asJson
+          case t:BeamTransitSegment => t.asJson
         }))
+
       Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
     }
 

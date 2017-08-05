@@ -14,7 +14,7 @@ import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel.{BeamLeg, BeamTrip}
+import beam.router.RoutingModel.{BeamLeg, BeamStreetPath, BeamTrip, DiscreteTime}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
@@ -328,17 +328,17 @@ class PersonAgent(override val id: Id[PersonAgent], override val data: PersonDat
   }
 
   // Taxi-related states
-//  when(InTaxi) {
-//    case Event(TriggerWithId(PersonLeavesTaxiTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-//      val procData = processedStateData(info.data.currentRoute, tick)
-//      publishPathTraversal(PathTraversalEvent(id, procData.nextLeg))
-//      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(procData.nextStart, id, Id.createVehicleId(s"car_$id"))))
-//      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(procData.nextStart, id, info.data.nextActivity.right.get.getLinkId, CAR.matsimMode)))
-//      val coord = procData.nextLeg.travelPath.graphPath.latLons.headOption.get
-//      info.data.currentVehicle.get ! DropOffCustomer(SpaceTime(coord, tick.toLong))
-//      goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
-//        completed(triggerId, schedule[TeleportationArrivalTrigger](procData.nextStart,self))
-//  }
+  when(InTaxi) {
+    case Event(TriggerWithId(PersonLeavesTaxiTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      val procData = procStateData(info.data.currentRoute, tick)
+      publishPathTraversal(PathTraversalEvent(id, procData.nextLeg))
+      services.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(procData.nextStart, id, Id.createVehicleId(s"car_$id"))))
+      services.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(procData.nextStart, id, info.data.nextActivity.right.get.getLinkId, CAR.matsimMode)))
+//      procData.nextLeg.travelPath.swap.foreach(_.latLons.headOption.foreach(info.data.currentVehicle.get ! DropOffCustomer(_)))
+      procData.nextLeg.travelPath.asInstanceOf[BeamStreetPath].latLons.headOption.foreach(info.data.currentVehicle.get ! DropOffCustomer(_))
+      goto(Walking) using BeamAgentInfo(id, stateData.data.copy(currentRoute = procData.restTrip)) replying
+        completed(triggerId, schedule[TeleportationArrivalTrigger](procData.nextStart,self))
+  }
 
   // Transit-related states
   chainedWhen(Waiting) {

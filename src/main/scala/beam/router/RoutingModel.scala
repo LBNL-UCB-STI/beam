@@ -31,25 +31,37 @@ object RoutingModel {
   case class BeamLeg(startTime: Long,
                      mode: BeamMode,
                      duration: Long,
-                     travelPath: Either[BeamStreetPath, BeamTransitSegment] = Left(empty))
+                     travelPath: BeamPath = empty)
 
   object BeamLeg {
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
     def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
     def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
     def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
-    def apply(time: Long, mode: BeamMode, duration: Long, streetPath: BeamStreetPath): BeamLeg =
-      BeamLeg(time, mode, duration, Left(streetPath))
-    def apply(time: Long, mode: BeamMode, duration: Long, transitSegment: BeamTransitSegment): BeamLeg =
-      BeamLeg(time, mode, duration, Right(transitSegment))
+//    def apply(time: Long, mode: BeamMode, duration: Long, streetPath: BeamStreetPath): BeamLeg =
+//      BeamLeg(time, mode, duration, Left(streetPath))
+//    def apply(time: Long, mode: BeamMode, duration: Long, transitSegment: BeamTransitSegment): BeamLeg =
+//      BeamLeg(time, mode, duration, Right(transitSegment))
   }
 
-  case class BeamTransitSegment(fromStopId: Id[TransitStop],
+  sealed abstract class BeamPath {
+    def isStreet: Boolean = false
+    def isTransit: Boolean = false
+  }
+
+  case class BeamTransitSegment(beamVehicleId: Id[Vehicle],
+                                fromStopId: Id[TransitStop],
                                 toStopId: Id[TransitStop],
-                                departureTime: Long)
+                                departureTime: Long) extends BeamPath {
+    override def isTransit = true
+  }
 
   case class BeamStreetPath(linkIds: Vector[String],
-                            trajectory: Option[Vector[SpaceTime]] = None) {
+                            beamVehicleId: Option[Id[Vehicle]] = None,
+                            trajectory: Option[Vector[SpaceTime]] = None) extends BeamPath {
+
+    override def isStreet = true
+
     def entryTimes = trajectory.getOrElse(Vector()).map(_.time)
     def latLons = trajectory.getOrElse(Vector()).map(_.loc)
     def size  = trajectory.size

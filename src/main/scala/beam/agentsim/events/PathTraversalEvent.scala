@@ -2,7 +2,7 @@ package beam.agentsim.events
 
 import java.util
 
-import beam.router.RoutingModel.BeamLeg
+import beam.router.RoutingModel.{BeamLeg, BeamStreetPath}
 import beam.utils.JsonUtils.syntax._
 import io.circe.syntax._
 import org.matsim.api.core.v01.Id
@@ -30,7 +30,8 @@ case class PathTraversalEvent(id: Id[Person], beamLeg: BeamLeg) extends Event(be
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
     attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
-    beamLeg.travelPath.swap.foreach(sp => attr.put(ATTRIBUTE_LINK_IDS, sp.linkIds.mkString(",")))
+//    beamLeg.travelPath.swap.foreach(sp => attr.put(ATTRIBUTE_LINK_IDS, sp.linkIds.mkString(",")))
+    attr.put(ATTRIBUTE_LINK_IDS, beamLeg.travelPath.asInstanceOf[BeamStreetPath].linkIds.mkString(","))
     attr
   }
 }
