@@ -1,5 +1,6 @@
 package beam.router
 
+import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{ALIGHTING, BOARDING, CAR, TRANSIT, WAITING, WALK}
@@ -43,13 +44,11 @@ object RoutingModel {
       BeamLeg(time, mode, duration, Right(transitSegment))
   }
 
-  case class BeamTransitSegment(beamVehicleId: Id[Vehicle],
-                                fromStopId: Id[TransitStop],
+  case class BeamTransitSegment(fromStopId: Id[TransitStop],
                                 toStopId: Id[TransitStop],
                                 departureTime: Long)
 
   case class BeamStreetPath(linkIds: Vector[String],
-                            beamVehicleAssignment: Option[Id[BeamVehicleAssignment]] = None,
                             trajectory: Option[Vector[SpaceTime]] = None) {
     def entryTimes = trajectory.getOrElse(Vector()).map(_.time)
     def latLons = trajectory.getOrElse(Vector()).map(_.loc)
@@ -60,7 +59,7 @@ object RoutingModel {
     val empty: BeamStreetPath = new BeamStreetPath(Vector[String]())
   }
 
-  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean)
+  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean, passengerSchedule: Option[PassengerSchedule])
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
 
