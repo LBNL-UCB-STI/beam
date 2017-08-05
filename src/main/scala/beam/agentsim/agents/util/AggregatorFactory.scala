@@ -8,8 +8,8 @@ import akka.actor.{Actor, ActorRef, Props}
 trait AggregatorFactory {
   this:  Actor  =>
 
-  def aggregateResponsesTo(respondTo: ActorRef, requests: Map[ActorRef, List[Any]])(resultTransformFunc: Any => Any ): Unit = {
-    val aggregator = context.actorOf(Props(classOf[AggregatorActor], respondTo, Option(resultTransformFunc)))
+  def aggregateResponsesTo(respondTo: ActorRef, requests: Map[ActorRef, List[Any]], originalSender: Option[ActorRef] = None)(resultTransformFunc: Any => Any ): Unit = {
+    val aggregator = context.actorOf(Props(classOf[AggregatorActor], respondTo, Option(resultTransformFunc), originalSender))
     aggregator ! AggregatedRequest(requests)
   }
 

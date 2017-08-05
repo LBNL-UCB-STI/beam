@@ -1,13 +1,14 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.PersonAgent.{PersonData, ScheduleBeginLegTrigger}
-import beam.agentsim.agents.modalBehaviors.DrivingMode.CompleteLegTrigger
-import beam.agentsim.agents.modalBehaviors.DrivingMode._
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.CompleteLegTrigger
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.util.{AggregatorFactory, MultipleAggregationResult}
 import beam.agentsim.agents.vehicles.BeamVehicle._
 import beam.agentsim.agents.vehicles.VehicleData._
-import beam.agentsim.agents.vehicles.{EnterVehicleTrigger, LeaveVehicleTrigger, VehicleData}
+import beam.agentsim.agents.vehicles.{BeamVehicle, EnterVehicleTrigger, LeaveVehicleTrigger, VehicleData}
 import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -20,14 +21,14 @@ import scala.collection.mutable.ListBuffer
 /**
   * @author dserdiuk on 7/29/17.
   */
-object DrivingMode {
+object DrivesVehicle {
   case class CompleteLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
   implicit val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(_.startTime)
 
 }
 
-trait DrivingMode extends BeamAgent[PersonData] with TriggerShortcuts with HasServices with AggregatorFactory {
-  this: PersonAgent =>
+trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with AggregatorFactory {
+  this: BeamAgent[T] =>
 
   type PassengerLogStorage = mutable.TreeMap[BeamLeg, mutable.ListBuffer[ReservationLogEntry]]
 
@@ -53,11 +54,17 @@ trait DrivingMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
           * 3. BeamVehicle -> Driver AlightingConfirmation(noticeId, passengers)
           * 4.
           */
-          val passengersToDropOff  = passengerReservations.filter(_.arriveAt == completedLeg)
-          processAlighting(tick, completedLeg, agentInfo, passengersToDropOff)
+          completedLeg.beamVehicleId.foreach { beamVehicleId =>
+            import context._
+            BeamVehicle.vehicleId2actorRef(beamVehicleId)(context, timeout).foreach{ beamVehicleRef =>
+              log.debug(s"Received completed leg for beamVehicleId=$beamVehicleId , started Boarding/Alighting   ")
+              val passengersToDropOff  = passengerReservations.filter(_.arriveAt == completedLeg)
+              processAlighting(tick, completedLeg, beamVehicleRef, passengersToDropOff)
 
-          val passengersToPickUp = passengerReservations.filter(_.departFrom == completedLeg)
-          processBoarding(tick, completedLeg, agentInfo, passengersToPickUp)
+              val passengersToPickUp = passengerReservations.filter(_.departFrom == completedLeg)
+              processBoarding(tick, completedLeg, beamVehicleRef, passengersToPickUp)
+            }
+          }
         case None =>
           // do nothing
       }
@@ -79,32 +86,38 @@ trait DrivingMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
   }
 
-  private def processBoarding(triggerTick: Double, completedLeg: BeamLeg, driverAgentInfo: BeamAgent.BeamAgentInfo[PersonData],
+  private def processBoarding(triggerTick: Double, completedLeg: BeamLeg, transferVehicleAgent: ActorRef,
                               passengersToPickUp: ListBuffer[ReservationLogEntry]) = {
     val boardingNotice = new BoardingNotice(completedLeg)
     val boardingRequests = passengersToPickUp.map(p => (p.passenger, List(boardingNotice))).toMap
-    val vehicleAgent = driverAgentInfo.data.currentVehicle.get
-    aggregateResponsesTo(vehicleAgent, boardingRequests) { case result: MultipleAggregationResult =>
+    aggregateResponsesTo(transferVehicleAgent, boardingRequests) { case result: MultipleAggregationResult =>
       val passengers = result.responses.collect {
         case (passenger, _) =>
           passenger
       }
-      EnterVehicleTrigger(triggerTick, actorRef2Id(vehicleAgent).get, None, Option(passengers.toList), Option(boardingNotice.noticeId))
+      EnterVehicleTrigger(triggerTick, transferVehicleAgent, None, Option(passengers.toList), Option(boardingNotice.noticeId))
     }
   }
 
-  private def processAlighting(triggerTick: Double, completedLeg: BeamLeg, agentInfo: BeamAgent.BeamAgentInfo[PersonData], passengersToDropOff: ListBuffer[ReservationLogEntry]) = {
+  /**
+    *
+    * @param triggerTick when alighting is taking place
+    * @param completedLeg stop leg
+    * @param transferVehicleAgent vehicle agent of bus/car/train that does alighting
+    * @param passengersToDropOff list of passenger to be alighted
+    * @return
+    */
+  private def processAlighting(triggerTick: Double, completedLeg: BeamLeg, transferVehicleAgent: ActorRef,
+                               passengersToDropOff: ListBuffer[ReservationLogEntry]): Unit = {
     val alightingNotice = new AlightingNotice(completedLeg)
     val alightingRequests = passengersToDropOff.map(p => (p.passenger, List(alightingNotice))).toMap
-    val vehicleAgent = agentInfo.data.currentVehicle.get
-    aggregateResponsesTo(vehicleAgent, alightingRequests) { case result: MultipleAggregationResult =>
+    aggregateResponsesTo(transferVehicleAgent, alightingRequests) { case result: MultipleAggregationResult =>
       val passengers = result.responses.collect {
         case (passenger, _) =>
           passenger
       }
-      LeaveVehicleTrigger(triggerTick, actorRef2Id(vehicleAgent).get, None, Option(passengers.toList), Option(alightingNotice.noticeId))
+      LeaveVehicleTrigger(triggerTick, transferVehicleAgent, None, Option(passengers.toList), Option(alightingNotice.noticeId))
     }
-    vehicleAgent
   }
 
   private def handleVehicleReservation(req: ReservationRequest, vehicleData: VehicleData, vehicleAgent: ActorRef) = {

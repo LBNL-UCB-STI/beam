@@ -20,7 +20,12 @@ The RoutingRequest message contains:
 
 The RoutingResponse message contains:
 
-* A vector of BeamTrips, which contain a vector of BeamLegs
+* A vector of BeamTrips
+  
+BeamTrips contain:
+
+* A trip classifer (i.e. the overall mode)
+* A map with BeamLegs as keys and BeamVehicleAssignments as values
 
 BeamLegs contain:
 
@@ -32,47 +37,89 @@ BeamLegs contain:
 BeamStreetPaths contain:
 
 * Vector of link Ids
-* Optional BeamVehicleAssignment
 * Optional Trajectory (as a vector of Spacetimes)
+
+BeamTransitSegments contain:
+
+* Origin stop 
+* Destination stop
 
 BeamVehicleAssignment contains:
 
 * Id of a BeamVehicle
 * Boolean asDriver
+* Optional PassengerSchedule
 
 Traveling
 ---------
 
-When a PersonAgent travels, she does so as either an ActiveTraveler or a PassiveTraveler. PassiveTravelers are escortees who simply follow the board/alight instructions of their escorter. The following covers both cases.
+When a PersonAgent travels, she may transition from being a driver of a vehicle to being a passenger of a vehicle. The protocol for being a driver of a vehicle is listed separately below because that logic is implemented in its own trait (DrivesVehicle) to allow BeamAgents other than PersonAgents to drive vehicles. Some agents (e.g. TransitDrivers) may not be Persons and therefore do not "travel" but they do of course operate a vehilce and move around with it.
 
-ActiveTraveler
-~~~~~~~~~~~~~~
+Driver
+~~~~~~
 
-1. The PersonAgent receives a StartLegTrigger from the scheduler while in Waiting state. She dequeues the first BeamLeg in her BeamTrip.
-2. The PersonAgent consults the beamVehicleId in her current BeamLeg. If the Id is None and Mode is WALK and she has no carrier BeamVehicle, she sends an EnterVehicle message (with herself as driver) to her HumanBodyVehicle (if she is escorting other Agents, she sends them notification to enter their body). Otherwise, she compares the beamVehicleId to her outermost carrier vehicle, if the Id does not match, she sends an EnterVehicle message to the beamVehicleId. 
-3. 
+*Starting Leg*
+
+1. The Driver receives a StartLegTrigger from the Waiting state.
+2. The Driver sends NotifyLegStart messages to all passengers in the PassengerSchedule associated with the current BeamLeg.
+3. The Driver sends an UpdateTrajectory message to the vehicle she controls.
+4. When all expected ConfirmBoarding messages are received from the vehicle, the Drive schedules an EndLegTrigger and transitions to the Moving state.
+
+*Ending Leg*
+
+1. The Driver receives an EndLegTrigger from the Moving state.
+2. The Driver sends NotifyLegEnd messages to all passengers in the PassengerSchedule associated with the current BeamLeg.
+3. When all expected ConfirmAlighting and/or ConfirmContinuing messages are recieved from the vehicle, the Driver proceeds with the following steps.
+4. If the Driver has more legs in the PassengerSchedule, she schedules an StartLegTrigger.
+5. Else the Driver sends a ReleaseControl message to the vehicle and schedules a CompleteDrivingMissionTrigger.
+6. The Driver transitions to the Waiting state.
+
+Traveler
+~~~~~~~~
+
+*Starting Trip*
+
+1. The PersonAgent receives a StartTripTrigger from the scheduler while in Waiting state. She dequeues the first BeamLeg in her BeamTrip, all BeamTrips start with a leg that is of mode WALK.
+2. The PersonAgent sends an AssumeControl message to her BodyVehicle and passes it a PassengerSchedule that defines her walking leg.
+3. The PersonAgent stays in Waiting state.
+
+*Process Next Leg Method*
+
+The following protocol is used more than once by the traveler so it is defined here as a function with no arguments.
+
+1. If there are no more legs in the BeamTrip, the PersonAgent schedules the EndActivityTrigger and transitions to the InActivity state.
+2. Else the PersonAgent checks the BeamVehicleAssignment associated with the BeamTrip.
+3. If the PersonAgent is the driver of the next BeamLeg, then she sends an AssumeControl message to that BeamVehicle and schedules a StartLegTrigger and stays in the current state (which could be either Waitint or Moving depending on the circumstance).
+
+*Complete Driving Mission*
+
+1. The PersonAgent receives a CompleteDrivingMissionTrigger from the scheduler.
+2. The PersonAgent executes the ProcessNextLegModule method.
+
+*Notify Start Leg*
+
+1. The PersonAgent receives a NotifyLegStart message from a Driver.
+2. The PersonAgent sends a BoardVehicle message to the vehicle contained in the corresponding VehicleAssignment object.
+3. The PersonAgent transitions to the Moving state.
+
+*Notify End Leg* 
+
+1. The PersonAgent receives a NotifyLegEnd message from a Driver.
+2. The PersonAgent peeks at her next BeamLeg.
+3. If another BeamLeg exists in her BeamTrip AND the BeamVehicle associated with the next BeamLeg is identical to the current BeamVehicle, then she sends the Driver a ConfirmContinue message.
+4. Else she sends the current vehicle an AlightVehicle message.
+5. The PersonAgent executes the ProcessNextLegModule method.
 
 Household
 ---------
 
 During initialization, we execute the rank and escort heuristc. Escorts and household vehicles are assigned to members.
 
-At end of activity, 
-
 1. The PersonAgent retrieves mobility status from her Household using a MobilityStatusInquiry message.
 2. Household returns a MobilityStatusReponse message which notifies the person about two topics: a) whether she is an escortee (e.g. a child), an estorter (e.g. a parent), or traveling alone; b) the Id and location of at most one Car and at most one Bike that the person may use for their tour.
-3. If the PersonAgent is an escortee, then she will enter a waiting state until she receives a BoardingNotice from her escorter.
-4. If the PersonAgent is traveling alone or an escortee, then she goes through the mode choice process.
+3. If the PersonAgent is an escortee, then she will enter a waiting state until she receives a AssignTrip message from her escorter which contains the BeamTrip that she will follow, at which point she schedules a StartTripTrigger and transitions to Waiting.
+4. Else the PersonAgent goes through the mode choice process. After choosing a BeamTrip, she sends an appropriate BeamTrip to her escortees using the AssignTrip message.
 5. The PersonAgent sends a VehicleConfirmationNotice to the Household, confirming whether or not she is using the Car or Bike. The Household will use this information to offer unused vehicles as options to subsequent household members.
-
-Reserve
-~~~~~~~
-
-Enter/Exit
-~~~~~~~~~~
-
-Escort
-~~~~~~
 
 RideHailing
 ------------
@@ -125,11 +172,14 @@ Alighting
 ~~~~~~~~~
 
 
-Vehicles
+BeamVehicles
 --------
 
 Enter/Exit
 ~~~~~~~~~~
+
+* When a BeamVehicle receives an EnterVehicle message, it adds the BeamAgent passed within the message to the passenger vector. Then it sends a ConfirmBoarding message to the driver.
+* When a BeamVehicle receives an ExitVehicle message, it removes the BeamAgent passed within the message from the passenger vector. Then it sends a ConfirmAlighting message to the driver.
 
 Location 
 ~~~~~~~~
