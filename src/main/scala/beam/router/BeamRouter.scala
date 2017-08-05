@@ -8,6 +8,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
+import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
@@ -21,28 +22,32 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
     ActorRefRoutee(createAndWatch)
   })
 
-  def receive = {
+  def receive = uninitialized
+
+    // Uninitialized state
+  def uninitialized: Receive = {
     case InitializeRouter =>
       log.info("Initializing Router.")
       router.route(InitializeRouter, sender())
       context.become(initializing)
     case RoutingRequest =>
-      stash()
+      sender() ! RouterNeedInitialization
     case Terminated(r) =>
       handelTermination(r)
     case msg =>
       log.info(s"Unknown message[$msg] received by Router.")
   }
 
+  // Initializing state
   def initializing: Receive = {
-    case RouterInitialized if sender().path.parent == self.path =>
-      unstashAll()
-      context.become(initialized)
     case InitializeRouter =>
       log.debug("Router initialization in-progress...")
       stash()
     case RoutingRequest =>
       stash()
+    case RouterInitialized if sender().path.parent == self.path =>
+      unstashAll()
+      context.become(initialized)
     case Terminated(r) =>
       handelTermination(r)
     case msg =>
@@ -60,10 +65,12 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
     case msg =>
       log.info(s"Unknown message[$msg] received by Router.")
   }
+
   private def handelTermination(r: ActorRef): Unit = {
     router = router.removeRoutee(r)
     router = router.addRoutee(createAndWatch)
   }
+
   private def createAndWatch(): ActorRef = {
     val r = context.actorOf(RoutingWorker.getRouterProps(services.beamConfig.beam.routing.routerClass, services))
     context watch r
@@ -77,6 +84,7 @@ object BeamRouter {
   sealed trait RouterMessage
   case object InitializeRouter extends RouterMessage
   case object RouterInitialized extends RouterMessage
+  case object RouterNeedInitialization extends RouterMessage
 
   case class RoutingRequestParams(departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent])
   case class RoutingRequest(@BeanProperty id: Id[RoutingRequest], from: RouteLocation, destination: RouteLocation,
