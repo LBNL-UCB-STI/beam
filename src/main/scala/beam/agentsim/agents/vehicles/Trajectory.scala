@@ -3,7 +3,7 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.agents.vehicles.Trajectory._
 import beam.sim.config.ConfigModule._
 import beam.agentsim.events.SpaceTime
-import beam.router.RoutingModel.BeamGraphPath
+import beam.router.RoutingModel.BeamStreetPath
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.TransformationFactory
@@ -20,10 +20,10 @@ object Trajectory {
   * Describe trajectory as vector of coordinates with time for each coordinate
   * @param initialRoute
   */
-class Trajectory(initialRoute: BeamGraphPath) {
+class Trajectory(initialRoute: BeamStreetPath) {
 
   def this()= {
-    this(BeamGraphPath.empty.copy())
+    this(BeamStreetPath.empty.copy())
   }
   private var _route = initialRoute
 
@@ -31,10 +31,9 @@ class Trajectory(initialRoute: BeamGraphPath) {
 
   protected[agentsim] def append(coords: (String,SpaceTime)) = {
     //val transformed = transformer.transform(coords._2.loc)
-    val transformed = coords._2.loc
+    val transformed = coords._2
     // x -> longitude, y -> latitude
-    this._route = this._route.copy(linkIds = this._route.linkIds :+ coords._1, latLons = this._route.latLons:+ transformed,
-      entryTimes = this._route.entryTimes :+ coords._2.time)
+    this._route = this._route.copy(linkIds = this._route.linkIds :+ coords._1, trajectory = Option(this._route.trajectory.getOrElse(Vector()) :+ transformed))
   }
 
   def location(time: Double): SpaceTime = {

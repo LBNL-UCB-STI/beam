@@ -6,7 +6,8 @@ import java.util
 import java.util.Locale
 
 import akka.actor.Props
-import beam.router.BeamRouter.{RouteLocation, RoutingRequest, RoutingRequestParams, RoutingResponse}
+import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
@@ -196,7 +197,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
         //start tracking new/different mode, reinitialize collections
         if (activeEdgeModeTime.mode != activeMode) {
           beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart,
-            BeamGraphPath(activeLinkIds, activeCoords, activeTimes))
+            BeamStreetPath(activeLinkIds, trajectory = Option(activeCoords zip activeTimes map { SpaceTime(_)})))
           activeLinkIds = Vector[String]()
           activeCoords = Vector[Coord]()
           activeTimes = Vector[Long]()
@@ -206,7 +207,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
       }
 
       // CAR only
-      val beamLeg = BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart, BeamGraphPath(activeLinkIds, activeCoords, activeTimes))
+      val beamLeg = BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart, BeamStreetPath(activeLinkIds, trajectory = Option(activeCoords zip activeTimes map { SpaceTime(_)})))
       beamLegs = if (activeMode == CAR) {
         beamLegs :+ BeamLeg.dummyWalk(activeStart) :+ beamLeg :+ BeamLeg.dummyWalk(edgesModesTimes.last.time)
       } else {
