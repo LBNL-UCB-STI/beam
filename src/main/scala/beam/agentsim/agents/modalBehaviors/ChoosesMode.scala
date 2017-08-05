@@ -10,7 +10,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel.{BeamTime, BeamTrip}
+import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime}
 import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
@@ -61,7 +61,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${stateData.tick}")
       val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
-      val departTime = BeamTime.at(stateData.tick.get.toInt)
+      val departTime = DiscreteTime(stateData.tick.get.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
       beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance

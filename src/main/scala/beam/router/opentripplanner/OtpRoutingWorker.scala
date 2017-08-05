@@ -7,7 +7,7 @@ import java.util.Locale
 
 import akka.actor.Props
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.RoutingResponse
+import beam.router.BeamRouter.{RouteLocation, RoutingRequest, RoutingRequestParams, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
@@ -50,11 +50,11 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
     val transform = Some(CRS.findMathTransform(CRS.decode("EPSG:26910", true), CRS.decode("EPSG:4326", true), false))
   }
 
-  def buildRequest(fromFacility: RouteLocation, toFacility: RouteLocation, departureTime: BeamTime, accessMode: Vector[BeamMode]): org.opentripplanner.routing.core.RoutingRequest = {
+  def buildRequest(fromLoc: RouteLocation, toLoc: RouteLocation, departureTime: BeamTime, accessMode: Vector[BeamMode]): org.opentripplanner.routing.core.RoutingRequest = {
     val request = new org.opentripplanner.routing.core.RoutingRequest()
     request.routerId = routerIds.head
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromFacility)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toFacility)
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(fromLoc)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(toLoc)
     request.from = new GenericLocation(fromPosTransformed.getY, fromPosTransformed.getX)
     request.to = new GenericLocation(toPosTransformed.getY, toPosTransformed.getX)
     request.dateTime = baseTime + departureTime.atTime

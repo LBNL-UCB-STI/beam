@@ -52,6 +52,8 @@ trait VehicleData extends BeamAgentData with Vehicle {
 object BeamVehicle {
   val ActorPrefixName = "vehicle-"
 
+  case class BeamVehicleIdAndRef(id: Id[Vehicle], ref: ActorRef)
+
   case object Traveling extends BeamAgentState {
     override def identifier = "Traveling"
   }

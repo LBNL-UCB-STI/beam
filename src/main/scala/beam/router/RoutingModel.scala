@@ -22,6 +22,7 @@ object RoutingModel {
       TRANSIT
     }
     val totalTravelTime: Long = legs.map(_.duration).sum
+    def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
   }
 
   object BeamTrip {

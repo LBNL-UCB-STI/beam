@@ -2,7 +2,6 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.{BeamAgent, PersonAgent}
-import beam.router.RoutingModel.BeamGraphPath
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles._
@@ -58,7 +57,5 @@ case class HumanBodyVehicleData(personId: Id[PersonAgent], dim: HumanDimension) 
 object HumanBodyVehicle {
   //TODO make HumanDimension come from somewhere
   def props(services: BeamServices, personId: Id[PersonAgent]) = Props(classOf[HumanBodyVehicle],services,
-    HumanBodyVehicleData(personId, HumanDimension(1.7, 60.0)),
-    new Trajectory(BeamGraphPath.empty),
-    None)
+    HumanBodyVehicleData(personId, HumanDimension(1.7, 60.0)), new Trajectory(), None)
 }

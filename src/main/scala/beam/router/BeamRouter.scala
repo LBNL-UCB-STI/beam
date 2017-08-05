@@ -90,8 +90,6 @@ object BeamRouter {
   case class RoutingRequest(@BeanProperty id: Id[RoutingRequest], from: RouteLocation, destination: RouteLocation,
                             params: RoutingRequestParams) extends RouterMessage with Identifiable[RoutingRequest]
   case class RoutingResponse(requestId: Id[RoutingRequest], itinerary: Vector[BeamTrip]) extends RouterMessage {
-
-
   }
 
   /**
