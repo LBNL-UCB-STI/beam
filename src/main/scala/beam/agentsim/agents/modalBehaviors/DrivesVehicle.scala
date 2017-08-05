@@ -8,6 +8,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.util.{AggregatorFactory, MultipleAggregationResult}
 import beam.agentsim.agents.vehicles.BeamVehicle._
 import beam.agentsim.agents.vehicles.VehicleData._
+import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.{BeamVehicle, EnterVehicleTrigger, LeaveVehicleTrigger, VehicleData}
 import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.resources.vehicle._
@@ -30,13 +31,8 @@ object DrivesVehicle {
 trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with AggregatorFactory {
   this: BeamAgent[T] =>
 
-  type PassengerLogStorage = mutable.TreeMap[BeamLeg, mutable.ListBuffer[ReservationLogEntry]]
-
-  case class ReservationLogEntry(departFrom: BeamLeg, arriveAt: BeamLeg,  passenger: ActorRef) {
-    def this(r: ReservationRequest) =  this(r.departFrom, r.arriveAt, r.passenger)
-  }
   //TODO: init log with empty lists of stops according to vehicle trip/schedule route
-  protected lazy val passengersLog: PassengerLogStorage = mutable.TreeMap[BeamLeg, mutable.ListBuffer[ReservationLogEntry]]()(beamLegOrdering)
+  protected lazy val passengerSchedule: PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, mutable.ListBuffer[ActorRef]]()(beamLegOrdering))
 
   protected var _currentLeg: Option[BeamLeg] = None
 
@@ -45,7 +41,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
   chainedWhen(PersonAgent.Driving) {
     case Event(TriggerWithId(CompleteLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
       //we have just completed a leg
-      passengersLog.get(completedLeg) match {
+      passengerSchedule.schedule.get(completedLeg) match {
         case Some(passengerReservations) =>
         /**
           * XXX: assume completedLeg is pickup and drop-off point
@@ -72,7 +68,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       stay()
     case Event(ReservationRequestWithVehicle(req, vehicleData: VehicleData), _) =>
       val proxyVehicleAgent = sender()
-      require(passengersLog.nonEmpty, "Driver needs to init list of stops")
+      require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
       val response: ReservationResponse = handleVehicleReservation(req, vehicleData, proxyVehicleAgent)
         req.passenger ! response
         stay()
@@ -125,7 +121,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       case Some(currentLeg) if req.departFrom.startTime < currentLeg.startTime =>
         ReservationResponse(req.requestId, Left(VehicleGone))
       case _ =>
-        val tripReservations = passengersLog.from(req.departFrom).to(req.arriveAt)
+        val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt)
         val vehicleCap = vehicleData.fullCapacity
         val hasRoom = tripReservations.forall { entry =>
           entry._2.size < vehicleCap
