@@ -5,7 +5,7 @@ import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
 import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Initialized, Uninitialized}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocationEvent, Idle, Moving, VehicleFull}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocationEvent, Idle, Moving, UpdateTrajectory, VehicleFull}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle._
@@ -109,6 +109,7 @@ object BeamVehicle {
   case class ExitVehicle(tick: Double, passenger : Id[Vehicle])
   case class VehicleFull(vehicleId: Id[Vehicle])
 
+  case class UpdateTrajectory(trajectory: Trajectory)
 }
 
 
@@ -180,6 +181,9 @@ trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShor
         val beamAgent = sender()
         beamAgent ! VehicleFull(id)
       }
+      stay()
+    case Event(UpdateTrajectory(newTrajectory), info) =>
+      trajectory = Some(newTrajectory)
       stay()
   }
   chainedWhen(Moving){
