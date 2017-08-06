@@ -4,7 +4,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, NotifyLegEnd, NotifyLegStart, StartLegTrigger}
 import beam.agentsim.agents.util.{AggregatorFactory, MultipleAggregationResult}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BoardingConfirmation, UnbecomeDriver, UpdateTrajectory}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, UnbecomeDriver, UpdateTrajectory}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleData}
 import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
@@ -31,8 +31,8 @@ object DrivesVehicle {
 trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with AggregatorFactory {
   this: BeamAgent[T] =>
 
-  //TODO: init log with empty lists of stops according to vehicle trip/schedule route
-  protected lazy val passengerSchedule: PassengerSchedule = PassengerSchedule()
+  //TODO: double check that mutability here is legit espeically with the schedules passed in
+  protected var passengerSchedule: PassengerSchedule = PassengerSchedule()
 
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
@@ -73,6 +73,14 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       }
   }
   chainedWhen(Waiting) {
+    case Event(BecomeDriverSuccess(newPassengerSchedule), info) =>
+      newPassengerSchedule match {
+        case Some(passSched) =>
+          passengerSchedule = passSched
+        case None =>
+          passengerSchedule = PassengerSchedule()
+      }
+      stay()
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
       _currentTriggerId = Some(triggerId)
       _currentTick = Some(tick)

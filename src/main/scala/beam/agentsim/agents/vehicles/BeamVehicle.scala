@@ -100,9 +100,9 @@ object BeamVehicle {
   case class AlightingConfirmation(vehicleId: Id[Vehicle])
   case class BoardingConfirmation(vehicleId: Id[Vehicle])
 
-  case class BecomeDriver(tick: Double, driver: Id[_])
+  case class BecomeDriver(tick: Double, driver: Id[_], passengerSchedule: Option[PassengerSchedule] = None)
   case class UnbecomeDriver(tick: Double, driver: Id[_])
-  case object BecomeDriverSuccess
+  case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule])
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
   case class EnterVehicle(tick: Double, passenger : Id[Vehicle])
@@ -162,10 +162,10 @@ trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShor
   }
 
   chainedWhen(Idle) {
-    case Event(BecomeDriver(tick, newDriver), info) =>
+    case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
       if(driver.isEmpty) {
         driver = Some(beamServices.agentRefs(newDriver))
-        driver.get ! BecomeDriverSuccess
+        driver.get ! BecomeDriverSuccess(newPassengerSchedule)
       }else {
         val beamAgent = sender()
         beamAgent ! DriverAlreadyAssigned(id, driver.get)
