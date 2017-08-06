@@ -22,6 +22,7 @@ import org.matsim.core.events.EventsUtils
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
 import org.scalatest.Matchers._
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FunSpecLike, MustMatchers}
 
 import scala.concurrent.Await
@@ -30,12 +31,12 @@ import scala.concurrent.Await
   * Created by sfeygin on 2/7/17.
   */
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
-  with MustMatchers with FunSpecLike with ImplicitSender {
+  with MustMatchers with FunSpecLike with ImplicitSender with MockitoSugar{
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   private val agentSimEventsBus = new AgentsimEventsBus
 
-  val services: BeamServices = ???
+  val services: BeamServices = mock[BeamServices]
 
   describe("A PersonAgent FSM") {
 

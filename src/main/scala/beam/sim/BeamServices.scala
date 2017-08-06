@@ -22,6 +22,7 @@ import scala.concurrent.duration.FiniteDuration
 
 @Singleton
 case class BeamServices @Inject()(protected val injector: Injector) extends ActorInject {
+
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
   val bbox: BoundingBox = new BoundingBox()
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
@@ -35,8 +36,12 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var schedulerRef: ActorRef =_
   var taxiManager: ActorRef = _
   var persons: Map[Id[Person], Person] = Map()
+  var personRefs: Map[Id[Person], ActorRef] = Map()
   var vehicles: Map[Id[Vehicle], Vehicle] = Map()
+  var vehicleRefs: Map[Id[Vehicle], ActorRef] = Map()
   var households : Map[Id[Household], Household] = Map()
+  var agentRefs: Map[Id[_], ActorRef] = Map()
+
 }
 
 object BeamServices {

@@ -8,22 +8,11 @@ import org.matsim.vehicles._
 
 
 
-class HumanBodyVehicle(val personId: Id[PersonAgent], val beamServices: BeamServices, val data: HumanBodyVehicleData,
-                       var trajectory: Trajectory, var powerTrain: Powertrain,
-                       var driver: Option[ActorRef] = None) extends BeamVehicle with HasServices {
+class HumanBodyVehicle(val vehicleId: Id[Vehicle], val personId: Id[PersonAgent], val beamServices: BeamServices, val data: HumanBodyVehicleData,
+                       var powerTrain: Powertrain, var driver: Option[ActorRef] = None) extends BeamVehicle with HasServices {
 
-  //XXX: be careful with traversing,  possible recursion
-  def passengers: List[ActorRef] = List(self)
+  override val id: Id[Vehicle] = vehicleId
 
-  def carrier = None
-
-  override def id: Id[_] = personId
-
-  override protected def setDriver(newDriver: ActorRef): Unit = throw new UnsupportedOperationException
-
-  override protected def pickupPassengers(newPassengers: List[ActorRef]): Unit = throw new UnsupportedOperationException
-
-  override protected def dropOffPassengers(passengers: List[ActorRef]): List[ActorRef] = throw new UnsupportedOperationException
 }
 
 /**

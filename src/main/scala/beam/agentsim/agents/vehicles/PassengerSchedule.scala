@@ -2,6 +2,8 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.router.RoutingModel.BeamLeg
+import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 
@@ -9,15 +11,17 @@ import scala.collection.mutable
   * BEAM
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
-  def addPassenger(passenger: ActorRef, legs: Vector[BeamLeg]) = {
+  def addPassenger(passenger: Id[Vehicle], legs: Vector[BeamLeg]) = {
     legs.foreach(leg =>
       schedule.get(leg) match {
         case Some(manifest) =>
-          manifest.boarders += passenger
+          manifest.riders += passenger
         case None =>
           schedule.put(leg, Manifest(passenger))
       }
     )
+    val firstLeg = legs(0)
+    schedule.get(firstLeg).get.boarders += passenger
     val lastLeg = legs(legs.size - 1)
     schedule.get(lastLeg).get.alighters += passenger
   }
@@ -29,9 +33,9 @@ object PassengerSchedule {
   def apply(): PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, Manifest]()(beamLegOrdering))
 }
 
-class Manifest(val riders: mutable.ListBuffer[ActorRef], val boarders: mutable.ListBuffer[ActorRef], val alighters: mutable.ListBuffer[ActorRef] )
+class Manifest(val riders: mutable.ListBuffer[Id[Vehicle]], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] )
 
 object Manifest{
-  def apply(): Manifest = new Manifest(mutable.ListBuffer[ActorRef](),mutable.ListBuffer[ActorRef](),mutable.ListBuffer[ActorRef]())
-  def apply(passenger: ActorRef): Manifest = new Manifest(mutable.ListBuffer[ActorRef](passenger),mutable.ListBuffer[ActorRef](passenger),mutable.ListBuffer[ActorRef]())
+  def apply(): Manifest = new Manifest(mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
+  def apply(passenger: Id[Vehicle]): Manifest = new Manifest(mutable.ListBuffer[Id[Vehicle]](passenger),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
 }

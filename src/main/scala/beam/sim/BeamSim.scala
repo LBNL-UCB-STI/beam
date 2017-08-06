@@ -195,7 +195,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   private def initVehicleActors(iterId: Option[String] = None) = {
     val actors = services.vehicles.map { case (vehicleId, matSimVehicle) =>
-      val props = BeamVehicleAgent.props(vehicleId, matSimVehicle, new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)))
+      val props = BeamVehicle.props(vehicleId, matSimVehicle, new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)))
       val beamVehicle = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId))
       beamVehicle ! TriggerWithId(InitializeTrigger(0.0), 0)
       (vehicleId, beamVehicle)

@@ -2,20 +2,22 @@ package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.BeamAgent.BeamAgentData
-import beam.agentsim.agents.PersonAgent.{Moving, PersonData, ScheduleBeginLegTrigger}
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
+import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, NotifyLegEnd, StartLegTrigger}
 import beam.agentsim.agents.util.{AggregatorFactory, MultipleAggregationResult}
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
-import beam.agentsim.agents.vehicles.VehicleData._
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BoardingConfirmation, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.agents.vehicles.{BeamVehicle, EnterVehicleTrigger, LeaveVehicleTrigger, VehicleData}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleData}
 import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
+import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.HashSet
+
 
 /**
   * @author dserdiuk on 7/29/17.
@@ -23,6 +25,8 @@ import scala.collection.mutable.ListBuffer
 object DrivesVehicle {
   case class StartLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
   case class EndLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
+  case class NotifyLegEnd()
+  case class NotifyLegStart()
 }
 
 trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with AggregatorFactory {
@@ -31,8 +35,12 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
   //TODO: init log with empty lists of stops according to vehicle trip/schedule route
   protected lazy val passengerSchedule: PassengerSchedule = PassengerSchedule()
 
+  protected var _currentTriggerId: Option[Long] = None
+  protected var _currentTick: Option[Double] = None
   protected var _currentLeg: Option[BeamLeg] = None
   protected var _currentVehicle: Option[BeamVehicleIdAndRef] = None
+  protected val _awaitingBoardConfirmation: HashSet[Id[Vehicle]] = HashSet()
+  protected val _awaitingAlightConfirmation: HashSet[Id[Vehicle]] = HashSet()
 
   def nextBeamLeg():  BeamLeg
 
@@ -40,33 +48,52 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
       //we have just completed a leg
       log.debug(s"Received completed leg for beamVehicleId=${_currentVehicle.get.id}, started Boarding/Alighting   ")
-//      passengerSchedule.schedule.get(completedLeg) match {
-//        case Some(passengerReservations) =>
-//            val passengersToDropOff  = passengerReservations.filter(_.arriveAt == completedLeg)
-//            processAlighting(tick, completedLeg, beamVehicleRef, passengersToDropOff)
-//
-//            val passengersToPickUp = passengerReservations.filter(_.departFrom == completedLeg)
-//            processBoarding(tick, completedLeg, beamVehicleRef, passengersToPickUp)
-//          }
-//          }
-//        case None =>
-//          // do nothing
-//      }
-      stay()
+      _currentTriggerId = Some(triggerId)
+      _currentTick = Some(tick)
+      passengerSchedule.schedule.get(completedLeg) match {
+        case Some(manifest) =>
+          _awaitingAlightConfirmation ++= manifest.alighters
+          manifest.riders.foreach(passenger => beamServices.vehicleRefs(passenger) ! NotifyLegEnd)
+          stay()
+        case None =>
+          log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
+          goto(BeamAgent.Error)
+      }
     case Event(ReservationRequestWithVehicle(req, vehicleData: VehicleData), _) =>
       val proxyVehicleAgent = sender()
       require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
 //      val response: ReservationResponse = handleVehicleReservation(req, vehicleData, proxyVehicleAgent)
 //        req.passenger ! response
         stay()
-    case Event(AlightingConfirmation(noticeId), agentInfo) =>
-      stay()
+    case Event(AlightingConfirmation(vehicleId), agentInfo) =>
+      _awaitingAlightConfirmation -= vehicleId
+      if(_awaitingAlightConfirmation.isEmpty){
+        processNextLegOrCompleteMission()
+      }else{
+        stay()
+      }
 
     case Event(BoardingConfirmation(noticeId), agentInfo) =>
       val nextLeg: BeamLeg  = nextBeamLeg()
       _currentLeg = Option(nextLeg)
       stay() replying scheduleOne[ScheduleBeginLegTrigger](nextLeg.startTime, agent = self)
 
+  }
+
+  private def processNextLegOrCompleteMission() = {
+    val theTriggerId = _currentTriggerId.get
+    _currentTriggerId = None
+    val theTick = _currentTick.get
+    _currentTick = None
+
+    passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
+    if(passengerSchedule.schedule.size > 0){
+      _currentLeg = Some(passengerSchedule.schedule.firstKey)
+      goto(Waiting) replying completed(theTriggerId, schedule[StartLegTrigger](_currentLeg.get.startTime,self))
+    }else{
+      _currentVehicle.get.ref ! UnbecomeDriver(theTick, id)
+      goto(Waiting) replying completed(theTriggerId, schedule[CompleteDrivingMissionTrigger](theTick,self))
+    }
   }
 
 //  private def processBoarding(triggerTick: Double, completedLeg: BeamLeg, transferVehicleAgent: ActorRef,

@@ -7,9 +7,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TaxiAgent.DropOffCustomer
 import beam.agentsim.agents.modalBehaviors.ChoosesMode
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
-import beam.agentsim.agents.vehicles.{BeamVehicle, EnterVehicleTrigger, LeaveVehicleTrigger}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.resources.vehicle.{AlightingConfirmation, AlightingNotice, BoardingConfirmation}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -156,6 +154,8 @@ object PersonAgent {
   case class TeleportationArrivalTrigger(tick: Double) extends Trigger
 
   case class ScheduleBeginLegTrigger(tick: Double) extends Trigger
+
+  case class CompleteDrivingMissionTrigger(tick: Double) extends Trigger
 
 
 }
