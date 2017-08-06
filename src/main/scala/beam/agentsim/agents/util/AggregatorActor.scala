@@ -32,7 +32,7 @@ case class AggregatedRequest(requests: Map[ActorRef, List[Any]])
   * @param responseTo
   * @param transform function will be applied to aggregated response before sending in to responseTo actor
   */
-class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[Any, Any]]) extends Actor with Aggregator with ActorLogging  {
+class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[Any, Any]] = None, senderRef: Option[ActorRef] = None) extends Actor with Aggregator with ActorLogging  {
 
 
   private var requests: Map[ActorRef, List[Any]] = null
@@ -70,12 +70,21 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
       }
       transform match {
         case Some(transformFunc) if transformFunc.isDefinedAt(result) =>
-          responseTo ! transformFunc(result)
+          val response = transformFunc(result)
+          responseWithSender(response)
         case _ =>
-          responseTo ! result
+          responseWithSender(result)
       }
       log.debug(s"Finished aggregation request from ${sender()} ")
       context stop self
+    }
+  }
+
+  private def responseWithSender(response: Any) = {
+    if (senderRef.isDefined) {
+      responseTo tell(response, senderRef.get)
+    } else {
+      responseTo ! response
     }
   }
 

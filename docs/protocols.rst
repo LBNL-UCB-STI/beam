@@ -60,14 +60,14 @@ Driver
 
 *Starting Leg*
 
-1. The Driver recieves a StartLegTrigger from the Waiting state.
+1. The Driver receives a StartLegTrigger from the Waiting state.
 2. The Driver sends NotifyLegStart messages to all passengers in the PassengerSchedule associated with the current BeamLeg.
 3. The Driver sends an UpdateTrajectory message to the vehicle she controls.
-4. When all expected ConfirmBoarding messages are recieved from the vehicle, the Drive schedules an EndLegTrigger and transitions to the Moving state.
+4. When all expected ConfirmBoarding messages are received from the vehicle, the Drive schedules an EndLegTrigger and transitions to the Moving state.
 
 *Ending Leg*
 
-1. The Driver recieves an EndLegTrigger from the Moving state.
+1. The Driver receives an EndLegTrigger from the Moving state.
 2. The Driver sends NotifyLegEnd messages to all passengers in the PassengerSchedule associated with the current BeamLeg.
 3. When all expected ConfirmAlighting and/or ConfirmContinuing messages are recieved from the vehicle, the Driver proceeds with the following steps.
 4. If the Driver has more legs in the PassengerSchedule, she schedules an StartLegTrigger.
@@ -151,8 +151,8 @@ Transit
 Transit itineraries are returned by the router in the Trip Planning Protocol. In order to follow one of these itineraries, the PersonAgent must reserve a spot on the transit vehicle according to the following protocol:
 
 1. PersonAgent sends ReservationRequest to the BeamVehicle.
-2. The BeamVehicle forwards the reservation request to the Driver of the vehicle. The drive is responsible for managing the schedule and accepting/rejecting reservations from customers.
-3. The Driver sends a ResrvationConfirmation directly to the PersonAgent.
+2. The BeamVehicle forwards the reservation request to the Driver of the vehicle. The driver is responsible for managing the schedule and accepting/rejecting reservations from customers.
+3. The Driver sends a ReservationConfirmation directly to the PersonAgent.
 4. When the BeamVehicle makes it to the confirmed stop for boarding, the Driver sends a BoardingNotice to the PersonAgent.
 5. The PersonAgent sends an EnterVehicle message to the BeamVehicle.
 6. The BeamVehicle sends a BoardingConfirmation message to the Driver.
