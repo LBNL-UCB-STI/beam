@@ -38,6 +38,16 @@ peeps[vehicleClassName=='NEV',veh.type:='NEV']
 out.dirs <- list(  'batt-1.5x' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-24_23-36-42-batt1.5x/',0) )
 out.dirs <- list(  'vmt-1k' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-26_23-23-56/',0) )
 out.dirs <- list(  'vmt-68k' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-31_19-29-25-final-base-for-plexos/',0) )
+#out.dirs <- list( 'morework-50pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-53-30-morework50/',0) )
+out.dirs <- list( 'morework-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-53-30-morework100/',0) )
+out.dirs <- list( 'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-22-morework100sameloc/',0) )
+out.dirs <- list( 'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) )
+
+out.dirs <- list(  'base' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-31_19-29-25-final-base-for-plexos/',0),
+                 'morework-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-53-30-morework100/',0),
+                  'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-22-morework100sameloc/',0),
+                   'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) 
+                 )
                   
 
 scens <- names(out.dirs)
@@ -97,11 +107,11 @@ ev[type=='BeginChargingSessionEvent' & is.na(actType),actType:='Home',by=c('scen
 ev <- ev[!type%in%c('arrival','departure','travelled','actend','PreChargeEvent')]
 
 # categorize each charger into Home, Work, Public
-if(length(grep('200pct',scen))>0){
+if(length(grep('morework200',scen))>0){
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-200pct.csv',stringsAsFactors=F))
-}else if(length(grep('100pct',scen))>0){
+}else if(length(grep('morework100',scen))>0){
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-100pct.csv',stringsAsFactors=F))
-}else if(length(grep('50pct',scen))>0){
+}else if(length(grep('morework50',scen))>0){
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-50pct.csv',stringsAsFactors=F))
 }else{
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-revised-2017-07.csv',stringsAsFactors=F))
@@ -255,9 +265,10 @@ flex.scenario <- 'base'
   soc[,plugged.in.capacity:=ifelse(abs(diff(cumul.energy))>1e-6,kw[1],0),by=c('hr','scenario','person','final.type')]
 
   # Final categorization of load
-  soc.sum <- soc[ hr>=27+24*4 & hr<51+24*4 & constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','final.type','veh.type')]
+  soc.sum <- soc[ constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','final.type','veh.type')]
   setkey(soc.sum,scenario,hr,final.type,veh.type)
-  ggplot(soc.sum,aes(x=hr%%24,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_grid(final.type~scenario,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
+  ggplot(soc.sum,aes(x=hr,y=d.energy,fill=veh.type))+geom_bar(stat='identity')+facet_grid(final.type~scenario,scales='free_y')+labs(title="BEAM Average Load",x="Hour",y="Load (kW)")
+
   ggplot(soc[hr==floor(hr) & hr<160,list(cumul.energy=sum(cumul.energy)),by=c('scenario','hr','constraint','final.type','veh.type')],aes(x=hr,y=cumul.energy,colour=constraint))+geom_line()+facet_wrap(scenario~veh.type~final.type)
   soc.sum <- soc[hr==floor(hr) & hr>=27+24*5 & hr<51+24*5 &constraint=='max',list(d.energy=sum(d.energy.level)),by=c('scenario','hr','constraint','final.type')]
   setkey(soc.sum,scenario,hr,final.type)
