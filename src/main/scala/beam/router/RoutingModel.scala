@@ -1,74 +1,93 @@
 package beam.router
 
+import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{ALIGHTING, BOARDING, CAR, TRANSIT, WAITING, WALK}
-import beam.router.RoutingModel.BeamGraphPath.empty
+import beam.router.RoutingModel.BeamStreetPath.empty
 import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.Id
-import org.matsim.core.utils.geometry.CoordUtils
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
+import org.opentripplanner.routing.vertextype.TransitStop
+
+import scala.collection.immutable.TreeMap
 
 /**
   * BEAM
   */
 object RoutingModel {
-  case class BeamTrip(legs: Vector[BeamLeg], choiceUtility: Double = 0.0) {
-    lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
+  case class BeamTrip(legs: TreeMap[BeamLeg,BeamVehicleAssignment],
+                      choiceUtility: Double = 0.0) {
+    lazy val tripClassifier: BeamMode = if (legs.keys.toVector map (_.mode) contains CAR) {
       CAR
     } else {
       TRANSIT
     }
-    val totalTravelTime: Long = legs.map(_.duration).sum
-
-    def estimateCost( costPerMile: BigDecimal) = {
-      legs.map(_.graphPath.pathLength * costPerMile)
-    }
+    val totalTravelTime: Long = legs.keys.map(_.duration).sum
+    def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
   }
 
   object BeamTrip {
-    val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
+    def apply(legsAsVector: Vector[BeamLeg]): BeamTrip = {
+      var legMap = TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering)
+      legsAsVector.foreach(leg => legMap += (leg -> BeamVehicleAssignment.empty))
+      BeamTrip(legMap)
+    }
+    val empty: BeamTrip = BeamTrip(TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering))
   }
 
-  case class BeamLeg(startTime: Long, mode: BeamMode, duration: Long,
-                     graphPath: BeamGraphPath = empty, beamVehicleId: Option[Id[Vehicle]] = None,
-                     endStopId: Option[String] = None)
+  case class BeamLeg(startTime: Long,
+                     mode: BeamMode,
+                     duration: Long,
+                     travelPath: BeamPath = empty){
+    def endTime: Long = startTime + duration
+  }
 
   object BeamLeg {
+    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(_.startTime)
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
     def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
     def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
     def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
-    def apply(time: Long, mode: beam.router.Modes.BeamMode, duration: Long, graphPath: beam.router.RoutingModel.BeamGraphPath): BeamLeg =
-      BeamLeg(time, mode, duration, graphPath, None, None)
-    def apply(time: Long, mode: beam.router.Modes.BeamMode, travelTime: Long, graphPath: beam.router.RoutingModel.BeamGraphPath, beamVehicleId: Option[Id[Vehicle]]): BeamLeg =
-      BeamLeg(time, mode, travelTime, graphPath, beamVehicleId, None)
+//    def apply(time: Long, mode: BeamMode, duration: Long, streetPath: BeamStreetPath): BeamLeg =
+//      BeamLeg(time, mode, duration, Left(streetPath))
+//    def apply(time: Long, mode: BeamMode, duration: Long, transitSegment: BeamTransitSegment): BeamLeg =
+//      BeamLeg(time, mode, duration, Right(transitSegment))
   }
 
-  case class BeamGraphPath(linkIds: Vector[String],
-                           latLons: Vector[Coord],
-                           entryTimes: Vector[Long]) {
-
-    lazy val trajectory: Vector[SpaceTime] = {
-      latLons zip entryTimes map {
-        SpaceTime(_)
-      }
-    }
-    private lazy val pathLengths = latLons.sliding(2).map{ case Vector(a,b) => CoordUtils.calcProjectedEuclideanDistance(a,b)}.toList
-
-    def size  = latLons.size
-
-    def pathLength = pathLengths.sum
-
+  sealed abstract class BeamPath {
+    def toTrajectory: Trajectory = ???
+    def isStreet: Boolean = false
+    def isTransit: Boolean = false
   }
 
-  object BeamGraphPath {
-    val emptyTimes: Vector[Long] = Vector[Long]()
-    val errorPoints: Vector[Coord] = Vector[Coord](new Coord(0.0, 0.0))
-    val errorTime: Vector[Long] = Vector[Long](-1L)
+  case class BeamTransitSegment(beamVehicleId: Id[Vehicle],
+                                fromStopId: Id[TransitStop],
+                                toStopId: Id[TransitStop],
+                                departureTime: Long) extends BeamPath {
+    override def isTransit = true
+    override def toTrajectory = Trajectory(this)
+  }
 
-    val empty: BeamGraphPath = new BeamGraphPath(Vector[String](), errorPoints, emptyTimes)
+  case class BeamStreetPath(linkIds: Vector[String],
+                            beamVehicleId: Option[Id[Vehicle]] = None,
+                            trajectory: Option[Vector[SpaceTime]] = None) extends BeamPath {
+
+    override def isStreet = true
+    override def toTrajectory = new Trajectory(this)
+
+    def entryTimes = trajectory.getOrElse(Vector()).map(_.time)
+    def latLons = trajectory.getOrElse(Vector()).map(_.loc)
+    def size  = trajectory.size
+  }
+
+  object BeamStreetPath {
+    val empty: BeamStreetPath = new BeamStreetPath(Vector[String]())
+  }
+
+  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean, passengerSchedule: Option[PassengerSchedule])
+  object BeamVehicleAssignment{
+    val empty: BeamVehicleAssignment = BeamVehicleAssignment(Id.create("Empty",classOf[Vehicle]),false,None)
   }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
@@ -79,10 +98,6 @@ object RoutingModel {
     */
   sealed trait BeamTime {
     val atTime: Int
-  }
-  object BeamTime {
-    def at(time: Int) = DiscreteTime(time)
-    def within(from : Int, frame: Int = 15*60) = WindowTime(from, frame)
   }
   case class DiscreteTime(override val atTime: Int) extends BeamTime
   case class WindowTime(override val atTime: Int, timeFrame: Int = 15 * 60) extends BeamTime {

@@ -25,7 +25,7 @@ object VehicleLoader extends App {
 
   val actorSystem = ActorSystem()
   val vehicleActors  = vehicles.getVehicles.asScala.map { case (vehicleId,matSimVehicle) =>
-      val beamVehicle  =  actorSystem.actorOf(Props(classOf[BeamVehicleAgent],  vehicleId,
+      val beamVehicle  =  actorSystem.actorOf(Props(classOf[BeamVehicle],  vehicleId,
         VehicleData.vehicle2vehicleData(matSimVehicle),
         new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)),
         //TODO: trajectory looks irrelevant here,
