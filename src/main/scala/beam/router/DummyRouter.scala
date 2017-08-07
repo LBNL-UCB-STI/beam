@@ -10,6 +10,8 @@ import com.vividsolutions.jts.geom.Coordinate
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Person
 
+import scala.collection.immutable.TreeMap
+
 class DummyRouter(val beamServices: BeamServices) extends Actor with ActorLogging {
 
   override def receive: Receive = {
@@ -29,7 +31,7 @@ class DummyRouter(val beamServices: BeamServices) extends Actor with ActorLoggin
       val leg = BeamLeg(time+1, BeamMode.CAR, 100, path)
       val dummyWalkEnd = BeamLeg.dummyWalk(time+101)
 
-      val trip = BeamTrip(Vector[BeamLeg](dummyWalkStart,leg,dummyWalkEnd))
+      val trip = BeamTrip(Vector[BeamLeg](dummyWalkStart, leg, dummyWalkEnd))
       sender() ! RoutingResponse(requestId, Vector[BeamTrip](trip))
   }
 

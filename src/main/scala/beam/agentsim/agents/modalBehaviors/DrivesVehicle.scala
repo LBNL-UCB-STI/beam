@@ -24,8 +24,8 @@ import scala.collection.mutable.HashSet
 object DrivesVehicle {
   case class StartLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
   case class EndLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
-  case class NotifyLegEnd()
-  case class NotifyLegStart()
+  case class NotifyLegEnd(tick: Double)
+  case class NotifyLegStart(tick: Double)
 }
 
 trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with AggregatorFactory {

@@ -10,23 +10,30 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 import org.opentripplanner.routing.vertextype.TransitStop
 
+import scala.collection.immutable.TreeMap
+
 /**
   * BEAM
   */
 object RoutingModel {
-  case class BeamTrip(legs: Vector[BeamLeg],
+  case class BeamTrip(legs: TreeMap[BeamLeg,BeamVehicleAssignment],
                       choiceUtility: Double = 0.0) {
-    lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
+    lazy val tripClassifier: BeamMode = if (legs.keys.toVector map (_.mode) contains CAR) {
       CAR
     } else {
       TRANSIT
     }
-    val totalTravelTime: Long = legs.map(_.duration).sum
+    val totalTravelTime: Long = legs.keys.map(_.duration).sum
     def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
   }
 
   object BeamTrip {
-    val noneTrip: BeamTrip = BeamTrip(Vector[BeamLeg]())
+    def apply(legsAsVector: Vector[BeamLeg]): BeamTrip = {
+      var legMap = TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering)
+      legsAsVector.foreach(leg => legMap += (leg -> BeamVehicleAssignment.empty))
+      BeamTrip(legMap)
+    }
+    val empty: BeamTrip = BeamTrip(TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering))
   }
 
   case class BeamLeg(startTime: Long,
@@ -37,6 +44,7 @@ object RoutingModel {
   }
 
   object BeamLeg {
+    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(_.startTime)
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
     def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
     def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
@@ -78,6 +86,9 @@ object RoutingModel {
   }
 
   case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean, passengerSchedule: Option[PassengerSchedule])
+  object BeamVehicleAssignment{
+    val empty: BeamVehicleAssignment = BeamVehicleAssignment(Id.create("Empty",classOf[Vehicle]),false,None)
+  }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
 

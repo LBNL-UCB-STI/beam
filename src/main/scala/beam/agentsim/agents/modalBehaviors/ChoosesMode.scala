@@ -44,7 +44,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
         goto(BeamAgent.Error)
       } else {
         goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
-          completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.startTime, self))
+          completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.keys.head.startTime, self))
       }
     } else {
       stay()
@@ -105,17 +105,17 @@ object ChoosesMode {
     var containsDriveAlt = -1
     var altModesAndTimes: Vector[(BeamMode, Double)] = for (i <- alternatives.indices.toVector) yield {
       val alt = alternatives(i)
-      val altMode = if (alt.legs.length == 1) {
-        alt.legs.head.mode
+      val altMode = if (alt.legs.keys.size == 1) {
+        alt.legs.keys.head.mode
       } else {
-        if (alt.legs(1).mode.equals(CAR)) {
+        if (alt.legs.keys.head.mode.equals(CAR)) {
           containsDriveAlt = i
           CAR
         } else {
           TRANSIT
         }
       }
-      val travelTime = (for (leg <- alt.legs) yield leg.duration).foldLeft(0.0) {
+      val travelTime = (for (leg <- alt.legs.keys) yield leg.duration).foldLeft(0.0) {
         _ + _
       }
       (altMode, travelTime)
@@ -142,7 +142,7 @@ object ChoosesMode {
     if(chosenIndex.size > 0) {
       alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
     } else {
-      BeamTrip.noneTrip
+      BeamTrip.empty
     }
   }
 

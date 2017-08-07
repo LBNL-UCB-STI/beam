@@ -29,8 +29,7 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
 
 
 object PassengerSchedule {
-  implicit val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(_.startTime)
-  def apply(): PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, Manifest]()(beamLegOrdering))
+  def apply(): PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, Manifest]()(BeamLeg.beamLegOrdering))
 }
 
 class Manifest(val riders: mutable.ListBuffer[Id[Vehicle]], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] )

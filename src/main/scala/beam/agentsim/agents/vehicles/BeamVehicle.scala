@@ -167,8 +167,10 @@ trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShor
         driver = Some(beamServices.agentRefs(newDriver))
         driver.get ! BecomeDriverSuccess(newPassengerSchedule)
       }else {
-        val beamAgent = sender()
-        beamAgent ! DriverAlreadyAssigned(id, driver.get)
+        //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are drivers, but futur versions of BEAM may seek to be robust to this condition
+        throw new RuntimeException(s"BeamAgent ${newDriver} attempted to become driver of vehicle ${id} but driver ${driver.get} already assigned.")
+//        val beamAgent = sender()
+//        beamAgent ! DriverAlreadyAssigned(id, driver.get)
       }
       stay()
     case Event(EnterVehicle(tick, newPassenger), info) =>
@@ -231,6 +233,18 @@ object VehicleAttributes extends Enumeration {
     val gasolineFuelConsumptionRateInJoulesPerMeter = Value("gasolineFuelConsumptionRateInJoulesPerMeter")
     val fuelEconomyInKwhPerMile = Value("fuelEconomyInKwhPerMile")
     val equivalentTestWeight = Value("equivalentTestWeight")
+  }
+}
+
+case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
+  def push(vehicle: Id[Vehicle]) = {
+    VehicleStack(vehicle +: nestedVehicles)
+  }
+  def outermostVehicle(): Id[Vehicle] = {
+    nestedVehicles(0)
+  }
+  def pop(): VehicleStack = {
+    VehicleStack(nestedVehicles.tail)
   }
 }
 

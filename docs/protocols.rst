@@ -71,7 +71,7 @@ Driver
 2. The Driver sends NotifyLegEnd messages to all passengers in the PassengerSchedule associated with the current BeamLeg.
 3. When all expected AlightingConfirmation messages are recieved from the vehicle, the Driver proceeds with the following steps.
 4. If the Driver has more legs in the PassengerSchedule, she schedules an StartLegTrigger.
-5. Else the Driver sends a ReleaseControl message to the vehicle and schedules a CompleteDrivingMissionTrigger.
+5. Else the Driver sends a UnbecomeDriver message to the vehicle and schedules a CompleteDrivingMissionTrigger.
 6. The Driver transitions to the Waiting state.
 
 Traveler
@@ -81,7 +81,7 @@ Traveler
 
 1. The PersonAgent receives a PersonDepartureTrigger from the scheduler while in Waiting state. She dequeues the first BeamLeg in her BeamTrip, all BeamTrips start with a leg that is of mode WALK.
 2. The PersonAgent sends an BecomeDriver message to her BodyVehicle and passes it a PassengerSchedule that defines her walking leg.
-3. The PersonAgent stays in Waiting state.
+3. The PersonAgent stays in Waiting state and responds with a completion notice scheduling the StartLegTrigger.
 
 *Process Next Leg Method*
 
@@ -89,7 +89,7 @@ The following protocol is used more than once by the traveler so it is defined h
 
 1. If there are no more legs in the BeamTrip, the PersonAgent schedules the EndActivityTrigger and transitions to the InActivity state.
 2. Else the PersonAgent checks the BeamVehicleAssignment associated with the BeamTrip.
-3. If the PersonAgent is the driver of the next BeamLeg, then she sends an AssumeControl message to that BeamVehicle and schedules a StartLegTrigger and stays in the current state (which could be either Waitint or Moving depending on the circumstance).
+3. If the PersonAgent is the driver of the next BeamLeg, then she sends an BecomeDriver message to that BeamVehicle and schedules a StartLegTrigger and stays in the current state (which could be either Waitint or Moving depending on the circumstance).
 
 *Complete Driving Mission*
 
@@ -99,14 +99,14 @@ The following protocol is used more than once by the traveler so it is defined h
 *Notify Start Leg*
 
 1. The PersonAgent receives a NotifyLegStart message from a Driver.
-2. The PersonAgent sends a BoardVehicle message to the vehicle contained in the corresponding VehicleAssignment object.
+2. The PersonAgent sends an EnterVehicle message to the vehicle contained in the corresponding VehicleAssignment object.
 3. The PersonAgent transitions to the Moving state.
 
 *Notify End Leg* 
 
 1. The PersonAgent receives a NotifyLegEnd message from a Driver.
 2. If another BeamLeg exists in her BeamTrip AND the BeamVehicle associated with the next BeamLeg is identical to the current BeamVehicle, then she does nothing other than update her internal state to note the end of the leg.
-4. Else she sends the current vehicle an AlightVehicle message.
+4. Else she sends the current vehicle an ExitVehicle message.
 5. The PersonAgent executes the ProcessNextLegModule method.
 
 Household
