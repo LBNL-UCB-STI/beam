@@ -29,7 +29,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
 
     it("should create a schedule for single passenger with one leg") {
 
-      val vehicleId: Id[Vehicle] = Id.create("dummyVehicle",Class[Vehicle])
+      val vehicleId: Id[Vehicle] = Id.create("dummyVehicle",classOf[Vehicle])
 
       val leg = BeamLeg(0L, WALK, 1L, BeamStreetPath.empty)
 
@@ -44,7 +44,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
     }
     it("should create a schedule for single passenger with many legs") {
 
-      val vehicleId: Id[Vehicle]  = Id.create("dummyVehicle",Class[Vehicle])
+      val vehicleId: Id[Vehicle]  = Id.create("dummyVehicle",classOf[Vehicle])
 
       val leg1 = BeamLeg(0L, WALK, 1L, BeamStreetPath.empty)
       val leg2 = BeamLeg(1L, WALK, 1L, BeamStreetPath.empty)
@@ -70,8 +70,8 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
     }
     it("should create a schedule for many passengers with many legs") {
 
-      val vehicleId1: Id[Vehicle]  = Id.create("dummyVehicle1",Class[Vehicle])
-      val vehicleId2: Id[Vehicle]  = Id.create("dummyVehicle2",Class[Vehicle])
+      val vehicleId1: Id[Vehicle]  = Id.create("dummyVehicle1",classOf[Vehicle])
+      val vehicleId2: Id[Vehicle]  = Id.create("dummyVehicle2",classOf[Vehicle])
 
       val leg1 = BeamLeg(0L, WALK, 1L, BeamStreetPath.empty)
       val leg2 = BeamLeg(1L, WALK, 1L, BeamStreetPath.empty)
