@@ -55,8 +55,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
   var currentIter = 0
-  var vehicleActors: Map[Id[Vehicle], ActorRef] = Map()
-  var householdActors: Map[Id[Household], ActorRef] = Map()
 
   private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
 
@@ -126,7 +124,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def cleanupVehicle() = {
-    for ( (_, actorRef) <- vehicleActors) {
+    for ( (_, actorRef) <- services.vehicleRefs) {
       logger.debug(s"Stopping ${actorRef.path.name} ")
       actorSystem.stop(actorRef)
 
@@ -134,7 +132,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def cleanupHouseHolder() = {
-    for ( (_,  householdActor) <- householdActors) {
+    for ( (_,  householdActor) <- services.householdRefs) {
        logger.debug(s"Stopping ${householdActor.path.name} ")
        actorSystem.stop(householdActor)
     }
@@ -151,14 +149,13 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
-    val personAgents = mutable.Map[Id[Person], ActorRef]()
     for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
 //      val bodyVehicle = actorSystem.actorOf(HumanBodyVehicle.props(services, personId))
       val bodyVehicle = null
       val props = Props(classOf[PersonAgent], personId, PersonData(matsimPerson.getSelectedPlan, bodyVehicle),services)
       val ref: ActorRef = actorSystem.actorOf(props, s"${personId.toString}_$iter")
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
-      personAgents +=((personId, ref))
+      services.personRefs +=((personId, ref))
     }
     // Generate taxis and intialize them to be located within ~initialLocationJitter km of a subset of agents
     //TODO re-enable the following based on config params and after TaxiAgents have been re-factored
@@ -172,14 +169,14 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 //      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
 //    }
     val iterId = Option(iter.toString)
-    vehicleActors = initVehicleActors(iterId)
-    householdActors = initHouseholds(personAgents, iterId)
+    services.vehicleRefs = initVehicleActors(iterId)
+    services.householdRefs = initHouseholds(services.personRefs , iterId)
   }
 
-  private def initHouseholds(personAgents: mutable.Map[Id[Person], ActorRef]  ,iterId: Option[String] = None)  = {
+  private def initHouseholds(personAgents: Map[Id[Person], ActorRef]  ,iterId: Option[String] = None)  = {
     val actors = services.households.map { case (householdId, matSimHousehold) =>
       val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map { vehicleId =>
-        val vehicleActRef = vehicleActors.get(vehicleId)
+        val vehicleActRef = services.vehicleRefs.get(vehicleId)
         (vehicleId, vehicleActRef)
       }.collect { case (vehicleId, Some(vehicleAgent)) => (vehicleId, vehicleAgent) }.toMap
       val membersActors = matSimHousehold.getMemberIds.asScala.map { personId =>
