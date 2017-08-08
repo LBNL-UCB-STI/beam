@@ -28,10 +28,10 @@ class CarVehicle(val beamServices: BeamServices,
   private lazy val carVehicleType = initVehicleType()
   val dim: CarDimension = CarDimension(1800, 4.8, 2)
   private def initVehicleType() = {
-    val t  = VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle", classOf[VehicleType]))
+    val t  = VehicleUtils.getFactory.createVehicleType(Id.create("CarVehicle", classOf[VehicleType]))
     val cap = VehicleUtils.getFactory.createVehicleCapacity()
-    cap.setSeats(1)
-    cap.setStandingRoom(1)
+    cap.setSeats(5)
+    cap.setStandingRoom(0)
     t.setCapacity(cap)
     t
   }

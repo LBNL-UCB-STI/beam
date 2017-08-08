@@ -32,7 +32,7 @@ class HumanBodyVehicle(val beamServices: BeamServices,
     val t  = VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle", classOf[VehicleType]))
     val cap = VehicleUtils.getFactory.createVehicleCapacity()
     cap.setSeats(1)
-    cap.setStandingRoom(1)
+    cap.setStandingRoom(0)
     t.setCapacity(cap)
     t
   }
