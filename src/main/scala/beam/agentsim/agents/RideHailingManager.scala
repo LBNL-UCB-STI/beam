@@ -13,7 +13,7 @@ import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle.VehicleUnavailable
 import beam.router.BeamRouter
-import beam.router.BeamRouter.{RouteLocation, RoutingRequest, RoutingRequestParams, RoutingResponse}
+import beam.router.BeamRouter.{Location, RoutingRequest, TripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
 import beam.sim.{BeamServices, HasServices}
@@ -39,7 +39,7 @@ object RideHailingManager {
 
   def nextTaxiInquiryId = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailingInquiry])
 
-  case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: RouteLocation, departAt: BeamTime, radius: Double, destination: RouteLocation)
+  case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: Location, departAt: BeamTime, radius: Double, destination: Location)
 
   case class TravelProposal(taxiAgentLocation: TaxiAgentLocation, timesToCustomer: Long, estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration])
 
@@ -48,7 +48,7 @@ object RideHailingManager {
     override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
   }
 
-  case class ReserveTaxi(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: RouteLocation, departAt: BeamTime, destination: RouteLocation)
+  case class ReserveTaxi(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: Location, departAt: BeamTime, destination: Location)
   case class ReserveTaxiResponse(inquiryId: Id[RideHailingInquiry], data: Either[ReservationError, TaxiConfirmData])
   case class TaxiConfirmData(taxiAgent: ActorRef, customerId: Id[PersonAgent], travelProposal: TravelProposal)
 
@@ -105,16 +105,16 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       val customerAgent = sender()
       chosenTaxiLocationOpt match {
         case Some((taxiLocation, shortDistanceToTaxi)) =>
-          val params = RoutingRequestParams(departAt, Vector(TAXI), personId)
+//          val params = RoutingRequestParams(departAt, Vector(TAXI), personId)
           val customerTripRequestId = BeamRouter.nextId
           val taxi2CustomerRequestId = BeamRouter.nextId
           val routeRequests = Map(
             beamServices.beamRouter -> List(
-              RoutingRequest(customerTripRequestId, customerPickUp, destination, params),
-              RoutingRequest(taxi2CustomerRequestId, taxiLocation.currentLocation.loc, customerPickUp, params))
+              RoutingRequest(customerTripRequestId, TripInfo(customerPickUp, destination, departAt, Vector(TAXI), personId)),
+              RoutingRequest(taxi2CustomerRequestId, TripInfo(taxiLocation.currentLocation.loc, customerPickUp, departAt, Vector(TAXI), personId)))
           )
           aggregateResponsesTo(customerAgent, routeRequests) { case result: SingleActorAggregationResult =>
-            val responses = result.mapListTo[RoutingResponse].map(res => (res.requestId, res)).toMap
+            val responses = result.mapListTo[RoutingResponse].map(res => (res.id, res)).toMap
             val (_, timeToCustomer) = responses(taxi2CustomerRequestId).itinerary.map(t => (t, t.totalTravelTime)).minBy(_._2)
             val taxiFare = findVehicle(taxiLocation.vehicleId).flatMap(vehicle => info.fares.get(vehicle.getType.getId)).getOrElse(DefaultCostPerMile)
             val (customerTripPlan, cost) = responses(taxi2CustomerRequestId).itinerary.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2)
@@ -151,12 +151,12 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       log.info(s"unknown message received by TaxiManager $msg")
   }
 
-  private def handleReservation(inquiryId: Id[RideHailingInquiry], closestTaxi: TaxiAgentLocation, personId: Id[PersonAgent], customerPickUp: RouteLocation, departAt: BeamTime, destination: RouteLocation, customerAgent: ActorRef) = {
-    val params = RoutingRequestParams(departAt, Vector(TAXI), personId)
+  private def handleReservation(inquiryId: Id[RideHailingInquiry], closestTaxi: TaxiAgentLocation, personId: Id[PersonAgent], customerPickUp: Location, departAt: BeamTime, destination: Location, customerAgent: ActorRef) = {
+//    val params = RoutingRequestParams(departAt, Vector(TAXI), personId)
     val customerTripRequestId = BeamRouter.nextId
     val routeRequests = Map(
       beamServices.beamRouter -> List(
-        RoutingRequest(customerTripRequestId, customerPickUp, destination, params)
+        RoutingRequest(customerTripRequestId, TripInfo(customerPickUp, destination, departAt, Vector(TAXI), personId))
       ))
     aggregateResponsesTo(customerAgent, routeRequests) { case result: SingleActorAggregationResult =>
       val customerTripPlan = result.mapListTo[RoutingResponse].headOption
@@ -176,14 +176,14 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
     }
   }
 
-  private def handleReservation(inquiryId: Id[RideHailingInquiry], personId: Id[PersonAgent], customerPickUp: RouteLocation, destination: RouteLocation,
+  private def handleReservation(inquiryId: Id[RideHailingInquiry], personId: Id[PersonAgent], customerPickUp: Location, destination: Location,
                                 customerAgent: ActorRef, closestTaxi: TaxiAgentLocation, travelProposal: TravelProposal, tripPlan: Option[BeamTrip]) = {
     val confirmation = ReserveTaxiResponse(inquiryId, Right(TaxiConfirmData(closestTaxi.taxiAgent, personId, travelProposal)))
     triggerCustomerPickUp(customerPickUp, destination, closestTaxi, tripPlan, confirmation)
     customerAgent ! confirmation
   }
 
-  private def triggerCustomerPickUp(customerPickUp: RouteLocation, destination: RouteLocation, closestTaxi: TaxiAgentLocation, tripPlan: Option[BeamTrip], confirmation: ReserveTaxiResponse) = {
+  private def triggerCustomerPickUp(customerPickUp: Location, destination: Location, closestTaxi: TaxiAgentLocation, tripPlan: Option[BeamTrip], confirmation: ReserveTaxiResponse) = {
     closestTaxi.taxiAgent ! PickupCustomer(confirmation, customerPickUp, destination, tripPlan)
     inServiceTaxiCabs.put(closestTaxi.vehicleId, closestTaxi)
     taxiAgentLocationIndex.remove(closestTaxi.currentLocation.loc.getX, closestTaxi.currentLocation.loc.getY, closestTaxi)
