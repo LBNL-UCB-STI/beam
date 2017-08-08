@@ -31,7 +31,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routerResult.isDefined && taxiResult.isDefined) {
 
-      val chosenTrip = choiceCalculator(routerResult.get.itinerary)
+      val chosenTrip = choiceCalculator(routerResult.get.itineraries)
 
       hasReceivedCompleteChoiceTrigger = false
       val theTriggerIdAsLong = _currentTriggerId.get

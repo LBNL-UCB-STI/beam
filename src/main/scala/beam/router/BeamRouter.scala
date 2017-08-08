@@ -12,6 +12,7 @@ import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedIn
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
+import org.matsim.vehicles.Vehicle
 import org.matsim.facilities.Facility
 
 import scala.beans.BeanProperty
@@ -86,10 +87,13 @@ object BeamRouter {
   case object RouterInitialized extends RouterMessage
   case object RouterNeedInitialization extends RouterMessage
 
-  case class RoutingRequestParams(departureTime: BeamTime, accessMode: Vector[BeamMode], personId: Id[PersonAgent])
-  case class RoutingRequest(@BeanProperty id: Id[RoutingRequest], from: RouteLocation, destination: RouteLocation,
+  //TODO: This would be more typesafe if BeamMode was divided into Street vs Transit like how R5 does it
+  case class StreetVehicle(id: Id[Vehicle], location: RouteLocation, mode: BeamMode)
+
+  case class RoutingRequestParams(departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent])
+  case class RoutingRequest(@BeanProperty id: Id[RoutingRequest], origin: RouteLocation, destination: RouteLocation,
                             params: RoutingRequestParams) extends RouterMessage with Identifiable[RoutingRequest]
-  case class RoutingResponse(requestId: Id[RoutingRequest], itinerary: Vector[BeamTrip]) extends RouterMessage {
+  case class RoutingResponse(requestId: Id[RoutingRequest], itineraries: Vector[BeamTrip]) extends RouterMessage {
   }
 
   /**
@@ -102,7 +106,7 @@ object BeamRouter {
   object RoutingRequest {
     def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, modes: Vector[BeamMode], personId: Id[PersonAgent]): RoutingRequest = {
       new RoutingRequest(BeamRouter.nextId, fromActivity.getCoord, toActivity.getCoord,
-        RoutingRequestParams(departureTime, modes, personId))
+        RoutingRequestParams(departureTime, Modes.filterForTransit(modes), Vector(), personId))
     }
     def apply(from: Activity, toActivity: Activity, params : RoutingRequestParams) = {
       new RoutingRequest(BeamRouter.nextId, from.getCoord, toActivity.getCoord,

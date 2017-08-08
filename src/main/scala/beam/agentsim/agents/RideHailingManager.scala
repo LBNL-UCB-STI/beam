@@ -115,9 +115,9 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
           )
           aggregateResponsesTo(customerAgent, routeRequests) { case result: SingleActorAggregationResult =>
             val responses = result.mapListTo[RoutingResponse].map(res => (res.requestId, res)).toMap
-            val (_, timeToCustomer) = responses(taxi2CustomerRequestId).itinerary.map(t => (t, t.totalTravelTime)).minBy(_._2)
+            val (_, timeToCustomer) = responses(taxi2CustomerRequestId).itineraries.map(t => (t, t.totalTravelTime)).minBy(_._2)
             val taxiFare = findVehicle(taxiLocation.vehicleId).flatMap(vehicle => info.fares.get(vehicle.getType.getId)).getOrElse(DefaultCostPerMile)
-            val (customerTripPlan, cost) = responses(taxi2CustomerRequestId).itinerary.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2)
+            val (customerTripPlan, cost) = responses(taxi2CustomerRequestId).itineraries.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2)
             //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
             //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
             log.debug(s"Found taxi $taxiLocation for inquiryId=$inquiryId within $shortDistanceToTaxi miles, timeToCustomer=$timeToCustomer" )
@@ -161,7 +161,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
     aggregateResponsesTo(customerAgent, routeRequests) { case result: SingleActorAggregationResult =>
       val customerTripPlan = result.mapListTo[RoutingResponse].headOption
       val taxiFare = findVehicle(closestTaxi.vehicleId).flatMap(vehicle => info.fares.get(vehicle.getType.getId)).getOrElse(DefaultCostPerMile)
-      val tripAndCostOpt = customerTripPlan.map(_.itinerary.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2))
+      val tripAndCostOpt = customerTripPlan.map(_.itineraries.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2))
       val responseToCustomer = tripAndCostOpt.map { case (tripRoute, cost) =>
         //XXX: we didn't find taxi inquiry in pendingInquiries let's set max pickup time to avoid another routing request
         val timeToCustomer = MaxPickupTimeInSeconds

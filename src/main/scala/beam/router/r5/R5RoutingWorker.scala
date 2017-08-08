@@ -67,7 +67,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   override def calcRoute(requestId: Id[RoutingRequest], fromFacility: RouteLocation, toFacility:RouteLocation, params: RoutingRequestParams, person: Person): RoutingResponse = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, params.departureTime, params.accessMode))
+    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, params.departureTime, params.modes))
     val alternatives = buildResponse(plan)
     RoutingResponse(requestId, alternatives)
   }

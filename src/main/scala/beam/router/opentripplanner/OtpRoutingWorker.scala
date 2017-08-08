@@ -83,7 +83,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
   }
 
   override def calcRoute(requestId: Id[RoutingRequest], fromFacility: RouteLocation, toFacility:RouteLocation, params: RoutingRequestParams, person: Person): RoutingResponse = {
-    val drivingRequest = buildRequest(fromFacility, toFacility, params.departureTime, params.accessMode)
+    val drivingRequest = buildRequest(fromFacility, toFacility, params.departureTime, params.modes)
 
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     var gpFinder = new GraphPathFinder(router.get)
@@ -98,7 +98,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
       //        log.error("TrivialPathException")
     }
 
-    val transitRequest = buildRequest(fromFacility, toFacility, params.departureTime, params.accessMode)
+    val transitRequest = buildRequest(fromFacility, toFacility, params.departureTime, params.modes)
 
     gpFinder = new GraphPathFinder(router.get)
     try {
