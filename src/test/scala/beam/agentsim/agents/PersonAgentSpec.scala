@@ -48,7 +48,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       plan.addActivity(homeActivity)
       val data = PersonData(plan)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 11.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -87,7 +87,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val data = PersonData(Vector(homeActivity, workActivity))
 //        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 11.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -110,7 +110,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val data = PersonData(Vector(homeActivity, workActivity,homeActivity))
 //        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(Id.create("dummyAgent", classOf[PersonAgent]), data, services))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), data))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 12.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
