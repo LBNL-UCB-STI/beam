@@ -3,7 +3,7 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.agents.vehicles.Trajectory._
 import beam.sim.config.ConfigModule._
 import beam.agentsim.events.SpaceTime
-import beam.router.RoutingModel.{BeamStreetPath, BeamTransitSegment}
+import beam.router.RoutingModel.{BeamPath, BeamStreetPath, BeamTransitSegment}
 import com.conveyal.r5.api.util.TransitSegment
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator
 import org.matsim.core.utils.geometry.geotools.MGC
@@ -16,9 +16,8 @@ object Trajectory {
 
   def defaultCoordinateSystem = beamConfig.beam.routing.gtfs.crs
 
-  //TODO this is a stub but needs to include a transformation from TransitSegment to StreetPath (with empty linkId Vector)
-  def apply(transitSegment: BeamTransitSegment): Trajectory = {
-    new Trajectory(BeamStreetPath.empty)
+  def apply(path: BeamPath): Trajectory = {
+    new Trajectory(path)
   }
 
 }
@@ -26,12 +25,16 @@ object Trajectory {
   * Describe trajectory as vector of coordinates with time for each coordinate
   * @param streetPath
   */
-class Trajectory(streetPath: BeamStreetPath) {
+class Trajectory(streetPath: BeamPath) {
 
   def this()= {
     this(BeamStreetPath.empty.copy())
   }
-  private var _path = streetPath
+  private var _path: BeamStreetPath = streetPath match {
+    case path: BeamStreetPath => path.asInstanceOf[BeamStreetPath]
+    //TODO this is a stub but needs to include a transformation from TransitSegment to StreetPath (with empty linkId Vector)
+    case _ => BeamStreetPath.empty
+  }
 
   def coordinateSystem = defaultCoordinateSystem
 
