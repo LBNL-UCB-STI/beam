@@ -4,7 +4,6 @@ import java.time.Period
 
 import akka.actor.ActorRef
 import beam.agentsim.User
-import beam.agentsim.agents.vehicles.VehicleData
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources._
@@ -18,7 +17,7 @@ case class VehicleAccessRequest(userId: Id[User], timePeriod: Period,
                                 requestLocation: SpaceTime, modes: Vector[String])
 
 case class ReservationRequest(requestId: Id[ReservationRequest], departFrom: BeamLeg, arriveAt: BeamLeg, passenger: ActorRef)
-case class ReservationRequestWithVehicle(request: ReservationRequest, vehicleData: VehicleData)
+case class ReservationRequestWithVehicle(request: ReservationRequest)
 
 case class ReservationResponse(requestId: Id[ReservationRequest], response: Either[ReservationError, ReserveConfirmInfo])
 

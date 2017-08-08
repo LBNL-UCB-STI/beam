@@ -58,7 +58,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
           log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
           goto(BeamAgent.Error)
       }
-    case Event(ReservationRequestWithVehicle(req, vehicleData: VehicleData), _) =>
+    case Event(ReservationRequestWithVehicle(req), _) =>
       val proxyVehicleAgent = sender()
       require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
       //      val response: ReservationResponse = handleVehicleReservation(req, vehicleData, proxyVehicleAgent)

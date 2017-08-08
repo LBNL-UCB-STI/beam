@@ -26,6 +26,7 @@ import scala.collection.mutable
   */
 object PersonAgent {
 
+  private val ActorPrefixName = "person-"
   val timeToChooseMode: Double = 0.0
   val minActDuration: Double = 0.0
   val teleportWalkDuration = 0.0
@@ -33,12 +34,11 @@ object PersonAgent {
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   // syntactic sugar for props creation
-  def props(personId: Id[PersonAgent], personData: PersonData, services: BeamServices, behaviorsToMixIn: mutable.HashSet[Class[_]]) = {
-    if(behaviorsToMixIn.contains(CanUseTaxi.getClass)){
-      Props(new PersonAgent(personId, personData, services) with CanUseTaxi)
-    }else{
-      Props(new PersonAgent(personId, personData, services))
-    }
+  def props(services: BeamServices, personId: Id[PersonAgent], personData: PersonData) = {
+      Props(new PersonAgent(services, personId, personData))
+  }
+  def buildActorName(personId: Id[Person]): String = {
+    s"$ActorPrefixName${personId.toString}"
   }
 
   //////////////////////////////
@@ -160,7 +160,7 @@ object PersonAgent {
 
 }
 
-class PersonAgent(override val id: Id[PersonAgent], override val data: PersonData, val beamServices: BeamServices) extends BeamAgent[PersonData] with
+class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with
   TriggerShortcuts with HasServices with CanUseTaxi with ChoosesMode {
 
   protected var _currentTriggerId: Option[Long] = None

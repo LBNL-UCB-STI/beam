@@ -29,7 +29,7 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.core.events.EventsUtils
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ListMap
@@ -149,13 +149,15 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
+    // Every Person gets a HumanBodyVehicle
+    val matsimHumanBodyVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle",classOf[VehicleType]))
     for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
-//      val bodyVehicle = actorSystem.actorOf(HumanBodyVehicle.props(services, personId))
-      val bodyVehicle = null
-      val props = Props(classOf[PersonAgent], personId, PersonData(matsimPerson.getSelectedPlan, bodyVehicle),services)
-      val ref: ActorRef = actorSystem.actorOf(props, s"${personId.toString}_$iter")
+      val bodyVehicleIdFromPerson = Id.create(personId.toString, classOf[Vehicle])
+      val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson,matsimHumanBodyVehicleType)
+      val bodyVehicle = actorSystem.actorOf(HumanBodyVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle.getId))
+      val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(services, personId, PersonData(matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson)), PersonAgent.buildActorName(personId))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
-      services.personRefs +=((personId, ref))
+      services.personRefs += ((personId, ref))
     }
     // Generate taxis and intialize them to be located within ~initialLocationJitter km of a subset of agents
     //TODO re-enable the following based on config params and after TaxiAgents have been re-factored
@@ -191,11 +193,15 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def initVehicleActors(iterId: Option[String] = None) = {
-    val actors = services.vehicles.map { case (vehicleId, matSimVehicle) =>
-      val props = BeamVehicle.props(vehicleId, matSimVehicle, new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)))
-      val beamVehicle = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId))
-      beamVehicle ! TriggerWithId(InitializeTrigger(0.0), 0)
-      (vehicleId, beamVehicle)
+    val actors = services.vehicles.map {
+      case (vehicleId, matSimVehicle) =>
+        val props = matSimVehicle.getType.getId.toString match {
+          case "CAR" =>
+            CarVehicle.props(services, vehicleId, matSimVehicle, Powertrain.PowertrainFromMilesPerGallon(matSimVehicle.getType.getEngineInformation.getGasConsumption))
+        }
+        val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId))
+        beamVehicleRef ! TriggerWithId(InitializeTrigger(0.0), 0)
+        (vehicleId, beamVehicleRef)
     }
     actors
   }

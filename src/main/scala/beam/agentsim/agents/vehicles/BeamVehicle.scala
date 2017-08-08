@@ -6,11 +6,11 @@ import akka.util.Timeout
 import beam.agentsim.Resource
 import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocationEvent, Idle, Moving, UpdateTrajectory, VehicleFull}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, TriggerShortcuts}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.sim.HasServices
+import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
@@ -24,45 +24,35 @@ import scala.concurrent.Future
 
 abstract class Dimension
 
-object VehicleData {
-  case class VehicleDataImpl(vehicleTypeName: String, vehicleClassName: String,
-                             matSimVehicle: Vehicle, attributes: Attributes) extends VehicleData {
-    override def getType: VehicleType = matSimVehicle.getType
+//object VehicleData {
+//  case class VehicleDataImpl(vehicleTypeName: String, vehicleClassName: String,
+//                             matSimVehicle: Vehicle, attributes: Attributes) extends VehicleData {
+//    override def getType: VehicleType = matSimVehicle.getType
+//
+//    override def getId: Id[Vehicle] = matSimVehicle.getId
+//  }
+//
+//  implicit def vehicle2vehicleData(vehicle: Vehicle): VehicleData = {
+//    val vdata = VehicleDataImpl(vehicle.getType.getDescription,
+//      vehicle.getClass.getName, vehicle, new Attributes())
+//    vdata
+//  }
+//  implicit class SmartVehicle(vehicle: VehicleData) {
+//    def fullCapacity: Integer = vehicle.getType.getCapacity.getSeats + vehicle.getType.getCapacity.getStandingRoom
+//  }
+//}
+//trait VehicleData extends BeamAgentData with Vehicle {
+//
+//}
 
-    override def getId: Id[Vehicle] = matSimVehicle.getId
-  }
-
-  implicit def vehicle2vehicleData(vehicle: Vehicle): VehicleData = {
-    val vdata = VehicleDataImpl(vehicle.getType.getDescription,
-      vehicle.getClass.getName, vehicle, new Attributes())
-    vdata
-  }
-  implicit class SmartVehicle(vehicle: VehicleData) {
-    def fullCapacity: Integer = vehicle.getType.getCapacity.getSeats + vehicle.getType.getCapacity.getStandingRoom
-  }
-}
-trait VehicleData extends BeamAgentData with Vehicle {
-  /**
-    * It's pretty general name of type of vehicle.
-    * It could be a model name of particular brand as well as vehicle class: sedan, truck, bus etc.
-    * The key point this type need to be unique
-    * @return
-    */
-  def vehicleTypeName: String
-
-  /**
-    * MATSim vehicle vehicle implementation class
-    * @return
-    */
-  def vehicleClassName: String
+trait BeamVehicleObject {
+  def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props
 }
 
 object BeamVehicle {
+
   val ActorPrefixName = "vehicle-"
 
-  def props(vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain) = {
-    Props(classOf[BeamVehicle], vehicleId, VehicleData.vehicle2vehicleData(matSimVehicle), powertrain, None)
-  }
 
   case class BeamVehicleIdAndRef(id: Id[Vehicle], ref: ActorRef)
 
@@ -119,19 +109,25 @@ object BeamVehicle {
   * VehicleManager.
   * Passenger and driver can EnterVehicle and LeaveVehicle
   */
-trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShortcuts with HasServices{
+trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerShortcuts with HasServices with Vehicle {
   override val id: Id[Vehicle]
-  def data: VehicleData
 
-  var driver: Option[ActorRef]
+  def matSimVehicle: Vehicle
+  def attributes: Attributes
+  def vehicleTypeName: String
+  def vehicleClassName: String
+
+  val vehicleId: Id[Vehicle]
+  val data: BeamAgentData
+  var powerTrain: Powertrain
+
   /**
-    * Other vehicle that carry this one. Like ferry or track may carry a car
+    * The vehicle that is carrying this one. Like ferry or truck may carry a car and like a car carries a human body.
     */
   var carrier: Option[ActorRef] = None
+  var driver: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
   var trajectory: Option[Trajectory] = None
-
-  var powerTrain: Powertrain
 
   def location(time: Double): Future[SpaceTime] = {
     trajectory match {
@@ -174,7 +170,7 @@ trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShor
       }
       stay()
     case Event(EnterVehicle(tick, newPassenger), info) =>
-      val fullCapacity = data.getType.getCapacity.getSeats + data.getType.getCapacity.getStandingRoom
+      val fullCapacity = getType.getCapacity.getSeats + getType.getCapacity.getStandingRoom
       if (passengers.size < fullCapacity){
         passengers += newPassenger
         driver.get ! BoardingConfirmation(newPassenger)
@@ -202,7 +198,7 @@ trait BeamVehicle extends Resource with  BeamAgent[VehicleData] with TriggerShor
       stay()
     case Event(request: ReservationRequest, agentInfo) =>
       driver.foreach { driverActor =>
-        driverActor ! ReservationRequestWithVehicle(request, agentInfo.data)
+        driverActor ! ReservationRequestWithVehicle(request)
       }
       stay()
     case Event(any, data) =>
