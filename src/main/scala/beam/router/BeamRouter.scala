@@ -5,15 +5,12 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
 import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import beam.agentsim.agents.PersonAgent
-import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RoutingRequest}
+import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
-import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
-import org.matsim.vehicles.Vehicle
-import org.matsim.facilities.Facility
 
 import scala.beans.BeanProperty
 
@@ -25,7 +22,7 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
 
   def receive = uninitialized
 
-    // Uninitialized state
+  // Uninitialized state
   def uninitialized: Receive = {
     case InitializeRouter =>
       log.info("Initializing Router.")
@@ -79,38 +76,59 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
 }
 
 object BeamRouter {
-  type RouteLocation = Coord
+  type Location = Coord
 
   def nextId = Id.create(UUID.randomUUID().toString, classOf[RoutingRequest])
+
   sealed trait RouterMessage
   case object InitializeRouter extends RouterMessage
   case object RouterInitialized extends RouterMessage
   case object RouterNeedInitialization extends RouterMessage
 
-  //TODO: This would be more typesafe if BeamMode was divided into Street vs Transit like how R5 does it
-  case class StreetVehicle(id: Id[Vehicle], location: RouteLocation, mode: BeamMode)
+  /**
+    * It is use to represent a request object
+    * @param from start/from location of the route
+    * @param destination end/to location of the route
+    * @param departureTime time in seconds from base midnight
+    * @param accessMode
+    * @param personId
+    */
+  case class TripInfo(from: Location,
+                      destination: Location,
+                      departureTime: BeamTime,
+                      accessMode: Vector[BeamMode],
+                      personId: Id[PersonAgent])
 
-  case class RoutingRequestParams(departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent])
-  case class RoutingRequest(@BeanProperty id: Id[RoutingRequest], origin: RouteLocation, destination: RouteLocation,
-                            params: RoutingRequestParams) extends RouterMessage with Identifiable[RoutingRequest]
-  case class RoutingResponse(requestId: Id[RoutingRequest], itineraries: Vector[BeamTrip]) extends RouterMessage {
-  }
+  /**
+    * Message to request a route plan
+    * @param id used to represent a request uniquely
+    * @param params route information that is needs a plan
+    */
+  case class RoutingRequest(@BeanProperty id: Id[RoutingRequest],
+                            params: TripInfo) extends RouterMessage with Identifiable[RoutingRequest]
+
+  /**
+    * Message to respond a plan against a particular router request
+    * @param id same id that was send with request
+    * @param itinerary a planned route or journey
+    */
+  case class RoutingResponse(@BeanProperty id: Id[RoutingRequest],
+                             itinerary: Vector[BeamTrip]) extends RouterMessage with Identifiable[RoutingRequest]
 
   /**
     *
-    * @param fromFacility
+    * @param fromLocation
     * @param toOptions
     */
-  case class BatchRoutingRequest(fromFacility: Facility[_ <: Facility[_]], toOptions: Vector[Facility[_ <: Facility[_]]])
+  case class BatchRoutingRequest(fromLocation: Location, toOptions: Vector[Location])
 
   object RoutingRequest {
     def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, modes: Vector[BeamMode], personId: Id[PersonAgent]): RoutingRequest = {
-      new RoutingRequest(BeamRouter.nextId, fromActivity.getCoord, toActivity.getCoord,
-        RoutingRequestParams(departureTime, Modes.filterForTransit(modes), Vector(), personId))
+      new RoutingRequest(BeamRouter.nextId,
+        TripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime, modes, personId))
     }
-    def apply(from: Activity, toActivity: Activity, params : RoutingRequestParams) = {
-      new RoutingRequest(BeamRouter.nextId, from.getCoord, toActivity.getCoord,
-        params)
+    def apply(params : TripInfo) = {
+      new RoutingRequest(BeamRouter.nextId, params)
     }
   }
 

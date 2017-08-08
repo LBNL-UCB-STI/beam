@@ -14,7 +14,7 @@ import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
-import beam.router.BeamRouter.{RouteLocation, RoutingRequest, RoutingRequestParams, RoutingResponse}
+import beam.router.BeamRouter.{Location, RoutingRequest, TripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker
@@ -64,15 +64,15 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }
   }
 
-  override def calcRoute(requestId: Id[RoutingRequest], fromFacility: RouteLocation, toFacility:RouteLocation, params: RoutingRequestParams, person: Person): RoutingResponse = {
+  override def calcRoute(requestId: Id[RoutingRequest], params: TripInfo, person: Person): RoutingResponse = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(fromFacility, toFacility, params.departureTime, params.modes))
+    val plan: ProfileResponse = pointToPointQuery.getPlan(buildRequest(params.from, params.destination, params.departureTime, params.accessMode))
     val alternatives = buildResponse(plan)
     RoutingResponse(requestId, alternatives)
   }
 
-  protected def buildRequest(fromFacility: RouteLocation, toFacility: RouteLocation, departureTime: BeamTime, modes: Vector[BeamMode]) : ProfileRequest = {
+  protected def buildRequest(fromFacility: Location, toFacility: Location, departureTime: BeamTime, modes: Vector[BeamMode]) : ProfileRequest = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
@@ -285,8 +285,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   private def toCoord(geometry: LineString): Coord = {
     new Coord(geometry.getCoordinate.x, geometry.getCoordinate.y, geometry.getCoordinate.z)
   }
-
-  override def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 }
 
 object R5RoutingWorker extends HasProps {

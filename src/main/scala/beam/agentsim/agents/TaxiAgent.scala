@@ -8,7 +8,7 @@ import beam.agentsim.agents.TaxiAgent._
 import beam.agentsim.agents.RideHailingManager.{RegisterTaxiAvailable, ReserveTaxiResponse, TaxiAvailableAck}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.TriggerWithId
-import beam.router.BeamRouter.RouteLocation
+import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTrip
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -40,7 +40,7 @@ object TaxiAgent {
   case object Traveling extends BeamAgentState {
     override def identifier = "Traveling"
   }
-  case class PickupCustomer(confirmation: ReserveTaxiResponse, pickUpLocation: RouteLocation, destination: RouteLocation, tripPlan: Option[BeamTrip])
+  case class PickupCustomer(confirmation: ReserveTaxiResponse, pickUpLocation: Location, destination: Location, tripPlan: Option[BeamTrip])
   case class DropOffCustomer(newLocation: SpaceTime)
 
   case class RegisterTaxiAvailableWrapper(triggerId: Long)
