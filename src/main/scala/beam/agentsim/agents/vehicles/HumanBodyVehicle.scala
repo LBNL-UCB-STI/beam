@@ -13,7 +13,7 @@ import org.matsim.vehicles._
 class HumanBodyVehicle(val beamServices: BeamServices,
                        val vehicleId: Id[Vehicle],
                        val personId: Id[PersonAgent],
-                       val data: CarVehicleData,
+                       val data: HumanBodyVehicleData,
                        var powerTrain: Powertrain,
                        val initialMatsimVehicle: Vehicle,
                        val initialMatsimAttributes: Attributes) extends BeamVehicle with HasServices {
@@ -50,20 +50,20 @@ object HumanBodyVehicle extends BeamVehicleObject{
   //TODO make HumanDimension come from somewhere
 
   // This props has it all
-  def props(beamServices: BeamServices, vehicleId: Id[Vehicle], personId: Id[PersonAgent], data: CarVehicleData, powerTrain: Powertrain,
-            driver: Option[ActorRef] = None, initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes) = {
-    Props(classOf[CarVehicle], beamServices, vehicleId, personId, data, powerTrain, driver, initialMatsimVehicle, initialMatsimAttributes)
+  def props(beamServices: BeamServices, vehicleId: Id[Vehicle], personId: Id[PersonAgent], data: HumanBodyVehicleData, powerTrain: Powertrain,
+            initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes) = {
+    Props(classOf[HumanBodyVehicle], beamServices, vehicleId, personId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes)
   }
 
   // This props follows spec of BeamVehicle
   override def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
     val personId = Id.create("EMPTY",classOf[PersonAgent])
-    props(beamServices, vehicleId, personId, CarVehicleData(), powertrain, None, matSimVehicle, new Attributes())
+    props(beamServices, vehicleId, personId, HumanBodyVehicleData(), powertrain, matSimVehicle, new Attributes())
   }
 
   // This props is specifically for vehicle creation during initialization
   def props(beamServices: BeamServices, matSimVehicle: Vehicle, personId: Id[PersonAgent], powertrain: Powertrain): Props = {
-    props(beamServices, matSimVehicle.getId, personId, CarVehicleData(), powertrain, None, matSimVehicle,  new Attributes())
+    props(beamServices, matSimVehicle.getId, personId, HumanBodyVehicleData(), powertrain, matSimVehicle,  new Attributes())
   }
 
   def PowertrainForHumanBody(): Powertrain = Powertrain.PowertrainFromMilesPerGallon(360) // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Walking

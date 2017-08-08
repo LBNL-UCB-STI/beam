@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, ActorRef, Props}
 import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
-import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Initialized, Uninitialized}
+import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Initialized, Uninitialized, Error}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocationEvent, Idle, Moving, UpdateTrajectory, VehicleFull}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
@@ -32,14 +32,6 @@ abstract class Dimension
 //    override def getId: Id[Vehicle] = matSimVehicle.getId
 //  }
 //
-//  implicit def vehicle2vehicleData(vehicle: Vehicle): VehicleData = {
-//    val vdata = VehicleDataImpl(vehicle.getType.getDescription,
-//      vehicle.getClass.getName, vehicle, new Attributes())
-//    vdata
-//  }
-//  implicit class SmartVehicle(vehicle: VehicleData) {
-//    def fullCapacity: Integer = vehicle.getType.getCapacity.getSeats + vehicle.getType.getCapacity.getStandingRoom
-//  }
 //}
 //trait VehicleData extends BeamAgentData with Vehicle {
 //
@@ -111,6 +103,7 @@ object BeamVehicle {
   */
 trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerShortcuts with HasServices with Vehicle {
   override val id: Id[Vehicle]
+  override def logPrefix(): String = s"BeamVehicle $id: "
 
   def matSimVehicle: Vehicle
   def attributes: Attributes
@@ -151,9 +144,22 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
     driver = Some(newDriver)
   }
 
+  when(Idle) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message ${msg}")
+      goto(Error)
+  }
+  when(Moving) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message ${msg}")
+      goto(Error)
+  }
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
-      //TODO: notify TaxiAgent with VehicleReady if this vehicle is a taxi
       goto(Idle) replying completed(triggerId)
   }
 
@@ -181,7 +187,12 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       }
       stay()
     case Event(UpdateTrajectory(newTrajectory), info) =>
-      trajectory = Some(newTrajectory)
+      trajectory match {
+        case Some(traj) =>
+          traj.append(traj)
+        case None =>
+          trajectory = Some(newTrajectory)
+      }
       stay()
   }
   chainedWhen(Moving){
@@ -235,6 +246,10 @@ object VehicleAttributes extends Enumeration {
 case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
   def push(vehicle: Id[Vehicle]) = {
     VehicleStack(vehicle +: nestedVehicles)
+  }
+  def penultimateVehicle(): Id[Vehicle] = {
+    if(nestedVehicles.size < 2)throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")
+    nestedVehicles(1)
   }
   def outermostVehicle(): Id[Vehicle] = {
     nestedVehicles(0)

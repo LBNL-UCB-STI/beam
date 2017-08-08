@@ -65,6 +65,8 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   def id: Id[_]
   def data: T
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected var _currentTriggerId: Option[Long] = None
+  protected var _currentTick: Option[Double] = None
 
   private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState,StateFunction]
   final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit =
@@ -142,6 +144,22 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       stay()
   }
 
+  /*
+   * Helper methods
+   */
+  def logPrefix(): String
+  def logInfo(msg: String): Unit = {
+    log.info(s"${logPrefix}$msg")
+  }
+  def logWarn(msg: String): Unit = {
+    log.warning(s"${logPrefix}$msg")
+  }
+  def logError(msg: String): Unit = {
+    log.error(s"${logPrefix}$msg")
+  }
+  def logDebug(msg: String): Unit = {
+    log.debug(s"${logPrefix}$msg")
+  }
 
 }
 

@@ -47,6 +47,7 @@ object TaxiAgent {
 }
 
 class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val beamServices: BeamServices) extends BeamAgent[TaxiData] with HasServices {
+  override def logPrefix(): String = s"TaxiAgent $id: "
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TaxiData]) =>

@@ -6,7 +6,6 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, NotifyL
 import beam.agentsim.agents.util.{AggregatorFactory, MultipleAggregationResult}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, UnbecomeDriver, UpdateTrajectory}
 import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleData}
 import beam.agentsim.agents.{BeamAgent, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -28,20 +27,15 @@ object DrivesVehicle {
   case class NotifyLegStart(tick: Double)
 }
 
-trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with AggregatorFactory {
-  this: BeamAgent[T] =>
+trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with AggregatorFactory with BeamAgent[T]{
 
   //TODO: double check that mutability here is legit espeically with the schedules passed in
   protected var passengerSchedule: PassengerSchedule = PassengerSchedule()
 
-  protected var _currentTriggerId: Option[Long] = None
-  protected var _currentTick: Option[Double] = None
   protected var _currentLeg: Option[BeamLeg] = None
   protected var _currentVehicle: Option[BeamVehicleIdAndRef] = None
   protected val _awaitingBoardConfirmation: HashSet[Id[Vehicle]] = HashSet()
   protected val _awaitingAlightConfirmation: HashSet[Id[Vehicle]] = HashSet()
-
-  def nextBeamLeg():  BeamLeg
 
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
@@ -105,10 +99,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       } else {
         stay()
       }
-      val nextLeg: BeamLeg  = nextBeamLeg()
-      _currentLeg = Option(nextLeg)
-      stay() replying scheduleOne[ScheduleBeginLegTrigger](nextLeg.startTime, agent = self)
-
   }
 
   private def processNextLegOrCompleteMission() = {

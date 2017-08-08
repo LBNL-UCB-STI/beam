@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.modalBehaviors.ChoosesMode
+import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEnd, NotifyLegStart, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, EnterVehicle, ExitVehicle}
@@ -153,18 +153,13 @@ object PersonAgent {
 
   case class TeleportationArrivalTrigger(tick: Double) extends Trigger
 
-  case class ScheduleBeginLegTrigger(tick: Double) extends Trigger
-
   case class CompleteDrivingMissionTrigger(tick: Double) extends Trigger
 
 
 }
 
 class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with
-  TriggerShortcuts with HasServices with CanUseTaxi with ChoosesMode {
-
-  protected var _currentTriggerId: Option[Long] = None
-  protected var _currentTick: Option[Double] = None
+  TriggerShortcuts with HasServices with CanUseTaxi with ChoosesMode with DrivesVehicle[PersonData] {
 
   when(PerformingActivity) {
     case ev@Event(_, _) =>
@@ -226,9 +221,6 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
       goto(Error)
   }
 
-
-  def getPenultimatelyVehicleId(): _root_.org.matsim.api.core.v01.Id[_root_.org.matsim.vehicles.Vehicle] = ???
-
   chainedWhen(Waiting) {
     /*
      * Starting Trip
@@ -271,7 +263,7 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
             stay()
           }else{
             // The next vehicle is different from current so we exit the current vehicle
-            beamServices.vehicleRefs(info.data.currentVehicle.outermostVehicle()) ! ExitVehicle(tick, getPenultimatelyVehicleId())
+            beamServices.vehicleRefs(info.data.currentVehicle.outermostVehicle()) ! ExitVehicle(tick, info.data.currentVehicle.penultimateVehicle())
 
             // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass on the new trigger
             processNextLegOrStartActivity(-1L,tick,info.data)
@@ -347,22 +339,7 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
 //      logInfo(s"going from Walking to PerformingActivity")
 //  }
 
-  /*
-   * Helper methods
-   */
-  def logInfo(msg: String): Unit = {
-    log.info(s"${logPrefix}$msg")
-  }
-  def logWarn(msg: String): Unit = {
-    log.warning(s"${logPrefix}$msg")
-  }
-  def logError(msg: String): Unit = {
-    log.error(s"${logPrefix}$msg")
-  }
-  def logDebug(msg: String): Unit = {
-    log.debug(s"${logPrefix}$msg")
-  }
-  def logPrefix(): String = s"PersonAgent $id: "
+  override def logPrefix(): String = s"PersonAgent $id: "
 
   // NEVER use stateData in below, pass `info` object directly (closure around stateData on object creation)
 

@@ -28,23 +28,30 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
   var taxiResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
 
-  def completeChoiceIfReady(theTriggerId: Option[Long]): State = {
+  def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routerResult.isDefined && taxiResult.isDefined) {
 
       val chosenTrip = choiceCalculator(routerResult.get.itinerary)
 
       hasReceivedCompleteChoiceTrigger = false
-      val theTriggerIdAsLong = if(theTriggerId == None){ stateData.triggerId.get }else{ theTriggerId.get }
-      beamServices.schedulerRef ! completed(theTriggerIdAsLong)
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(stateData.tick.get, id,
+      val theTriggerIdAsLong = _currentTriggerId.get
+      val theTick = _currentTick.get
+      _currentTriggerId = None
+      _currentTick = None
+
+      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(theTick, id,
         stateData.data.currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
 
       if(chosenTrip.legs.isEmpty) {
-        log.error(s"No further PersonDepartureTrigger is going to be scheduled after triggerId=$theTriggerId ")
+        log.error(s"No further PersonDepartureTrigger is going to be scheduled after triggerId=$theTriggerIdAsLong ")
+        beamServices.schedulerRef ! completed(triggerId = theTriggerIdAsLong)
         goto(BeamAgent.Error)
       } else {
-        goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip)) replying
-          completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.keys.head.startTime, self))
+        if(id.toString.equals("104793")){
+          val i = 0
+        }
+        beamServices.schedulerRef ! completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.keys.head.startTime, self))
+        goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip))
       }
     } else {
       stay()
@@ -59,9 +66,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
      * Then we reply with a completion notice and schedule the finalize choice trigger.
      */
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      logInfo(s"inside ChoosesMode @ ${stateData.tick}")
+      logInfo(s"inside ChoosesMode @ ${tick}")
+      if(id.toString.equals("104793")){
+        val i = 0
+      }
       val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
-      val departTime = DiscreteTime(stateData.tick.get.toInt)
+      val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
       beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance
@@ -69,27 +79,24 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
         Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
 
-      stay() using stateData.copy(triggerId = Some(triggerId)) replying completed(triggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
+      stay() replying completed(triggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
     /*
      * Receive and store data needed for choice.
      */
     case Event(theRouterResult: RoutingResponse, info: BeamAgentInfo[PersonData]) =>
       routerResult = Some(theRouterResult)
-      completeChoiceIfReady(None)
+      completeChoiceIfReady()
     case Event(theTaxiResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       taxiResult = Some(theTaxiResult)
-      completeChoiceIfReady(None)
+      completeChoiceIfReady()
     /*
      * Finishing choice.
      */
     case Event(TriggerWithId(FinalizeModeChoiceTrigger(tick), theTriggerId), info: BeamAgentInfo[PersonData]) =>
+      _currentTriggerId = Some(theTriggerId)
+      _currentTick = Some(tick)
       hasReceivedCompleteChoiceTrigger = true
-      val result : State = completeChoiceIfReady(Some(theTriggerId))
-      if(result.stateName == ChoosingMode){
-        stay() using info.copy(triggerId = Some(theTriggerId))
-      }else{
-        result
-      }
+      completeChoiceIfReady()
   }
 
 }

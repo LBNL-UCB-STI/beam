@@ -154,7 +154,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
       val bodyVehicleIdFromPerson = Id.create(personId.toString, classOf[Vehicle])
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson,matsimHumanBodyVehicleType)
-      val bodyVehicle = actorSystem.actorOf(HumanBodyVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle.getId))
+      val bodyVehicleRef = actorSystem.actorOf(HumanBodyVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle.getId))
+      services.vehicleRefs += ((bodyVehicleIdFromPerson, bodyVehicleRef))
+      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), bodyVehicleRef)
       val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(services, personId, PersonData(matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson)), PersonAgent.buildActorName(personId))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
       services.personRefs += ((personId, ref))
@@ -200,7 +202,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
             CarVehicle.props(services, vehicleId, matSimVehicle, Powertrain.PowertrainFromMilesPerGallon(matSimVehicle.getType.getEngineInformation.getGasConsumption))
         }
         val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId))
-        beamVehicleRef ! TriggerWithId(InitializeTrigger(0.0), 0)
+        services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), beamVehicleRef)
         (vehicleId, beamVehicleRef)
     }
     actors
