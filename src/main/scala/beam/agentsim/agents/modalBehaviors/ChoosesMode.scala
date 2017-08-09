@@ -73,6 +73,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
       val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
+      //TODO need the StreetVehicles in here
       beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance
       val pickUpLocation = stateData.data.currentActivity.getCoord
@@ -147,7 +148,8 @@ object ChoosesMode {
     val randDraw = Random.nextDouble()
     val chosenIndex = for (i <- 1 until cumulativeAltProbabilities.length if randDraw < cumulativeAltProbabilities(i)) yield i - 1
     if(chosenIndex.size > 0) {
-      alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
+//      alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
+      alternativesWithTaxi(chosenIndex.head)
     } else {
       BeamTrip.empty
     }

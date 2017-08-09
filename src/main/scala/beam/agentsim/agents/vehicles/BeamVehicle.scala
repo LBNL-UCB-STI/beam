@@ -4,12 +4,14 @@ import akka.actor.{ActorContext, ActorRef, Props}
 import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
-import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Initialized, Uninitialized, Error}
+import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocationEvent, Idle, Moving, UpdateTrajectory, VehicleFull}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.router.BeamRouter
+import beam.router.Modes.BeamMode
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -92,6 +94,7 @@ object BeamVehicle {
   case class VehicleFull(vehicleId: Id[Vehicle])
 
   case class UpdateTrajectory(trajectory: Trajectory)
+  case class StreetVehicle(id: Id[Vehicle], location: BeamRouter.Location, mode: BeamMode)
 }
 
 

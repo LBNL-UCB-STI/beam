@@ -5,6 +5,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
 import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
@@ -85,19 +86,22 @@ object BeamRouter {
   case object RouterInitialized extends RouterMessage
   case object RouterNeedInitialization extends RouterMessage
 
+
   /**
     * It is use to represent a request object
-    * @param from start/from location of the route
+    * @param origin start/from location of the route
     * @param destination end/to location of the route
     * @param departureTime time in seconds from base midnight
-    * @param accessMode
+    * @param transitModes what transit modes should be considered
+    * @param streetVehicles what vehicles should be considered in route calc
     * @param personId
     */
-  case class TripInfo(from: Location,
-                      destination: Location,
-                      departureTime: BeamTime,
-                      accessMode: Vector[BeamMode],
-                      personId: Id[PersonAgent])
+  case class RoutingRequestTripInfo(origin: Location,
+                                    destination: Location,
+                                    departureTime: BeamTime,
+                                    transitModes: Vector[BeamMode],
+                                    streetVehicles: Vector[StreetVehicle],
+                                    personId: Id[PersonAgent])
 
   /**
     * Message to request a route plan
@@ -105,15 +109,15 @@ object BeamRouter {
     * @param params route information that is needs a plan
     */
   case class RoutingRequest(@BeanProperty id: Id[RoutingRequest],
-                            params: TripInfo) extends RouterMessage with Identifiable[RoutingRequest]
+                            params: RoutingRequestTripInfo) extends RouterMessage with Identifiable[RoutingRequest]
 
   /**
     * Message to respond a plan against a particular router request
     * @param id same id that was send with request
-    * @param itinerary a planned route or journey
+    * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(@BeanProperty id: Id[RoutingRequest],
-                             itinerary: Vector[BeamTrip]) extends RouterMessage with Identifiable[RoutingRequest]
+                             itineraries: Vector[BeamTrip]) extends RouterMessage with Identifiable[RoutingRequest]
 
   /**
     *
@@ -125,9 +129,9 @@ object BeamRouter {
   object RoutingRequest {
     def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, modes: Vector[BeamMode], personId: Id[PersonAgent]): RoutingRequest = {
       new RoutingRequest(BeamRouter.nextId,
-        TripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime, modes, personId))
+        RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(modes), Vector(), personId))
     }
-    def apply(params : TripInfo) = {
+    def apply(params : RoutingRequestTripInfo) = {
       new RoutingRequest(BeamRouter.nextId, params)
     }
   }

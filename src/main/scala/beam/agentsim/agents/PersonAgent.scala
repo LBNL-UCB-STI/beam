@@ -350,7 +350,7 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
       val nextLeg = trip.legs.keys.head
       val nextVehicleAssignment = trip.legs.get(nextLeg).get
       val restLegs = trip.legs - nextLeg
-      val restTrip: BeamTrip = BeamTrip(restLegs)
+      val restTrip: BeamTrip = BeamTrip(restLegs, trip.accessMode)
       val nextStart = if (restTrip.legs.nonEmpty) {
         restTrip.legs.keys.head.startTime
       } else {

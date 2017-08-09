@@ -17,7 +17,7 @@ import scala.collection.immutable.TreeMap
   */
 object RoutingModel {
   case class BeamTrip(legs: TreeMap[BeamLeg, BeamVehicleAssignment],
-                      choiceUtility: Double = 0.0) {
+                      accessMode: BeamMode) {
     lazy val tripClassifier: BeamMode = if (legs.keys.toVector map (_.mode) contains CAR) {
       CAR
     } else {
@@ -28,12 +28,15 @@ object RoutingModel {
   }
 
   object BeamTrip {
-    def apply(legsAsVector: Vector[BeamLeg]): BeamTrip = {
+    def apply(legsAsVector: Vector[BeamLeg], accessMode: BeamMode): BeamTrip = {
       var legMap = TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering)
       legsAsVector.foreach(leg => legMap += (leg -> BeamVehicleAssignment.empty))
-      BeamTrip(legMap)
+      BeamTrip(legMap, accessMode)
     }
-    val empty: BeamTrip = BeamTrip(TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering))
+    def apply(legsAsVector: Vector[BeamLeg]): BeamTrip = {
+      BeamTrip(legsAsVector, legsAsVector.head.mode)
+    }
+    val empty: BeamTrip = BeamTrip(TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering), BeamMode.WALK)
   }
 
   /**
