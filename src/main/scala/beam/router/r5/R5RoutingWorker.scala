@@ -14,11 +14,12 @@ import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
-import beam.router.BeamRouter.{Location, RoutingRequest, TripInfo, RoutingResponse}
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, TripInfo}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker
 import beam.router.RoutingWorker.HasProps
+import beam.router.gtfs.FareModel
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, transportNetwork}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
@@ -43,7 +44,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
 
-  override def init: Unit = loadMap
+  override def init: Unit = {
+    loadMap
+    val networkDirPath = Paths.get(beamServices.beamConfig.beam.routing.r5.directory)
+    FareModel.fromDirectory(networkDirPath)
+  }
 
   def loadMap = {
     val networkDir = beamServices.beamConfig.beam.routing.r5.directory
@@ -99,7 +104,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     profileRequest.directModes = util.EnumSet.copyOf( legModes.asJavaCollection )
 
     val isTransit = legModes.size < modes.size
-
     if(isTransit){
       val transitModes : Vector[TransitModes] = modes.filter(isR5TransitMode).map(_.r5Mode.get.right.get)
       profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
@@ -113,6 +117,16 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   def buildResponse(plan: ProfileResponse) = {
 
     var trips = Vector[BeamTrip]()
+
+    def calcFare(transitSegment: TransitSegment, segmentPattern: SegmentPattern) = {
+      //TODO : Work in progress, need to apply rules and transfers, may require person to find out exact price
+      val fromStop: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.fromIndex)
+      val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
+      val routeId = transitSegment.routes.get(segmentPattern.routeIndex).id
+      val fare = FareModel.routes.get(routeId).map(_.fareRules.filter(r => r.originId == fromStop && r.destinationId == toStopId).map(_.fare.price).sum)
+      println(s"Fare for route $routeId is $fare.")
+    }
+
     for(option <- plan.options.asScala) {
 //      log.debug(s"Summary of trip is: $option")
       /*
@@ -166,7 +180,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
               }
             }
 
-            val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
+//            val fare = calcFare(transitSegment, segmentPattern)
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime.get(transitJourneyID.time).toEpochSecond
