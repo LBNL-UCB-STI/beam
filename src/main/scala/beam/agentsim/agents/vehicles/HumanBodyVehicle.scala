@@ -5,6 +5,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles._
 
@@ -67,4 +68,10 @@ object HumanBodyVehicle extends BeamVehicleObject{
   }
 
   def PowertrainForHumanBody(): Powertrain = Powertrain.PowertrainFromMilesPerGallon(360) // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Walking
+
+  def createId(personId: Id[Person]) : Id[Vehicle] = {
+    Id.create("body-" + personId.toString, classOf[Vehicle])
+  }
+
+  def isHumanBodyVehicle(beamVehicleId: Id[Vehicle]) = beamVehicleId.toString.toLowerCase.contains("body-")
 }

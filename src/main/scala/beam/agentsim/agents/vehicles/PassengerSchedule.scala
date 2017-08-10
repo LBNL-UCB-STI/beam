@@ -1,6 +1,5 @@
 package beam.agentsim.agents.vehicles
 
-import akka.actor.ActorRef
 import beam.router.RoutingModel.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -11,7 +10,7 @@ import scala.collection.mutable
   * BEAM
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
-  def addPassenger(passenger: Id[Vehicle], legs: Vector[BeamLeg]) = {
+  def addPassenger(passenger: Id[Vehicle], legs: Seq[BeamLeg]) = {
     legs.foreach(leg =>
       schedule.get(leg) match {
         case Some(manifest) =>
@@ -20,9 +19,9 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
           schedule.put(leg, Manifest(passenger))
       }
     )
-    val firstLeg = legs(0)
+    val firstLeg = legs.head
     schedule.get(firstLeg).get.boarders += passenger
-    val lastLeg = legs(legs.size - 1)
+    val lastLeg = legs.last
     schedule.get(lastLeg).get.alighters += passenger
   }
 }

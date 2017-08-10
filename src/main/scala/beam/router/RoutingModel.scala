@@ -89,7 +89,10 @@ object RoutingModel {
     val empty: BeamStreetPath = new BeamStreetPath(Vector[String]())
   }
 
-  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean, passengerSchedule: Option[PassengerSchedule])
+  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean, passengerSchedule: Option[PassengerSchedule]) {
+    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+  }
+
   object BeamVehicleAssignment{
     val empty: BeamVehicleAssignment = BeamVehicleAssignment(Id.create("Empty", classOf[Vehicle]), false, None)
   }

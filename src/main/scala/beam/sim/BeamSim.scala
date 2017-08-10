@@ -124,10 +124,14 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def cleanupVehicle() = {
+    logger.info(s"Stopping  BeamVehicle actors")
     for ( (_, actorRef) <- services.vehicleRefs) {
-      logger.debug(s"Stopping ${actorRef.path.name} ")
       actorSystem.stop(actorRef)
 
+    }
+    for( personId <- services.persons.keys) {
+      val bodyVehicleId = HumanBodyVehicle.createId(personId)
+      services.vehicles -= bodyVehicleId
     }
   }
 
@@ -151,11 +155,15 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   def resetPop(iter: Int): Unit = {
     // Every Person gets a HumanBodyVehicle
     val matsimHumanBodyVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle",classOf[VehicleType]))
+    var bodyVehicles : Map[Id[Vehicle], Vehicle] = Map()
     for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
-      val bodyVehicleIdFromPerson = Id.create(personId.toString, classOf[Vehicle])
+      val bodyVehicleIdFromPerson = HumanBodyVehicle.createId(personId)
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson,matsimHumanBodyVehicleType)
       val bodyVehicleRef = actorSystem.actorOf(HumanBodyVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle.getId))
       services.vehicleRefs += ((bodyVehicleIdFromPerson, bodyVehicleRef))
+      // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
+      //let's put here human body vehicle too, it should be clean up on each iteration
+      bodyVehicles += ((bodyVehicleIdFromPerson, matsimBodyVehicle))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), bodyVehicleRef)
       val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(services, personId, PersonData(matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson)), PersonAgent.buildActorName(personId))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
@@ -174,6 +182,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 //    }
     val iterId = Option(iter.toString)
     services.vehicleRefs = initVehicleActors(iterId)
+    services.vehicles ++= bodyVehicles
     services.householdRefs = initHouseholds(services.personRefs , iterId)
   }
 
@@ -197,9 +206,14 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private def initVehicleActors(iterId: Option[String] = None) = {
     val actors = services.vehicles.map {
       case (vehicleId, matSimVehicle) =>
-        val props = matSimVehicle.getType.getId.toString match {
-          case "CAR" =>
-            CarVehicle.props(services, vehicleId, matSimVehicle, Powertrain.PowertrainFromMilesPerGallon(matSimVehicle.getType.getEngineInformation.getGasConsumption))
+        val desc = matSimVehicle.getType.getDescription
+        val information = Option(matSimVehicle.getType.getEngineInformation)
+        val powerTrain = Powertrain.PowertrainFromMilesPerGallon(information.map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon))
+        val props = if (desc != null && desc.toUpperCase().contains("CAR")) {
+            CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
+        } else {
+          //only car is supported
+          CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
         }
         val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(vehicleId))
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), beamVehicleRef)

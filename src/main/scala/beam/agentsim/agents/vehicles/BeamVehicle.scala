@@ -8,6 +8,8 @@ import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Error, Ini
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocationEvent, Idle, Moving, UpdateTrajectory, VehicleFull}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
+import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter
@@ -86,12 +88,14 @@ object BeamVehicle {
 
   case class BecomeDriver(tick: Double, driver: Id[_], passengerSchedule: Option[PassengerSchedule] = None)
   case class UnbecomeDriver(tick: Double, driver: Id[_])
-  case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule])
+  case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], inVehicleId: Id[Vehicle])
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
   case class EnterVehicle(tick: Double, passenger : Id[Vehicle])
   case class ExitVehicle(tick: Double, passenger : Id[Vehicle])
-  case class VehicleFull(vehicleId: Id[Vehicle])
+  case class VehicleFull(vehicleId: Id[Vehicle]) extends ReservationError {
+    override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceCapacityExhausted
+  }
 
   case class UpdateTrajectory(trajectory: Trajectory)
   case class StreetVehicle(id: Id[Vehicle], location: BeamRouter.Location, mode: BeamMode)
@@ -124,6 +128,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
   var driver: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
   var trajectory: Option[Trajectory] = None
+  var pendingReservations = List[ReservationRequest]()
 
   def location(time: Double): Future[SpaceTime] = {
     trajectory match {
@@ -166,14 +171,27 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       goto(Idle) replying completed(triggerId)
   }
 
+ private def sendPendingReservations(driverActor: ActorRef) = {
+    if (pendingReservations.nonEmpty) {
+      log.info(s"Sending pending ${pendingReservations.size} reservation request(s) to driver ${driverActor.path.name}")
+      pendingReservations.foreach { reservation =>
+        driverActor ! ReservationRequestWithVehicle(reservation, id)
+      }
+      pendingReservations = List()
+    }
+  }
+
   chainedWhen(Idle) {
     case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
       if(driver.isEmpty) {
         driver = Some(beamServices.agentRefs(newDriver))
-        driver.get ! BecomeDriverSuccess(newPassengerSchedule)
+        driver.foreach{ driverActor =>
+          sendPendingReservations(driverActor)
+          driverActor  ! BecomeDriverSuccess(newPassengerSchedule, id)
+        }
       }else {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are drivers, but futur versions of BEAM may seek to be robust to this condition
-        throw new RuntimeException(s"BeamAgent ${newDriver} attempted to become driver of vehicle ${id} but driver ${driver.get} already assigned.")
+        throw new RuntimeException(s"BeamAgent $newDriver attempted to become driver of vehicle $id but driver ${driver.get} already assigned.")
 //        val beamAgent = sender()
 //        beamAgent ! DriverAlreadyAssigned(id, driver.get)
       }
@@ -183,6 +201,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       if (passengers.size < fullCapacity){
         passengers += newPassenger
         driver.get ! BoardingConfirmation(newPassenger)
+        //newPassenger ! AssignedCarrier(id)
       } else {
         val leftSeats = fullCapacity - passengers.size
         val beamAgent = sender()
@@ -211,8 +230,11 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       location(time) pipeTo sender()
       stay()
     case Event(request: ReservationRequest, agentInfo) =>
-      driver.foreach { driverActor =>
-        driverActor ! ReservationRequestWithVehicle(request)
+      driver match {
+        case Some(driverActor) =>
+          driverActor ! ReservationRequestWithVehicle(request, id)
+        case None =>
+          pendingReservations = pendingReservations :+ request
       }
       stay()
     case Event(any, data) =>

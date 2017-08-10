@@ -13,5 +13,7 @@ class Powertrain(joulesPerMeter: Double) {
 }
 
 object Powertrain {
+  //according to EPA’s annual report 2015
+  val  AverageMilesPerGallon = 24.8
   def PowertrainFromMilesPerGallon(milesPerGallon: Double): Powertrain = new Powertrain(milesPerGallon / 120276367 * 1609.34) // 1609.34 m / mi; 120276367 J per gal
 }

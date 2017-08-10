@@ -7,7 +7,7 @@ import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEnd, NotifyLegStart, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, EnterVehicle, ExitVehicle}
-import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleStack}
+import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehicleStack}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler._
@@ -293,7 +293,7 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
         case Some(processedData) =>
           if(processedData.nextVehicleAssignment.asDriver){
             val passengerSchedule = PassengerSchedule()
-            val vehicleId = if(processedData.nextVehicleAssignment.beamVehicleId.toString.equalsIgnoreCase("body")){
+            val vehicleId = if(data.humanBodyVehicle.isDefined && HumanBodyVehicle.isHumanBodyVehicle(processedData.nextVehicleAssignment.beamVehicleId)){
               data.humanBodyVehicle.get
             }else{
               processedData.nextVehicleAssignment.beamVehicleId

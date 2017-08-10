@@ -51,19 +51,19 @@ object CarVehicle extends BeamVehicleObject{
 
   // This props has it all
   def props(beamServices: BeamServices, vehicleId: Id[Vehicle], data: CarVehicleData, powerTrain: Powertrain,
-            driver: Option[ActorRef] = None, initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes) = {
-    Props(classOf[CarVehicle], beamServices, vehicleId, data, powerTrain, driver, initialMatsimVehicle, initialMatsimAttributes)
+             initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes) = {
+    Props(classOf[CarVehicle], beamServices, vehicleId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes)
   }
 
   // This props follows spec of BeamVehicle
   override def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
     val personId = Id.create("EMPTY",classOf[PersonAgent])
-    props(beamServices, vehicleId, CarVehicleData(), powertrain, None, matSimVehicle, new Attributes())
+    props(beamServices, vehicleId, CarVehicleData(), powertrain, matSimVehicle, new Attributes())
   }
 
   // This props is specifically for vehicle creation during initialization
   def props(beamServices: BeamServices, matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
-    props(beamServices, matSimVehicle.getId, CarVehicleData(), powertrain, None, matSimVehicle,  new Attributes())
+    props(beamServices, matSimVehicle.getId, CarVehicleData(), powertrain, matSimVehicle,  new Attributes())
   }
 
 }
