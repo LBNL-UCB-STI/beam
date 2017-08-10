@@ -17,6 +17,8 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker
 import beam.router.RoutingWorker.HasProps
+import beam.router.gtfs.FareModel
+import beam.router.gtfs.FareModel.FareRule
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, transportNetwork}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
@@ -42,7 +44,10 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
   val graphPathOutputsNeeded = false
 
   override var services: BeamServices = beamServices
-  override def init: Unit = loadMap
+  override def init: Unit = {
+    loadMap
+    FareModel.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
+  }
 
   def loadMap = {
     val networkDir = beamServices.beamConfig.beam.routing.r5.directory
@@ -112,6 +117,29 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
   def buildResponse(plan: ProfileResponse): RoutingResponse = {
 
     var trips = Vector[BeamTrip]()
+
+    def calcFare(transitSegment: TransitSegment, segmentPattern: SegmentPattern) = {
+      //TODO : Need to consider transfers
+      val fromStop = transitSegment.from.stopId.split(":")(1)
+      val toStopId = transitSegment.to.stopId.split(":")(1)
+      val route = transportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
+      val routeId = route.route_id
+      val agencyId = route.agency_id
+
+      def applyRule(r: FareRule) = {
+        // Fare depends on which route the itinerary uses
+        (r.routeId == routeId || r.routeId == null) &&
+        // Fare depends on origin or destination stations
+        (r.originId == fromStop || r.originId == null) && (r.destinationId == toStopId || r.destinationId == null)
+        // TODO Fare depends on which zones the itinerary passes through.
+      }
+
+      var fare = FareModel.agencies.get(agencyId).getOrElse(Vector()).filter(applyRule(_)).map(_.fare.price).sum
+
+      log.debug(s"Fare for route $routeId is $fare.")
+      fare
+    }
+
     for(option <- plan.options.asScala) {
       log.debug(s"Summary of trip is: $option")
       /*
@@ -132,7 +160,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildStreetPath(access))
+        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
         if(access.mode != LegMode.WALK) {
@@ -165,7 +193,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               }
             }
 
-            val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
+            val fare = calcFare(transitSegment, segmentPattern)
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime.get(transitJourneyID.time).toEpochSecond
@@ -175,15 +203,15 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
             legs = legs :+ new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)),
               mapTransitMode(transitSegment.mode),
-              duration,
+              duration, fare,
 //              Right(buildPath(transitSegment, transitJourneyID)))
-              buildPath(transitSegment, transitJourneyID))
+              travelPath = buildPath(transitSegment, transitJourneyID))
 
             arrivalTime = toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
             if(transitSegment.middle != null) {
               isMiddle = true
               legs = legs :+ alighting(arrivalTime, alightingTime) :+ // Alighting leg from last transit
-                BeamLeg(arrivalTime + alightingTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, buildStreetPath(transitSegment.middle))
+                BeamLeg(arrivalTime + alightingTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, travelPath = buildStreetPath(transitSegment.middle))
                 arrivalTime = arrivalTime + alightingTime + transitSegment.middle.duration // in case of middle arrival time would update
             }
           }
@@ -194,7 +222,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
           if(itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             //start time would be the arival time of last stop and 5 second alighting
-            legs = legs :+ BeamLeg(arrivalTime + alightingTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress))
+            legs = legs :+ BeamLeg(arrivalTime + alightingTime, mapLegMode(egress.mode), egress.duration, travelPath = buildStreetPath(egress))
             if(egress.mode != WALK) legs :+ dummyWalk(arrivalTime + alightingTime + egress.duration)
           }
         }

@@ -30,6 +30,7 @@ object RoutingModel {
   case class BeamLeg(startTime: Long,
                      mode: BeamMode,
                      duration: Long,
+                     fare: Double = 0.0,
                      travelPath: BeamPath = empty)
 
   object BeamLeg {

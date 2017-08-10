@@ -27,7 +27,7 @@ class DummyRouter(theBeamServices: BeamServices) extends Actor with ActorLogging
       val path = BeamStreetPath(Vector[String](fromFacility.getLinkId.toString,toFacility.getLinkId.toString), trajectory =
         Option(Vector[Coord](fromFacility.getCoord,toFacility.getCoord) zip Vector[Long](time+1,time+101) map { SpaceTime(_) })
       )
-      val leg = BeamLeg(time+1, BeamMode.CAR, 100, path)
+      val leg = BeamLeg(time+1, BeamMode.CAR, 100, travelPath = path)
       val dummyWalkEnd = BeamLeg.dummyWalk(time+101)
 
       val trip = BeamTrip(Vector[BeamLeg](dummyWalkStart,leg,dummyWalkEnd))
