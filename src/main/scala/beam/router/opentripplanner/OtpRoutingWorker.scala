@@ -195,7 +195,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
         }
         //start tracking new/different mode, reinitialize collections
         if (activeEdgeModeTime.mode != activeMode) {
-          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart,
+          beamLegs = beamLegs :+ BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart, travelPath =
             BeamStreetPath(activeLinkIds, trajectory = Option(activeCoords zip activeTimes map { SpaceTime(_)})))
           activeLinkIds = Vector[String]()
           activeCoords = Vector[Coord]()
@@ -206,7 +206,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
       }
 
       // CAR only
-      val beamLeg = BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart, BeamStreetPath(activeLinkIds, trajectory = Option(activeCoords zip activeTimes map { SpaceTime(_)})))
+      val beamLeg = BeamLeg(activeStart, activeMode, activeEdgeModeTime.time - activeStart, travelPath = BeamStreetPath(activeLinkIds, trajectory = Option(activeCoords zip activeTimes map { SpaceTime(_)})))
       beamLegs = if (activeMode == CAR) {
         beamLegs :+ BeamLeg.dummyWalk(activeStart) :+ beamLeg :+ BeamLeg.dummyWalk(edgesModesTimes.last.time)
       } else {

@@ -7,16 +7,13 @@ import java.util.zip.ZipFile
 import com.conveyal.gtfs.GTFSFeed
 
 object FareModel {
-  var routes: Map[String, Route] = Map()
-  var fares: Map[String, Fare] = Map()
+  var agencies: Map[String, Vector[FareRule]] = Map()
 
-  case class Route(routeId: String, var fareRules: Vector[FareRule])
-  case class FareRule(fare: Fare, originId: String, destinationId: String, containsId: String)
-  case class Fare(fareId: String, price: Float, currencyType: String, paymentMethod: Int, transfers: Int, transferDuration: Int)
+  case class FareRule(fare: Fare, routeId: String, originId: String, destinationId: String, containsId: String)
+  case class Fare(fareId: String, price: Double, currencyType: String, paymentMethod: Int, transfers: Int, transferDuration: Int)
 
   def fromDirectory(directory: Path): Unit = {
-    routes = Map()
-    fares = Map()
+    agencies = Map()
 
     if(Files.isDirectory(directory)) {
       directory.toFile.listFiles(hasFares(_)).map(_.getAbsolutePath).foreach(p => {
@@ -39,24 +36,33 @@ object FareModel {
     }
 
     def loadFares(feed: GTFSFeed) = {
+      var fares: Map[String, Fare] = Map()
+      var routes: Map[String, Vector[FareRule]] = Map()
+      var agencyRules: Vector[FareRule] = Vector()
+
       feed.fares.forEach((id, fare) => {
         val attr = fare.fare_attribute
+        fares += (id -> Fare(attr.fare_id, attr.price, attr.currency_type, attr.payment_method, attr.transfers, attr.transfer_duration))
 
-        fares += (id -> Fare(attr.fare_id, attr.price.toFloat, attr.currency_type, attr.payment_method, attr.transfers, attr.transfer_duration))
-
-        var fareRoutes: Vector[Route] = Vector()
         fare.fare_rules.forEach(r => {
-          val rule: FareRule = FareRule(fares.get(r.fare_id).head, r.origin_id, r.destination_id, r.contains_id)
+          val rule: FareRule = FareRule(fares.get(r.fare_id).head, r.route_id, r.origin_id, r.destination_id, r.contains_id)
 
           if(r.route_id == null) {
-            fareRoutes.foreach(fRule => fRule.fareRules = fRule.fareRules :+ rule)
+            agencyRules = agencyRules :+ rule
           } else {
-            val route: Route = routes.getOrElse(r.route_id, Route(r.route_id, Vector()))
-            route.fareRules = route.fareRules :+ rule
-            if (!routes.contains(r.route_id)) routes += (r.route_id -> route)
-            fareRoutes = fareRoutes :+ route
+            var rules = routes.getOrElse(r.route_id, Vector())
+            rules = rules :+ rule
+            if (!routes.contains(r.route_id)) routes += (r.route_id -> rules)
           }
         })
+      })
+
+
+      feed.agency.forEach((id,_) => {
+        feed.routes.values().stream().filter(_.agency_id == id).forEach(route => {
+          agencyRules ++= routes.getOrElse(route.route_id, Vector())
+        })
+        agencies += id -> agencyRules
       })
     }
   }
