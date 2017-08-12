@@ -117,7 +117,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             val responses = result.mapListTo[RoutingResponse].map(res => (res.id, res)).toMap
             val (_, timeToCustomer) = responses(taxi2CustomerRequestId).itineraries.map(t => (t, t.totalTravelTime)).minBy(_._2)
             val taxiFare = findVehicle(taxiLocation.vehicleId).flatMap(vehicle => info.fares.get(vehicle.getType.getId)).getOrElse(DefaultCostPerMile)
-            val (customerTripPlan, cost) = responses(taxi2CustomerRequestId).itineraries.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2)
+            val (customerTripPlan, cost) = responses(customerTripRequestId).itineraries.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2)
             //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
             //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
             log.debug(s"Found taxi $taxiLocation for inquiryId=$inquiryId within $shortDistanceToTaxi miles, timeToCustomer=$timeToCustomer" )

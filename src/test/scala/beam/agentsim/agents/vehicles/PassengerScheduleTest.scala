@@ -37,7 +37,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
 
       val sched: PassengerSchedule = PassengerSchedule()
 
-      sched.addPassenger(PersonVehicle(vehicleId, passengerPersonId), Vector(leg))
+      sched.addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg))
 
       sched.schedule.size should be(1)
       sched.schedule.get(leg).get.riders.size should ===(1)
@@ -55,7 +55,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
 
       val sched: PassengerSchedule = PassengerSchedule()
 
-      sched.addPassenger(PersonVehicle(vehicleId, passengerPersonId), Vector(leg1, leg2, leg3))
+      sched.addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg1, leg2, leg3))
 
       sched.schedule.size should ===(3)
 
@@ -85,8 +85,8 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
 
       val sched: PassengerSchedule = PassengerSchedule()
 
-      sched.addPassenger(PersonVehicle(vehicleId1, passengerPersonId), Vector(leg1, leg2, leg3))
-      sched.addPassenger(PersonVehicle(vehicleId2, passengerPersonId2), Vector(leg2, leg3))
+      sched.addPassenger(VehiclePersonId(vehicleId1, passengerPersonId), Vector(leg1, leg2, leg3))
+      sched.addPassenger(VehiclePersonId(vehicleId2, passengerPersonId2), Vector(leg2, leg3))
 
       sched.schedule.size should ===(3)
 
