@@ -2,6 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import beam.router.RoutingModel.BeamLeg
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
@@ -10,7 +11,7 @@ import scala.collection.mutable
   * BEAM
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
-  def addPassenger(passenger: Id[Vehicle], legs: Seq[BeamLeg]) = {
+  def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {
     legs.foreach(leg =>
       schedule.get(leg) match {
         case Some(manifest) =>
@@ -20,9 +21,9 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
       }
     )
     val firstLeg = legs.head
-    schedule.get(firstLeg).get.boarders += passenger
+    schedule.get(firstLeg).get.boarders += passenger.passengerVehicleId
     val lastLeg = legs.last
-    schedule.get(lastLeg).get.alighters += passenger
+    schedule.get(lastLeg).get.alighters += passenger.passengerVehicleId
   }
 }
 
@@ -31,9 +32,11 @@ object PassengerSchedule {
   def apply(): PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, Manifest]()(BeamLeg.beamLegOrdering))
 }
 
-class Manifest(val riders: mutable.ListBuffer[Id[Vehicle]], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] )
+case class VehiclePersonId(passengerVehicleId: Id[Vehicle], personId: Id[Person])
+
+class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] )
 
 object Manifest{
-  def apply(): Manifest = new Manifest(mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
-  def apply(passenger: Id[Vehicle]): Manifest = new Manifest(mutable.ListBuffer[Id[Vehicle]](passenger),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
+  def apply(): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
+  def apply(passenger: VehiclePersonId): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](passenger),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
 }

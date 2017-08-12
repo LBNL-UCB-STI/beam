@@ -4,7 +4,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, NotifyLegEnd, NotifyLegStart, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BoardingConfirmation, UnbecomeDriver, UpdateTrajectory, VehicleFull}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{BeamAgent, TriggerShortcuts}
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -47,7 +47,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       passengerSchedule.schedule.get(completedLeg) match {
         case Some(manifest) =>
           _awaitingAlightConfirmation ++= manifest.alighters
-          manifest.riders.foreach(passenger => beamServices.vehicleRefs(passenger) ! NotifyLegEnd)
+          manifest.riders.foreach(pv => beamServices.personRefs.get(pv.personId).foreach( _  ! NotifyLegEnd))
           stay()
         case None =>
           log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
@@ -84,7 +84,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
           _awaitingBoardConfirmation ++= manifest.boarders
-          manifest.riders.foreach(passenger => beamServices.vehicleRefs(passenger) ! NotifyLegStart)
+          manifest.riders.foreach(pv => beamServices.personRefs(pv.personId) ! NotifyLegStart)
           _currentVehicle.foreach( _.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory) )
           stay()
         case None =>
@@ -133,7 +133,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         }
         if (hasRoom) {
           val legs = tripReservations.keys.toList
-          passengerSchedule.addPassenger(req.passenger, legs)
+          passengerSchedule.addPassenger(VehiclePersonId(req.passenger, req.requester), legs)
           ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passenger, vehicleIdToReserve)))
         } else {
           ReservationResponse(req.requestId, Left(VehicleFull(vehicleIdToReserve)))
