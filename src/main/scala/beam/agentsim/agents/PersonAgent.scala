@@ -308,9 +308,9 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
             }else{
               processedData.nextVehicleAssignment.beamVehicleId
             }
+            //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and vehicle is the same...
             val nextLeg = processedData.nextLeg
-            //TODO: Should we board driver only for one next leg ? Shouldn't we use addPassenger(vehicleId, processedData.restTrip) ?
-            passengerSchedule.addPassenger(VehiclePersonId(vehicleId, id), Vector(nextLeg))
+            passengerSchedule.addLegs(Vector(nextLeg))
             beamServices.vehicleRefs(vehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
             val newStateBeamInfo = BeamAgentInfo(id, data.copy(currentRoute = processedData.restTrip))
             stay() using newStateBeamInfo replying completed(triggerId,schedule[StartLegTrigger](nextLeg.startTime,self,nextLeg))

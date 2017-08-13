@@ -215,16 +215,6 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
         beamAgent ! VehicleFull(id)
       }
       stay()
-    case Event(UpdateTrajectory(newTrajectory), info) =>
-      trajectory match {
-        case Some(traj) =>
-          traj.append(traj)
-        case None =>
-          trajectory = Some(newTrajectory)
-      }
-      stay()
-  }
-  chainedWhen(Moving){
     case Event(ExitVehicle(tick, passengerVehicleId), info) =>
       passengers -= passengerVehicleId
       driver.get ! AlightingConfirmation(passengerVehicleId)
@@ -232,6 +222,14 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
         vehiclePassengerRef ! ResetCarrier
       }
       log.debug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
+      stay()
+    case Event(UpdateTrajectory(newTrajectory), info) =>
+      trajectory match {
+        case Some(traj) =>
+          traj.append(traj)
+        case None =>
+          trajectory = Some(newTrajectory)
+      }
       stay()
   }
 
