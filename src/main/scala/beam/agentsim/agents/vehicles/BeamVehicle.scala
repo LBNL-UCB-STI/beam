@@ -187,6 +187,10 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       if(driver.isEmpty) {
         driver = Some(beamServices.agentRefs(newDriver))
         driver.foreach{ driverActor =>
+          // Important Note: the following works (asynchronously processing pending res's and then notifying driver of success)
+          // only because we throw an exception when BecomeDriver fails. In other words, if the requesting
+          // driver must register Success before assuming she is the driver, then we cannot send the PendingReservations as current implemented
+          // because that driver would not be ready to receive.
           sendPendingReservations(driverActor)
           driverActor  ! BecomeDriverSuccess(newPassengerSchedule, id)
         }
