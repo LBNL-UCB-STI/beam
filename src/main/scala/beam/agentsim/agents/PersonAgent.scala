@@ -186,6 +186,13 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
       logError(s"Unrecognized message ${msg}")
       goto(Error)
   }
+  whenUnhandled{
+    case ev@Event(_, _) =>
+      handleEvent(AnyState, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message ${msg}")
+      goto(Error)
+  }
 
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>

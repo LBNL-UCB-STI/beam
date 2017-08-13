@@ -1,6 +1,6 @@
 package beam.agentsim.agents.modalBehaviors
 
-import beam.agentsim.agents.BeamAgent.BeamAgentData
+import beam.agentsim.agents.BeamAgent.{BeamAgentData, AnyState}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, NotifyLegEnd, NotifyLegStart, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BoardingConfirmation, UnbecomeDriver, UpdateTrajectory, VehicleFull}
@@ -53,11 +53,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
           log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
           goto(BeamAgent.Error)
       }
-    case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
-      require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
-      val response = handleVehicleReservation(req, vehicleIdToReserve)
-      beamServices.personRefs(req.requester) ! response
-      stay()
     case Event(AlightingConfirmation(vehicleId), agentInfo) =>
       _awaitingAlightConfirmation -= vehicleId
       if (_awaitingAlightConfirmation.isEmpty) {
@@ -102,6 +97,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       } else {
         stay()
       }
+  }
+  chainedWhen(AnyState){
+    case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
+      require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
+      val response = handleVehicleReservation(req, vehicleIdToReserve)
+      beamServices.personRefs(req.requester) ! response
+      stay()
   }
 
   private def processNextLegOrCompleteMission() = {

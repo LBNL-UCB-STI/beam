@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, ActorRef, Props}
 import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
-import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocation, Idle, Moving, ResetCarrier, UpdateTrajectory, VehicleFull}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
@@ -231,7 +231,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       stay()
   }
 
-  whenUnhandled {
+  chainedWhen(AnyState){
     case Event(GetVehicleLocation(time), data) =>
       location(time) pipeTo sender()
       stay()
