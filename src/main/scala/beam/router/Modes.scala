@@ -111,5 +111,6 @@ object Modes {
   }
 
   def filterForTransit(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter( mode =>  isR5TransitMode(mode))
+  def filterForStreet(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter( mode =>  isR5LegMode(mode))
 
 }

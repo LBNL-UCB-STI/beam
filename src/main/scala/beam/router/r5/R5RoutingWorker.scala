@@ -135,7 +135,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
     profileRequest.date = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate).toLocalDate
-    profileRequest.directModes = util.EnumSet.copyOf( uniqueLegModes.asJavaCollection )
+    profileRequest.directModes = util.EnumSet.copyOf( (LegMode.WALK +: uniqueLegModes).asJavaCollection )
     val isTransit = routingRequestTripInfo.transitModes.size > 0
     if(isTransit){
       val transitModes : Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
