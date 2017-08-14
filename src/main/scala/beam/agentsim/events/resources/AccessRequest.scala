@@ -2,42 +2,41 @@ package beam.agentsim.events.resources
 
 import java.time.Period
 
-import beam.agentsim.{Resource, User}
-import beam.agentsim.events.SpaceTime
+import akka.actor.ActorRef
+import beam.router.RoutingModel.BeamLeg
 import org.matsim.api.core.v01.Id
 
 /**
   * @author dserdiuk
   */
 
-trait AccessInfo[R <: Resource]  {
-  def resource: Option[R]
-  def timePeriodAvailable: Period
-  def pointOfAccess: SpaceTime
+trait AccessInfo {
+  def resource: Option[ActorRef]
+  def pointOfAccess: BeamLeg
+  def releasePoint: BeamLeg
 }
 
 trait AccessRequest {
 
-  def userId: Id[User]
-
   def timePeriod: Period
 
-  def requestLocation: SpaceTime
+  def requestLocation: BeamLeg
 }
 
-trait AccessResponse[R <: Resource] {
+trait AccessResponse {
 
- def accessInformation: Vector[AccessInfo[R]]
+ def accessInformation: Vector[AccessInfo]
 
 }
 
-trait ReservationRequest[R <: Resource] extends AccessRequest {
-  def resource: R
+trait ReservationRequest extends AccessRequest {
+  def resource: ActorRef
+  def requestId: Id[ReservationRequest]
 }
 
-trait ReservationResponse[R <: Resource] {
+trait ReservationResponse {
 
-  def response: Either[AccessInfo[R], AccessResponse[R]]
+  def response: Either[AccessInfo, AccessResponse]
 
 }
 

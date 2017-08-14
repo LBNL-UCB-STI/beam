@@ -3,7 +3,8 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.agents.vehicles.Trajectory._
 import beam.sim.config.ConfigModule._
 import beam.agentsim.events.SpaceTime
-import beam.router.RoutingModel.BeamGraphPath
+import beam.router.RoutingModel.{BeamPath, BeamStreetPath, BeamTransitSegment}
+import com.conveyal.r5.api.util.TransitSegment
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.TransformationFactory
@@ -15,26 +16,33 @@ object Trajectory {
 
   def defaultCoordinateSystem = beamConfig.beam.routing.gtfs.crs
 
+  def apply(path: BeamPath): Trajectory = {
+    new Trajectory(path)
+  }
+
 }
 /**
   * Describe trajectory as vector of coordinates with time for each coordinate
-  * @param initialRoute
+  * @param streetPath
   */
-class Trajectory(initialRoute: BeamGraphPath) {
+class Trajectory(streetPath: BeamPath) {
 
   def this()= {
-    this(BeamGraphPath.empty.copy())
+    this(BeamStreetPath.empty.copy())
   }
-  private var _route = initialRoute
+  private var _route: BeamStreetPath = streetPath match {
+    case path: BeamStreetPath => path.asInstanceOf[BeamStreetPath]
+    //TODO this is a stub but needs to include a transformation from TransitSegment to StreetPath (with empty linkId Vector)
+    case _ => BeamStreetPath.empty
+  }
 
   def coordinateSystem = defaultCoordinateSystem
 
   protected[agentsim] def append(coords: (String,SpaceTime)) = {
     //val transformed = transformer.transform(coords._2.loc)
-    val transformed = coords._2.loc
+    val transformed = coords._2
     // x -> longitude, y -> latitude
-    this._route = this._route.copy(linkIds = this._route.linkIds :+ coords._1, latLons = this._route.latLons:+ transformed,
-      entryTimes = this._route.entryTimes :+ coords._2.time)
+    this._route = this._route.copy(linkIds = this._route.linkIds :+ coords._1, trajectory = Option(this._route.trajectory.getOrElse(Vector()) :+ transformed))
   }
 
   def location(time: Double): SpaceTime = {

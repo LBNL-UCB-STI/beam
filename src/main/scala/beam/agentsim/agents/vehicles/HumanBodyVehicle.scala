@@ -2,29 +2,17 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.{BeamAgent, PersonAgent}
-import beam.router.RoutingModel.BeamGraphPath
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles._
 
 
 
-class HumanBodyVehicle(val personId: Id[PersonAgent], val beamServices: BeamServices, val data: HumanBodyVehicleData,
-                       var trajectory: Trajectory, var powerTrain: Powertrain,
-                       var driver: Option[ActorRef] = None) extends BeamVehicle with HasServices {
+class HumanBodyVehicle(val vehicleId: Id[Vehicle], val personId: Id[PersonAgent], val beamServices: BeamServices, val data: HumanBodyVehicleData,
+                       var powerTrain: Powertrain, var driver: Option[ActorRef] = None) extends BeamVehicle with HasServices {
 
-  //XXX: be careful with traversing,  possible recursion
-  def passengers: List[ActorRef] = List(self)
+  override val id: Id[Vehicle] = vehicleId
 
-  def carrier = None
-
-  override def id: Id[_] = personId
-
-  override protected def setDriver(newDriver: ActorRef): Unit = throw new UnsupportedOperationException
-
-  override protected def pickupPassengers(newPassengers: List[ActorRef]): Unit = throw new UnsupportedOperationException
-
-  override protected def dropOffPassengers(passengers: List[ActorRef]): List[ActorRef] = throw new UnsupportedOperationException
 }
 
 /**
@@ -58,7 +46,5 @@ case class HumanBodyVehicleData(personId: Id[PersonAgent], dim: HumanDimension) 
 object HumanBodyVehicle {
   //TODO make HumanDimension come from somewhere
   def props(services: BeamServices, personId: Id[PersonAgent]) = Props(classOf[HumanBodyVehicle],services,
-    HumanBodyVehicleData(personId, HumanDimension(1.7, 60.0)),
-    new Trajectory(BeamGraphPath.empty),
-    None)
+    HumanBodyVehicleData(personId, HumanDimension(1.7, 60.0)), new Trajectory(), None)
 }
