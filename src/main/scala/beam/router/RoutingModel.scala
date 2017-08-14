@@ -16,27 +16,34 @@ import scala.collection.immutable.TreeMap
   * BEAM
   */
 object RoutingModel {
-  case class BeamTrip(legs: TreeMap[BeamLeg, BeamVehicleAssignment],
+
+  case class BeamTrip(legs: Vector[BeamLeg],
                       accessMode: BeamMode) {
-    lazy val tripClassifier: BeamMode = if (legs.keys.toVector map (_.mode) contains CAR) {
+    lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
       CAR
     } else {
       TRANSIT
     }
-    val totalTravelTime: Long = legs.keys.map(_.duration).sum
+    val totalTravelTime: Long = legs.map(_.duration).sum
     def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
   }
 
   object BeamTrip {
-    def apply(legsAsVector: Vector[BeamLeg], accessMode: BeamMode): BeamTrip = {
-      var legMap = TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering)
-      legsAsVector.foreach(leg => legMap += (leg -> BeamVehicleAssignment.empty))
-      BeamTrip(legMap, accessMode)
+    val empty: BeamTrip = BeamTrip(Vector(), BeamMode.WALK)
+  }
+
+  case class EmbodiedBeamTrip(legs: Vector[EmbodiedBeamLeg]) {
+    lazy val tripClassifier: BeamMode = if (legs map (_.beamLeg.mode) contains CAR) {
+      CAR
+    } else {
+      TRANSIT
     }
-    def apply(legsAsVector: Vector[BeamLeg]): BeamTrip = {
-      BeamTrip(legsAsVector, legsAsVector.head.mode)
-    }
-    val empty: BeamTrip = BeamTrip(TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering), BeamMode.WALK)
+    val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
+    def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
+  }
+  object EmbodiedBeamTrip {
+    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty)
+    def apply(beamTrip: BeamTrip) = new EmbodiedBeamTrip(beamTrip.legs.map(leg => EmbodiedBeamLeg(leg)))
   }
 
   /**
@@ -59,6 +66,18 @@ object RoutingModel {
     def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
     def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
     def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
+  }
+
+  case class EmbodiedBeamLeg(beamLeg: BeamLeg,
+                             beamVehicleId: Id[Vehicle],
+                             asDriver: Boolean,
+                             passengerSchedule: Option[PassengerSchedule],
+                             cost: BigDecimal
+                            ) {
+    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+  }
+  object EmbodiedBeamLeg {
+    def apply(leg: BeamLeg) = EmbodiedBeamLeg(leg, Id.create("",classOf[Vehicle]),false,None,0.0)
   }
 
   sealed abstract class BeamPath {
@@ -87,14 +106,6 @@ object RoutingModel {
 
   object BeamStreetPath {
     val empty: BeamStreetPath = new BeamStreetPath(Vector[String]())
-  }
-
-  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean, passengerSchedule: Option[PassengerSchedule]) {
-    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
-  }
-
-  object BeamVehicleAssignment{
-    val empty: BeamVehicleAssignment = BeamVehicleAssignment(Id.create("Empty", classOf[Vehicle]), false, None)
   }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)

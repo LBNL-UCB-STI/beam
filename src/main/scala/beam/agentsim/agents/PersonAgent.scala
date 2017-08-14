@@ -76,7 +76,6 @@ object PersonAgent {
   }
 
   case class PersonData(activityChain: Vector[Activity], currentActivityIndex: Int = 0,
-                        currentRoute: BeamTrip = BeamTrip.empty,
                         currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip](),
                         currentVehicle: VehicleStack,
                         humanBodyVehicle: Option[Id[Vehicle]]) extends BeamAgentData {
@@ -160,6 +159,8 @@ object PersonAgent {
 
 class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgent], override val data: PersonData) extends BeamAgent[PersonData] with
   TriggerShortcuts with HasServices with CanUseTaxi with ChoosesMode with DrivesVehicle[PersonData] {
+
+  _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty,
 
   when(PerformingActivity) {
     case ev@Event(_, _) =>

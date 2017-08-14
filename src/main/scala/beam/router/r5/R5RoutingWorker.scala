@@ -74,16 +74,16 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequestToVehicles: ProfileRequestToVehicles = buildRequests(routingRequestTripInfo)
     val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
 
-//    var zippedTripsWithIds: Vector[(BeamTrip, BeamVehicleAssignment)] = Vector()
-//    originalResponse.foreach { trip =>
-//       val newTuple = profileRequestToVehicles.originalProfileModeToVehicle.get(trip.accessMode) match {
-//          case Some(id: Id[Vehicle]) =>
-//            (trip, id)
-//          case None =>
-//            (trip, Id.create("WALK", classOf[Vehicle]))
-//       }
-//       zippedTripsWithIds = zippedTripsWithIds :+ newTuple
-//    }
+    var zippedTripsWithIds: Vector[(BeamTrip, Id[Vehicle])] = Vector()
+    originalResponse.foreach { trip =>
+       val newTuple = profileRequestToVehicles.originalProfileModeToVehicle.get(trip.accessMode) match {
+          case Some(id: Id[Vehicle]) =>
+            (trip, id)
+          case None =>
+            (trip, Id.create("WALK", classOf[Vehicle]))
+       }
+       zippedTripsWithIds = zippedTripsWithIds :+ newTuple
+    }
 
     RoutingResponse(requestId, originalResponse)
   }
