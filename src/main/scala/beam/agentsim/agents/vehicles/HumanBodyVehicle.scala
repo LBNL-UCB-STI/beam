@@ -74,4 +74,5 @@ object HumanBodyVehicle extends BeamVehicleObject{
   }
 
   def isHumanBodyVehicle(beamVehicleId: Id[Vehicle]) = beamVehicleId.toString.toLowerCase.contains("body-")
+  val placeHolderBodyVehilceId: Id[Vehicle] = Id.create("body",classOf[Vehicle])
 }

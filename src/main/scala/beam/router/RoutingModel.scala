@@ -11,6 +11,7 @@ import org.matsim.vehicles.Vehicle
 import org.opentripplanner.routing.vertextype.TransitStop
 
 import scala.collection.immutable.TreeMap
+import scala.collection.mutable
 
 /**
   * BEAM
@@ -45,6 +46,39 @@ object RoutingModel {
     def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
   }
   object EmbodiedBeamTrip {
+    //TODO this needs unit testing
+    def embodyWithStreetVehicle(trip: BeamTrip, vehId: Id[Vehicle], mode: BeamMode): EmbodiedBeamTrip = {
+      if(trip.legs.size==0){
+        EmbodiedBeamTrip.empty
+      }else {
+        var startedInsertingVehicle = false
+        var stoppedInsertingVehicle = false
+        val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
+          val currentMode = beamLeg.mode
+          if(startedInsertingVehicle & stoppedInsertingVehicle){
+            EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(beamLeg.mode),false,None,0.0)
+          }else{
+            if(currentMode == mode){
+              startedInsertingVehicle = true
+              EmbodiedBeamLeg(beamLeg,vehId,true,None,0.0)
+            }else{
+              if(startedInsertingVehicle)stoppedInsertingVehicle = true
+              EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(beamLeg.mode),false,None,0.0)
+            }
+          }
+        }
+        EmbodiedBeamTrip(embodiedLegs)
+      }
+    }
+    def beamModeToVehicleId(beamMode: BeamMode): Id[Vehicle] = {
+      if (beamMode == WALK) {
+        Id.create("body", classOf[Vehicle])
+      } else if (Modes.isR5TransitMode(beamMode)) {
+        Id.create("transit", classOf[Vehicle])
+      } else {
+        Id.create("", classOf[Vehicle])
+      }
+    }
     val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty)
     def apply(beamTrip: BeamTrip) = new EmbodiedBeamTrip(beamTrip.legs.map(leg => EmbodiedBeamLeg(leg)))
   }

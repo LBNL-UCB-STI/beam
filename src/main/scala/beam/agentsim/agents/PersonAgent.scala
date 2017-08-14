@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, RidesInVehicles}
+import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEnd, NotifyLegStart, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, EnterVehicle, ExitVehicle}
@@ -87,7 +87,7 @@ object PersonAgent {
 class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgent], val matsimPlan: Plan, humanBodyVehicleId: Id[Vehicle], override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
   TriggerShortcuts with HasServices with CanUseTaxi with ChoosesMode with DrivesVehicle[PersonData] {
 
-  var _activityChain: Vector[Activity] = Vector()
+  var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip]()
   var _currentVehicle: VehicleStack = VehicleStack()

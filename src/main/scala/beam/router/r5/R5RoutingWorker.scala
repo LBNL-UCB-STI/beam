@@ -10,6 +10,7 @@ import java.util
 import akka.actor.Props
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.WALK
@@ -74,18 +75,23 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequestToVehicles: ProfileRequestToVehicles = buildRequests(routingRequestTripInfo)
     val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
 
-    var zippedTripsWithIds: Vector[(BeamTrip, Id[Vehicle])] = Vector()
-    originalResponse.foreach { trip =>
-       val newTuple = profileRequestToVehicles.originalProfileModeToVehicle.get(trip.accessMode) match {
-          case Some(id: Id[Vehicle]) =>
-            (trip, id)
-          case None =>
-            (trip, Id.create("WALK", classOf[Vehicle]))
-       }
-       zippedTripsWithIds = zippedTripsWithIds :+ newTuple
+    var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
+    originalResponse.filter(_.accessMode == WALK).foreach { trip =>
+      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicle(trip, HumanBodyVehicle.placeHolderBodyVehilceId, WALK)
     }
 
-    RoutingResponse(requestId, originalResponse.map{ trip => EmbodiedBeamTrip(trip)})
+    profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach{ mode =>
+      val vehicleIds = profileRequestToVehicles.originalProfileModeToVehicle.get(mode).get
+      originalResponse.filter(_.accessMode == mode).foreach { trip =>
+        vehicleIds.foreach { vehId =>
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicle(trip, vehId, mode)
+        }
+      }
+    }
+
+    //TODO: process the walkOnly and vehicleCentered profiles and their responses here...
+
+    RoutingResponse(requestId, embodiedTrips)
   }
 
   /*
@@ -147,6 +153,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // The next requests are for walk only trips to vehicles and simultaneously the vehicle to destination
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //TODO can we configure the walkOnly trips so that only one alternative is returned by R5 or do we need to deal with that in post?
     val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking  )
     streetVehiclesNotAtRequesterOrigin.foreach{ veh =>
       // Walking to Vehicle
