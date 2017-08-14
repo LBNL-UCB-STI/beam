@@ -91,7 +91,7 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
   var _currentActivityIndex: Int = 0
   var _currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip]()
   var _currentVehicle: VehicleStack = VehicleStack()
-  var _humanBodyVehicle: Option[Id[Vehicle]] = None
+  var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
   var _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
@@ -239,8 +239,8 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
         case Some(processedData) =>
           if(processedData.nextLeg.asDriver){
             val passengerSchedule = PassengerSchedule()
-            val vehicleId = if(_humanBodyVehicle.isDefined && HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)){
-              _humanBodyVehicle.get
+            val vehicleId = if(HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)){
+              _humanBodyVehicle
             }else{
               processedData.nextLeg.beamVehicleId
             }

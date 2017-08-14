@@ -49,7 +49,6 @@ object BeamVehicle {
 
   val ActorPrefixName = "vehicle-"
 
-
   case class BeamVehicleIdAndRef(id: Id[Vehicle], ref: ActorRef)
 
   case object Moving extends BeamAgentState {
@@ -64,8 +63,8 @@ object BeamVehicle {
       0.0
   }
 
-  def buildActorName(vehicleId: Id[Vehicle]): String = {
-    s"$ActorPrefixName${vehicleId.toString}"
+  def buildActorName(matsimVehicle: Vehicle): String = {
+    s"$ActorPrefixName${matsimVehicle.getType.getDescription}-${matsimVehicle.getId.toString}"
   }
 
   implicit def actorRef2Id(actorRef: ActorRef): Option[Id[Vehicle]] = {
@@ -76,9 +75,6 @@ object BeamVehicle {
     }
   }
 
-  implicit def vehicleId2actorRef(vehicleId: Id[Vehicle])(implicit context: ActorContext, timeout: Timeout) = {
-    context.actorSelection(s"user/${buildActorName(vehicleId)}").resolveOne(timeout.duration)
-  }
   case class GetVehicleLocationEvent(time: Double) extends org.matsim.api.core.v01.events.Event(time) {
     override def getEventType: String = getClass.getName
   }
