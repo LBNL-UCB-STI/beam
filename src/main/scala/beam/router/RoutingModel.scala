@@ -29,6 +29,7 @@ object RoutingModel {
   }
 
   object BeamTrip {
+    def apply(legs: Vector[BeamLeg]): BeamTrip = BeamTrip(legs,legs.head.mode)
     val empty: BeamTrip = BeamTrip(Vector(), BeamMode.WALK)
   }
 
@@ -40,6 +41,8 @@ object RoutingModel {
     }
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
     def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
+    def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
+    def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
   }
   object EmbodiedBeamTrip {
     val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty)
@@ -77,7 +80,7 @@ object RoutingModel {
     def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
   }
   object EmbodiedBeamLeg {
-    def apply(leg: BeamLeg) = EmbodiedBeamLeg(leg, Id.create("",classOf[Vehicle]),false,None,0.0)
+    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("",classOf[Vehicle]),false,None,0.0)
   }
 
   sealed abstract class BeamPath {

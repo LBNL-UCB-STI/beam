@@ -215,7 +215,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
 
       BeamTrip(beamLegs.toVector)
     }
-    RoutingResponse(requestId, beamTrips)
+    RoutingResponse(requestId, beamTrips.map{ trip => EmbodiedBeamTrip(trip)})
   }
 
   private def makeGraphService(): GraphService = {

@@ -165,7 +165,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       //let's put here human body vehicle too, it should be clean up on each iteration
       bodyVehicles += ((bodyVehicleIdFromPerson, matsimBodyVehicle))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), bodyVehicleRef)
-      val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(services, personId, PersonData(matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson)), PersonAgent.buildActorName(personId))
+      val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(services, personId, matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
       services.personRefs += ((personId, ref))
     }

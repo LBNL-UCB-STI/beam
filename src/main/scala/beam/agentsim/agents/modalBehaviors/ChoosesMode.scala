@@ -10,7 +10,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime}
+import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime, EmbodiedBeamTrip}
 import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
@@ -24,14 +24,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   val choiceCalculator: ChoiceCalculator = ChoosesMode.mnlChoice
-  var routerResult: Option[RoutingResponse] = None
+  var routingResponse: Option[RoutingResponse] = None
   var taxiResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
 
   def completeChoiceIfReady(): State = {
-    if (hasReceivedCompleteChoiceTrigger && routerResult.isDefined && taxiResult.isDefined) {
+    if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && taxiResult.isDefined) {
 
-      val chosenTrip = choiceCalculator(routerResult.get.itineraries)
+      val chosenTrip = choiceCalculator(routingResponse.get.itineraries)
 
       hasReceivedCompleteChoiceTrigger = false
       val theTriggerIdAsLong = _currentTriggerId.get
@@ -40,7 +40,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       _currentTick = None
 
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(theTick, id,
-        stateData.data.currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
+        currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
 
       if(chosenTrip.legs.isEmpty) {
         log.error(s"No further PersonDepartureTrigger is going to be scheduled after triggerId=$theTriggerIdAsLong ")
@@ -50,8 +50,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
         if(id.toString.equals("104793")){
           val i = 0
         }
-        beamServices.schedulerRef ! completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.keys.head.startTime, self))
-        goto(Waiting) using BeamAgentInfo(id, stateData.data.copy(currentRoute = chosenTrip))
+        beamServices.schedulerRef ! completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
+        _currentRoute = chosenTrip
+        goto(Waiting)
       }
     } else {
       stay()
@@ -70,13 +71,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       if(id.toString.equals("104793")){
         val i = 0
       }
-      val nextAct = stateData.data.nextActivity.right.get // No danger of failure here
+      val nextAct = nextActivity.right.get // No danger of failure here
       val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
       //TODO need the StreetVehicles in here
-      beamServices.beamRouter ! RoutingRequest(stateData.data.currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
+      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       //TODO parameterize search distance
-      val pickUpLocation = stateData.data.currentActivity.getCoord
+      val pickUpLocation = currentActivity.getCoord
       beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
         Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
 
@@ -85,7 +86,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
      * Receive and store data needed for choice.
      */
     case Event(theRouterResult: RoutingResponse, info: BeamAgentInfo[PersonData]) =>
-      routerResult = Some(theRouterResult)
+      routingResponse = Some(theRouterResult)
       completeChoiceIfReady()
     case Event(theTaxiResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       taxiResult = Some(theTaxiResult)
@@ -102,28 +103,26 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
 }
 object ChoosesMode {
-  type ChoiceCalculator = (Vector[BeamTrip]) => BeamTrip
+  type ChoiceCalculator = (Vector[EmbodiedBeamTrip]) => EmbodiedBeamTrip
 
   case class BeginModeChoiceTrigger(tick: Double) extends Trigger
   case class FinalizeModeChoiceTrigger(tick: Double) extends Trigger
 
-  def mnlChoice(alternatives: Vector[BeamTrip]): BeamTrip = {
-    var alternativesWithTaxi = Vector[BeamTrip]()
-    alternativesWithTaxi = alternativesWithTaxi ++ alternatives
+  def mnlChoice(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
     var containsDriveAlt = -1
     var altModesAndTimes: Vector[(BeamMode, Double)] = for (i <- alternatives.indices.toVector) yield {
       val alt = alternatives(i)
-      val altMode = if (alt.legs.keys.size == 1) {
-        alt.legs.keys.head.mode
+      val altMode = if (alt.legs.size == 1) {
+        alt.legs.head.beamLeg.mode
       } else {
-        if (alt.legs.keys.head.mode.equals(CAR)) {
+        if (alt.legs.head.beamLeg.mode.equals(CAR)) {
           containsDriveAlt = i
           CAR
         } else {
           TRANSIT
         }
       }
-      val travelTime = (for (leg <- alt.legs.keys) yield leg.duration).foldLeft(0.0) {
+      val travelTime = (for (leg <- alt.legs) yield leg.beamLeg.duration).foldLeft(0.0) {
         _ + _
       }
       (altMode, travelTime)
@@ -148,10 +147,9 @@ object ChoosesMode {
     val randDraw = Random.nextDouble()
     val chosenIndex = for (i <- 1 until cumulativeAltProbabilities.length if randDraw < cumulativeAltProbabilities(i)) yield i - 1
     if(chosenIndex.size > 0) {
-//      alternativesWithTaxi(chosenIndex.head).copy(choiceUtility = sumExpUtilities)
-      alternativesWithTaxi(chosenIndex.head)
+      alternatives(chosenIndex.head)
     } else {
-      BeamTrip.empty
+      EmbodiedBeamTrip.empty
     }
   }
 

@@ -8,7 +8,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamTime, BeamTrip}
+import beam.router.RoutingModel.{BeamTime, BeamTrip, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
@@ -117,7 +117,7 @@ object BeamRouter {
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(@BeanProperty id: Id[RoutingRequest],
-                             itineraries: Vector[BeamTrip]) extends RouterMessage with Identifiable[RoutingRequest]
+                             itineraries: Vector[EmbodiedBeamTrip]) extends RouterMessage with Identifiable[RoutingRequest]
 
   /**
     *

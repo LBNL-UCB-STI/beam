@@ -34,14 +34,14 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
 
   protected var _currentLeg: Option[BeamLeg] = None
   //TODO: send some message to set _currentVehicle
-  protected var _currentVehicle: Option[BeamVehicleIdAndRef] = None
+  protected var _currentVehicleUnderControl: Option[BeamVehicleIdAndRef] = None
   protected var _awaitingBoardConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _awaitingAlightConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
 
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
       //we have just completed a leg
-      log.debug(s"Received EndLeg for beamVehicleId=${_currentVehicle.get.id}, started Boarding/Alighting   ")
+      log.debug(s"Received EndLeg for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
       _currentTriggerId = Some(triggerId)
       _currentTick = Some(tick)
       passengerSchedule.schedule.get(completedLeg) match {
@@ -68,7 +68,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
   }
   chainedWhen(Waiting) {
     case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
-      _currentVehicle = beamServices.vehicleRefs.get(assignedVehicle).map { vehicleRef =>
+      _currentVehicleUnderControl = beamServices.vehicleRefs.get(assignedVehicle).map { vehicleRef =>
         BeamVehicleIdAndRef(assignedVehicle, vehicleRef)
       }
       newPassengerSchedule match {
@@ -85,7 +85,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         case Some(manifest) =>
           _awaitingBoardConfirmation ++= manifest.boarders
           manifest.riders.foreach(passenger => beamServices.vehicleRefs(passenger) ! NotifyLegStart)
-          _currentVehicle.foreach( _.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory) )
+          _currentVehicleUnderControl.foreach( _.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory) )
           stay()
         case None =>
           log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
@@ -115,7 +115,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       _currentLeg = Some(passengerSchedule.schedule.firstKey)
       goto(Waiting) replying completed(theTriggerId, schedule[StartLegTrigger](_currentLeg.get.startTime,self))
     }else{
-      _currentVehicle.get.ref ! UnbecomeDriver(theTick, id)
+      _currentVehicleUnderControl.get.ref ! UnbecomeDriver(theTick, id)
       goto(Waiting) replying completed(theTriggerId, schedule[CompleteDrivingMissionTrigger](theTick,self))
     }
   }

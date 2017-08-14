@@ -85,7 +85,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
        zippedTripsWithIds = zippedTripsWithIds :+ newTuple
     }
 
-    RoutingResponse(requestId, originalResponse)
+    RoutingResponse(requestId, originalResponse.map{ trip => EmbodiedBeamTrip(trip)})
   }
 
   /*

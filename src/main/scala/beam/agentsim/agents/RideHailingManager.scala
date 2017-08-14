@@ -122,7 +122,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
             log.debug(s"Found taxi $taxiLocation for inquiryId=$inquiryId within $shortDistanceToTaxi miles, timeToCustomer=$timeToCustomer" )
             val travelProposal = TravelProposal(taxiLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)))
-            pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan))
+            pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
             RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
           }
         case None =>
@@ -168,7 +168,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
         val timeToCustomer = MaxPickupTimeInSeconds
         val travelProposal = TravelProposal(closestTaxi, timeToCustomer, cost, Option(FiniteDuration(tripRoute.totalTravelTime, TimeUnit.SECONDS)))
         val confirmation = ReserveTaxiResponse(inquiryId, Right(TaxiConfirmData(closestTaxi.taxiAgent, personId, travelProposal)))
-        triggerCustomerPickUp(customerPickUp, destination, closestTaxi, Option(tripRoute), confirmation)
+        triggerCustomerPickUp(customerPickUp, destination, closestTaxi, Option(tripRoute.toBeamTrip()), confirmation)
         confirmation
       }.getOrElse {
         ReserveTaxiResponse(inquiryId, Left(VehicleUnavailable))
