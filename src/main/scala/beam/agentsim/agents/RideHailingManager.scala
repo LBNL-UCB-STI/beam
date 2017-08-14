@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-
+import beam.sim.config.ConfigModule._
 /**
   * BEAM
   */
@@ -69,11 +69,17 @@ case class RideHailingManagerData(name: String, fares: Map[Id[VehicleType], BigD
 class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamServices) extends VehicleManager
   with HasServices with AggregatorFactory {
   import scala.collection.JavaConverters._
-  val bbBuffer = 100000
-  val MaxPickupTimeInSeconds = 15 * 60
+
   val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.taxi.defaultCostPerMile)
   // improve search to take into account time taxi is available
-  private val taxiAgentLocationIndex = new QuadTree[TaxiAgentLocation](beamServices.bbox.minX - bbBuffer,beamServices.bbox.minY - bbBuffer,beamServices.bbox.maxX + bbBuffer,beamServices.bbox.maxY + bbBuffer)
+  private val taxiAgentLocationIndex = {
+    val bbBuffer = beamServices.beamConfig.bbBuffer
+    new QuadTree[TaxiAgentLocation](
+      beamServices.bbox.minX - bbBuffer,
+      beamServices.bbox.minY - bbBuffer,
+      beamServices.bbox.maxX + bbBuffer,
+      beamServices.bbox.maxY + bbBuffer)
+  }
   private val availableTaxiCabs = mutable.Map[Id[Vehicle], TaxiAgentLocation]()
   private val inServiceTaxiCabs = mutable.Map[Id[Vehicle], TaxiAgentLocation]()
   //XXX: let's make sorted-map to be get latest and oldest orders to expire some of the
@@ -165,7 +171,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       val tripAndCostOpt = customerTripPlan.map(_.itineraries.map(t => (t, t.estimateCost(taxiFare).min)).minBy(_._2))
       val responseToCustomer = tripAndCostOpt.map { case (tripRoute, cost) =>
         //XXX: we didn't find taxi inquiry in pendingInquiries let's set max pickup time to avoid another routing request
-        val timeToCustomer = MaxPickupTimeInSeconds
+        val timeToCustomer = beamServices.beamConfig.MaxPickupTimeInSeconds
         val travelProposal = TravelProposal(closestTaxi, timeToCustomer, cost, Option(FiniteDuration(tripRoute.totalTravelTime, TimeUnit.SECONDS)))
         val confirmation = ReserveTaxiResponse(inquiryId, Right(TaxiConfirmData(closestTaxi.taxiAgent, personId, travelProposal)))
         triggerCustomerPickUp(customerPickUp, destination, closestTaxi, Option(tripRoute), confirmation)
