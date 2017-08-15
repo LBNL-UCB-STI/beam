@@ -86,13 +86,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 //      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles, id)
 
-      
+
       //TODO parameterize search distance
 //      val pickUpLocation = currentActivity.getCoord
 //      beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
 //        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
 
-      stay() replying completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
+      beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
+      stay()
     /*
      * Receive and store data needed for choice.
      */
