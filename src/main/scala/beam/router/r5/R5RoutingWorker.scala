@@ -118,28 +118,6 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 
     var trips = Vector[BeamTrip]()
 
-    def calcFare(transitSegment: TransitSegment, segmentPattern: SegmentPattern) = {
-      //TODO : Need to consider transfers
-      val fromStop = transitSegment.from.stopId.split(":")(1)
-      val toStopId = transitSegment.to.stopId.split(":")(1)
-      val route = transportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
-      val routeId = route.route_id
-      val agencyId = route.agency_id
-
-      def applyRule(r: FareRule) = {
-        // Fare depends on which route the itinerary uses
-        (r.routeId == routeId || r.routeId == null) &&
-        // Fare depends on origin or destination stations
-        (r.originId == fromStop || r.originId == null) && (r.destinationId == toStopId || r.destinationId == null)
-        // TODO Fare depends on which zones the itinerary passes through.
-      }
-
-      var fare = FareModel.agencies.get(agencyId).getOrElse(Vector()).filter(applyRule(_)).map(_.fare.price).sum
-
-      log.debug(s"Fare for route $routeId is $fare.")
-      fare
-    }
-
     for(option <- plan.options.asScala) {
       log.debug(s"Summary of trip is: $option")
       /*
@@ -156,7 +134,9 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         var legs = Vector[BeamLeg]()
 
         val access = option.access.get(itinerary.connection.access)
-
+        if(itinerary.transfers >= 1) {
+          log.debug(s"Itinerary has ${itinerary.transfers} transfers.")
+        }
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
@@ -171,6 +151,8 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         if(isTransit) {
           var arrivalTime: Long = Long.MinValue
           var isMiddle: Boolean = false
+
+          var currentItinerary:Vector[(TransitSegment, TransitJourneyID)] = Vector()
           /*
            Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
            assuming that: For each transit in option there is a TransitJourneyID in connection
@@ -193,7 +175,26 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
               }
             }
 
-            val fare = calcFare(transitSegment, segmentPattern)
+            val route = transportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
+
+            def calcFare(it: Vector[(TransitSegment, TransitJourneyID)]) = {
+              //TODO : Need to consider transfers
+              val ts = it.map(i => Vector(i._1.from.stopId.split((":"))(1), i._1.to.stopId.split((":"))(1))).flatten.distinct
+              val fromStopId = ts.head
+              val toStopId = ts.last
+
+              val routeId = route.route_id
+              val agencyId = route.agency_id
+
+
+              val fare = FareModel.calcFare(agencyId, routeId, fromStopId, toStopId, it)
+              log.debug(s"Fare for route $routeId is $fare.")
+              fare
+            }
+
+            currentItinerary = currentItinerary :+ (transitSegment, transitJourneyID)
+            val fare = if(itinerary.transfers == currentItinerary.size -1) calcFare(currentItinerary) else 0
+
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime.get(transitJourneyID.time).toEpochSecond
