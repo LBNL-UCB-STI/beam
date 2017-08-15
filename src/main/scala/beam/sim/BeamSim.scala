@@ -203,7 +203,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         }.collect {
           case (personId, Some(personAgent)) => (personId, personAgent)
         }.toMap
-        val props = HouseholdActor.props(householdId, matSimHousehold, houseHoldVehicles, membersActors)
+        val props = HouseholdActor.props(services, householdId, matSimHousehold, houseHoldVehicles, membersActors)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
         householdActor ! InitializeTrigger(0)
         (householdId, householdActor)
