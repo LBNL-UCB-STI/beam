@@ -17,6 +17,7 @@ import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
+import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
 
@@ -33,9 +34,8 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  // syntactic sugar for props creation
-  def props(services: BeamServices, personId: Id[PersonAgent], plan: Plan, humanBodyVehicleId: Id[Vehicle]) = {
-      Props(new PersonAgent(services, personId, plan, humanBodyVehicleId))
+  def props(services: BeamServices, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan, humanBodyVehicleId: Id[Vehicle]) = {
+      Props(new PersonAgent(services, personId, householdId, plan, humanBodyVehicleId))
   }
   def buildActorName(personId: Id[Person]): String = {
     s"$ActorPrefixName${personId.toString}"
@@ -84,7 +84,12 @@ object PersonAgent {
   case class CompleteDrivingMissionTrigger(tick: Double) extends Trigger
 }
 
-class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgent], val matsimPlan: Plan, humanBodyVehicleId: Id[Vehicle], override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
+class PersonAgent(val beamServices: BeamServices,
+                  override val id: Id[PersonAgent],
+                  householdId: Id[Household],
+                  val matsimPlan: Plan,
+                  humanBodyVehicleId: Id[Vehicle],
+                  override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
   TriggerShortcuts with HasServices with CanUseTaxi with ChoosesMode with DrivesVehicle[PersonData] {
 
   var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
@@ -93,6 +98,7 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
   var _currentVehicle: VehicleStack = VehicleStack()
   var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
   var _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
+  var _household: Id[Household] = householdId
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _activityChain.length) Left(msg) else Right(_activityChain(ind))
@@ -126,13 +132,6 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
-  }
-  whenUnhandled{
-    case ev@Event(_, _) =>
-      handleEvent(AnyState, ev)
     case msg@_ =>
       logError(s"Unrecognized message ${msg}")
       goto(Error)
@@ -201,10 +200,6 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
           logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
           goto(Error)
       }
-
-    case ev@Event(_,_) =>
-      logError(s"Unrecognized event ${ev}")
-      goto(Error)
   }
   chainedWhen(Moving) {
     /*
@@ -259,7 +254,7 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
             passengerSchedule.addPassenger(vehiclePersonId,Vector(processedData.nextLeg.beamLeg))
             beamServices.vehicleRefs(vehiclePersonId.passengerVehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
             _currentRoute = processedData.restTrip
-            stay() replying completed(triggerId,schedule[StartLegTrigger](nextLeg.beamLeg.startTime,self,nextLeg))
+            stay() replying completed(triggerId,schedule[StartLegTrigger](nextLeg.beamLeg.startTime,self,nextLeg.beamLeg))
           }else{
             // We don't update PersonData with the rest of the currentRoute, this will happen when the agent recieves the NotifyStartLeg message
             goto(Waiting) replying completed(triggerId)

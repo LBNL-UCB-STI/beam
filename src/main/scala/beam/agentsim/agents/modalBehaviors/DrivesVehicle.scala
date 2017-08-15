@@ -79,7 +79,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
           _awaitingBoardConfirmation ++= manifest.boarders
-          manifest.riders.foreach(pv => beamServices.personRefs(pv.personId) ! NotifyLegStart)
+          manifest.riders.foreach(pv => beamServices.personRefs(pv.personId) ! NotifyLegStart(tick))
           _currentVehicleUnderControl.foreach( _.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory) )
           stay()
         case None =>

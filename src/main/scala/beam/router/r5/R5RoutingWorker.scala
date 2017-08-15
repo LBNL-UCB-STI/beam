@@ -114,7 +114,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // whether StreetVehicles are within XXm of the origin
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
+    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
     val uniqueBeamModes: Vector[BeamMode] = streetVehiclesAtRequesterOrigin.map(veh => veh.mode).distinct
     val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(mode => mode.r5Mode.get match { case Left(leg) => leg }).distinct
     uniqueBeamModes.foreach(beamMode =>
@@ -154,10 +154,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // The next requests are for walk only trips to vehicles and simultaneously the vehicle to destination
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //TODO can we configure the walkOnly trips so that only one alternative is returned by R5 or do we need to deal with that in post?
-    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking  )
+    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking  )
     streetVehiclesNotAtRequesterOrigin.foreach{ veh =>
       // Walking to Vehicle
-      val newFromPosTransformed = GeoUtils.transform.Utm2Wgs(veh.location)
+      val newFromPosTransformed = GeoUtils.transform.Utm2Wgs(veh.location.loc)
       val newProfileRequest = profileRequest.clone()
       newProfileRequest.toLon = newFromPosTransformed.getX
       newProfileRequest.toLat = newFromPosTransformed.getY

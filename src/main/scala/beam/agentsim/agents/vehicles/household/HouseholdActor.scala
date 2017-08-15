@@ -2,12 +2,14 @@ package beam.agentsim.agents.vehicles.household
 
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, VehicleLocationRequest, VehicleLocationResponse}
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.vehicles.{Trajectory, VehicleManager}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
+import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.CAR
+import beam.router.RoutingModel.BeamStreetPath
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.households
 import org.matsim.households.Household
@@ -21,18 +23,20 @@ object HouseholdActor {
   def buildActorName(id: Id[households.Household], iterationName: Option[String] = None) = {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
-  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], ActorRef], membersActors: Map[Id[Person], ActorRef]) = {
-    Props(classOf[HouseholdActor], beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors)
+  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], ActorRef], membersActors: Map[Id[Person], ActorRef], homeCoord: Coord) = {
+    Props(classOf[HouseholdActor], beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
   }
   case class MobilityStatusInquiry(personId: Id[Person])
-  case class MobilityStatusReponse(streetVehicle: Option[StreetVehicle])
+  case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
 }
 
 class HouseholdActor(services: BeamServices,
                      id: Id[households.Household],
                      matSimHouseHold : org.matsim.households.Household,
                      vehicleActors: Map[Id[Vehicle], ActorRef],
-                     memberActors: Map[Id[Person], ActorRef] )
+                     memberActors: Map[Id[Person], ActorRef],
+                     homeCoord: Coord
+                    )
   extends VehicleManager with ActorLogging with HasServices {
 
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -50,26 +54,35 @@ class HouseholdActor(services: BeamServices,
 
   override def receive: Receive = {
     case InitializeTrigger(_) =>
+      //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
       log.debug(s"Household ${self.path.name} has been initialized ")
       for (i <- (_vehicles.indices.toSet ++ _members.indices.toSet)) {
         if (i < _vehicles.size & i < _members.size) {
           _vehicleAssignments = _vehicleAssignments + (_members(i) -> _vehicles(i))
         }
       }
+      //Initialize all vehicles to have a stationary trajectory starting at time zero
+      val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
+      val initialTrajectory = Trajectory(BeamStreetPath(Vector(""),None,Some(Vector())))
       _vehicles.foreach { veh =>
-        services.vehicleRefs.get(veh).get ! VehicleLocationRequest(0.0)
+        services.vehicleRefs.get(veh).get ! UpdateTrajectory(initialTrajectory)
+        //TODO following mode should come from the vehicle
+        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR))
       }
-    case VehicleLocationResponse(vehicleId, eventualSpaceTime) =>
-      eventualSpaceTime.onComplete(spaceTime =>
-        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehicleId -> StreetVehicle(vehicleId, spaceTime.get.loc, CAR))
-      )
     case MobilityStatusInquiry(personId) =>
-      val streetVehicle = _vehicleAssignments.get(personId) match {
+      _vehicleAssignments.get(personId) match {
         case Some(vehId) =>
-          sender() ! MobilityStatusReponse(_vehicleToStreetVehicle.get(vehId))
+          val streetVehicles = _vehicleToStreetVehicle.get(vehId) match {
+            case Some(streetVehicle) =>
+              Vector(streetVehicle)
+            case None =>
+              Vector()
+          }
+          sender() ! MobilityStatusReponse(streetVehicles)
         case None =>
-          sender() ! MobilityStatusReponse(None)
+          sender() ! MobilityStatusReponse(Vector())
       }
-    case _ => throw new UnsupportedOperationException
+    case msg@_ =>
+      log.warning(s"Unrecognized message ${msg}")
   }
 }

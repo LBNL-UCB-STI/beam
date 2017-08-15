@@ -152,6 +152,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     services.persons = ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
     services.vehicles = services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
     services.households = services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
+    var personToHouseholdId: Map[Id[Person],Id[Household]] = Map()
+    services.households.map {
+      case (householdId, matSimHousehold) =>
+        personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => (personId -> householdId))
+    }
 
     val iterId = Option(iter.toString)
     services.vehicleRefs ++= initVehicleActors(iterId)
@@ -169,7 +174,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       //let's put here human body vehicle too, it should be clean up on each iteration
       services.vehicles += ((bodyVehicleIdFromPerson, matsimBodyVehicle))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), bodyVehicleRef)
-      val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(services, personId, matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
+      val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(services, personId, personToHouseholdId.get(personId).get, matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
       services.personRefs += ((personId, ref))
     }
@@ -185,11 +190,20 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 //      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
 //    }
     services.householdRefs = initHouseholds(iterId)
+
+    //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
+    services.personRefs.foreach{case(id, ref) =>
+      services.agentRefs = services.agentRefs + (id.toString() -> ref)
+    }
   }
 
   private def initHouseholds(iterId: Option[String] = None)  = {
+    val householdAttrs = services.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
     val actors = services.households.map {
       case (householdId, matSimHousehold) =>
+        //TODO a good example where projection should accompany the data
+        val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString,"homeCoordX").asInstanceOf[Double],
+          householdAttrs.getAttribute(householdId.toString,"homeCoordY").asInstanceOf[Double])
         val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map {
           vehicleId =>
           val vehicleActRef = services.vehicleRefs.get(vehicleId)
@@ -203,7 +217,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         }.collect {
           case (personId, Some(personAgent)) => (personId, personAgent)
         }.toMap
-        val props = HouseholdActor.props(services, householdId, matSimHousehold, houseHoldVehicles, membersActors)
+        val props = HouseholdActor.props(services, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
         householdActor ! InitializeTrigger(0)
         (householdId, householdActor)

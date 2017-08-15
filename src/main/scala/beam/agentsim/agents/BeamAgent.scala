@@ -98,9 +98,13 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         }
       }
       val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
-      if (newStates.isEmpty || !allStatesSame(newStates)){
+      if (!allStatesSame(newStates)){
         throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
           s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
+      } else if(newStates.isEmpty && state == AnyState){
+        FSM.State(state, event.stateData)
+      } else if(newStates.isEmpty){
+        handleEvent(AnyState, event)
       } else {
         val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
         if(numCompletionNotices>1){
@@ -143,9 +147,17 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   }
 
   whenUnhandled {
-    case Event(any, data) =>
-      log.error(s"Unhandled event: $id $any $data")
-      stay()
+    case ev@Event(_, _) =>
+      val result = handleEvent(AnyState, ev)
+      if(result.stateName == AnyState){
+        logWarn(s"Unrecognized event ${ev.event}")
+        stay()
+      }else{
+        result
+      }
+    case msg@_ =>
+      logError(s"Unrecognized message ${msg}")
+      goto(Error)
   }
 
   /*

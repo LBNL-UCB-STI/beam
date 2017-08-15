@@ -127,9 +127,9 @@ object BeamRouter {
   case class BatchRoutingRequest(fromLocation: Location, toOptions: Vector[Location])
 
   object RoutingRequest {
-    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, modes: Vector[BeamMode], personId: Id[PersonAgent]): RoutingRequest = {
+    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent]): RoutingRequest = {
       new RoutingRequest(BeamRouter.nextId,
-        RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(modes), Vector(), personId))
+        RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, personId))
     }
     def apply(params : RoutingRequestTripInfo) = {
       new RoutingRequest(BeamRouter.nextId, params)

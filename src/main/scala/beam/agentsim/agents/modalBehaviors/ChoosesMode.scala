@@ -4,6 +4,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentInfo
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
+import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
 import beam.agentsim.agents.{BeamAgent, PersonAgent, RideHailingManager, TriggerShortcuts}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -68,20 +69,30 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
      */
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${tick}")
-      if(id.toString.equals("104793")){
-        val i = 0
-      }
+      _currentTick = Some(tick)
+      _currentTriggerId = Some(triggerId)
+      beamServices.householdRefs.get(_household).get ! MobilityStatusInquiry(id)
+      stay()
+    case Event(MobilityStatusReponse(streetVehicles), info: BeamAgentInfo[PersonData]) =>
+      val tick = _currentTick.get
+      val theTriggerId = _currentTriggerId.get
+      _currentTick = None
+      _currentTriggerId = None
+
       val nextAct = nextActivity.right.get // No danger of failure here
       val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
-      //TODO need the StreetVehicles in here
-      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
-      //TODO parameterize search distance
-      val pickUpLocation = currentActivity.getCoord
-      beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
-        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
 
-      stay() replying completed(triggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
+//      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
+      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles, id)
+
+      
+      //TODO parameterize search distance
+//      val pickUpLocation = currentActivity.getCoord
+//      beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
+//        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
+
+      stay() replying completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
     /*
      * Receive and store data needed for choice.
      */

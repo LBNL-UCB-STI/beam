@@ -31,7 +31,7 @@ class Trajectory(streetPath: BeamPath) {
     this(BeamStreetPath.empty.copy())
   }
   private var _path: BeamStreetPath = streetPath match {
-    case path: BeamStreetPath => path.asInstanceOf[BeamStreetPath]
+    case path: BeamStreetPath => path
     //TODO this is a stub but needs to include a transformation from TransitSegment to StreetPath (with empty linkId Vector)
     case _ => BeamStreetPath.empty
   }

@@ -93,7 +93,7 @@ object BeamVehicle {
   }
 
   case class UpdateTrajectory(trajectory: Trajectory)
-  case class StreetVehicle(id: Id[Vehicle], location: BeamRouter.Location, mode: BeamMode)
+  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode)
   case class AssignedCarrier(carrierVehicleId: Id[Vehicle])
   case object ResetCarrier
 
@@ -164,6 +164,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       logError(s"Unrecognized message ${msg}")
       goto(Error)
   }
+
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       goto(Idle) replying completed(triggerId)
@@ -182,7 +183,8 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
   chainedWhen(Idle) {
     case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
       if(driver.isEmpty) {
-        driver = Some(beamServices.agentRefs(newDriver))
+        //TODO the following doesn't allow for other types to be drivers... must fix
+        driver = Some(beamServices.agentRefs(newDriver.toString))
         driver.foreach{ driverActor =>
           // Important Note: the following works (asynchronously processing pending res's and then notifying driver of success)
           // only because we throw an exception when BecomeDriver fails. In other words, if the requesting
@@ -232,7 +234,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
 
   chainedWhen(AnyState){
     case Event(VehicleLocationRequest(time), data) =>
-      location(time) pipeTo sender()
+      sender() ! VehicleLocationResponse(id, location(time))
       stay()
     case Event(AssignedCarrier(carrierVehicleId), data) =>
       carrier = beamServices.vehicleRefs.get(carrierVehicleId)

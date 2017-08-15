@@ -6,6 +6,7 @@ import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
+import org.matsim.households.Household
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles._
 
@@ -73,6 +74,6 @@ object HumanBodyVehicle extends BeamVehicleObject{
     Id.create("body-" + personId.toString, classOf[Vehicle])
   }
 
-  def isHumanBodyVehicle(beamVehicleId: Id[Vehicle]) = beamVehicleId.toString.toLowerCase.contains("body-")
+  def isHumanBodyVehicle(beamVehicleId: Id[Vehicle]) = beamVehicleId.toString.toLowerCase.contains("body")
   val placeHolderBodyVehilceId: Id[Vehicle] = Id.create("body",classOf[Vehicle])
 }
