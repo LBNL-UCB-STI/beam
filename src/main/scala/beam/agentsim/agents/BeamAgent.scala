@@ -28,6 +28,10 @@ object BeamAgent {
     override def identifier = "Initialized"
   }
 
+  case object AnyState extends BeamAgentState {
+    override def identifier = "AnyState"
+  }
+
   case object Finished extends BeamAgentState {
     override def identifier = "Finished"
   }
