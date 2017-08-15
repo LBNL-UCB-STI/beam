@@ -2,9 +2,10 @@ package beam.agentsim.agents.vehicles.household
 
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{GetVehicleLocationEvent, StreetVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
+import beam.router.Modes.BeamMode.CAR
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -24,7 +25,7 @@ object HouseholdActor {
     Props(classOf[HouseholdActor], beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors)
   }
   case class MobilityStatusInquiry(personId: Id[Person])
-  case class MobilityStatusReponse(streetVehicle: StreetVehicle)
+  case class MobilityStatusReponse(streetVehicle: Option[StreetVehicle])
 }
 
 class HouseholdActor(services: BeamServices,
@@ -32,34 +33,43 @@ class HouseholdActor(services: BeamServices,
                      matSimHouseHold : org.matsim.households.Household,
                      vehicleActors: Map[Id[Vehicle], ActorRef],
                      memberActors: Map[Id[Person], ActorRef] )
-  extends VehicleManager with ActorLogging with HasServices{
+  extends VehicleManager with ActorLogging with HasServices {
+
+  import scala.concurrent.ExecutionContext.Implicits.global
+
   override val beamServices: BeamServices = services
 
   val _vehicles: Vector[Id[Vehicle]] = vehicleActors.keys.toVector
   val _members: Vector[Id[Person]] = memberActors.keys.toVector
-  var _vehicleAssignments: Map[Id[Person],Id[Vehicle]] = Map[Id[Person],Id[Vehicle]]()
-  var _vehicleToStreetVehicle: Map[Id[Vehicle],StreetVehicle] = Map()
+  var _vehicleAssignments: Map[Id[Person], Id[Vehicle]] = Map[Id[Person], Id[Vehicle]]()
+  var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
 
   override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = vehicleActors.get(vehicleId)
+
+  MobilityStatusReponse
 
   override def receive: Receive = {
     case InitializeTrigger(_) =>
       log.debug(s"Household ${self.path.name} has been initialized ")
-      for(i <- (_vehicles.indices.toSet ++ _members.indices.toSet)){
-        if(i < _vehicles.size & i < _members.size){
+      for (i <- (_vehicles.indices.toSet ++ _members.indices.toSet)) {
+        if (i < _vehicles.size & i < _members.size) {
           _vehicleAssignments = _vehicleAssignments + (_members(i) -> _vehicles(i))
         }
       }
-      _vehicles.foreach(veh => services.vehicleRefs.get(veh) ! GetVehicleLocationEvent)
+      _vehicles.foreach { veh =>
+        services.vehicleRefs.get(veh).get ! VehicleLocationRequest(0.0)
+      }
+    case VehicleLocationResponse(vehicleId, eventualSpaceTime) =>
+      eventualSpaceTime.onComplete(spaceTime =>
+        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehicleId -> StreetVehicle(vehicleId, spaceTime.get.loc, CAR))
+      )
     case MobilityStatusInquiry(personId) =>
       val streetVehicle = _vehicleAssignments.get(personId) match {
         case Some(vehId) =>
-          StreetVehicle(vehId, )
+          sender() ! MobilityStatusReponse(_vehicleToStreetVehicle.get(vehId))
+        case None =>
+          sender() ! MobilityStatusReponse(None)
       }
-
-      sender() ! MobilityStatusReponse()
     case _ => throw new UnsupportedOperationException
   }
-
 }
-

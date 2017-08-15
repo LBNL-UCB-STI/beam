@@ -5,14 +5,14 @@ import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, GetVehicleLocation, Idle, Moving, ResetCarrier, UpdateTrajectory, VehicleFull}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.router.BeamRouter
+import beam.router.{BeamRouter, RoutingModel}
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -75,9 +75,8 @@ object BeamVehicle {
     }
   }
 
-  case class GetVehicleLocationEvent(time: Double) extends org.matsim.api.core.v01.events.Event(time) {
-    override def getEventType: String = getClass.getName
-  }
+  case class VehicleLocationRequest(time: Double)
+  case class VehicleLocationResponse(vehicleId: Id[Vehicle], spaceTime: Future[SpaceTime])
 
   case class AlightingConfirmation(vehicleId: Id[Vehicle])
   case class BoardingConfirmation(vehicleId: Id[Vehicle])
@@ -134,7 +133,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       case Some(traj) =>
         carrier match {
           case Some(carrierVehicle) =>
-            (carrierVehicle ? GetVehicleLocation(time)).mapTo[SpaceTime].recover[SpaceTime] {
+            (carrierVehicle ? VehicleLocationRequest(time)).mapTo[SpaceTime].recover[SpaceTime] {
               case error: Throwable =>
                 log.warning(s"Failed to get location of from carrier. ", error)
               traj.location(time)
@@ -232,7 +231,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
   }
 
   chainedWhen(AnyState){
-    case Event(GetVehicleLocation(time), data) =>
+    case Event(VehicleLocationRequest(time), data) =>
       location(time) pipeTo sender()
       stay()
     case Event(AssignedCarrier(carrierVehicleId), data) =>

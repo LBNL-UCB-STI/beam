@@ -190,11 +190,13 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
       val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
       processedDataOpt match {
         case Some(processedData) =>
-          val nextBeamVehicleId = processedData.nextVehicleAssignment.beamVehicleId
-          val previousVehicleId = info.data.currentVehicle.nestedVehicles.head
+          val previousVehicleId = _currentVehicle.nestedVehicles.head
+          val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
           val newCarrierVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
           newCarrierVehicleRef ! EnterVehicle(tick, previousVehicleId)
-          goto(Moving) using BeamAgentInfo(id, info.data.copy(currentRoute = processedData.restTrip, currentVehicle = info.data.currentVehicle.push(nextBeamVehicleId)))
+          _currentRoute = processedData.restTrip
+          _currentVehicle = _currentVehicle.push(nextBeamVehicleId)
+          goto(Moving)
         case None =>
           logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
           goto(Error)
@@ -217,8 +219,8 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
             stay()
           }else{
             // The next vehicle is different from current so we exit the current vehicle
-            val passengerVehicleId = info.data.currentVehicle.penultimateVehicle()
-            beamServices.vehicleRefs(info.data.currentVehicle.outermostVehicle()) ! ExitVehicle(tick, passengerVehicleId)
+            val passengerVehicleId = _currentVehicle.penultimateVehicle()
+            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! ExitVehicle(tick, passengerVehicleId)
             // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass on the new trigger
             processNextLegOrStartActivity(-1L,tick)
           }
@@ -240,24 +242,24 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
    * 3 The trip is over and there are no more activities in the agent plan => goto Finished
    * 4 The trip is over and there are more activities in the agent plan => goto PerformingActivity and schedule end of activity
    */
-  def processNextLegOrStartActivity(triggerId: Long, tick: Double, data: PersonData): PersonAgent.this.State = {
-    if(data.currentRoute.legs.nonEmpty){
-      val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(data.currentRoute, tick)
+  def processNextLegOrStartActivity(triggerId: Long, tick: Double): PersonAgent.this.State = {
+    if(_currentRoute.legs.nonEmpty){
+      val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
       processedDataOpt match {
         case Some(processedData) =>
           if(processedData.nextLeg.asDriver){
             val passengerSchedule = PassengerSchedule()
-            val vehicleId = if(HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)){
-              _humanBodyVehicle
+            val vehiclePersonId = if(HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)){
+              VehiclePersonId(_humanBodyVehicle,id)
             }else{
-              processedData.nextLeg.beamVehicleId
+              VehiclePersonId(processedData.nextLeg.beamVehicleId,id)
             }
             //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and vehicle is the same...
             val nextLeg = processedData.nextLeg
-            passengerSchedule.addLegs(Vector(nextLeg))
-            beamServices.vehicleRefs(vehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
-            val newStateBeamInfo = BeamAgentInfo(id, data.copy(currentRoute = processedData.restTrip))
-            stay() using newStateBeamInfo replying completed(triggerId,schedule[StartLegTrigger](nextLeg.startTime,self,nextLeg))
+            passengerSchedule.addPassenger(vehiclePersonId,Vector(processedData.nextLeg.beamLeg))
+            beamServices.vehicleRefs(vehiclePersonId.passengerVehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
+            _currentRoute = processedData.restTrip
+            stay() replying completed(triggerId,schedule[StartLegTrigger](nextLeg.beamLeg.startTime,self,nextLeg))
           }else{
             // We don't update PersonData with the rest of the currentRoute, this will happen when the agent recieves the NotifyStartLeg message
             goto(Waiting) replying completed(triggerId)
@@ -298,16 +300,13 @@ class PersonAgent(val beamServices: BeamServices, override val id: Id[PersonAgen
 
   override def logPrefix(): String = s"PersonAgent $id: "
 
-  // NEVER use stateData in below, pass `info` object directly (closure around stateData on object creation)
-
-  private def breakTripIntoNextLegAndRestOfTrip(trip: BeamTrip, tick: Double): Option[ProcessedData] = {
+  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip, tick: Double): Option[ProcessedData] = {
     if(trip.legs.isEmpty){
       None
     }else{
-      val nextLeg = trip.legs.keys.head
-      val nextVehicleAssignment = trip.legs(nextLeg)
-      val restLegs = trip.legs - nextLeg
-      val restTrip: BeamTrip = BeamTrip(restLegs, trip.accessMode)
+      val nextLeg = trip.legs.head
+      val restLegs = trip.legs.tail
+      val restTrip: EmbodiedBeamTrip = EmbodiedBeamTrip(restLegs)
       val nextStart = if (restTrip.legs.nonEmpty) {
         restTrip.legs.head.beamLeg.startTime
       } else {

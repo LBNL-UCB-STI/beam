@@ -80,7 +80,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         case Some(manifest) =>
           _awaitingBoardConfirmation ++= manifest.boarders
           manifest.riders.foreach(pv => beamServices.personRefs(pv.personId) ! NotifyLegStart)
-          _currentVehicle.foreach( _.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory) )
+          _currentVehicleUnderControl.foreach( _.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory) )
           stay()
         case None =>
           log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
