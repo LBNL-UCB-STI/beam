@@ -15,7 +15,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
