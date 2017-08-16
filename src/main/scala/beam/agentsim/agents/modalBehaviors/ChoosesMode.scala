@@ -34,25 +34,21 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
       val chosenTrip = choiceCalculator(routingResponse.get.itineraries)
 
-      hasReceivedCompleteChoiceTrigger = false
-      val theTriggerIdAsLong = _currentTriggerId.get
-      val theTick = _currentTick.get
-      _currentTriggerId = None
-      _currentTick = None
+      val (tick,theTriggerId) = releaseTickAndTriggerId()
 
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(theTick, id,
+      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id,
         currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
 
       if(chosenTrip.legs.isEmpty) {
         log.error(s"No trip chosen because RoutingResponse empty, person ${id} going to Error")
-        beamServices.schedulerRef ! completed(triggerId = theTriggerIdAsLong)
+        beamServices.schedulerRef ! completed(triggerId = theTriggerId)
         goto(BeamAgent.Error)
       } else {
-        if(id.toString.equals("104793")){
-          val i = 0
-        }
-        beamServices.schedulerRef ! completed(triggerId = theTriggerIdAsLong, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
+        beamServices.schedulerRef ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
         _currentRoute = chosenTrip
+        routingResponse = None
+        taxiResult = None
+        hasReceivedCompleteChoiceTrigger = false
         goto(Waiting)
       }
     } else {
@@ -69,15 +65,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
      */
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${tick}")
-      _currentTick = Some(tick)
-      _currentTriggerId = Some(triggerId)
+      holdTickAndTriggerId(tick,triggerId)
       beamServices.householdRefs.get(_household).get ! MobilityStatusInquiry(id)
       stay()
     case Event(MobilityStatusReponse(streetVehicles), info: BeamAgentInfo[PersonData]) =>
-      val tick = _currentTick.get
-      val theTriggerId = _currentTriggerId.get
-      _currentTick = None
-      _currentTriggerId = None
+      val (tick,theTriggerId) = releaseTickAndTriggerId()
 
       val nextAct = nextActivity.right.get // No danger of failure here
       val departTime = DiscreteTime(tick.toInt)
@@ -106,8 +98,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
      * Finishing choice.
      */
     case Event(TriggerWithId(FinalizeModeChoiceTrigger(tick), theTriggerId), info: BeamAgentInfo[PersonData]) =>
-      _currentTriggerId = Some(theTriggerId)
-      _currentTick = Some(tick)
+      holdTickAndTriggerId(tick,theTriggerId)
       hasReceivedCompleteChoiceTrigger = true
       completeChoiceIfReady()
   }

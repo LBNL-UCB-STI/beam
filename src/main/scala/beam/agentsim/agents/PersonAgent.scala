@@ -192,7 +192,7 @@ class PersonAgent(val beamServices: BeamServices,
           val previousVehicleId = _currentVehicle.nestedVehicles.head
           val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
           val newCarrierVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
-          newCarrierVehicleRef ! EnterVehicle(tick, previousVehicleId)
+          newCarrierVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
           _currentRoute = processedData.restTrip
           _currentVehicle = _currentVehicle.push(nextBeamVehicleId)
           goto(Moving)
@@ -215,7 +215,7 @@ class PersonAgent(val beamServices: BeamServices,
           }else{
             // The next vehicle is different from current so we exit the current vehicle
             val passengerVehicleId = _currentVehicle.penultimateVehicle()
-            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! ExitVehicle(tick, passengerVehicleId)
+            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! ExitVehicle(tick, VehiclePersonId(passengerVehicleId,id))
             // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass on the new trigger
             processNextLegOrStartActivity(-1L,tick)
           }
@@ -254,7 +254,7 @@ class PersonAgent(val beamServices: BeamServices,
             passengerSchedule.addLegs(Vector(processedData.nextLeg.beamLeg))
             beamServices.vehicleRefs(vehiclePersonId.passengerVehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
             _currentRoute = processedData.restTrip
-            stay() replying completed(triggerId,schedule[StartLegTrigger](nextLeg.beamLeg.startTime,self,nextLeg.beamLeg))
+            stay() replying completed(triggerId,schedule[StartLegTrigger](nextLeg.beamLeg.startTime,self,nextLeg))
           }else{
             // We don't update PersonData with the rest of the currentRoute, this will happen when the agent recieves the NotifyStartLeg message
             goto(Waiting) replying completed(triggerId)
@@ -269,6 +269,7 @@ class PersonAgent(val beamServices: BeamServices,
           logDebug(msg)
           goto(Finished) replying completed(triggerId)
         case Right(activity) =>
+          _currentActivityIndex = _currentActivityIndex + 1
           goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](activity.getEndTime, self))
       }
     }
