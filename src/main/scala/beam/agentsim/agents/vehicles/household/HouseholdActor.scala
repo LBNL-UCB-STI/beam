@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.vehicles.{Trajectory, VehicleManager}
-import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
+import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamStreetPath
@@ -28,6 +28,7 @@ object HouseholdActor {
   }
   case class MobilityStatusInquiry(personId: Id[Person])
   case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
+  case class MemberWithRank(personId: Id[Person], rank: Option[Int])
 }
 
 class HouseholdActor(services: BeamServices,
@@ -44,7 +45,7 @@ class HouseholdActor(services: BeamServices,
   override val beamServices: BeamServices = services
 
   val _vehicles: Vector[Id[Vehicle]] = vehicleActors.keys.toVector
-  val _members: Vector[Id[Person]] = memberActors.keys.toVector
+  val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(memb => MemberWithRank(memb,lookupMemberRank(memb)))
   var _vehicleAssignments: Map[Id[Person], Id[Vehicle]] = Map[Id[Person], Id[Vehicle]]()
   var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
 
@@ -56,9 +57,10 @@ class HouseholdActor(services: BeamServices,
     case InitializeTrigger(_) =>
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
       log.debug(s"Household ${self.path.name} has been initialized ")
-      for (i <- (_vehicles.indices.toSet ++ _members.indices.toSet)) {
-        if (i < _vehicles.size & i < _members.size) {
-          _vehicleAssignments = _vehicleAssignments + (_members(i) -> _vehicles(i))
+      val sortedMembers = _members.sortWith(sortByRank)
+      for (i <- (_vehicles.indices.toSet ++ sortedMembers.indices.toSet)) {
+        if (i < _vehicles.size & i < sortedMembers.size) {
+          _vehicleAssignments = _vehicleAssignments + (sortedMembers(i).personId -> _vehicles(i))
         }
       }
       //Initialize all vehicles to have a stationary trajectory starting at time zero
@@ -84,5 +86,19 @@ class HouseholdActor(services: BeamServices,
       }
     case msg@_ =>
       log.warning(s"Unrecognized message ${msg}")
+  }
+
+  def lookupMemberRank(member: Id[Person]): Option[Int] ={
+    val theRank = beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank")
+    theRank match{
+      case null =>
+        None
+      case rank: Integer =>
+        Some(rank)
+    }
+  }
+  // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last in list
+  def sortByRank(r2: MemberWithRank, r1: MemberWithRank): Boolean = {
+    r1.rank.isEmpty || (!r2.rank.isEmpty && r1.rank.get > r2.rank.get)
   }
 }
