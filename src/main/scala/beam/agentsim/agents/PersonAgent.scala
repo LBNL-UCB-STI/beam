@@ -158,17 +158,13 @@ class PersonAgent(val beamServices: BeamServices,
       nextActivity.fold(
         msg => {
           logInfo(s"didn't get nextActivity because $msg")
-          self ! FinishWrapper(tick, triggerId)
+          goto(Finished) replying completed(triggerId)
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ ${tick}")
+          goto(ChoosingMode) replying completed(triggerId,schedule[BeginModeChoiceTrigger](tick, self))
         }
       )
-      goto(ChoosingMode) using info replying completed(triggerId,schedule[BeginModeChoiceTrigger](tick, self))
-    case Event(msg: FinishWrapper, info: BeamAgentInfo[PersonData]) =>
-      beamServices.schedulerRef ! CompletionNotice(msg.triggerId)
-      logError("FinishWrapper recieved while in PerformingActivity")
-      goto(Error)
   }
 
   chainedWhen(Waiting) {
@@ -269,8 +265,13 @@ class PersonAgent(val beamServices: BeamServices,
           logDebug(msg)
           goto(Finished) replying completed(triggerId)
         case Right(activity) =>
+          beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType)))
           _currentActivityIndex = _currentActivityIndex + 1
-          goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](activity.getEndTime, self))
+          val endTime = if(activity.getEndTime >= 0.0 || Math.abs(activity.getEndTime) < Double.PositiveInfinity){ activity.getEndTime }else{
+            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+            tick + 60*10
+          }
+          goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
       }
     }
   }

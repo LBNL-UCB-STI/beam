@@ -132,6 +132,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
+    profileRequest.maxWalkTime = 3*3600
+    profileRequest.maxCarTime = 6*3600
+    profileRequest.maxBikeTime = 3*3600
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
