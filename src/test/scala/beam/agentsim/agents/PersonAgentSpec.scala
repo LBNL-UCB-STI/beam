@@ -21,6 +21,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
+import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.scalatest.Matchers._
 import org.scalatest.mockito.MockitoSugar
@@ -42,13 +43,14 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
   describe("A PersonAgent FSM") {
 
     it("should allow scheduler to set the first activity") {
+      val houseIdDummy = Id.create("dummy",classOf[Household])
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 11.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -73,6 +75,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
     it("should publish events that can be received by a MATSim EventsManager") {
 
+      val houseIdDummy = Id.create("dummy",classOf[Household])
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber1")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
@@ -87,7 +90,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       plan.addActivity(workActivity)
 //        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 11.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
@@ -103,6 +106,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber2")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
+      val houseIdDummy = Id.create("dummy",classOf[Household])
       agentSimEventsBus.subscribe(eventSubscriber,ActivityEndEvent.EVENT_TYPE)
 
       val plan = PopulationUtils.getFactory.createPlan()
@@ -113,7 +117,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       plan.addActivity(homeActivity)
 //        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 12.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
