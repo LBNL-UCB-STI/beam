@@ -46,6 +46,7 @@ object RoutingModel {
     def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
   }
   object EmbodiedBeamTrip {
+    //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
     def embodyWithStreetVehicle(trip: BeamTrip, vehId: Id[Vehicle], mode: BeamMode): EmbodiedBeamTrip = {
       if(trip.legs.size==0){
@@ -55,15 +56,20 @@ object RoutingModel {
         var stoppedInsertingVehicle = false
         val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
           val currentMode = beamLeg.mode
+          /*
+           * For now, in all cases we assume that we exit the vehicle at Leg completion unless mode is walk and this
+           * is not the end of the trip
+           */
+          val exitAtComplete = currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1)
           if(startedInsertingVehicle & stoppedInsertingVehicle){
-            EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(beamLeg.mode),false,None,0.0)
+            EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(currentMode),currentMode==WALK,None,0.0,exitAtComplete)
           }else{
             if(currentMode == mode){
               startedInsertingVehicle = true
-              EmbodiedBeamLeg(beamLeg,vehId,true,None,0.0)
+              EmbodiedBeamLeg(beamLeg,vehId,true,None,0.0,exitAtComplete)
             }else{
               if(startedInsertingVehicle)stoppedInsertingVehicle = true
-              EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(beamLeg.mode),false,None,0.0)
+              EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(currentMode),currentMode==WALK,None,0.0,exitAtComplete)
             }
           }
         }
@@ -109,12 +115,13 @@ object RoutingModel {
                              beamVehicleId: Id[Vehicle],
                              asDriver: Boolean,
                              passengerSchedule: Option[PassengerSchedule],
-                             cost: BigDecimal
+                             cost: BigDecimal,
+                             exitVehicleOnCompletion: Boolean
                             ) {
     def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
   }
   object EmbodiedBeamLeg {
-    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("",classOf[Vehicle]),false,None,0.0)
+    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("",classOf[Vehicle]),false,None,0.0,false)
   }
 
   sealed abstract class BeamPath {

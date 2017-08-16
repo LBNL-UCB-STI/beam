@@ -5,7 +5,7 @@ import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
@@ -108,7 +108,7 @@ object BeamVehicle {
   */
 trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerShortcuts with HasServices with Vehicle {
   override val id: Id[Vehicle]
-  override def logPrefix(): String = s"BeamVehicle $id: "
+  override def logPrefix(): String = s"BeamVehicle:$id "
 
   def matSimVehicle: Vehicle
   def attributes: Attributes
@@ -185,19 +185,26 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       if(driver.isEmpty) {
         //TODO the following doesn't allow for other types to be drivers... must fix
         driver = Some(beamServices.agentRefs(newDriver.toString))
-        driver.foreach{ driverActor =>
-          // Important Note: the following works (asynchronously processing pending res's and then notifying driver of success)
-          // only because we throw an exception when BecomeDriver fails. In other words, if the requesting
-          // driver must register Success before assuming she is the driver, then we cannot send the PendingReservations as current implemented
-          // because that driver would not be ready to receive.
-          sendPendingReservations(driverActor)
-          driverActor  ! BecomeDriverSuccess(newPassengerSchedule, id)
-        }
+        val driverActor = driver.get
+        // Important Note: the following works (asynchronously processing pending res's and then notifying driver of success)
+        // only because we throw an exception when BecomeDriver fails. In other words, if the requesting
+        // driver must register Success before assuming she is the driver, then we cannot send the PendingReservations as currently implemented
+        // because that driver would not be ready to receive.
+        sendPendingReservations(driverActor)
+        driverActor  ! BecomeDriverSuccess(newPassengerSchedule, id)
       }else {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are drivers, but futur versions of BEAM may seek to be robust to this condition
         throw new RuntimeException(s"BeamAgent $newDriver attempted to become driver of vehicle $id but driver ${driver.get} already assigned.")
-//        val beamAgent = sender()
-//        beamAgent ! DriverAlreadyAssigned(id, driver.get)
+        //        val beamAgent = sender()
+        //        beamAgent ! DriverAlreadyAssigned(id, driver.get)
+      }
+      stay()
+    case Event(UnbecomeDriver(tick, theDriver), info) =>
+      if(driver.isEmpty) {
+        //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are no longer drivers, but futur versions of BEAM may seek to be robust to this condition
+        throw new RuntimeException(s"BeamAgent $theDriver attempted to Unbecome driver of vehicle $id but no driver in currently assigned.")
+      }else{
+        driver = None
       }
       stay()
     case Event(EnterVehicle(tick, newPassengerVehicle), info) =>
@@ -220,7 +227,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       beamServices.vehicleRefs.get(passengerVehicleId).foreach{ vehiclePassengerRef =>
         vehiclePassengerRef ! ResetCarrier
       }
-      log.debug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
+      logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       stay()
     case Event(UpdateTrajectory(newTrajectory), info) =>
       trajectory match {
@@ -251,7 +258,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       }
       stay()
     case Event(any, data) =>
-      log.error(s"Unhandled event: $id $any $data")
+      logError(s"Unhandled event: $id $any $data")
       stay()
   }
 }

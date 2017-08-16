@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
-import beam.agentsim.agents.BeamAgent.{BeamAgentData, AnyState}
+import akka.actor.FSM
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, NotifyLegEnd, NotifyLegStart, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BoardingConfirmation, UnbecomeDriver, UpdateTrajectory, VehicleFull}
@@ -41,16 +42,19 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
       //we have just completed a leg
-      log.debug(s"Received EndLeg for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
-      _currentTriggerId = Some(triggerId)
-      _currentTick = Some(tick)
+      logDebug(s"Received EndLeg for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
       passengerSchedule.schedule.get(completedLeg) match {
         case Some(manifest) =>
-          _awaitingAlightConfirmation ++= manifest.alighters
-          manifest.riders.foreach(pv => beamServices.personRefs.get(pv.personId).foreach( _  ! NotifyLegEnd))
-          stay()
+          holdTickAndTriggerId(tick, triggerId)
+          if(manifest.alighters.isEmpty){
+            processNextLegOrCompleteMission()
+          }else {
+            _awaitingAlightConfirmation ++= manifest.alighters
+            manifest.riders.foreach(pv => beamServices.personRefs.get(pv.personId).foreach(_ ! NotifyLegEnd))
+            stay()
+          }
         case None =>
-          log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
+          logError(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
           goto(BeamAgent.Error)
       }
     case Event(AlightingConfirmation(vehicleId), agentInfo) =>
@@ -74,26 +78,26 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       }
       stay()
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
-      _currentTriggerId = Some(triggerId)
-      _currentTick = Some(tick)
+      holdTickAndTriggerId(tick,triggerId)
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
-          _awaitingBoardConfirmation ++= manifest.boarders
-          manifest.riders.foreach(pv => beamServices.personRefs(pv.personId) ! NotifyLegStart(tick))
-          _currentVehicleUnderControl.foreach( _.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory) )
-          stay()
+          _currentLeg = Some(newLeg)
+          _currentVehicleUnderControl.get.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory)
+          if(manifest.boarders.isEmpty){
+            releaseAndScheduleEndLeg()
+          }else {
+            _awaitingBoardConfirmation ++= manifest.boarders
+            manifest.riders.foreach(pv => beamServices.personRefs(pv.personId) ! NotifyLegStart(tick))
+            stay()
+          }
         case None =>
-          log.error(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}")
+          logError(s"Driver ${id} did not find a manifest for BeamLeg ${newLeg}")
           goto(BeamAgent.Error)
       }
     case Event(BoardingConfirmation(vehicleId), agentInfo) =>
       _awaitingBoardConfirmation -= vehicleId
       if (_awaitingBoardConfirmation.isEmpty) {
-        val theTriggerId = _currentTriggerId.get
-        _currentTriggerId = None
-        val theTick = _currentTick.get
-        _currentTick = None
-        goto(Moving) replying completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime,self))
+        releaseAndScheduleEndLeg()
       } else {
         stay()
       }
@@ -105,17 +109,16 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       beamServices.personRefs(req.requester) ! response
       stay()
   }
-
+  private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
+    val (theTick, theTriggerId) = releaseTickAndTriggerId()
+    goto(Moving) replying completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime,self,_currentLeg.get))
+  }
   private def processNextLegOrCompleteMission() = {
-    val theTriggerId = _currentTriggerId.get
-    _currentTriggerId = None
-    val theTick = _currentTick.get
-    _currentTick = None
-
+    val (theTick, theTriggerId) = releaseTickAndTriggerId()
+    _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
     if(passengerSchedule.schedule.nonEmpty){
-      _currentLeg = Some(passengerSchedule.schedule.firstKey)
-      goto(Waiting) replying completed(theTriggerId, schedule[StartLegTrigger](_currentLeg.get.startTime,self))
+      goto(Waiting) replying completed(theTriggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self,passengerSchedule.schedule.firstKey))
     }else{
       _currentVehicleUnderControl.get.ref ! UnbecomeDriver(theTick, id)
       goto(Waiting) replying completed(theTriggerId, schedule[CompleteDrivingMissionTrigger](theTick,self))

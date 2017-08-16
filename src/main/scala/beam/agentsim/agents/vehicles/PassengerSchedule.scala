@@ -43,7 +43,9 @@ object PassengerSchedule {
 
 case class VehiclePersonId(passengerVehicleId: Id[Vehicle], personId: Id[Person])
 
-class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] )
+class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] ){
+  def isEmpty: Boolean = riders.size == 0
+}
 
 object Manifest{
   def apply(): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())

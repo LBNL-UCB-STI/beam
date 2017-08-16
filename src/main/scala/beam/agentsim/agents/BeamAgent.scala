@@ -163,18 +163,43 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   /*
    * Helper methods
    */
+  def holdTickAndTriggerId(tick: Double, triggerId: Long) = {
+    _currentTick = Some(tick)
+    _currentTriggerId = Some(triggerId)
+  }
+  def releaseTickAndTriggerId(): (Double, Long) = {
+    val theTuple = (_currentTick.get, _currentTriggerId.get)
+    _currentTick = None
+    _currentTriggerId = None
+    theTuple
+  }
   def logPrefix(): String
+  def fullLogPrefix(): String = {
+    val tickStr = _currentTick match {
+      case Some(theTick) =>
+        s"Tick:${theTick.toString} "
+      case None =>
+        ""
+    }
+    val triggerStr = _currentTriggerId match {
+      case Some(theTriggerId) =>
+        s"TriggId:${theTriggerId.toString} "
+      case None =>
+        ""
+    }
+    s"${tickStr}${triggerStr}${logPrefix()}"
+  }
   def logInfo(msg: String): Unit = {
-    log.info(s"${logPrefix}$msg")
+    log.info(s"${fullLogPrefix}$msg")
   }
   def logWarn(msg: String): Unit = {
-    log.warning(s"${logPrefix}$msg")
+    log.warning(s"${fullLogPrefix}$msg")
   }
   def logError(msg: String): Unit = {
-    log.error(s"${logPrefix}$msg")
+    log.error(s"${fullLogPrefix}$msg")
   }
   def logDebug(msg: String): Unit = {
-    log.debug(s"${logPrefix}$msg")
+    log.debug(s"${fullLogPrefix}$msg")
   }
 
 }

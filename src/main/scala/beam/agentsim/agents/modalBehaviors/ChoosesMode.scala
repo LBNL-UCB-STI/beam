@@ -44,7 +44,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
         currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
 
       if(chosenTrip.legs.isEmpty) {
-        log.error(s"No further PersonDepartureTrigger is going to be scheduled after triggerId=$theTriggerIdAsLong ")
+        log.error(s"No trip chosen because RoutingResponse empty, person ${id} going to Error")
         beamServices.schedulerRef ! completed(triggerId = theTriggerIdAsLong)
         goto(BeamAgent.Error)
       } else {
@@ -86,11 +86,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 //      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
       beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles, id)
 
-
       //TODO parameterize search distance
-//      val pickUpLocation = currentActivity.getCoord
-//      beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
-//        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
+      val pickUpLocation = currentActivity.getCoord
+      beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
+        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()

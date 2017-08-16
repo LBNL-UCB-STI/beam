@@ -251,7 +251,7 @@ class PersonAgent(val beamServices: BeamServices,
             }
             //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and vehicle is the same...
             val nextLeg = processedData.nextLeg
-            passengerSchedule.addPassenger(vehiclePersonId,Vector(processedData.nextLeg.beamLeg))
+            passengerSchedule.addLegs(Vector(processedData.nextLeg.beamLeg))
             beamServices.vehicleRefs(vehiclePersonId.passengerVehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
             _currentRoute = processedData.restTrip
             stay() replying completed(triggerId,schedule[StartLegTrigger](nextLeg.beamLeg.startTime,self,nextLeg.beamLeg))
@@ -293,7 +293,7 @@ class PersonAgent(val beamServices: BeamServices,
 //      logInfo(s"going from Walking to PerformingActivity")
 //  }
 
-  override def logPrefix(): String = s"PersonAgent $id: "
+  override def logPrefix(): String = s"PersonAgent:$id "
 
   private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip, tick: Double): Option[ProcessedData] = {
     if(trip.legs.isEmpty){
