@@ -85,6 +85,7 @@ case object Reporting extends BeamAgentState {
 
 class TestBeamAgent(override val id: Id[Person]) extends BeamAgent[NoData] {
   override def data = NoData()
+  override def logPrefix(): String = "TestBeamAgent"
 
   val reporterActor: ActorRef = null
 

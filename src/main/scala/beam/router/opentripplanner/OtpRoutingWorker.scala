@@ -7,7 +7,7 @@ import java.util.Locale
 
 import akka.actor.Props
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{Location, RoutingRequest, TripInfo, RoutingResponse}
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
@@ -81,8 +81,8 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
     request
   }
 
-  override def calcRoute(requestId: Id[RoutingRequest], params: TripInfo, person: Person): RoutingResponse = {
-    val drivingRequest = buildRequest(params.from, params.destination, params.departureTime, params.accessMode)
+  override def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo, person: Person): RoutingResponse = {
+    val drivingRequest = buildRequest(params.origin, params.destination, params.departureTime, Vector(CAR))
 
     val paths: util.List[GraphPath] = new util.ArrayList[GraphPath]()
     var gpFinder = new GraphPathFinder(router.get)
@@ -97,7 +97,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
       //        log.error("TrivialPathException")
     }
 
-    val transitRequest = buildRequest(params.from, params.destination, params.departureTime, params.accessMode)
+    val transitRequest = buildRequest(params.origin, params.destination, params.departureTime, params.transitModes)
 
     gpFinder = new GraphPathFinder(router.get)
     try {
@@ -215,7 +215,7 @@ class OtpRoutingWorker @Inject()(val beamServices: BeamServices) extends Routing
 
       BeamTrip(beamLegs.toVector)
     }
-    RoutingResponse(requestId, beamTrips)
+    RoutingResponse(requestId, beamTrips.map{ trip => EmbodiedBeamTrip(trip)})
   }
 
   private def makeGraphService(): GraphService = {

@@ -22,7 +22,12 @@ object GeoUtils {
     }
   }
 
+  //TODO this is a hack, but we need a general purpose, failsafe way to get distances out of Coords regardless of their project
+  def distInMeters(coord1: Coord, coord2: Coord): Double ={
+    distLatLon2Meters(transform.Utm2Wgs(coord1), transform.Utm2Wgs(coord2))
+  }
 
+  def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distLatLon2Meters(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
 
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
     //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java

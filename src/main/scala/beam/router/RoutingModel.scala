@@ -11,29 +11,82 @@ import org.matsim.vehicles.Vehicle
 import org.opentripplanner.routing.vertextype.TransitStop
 
 import scala.collection.immutable.TreeMap
+import scala.collection.mutable
 
 /**
   * BEAM
   */
 object RoutingModel {
-  case class BeamTrip(legs: TreeMap[BeamLeg, BeamVehicleAssignment],
-                      choiceUtility: Double = 0.0) {
-    lazy val tripClassifier: BeamMode = if (legs.keys.toVector map (_.mode) contains CAR) {
+
+  case class BeamTrip(legs: Vector[BeamLeg],
+                      accessMode: BeamMode) {
+    lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
       CAR
     } else {
       TRANSIT
     }
-    val totalTravelTime: Long = legs.keys.map(_.duration).sum
+    val totalTravelTime: Long = legs.map(_.duration).sum
     def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
   }
 
   object BeamTrip {
-    def apply(legsAsVector: Vector[BeamLeg]): BeamTrip = {
-      var legMap = TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering)
-      legsAsVector.foreach(leg => legMap += (leg -> BeamVehicleAssignment.empty))
-      BeamTrip(legMap)
+    def apply(legs: Vector[BeamLeg]): BeamTrip = BeamTrip(legs,legs.head.mode)
+    val empty: BeamTrip = BeamTrip(Vector(), BeamMode.WALK)
+  }
+
+  case class EmbodiedBeamTrip(legs: Vector[EmbodiedBeamLeg]) {
+    lazy val tripClassifier: BeamMode = if (legs map (_.beamLeg.mode) contains CAR) {
+      CAR
+    } else {
+      TRANSIT
     }
-    val empty: BeamTrip = BeamTrip(TreeMap[BeamLeg,BeamVehicleAssignment]()(BeamLeg.beamLegOrdering))
+    val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
+    def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
+    def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
+    def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
+  }
+  object EmbodiedBeamTrip {
+    //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
+    //TODO this needs unit testing
+    def embodyWithStreetVehicle(trip: BeamTrip, vehId: Id[Vehicle], mode: BeamMode): EmbodiedBeamTrip = {
+      if(trip.legs.size==0){
+        EmbodiedBeamTrip.empty
+      }else {
+        var startedInsertingVehicle = false
+        var stoppedInsertingVehicle = false
+        val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
+          val currentMode = beamLeg.mode
+          /*
+           * For now, in all cases we assume that we exit the vehicle at Leg completion unless mode is walk and this
+           * is not the end of the trip
+           */
+          val exitAtComplete = currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1)
+          if(startedInsertingVehicle & stoppedInsertingVehicle){
+            EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(currentMode),currentMode==WALK,None,0.0,exitAtComplete)
+          }else{
+            if(currentMode == mode){
+              startedInsertingVehicle = true
+              EmbodiedBeamLeg(beamLeg,vehId,true,None,0.0,exitAtComplete)
+            }else{
+              if(startedInsertingVehicle)stoppedInsertingVehicle = true
+              EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(currentMode),currentMode==WALK,None,0.0,exitAtComplete)
+            }
+          }
+        }
+        EmbodiedBeamTrip(embodiedLegs)
+      }
+    }
+    def beamModeToVehicleId(beamMode: BeamMode): Id[Vehicle] = {
+      if (beamMode == WALK) {
+        Id.create("body", classOf[Vehicle])
+      } else if (Modes.isR5TransitMode(beamMode)) {
+        Id.create("transit", classOf[Vehicle])
+      } else {
+        Id.create("", classOf[Vehicle])
+      }
+    }
+    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty)
+    def apply(beamTrip: BeamTrip) = new EmbodiedBeamTrip(beamTrip.legs.map(leg => EmbodiedBeamLeg(leg)))
   }
 
   /**
@@ -56,6 +109,19 @@ object RoutingModel {
     def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
     def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
     def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
+  }
+
+  case class EmbodiedBeamLeg(beamLeg: BeamLeg,
+                             beamVehicleId: Id[Vehicle],
+                             asDriver: Boolean,
+                             passengerSchedule: Option[PassengerSchedule],
+                             cost: BigDecimal,
+                             exitVehicleOnCompletion: Boolean
+                            ) {
+    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+  }
+  object EmbodiedBeamLeg {
+    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("",classOf[Vehicle]),false,None,0.0,false)
   }
 
   sealed abstract class BeamPath {
@@ -86,11 +152,6 @@ object RoutingModel {
     val empty: BeamStreetPath = new BeamStreetPath(Vector[String]())
   }
 
-  case class BeamVehicleAssignment(beamVehicleId: Id[Vehicle], asDriver: Boolean, passengerSchedule: Option[PassengerSchedule])
-  object BeamVehicleAssignment{
-    val empty: BeamVehicleAssignment = BeamVehicleAssignment(Id.create("Empty", classOf[Vehicle]), false, None)
-  }
-
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
 
   /**
@@ -103,8 +164,8 @@ object RoutingModel {
 
   case class DiscreteTime(override val atTime: Int) extends BeamTime
   case class WindowTime(override val atTime: Int, timeFrame: Int = 15 * 60) extends BeamTime {
-    lazy val fromTime: Int = atTime - (timeFrame/2) -(timeFrame%2)
-    lazy val toTime: Int = atTime + (timeFrame/2)
+    lazy val fromTime: Int = atTime
+    lazy val toTime: Int = atTime + timeFrame
   }
 
   object WindowTime {

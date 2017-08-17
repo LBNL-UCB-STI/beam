@@ -40,7 +40,8 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var vehicles: Map[Id[Vehicle], Vehicle] = Map()
   var vehicleRefs: Map[Id[Vehicle], ActorRef] = Map()
   var households : Map[Id[Household], Household] = Map()
-  var agentRefs: Map[Id[_], ActorRef] = Map()
+  var householdRefs : Map[Id[Household], ActorRef] = Map()
+  var agentRefs: Map[String, ActorRef] = Map()
 
 }
 
