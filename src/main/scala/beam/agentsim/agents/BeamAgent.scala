@@ -164,6 +164,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
    * Helper methods
    */
   def holdTickAndTriggerId(tick: Double, triggerId: Long) = {
+    if(_currentTriggerId != None || _currentTick != None)throw new IllegalStateException(s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively.")
     _currentTick = Some(tick)
     _currentTriggerId = Some(triggerId)
   }

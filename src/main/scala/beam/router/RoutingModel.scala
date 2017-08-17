@@ -3,8 +3,9 @@ package beam.router
 import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{ALIGHTING, BOARDING, CAR, TRANSIT, WAITING, WALK}
+import beam.router.Modes.BeamMode.{CAR, TRANSIT, WALK}
 import beam.router.RoutingModel.BeamStreetPath.empty
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
@@ -48,29 +49,21 @@ object RoutingModel {
   object EmbodiedBeamTrip {
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
-    def embodyWithStreetVehicle(trip: BeamTrip, vehId: Id[Vehicle], mode: BeamMode): EmbodiedBeamTrip = {
+    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode,Id[Vehicle]], egressVehiclesByMode: Map[BeamMode,Id[Vehicle]], services: BeamServices): EmbodiedBeamTrip = {
       if(trip.legs.size==0){
         EmbodiedBeamTrip.empty
       }else {
-        var startedInsertingVehicle = false
-        var stoppedInsertingVehicle = false
+        var inAccessPhase = true
         val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
-          val currentMode = beamLeg.mode
-          /*
-           * For now, in all cases we assume that we exit the vehicle at Leg completion unless mode is walk and this
-           * is not the end of the trip
-           */
-          val exitAtComplete = currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1)
-          if(startedInsertingVehicle & stoppedInsertingVehicle){
-            EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(currentMode),currentMode==WALK,None,0.0,exitAtComplete)
+          val currentMode: BeamMode = beamLeg.mode
+          val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
+          if(Modes.isR5TransitMode(currentMode)) {
+            inAccessPhase = false
+            EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,0.0,false)
+          }else if(inAccessPhase){
+            EmbodiedBeamLeg(beamLeg,accessVehiclesByMode.get(currentMode).get,true,None,0.0,unbecomeDriverAtComplete)
           }else{
-            if(currentMode == mode){
-              startedInsertingVehicle = true
-              EmbodiedBeamLeg(beamLeg,vehId,true,None,0.0,exitAtComplete)
-            }else{
-              if(startedInsertingVehicle)stoppedInsertingVehicle = true
-              EmbodiedBeamLeg(beamLeg,beamModeToVehicleId(currentMode),currentMode==WALK,None,0.0,exitAtComplete)
-            }
+            EmbodiedBeamLeg(beamLeg,egressVehiclesByMode.get(currentMode).get,true,None,0.0,unbecomeDriverAtComplete)
           }
         }
         EmbodiedBeamTrip(embodiedLegs)
@@ -106,9 +99,6 @@ object RoutingModel {
   object BeamLeg {
     val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(_.startTime)
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
-    def boarding(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, BOARDING, duration)
-    def alighting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, ALIGHTING, duration)
-    def waiting(startTime: Long, duration: Long): BeamLeg = new BeamLeg(startTime, WAITING, duration)
   }
 
   case class EmbodiedBeamLeg(beamLeg: BeamLeg,
@@ -116,7 +106,7 @@ object RoutingModel {
                              asDriver: Boolean,
                              passengerSchedule: Option[PassengerSchedule],
                              cost: BigDecimal,
-                             exitVehicleOnCompletion: Boolean
+                             unbecomeDriverOnCompletion: Boolean
                             ) {
     def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
   }

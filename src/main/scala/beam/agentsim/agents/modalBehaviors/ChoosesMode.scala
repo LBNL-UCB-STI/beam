@@ -4,9 +4,11 @@ import beam.agentsim.agents.BeamAgent.BeamAgentInfo
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
+import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
 import beam.agentsim.agents.{BeamAgent, PersonAgent, RideHailingManager, TriggerShortcuts}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
@@ -70,13 +72,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       stay()
     case Event(MobilityStatusReponse(streetVehicles), info: BeamAgentInfo[PersonData]) =>
       val (tick,theTriggerId) = releaseTickAndTriggerId()
+      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle,SpaceTime(currentActivity.getCoord,tick.toLong),WALK)
 
       val nextAct = nextActivity.right.get // No danger of failure here
       val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
 
 //      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
-      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles, id)
+      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
 
       //TODO parameterize search distance
       val pickUpLocation = currentActivity.getCoord

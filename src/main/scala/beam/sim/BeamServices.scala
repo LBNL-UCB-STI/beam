@@ -7,6 +7,7 @@ import akka.util.Timeout
 import beam.playground.akkaguice.ActorInject
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
+import beam.router.RoutingModel.BeamLeg
 import com.google.inject.{Inject, Injector, Singleton}
 import glokka.Registry
 import org.matsim.api.core.v01.population.Person
@@ -42,6 +43,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var households : Map[Id[Household], Household] = Map()
   var householdRefs : Map[Id[Household], ActorRef] = Map()
   var agentRefs: Map[String, ActorRef] = Map()
+  var transitVehiclesByBeamLeg: Map[BeamLeg, Id[Vehicle]] = Map()
 
 }
 

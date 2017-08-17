@@ -115,7 +115,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
   }
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
-    val shouldExitVehicle = _currentLeg.get.exitVehicleOnCompletion
+    val shouldExitVehicle = _currentLeg.get.unbecomeDriverOnCompletion
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
     if(passengerSchedule.schedule.nonEmpty){
