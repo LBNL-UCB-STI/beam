@@ -66,6 +66,30 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
       transportNetwork.write(networkFile);
     }
+
+    initTransitVehicles()
+  }
+
+  /*
+   * Plan of action:
+   * Each TripSchedule within each TripPatter represents a transit vehicle trip and will spawn a transitDriverAgent and a vehicle
+   * The arrivals/departures within the TripSchedules are vectors of the same length as the "stops" field in the TripPattern
+   * The stop IDs will be used to extract the Coordinate of the stop from the transitLayer (don't see exactly how yet)
+   * Also should hold onto the route and trip IDs and use route to lookup the transit agency which ultimately should
+   * be used to decide what type of vehicle to assign
+   *
+   */
+  def initTransitVehicles() = {
+//    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
+//      log.debug(routeInfo.toString)
+//    }
+//    transportNetwork.transitLayer.tripPatterns.listIterator().asScala.foreach{ tripPattern =>
+////      log.debug(tripPattern.toString)
+//      tripPattern.tripSchedules.asScala.foreach{ tripSchedule =>
+//        log.debug(tripSchedule.tripId)
+//      }
+//        log.debug(tripPattern.toString)
+//    }
   }
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {

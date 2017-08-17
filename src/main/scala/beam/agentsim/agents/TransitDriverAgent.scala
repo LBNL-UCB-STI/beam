@@ -23,7 +23,10 @@ object TransitDriverAgent {
   }
 }
 
-class TransitDriverAgent(val beamServices: BeamServices, override val id: Id[TransitDriverAgent], override val data: TransitDriverData) extends
+class TransitDriverAgent(val beamServices: BeamServices,
+                         override val id: Id[TransitDriverAgent],
+
+                         override val data: TransitDriverData) extends
   BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
   override def logPrefix(): String = s"TransitDriverAgent:$id "
 
