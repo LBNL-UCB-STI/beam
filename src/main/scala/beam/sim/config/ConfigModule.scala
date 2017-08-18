@@ -63,6 +63,12 @@ object ConfigModule {
   class BeamConfigProvider extends Provider[BeamConfig] {
     override def get(): BeamConfig = beamConfig
   }
+
+  implicit class ExtendedBeamConfig(beamConfig: BeamConfig) {
+
+    val bbBuffer = 100000
+    val MaxPickupTimeInSeconds = 15 * 60
+  }
 }
 
 class ConfigModule extends AbstractModule with ScalaModule {

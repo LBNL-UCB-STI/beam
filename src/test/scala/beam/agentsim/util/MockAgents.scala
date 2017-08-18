@@ -19,6 +19,6 @@ object MockAgents {
   homeActivity.setEndTime(10.0)
   val plan = PopulationUtils.getFactory.createPlan()
   plan.addActivity(homeActivity)
-  val data = PersonData(plan)
+  val data = PersonData()
 
 }

@@ -10,6 +10,7 @@ import beam.router.RoutingModel.{BeamLeg, BeamStreetPath}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+import org.matsim.api.core.v01.population.Person
 import org.scalatest.mockito.MockitoSugar
 
 /**
@@ -30,12 +31,13 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
     it("should create a schedule for single passenger with one leg") {
 
       val vehicleId: Id[Vehicle] = Id.create("dummyVehicle",classOf[Vehicle])
+      val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
 
       val leg = BeamLeg(0L, WALK, 1L, BeamStreetPath.empty)
 
       val sched: PassengerSchedule = PassengerSchedule()
 
-      sched.addPassenger(vehicleId, Vector(leg))
+      sched.addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg))
 
       sched.schedule.size should be(1)
       sched.schedule.get(leg).get.riders.size should ===(1)
@@ -45,6 +47,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
     it("should create a schedule for single passenger with many legs") {
 
       val vehicleId: Id[Vehicle]  = Id.create("dummyVehicle",classOf[Vehicle])
+      val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
 
       val leg1 = BeamLeg(0L, WALK, 1L, BeamStreetPath.empty)
       val leg2 = BeamLeg(1L, WALK, 1L, BeamStreetPath.empty)
@@ -52,7 +55,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
 
       val sched: PassengerSchedule = PassengerSchedule()
 
-      sched.addPassenger(vehicleId, Vector(leg1, leg2, leg3))
+      sched.addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg1, leg2, leg3))
 
       sched.schedule.size should ===(3)
 
@@ -71,7 +74,10 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
     it("should create a schedule for many passengers with many legs") {
 
       val vehicleId1: Id[Vehicle]  = Id.create("dummyVehicle1",classOf[Vehicle])
+      val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
+
       val vehicleId2: Id[Vehicle]  = Id.create("dummyVehicle2",classOf[Vehicle])
+      val passengerPersonId2: Id[Person] = Id.create("passengerPerson2",classOf[Person])
 
       val leg1 = BeamLeg(0L, WALK, 1L, BeamStreetPath.empty)
       val leg2 = BeamLeg(1L, WALK, 1L, BeamStreetPath.empty)
@@ -79,8 +85,8 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
 
       val sched: PassengerSchedule = PassengerSchedule()
 
-      sched.addPassenger(vehicleId1, Vector(leg1, leg2, leg3))
-      sched.addPassenger(vehicleId2, Vector(leg2, leg3))
+      sched.addPassenger(VehiclePersonId(vehicleId1, passengerPersonId), Vector(leg1, leg2, leg3))
+      sched.addPassenger(VehiclePersonId(vehicleId2, passengerPersonId2), Vector(leg2, leg3))
 
       sched.schedule.size should ===(3)
 
