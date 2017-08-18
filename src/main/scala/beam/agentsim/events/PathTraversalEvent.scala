@@ -27,7 +27,7 @@ case class PathTraversalEvent(id: Id[Vehicle], beamLeg: BeamLeg) extends Event(b
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_VEHICLE_ID, id.toString)
     attr.put(ATTRIBUTE_DEPARTURE_TIME, beamLeg.startTime.toString)
-    attr.put(ATTRIBUTE_MODE, beamLeg.startTime.toString)
+    attr.put(ATTRIBUTE_MODE, beamLeg.mode.toString)
 //    attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
 //    beamLeg.travelPath.swap.foreach(sp => attr.put(ATTRIBUTE_LINK_IDS, sp.linkIds.mkString(",")))
     attr.put(ATTRIBUTE_LINK_IDS, beamLeg.travelPath.asInstanceOf[BeamStreetPath].linkIds.mkString(","))
@@ -36,6 +36,6 @@ case class PathTraversalEvent(id: Id[Vehicle], beamLeg: BeamLeg) extends Event(b
 }
 
 object PathTraversalEvent {
-  val EVENT_TYPE = "pathTraversal"
+  val EVENT_TYPE = "PathTraversal"
 }
 

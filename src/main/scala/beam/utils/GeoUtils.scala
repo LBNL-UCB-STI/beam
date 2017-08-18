@@ -11,10 +11,13 @@ object GeoUtils {
 
 
   object transform{
-    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+    //TODO fix this monstrosity
+//    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:32631", "EPSG:4326")
 
     def Utm2Wgs(coord:Coord):Coord={
-      if (coord.getX > 400.0 | coord.getX < -400.0) {
+      //TODO fix this monstrosity
+      if (coord.getX > 1.0 | coord.getX < -0.0) {
         utm2Wgs.transform(coord)
       } else {
         coord

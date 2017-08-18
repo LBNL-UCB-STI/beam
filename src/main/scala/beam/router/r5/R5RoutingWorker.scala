@@ -1,6 +1,7 @@
 package beam.router.r5
 
 import java.io.File
+import java.lang.reflect.{Field, Modifier}
 import java.nio.file.Files.exists
 import java.nio.file.Paths
 import java.time.ZonedDateTime
@@ -28,6 +29,7 @@ import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.ProfileRequest
+import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
@@ -65,7 +67,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
       transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
       transportNetwork.write(networkFile);
+      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
+    overrideR5EdgeSearchRadius(2000)
 
     initTransitVehicles()
   }
@@ -169,7 +173,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         originalProfileModeToVehicle.addBinding(beamMode,veh.id)
       )
     )
-    if(!uniqueLegModes.contains(WALK))log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
+    if(!uniqueBeamModes.contains(WALK))log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
@@ -371,6 +375,15 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
   private def toCoord(geometry: LineString): Coord = {
     new Coord(geometry.getCoordinate.x, geometry.getCoordinate.y, geometry.getCoordinate.z)
+  }
+
+  private def overrideR5EdgeSearchRadius(newRadius: Double): Unit = {
+    val field: Field = classOf[StreetLayer].getField("LINK_RADIUS_METERS")
+    field.setAccessible(true);
+    val modifiersField: Field = classOf[Field].getDeclaredField("modifiers");
+    modifiersField.setAccessible(true);
+    modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
+    field.set(null, newRadius);
   }
 }
 

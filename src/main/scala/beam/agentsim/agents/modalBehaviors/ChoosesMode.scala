@@ -26,7 +26,7 @@ import scala.util.Random
 trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasServices {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  val choiceCalculator: ChoiceCalculator = ChoosesMode.mnlChoice
+  val choiceCalculator: ChoiceCalculator = ChoosesMode.driveIfAvailable
   var routingResponse: Option[RoutingResponse] = None
   var taxiResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
@@ -79,7 +79,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
 
 //      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.CAR, BeamMode.BIKE, BeamMode.WALK, BeamMode.TRANSIT), id)
-      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
+//      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
+      beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles :+ bodyStreetVehicle, id)
 
       //TODO parameterize search distance
       val pickUpLocation = currentActivity.getCoord
@@ -113,6 +114,20 @@ object ChoosesMode {
   case class BeginModeChoiceTrigger(tick: Double) extends Trigger
   case class FinalizeModeChoiceTrigger(tick: Double) extends Trigger
 
+  def driveIfAvailable(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
+    var containsDriveAlt: Vector[Int] = Vector[Int]()
+    alternatives.zipWithIndex.foreach{ alt =>
+      if(alt._1.tripClassifier == CAR){
+        containsDriveAlt = containsDriveAlt :+ alt._2
+      }
+    }
+    val chosenIndex = if (containsDriveAlt.size > 0){ containsDriveAlt.head }else{ 0 }
+    if(alternatives.size > 0) {
+      alternatives(chosenIndex)
+    } else {
+      EmbodiedBeamTrip.empty
+    }
+  }
   def mnlChoice(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
     var containsDriveAlt = -1
     var altModesAndTimes: Vector[(BeamMode, Double)] = for (i <- alternatives.indices.toVector) yield {

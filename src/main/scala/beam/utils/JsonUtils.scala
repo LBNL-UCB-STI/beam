@@ -36,7 +36,7 @@ object JsonUtils {
   def processEventsFileVizData(inFile: String, outFile: String): Unit = {
     val xml = XML.load(IOUtils.getInputStream(inFile))
     val events = xml \\ "events" \ "event"
-    val out = for {event <- events if event.attribute("type").get.toString() == "pathTraversal" | event.attribute("type").get.toString() == "pointProcess"
+    val out = for {event <- events if (event.attribute("type").get.toString() == "pathTraversal" | event.attribute("type").get.toString() == "pointProcess")&&event.attribute("viz_data").isDefined
     } yield event.attribute("viz_data").get.toString().replace("&quot;", "\"")
     val jsonOutString = out.mkString("\n[", ",\n", "]\n")
     val writer = IOUtils.getBufferedWriter(outFile)
