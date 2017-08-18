@@ -10,10 +10,10 @@ import java.util
 import akka.actor.Props
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData}
+import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingResponse
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{SUBWAY, WALK}
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
@@ -28,11 +28,11 @@ import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.ProfileRequest
-import com.conveyal.r5.transit.TransportNetwork
+import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleType}
 import org.matsim.facilities.Facility
 import org.opentripplanner.routing.vertextype.TransitStop
 
@@ -80,16 +80,38 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
    *
    */
   def initTransitVehicles() = {
-//    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
-//      log.debug(routeInfo.toString)
-//    }
-//    transportNetwork.transitLayer.tripPatterns.listIterator().asScala.foreach{ tripPattern =>
-////      log.debug(tripPattern.toString)
-//      tripPattern.tripSchedules.asScala.foreach{ tripSchedule =>
-//        log.debug(tripSchedule.tripId)
-//      }
-//        log.debug(tripPattern.toString)
-//    }
+    //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
+    //      log.debug(routeInfo.toString)
+    //    }
+    transportNetwork.transitLayer.tripPatterns.listIterator().asScala.foreach { tripPattern =>
+      //      log.debug(tripPattern.toString)
+      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      tripPattern.tripSchedules.asScala.foreach { tripSchedule =>
+        // First create a unique for this trip which will become the transit agent and vehicle ids
+        val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
+        val numStops = tripSchedule.departures.size
+        val passengerSchedule = PassengerSchedule()
+        tripSchedule.departures.zipWithIndex.foreach { case (departure, i) =>
+          val duration = if(i == numStops-1){ 1L }else{ tripSchedule.arrivals(i+1) - departure }
+          val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
+          val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
+          val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
+          val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
+          passengerSchedule.addLegs(Seq(theLeg))
+          beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
+        }
+        // Create the driver agent and vehicle here
+        //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
+        val matsimVehicle = if(mode==SUBWAY){
+          beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create("2",classOf[VehicleType]))
+        }else{
+          beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create("1",classOf[VehicleType]))
+        }
+//        val transitVehRef = context.actorOf(TransitVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle))
+
+      }
+    }
   }
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
@@ -298,16 +320,12 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     BeamStreetPath(activeLinkIds, trajectory = Some(spaceTime))
   }
 
-  def createStopId(stopId: String): Id[TransitStop] = {
-    Id.create(stopId, classOf[TransitStop])
-  }
-
   private def buildPath(segment: TransitSegment, transitJourneyID: TransitJourneyID): BeamTransitSegment = {
     val segmentPattern: SegmentPattern = segment.segmentPatterns.get(transitJourneyID.pattern)
     val beamVehicleId = Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))
     val departureTime = toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time))
 
-    BeamTransitSegment(beamVehicleId, createStopId(segment.from.stopId), createStopId(segment.to.stopId), departureTime)
+    BeamTransitSegment(segment.from.stopId, segment.to.stopId, departureTime)
   }
 /*
   private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode): BeamStreetPath = {

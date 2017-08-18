@@ -120,9 +120,8 @@ object RoutingModel {
     def isTransit: Boolean = false
   }
 
-  case class BeamTransitSegment(beamVehicleId: Id[Vehicle],
-                                fromStopId: Id[TransitStop],
-                                toStopId: Id[TransitStop],
+  case class BeamTransitSegment(fromStopId: String,
+                                toStopId: String,
                                 departureTime: Long) extends BeamPath {
     override def isTransit = true
   }

@@ -53,7 +53,7 @@ object JsonUtils {
 
   private[this] implicit val encodeTransitSegment: Encoder[BeamTransitSegment] = (a: BeamTransitSegment) => {
     val jsonBuilder: Map[String, Json] = Map(
-      "vId" -> a.beamVehicleId.toString.asJson, "fId" -> a.fromStopId.toString.asJson, "tId" -> a.toStopId.toString.asJson, "time" -> a.departureTime.asJson)
+      "vId" -> "dummy".asJson, "fId" -> a.fromStopId.toString.asJson, "tId" -> a.toStopId.toString.asJson, "time" -> a.departureTime.asJson)
     Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
   }
 
