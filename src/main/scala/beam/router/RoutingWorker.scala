@@ -2,7 +2,7 @@ package beam.router
 
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.agentsim.agents.PersonAgent
-import beam.router.BeamRouter.{RouteLocation, RoutingRequestParams, _}
+import beam.router.BeamRouter.{Location, RoutingRequestTripInfo, _}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -14,14 +14,14 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
       init
       context.parent ! RouterInitialized
       sender() ! RouterInitialized
-    case RoutingRequest(requestId,from, to, params: RoutingRequestParams) =>
+    case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
           //      log.info(s"Router received routing request from person $personId ($sender)")
-          sender() ! calcRoute(requestId, from, to, params, getPerson(params.personId))
+          sender() ! calcRoute(requestId, params, getPerson(params.personId))
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
 
-  def calcRoute(requestId: Id[RoutingRequest], fromFacility: RouteLocation, toFacility:RouteLocation, params: RoutingRequestParams, person: Person): RoutingResponse
+  def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo, person: Person): RoutingResponse
 
   def init
 

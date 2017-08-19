@@ -11,10 +11,13 @@ object GeoUtils {
 
 
   object transform{
-    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+    //TODO fix this monstrosity
+//    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:32631", "EPSG:4326")
 
     def Utm2Wgs(coord:Coord):Coord={
-      if (coord.getX > 400.0 | coord.getX < -400.0) {
+      //TODO fix this monstrosity
+      if (coord.getX > 1.0 | coord.getX < -0.0) {
         utm2Wgs.transform(coord)
       } else {
         coord
@@ -22,7 +25,12 @@ object GeoUtils {
     }
   }
 
+  //TODO this is a hack, but we need a general purpose, failsafe way to get distances out of Coords regardless of their project
+  def distInMeters(coord1: Coord, coord2: Coord): Double ={
+    distLatLon2Meters(transform.Utm2Wgs(coord1), transform.Utm2Wgs(coord2))
+  }
 
+  def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distLatLon2Meters(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
 
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
     //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
