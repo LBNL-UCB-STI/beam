@@ -65,13 +65,6 @@ object Modes {
 
     case object WAITING extends BeamMode(value = "waiting", None,  None, TransportMode.other)
 
-    // Transit-specific to filter
-    // FIXME: These aren't really modes; just included for algorithm purposes
-    case object PRE_BOARD extends BeamMode(value = "PRE_BOARD", None,  None, TransportMode.other)
-    case object PRE_ALIGHT extends BeamMode(value = "PRE_ALIGHT", None, None, TransportMode.other)
-    case object BOARDING extends BeamMode(value = "BOARDING", None,  None, TransportMode.other)
-    case object ALIGHTING extends BeamMode(value = "ALIGHTING", None,  None, TransportMode.other)
-
   }
 
   implicit def beamMode2OtpMode(beamMode: BeamMode): TraverseMode = beamMode.otpMode.get
@@ -109,5 +102,8 @@ object Modes {
     case TransitModes.RAIL => BeamMode.RAIL
     case TransitModes.TRAM => BeamMode.TRAM
   }
+
+  def filterForTransit(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter( mode =>  isR5TransitMode(mode))
+  def filterForStreet(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter( mode =>  isR5LegMode(mode))
 
 }

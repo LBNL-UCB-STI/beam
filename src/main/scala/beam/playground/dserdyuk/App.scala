@@ -23,28 +23,28 @@ object VehicleLoader extends App {
   reader.readFile(vehiclePath)
   Console.print(s"Loaded ${vehicles.getVehicles.size()} vehicles and ${vehicles.getVehicleTypes} vehicle types")
 
-  val actorSystem = ActorSystem()
-  val vehicleActors  = vehicles.getVehicles.asScala.map { case (vehicleId,matSimVehicle) =>
-      val beamVehicle  =  actorSystem.actorOf(Props(classOf[BeamVehicle],  vehicleId,
-        VehicleData.vehicle2vehicleData(matSimVehicle),
-        new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)),
-        //TODO: trajectory looks irrelevant here,
-        //we need to have person/owner of vehicle to build trajectory from activity plan, right ?
-        new Trajectory(), None, Nil, None
-      ), BeamVehicle.buildActorName(vehicleId))
-    (vehicleId, beamVehicle)
-  }.toMap
+//  val actorSystem = ActorSystem()
+//  val vehicleActors  = vehicles.getVehicles.asScala.map { case (vehicleId,matSimVehicle) =>
+//      val beamVehicle  =  actorSystem.actorOf(Props(classOf[BeamVehicle],  vehicleId,
+//        VehicleData.vehicle2vehicleData(matSimVehicle),
+//        new Powertrain(BeamVehicle.energyPerUnitByType(matSimVehicle.getType.getId)),
+//        //TODO: trajectory looks irrelevant here,
+//        //we need to have person/owner of vehicle to build trajectory from activity plan, right ?
+//        new Trajectory(), None, Nil, None
+//      ), BeamVehicle.buildActorName(vehicleId))
+//    (vehicleId, beamVehicle)
+//  }.toMap
 
-  private val households = new HouseholdsImpl()
-  val householdsReader = new  HouseholdsReaderV10(households)
-  householdsReader.readFile(getClass.getResource("/households.xml").getFile)
-  //TODO: we may move creation of vehicle agents in Household context for better life-circle management
-  val householdActors = households.getHouseholds.asScala.map { case (householdId, matSimHousehold) =>
-    val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map{ id => (id, vehicleActors(id))}.toMap
-    val householdActor = actorSystem.actorOf(Props(classOf[HouseholdActor],
-      householdId, matSimHousehold, houseHoldVehicles))
-      householdActor
-  }
+//  private val households = new HouseholdsImpl()
+//  val householdsReader = new  HouseholdsReaderV10(households)
+//  householdsReader.readFile(getClass.getResource("/households.xml").getFile)
+//  //TODO: we may move creation of vehicle agents in Household context for better life-circle management
+//  val householdActors = households.getHouseholds.asScala.map { case (householdId, matSimHousehold) =>
+//    val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map{ id => (id, vehicleActors(id))}.toMap
+//    val householdActor = actorSystem.actorOf(Props(classOf[HouseholdActor],
+//      householdId, matSimHousehold, houseHoldVehicles))
+//      householdActor
+//  }
 }
 
 

@@ -28,6 +28,10 @@ object BeamAgent {
     override def identifier = "Initialized"
   }
 
+  case object AnyState extends BeamAgentState {
+    override def identifier = "AnyState"
+  }
+
   case object Finished extends BeamAgentState {
     override def identifier = "Finished"
   }
@@ -65,6 +69,8 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   def id: Id[_]
   def data: T
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+  protected var _currentTriggerId: Option[Long] = None
+  protected var _currentTick: Option[Double] = None
 
   private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState,StateFunction]
   final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit =
@@ -92,9 +98,13 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         }
       }
       val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
-      if (newStates.isEmpty || !allStatesSame(newStates)){
+      if (!allStatesSame(newStates)){
         throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
           s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
+      } else if(newStates.isEmpty && state == AnyState){
+        FSM.State(state, event.stateData)
+      } else if(newStates.isEmpty){
+        handleEvent(AnyState, event)
       } else {
         val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
         if(numCompletionNotices>1){
@@ -137,11 +147,61 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   }
 
   whenUnhandled {
-    case Event(any, data) =>
-      log.error(s"Unhandled event: $id $any $data")
-      stay()
+    case ev@Event(_, _) =>
+      val result = handleEvent(AnyState, ev)
+      if(result.stateName == AnyState){
+        logWarn(s"Unrecognized event ${ev.event}")
+        stay()
+      }else{
+        result
+      }
+    case msg@_ =>
+      logError(s"Unrecognized message ${msg}")
+      goto(Error)
   }
 
+  /*
+   * Helper methods
+   */
+  def holdTickAndTriggerId(tick: Double, triggerId: Long) = {
+    if(_currentTriggerId != None || _currentTick != None)throw new IllegalStateException(s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively.")
+    _currentTick = Some(tick)
+    _currentTriggerId = Some(triggerId)
+  }
+  def releaseTickAndTriggerId(): (Double, Long) = {
+    val theTuple = (_currentTick.get, _currentTriggerId.get)
+    _currentTick = None
+    _currentTriggerId = None
+    theTuple
+  }
+  def logPrefix(): String
+  def fullLogPrefix(): String = {
+    val tickStr = _currentTick match {
+      case Some(theTick) =>
+        s"Tick:${theTick.toString} "
+      case None =>
+        ""
+    }
+    val triggerStr = _currentTriggerId match {
+      case Some(theTriggerId) =>
+        s"TriggId:${theTriggerId.toString} "
+      case None =>
+        ""
+    }
+    s"${tickStr}${triggerStr}${logPrefix()}"
+  }
+  def logInfo(msg: String): Unit = {
+    log.info(s"${fullLogPrefix}$msg")
+  }
+  def logWarn(msg: String): Unit = {
+    log.warning(s"${fullLogPrefix}$msg")
+  }
+  def logError(msg: String): Unit = {
+    log.error(s"${fullLogPrefix}$msg")
+  }
+  def logDebug(msg: String): Unit = {
+    log.debug(s"${fullLogPrefix}$msg")
+  }
 
 }
 

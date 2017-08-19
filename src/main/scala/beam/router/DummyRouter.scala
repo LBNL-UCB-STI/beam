@@ -20,7 +20,7 @@ class DummyRouter(val beamServices: BeamServices) extends Actor with ActorLoggin
       beamServices.bbox.observeCoord(new Coordinate(-1e12,-1e12))
       beamServices.bbox.observeCoord(new Coordinate(1e12,1e12))
       sender() ! RouterInitialized
-    case RoutingRequest(requestId, TripInfo(origin, destination, departureTime, accessMode, personId)) =>
+    case RoutingRequest(requestId, RoutingRequestTripInfo(origin, destination, departureTime, modes, streetVehicles, personId)) =>
       log.info(s"Serving Route Request from $personId @ $departureTime")
       val person: Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
       val time = departureTime.atTime.toLong
@@ -31,8 +31,8 @@ class DummyRouter(val beamServices: BeamServices) extends Actor with ActorLoggin
       val leg = BeamLeg(time+1, BeamMode.CAR, 100, travelPath = path)
       val dummyWalkEnd = BeamLeg.dummyWalk(time+101)
 
-      val trip = BeamTrip(Vector[BeamLeg](dummyWalkStart, leg, dummyWalkEnd))
-      sender() ! RoutingResponse(requestId, Vector[BeamTrip](trip))
+      val trip = EmbodiedBeamTrip(BeamTrip(Vector[BeamLeg](dummyWalkStart, leg, dummyWalkEnd)))
+      sender() ! RoutingResponse(requestId, Vector[EmbodiedBeamTrip](trip))
   }
 
 }
