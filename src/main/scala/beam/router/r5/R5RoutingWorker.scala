@@ -106,7 +106,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
           val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
           val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
-          val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
+          val theLeg = BeamLeg(departure.toLong, mode, duration, travelPath = transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
           beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
         }
@@ -238,8 +238,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   def buildResponse(plan: ProfileResponse): Vector[BeamTrip] = {
 
     var trips = Vector[BeamTrip]()
-
-    for (option <- plan.options.asScala) {
+    for(option <- plan.options.asScala) {
 //      log.debug(s"Summary of trip is: $option")
       /*
         * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
@@ -255,9 +254,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         var legs = Vector[BeamLeg]()
 
         val access = option.access.get(itinerary.connection.access)
-        if (itinerary.transfers >= 1) {
-          log.debug(s"Itinerary has ${itinerary.transfers} transfers.")
-        }
+
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
@@ -272,7 +269,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         if (isTransit) {
           var arrivalTime: Long = Long.MinValue
           var isMiddle: Boolean = false
-
           /*
            Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
            assuming that: For each transit in option there is a TransitJourneyID in connection
@@ -313,7 +309,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             arrivalTime = toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
             if (transitSegment.middle != null) {
               isMiddle = true
-                BeamLeg(arrivalTime + alightingTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, buildStreetPath(transitSegment.middle))
+              legs = legs :+ BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, travelPath = buildStreetPath(transitSegment.middle))
               arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
             }
           }
@@ -322,7 +318,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           if (itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             //start time would be the arival time of last stop and 5 second alighting
-            legs = legs :+ BeamLeg(arrivalTime + alightingTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress))
+            legs = legs :+ BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, travelPath = buildStreetPath(egress))
             if(egress.mode != WALK) legs :+ dummyWalk(arrivalTime + egress.duration)
           }
         }
@@ -332,7 +328,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }
     trips
   }
-
 
   // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as argument of StreetPath
   private def buildStreetPath(segment: StreetSegment): BeamStreetPath = {
@@ -403,8 +398,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val baseDate = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate)
     ChronoUnit.SECONDS.between(baseDate, time)
   }
-
-  override def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 
   private def toCoord(geometry: LineString): Coord = {
     new Coord(geometry.getCoordinate.x, geometry.getCoordinate.y, geometry.getCoordinate.z)
