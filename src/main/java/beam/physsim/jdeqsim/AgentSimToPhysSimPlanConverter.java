@@ -48,6 +48,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     public AgentSimToPhysSimPlanConverter(){
 
+
         // Is this factory connected to main factory loaded in BeamSim or a new factory
         scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         population = scenario.getPopulation();
@@ -127,15 +128,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
 
         if(event instanceof ActivityStartEvent) {
-            String activityType = ((ActivityStartEvent) event).getActType();
-            Id<Link> linkId = ((ActivityStartEvent) event).getLinkId();
+            ActivityStartEvent ase = ((ActivityStartEvent) event);
+            String activityType = ase.getActType();
+            Id<Link> linkId = ase.getLinkId();
             latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
-
         }else if(event instanceof ActivityEndEvent) {
-            String activityType = ((ActivityEndEvent) event).getActType();
-            Id<Link> linkId = ((ActivityEndEvent) event).getLinkId();
+            ActivityEndEvent aee = ((ActivityEndEvent) event);
+            String activityType = aee.getActType();
+            Id<Link> linkId = aee.getLinkId();
             latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
-
         }else if(event instanceof PersonEntersVehicleEvent){
 
             // add person and vehicle to person vehicle map
