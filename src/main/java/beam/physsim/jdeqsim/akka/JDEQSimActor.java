@@ -20,7 +20,7 @@ public class JDEQSimActor extends UntypedActor {
 			System.out.println("Person -> " + p.toString());
 			Plan plan = p.getSelectedPlan();
 			System.out.println("Plan -> " + plan.toString());
-			System.out.println("Plan legs -> " + plan.getPlanElements().toString());
+			System.out.println("Plan Elements -> " + plan.getPlanElements().toString());
 		}
 
 		jdeqSimulation=new JDEQSimulation(config, scenario, events);

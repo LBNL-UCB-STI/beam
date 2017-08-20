@@ -11,9 +11,7 @@ import beam.router.Modes;
 import beam.router.RoutingModel;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.events.Event;
-import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
-import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
+import org.matsim.api.core.v01.events.*;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.*;
@@ -42,6 +40,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     Map<Id<Vehicle>, Id<Person>> vehiclePersonMap = new HashMap<>();
     Network network;
     PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
+    Activity latestActivity;
 
     Map<Long, Person> persons = new HashMap<>();
 
@@ -124,13 +123,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
         /*double time = event.getTime();
         String eventType = event.getEventType();
-        long personId = Long.parseLong(event.getAttributes().get("person"));
-        String link = event.getAttributes().get("link");
-        String activityType = event.getAttributes().get("actType");*/
+        long personId = Long.parseLong(event.getAttributes().get("person")); */
+        System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
 
-        System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> Event -> " + event.toString());
+        if(event instanceof ActivityStartEvent) {
+            String activityType = ((ActivityStartEvent) event).getActType();
+            Id<Link> linkId = ((ActivityStartEvent) event).getLinkId();
+            latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
 
-        if(event instanceof PersonEntersVehicleEvent){
+        }else if(event instanceof ActivityEndEvent) {
+            String activityType = ((ActivityEndEvent) event).getActType();
+            Id<Link> linkId = ((ActivityEndEvent) event).getLinkId();
+            latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
+
+        }else if(event instanceof PersonEntersVehicleEvent){
 
             // add person and vehicle to person vehicle map
             PersonEntersVehicleEvent pevEvent = (PersonEntersVehicleEvent)event;
@@ -146,11 +152,19 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             System.out.println(getClass().getName() + "- " + PersonLeavesVehicleEvent.class.getName() + " -> VehiclePersonMap -> " + vehiclePersonMap.toString());
         }else if(event instanceof PathTraversalEvent){
             PathTraversalEvent ptEvent = (PathTraversalEvent)event;
-            System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent -> " + PathTraversalEvent.class.getName() + event.toString());
+            //System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
+            System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent [ptEvent] -> " + PathTraversalEvent.class.getName() + ptEvent.toString() + ", " + ptEvent.getAttributes().keySet());
+
+
+
 
             String mode = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_MODE());
 
             if(mode != null && mode.equalsIgnoreCase("car")) {
+
+
+
+
                 pathTraversalEventList.add(ptEvent);
 
                 String links = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_LINK_IDS());
@@ -167,8 +181,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 Modes.BeamMode beamMode = beamLeg.mode();
                 RoutingModel.BeamPath beamPath = beamLeg.travelPath();
 
-                System.out.println("mode " + beamMode.matsimMode() + ", " + beamMode.otpMode() + ", " + beamMode.r5Mode());
-                System.out.println("mode='" + beamMode.matsimMode() + ", dep_time='" + beamLeg.startTime());
+                //System.out.println("mode " + beamMode.matsimMode() + ", " + beamMode.otpMode() + ", " + beamMode.r5Mode());
+                //System.out.println("mode='" + beamMode.matsimMode() + ", dep_time='" + beamLeg.startTime());
 
                 Id<Vehicle> vehicleId1 = Id.createVehicleId(vehicleId);
                 Id<Person> personId = vehiclePersonMap.get(vehicleId1);
@@ -192,19 +206,24 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     Route route = RouteUtils.createNetworkRoute(linkIds, network);
                     leg.setRoute(route);
 
+
+
                     Person person = null;
                     if (personAlreadyExist) {
                         person = population.getPersons().get(personId);
+
                         Plan plan = person.getSelectedPlan();
-                        //plan.addActivity();
+                        plan.addActivity(latestActivity);
                         plan.addLeg(leg);
 
 
                     } else {
                         person = populationFactory.createPerson(personId);
+
                         Plan plan = populationFactory.createPlan();
-                        //plan.addActivity();
+                        plan.addActivity(latestActivity);
                         plan.addLeg(leg);
+
                         plan.setPerson(person);
                         person.addPlan(plan);
                         person.setSelectedPlan(plan);
