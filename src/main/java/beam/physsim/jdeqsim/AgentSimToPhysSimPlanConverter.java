@@ -46,15 +46,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     List<PathTraversalEvent> pathTraversalEventList = new ArrayList<>();
 
-    public AgentSimToPhysSimPlanConverter(){
-
+    public AgentSimToPhysSimPlanConverter(Scenario _scenario){
 
         // Is this factory connected to main factory loaded in BeamSim or a new factory
+        //Scenario localScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig("C:/ns/beam-integration-project/model-inputs/beamville/beam.conf"));
+        //System.out.println("Network loaded1 -> " + localScenario.getNetwork().getNodes().toString());
+
         scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         population = scenario.getPopulation();
         populationFactory = scenario.getPopulation().getFactory();
-        network = scenario.getNetwork();
-        activityDurationInterpretation = scenario.getConfig().plans().getActivityDurationInterpretation();
+        activityDurationInterpretation = _scenario.getConfig().plans().getActivityDurationInterpretation();
+        network = _scenario.getNetwork();
+
+//        Long osmId = RouterApp.getOsmId(230);
+//        System.out.println("Osm Id " +  osmId);
     }
 
     @Override
@@ -69,6 +74,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         System.out.println(getClass().getName() +  " -> Persons -> " + population.getPersons().toString());
         System.out.println(getClass().getName() +  " -> VehiclePersonMap -> " + vehiclePersonMap.toString());
 
+        for(Person p : population.getPersons().values()){
+            Plan plan = p.getSelectedPlan();
+            Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
+
+            plan.addActivity(populationFactory.createActivityFromLinkId("dummy", leg.getRoute().getEndLinkId()));
+        }
         initializeAndRun();
     }
 
@@ -87,11 +98,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         ActorSystem system = ActorSystem.create("PhysicalSimulation");
         ActorRef eventHandlerActorREF = system.actorOf(Props.create(EventManagerActor.class));
         EventsManager eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
-        ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager));
+        ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager, network));
 
         jdeqsimActorREF.tell("start", ActorRef.noSender());
         eventHandlerActorREF.tell("registerJDEQSimREF", eventHandlerActorREF);
         system.awaitTermination();
+
+
     }
 
     @Override
@@ -132,11 +145,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             String activityType = ase.getActType();
             Id<Link> linkId = ase.getLinkId();
             latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
+
+
         }else if(event instanceof ActivityEndEvent) {
             ActivityEndEvent aee = ((ActivityEndEvent) event);
             String activityType = aee.getActType();
             Id<Link> linkId = aee.getLinkId();
             latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
+
         }else if(event instanceof PersonEntersVehicleEvent){
 
             // add person and vehicle to person vehicle map
@@ -208,6 +224,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     leg.setRoute(route);
 
 
+                    latestActivity.setLinkId(route.getStartLinkId());
+                    latestActivity.setEndTime(beamLeg.startTime());
 
                     Person person = null;
                     if (personAlreadyExist) {
