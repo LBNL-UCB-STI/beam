@@ -134,9 +134,6 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
         var legs = Vector[BeamLeg]()
 
         val access = option.access.get(itinerary.connection.access)
-        if (itinerary.transfers >= 1) {
-          log.debug(s"Itinerary has ${itinerary.transfers} transfers.")
-        }
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
@@ -159,8 +156,8 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
           val segments = option.transit.asScala zip itinerary.connection.transit.asScala
           val itFare = FareCalculator.calcFare(segments.toVector)
           log.debug(s"Total fare of itinerary is: $itFare ")
-          val fares = FareCalculator.filterTransferFares(FareCalculator.getFareRules(segments.toVector))
-
+          val fares = FareCalculator.filterTransferFares(FareCalculator.getFareSegments(segments.toVector))
+          val fromTime = segments.head._1.segmentPatterns.get(segments.head._2.pattern).fromDepartureTime.get(segments.head._2.time)
           for ((transitSegment, transitJourneyID) <- segments) {
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
@@ -180,16 +177,14 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
             }
 
             val route = transportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
-            var fare = FareCalculator.calcFare(route, transitSegment)
+            var fare = FareCalculator.calcFare(transitSegment, transitJourneyID, fromTime)
             log.debug(s"General price of segment [route ${route.route_id}] is $fare.")
 
-            val fromId = transitSegment.from.stopId.split((":"))(1)
-            val toId = transitSegment.to.stopId.split((":"))(1)
-            var fs = fares.filter(FareCalculator.baseRule(_, route.route_id, fromId, toId)).map(_.fare.price)
-            if (!fs.isEmpty)
+            var fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
+            if (fs.nonEmpty)
               fs = Vector(fs.min)
             fare = fs.sum
-            log.debug(s"Fare for stop ${fromId} of agency ${route.agency_id}'s route ${route.route_id} is ${fare}.")
+            log.debug(s"Fare for route ${route.route_id} of agency ${route.agency_id} is $fare.")
 
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = (if (option.transit.indexOf(transitSegment) < option.transit.size() - 1)
@@ -318,7 +313,7 @@ class R5RoutingWorker(beamServices: BeamServices) extends RoutingWorker {
 object R5RoutingWorker extends HasProps {
   val GRAPH_FILE = "/network.dat"
 
-  var transportNetwork: TransportNetwork = null
+  var transportNetwork: TransportNetwork = _
 
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 }
