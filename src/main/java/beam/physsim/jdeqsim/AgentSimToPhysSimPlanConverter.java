@@ -9,6 +9,7 @@ import beam.physsim.jdeqsim.akka.EventManagerActor;
 import beam.physsim.jdeqsim.akka.JDEQSimActor;
 import beam.router.Modes;
 import beam.router.RoutingModel;
+import beam.router.r5.R5RoutingWorker;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
@@ -172,19 +173,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             //System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
             System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent [ptEvent] -> " + PathTraversalEvent.class.getName() + ptEvent.toString() + ", " + ptEvent.getAttributes().keySet());
 
-
-
-
             String mode = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_MODE());
 
             if(mode != null && mode.equalsIgnoreCase("car")) {
 
-
-
-
                 pathTraversalEventList.add(ptEvent);
 
                 String links = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_LINK_IDS());
+
                 String departureTime = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_DEPARTURE_TIME());
                 String vehicleId = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_VEHICLE_ID());
                 double time = ptEvent.getTime();
@@ -217,7 +213,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     leg.setTravelTime(0);
                     List<Id<Link>> linkIds = new ArrayList<>();
                     for(String link : links.split(",")) {
-                        Id<Link> linkId = Id.createLinkId(link);
+
+                        long osmLinkId = R5RoutingWorker.transportNetwork().streetLayer.edgeStore.getCursor(Integer.parseInt(link)).getOSMID();
+
+                        Id<Link> linkId = Id.createLinkId(osmLinkId);
                         linkIds.add(linkId);
                     }
                     Route route = RouteUtils.createNetworkRoute(linkIds, network);
