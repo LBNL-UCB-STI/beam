@@ -9,20 +9,18 @@ import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor.Props
-import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData, PassengerSchedule}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
+import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.RoutingResponse
-import beam.router.Modes.BeamMode.{SUBWAY, WALK}
-import beam.router.Modes._
+import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
+import beam.router.Modes.BeamMode.{BUS, TRANSIT, WALK}
+import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
-import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
-import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
+import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import com.conveyal.r5.api.ProfileResponse
@@ -30,12 +28,13 @@ import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.ProfileRequest
 import com.conveyal.r5.streets.StreetLayer
-import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
+import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.matsim.facilities.Facility
+import org.matsim.utils.objectattributes.attributable.Attributes
 import org.opentripplanner.routing.vertextype.TransitStop
 
 import scala.collection.JavaConverters._
@@ -71,7 +70,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }
     overrideR5EdgeSearchRadius(2000)
 
-    initTransitVehicles()
   }
 
   /*
@@ -87,14 +85,17 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
-    transportNetwork.transitLayer.tripPatterns.listIterator().asScala.foreach { tripPattern =>
+    log.info(s"Start Transit initialization  ${ transportNetwork.transitLayer.tripPatterns.size()} trips founded")
+    val transitTrips  = transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
+    val transitData = transitTrips.flatMap { tripPattern =>
       //      log.debug(tripPattern.toString)
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      tripPattern.tripSchedules.asScala.foreach { tripSchedule =>
+      val firstStop = tripPattern.tripSchedules.asScala
+      firstStop.map { tripSchedule =>
         // First create a unique for this trip which will become the transit agent and vehicle ids
-        val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
-        val numStops = tripSchedule.departures.size
+        val tripVehId = TransitVehicle.createId(tripSchedule)
+        val numStops = tripSchedule.departures.length
         val passengerSchedule = PassengerSchedule()
         tripSchedule.departures.zipWithIndex.foreach { case (departure, i) =>
           val duration = if(i == numStops-1){ 1L }else{ tripSchedule.arrivals(i+1) - departure }
@@ -106,15 +107,58 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
         }
         // Create the driver agent and vehicle here
-        //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
-        val matsimVehicle = if(mode==SUBWAY){
-          beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create("2",classOf[VehicleType]))
-        }else{
-          beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create("1",classOf[VehicleType]))
-        }
-//        val transitVehRef = context.actorOf(TransitVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle))
-
+        // https://developers.google.com/transit/gtfs/reference/routes-file
+/*
+            0: Tram, Streetcar, Light rail. Any light rail or street level system within a metropolitan area.
+            1: Subway, Metro. Any underground rail system within a metropolitan area.
+            2: Rail. Used for intercity or long-distance travel.
+            3: Bus. Used for short- and long-distance bus routes.
+            4: Ferry. Used for short- and long-distance boat service.
+            5: Cable car. Used for street-level cable cars where the cable runs beneath the car.
+            6: Gondola, Suspended cable car. Typically used for aerial cable cars where the car is suspended from the cable.
+            7: Funicular. Any rail system designed for steep inclines.
+*/
+        //createTransitVehicle(tripVehId, route, passengerSchedule)
+        (tripVehId, route, passengerSchedule)
       }
+    }
+    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLed().startTime).take(1000)
+    transitScheduleToCreate.foreach{ case (tripVehId, route, passengerSchedule) =>
+      createTransitVehicle(tripVehId, route, passengerSchedule)
+    }
+    log.info(s"Finished Transit initialization trips, ${transitData.length}")
+  }
+
+  private def transitVehicles = {
+    beamServices.matsimServices.getScenario.getTransitVehicles
+  }
+
+  def createTransitVehicle(tripVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
+    val vehicleTypeId = Id.create(route.route_type.toString, classOf[VehicleType])
+    //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
+    val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
+    val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+    mode match {
+      case (BUS | TRANSIT) if vehicleType != null =>
+        val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(tripVehId, vehicleType)
+        val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
+        val initialMatsimAttributes = new Attributes()
+        val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, initialMatsimAttributes)
+        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
+        beamServices.vehicles.put(tripVehId, matSimTransitVehicle)
+        beamServices.vehicleRefs.put(tripVehId, transitVehRef)
+        transitVehRef ! InitializeTrigger(0.0)
+
+        val vehicleIdAndRef = BeamVehicleIdAndRef(tripVehId, transitVehRef)
+        val transitDriverId = TransitDriverAgent.createAgentId(tripVehId)
+        val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, vehicleIdAndRef, passengerSchedule)
+        val transitDriver =  context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+        beamServices.agentRefs.put(transitDriverId.toString, transitDriver)
+        transitDriver ! InitializeTrigger(0.0)
+
+      case _ =>
+        log.error(mode + " is not supported yet")
+
     }
   }
 
@@ -384,6 +428,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     modifiersField.setAccessible(true);
     modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
     field.set(null, newRadius);
+  }
+
+  override def initTransit: Unit = {
+    initTransitVehicles()
   }
 }
 

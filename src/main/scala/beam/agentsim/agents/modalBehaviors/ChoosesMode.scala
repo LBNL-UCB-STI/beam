@@ -6,9 +6,10 @@ import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingI
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
-import beam.agentsim.agents.{BeamAgent, PersonAgent, RideHailingManager, TriggerShortcuts}
+import beam.agentsim.agents._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.resources.vehicle.{Reservation, ReservationRequest}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
@@ -46,6 +47,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
         beamServices.schedulerRef ! completed(triggerId = theTriggerId)
         goto(BeamAgent.Error)
       } else {
+//        val transitLegs = chosenTrip.legs.filter(_.beamLeg.travelPath.isTransit)
+//        if (transitLegs.nonEmpty) {
+//         val reservations =  transitLegs.sliding(2).map { case Vector(departFrom, arriveAt) =>
+//            val transitDriver  = beamServices.transitVehiclesByBeamLeg.get(departFrom.beamLeg).map(TransitDriverAgent.createAgentId)
+//            transitDriver -> new ReservationRequest(departFrom.beamLeg, arriveAt.beamLeg, _currentVehicle.outermostVehicle(), id)
+//          }
+//          reservations
+//        }
         beamServices.schedulerRef ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
         _currentRoute = chosenTrip
         routingResponse = None
@@ -68,7 +77,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${tick}")
       holdTickAndTriggerId(tick,triggerId)
-      beamServices.householdRefs.get(_household).get ! MobilityStatusInquiry(id)
+      beamServices.householdRefs.get(_household).foreach(_  ! MobilityStatusInquiry(id))
       stay()
     case Event(MobilityStatusReponse(streetVehicles), info: BeamAgentInfo[PersonData]) =>
       val (tick,theTriggerId) = releaseTickAndTriggerId()

@@ -5,6 +5,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleObject, Dimension, Powertrain}
 import beam.sim.{BeamServices, HasServices}
+import com.conveyal.r5.transit.TripSchedule
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
@@ -56,4 +57,7 @@ object TransitVehicle extends BeamVehicleObject{
     props(beamServices, matSimVehicle.getId, TransitVehicleData(), powertrain, matSimVehicle,  new Attributes())
   }
 
+  def createId(tripSchedule: TripSchedule) = {
+    Id.create(tripSchedule.tripId, classOf[Vehicle])
+  }
 }
