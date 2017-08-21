@@ -274,23 +274,16 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
            assuming that: For each transit in option there is a TransitJourneyID in connection
            */
           val segments = option.transit.asScala zip itinerary.connection.transit.asScala
-          val itFare = FareCalculator.calcFare(segments.toVector)
-          log.debug(s"Total fare of itinerary is: $itFare ")
           val fares = FareCalculator.filterTransferFares(FareCalculator.getFareSegments(segments.toVector))
-          val fromTime = segments.head._1.segmentPatterns.get(segments.head._2.pattern).fromDepartureTime.get(segments.head._2.time)
+
           for ((transitSegment, transitJourneyID) <- segments) {
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
-            val route = transportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
-            var fare = FareCalculator.calcFare(transitSegment, transitJourneyID, fromTime)
-            log.debug(s"General price of segment [route ${route.route_id}] is $fare.")
-
             var fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
             if (fs.nonEmpty)
               fs = Vector(fs.min)
-            fare = fs.sum
-            log.debug(s"Fare for route ${route.route_id} of agency ${route.agency_id} is $fare.")
+            val fare = fs.sum
 
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = (if (option.transit.indexOf(transitSegment) < option.transit.size() - 1)

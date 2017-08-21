@@ -64,6 +64,7 @@ class FareCalculatorSpec extends WordSpec {
         assert(sf.size == 1)
         assert(sf.head.fare.fareId == "178841")
         assert(sf.head.fare.price == 13.75)
+        assert(sumFares(sf.map(FareSegment(_, 0, 3200))) == sf.head.fare.price)
       }
     }
 
@@ -77,7 +78,7 @@ class FareCalculatorSpec extends WordSpec {
         assert(fsf.nonEmpty)
         assert(fsf.size == 3)
         assert(fsf.head.fare.transferDuration == 3800)
-        assert(fsf.map(_.fare.price).sum == 23.75)
+        assert(fsf.map(_.fare.price).sum == 23.0)
       }
     }
   }

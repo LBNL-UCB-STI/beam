@@ -10,32 +10,94 @@ import beam.router.r5.R5RoutingWorker.transportNetwork
 import com.conveyal.gtfs.GTFSFeed
 import com.conveyal.r5.api.util.{SegmentPattern, Stop, TransitJourneyID, TransitSegment}
 
-class FareCalculator
 
 object FareCalculator {
-  case class FareRule(fare: Fare, agencyId: String, routeId: String, originId: String, destinationId: String, containsId: String)
-  case class Fare(fareId: String, price: Double, currencyType: String, paymentMethod: Int, transfers: Int, transferDuration: Int)
-  case class FareSegment(fare: Fare, agencyId: String, patternIndex: Int, segmentDuration: Long)
+
+  /**
+    * A FareAttribute (defined in fare_attributes.txt) defines a fare class. A FareAttribute has a price,
+    * currency and whether it must be purchased on board the service or before boarding.
+    * It also defines the number of transfers it can be used for, and the duration it is valid.
+    *
+    * @param fareId Contains an ID that uniquely identifies a fare class. The fare_id is dataset unique. Its a required attribute.
+    * @param price Contains the fare price, in the unit specified by currency_type. Its a required attribute.
+    * @param currencyType Defines the currency used to pay the fare. Its a required attribute.
+    * @param paymentMethod The payment_method field indicates when the fare must be paid. Its a required attribute. Valid values for this field are:
+    *                      0: Fare is paid on board.
+    *                      1: Fare must be paid before boarding.
+    *
+    * @param transfers Specifies the number of transfers permitted on this fare. Its a required attribute. Valid values for this field are:
+    *                  0: No transfers permitted on this fare.
+    *                  1: Passenger may transfer once.
+    *                  2: Passenger may transfer twice.
+    *                  Int.MaxValue/(empty in gtfs): If this field is empty, unlimited transfers are permitted.
+    *
+    * @param transferDuration Specifies the length of time in seconds before a transfer expires.
+    */
+  case class Fare(fareId: String,
+                  price: Double,
+                  currencyType: String,
+                  paymentMethod: Int,
+                  transfers: Int,
+                  transferDuration: Int)
+
+  /**
+    * The FareRule lets you specify how fares in fare_attributes.txt apply to an itinerary.
+    * Most fare structures use some combination of the following rules:
+    *   Fare depends on origin or destination stations.
+    *   Fare depends on which zones the itinerary passes through.
+    *   Fare depends on which route the itinerary uses.
+    *
+    * @param fare Contains a fare object from fare_attributes.
+    * @param agencyId Defines an agency for the specified route. This value is referenced from the agency.txt file.
+    * @param routeId Associates the fare ID with a route. Route IDs are referenced from the routes.txt file.
+    * @param originId Associates the fare ID with an origin zone ID (referenced from the stops.txt file).
+    * @param destinationId Associates the fare ID with a destination zone ID (referenced from the stops.txt file).
+    * @param containsId Associates the fare ID with a zone ID (referenced from the stops.txt file.
+    *                   The fare ID is then associated with itineraries that pass through every contains_id zone.
+    */
+  case class FareRule(fare: Fare,
+                      agencyId: String,
+                      routeId: String,
+                      originId: String,
+                      destinationId: String,
+                      containsId: String)
+
+  /**
+    *
+    * @param fare Contains a fare object from fare_attributes.
+    * @param agencyId Defines an agency for the specified route. This value is referenced from the agency.txt file.
+    * @param patternIndex Represents the pattern index from TransitJournyID to locate SegmentPattern from a specific TransitSegment
+    * @param segmentDuration Defines the leg duration from start of itinerary to end of segment leg
+    */
+  case class FareSegment(fare: Fare,
+                         agencyId: String,
+                         patternIndex: Int,
+                         segmentDuration: Long)
 
   object FareSegment {
     def apply(fare: Fare, agencyId: String): FareSegment = new FareSegment(fare, agencyId, 0, 0)
     def apply(fareSegment: FareSegment, patternIndex: Int, segmentDuration: Long): FareSegment = new FareSegment(fareSegment.fare, fareSegment.agencyId, patternIndex, segmentDuration)
   }
 
+  /**
+    * agencies is a Map of FareRule by agencyId
+    */
   var agencies: Map[String, Vector[FareRule]] = _
 
   //  lazy val containRules = agencies.map(a => a._1 -> a._2.filter(r => r.containsId != null).groupBy(_.fare))
 
-
+  /**
+    * Use to initialize the calculator by loading GTFS feeds and populates agencies map.
+    *
+    * @param directory Path of the directory that contains gtfs files to load
+    */
   def fromDirectory(directory: Path): Unit = {
-    agencies = Map()
-
-    if (Files.isDirectory(directory)) {
-      directory.toFile.listFiles(hasFares(_)).map(_.getAbsolutePath).foreach(p => {
-        loadFares(GTFSFeed.fromFile(p))
-      })
-    }
-
+    /**
+      * Checks whether its a valid gtfs feed and has fares data.
+      *
+      * @param file specific file to check.
+      * @return true if a valid zip having fare data.
+      */
     def hasFares(file: File): Boolean = {
       var isFareExist = false
       if (file.getName.endsWith(".zip")) {
@@ -50,6 +112,11 @@ object FareCalculator {
       isFareExist
     }
 
+    /**
+      * Takes GTFSFeed and loads agencies map with fare and its rules.
+      *
+      * @param feed GTFSFeed
+      */
     def loadFares(feed: GTFSFeed): Unit = {
       var fares: Map[String, Fare] = Map()
       var routes: Map[String, Vector[FareRule]] = Map()
@@ -83,8 +150,22 @@ object FareCalculator {
         agencies += id -> agencyRules
       })
     }
+
+    agencies = Map()
+
+    if (Files.isDirectory(directory)) {
+      directory.toFile.listFiles(hasFares(_)).map(_.getAbsolutePath).foreach(p => {
+        loadFares(GTFSFeed.fromFile(p))
+      })
+    }
   }
 
+  /**
+    * Use to extract a collection of FareSegments for an itinerary.
+    *
+    * @param segments
+    * @return a collection of FareSegments for an itinerary.
+    */
   def getFareSegments(segments: Vector[(TransitSegment, TransitJourneyID)]): Vector[FareSegment] = {
     segments.groupBy(s => getRoute(s._1, s._2).agency_id).flatMap(t => {
       val pattern = getPattern(t._2.head._1, t._2.head._2)
@@ -104,10 +185,9 @@ object FareCalculator {
 
       var rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => FareSegment(f, t._2.head._2.pattern, duration))
 
-      if (rules.isEmpty) {
+      if (rules.isEmpty)
         rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
 
-      }
       rules
     }).toVector
   }
@@ -213,7 +293,7 @@ object FareCalculator {
 
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
 
-  private def sumFares(rules: Vector[FareSegment]): Double = {
+  def sumFares(rules: Vector[FareSegment]): Double = {
     /*def sum(rules: Vector[FareRule], trans: Int = 0): Double = {
       def next: Int = if (trans == Int.MaxValue) 0 else trans match {
         case 0 | 1 => trans + 1
