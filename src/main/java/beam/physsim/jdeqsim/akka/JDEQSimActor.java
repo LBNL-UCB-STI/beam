@@ -1,12 +1,17 @@
 package beam.physsim.jdeqsim.akka;
 
+import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
+import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 
 
 public class JDEQSimActor extends UntypedActor {
@@ -14,10 +19,17 @@ public class JDEQSimActor extends UntypedActor {
 	private JDEQSimulation jdeqSimulation;
 	private EventsManager events;
 	private Network network;
+	private TravelTimeCalculator travelTimeCalculator;
+	ActorRef beamRouterRef;
 
-	public JDEQSimActor(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Network network) {
+	public JDEQSimActor(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Network network, final ActorRef beamRouterRef) {
 		this.events = events;
 		this.network = network;
+		this.beamRouterRef = beamRouterRef;
+
+		TravelTimeCalculatorConfigGroup ttccg = new TravelTimeCalculatorConfigGroup();
+		travelTimeCalculator = new TravelTimeCalculator(network, ttccg);
+		events.addHandler(travelTimeCalculator);
 
         /*Config _config = ConfigUtils.createConfig("C:/ns/beam-integration-project/model-inputs/beamville/beam.conf");
         Scenario _s = ScenarioUtils.createScenario(_config);
@@ -44,11 +56,47 @@ public class JDEQSimActor extends UntypedActor {
     public void onReceive(Object msg) throws Exception {
 		 if(msg instanceof String) {
 			 String s=(String) msg;
+			 System.out.println("Message received -> " + s);
 			 if (s.equalsIgnoreCase("start")){
 				 jdeqSimulation.run();
 				 events.finishProcessing();
+			 }else if(s.equalsIgnoreCase("eventsProcessingFinished")){
+			 	/*
+			 	At this point we know simulation is finished.
+			 	Here we can send the info to router with the correct info.
+			 	We need to get the router reference
+				Need to know how we can register our actors in the registry. as registry is available in beamservices
+				We need to get router reference from beamservices using the registry
+				UpdateRoadNetworkTravelTimes is the message that needs to be communicated
+
+				The routing actor will do the following on receipt of above message
+				1. Make the travel times to one million for proof of concept
+				2. We have to check if update is successful or not
+				3. the particular actor should remain in sleep for 10 sec and then send query to router for specific info
+					that tells us the travel time for a link
+				4. Receives route from the router and for all the routes the time should be 1 million. for testing.
+
+				/////
+				After jdeqsim you need to get backk this object that is a handler and we can send it to the router
+				Send TravelTimeCalculator to the router with same messsage
+				The router goes through all the time slices for each link
+				and this is the exact time that needs to be set by the router for the edges
+			 	 */
+
+			 	System.out.println(">>> Events finished processing");
+				 //travelTimeCalculator.getLinkTravelTimes()
+				 //for (TravelTime tt : travelTimeCalculator.)
+				 for(Id<Link> linkId : network.getLinks().keySet()){
+				 	double time = travelTimeCalculator.getLinkTravelTime(linkId, 0.0);
+				 	System.out.println("TIME FOR LINK ->> " + time);
+				 }
+
+
+				 //beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
+
+
 			 }
-		 } 
+		 }
     }
 	
 }

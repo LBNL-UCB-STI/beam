@@ -10,6 +10,7 @@ import beam.physsim.jdeqsim.akka.JDEQSimActor;
 import beam.router.Modes;
 import beam.router.RoutingModel;
 import beam.router.r5.R5RoutingWorker;
+import beam.sim.BeamServices;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
@@ -46,9 +47,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     Map<Long, Person> persons = new HashMap<>();
 
     List<PathTraversalEvent> pathTraversalEventList = new ArrayList<>();
+    BeamServices services;
+    ActorRef beamRouterRef;
 
-    public AgentSimToPhysSimPlanConverter(Scenario _scenario){
+    public AgentSimToPhysSimPlanConverter(BeamServices _services){
 
+        this.services = _services;
+        beamRouterRef = this.services.beamRouter();
+        Scenario _scenario = this.services.matsimServices().getScenario();
         // Is this factory connected to main factory loaded in BeamSim or a new factory
         //Scenario localScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig("C:/ns/beam-integration-project/model-inputs/beamville/beam.conf"));
         //System.out.println("Network loaded1 -> " + localScenario.getNetwork().getNodes().toString());
@@ -99,10 +105,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         ActorSystem system = ActorSystem.create("PhysicalSimulation");
         ActorRef eventHandlerActorREF = system.actorOf(Props.create(EventManagerActor.class));
         EventsManager eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
-        ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager, network));
+
+
+
+        ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager, network, beamRouterRef));
 
         jdeqsimActorREF.tell("start", ActorRef.noSender());
-        eventHandlerActorREF.tell("registerJDEQSimREF", eventHandlerActorREF);
+        eventHandlerActorREF.tell("registerJDEQSimREF", jdeqsimActorREF);
+
+
+
+
         system.awaitTermination();
 
 
