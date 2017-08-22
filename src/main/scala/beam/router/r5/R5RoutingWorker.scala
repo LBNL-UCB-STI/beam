@@ -13,6 +13,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
+import beam.physsim.model.LinkTime
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.{SUBWAY, WALK}
 import beam.router.Modes._
@@ -393,9 +394,23 @@ object R5RoutingWorker extends HasProps {
   var transportNetwork: TransportNetwork = null
 
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
-
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
                                       originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[Id[Vehicle]]],
                                       walkOnlyProfiles: Vector[ProfileRequest],
                                       vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]])
+
+  def updateTimesTest = {
+    for (i <- 0 until     transportNetwork.streetLayer.edgeStore.nEdges()){
+      transportNetwork.streetLayer.edgeStore.getCursor(i).setSpeed(10000)
+    }
+  }
+
+  def updateTimes(times: java.util.List[LinkTime] ) = {
+    for (time <- times.asScala){
+      transportNetwork.streetLayer.edgeStore.getCursor(
+        transportNetwork.streetLayer.edgeStore.osmids.binarySearch(time.getLinkId())).setSpeed(time.getTime().toShort)
+
+    }
+  }
+
 }
