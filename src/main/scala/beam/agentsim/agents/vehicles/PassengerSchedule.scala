@@ -11,7 +11,7 @@ import scala.collection.mutable
   * BEAM
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
-  def getStartLed() = {
+  def getStartLeg() = {
     schedule.head._1
   }
   def addLegs(legs: Seq[BeamLeg]) = {

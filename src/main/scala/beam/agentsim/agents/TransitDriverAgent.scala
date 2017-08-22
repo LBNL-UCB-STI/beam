@@ -1,8 +1,8 @@
 package beam.agentsim.agents
 
 import akka.actor.Props
-import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentInfo, Uninitialized}
-import beam.agentsim.agents.PersonAgent.Waiting
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Uninitialized}
+import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
@@ -38,7 +38,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
     case Event(InitializeTrigger(tick), info: BeamAgentInfo[TransitDriverData]) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       data.vehicleUnderControl.ref ! BecomeDriver(tick, id, Option(data.passengerSchedule))
-      val firstStop = data.passengerSchedule.getStartLed()
+      val firstStop = data.passengerSchedule.getStartLeg()
       val embodiedBeamLeg = EmbodiedBeamLeg(firstStop, data.vehicleUnderControl.id, asDriver = true, None, 0.0, unbecomeDriverOnCompletion =  false)
       //start Moving by scheduling startLeg trigger
       beamServices.schedulerRef  ! scheduleOne[StartLegTrigger](firstStop.startTime, self, embodiedBeamLeg)
@@ -51,4 +51,25 @@ class TransitDriverAgent(val beamServices: BeamServices,
 //  chainedWhen(Traveling) {
 //  }
 
+  when(Waiting) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message $msg")
+      goto(Error)
+  }
+  when(Moving) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message $msg")
+      goto(Error)
+  }
+  when(AnyState) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message $msg")
+      goto(Error)
+  }
 }

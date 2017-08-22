@@ -75,9 +75,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState,StateFunction]
   final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit = {
     chainedStateFunctions.addBinding(stateName,stateFunction)
-    when(stateName, null) { case event =>
-      handleEvent(stateName, event)
-    }
   }
 
   def handleEvent(state: BeamAgentState, event: Event): State = {
