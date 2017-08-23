@@ -402,6 +402,16 @@ object R5RoutingWorker extends HasProps {
   def updateTimesTest = {
     for (i <- 0 until     transportNetwork.streetLayer.edgeStore.nEdges()){
       transportNetwork.streetLayer.edgeStore.getCursor(i).setSpeed(10000)
+      /*
+      We receive a message here in the router and we calculate the average time for a link for the entire day
+      0 seconds to 24 hours(84000 seconds approx)
+      We make a step size of 60 seconds, link, time of the day, what is time at 0, at 60 and 120 and take the average
+      and setSpeed to that average
+       */
+
+      /** ********/
+      // Send whole travelTimeCalculator to the router
+      // The router will basically use it and the second argument will be for what time for.
     }
   }
 
@@ -411,6 +421,10 @@ object R5RoutingWorker extends HasProps {
         transportNetwork.streetLayer.edgeStore.osmids.binarySearch(time.getLinkId())).setSpeed(time.getTime().toShort)
 
     }
+  }
+
+  def getLinkTimeTest(linkId: Long) = {
+    transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.edgeStore.osmids.binarySearch(linkId)).getSpeed()
   }
 
 }

@@ -1,8 +1,8 @@
 package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.physsim.jdeqsim.akka.AkkaEventHandlerAdapter;
 import beam.physsim.jdeqsim.akka.EventManagerActor;
@@ -11,6 +11,7 @@ import beam.router.Modes;
 import beam.router.RoutingModel;
 import beam.router.r5.R5RoutingWorker;
 import beam.sim.BeamServices;
+import glokka.Registry;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.*;
@@ -25,11 +26,14 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.vehicles.Vehicle;
+import scala.concurrent.Await;
+import scala.util.Left;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by asif on 8/18/2017.
@@ -48,12 +52,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     List<PathTraversalEvent> pathTraversalEventList = new ArrayList<>();
     BeamServices services;
-    ActorRef beamRouterRef;
+    //ActorRef beamRouterRef;
 
     public AgentSimToPhysSimPlanConverter(BeamServices _services){
 
         this.services = _services;
-        beamRouterRef = this.services.beamRouter();
+        //beamRouterRef = this.services.beamRouter();
         Scenario _scenario = this.services.matsimServices().getScenario();
         // Is this factory connected to main factory loaded in BeamSim or a new factory
         //Scenario localScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig("C:/ns/beam-integration-project/model-inputs/beamville/beam.conf"));
@@ -102,22 +106,42 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         //Scenario scenario = ScenarioUtils.loadScenario(config);
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
 
-        ActorSystem system = ActorSystem.create("PhysicalSimulation");
-        ActorRef eventHandlerActorREF = system.actorOf(Props.create(EventManagerActor.class));
-        EventsManager eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
+        //ActorSystem system = ActorSystem.create("PhysicalSimulation");
+
+
+        //val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler],3600*30.0, 300.0))
+        //services.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
+
+        ActorRef registry = this.services.registry();
+        try{
+            //ActorRef eventHandlerActorREF = system.actorOf(Props.create(EventManagerActor.class));
+            glokka.Registry.Register r = new glokka.Registry.Register("EventManagerActor", new Left(EventManagerActor.props()));
+            Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+            scala.concurrent.Future<Object> future = Patterns.ask(registry, r, timeout);
+            Registry.Created eventManagerActorCreated = (Registry.Created) Await.result(future, timeout.duration());
+            ActorRef eventHandlerActorREF = eventManagerActorCreated.ref();
+            EventsManager eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
+
+            //ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager, network, beamRouterRef));
+            glokka.Registry.Register r2 = new glokka.Registry.Register("JDEQSimActor", new Left(JDEQSimActor.props(jdeqSimConfigGroup,scenario,eventsManager, network, this.services.beamRouter())));
+            timeout = new Timeout(10, TimeUnit.SECONDS);
+            scala.concurrent.Future<Object> future2 = Patterns.ask(registry, r2, timeout);
+            Registry.Created jdeqsimActorREFCreated = (Registry.Created)  Await.result(future2, timeout.duration());
+            ActorRef jdeqsimActorREF = jdeqsimActorREFCreated.ref();
+
+            jdeqsimActorREF.tell("start", ActorRef.noSender());
+            eventHandlerActorREF.tell("registerJDEQSimREF", jdeqsimActorREF);
 
 
 
-        ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager, network, beamRouterRef));
 
-        jdeqsimActorREF.tell("start", ActorRef.noSender());
-        eventHandlerActorREF.tell("registerJDEQSimREF", jdeqsimActorREF);
+            //system.awaitTermination();
 
+        }
+        catch(Exception e){
 
-
-
-        system.awaitTermination();
-
+            e.printStackTrace();
+        }
 
     }
 

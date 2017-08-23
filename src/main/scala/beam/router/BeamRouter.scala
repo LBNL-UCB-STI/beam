@@ -9,6 +9,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, BeamTrip, EmbodiedBeamTrip}
+import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
@@ -61,8 +62,18 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       sender() ! RouterInitialized
     case Terminated(r) =>
       handelTermination(r)
-    case msg =>
+    case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
+      if (msg.equals("UpdateRoadNetworkTravelTimes")) {
+        R5RoutingWorker.updateTimesTest
+        sender() ! "TIMES_UPDATED"
+      }else if(msg.equals("GET_LINK_TRAVEL_TIME")){
+
+        val linkId = 30
+        val timeForLink = R5RoutingWorker.getLinkTimeTest(linkId)
+        sender() ! ("TIME_FOR_LINK_" + timeForLink)
+      }
+    }
   }
 
   private def handelTermination(r: ActorRef): Unit = {

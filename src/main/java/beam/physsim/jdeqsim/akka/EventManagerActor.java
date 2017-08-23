@@ -1,6 +1,7 @@
 package beam.physsim.jdeqsim.akka;
 
 import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.actor.UntypedActor;
 import org.matsim.api.core.v01.events.Event;
 
@@ -29,5 +30,9 @@ public class EventManagerActor extends UntypedActor {
         }
         
     }
+
+	public static Props props(){
+		return  Props.create(EventManagerActor.class);
+	}
 	
 }

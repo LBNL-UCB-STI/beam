@@ -1,6 +1,7 @@
 package beam.physsim.jdeqsim.akka;
 
 import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.actor.UntypedActor;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -87,16 +88,42 @@ public class JDEQSimActor extends UntypedActor {
 				 //travelTimeCalculator.getLinkTravelTimes()
 				 //for (TravelTime tt : travelTimeCalculator.)
 				 for(Id<Link> linkId : network.getLinks().keySet()){
-				 	double time = travelTimeCalculator.getLinkTravelTime(linkId, 0.0);
+				 	double time = travelTimeCalculator.getLinkTravelTime(linkId, 0.0); // question about this
 				 	System.out.println("TIME FOR LINK ->> " + time);
 				 }
 
+				 /**********/
+				 // Send whole travelTimeCalculator to the router
+				 // The router will basically use it and the second argument will be for what time for.
 
-				 //beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
+				 /*
+				 Just for a specific link we can print the time for one specific link for before and after the update
+				 Just make sure that some traffic was on that link for the day
 
+				 Case 2: Just test that two different actors are using two travel time calculators
+				 		We have to process large number of events from jdeqsim for which we will need multiple time calculators
+				 		the data within timetravel calculator
+				  */
+
+				 beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
+
+
+			 }else if(s.equalsIgnoreCase("TIMES_UPDATED")){
+
+				 beamRouterRef.tell("GET_LINK_TRAVEL_TIME", getSelf());
+
+			 }else if(s.contains("TIME_FOR_LINK_")){
+
+				 System.out.println("Updated Time -> " + s);
 
 			 }
+
 		 }
     }
+
+
+	public static Props props(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Network network, final ActorRef beamRouterRef){
+		return  Props.create(JDEQSimActor.class,config, scenario,events, network, beamRouterRef);
+	}
 	
 }
