@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap, TimeUnit}
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
@@ -16,6 +16,8 @@ import org.matsim.core.controler._
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -36,14 +38,14 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var physSim: ActorRef = _
   var schedulerRef: ActorRef =_
   var taxiManager: ActorRef = _
-  var persons: Map[Id[Person], Person] = Map()
-  var personRefs: Map[Id[Person], ActorRef] = Map()
-  var vehicles: Map[Id[Vehicle], Vehicle] = Map()
-  var vehicleRefs: Map[Id[Vehicle], ActorRef] = Map()
-  var households : Map[Id[Household], Household] = Map()
-  var householdRefs : Map[Id[Household], ActorRef] = Map()
-  var agentRefs: Map[String, ActorRef] = Map()
-  var transitVehiclesByBeamLeg: Map[BeamLeg, Id[Vehicle]] = Map()
+  val persons: mutable.Map[Id[Person], Person] = new ConcurrentHashMap[Id[Person], Person]().asScala
+  val personRefs: mutable.Map[Id[Person], ActorRef] = new ConcurrentHashMap[Id[Person], ActorRef]().asScala
+  val vehicles: mutable.Map[Id[Vehicle], Vehicle] =new ConcurrentHashMap[Id[Vehicle], Vehicle]().asScala
+  val vehicleRefs: mutable.Map[Id[Vehicle], ActorRef] =new ConcurrentHashMap[Id[Vehicle], ActorRef]().asScala
+  val households : mutable.Map[Id[Household], Household] = new ConcurrentHashMap[Id[Household], Household]().asScala
+  val householdRefs : mutable.Map[Id[Household], ActorRef] = new ConcurrentHashMap[Id[Household], ActorRef]().asScala
+  val agentRefs: mutable.Map[String, ActorRef] = new ConcurrentHashMap[String, ActorRef]().asScala
+  val transitVehiclesByBeamLeg: mutable.Map[BeamLeg, Id[Vehicle]] = mutable.Map[BeamLeg, Id[Vehicle]]()
 
 }
 

@@ -145,7 +145,8 @@ class PersonAgent(val beamServices: BeamServices,
   chainedWhen(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentAct = currentActivity
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)))
+      val startEvent = new ActivityStartEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)
+      beamServices.agentSimEventsBus.publish(MatsimEvent(startEvent))
       // Since this is the first activity of the day, we don't increment the currentActivityIndex
       logInfo(s"starting at ${currentAct.getType} @ $tick")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentAct.getEndTime, self))
@@ -246,11 +247,11 @@ class PersonAgent(val beamServices: BeamServices,
               VehiclePersonId(processedData.nextLeg.beamVehicleId,id)
             }
             //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and vehicle is the same...
-            val nextLeg = processedData.nextLeg
+            val nextEmbodiedBeamLeg = processedData.nextLeg
             passengerSchedule.addLegs(Vector(processedData.nextLeg.beamLeg))
             beamServices.vehicleRefs(vehiclePersonId.passengerVehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
             _currentRoute = processedData.restTrip
-            stay() replying completed(triggerId,schedule[StartLegTrigger](nextLeg.beamLeg.startTime,self,nextLeg))
+            stay() replying completed(triggerId,schedule[StartLegTrigger](nextEmbodiedBeamLeg.beamLeg.startTime,self, nextEmbodiedBeamLeg))
           }else{
             // We don't update PersonData with the rest of the currentRoute, this will happen when the agent recieves the NotifyStartLeg message
             goto(Waiting) replying completed(triggerId)

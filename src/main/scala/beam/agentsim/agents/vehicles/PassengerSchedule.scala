@@ -11,6 +11,9 @@ import scala.collection.mutable
   * BEAM
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
+  def getStartLeg() = {
+    schedule.head._1
+  }
   def addLegs(legs: Seq[BeamLeg]) = {
     legs.foreach(leg =>
       schedule.get(leg) match {

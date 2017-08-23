@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
 import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
+import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, BeamTrip, EmbodiedBeamTrip}
 import beam.sim.BeamServices
@@ -44,6 +44,8 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       stash()
     case RoutingRequest =>
       stash()
+    case InitTransit =>
+      stash()
     case RouterInitialized if sender().path.parent == self.path =>
       unstashAll()
       context.become(initialized)
@@ -56,6 +58,8 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
   def initialized: Receive = {
     case w: RoutingRequest =>
       router.route(w, sender())
+    case InitTransit =>
+      router.route(InitTransit, sender())
     case InitializeRouter =>
       log.debug("Router already initialized.")
       sender() ! RouterInitialized
@@ -85,6 +89,8 @@ object BeamRouter {
   case object InitializeRouter extends RouterMessage
   case object RouterInitialized extends RouterMessage
   case object RouterNeedInitialization extends RouterMessage
+  case object InitTransit
+  case object TransitInited
 
 
   /**

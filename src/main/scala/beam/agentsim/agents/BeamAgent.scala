@@ -73,8 +73,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   protected var _currentTick: Option[Double] = None
 
   private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState,StateFunction]
-  final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit =
+  final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit = {
     chainedStateFunctions.addBinding(stateName,stateFunction)
+  }
 
   def handleEvent(state: BeamAgentState, event: Event): State = {
     var theStateData = event.stateData
@@ -164,7 +165,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
    * Helper methods
    */
   def holdTickAndTriggerId(tick: Double, triggerId: Long) = {
-    if(_currentTriggerId != None || _currentTick != None)throw new IllegalStateException(s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively.")
+    if(_currentTriggerId.isDefined || _currentTick.isDefined)
+      throw new IllegalStateException(s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively.")
+
     _currentTick = Some(tick)
     _currentTriggerId = Some(triggerId)
   }

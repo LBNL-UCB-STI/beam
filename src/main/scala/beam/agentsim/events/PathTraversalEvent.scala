@@ -2,7 +2,7 @@ package beam.agentsim.events
 
 import java.util
 
-import beam.router.RoutingModel.{BeamLeg, BeamStreetPath}
+import beam.router.RoutingModel.{BeamLeg, BeamStreetPath, BeamTransitSegment}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.internal.HasPersonId
@@ -30,7 +30,10 @@ case class PathTraversalEvent(id: Id[Vehicle], beamLeg: BeamLeg) extends Event(b
     attr.put(ATTRIBUTE_MODE, beamLeg.mode.toString)
 //    attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
 //    beamLeg.travelPath.swap.foreach(sp => attr.put(ATTRIBUTE_LINK_IDS, sp.linkIds.mkString(",")))
-    attr.put(ATTRIBUTE_LINK_IDS, beamLeg.travelPath.asInstanceOf[BeamStreetPath].linkIds.mkString(","))
+    if (beamLeg.travelPath.isStreet) {
+      attr.put(ATTRIBUTE_LINK_IDS, beamLeg.travelPath.asInstanceOf[BeamStreetPath].linkIds.mkString(","))
+    }
+
     attr
   }
 }

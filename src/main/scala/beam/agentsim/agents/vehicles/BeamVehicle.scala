@@ -25,6 +25,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.reflect.ClassTag
 /**
   * @author dserdiuk
   */
@@ -129,7 +130,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
   var driver: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
   var trajectory: Option[Trajectory] = None
-  var pendingReservations = List[ReservationRequest]()
+  var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
 
   def location(time: Double): Future[SpaceTime] = {
     trajectory match {
@@ -169,8 +170,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
   }
 
   chainedWhen(Uninitialized){
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
-      goto(Idle) replying completed(triggerId)
+    case Event(InitializeTrigger(_), _) =>
+      log.debug(s" $id has been initialized, going to Idle state")
+      goto(Idle)
   }
 
  private def sendPendingReservations(driverActor: ActorRef) = {
@@ -197,7 +199,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
         val driverActor = driver.get
         sendPendingReservations(driverActor)
         driverActor  ! BecomeDriverSuccess(newPassengerSchedule, id)
-      }else {
+      } else {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are drivers, but futur versions of BEAM may seek to be robust to this condition
         throw new RuntimeException(s"BeamAgent $newDriver attempted to become driver of vehicle $id but driver ${driver.get} already assigned.")
         //        val beamAgent = sender()
@@ -248,16 +250,16 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
   }
 
   chainedWhen(AnyState){
-    case Event(VehicleLocationRequest(time), data) =>
+    case Event(VehicleLocationRequest(time), _) =>
       sender() ! VehicleLocationResponse(id, location(time))
       stay()
-    case Event(AssignedCarrier(carrierVehicleId), data) =>
+    case Event(AssignedCarrier(carrierVehicleId), _) =>
       carrier = beamServices.vehicleRefs.get(carrierVehicleId)
       stay()
-    case Event(ResetCarrier, data) =>
+    case Event(ResetCarrier, _) =>
       carrier = None
       stay()
-    case Event(request: ReservationRequest, agentInfo) =>
+    case Event(request: ReservationRequest, _) =>
       driver match {
         case Some(driverActor) =>
           driverActor ! ReservationRequestWithVehicle(request, id)
@@ -265,7 +267,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
           pendingReservations = pendingReservations :+ request
       }
       stay()
-    case Event(any, data) =>
+    case Event(any, _) =>
       logError(s"Unhandled event: $id $any $data")
       stay()
   }

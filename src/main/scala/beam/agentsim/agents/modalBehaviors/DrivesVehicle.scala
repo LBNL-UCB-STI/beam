@@ -44,7 +44,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
       //we have just completed a leg
-      logDebug(s"Received EndLeg for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
+      logDebug(s"Received EndLeg($tick, ${completedLeg.beamLeg.endTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
       passengerSchedule.schedule.get(completedLeg.beamLeg) match {
         case Some(manifest) =>
           holdTickAndTriggerId(tick, triggerId)
@@ -81,6 +81,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       stay()
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
       holdTickAndTriggerId(tick,triggerId)
+      logDebug(s"Received StartLeg($tick, ${newLeg.beamLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
+
       passengerSchedule.schedule.get(newLeg.beamLeg) match {
         case Some(manifest) =>
           _currentLeg = Some(newLeg)
@@ -107,14 +109,18 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
   chainedWhen(AnyState){
     case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
       require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
+      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
+
       val response = handleVehicleReservation(req, vehicleIdToReserve)
       beamServices.personRefs(req.requester) ! response
       stay()
   }
+
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
     goto(Moving) replying completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.beamLeg.endTime,self,_currentLeg.get))
   }
+
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
     val shouldExitVehicle = _currentLeg.get.unbecomeDriverOnCompletion
@@ -122,10 +128,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
     if(passengerSchedule.schedule.nonEmpty){
-      goto(Waiting) replying completed(theTriggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self,passengerSchedule.schedule.firstKey))
+      val nextLeg = passengerSchedule.schedule.firstKey
+      goto(Waiting) replying completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime,self,  EmbodiedBeamLeg(nextLeg)))
     }else{
-      if(shouldExitVehicle)_currentVehicleUnderControl.get.ref ! UnbecomeDriver(theTick, id)
-      goto(Waiting) replying completed(theTriggerId, schedule[CompleteDrivingMissionTrigger](theTick,self))
+      if (shouldExitVehicle) {
+        _currentVehicleUnderControl.get.ref ! UnbecomeDriver(theTick, id)
+      }//handle this cas in transit vehicle to stop agent when schedule is finished
+      goto(Waiting) replying completed(theTriggerId, schedule[CompleteDrivingMissionTrigger](theTick, self))
     }
   }
 

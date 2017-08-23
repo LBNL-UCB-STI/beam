@@ -15,7 +15,7 @@ import beam.agentsim.scheduler.{BeamAgentScheduler, TriggerWithId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.{BeamRouter, RoutingWorker}
-import beam.router.BeamRouter.InitializeRouter
+import beam.router.BeamRouter.{InitTransit, InitializeRouter}
 import beam.utils.JsonUtils
 import com.google.inject.Inject
 import glokka.Registry
@@ -88,7 +88,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     Await.result(physSimInitFuture, timeout.duration)
 
     val taxiManagerFuture = services.registry ? Registry.Register("taxiManager", RideHailingManager.props("taxiManager",
-      fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles,
+      fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles.toMap,
       services))
     services.taxiManager = Await.result(taxiManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
@@ -101,7 +101,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()
-    Await.result(services.schedulerRef ? StartSchedule(), timeout.duration)
+    // init transit and start movement
+    Await.result(services.beamRouter ? InitTransit, timeout.duration)
+    Await.result(services.schedulerRef ? StartSchedule, timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -149,11 +151,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
-    services.persons = ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
-    services.vehicles = services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
-    services.households = services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
+    services.persons ++ ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
+    services.vehicles ++ services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
+    services.households ++ services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
     var personToHouseholdId: Map[Id[Person],Id[Household]] = Map()
-    services.households.map {
+    services.households.foreach {
       case (householdId, matSimHousehold) =>
         personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => (personId -> householdId))
     }
@@ -189,17 +191,17 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 //      val ref: ActorRef = actorSystem.actorOf(props, s"taxi_${k.toString}_$iter")
 //      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
 //    }
-    services.householdRefs = initHouseholds(iterId)
+    initHouseholds(iterId)
 
     //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
     services.personRefs.foreach{case(id, ref) =>
-      services.agentRefs = services.agentRefs + (id.toString() -> ref)
+      services.agentRefs.put(id.toString, ref)
     }
   }
 
   private def initHouseholds(iterId: Option[String] = None)  = {
     val householdAttrs = services.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-    val actors = services.households.map {
+    val actors = services.households.foreach {
       case (householdId, matSimHousehold) =>
         //TODO a good example where projection should accompany the data
         val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString,"homeCoordX").asInstanceOf[Double],
@@ -220,9 +222,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         val props = HouseholdActor.props(services, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
         householdActor ! InitializeTrigger(0)
-        (householdId, householdActor)
+        services.householdRefs.put(householdId, householdActor)
     }
-    actors
   }
 
   private def initVehicleActors(iterId: Option[String] = None) = {
@@ -238,7 +239,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
           CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
         }
         val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(matSimVehicle))
-        services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), beamVehicleRef)
+        beamVehicleRef ! InitializeTrigger(0.0)
         (vehicleId, beamVehicleRef)
     }
     actors
