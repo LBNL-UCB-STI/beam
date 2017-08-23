@@ -3,9 +3,7 @@ package beam.physsim.jdeqsim.akka;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
-import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.Plan;
@@ -87,10 +85,10 @@ public class JDEQSimActor extends UntypedActor {
 			 	System.out.println(">>> Events finished processing");
 				 //travelTimeCalculator.getLinkTravelTimes()
 				 //for (TravelTime tt : travelTimeCalculator.)
-				 for(Id<Link> linkId : network.getLinks().keySet()){
+				 /*for(Id<Link> linkId : network.getLinks().keySet()){
 				 	double time = travelTimeCalculator.getLinkTravelTime(linkId, 0.0); // question about this
 				 	System.out.println("TIME FOR LINK ->> " + time);
-				 }
+				 }*/
 
 				 /**********/
 				 // Send whole travelTimeCalculator to the router
@@ -105,8 +103,9 @@ public class JDEQSimActor extends UntypedActor {
 				 		the data within timetravel calculator
 				  */
 
-				 beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
 
+				 //beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
+				 beamRouterRef.tell(travelTimeCalculator, getSelf());
 
 			 }else if(s.equalsIgnoreCase("TIMES_UPDATED")){
 

@@ -13,6 +13,7 @@ import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
+import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
 import scala.beans.BeanProperty
 
@@ -62,6 +63,8 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       sender() ! RouterInitialized
     case Terminated(r) =>
       handelTermination(r)
+    case calc: TravelTimeCalculator =>
+      log.info("Received TravelTimeCalculator")
     case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
       if (msg.equals("UpdateRoadNetworkTravelTimes")) {
