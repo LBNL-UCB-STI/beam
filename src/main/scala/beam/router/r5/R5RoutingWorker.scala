@@ -35,6 +35,7 @@ import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.{Vehicle, VehicleType}
 import org.matsim.facilities.Facility
 import org.opentripplanner.routing.vertextype.TransitStop
@@ -427,4 +428,48 @@ object R5RoutingWorker extends HasProps {
     transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.edgeStore.osmids.binarySearch(linkId)).getSpeed()
   }
 
+  def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
+    /*for (time <- times.asScala){
+      transportNetwork.streetLayer.edgeStore.getCursor(
+        transportNetwork.streetLayer.edgeStore.osmids.binarySearch(time.getLinkId())).setSpeed(time.getTime().toShort)
+
+    }*/
+
+    //travelTimeCalculator.getLinkTravelTimes()
+    //for (TravelTime tt : travelTimeCalculator.)
+    System.out.println("No of edges -> " + transportNetwork.streetLayer.edgeStore.nEdges())
+    for (i <- 0 until transportNetwork.streetLayer.edgeStore.nEdges() - 1){
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(i)
+      val linkId = edge.getOSMID
+      System.out.print("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + i)
+
+      if(linkId > 0) {
+        val avgTime = getAverageTime(linkId, travelTimeCalculator) // question about this
+        System.out.println(" - " + avgTime)
+        edge.setSpeed(avgTime)
+        //System.out.println("TIME FOR LINK ->> " + time);
+      }else{
+        System.out.println()
+      }
+    }
+
+
+  }
+
+  def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
+
+    var avgTime = 0.0
+    var totalTime = 0.0
+    var totalIterations = 0
+    var link: Id[org.matsim.api.core.v01.network.Link] = Id.createLinkId(linkId)
+
+    if(link != null) {
+      for (i <- 0 until 86400 by 60) {
+        totalTime = totalTime + travelTimeCalculator.getLinkTravelTime(link, i.toDouble)
+        totalIterations = totalIterations + 1
+      }
+    }
+
+    (totalTime/totalIterations).toShort
+  }
 }

@@ -65,6 +65,7 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       handelTermination(r)
     case calc: TravelTimeCalculator =>
       log.info("Received TravelTimeCalculator")
+      R5RoutingWorker.updateTimes(calc)
     case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
       if (msg.equals("UpdateRoadNetworkTravelTimes")) {
