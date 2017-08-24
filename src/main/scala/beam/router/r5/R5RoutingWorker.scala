@@ -102,11 +102,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         }
         // Create the driver agent and vehicle here
         //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
-        val matsimVehicle = if(mode==SUBWAY){
-          beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create("2",classOf[VehicleType]))
-        }else{
-          beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create("1",classOf[VehicleType]))
-        }
+        val matsimVehicle = beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create(mode match { case SUBWAY => "2"; case _ => "1" },classOf[VehicleType]))
 //        val transitVehRef = context.actorOf(TransitVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle))
 
       }
@@ -168,7 +164,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         originalProfileModeToVehicle.addBinding(beamMode,veh.id)
       )
     )
-    if(!uniqueBeamModes.contains(WALK))log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
+    if(!uniqueBeamModes.contains(WALK)) log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
@@ -270,9 +266,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
-                              segmentPattern.toDepartureTime.get(transitJourneyID.time).toEpochSecond
+                              segmentPattern.toDepartureTime
                             else
-                              segmentPattern.toArrivalTime.get(transitJourneyID.time).toEpochSecond ) -
+                              segmentPattern.toArrivalTime ).get(transitJourneyID.time).toEpochSecond -
               segmentPattern.fromDepartureTime.get(transitJourneyID.time).toEpochSecond
 
             legs = legs :+ new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)),
