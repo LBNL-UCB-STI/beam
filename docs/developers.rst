@@ -65,12 +65,12 @@ Environment Variables
 
 Depending on from where you want to run the BEAM application and from where you want to run gradle tasks, the specific place where you set these variables will differ. To run from the command line, add these statements to your .bash_profile file::
 
-  export BEAM_SHARED_INPUTS=/path/to/beam-developers/model-inputs/`
+  export BEAM_SHARED_INPUTS=/path/to/beam-developers/`
   export BEAM_OUTPUTS=/path/to/your/preferred/output/destination/`
 
 To run from IntelliJ as an "Application", edit the "Environment Variables" field in your Run Configuration to look like this::
 
-  BEAM_OUTPUTS="/path/to/your/preferred/output/destination/";BEAM_SHARED_INPUTS="/path/to/beam-developers/model-inputs/"
+  BEAM_OUTPUTS="/path/to/your/preferred/output/destination/";BEAM_SHARED_INPUTS="/path/to/beam-developers/"
 
 Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure you variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
 
@@ -109,7 +109,7 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_SHARED_INPUTS.plist`::
           <string>/bin/launchctl</string>
           <string>setenv</string>
           <string>BEAM_SHARED_INPUTS</string>
-          <string>/path/to/beam-developers/model-inputs/</string>
+          <string>/path/to/beam-developers/</string>
         </array>
         <key>RunAtLoad</key>
         <true/>
