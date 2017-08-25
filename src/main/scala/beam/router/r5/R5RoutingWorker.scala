@@ -8,11 +8,12 @@ import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor.Props
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.Modes.BeamMode.{SUBWAY, WALK}
+import beam.router.Modes.BeamMode.{BUS, SUBWAY, TRANSIT, WALK}
 import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
@@ -30,7 +31,8 @@ import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.utils.objectattributes.attributable.Attributes
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -46,7 +48,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   override def init: Unit = {
     loadMap
     overrideR5EdgeSearchRadius(2000)
-    initTransitVehicles()
+    initTransit()
   }
 
   private def loadMap = {
@@ -78,7 +80,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
    * be used to decide what type of vehicle to assign
    *
    */
-  def initTransitVehicles(): Unit = {
+  def initTransit(): Unit = {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
@@ -107,7 +109,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
         val matsimVehicle = beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create(mode match { case SUBWAY => "2"; case _ => "1" },classOf[VehicleType]))
 //        val transitVehRef = context.actorOf(TransitVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle))
-
+        (tripVehId,route,passengerSchedule)
       }
     }
     val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg().startTime).take(1000)
