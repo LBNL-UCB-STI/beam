@@ -3,13 +3,13 @@ package beam.router
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
-import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
+import akka.routing.{ActorRefRoutee, Broadcast, RoundRobinRoutingLogic, Router}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, BeamTrip, EmbodiedBeamTrip}
-import beam.router.r5.R5RoutingWorker
+import beam.router.r5.{R5RoutingWorker, TransportNetworkWorker}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
@@ -17,11 +17,17 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
 import scala.beans.BeanProperty
 
+
 class BeamRouter(beamServices: BeamServices) extends Actor with Stash with ActorLogging {
   var services: BeamServices = beamServices
-  var router = Router(RoundRobinRoutingLogic(), Vector.fill(5) {
-    ActorRefRoutee(createAndWatch)
-  })
+  var router:Router = null
+  var transportNetworkWorker :ActorRef = null
+  override def preStart(): Unit = {
+    router = Router(RoundRobinRoutingLogic(), Vector.fill(5) {
+      ActorRefRoutee(createAndWatch)
+    })
+    transportNetworkWorker = context.actorOf(TransportNetworkWorker.getUpdateTransportNetworkProps(beamServices))
+  }
 
   def receive = uninitialized
 
@@ -65,18 +71,19 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       handelTermination(r)
     case calc: TravelTimeCalculator =>
       log.info("Received TravelTimeCalculator")
-      R5RoutingWorker.updateTimes(calc)
+      transportNetworkWorker.tell(calc,ActorRef.noSender)
     case msg => {
-      log.info(s"Unknown message[$msg] received by Router.")
-      if (msg.equals("UpdateRoadNetworkTravelTimes")) {
-        R5RoutingWorker.updateTimesTest
-        sender() ! "TIMES_UPDATED"
-      }else if(msg.equals("GET_LINK_TRAVEL_TIME")){
-
-        val linkId = 30
-        val timeForLink = R5RoutingWorker.getLinkTimeTest(linkId)
-        sender() ! ("TIME_FOR_LINK_" + timeForLink)
+      log.info(s"Received message[$msg] by Router.")
+      if(msg.equals("REPLACE_NETWORK")){
+       transportNetworkWorker.tell("REPLACE_NETWORK",self)
       }
+      else if(msg.equals("NETWORK_REPLACEMENT_DONE")){
+
+        R5RoutingWorker.printUpdatedNetworkEdge
+      }
+      else
+        log.info(s"Unknown message[$msg] received by Router.")
+
     }
   }
 
