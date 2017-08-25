@@ -3,6 +3,7 @@ package beam.router
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.{Location, RoutingRequestTripInfo, _}
+import beam.router.r5.R5RoutingWorker
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -17,8 +18,16 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
           //      log.info(s"Router received routing request from person $personId ($sender)")
           sender() ! calcRoute(requestId, params, getPerson(params.personId))
-    case msg =>
-      log.info(s"Unknown message received by Router $msg")
+    case msg => {
+      log.info(s"Received message[$msg] by RoutingWorker.")
+      if(msg.equals("REPLACE_NETWORK")){
+        R5RoutingWorker.replaceNetwork
+        System.out.println("Router Worker Actor Path " + akka.serialization.Serialization.serializedActorPath(self))
+        sender() ! "NETWORK_REPLACEMENT_DONE"
+      }else {
+        log.info(s"Unknown message received by Router $msg")
+      }
+    }
   }
 
   def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo, person: Person): RoutingResponse

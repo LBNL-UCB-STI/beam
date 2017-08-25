@@ -103,9 +103,17 @@ public class JDEQSimActor extends UntypedActor {
 				 		the data within timetravel calculator
 				  */
 
+
 				 //beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
 				 beamRouterRef.tell(travelTimeCalculator, getSelf());
+				 //beamRouterRef.tell("REPLACE_NETWORK", getSelf());
+				 /*
+				 Combine both messages
+				  */
+
+
 			 }
+
 		 }
     }
 
