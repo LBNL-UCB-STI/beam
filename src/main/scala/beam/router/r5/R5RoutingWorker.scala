@@ -436,19 +436,21 @@ object R5RoutingWorker extends HasProps {
   def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
     copiedNetwork = CloneSerializedObject.deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
     System.out.println("No of edges -> " + copiedNetwork.streetLayer.edgeStore.nEdges())
-    for (i <- 0 until copiedNetwork.streetLayer.edgeStore.nEdges() - 1){
-      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(i)
-      val linkId = edge.getOSMID
-      System.out.print("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + i)
 
-      if(linkId > 0) {
-        val avgTime = getAverageTime(linkId, travelTimeCalculator) // question about this
-        System.out.println(" - " + avgTime)
-        edge.setSpeed(avgTime)
-      }else{
-        System.out.println()
+    linkMap.keySet().forEach((key) => {
+        val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
+        val linkId = edge.getOSMID
+        System.out.print("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + key)
+
+        if(linkId > 0) {
+          val avgTime = getAverageTime(linkId, travelTimeCalculator) // question about this
+          System.out.println(" - " + avgTime)
+          edge.setSpeed(avgTime)
+        }else{
+          System.out.println()
+        }
       }
-    }
+    )
   }
 
   def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
