@@ -22,7 +22,7 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
       log.info(s"Received message[$msg] by RoutingWorker.")
       if(msg.equals("REPLACE_NETWORK")){
         R5RoutingWorker.replaceNetwork
-        System.out.println("Router Worker Actor Path " + akka.serialization.Serialization.serializedActorPath(self))
+        log.info("Router Worker Actor Path " + akka.serialization.Serialization.serializedActorPath(self))
         sender() ! "NETWORK_REPLACEMENT_DONE"
       }else {
         log.info(s"Unknown message received by Router $msg")

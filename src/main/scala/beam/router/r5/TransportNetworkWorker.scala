@@ -1,6 +1,7 @@
 package beam.router.r5
 
 import akka.actor.{Actor, ActorLogging, Props}
+import beam.physsim.model.CopyNetworkAndUpdateRoadTravelTimes
 import beam.sim.BeamServices
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
@@ -11,9 +12,9 @@ class TransportNetworkWorker(beamServices: BeamServices) extends Actor with Acto
   var services: BeamServices = beamServices
 
   override def receive: Receive = {
-    case calc: TravelTimeCalculator =>
+    case networkUpdateRequest: CopyNetworkAndUpdateRoadTravelTimes =>
       log.info("Received TravelTimeCalculator")
-      R5RoutingWorker.updateTimes(calc)
+      R5RoutingWorker.updateTimes(networkUpdateRequest.getUpdateRoadTravelTimes.getTravelTimeCalculator)
       sender() ! "REPLACE_NETWORK"
     case msg => {
         log.info(s"Unknown message[$msg] received by UpdateTransportNetwork Actor.")

@@ -3,6 +3,7 @@ package beam.physsim.jdeqsim.akka;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.UntypedActor;
+import beam.physsim.model.UpdateRoadTravelTimes;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Person;
@@ -103,15 +104,7 @@ public class JDEQSimActor extends UntypedActor {
 				 		the data within timetravel calculator
 				  */
 
-
-				 //beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
-				 beamRouterRef.tell(travelTimeCalculator, getSelf());
-				 //beamRouterRef.tell("REPLACE_NETWORK", getSelf());
-				 /*
-				 Combine both messages
-				  */
-
-
+				 beamRouterRef.tell(new UpdateRoadTravelTimes(travelTimeCalculator), getSelf());
 			 }
 
 		 }

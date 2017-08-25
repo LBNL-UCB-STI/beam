@@ -7,13 +7,13 @@ import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
+import org.apache.log4j.Logger
 
-import akka.actor.Props
+import akka.actor.{ActorLogging, Props}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
-import beam.physsim.model.LinkTime
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.{SUBWAY, WALK}
 import beam.router.Modes._
@@ -43,14 +43,14 @@ import org.opentripplanner.routing.vertextype.TransitStop
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
+class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker  {
   //TODO this needs to be inferred from the TransitNetwork or configured
 //  val localDateAsString: String = "2016-10-17"
 //  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
   //TODO make this actually come from beamConfig
 //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
-
+  val logger = akka.event.Logging.getLogger(this.context.system, this)
   override def init: Unit = loadMap
 
   def loadMap = {
@@ -122,6 +122,12 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
+    /**
+      *Make sure not to use static transportNetwork reference more than once respectively copy ref before doing it, otherwise you might be using different
+      *transportNetwork reference during the same operation when it’s get updated
+      */
+
+
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
 
     val profileRequestToVehicles: ProfileRequestToVehicles = buildRequests(routingRequestTripInfo)
@@ -389,24 +395,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   }
 }
 
-object R5RoutingWorker extends HasProps {
-  val GRAPH_FILE = "/network.dat"
+object R5RoutingWorker extends HasProps  {
 
+  val GRAPH_FILE = "/network.dat"
   var transportNetwork: TransportNetwork = null
   var linkMap: util.Map[Int, Long] = new util.HashMap[Int, Long]()
   var copiedNetwork:TransportNetwork  = null
-
-  def getOsmId(edgeIndex: Int): Long = {
-    if(linkMap.containsKey(edgeIndex)){
-      linkMap.get(edgeIndex)
-    }else {
-      val osmLinkId = R5RoutingWorker.transportNetwork.streetLayer.edgeStore.getCursor(edgeIndex).getOSMID
-      linkMap.put(edgeIndex, osmLinkId)
-      osmLinkId
-    }
-  }
-
-
+  val logger = Logger.getLogger("R5RoutingWorker")
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
                                       originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[Id[Vehicle]]],
@@ -417,46 +412,39 @@ object R5RoutingWorker extends HasProps {
     if(transportNetwork != copiedNetwork)
       transportNetwork = copiedNetwork
     else{
-      /*To-do: allow switching if we just say warning or we should stop system allow here
-      Log warning to stop or error to warning
+      /**To-do: allow switching if we just say warning or we should stop system to allow here
+        * Log warning to stop or error to warning
+        */
+      /**
+        * This case is might happen as we are operating non thread safe environment it might happen that
+        * transportNetwork variable set by transportNetwork actor not possible visible to if it is not a
+        * critical error as worker will be continue working on obsolete state
+        */
+      logger.warn("Router worker continue execution on obsolete state")
+      logger.error("Router worker continue working on obsolete state")
+      logger.info("Router worker continue execution on obsolete state")
+    }
+  }
 
-      Throw exception
-        This case it might happen as we are operating non thread safe environment it might happen that transport network variable set
-      by transport Network actor not possible visible to if it is not a critical error as worker will be continue working on obsolete state
-      */
-    }
-  }
-  def printUpdatedNetworkEdge = {
-    for (i <- 0 until     transportNetwork.streetLayer.edgeStore.nEdges()){
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(i)
-      val linkId = edge.getOSMID
-      System.out.println("Link Id [" + linkId + "] => " + edge.getEdgeIndex + ", " + i+", Speed"+edge.getSpeed )
-    }
-  }
   def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
     copiedNetwork = CloneSerializedObject.deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
-    System.out.println("No of edges -> " + copiedNetwork.streetLayer.edgeStore.nEdges())
+    logger.info("No of edges -> " + copiedNetwork.streetLayer.edgeStore.nEdges())
     for (i <- 0 until copiedNetwork.streetLayer.edgeStore.nEdges() - 1){
       val edge = copiedNetwork.streetLayer.edgeStore.getCursor(i)
       val linkId = edge.getOSMID
-      System.out.print("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + i)
-
+      logger.info("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + i)
       if(linkId > 0) {
-        val avgTime = getAverageTime(linkId, travelTimeCalculator) // question about this
+        val avgTime = getAverageTime(linkId, travelTimeCalculator)
         System.out.println(" - " + avgTime)
         edge.setSpeed(avgTime)
-      }else{
-        System.out.println()
       }
     }
   }
 
   def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
-
-    var avgTime = 0.0
     var totalTime = 0.0
     var totalIterations = 0
-    var link: Id[org.matsim.api.core.v01.network.Link] = Id.createLinkId(linkId)
+    val link: Id[org.matsim.api.core.v01.network.Link] = Id.createLinkId(linkId)
 
     if(link != null) {
       for (i <- 0 until 86400 by 60) {
@@ -466,5 +454,15 @@ object R5RoutingWorker extends HasProps {
     }
 
     (totalTime/totalIterations).toShort
+  }
+
+  def getOsmId(edgeIndex: Int): Long = {
+    if(linkMap.containsKey(edgeIndex)){
+      linkMap.get(edgeIndex)
+    }else {
+      val osmLinkId = R5RoutingWorker.transportNetwork.streetLayer.edgeStore.getCursor(edgeIndex).getOSMID
+      linkMap.put(edgeIndex, osmLinkId)
+      osmLinkId
+    }
   }
 }
