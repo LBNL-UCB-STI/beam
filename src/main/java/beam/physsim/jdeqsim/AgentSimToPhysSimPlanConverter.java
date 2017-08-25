@@ -1,6 +1,7 @@
 package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
+import akka.actor.Props;
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import beam.agentsim.events.PathTraversalEvent;
@@ -14,7 +15,9 @@ import beam.sim.BeamServices;
 import glokka.Registry;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.events.*;
+import org.matsim.api.core.v01.events.ActivityEndEvent;
+import org.matsim.api.core.v01.events.ActivityStartEvent;
+import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.*;
@@ -112,37 +115,28 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         //val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler],3600*30.0, 300.0))
         //services.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
+
         ActorRef registry = this.services.registry();
         try{
-            //ActorRef eventHandlerActorREF = system.actorOf(Props.create(EventManagerActor.class));
-            glokka.Registry.Register r = new glokka.Registry.Register("EventManagerActor", new Left(EventManagerActor.props()));
-            Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
-            scala.concurrent.Future<Object> future = Patterns.ask(registry, r, timeout);
-            Registry.Created eventManagerActorCreated = (Registry.Created) Await.result(future, timeout.duration());
-            ActorRef eventHandlerActorREF = eventManagerActorCreated.ref();
+            ActorRef eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props());
             EventsManager eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
-
-            //ActorRef jdeqsimActorREF = system.actorOf(Props.create(JDEQSimActor.class,jdeqSimConfigGroup,scenario,eventsManager, network, beamRouterRef));
-            glokka.Registry.Register r2 = new glokka.Registry.Register("JDEQSimActor", new Left(JDEQSimActor.props(jdeqSimConfigGroup,scenario,eventsManager, network, this.services.beamRouter())));
-            timeout = new Timeout(10, TimeUnit.SECONDS);
-            scala.concurrent.Future<Object> future2 = Patterns.ask(registry, r2, timeout);
-            Registry.Created jdeqsimActorREFCreated = (Registry.Created)  Await.result(future2, timeout.duration());
-            ActorRef jdeqsimActorREF = jdeqsimActorREFCreated.ref();
+            ActorRef jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,scenario,eventsManager, network, this.services.beamRouter()));
 
             jdeqsimActorREF.tell("start", ActorRef.noSender());
             eventHandlerActorREF.tell("registerJDEQSimREF", jdeqsimActorREF);
-
-
-
-
             //system.awaitTermination();
-
         }
         catch(Exception e){
-
             e.printStackTrace();
         }
+    }
 
+    private ActorRef registerActor(ActorRef registry, String actorName, Props props) throws Exception {
+        glokka.Registry.Register r = new glokka.Registry.Register(actorName, new Left(props));
+        Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+        scala.concurrent.Future<Object> future = Patterns.ask(registry, r, timeout);
+        Registry.Created eventManagerActorCreated = (Registry.Created) Await.result(future, timeout.duration());
+        return eventManagerActorCreated.ref();
     }
 
     @Override
@@ -179,6 +173,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
 
         if(event instanceof ActivityStartEvent) {
+            // This is used to for handling the last activity of the day.
             ActivityStartEvent ase = ((ActivityStartEvent) event);
             String activityType = ase.getActType();
             Id<Link> linkId = ase.getLinkId();
@@ -186,25 +181,26 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
 
         }else if(event instanceof ActivityEndEvent) {
+            // This is used to find out the last activity before the car leg (PathTraversalEvent)
             ActivityEndEvent aee = ((ActivityEndEvent) event);
             String activityType = aee.getActType();
             Id<Link> linkId = aee.getLinkId();
             latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
 
-        }else if(event instanceof PersonEntersVehicleEvent){
-
-            // add person and vehicle to person vehicle map
-            PersonEntersVehicleEvent pevEvent = (PersonEntersVehicleEvent)event;
-            vehiclePersonMap.put(pevEvent.getVehicleId(), pevEvent.getPersonId());
-            System.out.println(getClass().getName() + "- " + PersonEntersVehicleEvent.class.getName() +  " -> VehiclePersonMap -> " + vehiclePersonMap.toString());
-        }else if(event instanceof PersonLeavesVehicleEvent) {
-            // remove person and vehicle from person vehicle map
-            PersonLeavesVehicleEvent pevEvent = (PersonLeavesVehicleEvent)event;
-            Id<Person> personId = vehiclePersonMap.get(pevEvent.getVehicleId());
-            if(personId != null && pevEvent.getPersonId() == personId){
-                vehiclePersonMap.remove(pevEvent.getVehicleId());
-            }
-            System.out.println(getClass().getName() + "- " + PersonLeavesVehicleEvent.class.getName() + " -> VehiclePersonMap -> " + vehiclePersonMap.toString());
+//        }else if(event instanceof PersonEntersVehicleEvent){
+//
+//            // add person and vehicle to person vehicle map
+//            PersonEntersVehicleEvent pevEvent = (PersonEntersVehicleEvent)event;
+//            vehiclePersonMap.put(pevEvent.getVehicleId(), pevEvent.getPersonId());
+//            System.out.println(getClass().getName() + "- " + PersonEntersVehicleEvent.class.getName() +  " -> VehiclePersonMap -> " + vehiclePersonMap.toString());
+//        }else if(event instanceof PersonLeavesVehicleEvent) {
+//            // remove person and vehicle from person vehicle map
+//            PersonLeavesVehicleEvent pevEvent = (PersonLeavesVehicleEvent)event;
+//            Id<Person> personId = vehiclePersonMap.get(pevEvent.getVehicleId());
+//            if(personId != null && pevEvent.getPersonId() == personId){
+//                vehiclePersonMap.remove(pevEvent.getVehicleId());
+//            }
+//            System.out.println(getClass().getName() + "- " + PersonLeavesVehicleEvent.class.getName() + " -> VehiclePersonMap -> " + vehiclePersonMap.toString());
         }else if(event instanceof PathTraversalEvent){
             PathTraversalEvent ptEvent = (PathTraversalEvent)event;
             //System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
@@ -234,8 +230,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 //System.out.println("mode " + beamMode.matsimMode() + ", " + beamMode.otpMode() + ", " + beamMode.r5Mode());
                 //System.out.println("mode='" + beamMode.matsimMode() + ", dep_time='" + beamLeg.startTime());
 
-                Id<Vehicle> vehicleId1 = Id.createVehicleId(vehicleId);
-                Id<Person> personId = vehiclePersonMap.get(vehicleId1);
+                //Id<Vehicle> vehicleId1 = Id.createVehicleId(vehicleId);
+                Id<Person> personId = Id.createPersonId(vehicleId); //vehiclePersonMap.get(vehicleId1);
 
                 if (personId != null) {
                     boolean personAlreadyExist = false;

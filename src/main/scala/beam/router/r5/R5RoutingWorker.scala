@@ -9,7 +9,7 @@ import java.time.temporal.ChronoUnit
 import java.util
 import org.apache.log4j.Logger
 
-import akka.actor.{ActorLogging, Props}
+import akka.actor.Props
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData, PassengerSchedule}
@@ -43,14 +43,14 @@ import org.opentripplanner.routing.vertextype.TransitStop
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker  {
+class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
 //  val localDateAsString: String = "2016-10-17"
 //  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
   //TODO make this actually come from beamConfig
 //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
-  val logger = akka.event.Logging.getLogger(this.context.system, this)
+
   override def init: Unit = loadMap
 
   def loadMap = {
@@ -429,16 +429,16 @@ object R5RoutingWorker extends HasProps  {
   def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
     copiedNetwork = CloneSerializedObject.deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
     logger.info("No of edges -> " + copiedNetwork.streetLayer.edgeStore.nEdges())
-    for (i <- 0 until copiedNetwork.streetLayer.edgeStore.nEdges() - 1){
-      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(i)
+    linkMap.keySet().forEach((key) => {
+      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
       val linkId = edge.getOSMID
-      logger.info("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + i)
+      logger.info("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + key)
       if(linkId > 0) {
         val avgTime = getAverageTime(linkId, travelTimeCalculator)
         System.out.println(" - " + avgTime)
         edge.setSpeed(avgTime)
       }
-    }
+    })
   }
 
   def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
