@@ -25,7 +25,7 @@ import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.sim.BeamServices
-import beam.utils.GeoUtils
+import beam.utils.{CloneSerializedObject, GeoUtils}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -394,6 +394,7 @@ object R5RoutingWorker extends HasProps {
 
   var transportNetwork: TransportNetwork = null
   var linkMap: util.Map[Int, Long] = new util.HashMap[Int, Long]()
+  var copiedNetwork:TransportNetwork  = null
 
   def getOsmId(edgeIndex: Int): Long = {
     if(linkMap.containsKey(edgeIndex)){
@@ -405,55 +406,38 @@ object R5RoutingWorker extends HasProps {
     }
   }
 
-  var streetLayerCopy: StreetLayer = null
 
-  var copiedNetwork:TransportNetwork  = null
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
                                       originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[Id[Vehicle]]],
                                       walkOnlyProfiles: Vector[ProfileRequest],
                                       vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]])
 
-  def updateTimesTest = {
+  def replaceNetwork = {
+    if(transportNetwork != copiedNetwork)
+      transportNetwork = copiedNetwork
+    else{
+      /*To-do: allow switching if we just say warning or we should stop system allow here
+      Log warning to stop or error to warning
+
+      Throw exception
+        This case it might happen as we are operating non thread safe environment it might happen that transport network variable set
+      by transport Network actor not possible visible to if it is not a critical error as worker will be continue working on obsolete state
+      */
+    }
+  }
+  def printUpdatedNetworkEdge = {
     for (i <- 0 until     transportNetwork.streetLayer.edgeStore.nEdges()){
-      transportNetwork.streetLayer.edgeStore.getCursor(i).setSpeed(10000)
-      /*
-      We receive a message here in the router and we calculate the average time for a link for the entire day
-      0 seconds to 24 hours(84000 seconds approx)
-      We make a step size of 60 seconds, link, time of the day, what is time at 0, at 60 and 120 and take the average
-      and setSpeed to that average
-       */
-
-      /** ********/
-      // Send whole travelTimeCalculator to the router
-      // The router will basically use it and the second argument will be for what time for.
-    }
-  }
-
-  def updateTimes(times: java.util.List[LinkTime] ) = {
-    for (time <- times.asScala){
-      transportNetwork.streetLayer.edgeStore.getCursor(
-        transportNetwork.streetLayer.edgeStore.osmids.binarySearch(time.getLinkId())).setSpeed(time.getTime().toShort)
-
-    }
-  }
-
-  def getLinkTimeTest(linkId: Long) = {
-    transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.edgeStore.osmids.binarySearch(linkId)).getSpeed()
-  }
-
-  def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
-    /*for (time <- times.asScala){
-      transportNetwork.streetLayer.edgeStore.getCursor(
-        transportNetwork.streetLayer.edgeStore.osmids.binarySearch(time.getLinkId())).setSpeed(time.getTime().toShort)
-
-    }*/
-
-    //travelTimeCalculator.getLinkTravelTimes()
-    //for (TravelTime tt : travelTimeCalculator.)
-    System.out.println("No of edges -> " + transportNetwork.streetLayer.edgeStore.nEdges())
-    for (i <- 0 until transportNetwork.streetLayer.edgeStore.nEdges() - 1){
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(i)
+      val linkId = edge.getOSMID
+      System.out.println("Link Id [" + linkId + "] => " + edge.getEdgeIndex + ", " + i+", Speed"+edge.getSpeed )
+    }
+  }
+  def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
+    copiedNetwork = CloneSerializedObject.deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
+    System.out.println("No of edges -> " + copiedNetwork.streetLayer.edgeStore.nEdges())
+    for (i <- 0 until copiedNetwork.streetLayer.edgeStore.nEdges() - 1){
+      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(i)
       val linkId = edge.getOSMID
       System.out.print("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + i)
 
@@ -461,13 +445,10 @@ object R5RoutingWorker extends HasProps {
         val avgTime = getAverageTime(linkId, travelTimeCalculator) // question about this
         System.out.println(" - " + avgTime)
         edge.setSpeed(avgTime)
-        //System.out.println("TIME FOR LINK ->> " + time);
       }else{
         System.out.println()
       }
     }
-
-
   }
 
   def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
