@@ -68,15 +68,6 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       R5RoutingWorker.updateTimes(calc)
     case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
-      if (msg.equals("UpdateRoadNetworkTravelTimes")) {
-        R5RoutingWorker.updateTimesTest
-        sender() ! "TIMES_UPDATED"
-      }else if(msg.equals("GET_LINK_TRAVEL_TIME")){
-
-        val linkId = 30
-        val timeForLink = R5RoutingWorker.getLinkTimeTest(linkId)
-        sender() ! ("TIME_FOR_LINK_" + timeForLink)
-      }
     }
   }
 
