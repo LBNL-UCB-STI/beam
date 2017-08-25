@@ -14,14 +14,8 @@ class TransportNetworkWorker(beamServices: BeamServices) extends Actor with Acto
     case calc: TravelTimeCalculator =>
       log.info("Received TravelTimeCalculator")
       R5RoutingWorker.updateTimes(calc)
+      sender() ! "REPLACE_NETWORK"
     case msg => {
-      log.info(s"Received message[$msg] received by UpdateTransportNetwork Actor.")
-      if (msg.equals("REPLACE_NETWORK")) {
-        R5RoutingWorker.replaceNetwork
-        System.out.println("Router Actor Path " + akka.serialization.Serialization.serializedActorPath(self))
-        sender() ! "NETWORK_REPLACEMENT_DONE"
-      }
-      else
         log.info(s"Unknown message[$msg] received by UpdateTransportNetwork Actor.")
     }
   }

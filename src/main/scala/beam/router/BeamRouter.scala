@@ -71,14 +71,13 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       handelTermination(r)
     case calc: TravelTimeCalculator =>
       log.info("Received TravelTimeCalculator")
-      transportNetworkWorker.tell(calc,ActorRef.noSender)
+      transportNetworkWorker.tell(calc,self)
     case msg => {
       log.info(s"Received message[$msg] by Router.")
       if(msg.equals("REPLACE_NETWORK")){
-       transportNetworkWorker.tell("REPLACE_NETWORK",self)
+        router.route(Broadcast("REPLACE_NETWORK"),self)
       }
       else if(msg.equals("NETWORK_REPLACEMENT_DONE")){
-
         R5RoutingWorker.printUpdatedNetworkEdge
       }
       else

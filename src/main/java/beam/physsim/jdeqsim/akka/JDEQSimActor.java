@@ -106,7 +106,7 @@ public class JDEQSimActor extends UntypedActor {
 
 				 //beamRouterRef.tell("UpdateRoadNetworkTravelTimes", getSelf());
 				 beamRouterRef.tell(travelTimeCalculator, getSelf());
-				 beamRouterRef.tell("REPLACE_NETWORK", getSelf());
+				 //beamRouterRef.tell("REPLACE_NETWORK", getSelf());
 				 /*
 				 Combine both messages
 				  */
