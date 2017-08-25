@@ -151,9 +151,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def resetPop(iter: Int): Unit = {
-    services.persons ++ ListMap(scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons).toSeq.sortBy(_._1): _*)
-    services.vehicles ++ services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
-    services.households ++ services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
+    services.persons ++= scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons)
+    services.vehicles ++= services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
+    services.households ++= services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
     var personToHouseholdId: Map[Id[Person],Id[Household]] = Map()
     services.households.foreach {
       case (householdId, matSimHousehold) =>

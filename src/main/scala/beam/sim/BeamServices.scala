@@ -38,13 +38,13 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var physSim: ActorRef = _
   var schedulerRef: ActorRef =_
   var taxiManager: ActorRef = _
-  val persons: mutable.Map[Id[Person], Person] = new ConcurrentHashMap[Id[Person], Person]().asScala
-  val personRefs: mutable.Map[Id[Person], ActorRef] = new ConcurrentHashMap[Id[Person], ActorRef]().asScala
-  val vehicles: mutable.Map[Id[Vehicle], Vehicle] =new ConcurrentHashMap[Id[Vehicle], Vehicle]().asScala
-  val vehicleRefs: mutable.Map[Id[Vehicle], ActorRef] =new ConcurrentHashMap[Id[Vehicle], ActorRef]().asScala
-  val households : mutable.Map[Id[Household], Household] = new ConcurrentHashMap[Id[Household], Household]().asScala
-  val householdRefs : mutable.Map[Id[Household], ActorRef] = new ConcurrentHashMap[Id[Household], ActorRef]().asScala
-  val agentRefs: mutable.Map[String, ActorRef] = new ConcurrentHashMap[String, ActorRef]().asScala
+  val persons: collection.concurrent.Map[Id[Person], Person] = collection.concurrent.TrieMap[Id[Person], Person]()
+  val personRefs: collection.concurrent.Map[Id[Person], ActorRef] = collection.concurrent.TrieMap[Id[Person], ActorRef]()
+  val vehicles: collection.concurrent.Map[Id[Vehicle], Vehicle] = collection.concurrent.TrieMap[Id[Vehicle], Vehicle]()
+  val vehicleRefs: collection.concurrent.Map[Id[Vehicle], ActorRef] = collection.concurrent.TrieMap[Id[Vehicle], ActorRef]()
+  val households : collection.concurrent.Map[Id[Household], Household] = collection.concurrent.TrieMap[Id[Household], Household]()
+  val householdRefs : collection.concurrent.Map[Id[Household], ActorRef] = collection.concurrent.TrieMap[Id[Household], ActorRef]()
+  val agentRefs: collection.concurrent.Map[String, ActorRef] = collection.concurrent.TrieMap[String, ActorRef]()
   val transitVehiclesByBeamLeg: mutable.Map[BeamLeg, Id[Vehicle]] = mutable.Map[BeamLeg, Id[Vehicle]]()
 
 }

@@ -170,9 +170,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
   }
 
   chainedWhen(Uninitialized){
-    case Event(InitializeTrigger(_), _) =>
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       log.debug(s" $id has been initialized, going to Idle state")
-      goto(Idle)
+      goto(Idle) replying completed(triggerId)
   }
 
  private def sendPendingReservations(driverActor: ActorRef) = {
