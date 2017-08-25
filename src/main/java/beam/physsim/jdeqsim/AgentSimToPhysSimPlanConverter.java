@@ -251,7 +251,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     List<Id<Link>> linkIds = new ArrayList<>();
                     for(String link : links.split(",")) {
 
-                        long osmLinkId = R5RoutingWorker.transportNetwork().streetLayer.edgeStore.getCursor(Integer.parseInt(link)).getOSMID();
+                        //long osmLinkId = R5RoutingWorker.transportNetwork().streetLayer.edgeStore.getCursor(Integer.parseInt(link)).getOSMID();
+                        long osmLinkId = R5RoutingWorker.getOsmId(Integer.parseInt(link));
 
                         Id<Link> linkId = Id.createLinkId(osmLinkId);
                         linkIds.add(linkId);
