@@ -393,6 +393,17 @@ object R5RoutingWorker extends HasProps {
   val GRAPH_FILE = "/network.dat"
 
   var transportNetwork: TransportNetwork = null
+  var linkMap: util.Map[Int, Long] = new util.HashMap[Int, Long]()
+
+  def getOsmId(edgeIndex: Int): Long = {
+    if(linkMap.containsKey(edgeIndex)){
+      linkMap.get(edgeIndex)
+    }else {
+      val osmLinkId = R5RoutingWorker.transportNetwork.streetLayer.edgeStore.getCursor(edgeIndex).getOSMID
+      linkMap.put(edgeIndex, osmLinkId)
+      osmLinkId
+    }
+  }
 
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
@@ -434,24 +445,30 @@ object R5RoutingWorker extends HasProps {
         transportNetwork.streetLayer.edgeStore.osmids.binarySearch(time.getLinkId())).setSpeed(time.getTime().toShort)
 
     }*/
+    // Create hashmap that has all the osm to r5 mapping and we just need to iterate over only that map
+    // every id in our matsim network needs to have corresponding r5
 
     //travelTimeCalculator.getLinkTravelTimes()
     //for (TravelTime tt : travelTimeCalculator.)
     System.out.println("No of edges -> " + transportNetwork.streetLayer.edgeStore.nEdges())
-    for (i <- 0 until transportNetwork.streetLayer.edgeStore.nEdges() - 1){
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(i)
-      val linkId = edge.getOSMID
-      System.out.print("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + i)
+    //for (i <- 0 until linkMap.keySet().size() - 1){
+    linkMap.keySet().forEach((key) => {
+        //val edgeIndex = linkMap.keySet()
+        val edge = transportNetwork.streetLayer.edgeStore.getCursor(key)
+        val linkId = edge.getOSMID
 
-      if(linkId > 0) {
-        val avgTime = getAverageTime(linkId, travelTimeCalculator) // question about this
-        System.out.println(" - " + avgTime)
-        edge.setSpeed(avgTime)
-        //System.out.println("TIME FOR LINK ->> " + time);
-      }else{
-        System.out.println()
+        System.out.print("Average time for link (osmid, edgeid, avg) => (" + linkId + ", " + edge.getEdgeIndex + ", " );
+
+        if (linkId > 0) {
+          val avgTime = getAverageTime(linkId, travelTimeCalculator) // question about this
+          System.out.println(avgTime + ")");
+          edge.setSpeed(avgTime)
+          //System.out.println("TIME FOR LINK ->> " + time);
+        } else {
+          System.out.println(" - )");
+        }
       }
-    }
+    )
 
 
   }
