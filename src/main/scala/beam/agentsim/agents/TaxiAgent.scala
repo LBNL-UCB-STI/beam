@@ -66,22 +66,33 @@ class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val
       stay()
     case Event(RegisterTaxiAvailableWrapper(triggerId), _) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
-      goto(Idle) replying completed(triggerId)
+      goto(Idle)
   }
 
-
-
-  when(Idle) {
+  chainedWhen(Idle){
     case Event(PickupCustomer, info: BeamAgentInfo[TaxiData]) =>
       goto(Traveling)
   }
 
-  when(Traveling) {
+  chainedWhen(Traveling) {
     case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[TaxiData]) =>
       beamServices.taxiManager ? RegisterTaxiAvailable(self, info.data.vehicleIdAndRef.id, availableIn =  newLocation)
       goto(Idle) using BeamAgentInfo(id,info.data.copy(location = newLocation.loc))
   }
 
+
+  //// BOILERPLATE /////
+  when(Idle) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+  }
+
+  when(Traveling) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+  }
+
+  //// END BOILERPLATE ////
   /*
    * Helper methods
   def logInfo(msg: String): Unit = {
