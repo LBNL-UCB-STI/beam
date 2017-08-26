@@ -436,7 +436,8 @@ object R5RoutingWorker extends HasProps  {
       if(linkId > 0) {
         val avgTime = getAverageTime(linkId, travelTimeCalculator)
         logger.info("Updated Avg Time => " + avgTime)
-        edge.setSpeed(avgTime)
+        val avgTime100 = (avgTime * 100).asInstanceOf[Short]
+        edge.setSpeed(avgTime100)
       }
     })
   }
