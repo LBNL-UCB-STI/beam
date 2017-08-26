@@ -7,6 +7,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.agents.TaxiAgent._
 import beam.agentsim.agents.RideHailingManager.{RegisterTaxiAvailable, ReserveTaxiResponse, TaxiAvailableAck}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
