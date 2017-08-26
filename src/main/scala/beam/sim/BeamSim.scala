@@ -82,10 +82,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val physSimInitFuture = services.physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
 
-    val taxiManagerFuture = services.registry ? Registry.Register("TaxiManager", RideHailingManager.props("TaxiManager",
+    val rideHailingManagerFuture = services.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
       fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles.toMap,
       services))
-    services.taxiManager = Await.result(taxiManagerFuture, timeout.duration).asInstanceOf[Created].ref
+    services.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
   }
 
@@ -178,30 +178,30 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     }
 
     //TODO the following should be based on config params
-    val taxiFraction = 0.1
+    val rideHailingFraction = 0.1
     val initialLocationJitter = 2000 // meters
 
     // Protocol:
-    // - Initialize TaxiAgents to be located within ~initialLocationJitter km of a subset of agents
-    // - Each TaxiAgent gets a CarVehicle
+    // - Initialize RideHailingAgents to be located within ~initialLocationJitter km of a subset of agents
+    // - Each RideHailingAgent gets a CarVehicle
     // -
 
-    val taxiVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("TaxiVehicle", classOf[VehicleType]))
-    taxiVehicleType.setDescription("CAR") // Make taxis equivalent to cars for now
+    val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
+    rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
-    for ((k, v) <- services.persons.take(math.round(taxiFraction * services.persons.size).toInt)) {
+    for ((k, v) <- services.persons.take(math.round(rideHailingFraction * services.persons.size).toInt)) {
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-      val taxiInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
-      val taxiName = s"TaxiAgent_${k}_$iter"
-      val taxiId = Id.create(taxiName, classOf[TaxiAgent])
-      val taxiVehicleId = Id.createVehicleId(s"TaxiVehicle_@${taxiInitialLocation.getX},${taxiInitialLocation.getY}") // XXXX: for now identifier will just be initial location (assumed unique)
-      val taxiVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(taxiVehicleId, taxiVehicleType)
-      val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(taxiVehicleId, taxiVehicle)
-      val taxiAgentProps = TaxiAgent.props(services, taxiId, BeamVehicleIdAndRef(vehicleIdAndRef), personInitialLocation)
-      val ref: ActorRef = actorSystem.actorOf(taxiAgentProps, taxiName)
+      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
+      val rideHailingName = s"rideHailingAgent-${k}_$iter"
+      val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
+      val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-@${rideInitialLocation.getX},${rideInitialLocation.getY}") // XXXX: for now identifier will just be initial location (assumed unique)
+      val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
+      val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
+      val rideHailingAgent = RideHailingAgent.props(services, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
+      val ref: ActorRef = actorSystem.actorOf(rideHailingAgent, rideHailingName)
 
       // populate maps and initialize via scheduler
-      services.vehicles += (taxiVehicleId -> taxiVehicle)
+      services.vehicles += (rideHailVehicleId -> rideHailVehicle)
       services.vehicleRefs += vehicleIdAndRef
 
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)

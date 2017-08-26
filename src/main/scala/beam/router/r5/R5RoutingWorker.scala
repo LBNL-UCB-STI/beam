@@ -207,7 +207,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         originalProfileModeToVehicle.addBinding(beamMode,veh.id)
       )
     )
-    if(!uniqueBeamModes.contains(WALK)) log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
+    if(!uniqueBeamModes.contains(WALK))
+      log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network

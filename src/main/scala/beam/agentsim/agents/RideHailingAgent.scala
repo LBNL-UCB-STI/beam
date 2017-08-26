@@ -3,8 +3,8 @@ package beam.agentsim.agents
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.RideHailingManager.{RegisterTaxiAvailable, ReserveTaxiResponse, TaxiAvailableAck}
-import beam.agentsim.agents.TaxiAgent._
+import beam.agentsim.agents.RideHailingManager.{RegisterRideAvailable, ReserveRideResponse, RideAvailableAck}
+import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.events.SpaceTime
@@ -20,23 +20,23 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   */
-object TaxiAgent {
+object RideHailingAgent {
 
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   // syntactic sugar for props creation
-  def props(services: BeamServices, taxiId: Id[TaxiAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
-    Props(new TaxiAgent(taxiId, TaxiData(vehicleIdAndRef, location), services))
+  def props(services: BeamServices, taxiId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
+    Props(new RideHailingAgent(taxiId, RideHailingAgentData(vehicleIdAndRef, location), services))
 
   //////////////////////////////
-  // TNCData Begin... //
+  // RideHailingAgentData Begin... //
   /////////////////////////////
-  object TaxiData {
+  object RideHailingAgentData {
     //    def apply(): TaxiData = TaxiData()
   }
 
-  case class TaxiData(vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) extends BeamAgentData
+  case class RideHailingAgentData(vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) extends BeamAgentData
 
   case object Idle extends BeamAgentState {
     override def identifier = "Idle"
@@ -46,38 +46,38 @@ object TaxiAgent {
     override def identifier = "Traveling"
   }
 
-  case class PickupCustomer(confirmation: ReserveTaxiResponse, pickUpLocation: Location, destination: Location, tripPlan: Option[BeamTrip])
+  case class PickupCustomer(confirmation: ReserveRideResponse, pickUpLocation: Location, destination: Location, tripPlan: Option[BeamTrip])
 
   case class DropOffCustomer(newLocation: SpaceTime)
 
-  case class RegisterTaxiAvailableWrapper(triggerId: Long)
+  case class RegisterRideAvailableWrapper(triggerId: Long)
 
 }
 
-class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val beamServices: BeamServices) extends BeamAgent[TaxiData] with HasServices with DrivesVehicle[TaxiData] {
-  override def logPrefix(): String = s"TaxiAgent $id: "
+class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val beamServices: BeamServices) extends BeamAgent[RideHailingAgentData] with HasServices with DrivesVehicle[RideHailingAgentData] {
+  override def logPrefix(): String = s"RideHailingAgent $id: "
 
   chainedWhen(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TaxiData]) =>
-      val taxiAvailable = RegisterTaxiAvailable(self, info.data.vehicleIdAndRef.id, availableIn = SpaceTime(info.data.location, tick.toLong))
-      val managerFuture = (beamServices.taxiManager ? taxiAvailable).mapTo[TaxiAvailableAck.type].map(result =>
-        RegisterTaxiAvailableWrapper(triggerId)
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[RideHailingAgentData]) =>
+      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableIn = SpaceTime(info.data.location, tick.toLong))
+      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
+        RegisterRideAvailableWrapper(triggerId)
       )
       managerFuture pipeTo self
       stay()
-    case Event(RegisterTaxiAvailableWrapper(triggerId), _) =>
+    case Event(RegisterRideAvailableWrapper(triggerId), _) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       goto(Idle)
   }
 
   chainedWhen(Idle) {
-    case Event(PickupCustomer, info: BeamAgentInfo[TaxiData]) =>
+    case Event(PickupCustomer, info: BeamAgentInfo[RideHailingAgentData]) =>
       goto(Traveling)
   }
 
   chainedWhen(Traveling) {
-    case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[TaxiData]) =>
-      beamServices.taxiManager ? RegisterTaxiAvailable(self, info.data.vehicleIdAndRef.id, availableIn = newLocation)
+    case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[RideHailingAgentData]) =>
+      beamServices.rideHailingManager ? RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableIn = newLocation)
       goto(Idle) using BeamAgentInfo(id, info.data.copy(location = newLocation.loc))
   }
 

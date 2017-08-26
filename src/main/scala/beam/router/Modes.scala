@@ -24,11 +24,11 @@ object Modes {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
 
-    // Driving / Automobile-like (taxi is a bit of a hybrid)
+    // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
     case object CAR extends BeamMode(value = "car", Some(TraverseMode.CAR), Some(Left(LegMode.CAR)), TransportMode.car)
 
-    case object TAXI extends BeamMode(value = "taxi", Some(TraverseMode.CAR), Some(Left(LegMode.CAR)), TransportMode.other)
+    case object HailedRide extends BeamMode(value = "hailed_ride", Some(TraverseMode.CAR), Some(Left(LegMode.CAR)), TransportMode.other)
 
     case object EV extends BeamMode(value = "ev", Some(TraverseMode.CAR), Some(Left(LegMode.CAR)), TransportMode.other)
 
