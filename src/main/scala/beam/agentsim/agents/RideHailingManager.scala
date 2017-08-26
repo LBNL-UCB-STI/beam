@@ -7,12 +7,13 @@ import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.RideHailingManager._
 import beam.agentsim.agents.TaxiAgent.PickupCustomer
 import beam.agentsim.agents.util.{AggregatorFactory, SingleActorAggregationResult}
+import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle.VehicleUnavailable
-import beam.router.BeamRouter
+import beam.router.{BeamRouter, Modes}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
@@ -28,7 +29,6 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
-
 import beam.sim.config.ConfigModule._
 /**
   * BEAM
@@ -112,12 +112,16 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       chosenTaxiLocationOpt match {
         case Some((taxiLocation, shortDistanceToTaxi)) =>
 //          val params = RoutingRequestParams(departAt, Vector(TAXI), personId)
+
+          val humanBodyVehicle = StreetVehicle(Id.createVehicleId(s"body-${personId.toString}"),SpaceTime((inquiry.pickUpLocation,departAt.atTime)),WALK)
+
           val customerTripRequestId = BeamRouter.nextId
           val taxi2CustomerRequestId = BeamRouter.nextId
+          val taxiVehicle = StreetVehicle(taxiLocation.vehicleId, taxiLocation.currentLocation, CAR)
           val routeRequests = Map(
             beamServices.beamRouter -> List(
-              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(TAXI), Vector(), personId)),
-              RoutingRequest(taxi2CustomerRequestId, RoutingRequestTripInfo(taxiLocation.currentLocation.loc, customerPickUp, departAt, Vector(TAXI), Vector(), personId)))
+              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(humanBodyVehicle,taxiVehicle), personId)),
+              RoutingRequest(taxi2CustomerRequestId, RoutingRequestTripInfo(taxiLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(humanBodyVehicle,taxiVehicle), personId)))
           )
           aggregateResponsesTo(customerAgent, routeRequests) { case result: SingleActorAggregationResult =>
             val responses = result.mapListTo[RoutingResponse].map(res => (res.id, res)).toMap
