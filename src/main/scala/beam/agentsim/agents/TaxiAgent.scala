@@ -53,7 +53,7 @@ object TaxiAgent {
   case class RegisterTaxiAvailableWrapper(triggerId: Long)
 }
 
-class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val beamServices: BeamServices) extends BeamAgent[TaxiData] with HasServices with DrivesVehicle[TaxiData]{
+class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val beamServices: BeamServices) extends BeamAgent[TaxiData] with HasServices  with DrivesVehicle[TaxiData] {
   override def logPrefix(): String = s"TaxiAgent $id: "
 
   when(Uninitialized) {
