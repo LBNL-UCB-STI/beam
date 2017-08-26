@@ -59,17 +59,6 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Ac
   var startSender: ActorRef = self
   private var nowInSeconds: Double = 0.0
   @volatile var isRunning = true
-  val monitorThread = if (log.isInfoEnabled) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(10, TimeUnit.SECONDS), new FiniteDuration(10, TimeUnit.SECONDS), new Runnable {
-      override def run(): Unit = {
-        if (log.isInfoEnabled) {
-          log.info(s"nowInSeconds=$nowInSeconds, awaitingResponse.size=${awaitingResponse.size()}, triggerQueue.size=${triggerQueue.size}, triggerQueue.head=${triggerQueue.headOption} awaitingResponse.head=${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}} ")
-        }
-      }
-    }))
-  } else {
-    None
-  }
 
 
   override def postStop(): Unit = {
@@ -141,6 +130,25 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Ac
 
     case msg =>
       log.error(s"received unknown message: $msg")
+  }
+
+  val monitorThread = if (log.isInfoEnabled) {
+    Option(context.system.scheduler.schedule(new FiniteDuration(10, TimeUnit.SECONDS), new FiniteDuration(10, TimeUnit.SECONDS), new Runnable {
+      override def run(): Unit = {
+        if (log.isInfoEnabled) {
+          log.info(s"nowInSeconds=$nowInSeconds, awaitingResponse.size=${awaitingResponse.size()}, triggerQueue.size=${triggerQueue.size}, triggerQueue.head=${triggerQueue.headOption} awaitingResponse.head=${awaitingToString}")
+        }
+      }
+    }))
+  } else {
+    None
+  }
+  def awaitingToString: String = {
+    if(awaitingResponse.keySet().isEmpty){
+      "empty"
+    }else{
+      s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
+    }
   }
 
 }
