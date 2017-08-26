@@ -203,7 +203,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       // populate maps and initialize via scheduler
       services.vehicles += (taxiVehicleId -> taxiVehicle)
       services.vehicleRefs += vehicleIdAndRef
-      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), vehicleIdAndRef._2)
+
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
 
     }

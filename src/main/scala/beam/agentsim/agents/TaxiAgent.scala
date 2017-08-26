@@ -56,8 +56,8 @@ object TaxiAgent {
 class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val beamServices: BeamServices) extends BeamAgent[TaxiData] with HasServices  with DrivesVehicle[TaxiData] {
   override def logPrefix(): String = s"TaxiAgent $id: "
 
-  when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TaxiData]) =>
+  chainedWhen(Uninitialized){
+    case Event(TriggerWithId(InitializeTrigger(tick),triggerId),info:BeamAgentInfo[TaxiData])=>
       val taxiAvailable = RegisterTaxiAvailable(self, info.data.vehicleIdAndRef.id, availableIn = SpaceTime(info.data.location, tick.toLong))
       val managerFuture = (beamServices.taxiManager ? taxiAvailable).mapTo[TaxiAvailableAck.type].map(result =>
         RegisterTaxiAvailableWrapper(triggerId)
@@ -66,8 +66,10 @@ class TaxiAgent(override val id: Id[TaxiAgent], override val data: TaxiData, val
       stay()
     case Event(RegisterTaxiAvailableWrapper(triggerId), _) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
-      goto(Idle)
+      goto(Idle) replying completed(triggerId)
   }
+
+
 
   when(Idle) {
     case Event(PickupCustomer, info: BeamAgentInfo[TaxiData]) =>
