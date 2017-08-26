@@ -26,8 +26,8 @@ object RideHailingAgent {
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   // syntactic sugar for props creation
-  def props(services: BeamServices, taxiId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
-    Props(new RideHailingAgent(taxiId, RideHailingAgentData(vehicleIdAndRef, location), services))
+  def props(services: BeamServices, rideHailingAgentId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
+    Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleIdAndRef, location), services))
 
   //////////////////////////////
   // RideHailingAgentData Begin... //

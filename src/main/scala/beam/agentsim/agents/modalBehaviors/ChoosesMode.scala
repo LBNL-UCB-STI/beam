@@ -93,7 +93,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
       //TODO parameterize search distance
       val pickUpLocation = currentActivity.getCoord
-      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
+      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId,
         Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 5000, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
@@ -104,8 +104,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(theRouterResult: RoutingResponse, info: BeamAgentInfo[PersonData]) =>
       routingResponse = Some(theRouterResult)
       completeChoiceIfReady()
-    case Event(theTaxiResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
-      rideHailingResult = Some(theTaxiResult)
+    case Event(theRideHailingResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
+      rideHailingResult = Some(theRideHailingResult)
       completeChoiceIfReady()
     /*
      * Finishing choice.
@@ -197,7 +197,7 @@ object ChoosesMode {
   }
 
   def altUtility(mode: BeamMode, travelTime: Double): Double = {
-    val intercept = if(mode.equals(CAR)){ -3.0 }else{ if(mode.equals(HailedRide)){ -5.0}else{0.0} }
+    val intercept = if(mode.equals(CAR)){ -3.0 }else{ if(mode.equals(RideHailing)){ -5.0}else{0.0} }
     intercept + -0.001 * travelTime
   }
 
