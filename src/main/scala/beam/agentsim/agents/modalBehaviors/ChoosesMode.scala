@@ -27,7 +27,7 @@ import scala.util.Random
 trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasServices {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  val choiceCalculator: ChoiceCalculator = ChoosesMode.driveIfAvailable
+  val choiceCalculator: ChoiceCalculator = ChoosesMode.transitIfAvailable
   var routingResponse: Option[RoutingResponse] = None
   var taxiResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
@@ -123,6 +123,20 @@ object ChoosesMode {
   case class BeginModeChoiceTrigger(tick: Double) extends Trigger
   case class FinalizeModeChoiceTrigger(tick: Double) extends Trigger
 
+  def transitIfAvailable(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
+    var containsTransitAlt: Vector[Int] = Vector[Int]()
+    alternatives.zipWithIndex.foreach{ alt =>
+      if(alt._1.tripClassifier.isTransit){
+        containsTransitAlt = containsTransitAlt :+ alt._2
+      }
+    }
+    val chosenIndex = if (containsTransitAlt.size > 0){ containsTransitAlt.head }else{ 0 }
+    if(alternatives.size > 0) {
+      alternatives(chosenIndex)
+    } else {
+      EmbodiedBeamTrip.empty
+    }
+  }
   def driveIfAvailable(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
     var containsDriveAlt: Vector[Int] = Vector[Int]()
     alternatives.zipWithIndex.foreach{ alt =>
