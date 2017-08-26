@@ -432,10 +432,10 @@ object R5RoutingWorker extends HasProps  {
     linkMap.keySet().forEach((key) => {
       val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
       val linkId = edge.getOSMID
-      logger.info("Average time for link [" + linkId + "] => " + edge.getEdgeIndex + ", " + key)
+      logger.info("Updating link [" + linkId + "] => edgeIndex (" + edge.getEdgeIndex + ") => linkMap.key => (" + key + ") => ")
       if(linkId > 0) {
         val avgTime = getAverageTime(linkId, travelTimeCalculator)
-        System.out.println(" - " + avgTime)
+        logger.info("Updated Avg Time => " + avgTime)
         edge.setSpeed(avgTime)
       }
     })
