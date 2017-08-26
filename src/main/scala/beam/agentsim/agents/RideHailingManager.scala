@@ -70,7 +70,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
   with HasServices with AggregatorFactory {
   import scala.collection.JavaConverters._
 
-  val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.taxi.defaultCostPerMile)
+  val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.rideHailing.defaultCostPerMile)
   // improve search to take into account time taxi is available
   private val rideHailingAgent = {
     val bbBuffer = beamServices.beamConfig.bbBuffer
