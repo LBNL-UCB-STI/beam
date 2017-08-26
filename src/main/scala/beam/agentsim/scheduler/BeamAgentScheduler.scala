@@ -63,7 +63,7 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Ac
     Option(context.system.scheduler.schedule(new FiniteDuration(10, TimeUnit.SECONDS), new FiniteDuration(10, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
         if (log.isInfoEnabled) {
-          log.info(s"nowInSeconds=$nowInSeconds, awaitingResponse.size=${awaitingResponse.size()}, triggerQueue.size=${triggerQueue.size}, triggerQueue.head=${triggerQueue.headOption}  ")
+          log.info(s"nowInSeconds=$nowInSeconds, awaitingResponse.size=${awaitingResponse.size()}, triggerQueue.size=${triggerQueue.size}, triggerQueue.head=${triggerQueue.headOption} awaitingResponse.head=${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}} ")
         }
       }
     }))
