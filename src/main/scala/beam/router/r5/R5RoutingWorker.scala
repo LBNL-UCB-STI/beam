@@ -443,17 +443,20 @@ object R5RoutingWorker extends HasProps  {
 
   def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
     var totalTime = 0.0
-    var totalIterations = 0
+    val limit = 86400
+    val step = 60
+    val totalIterations = limit/step
     val link: Id[org.matsim.api.core.v01.network.Link] = Id.createLinkId(linkId)
 
     if(link != null) {
       for (i <- 0 until 86400 by 60) {
         totalTime = totalTime + travelTimeCalculator.getLinkTravelTime(link, i.toDouble)
-        totalIterations = totalIterations + 1
       }
     }
 
-    (totalTime/totalIterations).toShort
+    val avgTime = (totalTime/totalIterations)
+    logger.info("Updated Avg Time => " + avgTime + " , converted to short => " + avgTime.toShort)
+    avgTime.toShort
   }
 
   def getOsmId(edgeIndex: Int): Long = {
