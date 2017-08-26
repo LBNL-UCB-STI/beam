@@ -244,7 +244,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def initVehicleActors(iterId: Option[String] = None): mutable.Map[Id[Vehicle], ActorRef] =
-    services.vehicles.map { case (vehicleId, matSimVehicle) => initCarVehicle(vehicleId, matSimVehicle)
+    services.vehicles.map { case (vehicleId, matSimVehicle) => initCarVehicle(vehicleId, matSimVehicle) }
 
   def initCarVehicle(vehicleId: Id[Vehicle], matSimVehicle: Vehicle): (Id[Vehicle], ActorRef) = {
     val desc = matSimVehicle.getType.getDescription
