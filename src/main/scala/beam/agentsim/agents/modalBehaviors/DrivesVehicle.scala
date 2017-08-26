@@ -95,8 +95,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
             stay()
           }
         case None =>
-          logError(s"Driver ${id} did not find a manifest for BeamLeg ${newLeg}")
-          goto(BeamAgent.Error)
+          logError(s"Driver ${id} did not find a manifest for BeamLeg ${newLeg.beamLeg}")
+          goto(BeamAgent.Error) replying completed(triggerId)
       }
     case Event(BoardingConfirmation(vehicleId), agentInfo) =>
       _awaitingBoardConfirmation -= vehicleId

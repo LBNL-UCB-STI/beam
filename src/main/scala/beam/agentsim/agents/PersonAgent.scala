@@ -248,7 +248,7 @@ class PersonAgent(val beamServices: BeamServices,
             }
             //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and vehicle is the same...
             val nextEmbodiedBeamLeg = processedData.nextLeg
-            passengerSchedule.addLegs(Vector(processedData.nextLeg.beamLeg))
+            passengerSchedule.addLegs(Vector(nextEmbodiedBeamLeg.beamLeg))
             beamServices.vehicleRefs(vehiclePersonId.passengerVehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
             _currentRoute = processedData.restTrip
             stay() replying completed(triggerId,schedule[StartLegTrigger](nextEmbodiedBeamLeg.beamLeg.startTime,self, nextEmbodiedBeamLeg))
