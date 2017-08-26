@@ -12,6 +12,7 @@ import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode.{BUS, SUBWAY, TRANSIT, WALK}
 import beam.router.Modes.{BeamMode, _}
@@ -137,14 +138,14 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
         beamServices.vehicles.put(tripVehId, matSimTransitVehicle)
         beamServices.vehicleRefs.put(tripVehId, transitVehRef)
-        transitVehRef ! InitializeTrigger(0.0)
+        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitVehRef)
 
         val vehicleIdAndRef = BeamVehicleIdAndRef(tripVehId, transitVehRef)
         val transitDriverId = TransitDriverAgent.createAgentId(tripVehId)
         val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, vehicleIdAndRef, passengerSchedule)
         val transitDriver =  context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         beamServices.agentRefs.put(transitDriverId.toString, transitDriver)
-        transitDriver ! InitializeTrigger(0.0)
+        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
 
       case _ =>
         log.error(mode + " is not supported yet")
