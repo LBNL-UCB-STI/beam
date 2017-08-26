@@ -221,28 +221,27 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         }.toMap
         val props = HouseholdActor.props(services, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
-        householdActor ! InitializeTrigger(0)
+        services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),householdActor)
         services.householdRefs.put(householdId, householdActor)
     }
   }
 
-  private def initVehicleActors(iterId: Option[String] = None) = {
-    val actors = services.vehicles.map {
-      case (vehicleId, matSimVehicle) =>
-        val desc = matSimVehicle.getType.getDescription
-        val information = Option(matSimVehicle.getType.getEngineInformation)
-        val powerTrain = Powertrain.PowertrainFromMilesPerGallon(information.map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon))
-        val props = if (desc != null && desc.toUpperCase().contains("CAR")) {
-            CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
-        } else {
-          //only car is supported
-          CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
-        }
-        val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(matSimVehicle))
-        beamVehicleRef ! InitializeTrigger(0.0)
-        (vehicleId, beamVehicleRef)
+  private def initVehicleActors(iterId: Option[String] = None): mutable.Map[Id[Vehicle], ActorRef] =
+    services.vehicles.map { case (vehicleId, matSimVehicle) => initCarVehicle(vehicleId, matSimVehicle) }
+
+  def initCarVehicle(vehicleId: Id[Vehicle], matSimVehicle: Vehicle): (Id[Vehicle], ActorRef) = {
+    val desc = matSimVehicle.getType.getDescription
+    val information = Option(matSimVehicle.getType.getEngineInformation)
+    val powerTrain = Powertrain.PowertrainFromMilesPerGallon(information.map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon))
+    val props = if (desc != null && desc.toUpperCase().contains("CAR")) {
+      CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
+    } else {
+      //only car is supported
+      CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
     }
-    actors
+    val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(matSimVehicle))
+    services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),beamVehicleRef)
+    (vehicleId, beamVehicleRef)
   }
 
   def subscribe(eventType: String): Unit = {
