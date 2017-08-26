@@ -49,7 +49,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   override def init: Unit = {
     loadMap
     overrideR5EdgeSearchRadius(2000)
-    initTransit()
   }
 
   private def loadMap = {
@@ -125,12 +124,12 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   }
 
   def createTransitVehicle(tripVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
-    val vehicleTypeId = Id.create(route.route_type.toString, classOf[VehicleType])
     //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
-    val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+    val vehicleTypeId = Id.create((if(mode==SUBWAY){ 2 }else{ 1 }).toString, classOf[VehicleType])
+    val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
     mode match {
-      case (BUS | TRANSIT) if vehicleType != null =>
+      case (BUS | SUBWAY) if vehicleType != null =>
         val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(tripVehId, vehicleType)
         val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
         val initialMatsimAttributes = new Attributes()

@@ -303,8 +303,12 @@ object VehicleAttributes extends Enumeration {
 }
 
 case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
-  def push(vehicle: Id[Vehicle]) = {
-    VehicleStack(vehicle +: nestedVehicles)
+  def pushIfNew(vehicle: Id[Vehicle]) = {
+    if(!nestedVehicles.isEmpty && nestedVehicles.head == vehicle){
+      VehicleStack(nestedVehicles)
+    }else{
+      VehicleStack(vehicle +: nestedVehicles)
+    }
   }
   def penultimateVehicle(): Id[Vehicle] = {
     if(nestedVehicles.size < 2)throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")

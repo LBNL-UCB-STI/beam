@@ -3,7 +3,7 @@ package beam.router
 import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{BIKE, CAR, TRANSIT, WALK}
 import beam.router.RoutingModel.BeamStreetPath.empty
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -36,16 +36,27 @@ object RoutingModel {
   }
 
   case class EmbodiedBeamTrip(legs: Vector[EmbodiedBeamLeg]) {
-    lazy val tripClassifier: BeamMode = if (legs map (_.beamLeg.mode) contains CAR) {
-      CAR
-    } else {
-      TRANSIT
-    }
+    lazy val tripClassifier: BeamMode = determineTripMode(legs)
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
     def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
     def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
+    def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode={
+      var theMode: BeamMode = WALK
+      legs.foreach { leg =>
+        // Any presence of transit makes it transit
+        if(leg.beamLeg.mode.isTransit){
+          theMode = TRANSIT
+        }else if(theMode==WALK && leg.beamLeg.mode == CAR){
+          theMode = CAR
+        }else if(theMode==WALK && leg.beamLeg.mode == BIKE){
+          theMode = BIKE
+        }
+      }
+      theMode
+    }
   }
+
   object EmbodiedBeamTrip {
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
@@ -112,6 +123,7 @@ object RoutingModel {
   }
   object EmbodiedBeamLeg {
     def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("",classOf[Vehicle]),false,None,0.0,false)
+    def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("",classOf[Vehicle]),false,None,0.0,false)
   }
 
   sealed abstract class BeamPath {

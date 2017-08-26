@@ -20,7 +20,6 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
     case InitTransit =>
       initTransit
       sender() ! TransitInited
-
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
