@@ -1,9 +1,13 @@
 package beam.agentsim.agents.util
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.contrib.pattern.Aggregator
+import akka.util.Timeout
 
 import scala.collection.mutable
+import scala.util.Try
 
 
 /**
@@ -42,6 +46,7 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
     case AggregatedRequest(theRequests) =>
       requests = theRequests
       if (requests.nonEmpty) {
+        log.debug(s"${self.toString()} got a request from ${sender()} ")
         for ((targetActor, messages) <- requests) {
           for ( message <- messages) {
             targetActor ! message

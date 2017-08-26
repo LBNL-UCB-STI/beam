@@ -9,7 +9,7 @@ trait AggregatorFactory {
   this:  Actor  =>
 
   def aggregateResponsesTo(respondTo: ActorRef, requests: Map[ActorRef, List[Any]], originalSender: Option[ActorRef] = None)(resultTransformFunc: Any => Any ): Unit = {
-    val aggregator = context.actorOf(Props(classOf[AggregatorActor], respondTo, Option(resultTransformFunc), originalSender))
+    val aggregator = context.actorOf(Props(classOf[AggregatorActor], respondTo, Option(resultTransformFunc), originalSender),"AggregatorActor")
     aggregator ! AggregatedRequest(requests)
   }
 

@@ -82,7 +82,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val physSimInitFuture = services.physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
 
-    val taxiManagerFuture = services.registry ? Registry.Register("taxiManager", RideHailingManager.props("taxiManager",
+    val taxiManagerFuture = services.registry ? Registry.Register("TaxiManager", RideHailingManager.props("TaxiManager",
       fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles.toMap,
       services))
     services.taxiManager = Await.result(taxiManagerFuture, timeout.duration).asInstanceOf[Created].ref

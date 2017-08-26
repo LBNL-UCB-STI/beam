@@ -123,7 +123,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
               RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(humanBodyVehicle,taxiVehicle), personId)),
               RoutingRequest(taxi2CustomerRequestId, RoutingRequestTripInfo(taxiLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(humanBodyVehicle,taxiVehicle), personId)))
           )
-          aggregateResponsesTo(customerAgent, routeRequests) { case result: SingleActorAggregationResult =>
+          aggregateResponsesTo(customerAgent, routeRequests,Option(self)){ case result: SingleActorAggregationResult =>
             val responses = result.mapListTo[RoutingResponse].map(res => (res.id, res)).toMap
             val (_, timeToCustomer) = responses(taxi2CustomerRequestId).itineraries.map(t => (t, t.totalTravelTime)).minBy(_._2)
             val taxiFare = findVehicle(taxiLocation.vehicleId).flatMap(vehicle => info.fares.get(vehicle.getType.getId)).getOrElse(DefaultCostPerMile)
