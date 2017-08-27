@@ -94,7 +94,10 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
             releaseAndScheduleEndLeg()
           }else {
             _awaitingBoardConfirmation ++= manifest.boarders
-            manifest.riders.foreach(pv => beamServices.personRefs(pv.personId) ! NotifyLegStart(tick))
+            manifest.riders.foreach{ personVehicle =>
+              logDebug(s"Sending NotifyStartLeg to Person ${personVehicle.personId}")
+              beamServices.personRefs(personVehicle.personId) ! NotifyLegStart(tick)
+            }
             stay()
           }
         case None =>
@@ -115,7 +118,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
 
       val response = handleVehicleReservation(req, vehicleIdToReserve)
-      beamServices.personRefs(req.requester) ! response
+      beamServices.personRefs(req.requesterPerson) ! response
       stay()
   }
 
@@ -150,8 +153,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         }
         if (hasRoom) {
           val legs = tripReservations.keys.toList
-          passengerSchedule.addPassenger(VehiclePersonId(req.passenger, req.requester), legs)
-          ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passenger, vehicleIdToReserve)))
+          passengerSchedule.addPassenger(VehiclePersonId(req.passengerVehicle, req.requesterPerson), legs)
+          ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehicle, vehicleIdToReserve)))
         } else {
           ReservationResponse(req.requestId, Left(VehicleFull(vehicleIdToReserve)))
         }

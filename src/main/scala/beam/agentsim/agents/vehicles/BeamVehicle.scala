@@ -218,9 +218,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
     case Event(EnterVehicle(tick, newPassengerVehicle), info) =>
       val fullCapacity = getType.getCapacity.getSeats + getType.getCapacity.getStandingRoom
       if (passengers.size < fullCapacity){
-        passengers += newPassengerVehicle.passengerVehicleId
-        driver.get ! BoardingConfirmation(newPassengerVehicle.passengerVehicleId)
-        beamServices.vehicleRefs.get(newPassengerVehicle.passengerVehicleId).foreach{ vehiclePassengerRef =>
+        passengers += newPassengerVehicle.vehicleId
+        driver.get ! BoardingConfirmation(newPassengerVehicle.vehicleId)
+        beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach{ vehiclePassengerRef =>
           vehiclePassengerRef ! AssignedCarrier(vehicleId)
         }
         beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId,id)))
@@ -231,9 +231,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       }
       stay()
     case Event(ExitVehicle(tick, passengerVehicleId), info) =>
-      passengers -= passengerVehicleId.passengerVehicleId
-      driver.get ! AlightingConfirmation(passengerVehicleId.passengerVehicleId)
-      beamServices.vehicleRefs.get(passengerVehicleId.passengerVehicleId).foreach{ vehiclePassengerRef =>
+      passengers -= passengerVehicleId.vehicleId
+      driver.get ! AlightingConfirmation(passengerVehicleId.vehicleId)
+      beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach{ vehiclePassengerRef =>
         vehiclePassengerRef ! ResetCarrier
       }
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")

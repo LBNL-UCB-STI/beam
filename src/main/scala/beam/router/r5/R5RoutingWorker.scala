@@ -123,27 +123,28 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     beamServices.matsimServices.getScenario.getTransitVehicles
   }
 
-  def createTransitVehicle(tripVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
+  def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
     //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleTypeId = Id.create((if(mode==SUBWAY){ 2 }else{ 1 }).toString, classOf[VehicleType])
     val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
     mode match {
       case (BUS | SUBWAY) if vehicleType != null =>
-        val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(tripVehId, vehicleType)
+        val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
         val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
         val initialMatsimAttributes = new Attributes()
         val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, initialMatsimAttributes)
         val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
-        beamServices.vehicles.put(tripVehId, matSimTransitVehicle)
-        beamServices.vehicleRefs.put(tripVehId, transitVehRef)
+        beamServices.vehicles.put(transitVehId, matSimTransitVehicle)
+        beamServices.vehicleRefs.put(transitVehId, transitVehRef)
         beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),transitVehRef)
 
-        val vehicleIdAndRef = BeamVehicleIdAndRef(tripVehId, transitVehRef)
-        val transitDriverId = TransitDriverAgent.createAgentId(tripVehId)
+        val vehicleIdAndRef = BeamVehicleIdAndRef(transitVehId, transitVehRef)
+        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
         val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, vehicleIdAndRef, passengerSchedule)
         val transitDriver =  context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         beamServices.agentRefs.put(transitDriverId.toString, transitDriver)
+        beamServices.transitDriversByVehicle.put(transitVehId,transitDriverId)
         beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
 
       case _ =>

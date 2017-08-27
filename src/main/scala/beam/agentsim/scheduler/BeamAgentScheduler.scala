@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import beam.agentsim.scheduler.BeamAgentScheduler._
+import beam.sim.HasServices
 import com.google.common.collect.TreeMultimap
 
 import scala.collection.mutable
@@ -50,11 +51,13 @@ object BeamAgentScheduler {
   }
 }
 
-class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Actor {
+class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugEnabled: Boolean = false) extends Actor {
   val log = Logging(context.system, this)
   var triggerQueue = new mutable.PriorityQueue[ScheduledTrigger]()
   var awaitingResponse: TreeMultimap[java.lang.Double, java.lang.Long] = TreeMultimap.create[java.lang.Double, java.lang.Long]()
+  var awaitingResponseVerbose: TreeMultimap[java.lang.Double, Trigger] = TreeMultimap.create[java.lang.Double, Trigger](com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
   val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long,java.lang.Double]()
+  val triggerIdToTrigger: mutable.Map[Long, Trigger] = scala.collection.mutable.Map[Long,Trigger]()
   private var idCount: Long = 0L
   var startSender: ActorRef = self
   private var nowInSeconds: Double = 0.0
@@ -93,6 +96,10 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Ac
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick, triggerWithId.triggerId)
+          if(debugEnabled){
+            awaitingResponseVerbose.put(triggerWithId.trigger.tick,triggerWithId.trigger)
+            triggerIdToTrigger.put(triggerWithId.triggerId,triggerWithId.trigger)
+          }
           scheduledTrigger.agent ! triggerWithId
         }
         if(nowInSeconds > 0 && nowInSeconds%1800 == 0) {
@@ -123,6 +130,10 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Ac
 //      log.info(s"recieved notice that trigger triggerId: $triggerId is complete")
       newTriggers.foreach{scheduleTrigger}
       awaitingResponse.remove(triggerIdToTick(triggerId), triggerId)
+      if(debugEnabled){
+        awaitingResponseVerbose.remove(triggerIdToTick(triggerId), triggerIdToTrigger(triggerId))
+        triggerIdToTrigger -= triggerId
+      }
       triggerIdToTick -= triggerId
 
     case triggerToSchedule: ScheduleTrigger =>
@@ -147,8 +158,11 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double) extends Ac
     if(awaitingResponse.keySet().isEmpty){
       "empty"
     }else{
-      s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
+      if(debugEnabled){
+        s"${awaitingResponseVerbose.keySet().first()} ${awaitingResponseVerbose.get(awaitingResponseVerbose.keySet().first())}}"
+      }else{
+        s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
+      }
     }
   }
-
 }

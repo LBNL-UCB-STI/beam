@@ -19,7 +19,7 @@ object Reservation {
 
   def nextReservationId = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[ReservationRequest])
 }
-case class ReservationRequest(requestId: Id[ReservationRequest], departFrom: BeamLeg, arriveAt: BeamLeg, passenger: Id[Vehicle], requester: Id[Person]) {
+case class ReservationRequest(requestId: Id[ReservationRequest], departFrom: BeamLeg, arriveAt: BeamLeg, passengerVehicle: Id[Vehicle], requesterPerson: Id[Person]) {
   def this(departFrom: BeamLeg, arriveAt: BeamLeg, passenger: Id[Vehicle], requester: Id[Person]) = this(Reservation.nextReservationId, departFrom, arriveAt, passenger, requester)
 }
 
