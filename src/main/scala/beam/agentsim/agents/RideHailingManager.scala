@@ -52,7 +52,7 @@ object RideHailingManager {
   case class ReserveRideResponse(inquiryId: Id[RideHailingInquiry], data: Either[ReservationError, RideHailConfirmData])
   case class RideHailConfirmData(rideHailAgent: ActorRef, customerId: Id[PersonAgent], travelProposal: TravelProposal)
 
-  case class RegisterRideAvailable(rideHailingAgent: ActorRef, vehicleId: Id[Vehicle], availableIn: SpaceTime)
+  case class RegisterRideAvailable(rideHailingAgent: ActorRef, vehicleId: Id[Vehicle], availableSince: SpaceTime)
   case class RegisterRideUnavailable(ref: ActorRef, location: Coord )
   case object RideUnavailableAck
   case object RideAvailableAck
@@ -140,10 +140,10 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)))
             pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
             if(timeToCustomer==Long.MaxValue){
-              log.warn(s"Router could not find route to customer for inquiryId=$inquiryId")
+              log.warn(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
               RideHailingInquiryResponse(inquiryId,Vector(), error = Option(CouldNotFindRouteToCustomer))
             }else {
-              log.info(s"Found ride to hail $rideHailingLocation for inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer" )
+              log.info(s"Found ride to hail ${rideHailingLocation.currentLocation} for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer" )
               RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
             }
           }

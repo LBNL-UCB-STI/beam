@@ -59,7 +59,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[RideHailingAgentData]) =>
-      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableIn = SpaceTime(info.data.location, tick.toLong))
+      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = SpaceTime(info.data.location, tick.toLong))
       val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
         RegisterRideAvailableWrapper(triggerId)
       )
@@ -77,7 +77,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Traveling) {
     case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[RideHailingAgentData]) =>
-      beamServices.rideHailingManager ? RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableIn = newLocation)
+      beamServices.rideHailingManager ? RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = newLocation)
       goto(Idle) using BeamAgentInfo(id, info.data.copy(location = newLocation.loc))
   }
 
