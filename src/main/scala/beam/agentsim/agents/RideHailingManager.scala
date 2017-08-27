@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
-import beam.agentsim.events.resources.vehicle.VehicleUnavailable
+import beam.agentsim.events.resources.vehicle.{VehicleTooFar, VehicleUnavailable}
 import beam.router.{BeamRouter, Modes}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode._
@@ -27,7 +27,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.{Vehicle, VehicleType}
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import beam.sim.config.ConfigModule._
 /**
@@ -114,28 +114,36 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
 //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), personId)
 
           // This hbv represents a dummy walk leg for the taxi agent
-          val humanBodyVehicle = StreetVehicle(Id.createVehicleId(s"body-$inquiryId"),SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)),WALK)
+          val rideHailingAgentBody = StreetVehicle(Id.createVehicleId(s"body-$inquiryId"),SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)),WALK)
+          val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"),SpaceTime((customerPickUp,departAt.atTime)),WALK)
 
           val customerTripRequestId = BeamRouter.nextId
           val rideHailing2CustomerRequestId = BeamRouter.nextId
-          val rideHailingVehicle = StreetVehicle(rideHailingLocation.vehicleId, rideHailingLocation.currentLocation, CAR)
+          val rideHailingVehicleAtOrigin = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)), CAR)
+          val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp,departAt.atTime)), CAR)
           val routeRequests = Map(
-            beamServices.beamRouter -> List(
-
-//              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(humanBodyVehicle,rideHailingVehicle), personId)),
-              RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(humanBodyVehicle,rideHailingVehicle), personId)))
+            beamServices.beamRouter.path -> List(
+              RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingAgentBody,rideHailingVehicleAtOrigin), personId)),
+              //XXXX: customer trip request might be redundant... possibly pass in info
+              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody,rideHailingVehicleAtPickup), personId)))
           )
           aggregateResponsesTo(customerAgent, routeRequests,Option(self)){ case result: SingleActorAggregationResult =>
             val responses = result.mapListTo[RoutingResponse].map(res => (res.id, res)).toMap
-            val (_, timeToCustomer) = responses(rideHailing2CustomerRequestId).itineraries.map(t => (t, t.totalTravelTime)).minBy(_._2)
+            val timesToCustomer: Vector[Long] = responses(rideHailing2CustomerRequestId).itineraries.map(t => t.totalTravelTime)
+            val timeToCustomer = if(timesToCustomer.nonEmpty){timesToCustomer.min}else Long.MaxValue
+
             val rideHailingFare = findVehicle(rideHailingLocation.vehicleId).flatMap(vehicle => info.fares.get(vehicle.getType.getId)).getOrElse(DefaultCostPerMile)
             val (customerTripPlan, cost) = responses(customerTripRequestId).itineraries.map(t => (t, t.estimateCost(rideHailingFare).min)).minBy(_._2)
             //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
             //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
-            log.debug(s"Found ride to hail $rideHailingLocation for inquiryId=$inquiryId within $shortDistanceToRideHailingAgent miles, timeToCustomer=$timeToCustomer" )
+            log.info(s"Found ride to hail $rideHailingLocation for inquiryId=$inquiryId within $shortDistanceToRideHailingAgent miles, timeToCustomer=$timeToCustomer" )
             val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)))
             pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
-            RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
+            if(timeToCustomer==Long.MaxValue){
+              RideHailingInquiryResponse(inquiryId,Vector(), error = Option(VehicleTooFar))
+            }else {
+              RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
+            }
           }
         case None =>
           // no rides to hail
@@ -167,7 +175,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
 //    val params = RoutingRequestParams(departAt, Vector(TAXI), personId)
     val customerTripRequestId = BeamRouter.nextId
     val routeRequests = Map(
-      beamServices.beamRouter -> List(
+      beamServices.beamRouter.path -> List(
         //TODO update based on new Request spec
         RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(RideHailing), Vector(), personId))
       ))

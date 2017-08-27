@@ -2,7 +2,7 @@ package beam.agentsim.agents.util
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef}
 import akka.contrib.pattern.Aggregator
 import akka.util.Timeout
 
@@ -21,13 +21,13 @@ case object TimedOut
 
 sealed trait AggregationResult
 
-case class MultipleAggregationResult(responses : Map[ActorRef, List[Any]])extends AggregationResult
+case class MultipleAggregationResult(responses : Map[ActorPath, List[Any]])extends AggregationResult
 
 case class SingleActorAggregationResult(responses: List[Any]) extends AggregationResult {
   def mapListTo[T] = responses.asInstanceOf[List[T]]
 }
 
-case class AggregatedRequest(requests: Map[ActorRef, List[Any]])
+case class AggregatedRequest(requests: Map[ActorPath, List[Any]])
 //TODO: restrict request value to Identifiable to maintain response order
 //TODO: make expected response generic or pass type(s)
 //TODO: add fallback/timeout  logic
@@ -39,8 +39,8 @@ case class AggregatedRequest(requests: Map[ActorRef, List[Any]])
 class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[Any, Any]] = None, senderRef: Option[ActorRef] = None) extends Actor with Aggregator with ActorLogging  {
 
 
-  private var requests: Map[ActorRef, List[Any]] = null
-  private val responses = mutable.Map[ActorRef,  List[Any]]()
+  private var requests: Map[ActorPath, List[Any]] = null
+  private val responses = mutable.Map[ActorPath,  List[Any]]()
 
   expectOnce {
     case AggregatedRequest(theRequests) =>
@@ -49,7 +49,7 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
         log.debug(s"${self.toString()} got a request from ${sender()} ")
         for ((targetActor, messages) <- requests) {
           for ( message <- messages) {
-            targetActor ! message
+            context.actorSelection(targetActor) ! message
           }
         }
       }
@@ -58,9 +58,10 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
     case response: Any =>
       if (requests != null) {
         log.debug(s"Got response from ${sender()} ")
-        if (requests.contains(sender())) {
-          val values = responses.get(sender()).map(values => values :+ response).getOrElse(List(response))
-          responses.put(sender(), values)
+        val parentPath = sender().path.parent
+        if (requests.contains(parentPath)) {
+          val values = responses.get(parentPath).map(values => values :+ response).getOrElse(List(response))
+          responses.put(parentPath, values)
           respondIfDone()
         }
       }

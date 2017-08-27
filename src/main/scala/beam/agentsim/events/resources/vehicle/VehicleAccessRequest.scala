@@ -32,6 +32,9 @@ case class ReserveConfirmInfo(departFrom: BeamLeg, arriveAt: BeamLeg, passenger:
 case object VehicleUnavailable extends ReservationError {
   override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
 }
+case object VehicleTooFar extends ReservationError {
+  override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
+}
 case object VehicleGone extends ReservationError {
   override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
 }
