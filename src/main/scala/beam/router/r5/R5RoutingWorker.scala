@@ -158,14 +158,15 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
+    val isRouteForPerson = routingRequestTripInfo.streetVehicles.filter(_.mode == WALK).size > 0
 
-    val profileRequestToVehicles: ProfileRequestToVehicles = if(routingRequestTripInfo.streetVehicles.filter(_.mode == WALK).isEmpty){
+    val profileRequestToVehicles: ProfileRequestToVehicles = if(isRouteForPerson){
       buildRequestsForPerson(routingRequestTripInfo)
     }else{
       buildRequestsForNonPerson(routingRequestTripInfo)
     }
-    val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
-    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head)
+    val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile),isRouteForPerson)
+    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if(isRouteForPerson){ Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) }else{ Map() }
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
     originalResponse.filter(_.accessMode == WALK).foreach { trip =>
@@ -320,7 +321,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
   }
 
-  def buildResponse(plan: ProfileResponse): Vector[BeamTrip] = {
+  def buildResponse(plan: ProfileResponse, forPerson: Boolean): Vector[BeamTrip] = {
 
     var trips = Vector[BeamTrip]()
     for(option <- plan.options.asScala) {
@@ -346,7 +347,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildStreetPath(access))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
-        if(access.mode != LegMode.WALK) {
+        if(forPerson && access.mode != LegMode.WALK) {
           legs = dummyWalk(tripStartTime) +: legs
           if(!isTransit) legs = legs :+ dummyWalk(tripStartTime + access.duration)
         }
@@ -388,7 +389,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             val egress = option.egress.get(itinerary.connection.egress)
             //start time would be the arival time of last stop and 5 second alighting
             legs = legs :+ BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress))
-            if(egress.mode != LegMode.WALK) legs :+ dummyWalk(arrivalTime + egress.duration)
+            if(forPerson && egress.mode != LegMode.WALK) legs :+ dummyWalk(arrivalTime + egress.duration)
           }
         }
 
