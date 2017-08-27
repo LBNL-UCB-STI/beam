@@ -3,6 +3,7 @@ package beam.agentsim.events.resources.vehicle
 import java.time.Period
 
 import beam.agentsim.User
+import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources._
@@ -24,6 +25,8 @@ case class ReservationRequest(requestId: Id[ReservationRequest], departFrom: Bea
 }
 
 case class ReservationRequestWithVehicle(request: ReservationRequest, vehicleIdToReserve: Id[Vehicle])
+
+case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule)
 
 case class ReservationResponse(requestId: Id[ReservationRequest], response: Either[ReservationError, ReserveConfirmInfo])
 

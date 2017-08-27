@@ -137,6 +137,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
             //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
+            //TODO: add timeToCustomer to all startTime of customerTripPlan.beamLegs
             val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)))
             pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
             if(timeToCustomer==Long.MaxValue){

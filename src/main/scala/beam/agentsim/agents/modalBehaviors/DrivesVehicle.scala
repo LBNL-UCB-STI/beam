@@ -113,6 +113,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       }
   }
   chainedWhen(AnyState){
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule), _) =>
+      //TODO handle passenger schedule
+      stay()
     case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
       require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
       logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
