@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
-import beam.agentsim.events.resources.vehicle.{VehicleTooFar, VehicleUnavailable}
+import beam.agentsim.events.resources.vehicle.{CouldNotFindRouteToCustomer, VehicleUnavailable}
 import beam.router.{BeamRouter, Modes}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode._
@@ -136,12 +136,14 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             val (customerTripPlan, cost) = responses(customerTripRequestId).itineraries.map(t => (t, t.estimateCost(rideHailingFare).min)).minBy(_._2)
             //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
             //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
-            log.info(s"Found ride to hail $rideHailingLocation for inquiryId=$inquiryId within $shortDistanceToRideHailingAgent miles, timeToCustomer=$timeToCustomer" )
+
             val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)))
             pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
             if(timeToCustomer==Long.MaxValue){
-              RideHailingInquiryResponse(inquiryId,Vector(), error = Option(VehicleTooFar))
+              log.warn(s"Router could not find route to customer for inquiryId=$inquiryId")
+              RideHailingInquiryResponse(inquiryId,Vector(), error = Option(CouldNotFindRouteToCustomer))
             }else {
+              log.info(s"Found ride to hail $rideHailingLocation for inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer" )
               RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
             }
           }
