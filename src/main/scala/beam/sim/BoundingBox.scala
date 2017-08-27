@@ -10,10 +10,10 @@ import org.geotools.referencing.CRS
 object BoundingBox {
 }
 class BoundingBox() {
-  var minX = Double.PositiveInfinity
-  var minY = Double.PositiveInfinity
-  var maxX = Double.NegativeInfinity
-  var maxY = Double.NegativeInfinity
+  var minX = 1e6
+  var minY = 1e6
+  var maxX = -1e6
+  var maxY = -1e6
   val transform = CRS.findMathTransform(CRS.decode("EPSG:4326", true), CRS.decode("EPSG:26910", true), false)
 
   def observeCoord(coord: Coordinate): Unit ={
