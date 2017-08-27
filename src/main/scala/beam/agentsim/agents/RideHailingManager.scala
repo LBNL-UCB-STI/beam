@@ -63,6 +63,8 @@ object RideHailingManager {
     Props(classOf[RideHailingManager], RideHailingManagerData(name, fares, fleet), services)
   }
 }
+
+//TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
 case class RideHailingManagerData(name: String, fares: Map[Id[VehicleType], BigDecimal],
                                   fleet: Map[Id[Vehicle], Vehicle]) extends BeamAgentData
 
@@ -107,15 +109,16 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
         val distance = CoordUtils.calcProjectedEuclideanDistance(inquiry.pickUpLocation, rideHailingAgentLocation.currentLocation.loc)
         (rideHailingAgentLocation, distance)
       })
+      //TODO: Possibly get multiple taxis in this block
       val chosenRideLocation = distances2RideHailingAgents.sortBy(_._2).headOption
       val customerAgent = sender()
       chosenRideLocation match {
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
-//          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), personId)
+      //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), personId)
 
           // This hbv represents a dummy walk leg for the taxi agent
           val rideHailingAgentBody = StreetVehicle(Id.createVehicleId(s"body-$inquiryId"),SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)),WALK)
-          val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"),SpaceTime((customerPickUp,departAt.atTime)),WALK)
+          val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp,departAt.atTime)),WALK)
 
           val customerTripRequestId = BeamRouter.nextId
           val rideHailing2CustomerRequestId = BeamRouter.nextId
