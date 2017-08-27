@@ -38,7 +38,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var beamRouter : ActorRef = _
   var physSim: ActorRef = _
   var schedulerRef: ActorRef =_
-  var taxiManager: ActorRef = _
+  var rideHailingManager: ActorRef = _
   val persons: collection.concurrent.Map[Id[Person], Person] = collection.concurrent.TrieMap[Id[Person], Person]()
   val personRefs: collection.concurrent.Map[Id[Person], ActorRef] = collection.concurrent.TrieMap[Id[Person], ActorRef]()
   val vehicles: collection.concurrent.Map[Id[Vehicle], Vehicle] = collection.concurrent.TrieMap[Id[Vehicle], Vehicle]()

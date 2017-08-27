@@ -69,13 +69,13 @@ object PersonAgent {
   case class ActivityStartTrigger(tick: Double) extends Trigger
   case class ActivityEndTrigger(tick: Double) extends Trigger
   case class RouteResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip]) extends Trigger
-  case class TaxiInquiryResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip], timesToCustomer: Vector[Double]) extends Trigger
-  case class ReserveTaxiResponseWrapper(tick: Double, triggerId: Long, taxi: Option[ActorRef], timeToCustomer: Double, tripChoice: BeamTrip) extends Trigger
+  case class RideHailingInquiryTrigger(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip], timesToCustomer: Vector[Double]) extends Trigger
+  case class MakeRideHailingReservationResponseWrapper(tick: Double, triggerId: Long, rideHailingAgentOpt: Option[ActorRef], timeToCustomer: Double, tripChoice: BeamTrip) extends Trigger
   case class FinishWrapper(tick: Double, triggerId: Long) extends Trigger
   case class NextActivityWrapper(tick: Double, triggerId: Long) extends Trigger
   case class PersonDepartureTrigger(tick: Double) extends Trigger
-  case class PersonEntersTaxiTrigger(tick: Double) extends Trigger
-  case class PersonLeavesTaxiTrigger(tick: Double) extends Trigger
+  case class PersonEntersRideHailingVehicleTrigger(tick: Double) extends Trigger
+  case class PersonLeavesRideHailingVehicleTrigger(tick: Double) extends Trigger
   case class PersonEntersBoardingQueueTrigger(tick: Double) extends Trigger
   case class PersonEntersAlightingQueueTrigger(tick: Double) extends Trigger
   case class PersonArrivesTransitStopTrigger(tick: Double) extends Trigger
@@ -91,7 +91,7 @@ class PersonAgent(val beamServices: BeamServices,
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
-  TriggerShortcuts with HasServices with CanUseTaxi with ChoosesMode with DrivesVehicle[PersonData] {
+  TriggerShortcuts with HasServices with CanUseRideHailingService with ChoosesMode with DrivesVehicle[PersonData] {
 
   var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
   var _currentActivityIndex: Int = 0

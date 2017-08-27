@@ -30,7 +30,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
   val choiceCalculator: ChoiceCalculator = ChoosesMode.transitIfAvailable
   var routingResponse: Option[RoutingResponse] = None
-  var taxiResult: Option[RideHailingInquiryResponse] = None
+  var rideHailingResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
   var awaitingReservationConfirmation: Set[Id[ReservationRequest]] = Set()
   var pendingChosenTrip: Option[EmbodiedBeamTrip] = None
@@ -38,7 +38,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
 
   def completeChoiceIfReady(): State = {
-    if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && taxiResult.isDefined) {
+    if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
       val chosenTrip = choiceCalculator(routingResponse.get.itineraries)
 
       if(tripRequiresReservationConfirmation(chosenTrip)){
@@ -77,7 +77,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
     _currentRoute = chosenTrip
     routingResponse = None
-    taxiResult = None
+    rideHailingResult = None
     hasReceivedCompleteChoiceTrigger = false
     pendingChosenTrip = None
     beamServices.schedulerRef ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
@@ -121,8 +121,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
       //TODO parameterize search distance
       val pickUpLocation = currentActivity.getCoord
-      beamServices.taxiManager ! RideHailingInquiry(RideHailingManager.nextTaxiInquiryId,
-        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 2000, nextAct.getCoord)
+      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId,
+        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 5000, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()
@@ -132,8 +132,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(theRouterResult: RoutingResponse, info: BeamAgentInfo[PersonData]) =>
       routingResponse = Some(theRouterResult)
       completeChoiceIfReady()
-    case Event(theTaxiResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
-      taxiResult = Some(theTaxiResult)
+    case Event(theRideHailingResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
+      rideHailingResult = Some(theRideHailingResult)
       completeChoiceIfReady()
     /*
      * Process ReservationReponses
@@ -243,7 +243,7 @@ object ChoosesMode {
   }
 
   def altUtility(mode: BeamMode, travelTime: Double): Double = {
-    val intercept = if(mode.equals(CAR)){ -3.0 }else{ if(mode.equals(TAXI)){ -5.0}else{0.0} }
+    val intercept = if(mode.equals(CAR)){ -3.0 }else{ if(mode.equals(RideHailing)){ -5.0}else{0.0} }
     intercept + -0.001 * travelTime
   }
 

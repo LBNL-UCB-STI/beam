@@ -55,6 +55,10 @@ object BeamVehicle {
 
   case class BeamVehicleIdAndRef(id: Id[Vehicle], ref: ActorRef)
 
+  object BeamVehicleIdAndRef {
+    def apply(tup: (Id[Vehicle], ActorRef)): BeamVehicleIdAndRef = new BeamVehicleIdAndRef(tup._1, tup._2)
+  }
+
   case object Moving extends BeamAgentState {
     override def identifier = "Moving"
   }
