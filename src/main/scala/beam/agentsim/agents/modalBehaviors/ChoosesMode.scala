@@ -109,7 +109,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       stay()
     case Event(MobilityStatusReponse(streetVehicles), info: BeamAgentInfo[PersonData]) =>
       val (tick,theTriggerId) = releaseTickAndTriggerId()
-      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle,SpaceTime(currentActivity.getCoord,tick.toLong),WALK)
+      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle,SpaceTime(currentActivity.getCoord,tick.toLong),WALK,true)
 
       val nextAct = nextActivity.right.get // No danger of failure here
       val departTime = DiscreteTime(tick.toInt)

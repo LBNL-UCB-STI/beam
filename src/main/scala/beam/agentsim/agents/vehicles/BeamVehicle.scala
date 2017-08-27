@@ -97,7 +97,7 @@ object BeamVehicle {
   }
 
   case class UpdateTrajectory(trajectory: Trajectory)
-  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode)
+  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
   case class AssignedCarrier(carrierVehicleId: Id[Vehicle])
   case object ResetCarrier
 

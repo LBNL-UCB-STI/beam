@@ -159,7 +159,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     val profileRequestToVehicles: ProfileRequestToVehicles = buildRequests(routingRequestTripInfo)
     val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
-    val walkModeToVehicle: Map[BeamMode, Id[Vehicle]] = Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head)
+    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head)
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
     originalResponse.filter(_.accessMode == WALK).foreach { trip =>
@@ -167,10 +167,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }
 
     profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach{ mode =>
-      val vehicleIds = profileRequestToVehicles.originalProfileModeToVehicle(mode)
+      val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
       originalResponse.filter(_.accessMode == mode).foreach { trip =>
-        vehicleIds.foreach { vehId: Id[Vehicle] =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle ++ Map(mode -> vehId), walkModeToVehicle, beamServices)
+        streetVehicles.foreach { veh: StreetVehicle =>
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, beamServices)
         }
       }
     }
@@ -191,9 +191,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     //TODO parameterize the distance threshold here
     val distanceThresholdToIgnoreWalking = 100.0 // meters
 
-    val originalProfileModeToVehicle = new mutable.HashMap[BeamMode, mutable.Set[Id[Vehicle]]] with mutable.MultiMap[BeamMode, Id[Vehicle]]
+    val originalProfileModeToVehicle = new mutable.HashMap[BeamMode, mutable.Set[StreetVehicle]] with mutable.MultiMap[BeamMode, StreetVehicle]
     var walkOnlyProfiles: Vector[ProfileRequest] = Vector[ProfileRequest]()
-    var vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]] = Map[ProfileRequest,Id[Vehicle]]()
+    var vehicleAsOriginProfiles: Map[ProfileRequest,StreetVehicle] = Map[ProfileRequest,StreetVehicle]()
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // First request is from requester's origin to destination, the street modes in addition to WALK depend on
@@ -205,7 +205,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(_.r5Mode.get match { case Left(leg) => leg }).distinct
     uniqueBeamModes.foreach(beamMode =>
       streetVehiclesAtRequesterOrigin.filter(_.mode == beamMode).foreach(veh =>
-        originalProfileModeToVehicle.addBinding(beamMode,veh.id)
+        originalProfileModeToVehicle.addBinding(beamMode,veh)
       )
     )
     if(!uniqueBeamModes.contains(WALK)) log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
@@ -259,7 +259,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       newProfileRequest2.fromLon = newFromPosTransformed.getX
       newProfileRequest2.fromLat = newFromPosTransformed.getY
       newProfileRequest2.directModes = util.EnumSet.copyOf(Vector(veh.mode.r5Mode.get.left.get).asJavaCollection)
-      vehicleAsOriginProfiles = vehicleAsOriginProfiles + (newProfileRequest2 -> veh.id)
+      vehicleAsOriginProfiles = vehicleAsOriginProfiles + (newProfileRequest2 -> veh)
     }
 
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
@@ -424,7 +424,7 @@ object R5RoutingWorker extends HasProps {
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
-                                      originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[Id[Vehicle]]],
+                                      originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[StreetVehicle]],
                                       walkOnlyProfiles: Vector[ProfileRequest],
-                                      vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]])
+                                      vehicleAsOriginProfiles: Map[ProfileRequest,StreetVehicle])
 }
