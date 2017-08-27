@@ -19,6 +19,9 @@ import scala.collection.mutable
   */
 object RoutingModel {
 
+  sealed trait CostEstimator
+
+
   case class BeamTrip(legs: Vector[BeamLeg],
                       accessMode: BeamMode) {
     lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
@@ -27,7 +30,6 @@ object RoutingModel {
       TRANSIT
     }
     val totalTravelTime: Long = legs.map(_.duration).sum
-    def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
   }
 
   object BeamTrip {
