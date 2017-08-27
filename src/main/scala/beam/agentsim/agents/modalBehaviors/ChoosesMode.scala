@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInq
 import beam.agentsim.agents._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.resources.vehicle.{Reservation, ReservationRequest}
+import beam.agentsim.events.resources.vehicle.{Reservation, ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
@@ -18,6 +18,7 @@ import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime, EmbodiedBeamT
 import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
+import org.matsim.vehicles.Vehicle
 
 import scala.util.Random
 
@@ -31,40 +32,67 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
   var routingResponse: Option[RoutingResponse] = None
   var rideHailingResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
+  var awaitingReservationConfirmation: Set[Id[ReservationRequest]] = Set()
+  var pendingChosenTrip: Option[EmbodiedBeamTrip] = None
+
+
 
   def completeChoiceIfReady(): State = {
-    if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
-
+    if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && taxiResult.isDefined) {
       val chosenTrip = choiceCalculator(routingResponse.get.itineraries)
 
-      val (tick,theTriggerId) = releaseTickAndTriggerId()
-
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id,
-        currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
-
-      if(chosenTrip.legs.isEmpty) {
-        log.error(s"No trip chosen because RoutingResponse empty, person ${id} going to Error")
-        beamServices.schedulerRef ! completed(triggerId = theTriggerId)
-        goto(BeamAgent.Error)
-      } else {
-//        val transitLegs = chosenTrip.legs.filter(_.beamLeg.travelPath.isTransit)
-//        if (transitLegs.nonEmpty) {
-//         val reservations =  transitLegs.sliding(2).map { case Vector(departFrom, arriveAt) =>
-//            val transitDriver  = beamServices.transitVehiclesByBeamLeg.get(departFrom.beamLeg).map(TransitDriverAgent.createAgentId)
-//            transitDriver -> new ReservationRequest(departFrom.beamLeg, arriveAt.beamLeg, _currentVehicle.outermostVehicle(), id)
-//          }
-//          reservations
-//        }
-        beamServices.schedulerRef ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
-        _currentRoute = chosenTrip
-        routingResponse = None
-        rideHailingResult = None
-        hasReceivedCompleteChoiceTrigger = false
-        goto(Waiting)
+      if(tripRequiresReservationConfirmation(chosenTrip)){
+        pendingChosenTrip = Some(chosenTrip)
+        sendReservationRequests(chosenTrip)
+      }else if(chosenTrip.legs.isEmpty) {
+        errorFromEmptyRoutingResponse()
+      }else{
+        scheduleDepartureWithValidatedTrip(chosenTrip)
       }
     } else {
       stay()
     }
+  }
+
+  def sendReservationRequests(chosenTrip: EmbodiedBeamTrip) = {
+    // To fix the stall issue on transit trips, we need to revise this inference on what vehicle will be the outtermost when
+    // boarding the Reserved vehicle. Easiest way is probably to do a serial loop and manage a stack just like in the
+    // PersonAgent
+    val legsWithPrevVehicle = for(legs <- chosenTrip.legs.sliding(2) if legs.size ==2) yield ( (legs(0).beamVehicleId, legs(1)) )
+    val transitLegs = legsWithPrevVehicle.filter(_._2.beamLeg.mode.isTransit)
+    if (transitLegs.nonEmpty) {
+      transitLegs.toVector.groupBy(_._2.beamVehicleId).foreach{ idToLegs =>
+        val legs = idToLegs._2.sortBy(_._2.beamLeg.startTime)
+        val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(idToLegs._1).toString)
+        val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head._2.beamLeg, legs.last._2.beamLeg, legs.head._1, id), idToLegs._1)
+        driverRef ! resRequest
+        awaitingReservationConfirmation = awaitingReservationConfirmation + resRequest.request.requestId
+      }
+    }
+    stay()
+  }
+
+  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip) = {
+    val (tick, theTriggerId) = releaseTickAndTriggerId()
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
+    _currentRoute = chosenTrip
+    routingResponse = None
+    rideHailingResult = None
+    hasReceivedCompleteChoiceTrigger = false
+    pendingChosenTrip = None
+    beamServices.schedulerRef ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
+    goto(Waiting)
+  }
+  /*
+   * If any leg of a trip is not conducted as the drive, than a reservation must be acquired
+   */
+  def tripRequiresReservationConfirmation(chosenTrip: EmbodiedBeamTrip): Boolean = {
+    chosenTrip.legs.filter(!_.asDriver).size > 0
+  }
+  def errorFromEmptyRoutingResponse(): ChoosesMode.this.State = {
+    log.error(s"No trip chosen because RoutingResponse empty, person ${id} going to Error")
+    beamServices.schedulerRef ! completed(triggerId = _currentTriggerId.get)
+    goto(BeamAgent.Error)
   }
 
   chainedWhen(ChoosingMode) {
@@ -107,6 +135,24 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     case Event(theRideHailingResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)
       completeChoiceIfReady()
+    /*
+     * Process ReservationReponses
+     */
+    case Event(ReservationResponse(requestId,Right(resrvationConfirmation)),_) =>
+      awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
+      if(awaitingReservationConfirmation.isEmpty){
+        scheduleDepartureWithValidatedTrip(pendingChosenTrip.get)
+      }else{
+        stay()
+      }
+    case Event(ReservationResponse(requestId,Left(resrvationError)),_) =>
+      routingResponse = Some(routingResponse.get.copy(itineraries=routingResponse.get.itineraries.diff(Seq(pendingChosenTrip))))
+      if(routingResponse.get.itineraries.isEmpty){
+        errorFromEmptyRoutingResponse()
+      }else{
+        completeChoiceIfReady()
+      }
+
     /*
      * Finishing choice.
      */

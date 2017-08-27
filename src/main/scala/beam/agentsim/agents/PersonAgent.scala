@@ -190,8 +190,8 @@ class PersonAgent(val beamServices: BeamServices,
         case Some(processedData) =>
           val previousVehicleId = _currentVehicle.nestedVehicles.head
           val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
-          val newCarrierVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
-          newCarrierVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
+          val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
+          nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
           _currentRoute = processedData.restTrip
           _currentEmbodiedLeg = Some(processedData.nextLeg)
           _currentVehicle = _currentVehicle.pushIfNew(nextBeamVehicleId)
@@ -260,8 +260,8 @@ class PersonAgent(val beamServices: BeamServices,
             //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and vehicle is the same...
             val nextEmbodiedBeamLeg = processedData.nextLeg
             passengerSchedule.addLegs(Vector(nextEmbodiedBeamLeg.beamLeg))
-            beamServices.vehicleRefs(vehiclePersonId.passengerVehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
-            _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.passengerVehicleId)
+            beamServices.vehicleRefs(vehiclePersonId.vehicleId) ! BecomeDriver(tick, id, Some(passengerSchedule))
+            _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _currentRoute = processedData.restTrip
             _currentEmbodiedLeg = Some(processedData.nextLeg)
             holdTickAndTriggerId(tick,triggerId)

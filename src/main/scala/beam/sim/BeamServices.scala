@@ -4,6 +4,7 @@ import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap, TimeUnit}
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
+import beam.agentsim.agents.TransitDriverAgent
 import beam.playground.akkaguice.ActorInject
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
@@ -46,6 +47,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   val householdRefs : collection.concurrent.Map[Id[Household], ActorRef] = collection.concurrent.TrieMap[Id[Household], ActorRef]()
   val agentRefs: collection.concurrent.Map[String, ActorRef] = collection.concurrent.TrieMap[String, ActorRef]()
   val transitVehiclesByBeamLeg: mutable.Map[BeamLeg, Id[Vehicle]] = mutable.Map[BeamLeg, Id[Vehicle]]()
+  val transitDriversByVehicle: mutable.Map[Id[Vehicle],Id[TransitDriverAgent]] = mutable.Map[Id[Vehicle],Id[TransitDriverAgent]]()
 
 }
 

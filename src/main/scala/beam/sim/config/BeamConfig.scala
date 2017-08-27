@@ -69,12 +69,14 @@ object BeamConfig {
   )
   object Beam {
     case class Agentsim(
+      debugEnabled   : scala.Int,
       numAgents      : scala.Int,
       simulationName : java.lang.String
     )
     object Agentsim {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
+          debugEnabled   = if(c.hasPathOrNull("debugEnabled")) c.getInt("debugEnabled") else 0,
           numAgents      = if(c.hasPathOrNull("numAgents")) c.getInt("numAgents") else 100,
           simulationName = if(c.hasPathOrNull("simulationName")) c.getString("simulationName") else "dev"
         )
@@ -122,7 +124,7 @@ object BeamConfig {
           defaultLoggingLevel     = if(c.hasPathOrNull("defaultLoggingLevel")) c.getInt("defaultLoggingLevel") else 1,
           eventsFileOutputFormats = if(c.hasPathOrNull("eventsFileOutputFormats")) c.getString("eventsFileOutputFormats") else "csv",
           explodeEventsIntoFiles  = c.hasPathOrNull("explodeEventsIntoFiles") && c.getBoolean("explodeEventsIntoFiles"),
-          outputDirectory         = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/Users/sfeygin/remote_files/beam_outputs",
+          outputDirectory         = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/Users/critter/Documents/beam/beam-output/",
           overrideLoggingLevels   = $_LBeamConfig_Beam_Outputs_OverrideLoggingLevels$Elm(c.getList("overrideLoggingLevels")),
           writeEventsInterval     = if(c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
           writePlansInterval      = if(c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
@@ -144,7 +146,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Routing(
       baseDate    : java.lang.String,
       gtfs        : BeamConfig.Beam.Routing.Gtfs,
@@ -162,7 +164,7 @@ object BeamConfig {
           BeamConfig.Beam.Routing.Gtfs(
             crs           = if(c.hasPathOrNull("crs")) c.getString("crs") else "epsg:26910",
             operatorsFile = if(c.hasPathOrNull("operatorsFile")) c.getString("operatorsFile") else "src/main/resources/GTFSOperators.csv",
-            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "/Users/sfeygin/remote_files/beam_outputs/gtfs"
+            outputDir     = if(c.hasPathOrNull("outputDir")) c.getString("outputDir") else "/Users/critter/Documents/beam/beam-output//gtfs"
           )
         }
       }
@@ -175,7 +177,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
             departureWindow = if(c.hasPathOrNull("departureWindow")) c.getInt("departureWindow") else 15,
-            directory       = if(c.hasPathOrNull("directory")) c.getString("directory") else "/Users/sfeygin/remote_files/beam_inputs/model-inputs/r5"
+            directory       = if(c.hasPathOrNull("directory")) c.getString("directory") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-inputs/r5"
           )
         }
       }
@@ -189,7 +191,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     def apply(c: com.typesafe.config.Config): BeamConfig.Beam = {
       BeamConfig.Beam(
         agentsim     = BeamConfig.Beam.Agentsim(c.getConfig("agentsim")),
@@ -198,7 +200,7 @@ object BeamConfig {
         outputs      = BeamConfig.Beam.Outputs(c.getConfig("outputs")),
         rideHailing  = BeamConfig.Beam.RideHailing(c.getConfig("rideHailing")),
         routing      = BeamConfig.Beam.Routing(c.getConfig("routing")),
-        sharedInputs = if(c.hasPathOrNull("sharedInputs")) c.getString("sharedInputs") else "/Users/sfeygin/remote_files/beam_inputs"
+        sharedInputs = if(c.hasPathOrNull("sharedInputs")) c.getString("sharedInputs") else "/Users/critter/Dropbox/ucb/vto/beam-developers/"
       )
     }
   }
@@ -245,7 +247,7 @@ object BeamConfig {
             firstIteration   = if(c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
             lastIteration    = if(c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
             mobsim           = if(c.hasPathOrNull("mobsim")) c.getString("mobsim") else "metasim",
-            outputDirectory  = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/Users/sfeygin/remote_files/beam_outputs/pt-tutorial"
+            outputDirectory  = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/Users/critter/Documents/beam/beam-output//pt-tutorial"
           )
         }
       }
@@ -269,7 +271,7 @@ object BeamConfig {
       object Network {
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Network = {
           BeamConfig.Matsim.Modules.Network(
-            inputNetworkFile = if(c.hasPathOrNull("inputNetworkFile")) c.getString("inputNetworkFile") else "/Users/sfeygin/remote_files/beam_inputs/model-inputs/dev/multimodalnetwork.xml"
+            inputNetworkFile = if(c.hasPathOrNull("inputNetworkFile")) c.getString("inputNetworkFile") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-inputs/dev/multimodalnetwork.xml"
           )
         }
       }
@@ -347,7 +349,7 @@ object BeamConfig {
       object Plans {
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Plans = {
           BeamConfig.Matsim.Modules.Plans(
-            inputPlansFile = if(c.hasPathOrNull("inputPlansFile")) c.getString("inputPlansFile") else "/Users/sfeygin/remote_files/beam_inputs/model-inputs/dev/population-500.xml"
+            inputPlansFile = if(c.hasPathOrNull("inputPlansFile")) c.getString("inputPlansFile") else "/Users/critter/Dropbox/ucb/vto/beam-developers//model-inputs/dev/population-500.xml"
           )
         }
       }

@@ -23,7 +23,7 @@ object TransitDriverAgent {
   }
   case class TransitDriverData() extends BeamAgentData
 
-  def createAgentId(transitVehicle: Id[Vehicle]) = {
+  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]) = {
     Id.create("TransitDriverAgent-" + transitVehicle.toString, classOf[TransitDriverAgent])
   }
 }
