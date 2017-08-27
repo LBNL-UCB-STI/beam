@@ -52,7 +52,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
             processNextLegOrCompleteMission()
           }else {
             _awaitingAlightConfirmation ++= manifest.alighters
-            manifest.riders.foreach(pv => beamServices.personRefs.get(pv.personId).foreach(_ ! NotifyLegEnd))
+            manifest.riders.foreach(pv => beamServices.personRefs.get(pv.personId).foreach(_ ! NotifyLegEnd(tick)))
             stay()
           }
         case None =>
@@ -127,7 +127,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
-    goto(Moving) replying completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime,self,_currentLeg.get))
+    beamServices.schedulerRef ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime,self,_currentLeg.get))
+    goto(Moving)
   }
 
   private def processNextLegOrCompleteMission() = {
@@ -137,9 +138,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
     if(passengerSchedule.schedule.nonEmpty){
       val nextLeg = passengerSchedule.schedule.firstKey
-      goto(Waiting) replying completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime,self,  nextLeg))
+      beamServices.schedulerRef ! completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime,self,  nextLeg))
+      goto(Waiting)
     }else{
-      goto(Waiting) replying completed(theTriggerId, schedule[PassengerScheduleEmptyTrigger](theTick, self))
+      beamServices.schedulerRef ! completed(theTriggerId, schedule[PassengerScheduleEmptyTrigger](theTick, self))
+      goto(Waiting)
     }
   }
 

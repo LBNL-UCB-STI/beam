@@ -7,6 +7,7 @@ import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, 
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
 import beam.agentsim.agents._
+import beam.agentsim.agents.vehicles.VehicleStack
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle.{Reservation, ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
@@ -14,7 +15,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime, EmbodiedBeamTrip}
+import beam.router.RoutingModel._
 import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
@@ -55,11 +56,19 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
   }
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip) = {
-    // To fix the stall issue on transit trips, we need to revise this inference on what vehicle will be the outtermost when
-    // boarding the Reserved vehicle. Easiest way is probably to do a serial loop and manage a stack just like in the
-    // PersonAgent
-    val legsWithPrevVehicle = for(legs <- chosenTrip.legs.sliding(2) if legs.size ==2) yield ( (legs(0).beamVehicleId, legs(1)) )
-    val transitLegs = legsWithPrevVehicle.filter(_._2.beamLeg.mode.isTransit)
+    //TODO this is currently working for single leg Transit trips, hasn't been tested on multi-leg transit trips (e.g. BUS WALK BUS)
+    var inferredVehicle: VehicleStack = VehicleStack()
+    var exitNextVehicle = false
+    var legsWithPassengerVehicle: Vector[(Id[Vehicle], EmbodiedBeamLeg)] = Vector()
+    for(leg <- chosenTrip.legs){
+      if(exitNextVehicle)inferredVehicle = inferredVehicle.pop()
+      if(!inferredVehicle.nestedVehicles.isEmpty){
+        legsWithPassengerVehicle = legsWithPassengerVehicle :+ (inferredVehicle.outermostVehicle(), leg)
+      }
+      inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
+      exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion) || !leg.asDriver
+    }
+    val transitLegs = legsWithPassengerVehicle.filter(_._2.beamLeg.mode.isTransit)
     if (transitLegs.nonEmpty) {
       transitLegs.toVector.groupBy(_._2.beamVehicleId).foreach{ idToLegs =>
         val legs = idToLegs._2.sortBy(_._2.beamLeg.startTime)

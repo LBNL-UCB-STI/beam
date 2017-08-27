@@ -147,7 +147,7 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
     Option(context.system.scheduler.schedule(new FiniteDuration(10, TimeUnit.SECONDS), new FiniteDuration(10, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
         if (log.isInfoEnabled) {
-          log.info(s"nowInSeconds=$nowInSeconds, awaitingResponse.size=${awaitingResponse.size()}, triggerQueue.size=${triggerQueue.size}, triggerQueue.head=${triggerQueue.headOption} awaitingResponse.head=${awaitingToString}")
+          log.info(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
         }
       }
     }))
@@ -159,7 +159,7 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
       "empty"
     }else{
       if(debugEnabled){
-        s"${awaitingResponseVerbose.keySet().first()} ${awaitingResponseVerbose.get(awaitingResponseVerbose.keySet().first())}}"
+        s"${awaitingResponseVerbose.get(awaitingResponseVerbose.keySet().first())}}"
       }else{
         s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
       }
