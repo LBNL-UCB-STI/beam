@@ -113,14 +113,16 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
 //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), personId)
 
-          val humanBodyVehicle = StreetVehicle(Id.createVehicleId(s"body-${personId.toString}"),SpaceTime((inquiry.pickUpLocation,departAt.atTime)),WALK)
+          // This hbv represents a dummy walk leg for the taxi agent
+          val humanBodyVehicle = StreetVehicle(Id.createVehicleId(s"body-$inquiryId"),SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)),WALK)
 
           val customerTripRequestId = BeamRouter.nextId
           val rideHailing2CustomerRequestId = BeamRouter.nextId
           val rideHailingVehicle = StreetVehicle(rideHailingLocation.vehicleId, rideHailingLocation.currentLocation, CAR)
           val routeRequests = Map(
             beamServices.beamRouter -> List(
-              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(humanBodyVehicle,rideHailingVehicle), personId)),
+
+//              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(humanBodyVehicle,rideHailingVehicle), personId)),
               RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(humanBodyVehicle,rideHailingVehicle), personId)))
           )
           aggregateResponsesTo(customerAgent, routeRequests,Option(self)){ case result: SingleActorAggregationResult =>

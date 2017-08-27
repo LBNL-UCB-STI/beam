@@ -179,13 +179,17 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     RoutingResponse(requestId, embodiedTrips)
   }
 
+  def isRideHailingVehicle(veh: StreetVehicle): Boolean = {
+    veh.id.toString.contains("rideHailingVehicle-")
+  }
+
   /*
-   * buildRequests
-   *
-   * Here we build the Vector of routing requests to send to R5. There could be 1-3 origins associated with the
-   * location of the requester and her CAR and BIKE if those personal vehicles are sufficiently far from her location
-   * (otherwise we ignore the difference).
-   */
+     * buildRequests
+     *
+     * Here we build the Vector of routing requests to send to R5. There could be 1-3 origins associated with the
+     * location of the requester and her CAR and BIKE if those personal vehicles are sufficiently far from her location
+     * (otherwise we ignore the difference).
+     */
   protected def buildRequests(routingRequestTripInfo: RoutingRequestTripInfo): ProfileRequestToVehicles = {
     //TODO parameterize the distance threshold here
     val distanceThresholdToIgnoreWalking = 100.0 // meters
@@ -244,7 +248,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // The next requests are for walk only trips to vehicles and simultaneously the vehicle to destination
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //TODO can we configure the walkOnly trips so that only one alternative is returned by R5 or do we need to deal with that in post?
-    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking  )
+    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking )
     streetVehiclesNotAtRequesterOrigin.foreach{ veh =>
       // Walking to Vehicle
       val newFromPosTransformed = GeoUtils.transform.Utm2Wgs(veh.location.loc)

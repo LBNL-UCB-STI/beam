@@ -57,8 +57,8 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
   expect {
     case response: Any =>
       if (requests != null) {
+        log.debug(s"Got response from ${sender()} ")
         if (requests.contains(sender())) {
-          log.debug(s"Got response from ${sender()} ")
           val values = responses.get(sender()).map(values => values :+ response).getOrElse(List(response))
           responses.put(sender(), values)
           respondIfDone()
@@ -74,11 +74,11 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
         MultipleAggregationResult(responses.toMap)
       }
       transform match {
-        case Some(transformFunc) if transformFunc.isDefinedAt(result) =>
-          val response = transformFunc(result)
-          responseWithSender(response)
+//        case Some(transformFunc) if transformFunc.isDefinedAt(result) =>
+//          val response = transformFunc(result)
+//          responseWithSender(response)
         case _ =>
-          responseWithSender(result)
+          responseWithSender(transform.get(result))
       }
       log.debug(s"Finished aggregation request from ${sender()} ")
       context stop self
