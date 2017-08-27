@@ -117,16 +117,15 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), personId)
 
           // This hbv represents a dummy walk leg for the taxi agent
-          val rideHailingAgentBody = StreetVehicle(Id.createVehicleId(s"body-$inquiryId"),SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)),WALK)
-          val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp,departAt.atTime)),WALK)
+          val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp,departAt.atTime)),WALK,true)
 
           val customerTripRequestId = BeamRouter.nextId
           val rideHailing2CustomerRequestId = BeamRouter.nextId
-          val rideHailingVehicleAtOrigin = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)), CAR)
-          val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp,departAt.atTime)), CAR)
+          val rideHailingVehicleAtOrigin = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((rideHailingLocation.currentLocation.loc,departAt.atTime)), CAR,true)
+          val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp,departAt.atTime)), CAR,false)
           val routeRequests = Map(
             beamServices.beamRouter.path -> List(
-              RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingAgentBody,rideHailingVehicleAtOrigin), personId)),
+              RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin), personId)),
               //XXXX: customer trip request might be redundant... possibly pass in info
               RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody,rideHailingVehicleAtPickup), personId)))
           )

@@ -1,5 +1,6 @@
 package beam.router
 
+import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
@@ -62,7 +63,7 @@ object RoutingModel {
   object EmbodiedBeamTrip {
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
-    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode,Id[Vehicle]], egressVehiclesByMode: Map[BeamMode,Id[Vehicle]], services: BeamServices): EmbodiedBeamTrip = {
+    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode,StreetVehicle], egressVehiclesByMode: Map[BeamMode,StreetVehicle], services: BeamServices): EmbodiedBeamTrip = {
       if(trip.legs.size==0){
         EmbodiedBeamTrip.empty
       }else {
@@ -74,9 +75,9 @@ object RoutingModel {
             inAccessPhase = false
             EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,0.0,false)
           }else if(inAccessPhase){
-            EmbodiedBeamLeg(beamLeg,accessVehiclesByMode.get(currentMode).get,true,None,0.0,unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg,accessVehiclesByMode.get(currentMode).get.id,accessVehiclesByMode.get(currentMode).get.asDriver,None,0.0,unbecomeDriverAtComplete)
           }else{
-            EmbodiedBeamLeg(beamLeg,egressVehiclesByMode.get(currentMode).get,true,None,0.0,unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg,egressVehiclesByMode.get(currentMode).get.id,egressVehiclesByMode.get(currentMode).get.asDriver,None,0.0,unbecomeDriverAtComplete)
           }
         }
         EmbodiedBeamTrip(embodiedLegs)
