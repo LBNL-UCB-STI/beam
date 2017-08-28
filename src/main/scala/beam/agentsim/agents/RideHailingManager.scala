@@ -15,7 +15,7 @@ import beam.agentsim.events.resources.vehicle.{CouldNotFindRouteToCustomer, Vehi
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode._
-import beam.router.RoutingModel.{BeamTime, BeamTrip}
+import beam.router.RoutingModel.{BeamTime, BeamTrip, EmbodiedBeamTrip}
 import beam.router.{BeamRouter, RoutingModel}
 import beam.sim.config.ConfigModule._
 import beam.sim.{BeamServices, HasServices}
@@ -42,7 +42,7 @@ object RideHailingManager {
 
   case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: Location, departAt: BeamTime, radius: Double, destination: Location)
 
-  case class TravelProposal(rideHailingAgentLocation: RideHailingAgentLocation, timesToCustomer: Long, estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration])
+  case class TravelProposal(rideHailingAgentLocation: RideHailingAgentLocation, timesToCustomer: Long, estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration], responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
 
   case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Vector[TravelProposal], error: Option[ReservationError] = None)
 
@@ -143,7 +143,10 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
 
           aggregateResponsesTo(customerAgent, routeRequests, Option(self)) { case result: SingleActorAggregationResult =>
             val responses = result.mapListTo[RoutingResponse].map(res => (res.id, res)).toMap
-            val timesToCustomer: Vector[Long] = responses(rideHailing2CustomerRequestId).itineraries.map(t => t.totalTravelTime)
+            val rideHailingAgent2CustomerResponse = responses(rideHailing2CustomerRequestId)
+            val rideHailing2DestinationResponse = responses(customerTripRequestId)
+
+            val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
             // TODO: Find better way of doing this error checking than sentry value
             val timeToCustomer = if (timesToCustomer.nonEmpty) {
               timesToCustomer.min
@@ -151,14 +154,15 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
             val rideHailingFare = DefaultCostPerMinute / 60.0
 
-            val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = responses(customerTripRequestId).itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
+
+            val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
             if (timeToCustomer < Long.MaxValue && customerPlans2Costs.nonEmpty) {
               val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
               //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
               //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
               //TODO: add timeToCustomer to all startTime of customerTripPlan.beamLegs
-              val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)))
+              val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)),rideHailingAgent2CustomerResponse,rideHailing2DestinationResponse)
               pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
               log.info(s"Found ride to hail ${rideHailingLocation.currentLocation} for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
               RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
@@ -208,7 +212,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       val responseToCustomer = tripAndCostOpt.map { case (tripRoute, cost) =>
         //XXX: we didn't find rideHailing inquiry in pendingInquiries let's set max pickup time to avoid another routing request
         val timeToCustomer = beamServices.beamConfig.MaxPickupTimeInSeconds
-        val travelProposal = TravelProposal(closestRideHailingAgentLocation, timeToCustomer, cost, Option(FiniteDuration(tripRoute.totalTravelTime, TimeUnit.SECONDS)))
+        val travelProposal = TravelProposal(closestRideHailingAgentLocation, timeToCustomer, cost, Option(FiniteDuration(tripRoute.totalTravelTime, TimeUnit.SECONDS)),customerTripPlan.get,customerTripPlan.get)
         val confirmation = ReserveRideResponse(inquiryId, Right(RideHailConfirmData(closestRideHailingAgentLocation.rideHailAgent, personId, travelProposal)))
         triggerCustomerPickUp(customerPickUp, destination, closestRideHailingAgentLocation, Option(tripRoute.toBeamTrip()), confirmation)
         confirmation

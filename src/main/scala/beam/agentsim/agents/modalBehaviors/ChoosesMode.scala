@@ -29,7 +29,9 @@ import scala.util.Random
 trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasServices {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  val choiceCalculator: ChoiceCalculator = ChoosesMode.transitIfAvailable
+  import beam.utils.CollectionUtils.Option._
+
+  val choiceCalculator: ChoiceCalculator = ChoosesMode.mnlChoice
   var routingResponse: Option[RoutingResponse] = None
   var rideHailingResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
@@ -37,10 +39,17 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
   var pendingChosenTrip: Option[EmbodiedBeamTrip] = None
 
 
-
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
-      val chosenTrip = choiceCalculator(routingResponse.get.itineraries)
+
+      val combinedItinerariesForChoice: Vector[EmbodiedBeamTrip] = if(rideHailingResult.get.proposals.nonEmpty){
+        rideHailingResult.get.proposals.flatMap(x=>x.responseRideHailing2Dest.itineraries)++routingResponse.get.itineraries
+      }
+      else{
+        routingResponse.get.itineraries
+      }
+
+      val chosenTrip = choiceCalculator(combinedItinerariesForChoice)
 
       if(tripRequiresReservationConfirmation(chosenTrip)){
         pendingChosenTrip = Some(chosenTrip)
@@ -143,7 +152,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       completeChoiceIfReady()
     case Event(theRideHailingResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)
-
       completeChoiceIfReady()
     /*
      * Process ReservationReponses
@@ -193,6 +201,7 @@ object ChoosesMode {
       EmbodiedBeamTrip.empty
     }
   }
+
   def driveIfAvailable(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
     var containsDriveAlt: Vector[Int] = Vector[Int]()
     alternatives.zipWithIndex.foreach{ alt =>
@@ -207,8 +216,10 @@ object ChoosesMode {
       EmbodiedBeamTrip.empty
     }
   }
+
   def mnlChoice(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
     var containsDriveAlt = -1
+
     var altModesAndTimes: Vector[(BeamMode, Double)] = for (i <- alternatives.indices.toVector) yield {
       val alt = alternatives(i)
       val altMode = if (alt.legs.size == 1) {
@@ -226,18 +237,7 @@ object ChoosesMode {
       }
       (altMode, travelTime)
     }
-    //    if (containsDriveAlt >= 0 && taxiAlternatives.nonEmpty) {
-    //      //TODO replace magic number here (5 minute wait time) with calculated wait time
-    //      val minTimeToCustomer = taxiAlternatives.foldLeft(Double.PositiveInfinity)((r, c) => if (c < r) {
-    //        c
-    //      } else r)
-    //      altModesAndTimes = altModesAndTimes :+ (TAXI, (for (alt <- altModesAndTimes if alt._1.equals(CAR)) yield alt._2 + minTimeToCustomer).head)
-    //      alternativesWithTaxi = alternativesWithTaxi :+ BeamTrip(alternatives(containsDriveAlt).legs.map(leg => leg.copy(mode = if (leg.mode.equals(CAR)) {
-    //        TAXI
-    //      } else {
-    //        leg.mode
-    //      })))
-    //    }
+
     val altUtilities = for (alt <- altModesAndTimes) yield altUtility(alt._1, alt._2)
     val sumExpUtilities = altUtilities.foldLeft(0.0)(_ + math.exp(_))
     val altProbabilities = for (util <- altUtilities) yield math.exp(util) / sumExpUtilities
