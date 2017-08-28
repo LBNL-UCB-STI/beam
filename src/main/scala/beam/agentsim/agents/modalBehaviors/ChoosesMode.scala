@@ -143,6 +143,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       completeChoiceIfReady()
     case Event(theRideHailingResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)
+
       completeChoiceIfReady()
     /*
      * Process ReservationReponses

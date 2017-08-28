@@ -92,7 +92,7 @@ class PersonAgent(val beamServices: BeamServices,
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
-  TriggerShortcuts with HasServices with CanUseRideHailingService with ChoosesMode with DrivesVehicle[PersonData] {
+  TriggerShortcuts with HasServices with ChoosesMode with DrivesVehicle[PersonData] {
 
   var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
   var _currentActivityIndex: Int = 0
