@@ -3,12 +3,14 @@ package beam.agentsim.agents
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.RideHailingManager.{RegisterRideAvailable, ReserveRideResponse, RideAvailableAck}
+import beam.agentsim.agents.PersonAgent.{PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
+import beam.agentsim.agents.RideHailingManager.{RegisterRideAvailable, RideAvailableAck}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver}
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
+import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
+import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
@@ -68,14 +70,17 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
       stay()
     case Event(RegisterRideAvailableWrapper(triggerId), _) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
-      goto(Idle)
+      goto(PersonAgent.Waiting)
   }
 
-  chainedWhen(Idle) {
+  chainedWhen(Waiting) {
     case Event(PickupCustomer(confirmation: ReservationResponse, pickUpLocation: Location, destination: Location, tripPlan: Option[BeamTrip]), info: BeamAgentInfo[RideHailingAgentData]) =>
-      val req = ReservationRequest(confirmation.requestId,confirmation.response.right.get.departFrom,confirmation.response.right.get.arriveAt,confirmation.response.right.get.reservedVehicle,Id.createPersonId(id))
-      data.vehicleIdAndRef.ref ! ReservationRequestWithVehicle(req,info.data.vehicleIdAndRef.id)
+      val req = ReservationRequest(confirmation.requestId, confirmation.response.right.get.departFrom, confirmation.response.right.get.arriveAt, confirmation.response.right.get.reservedVehicle, Id.createPersonId(id))
+      val schedule = PassengerSchedule()
+      schedule.addLegs(tripPlan.get.legs)
       goto(Traveling)
+    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
+      goto(Finished) replying completed(triggerId)
   }
 
   chainedWhen(Traveling) {
@@ -85,12 +90,14 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   }
 
 
-
-
   //// BOILERPLATE /////
-  when(Idle) {
+
+  when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message $msg")
+      goto(Error)
   }
 
   when(Traveling) {

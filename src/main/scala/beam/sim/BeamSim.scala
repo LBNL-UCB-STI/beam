@@ -204,10 +204,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       val rideHailingAgent = RideHailingAgent.props(services, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
       val ref: ActorRef = actorSystem.actorOf(rideHailingAgent, rideHailingName)
 
-      // populate maps and initialize via scheduler
+      // populate maps and initialize agent via scheduler
       services.vehicles += (rideHailVehicleId -> rideHailVehicle)
       services.vehicleRefs += vehicleIdAndRef
-
+      services.agentRefs.put(rideHailingName,ref)
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
 
     }
