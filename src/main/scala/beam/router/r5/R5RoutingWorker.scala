@@ -18,6 +18,7 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
@@ -49,6 +50,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   override def init: Unit = {
     loadMap
     FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
+    TollCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
     overrideR5EdgeSearchRadius(2000)
     initTransitVehicles()
   }
@@ -244,11 +246,14 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         var legs = Vector[BeamLeg]()
 
         val access = option.access.get(itinerary.connection.access)
-
+        val toll = if (access.mode == LegMode.CAR) {
+          val osm = access.streetEdges.asScala.map(e => transportNetwork.streetLayer.edgeStore.getCursor(e.edgeId).getOSMID).toVector
+          Some(TollCalculator.calcToll(osm))
+        } else None
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access))
+        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, toll, buildStreetPath(access))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
         if (access.mode != LegMode.WALK) {
@@ -273,7 +278,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             var fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
 
             val fare = if (fs.nonEmpty) Some(fs.min) else None
-
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = (if (option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime

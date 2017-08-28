@@ -51,14 +51,14 @@ object RoutingModel {
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
     def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode,Id[Vehicle]], egressVehiclesByMode: Map[BeamMode,Id[Vehicle]], services: BeamServices): EmbodiedBeamTrip = {
-      if(trip.legs.size==0){
+      if(trip.legs.isEmpty){
         EmbodiedBeamTrip.empty
       }else {
         var inAccessPhase = true
         val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
-          val cost = beamLeg.fare.getOrElse(0.0)
+          val cost = beamLeg.cost.getOrElse(0.0)
           if(Modes.isR5TransitMode(currentMode)) {
             inAccessPhase = false
             EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,cost,false)
