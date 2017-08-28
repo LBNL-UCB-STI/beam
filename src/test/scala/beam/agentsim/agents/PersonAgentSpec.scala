@@ -44,7 +44,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
     val theServices  = mock[BeamServices]
     when(theServices.agentSimEventsBus).thenReturn(agentSimEventsBus)
-    when(theServices.householdRefs).thenReturn(mutable.Map[Id[Household], ActorRef]())
+    when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
     theServices
   }
 
