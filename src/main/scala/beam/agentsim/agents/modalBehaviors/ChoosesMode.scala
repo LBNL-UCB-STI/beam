@@ -70,11 +70,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     var inferredVehicle: VehicleStack = VehicleStack()
     var exitNextVehicle = false
     var legsWithPassengerVehicle: Vector[(Id[Vehicle], EmbodiedBeamLeg)] = Vector()
-    val hasRideHailingLeg = chosenTrip.legs.exists(l => l.beamVehicleId.toString.contains("rideHailingVehicle"))
+    val rideHailingLeg = chosenTrip.legs.filter(l => l.beamVehicleId.toString.contains("rideHailingVehicle"))
     // XXXX: Sorry... this is so ugly
-    if(hasRideHailingLeg){
-      val departAt=DiscreteTime(rideHailingResult.get.proposals.head.responseRideHailing2Dest.itineraries.head.legs.head.beamLeg.startTime.toInt)
+    if(rideHailingLeg.nonEmpty){
+      val departAt=DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
+      val rideHailingVehicleId = rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId
+      val rideHailingId = Id.create(rideHailingResult.get.inquiryId.toString,classOf[ReservationRequest])
       beamServices.rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId,id,currentActivity.getCoord,departAt,nextActivity.right.get.getCoord)
+      awaitingReservationConfirmation = awaitingReservationConfirmation + rideHailingId
     }else {
       for (leg <- chosenTrip.legs) {
         if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()

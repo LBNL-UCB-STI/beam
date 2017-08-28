@@ -6,9 +6,9 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.RideHailingManager.{RegisterRideAvailable, ReserveRideResponse, RideAvailableAck}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.resources.vehicle.ReservationResponse
+import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
@@ -72,7 +72,9 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   }
 
   chainedWhen(Idle) {
-    case Event(PickupCustomer, info: BeamAgentInfo[RideHailingAgentData]) =>
+    case Event(PickupCustomer(confirmation: ReservationResponse, pickUpLocation: Location, destination: Location, tripPlan: Option[BeamTrip]), info: BeamAgentInfo[RideHailingAgentData]) =>
+      val req = ReservationRequest(confirmation.requestId,confirmation.response.right.get.departFrom,confirmation.response.right.get.arriveAt,confirmation.response.right.get.reservedVehicle,Id.createPersonId(id))
+      data.vehicleIdAndRef.ref ! ReservationRequestWithVehicle(req,info.data.vehicleIdAndRef.id)
       goto(Traveling)
   }
 
