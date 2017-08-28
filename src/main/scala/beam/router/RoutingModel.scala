@@ -58,7 +58,7 @@ object RoutingModel {
         val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
-          val cost = beamLeg.fare.getOrElse(0.0)
+          val cost = beamLeg.cost.getOrElse(0.0)
           if(Modes.isR5TransitMode(currentMode)) {
             inAccessPhase = false
             EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,cost,false)
