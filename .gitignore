@@ -9,7 +9,8 @@ test/output
 .classpath
 output/
 libs
-.idea
+.idea/*
+!.idea/runConfigurations/RunBeam_BeamVille.xml
 .cache*
 target/
 beam.iml
