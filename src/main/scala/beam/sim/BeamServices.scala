@@ -4,6 +4,7 @@ import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap, TimeUnit}
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
+import beam.agentsim.agents.TransitDriverAgent
 import beam.playground.akkaguice.ActorInject
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
@@ -37,7 +38,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   var beamRouter : ActorRef = _
   var physSim: ActorRef = _
   var schedulerRef: ActorRef =_
-  var taxiManager: ActorRef = _
+  var rideHailingManager: ActorRef = _
   val persons: collection.concurrent.Map[Id[Person], Person] = collection.concurrent.TrieMap[Id[Person], Person]()
   val personRefs: collection.concurrent.Map[Id[Person], ActorRef] = collection.concurrent.TrieMap[Id[Person], ActorRef]()
   val vehicles: collection.concurrent.Map[Id[Vehicle], Vehicle] = collection.concurrent.TrieMap[Id[Vehicle], Vehicle]()
@@ -46,6 +47,7 @@ case class BeamServices @Inject()(protected val injector: Injector) extends Acto
   val householdRefs : collection.concurrent.Map[Id[Household], ActorRef] = collection.concurrent.TrieMap[Id[Household], ActorRef]()
   val agentRefs: collection.concurrent.Map[String, ActorRef] = collection.concurrent.TrieMap[String, ActorRef]()
   val transitVehiclesByBeamLeg: mutable.Map[BeamLeg, Id[Vehicle]] = mutable.Map[BeamLeg, Id[Vehicle]]()
+  val transitDriversByVehicle: mutable.Map[Id[Vehicle],Id[TransitDriverAgent]] = mutable.Map[Id[Vehicle],Id[TransitDriverAgent]]()
 
 }
 

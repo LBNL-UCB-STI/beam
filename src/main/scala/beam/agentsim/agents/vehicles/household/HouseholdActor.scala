@@ -71,7 +71,7 @@ class HouseholdActor(services: BeamServices,
       _vehicles.foreach { veh =>
         services.vehicleRefs.get(veh).get ! UpdateTrajectory(initialTrajectory)
         //TODO following mode should come from the vehicle
-        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR))
+        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, true))
       }
       sender() ! CompletionNotice(triggerId)
     case MobilityStatusInquiry(personId) =>

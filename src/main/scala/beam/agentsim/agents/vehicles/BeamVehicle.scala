@@ -55,6 +55,10 @@ object BeamVehicle {
 
   case class BeamVehicleIdAndRef(id: Id[Vehicle], ref: ActorRef)
 
+  object BeamVehicleIdAndRef {
+    def apply(tup: (Id[Vehicle], ActorRef)): BeamVehicleIdAndRef = new BeamVehicleIdAndRef(tup._1, tup._2)
+  }
+
   case object Moving extends BeamAgentState {
     override def identifier = "Moving"
   }
@@ -97,7 +101,7 @@ object BeamVehicle {
   }
 
   case class UpdateTrajectory(trajectory: Trajectory)
-  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode)
+  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
   case class AssignedCarrier(carrierVehicleId: Id[Vehicle])
   case object ResetCarrier
 
@@ -206,6 +210,10 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
         //        beamAgent ! DriverAlreadyAssigned(id, driver.get)
       }
       stay()
+    case Event(ModifyPassengerSchedule(newPassengerSchedule), info) =>
+      driver.get ! ModifyPassengerSchedule(newPassengerSchedule)
+      stay()
+
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if(driver.isEmpty) {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are no longer drivers, but futur versions of BEAM may seek to be robust to this condition
@@ -218,9 +226,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
     case Event(EnterVehicle(tick, newPassengerVehicle), info) =>
       val fullCapacity = getType.getCapacity.getSeats + getType.getCapacity.getStandingRoom
       if (passengers.size < fullCapacity){
-        passengers += newPassengerVehicle.passengerVehicleId
-        driver.get ! BoardingConfirmation(newPassengerVehicle.passengerVehicleId)
-        beamServices.vehicleRefs.get(newPassengerVehicle.passengerVehicleId).foreach{ vehiclePassengerRef =>
+        passengers += newPassengerVehicle.vehicleId
+        driver.get ! BoardingConfirmation(newPassengerVehicle.vehicleId)
+        beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach{ vehiclePassengerRef =>
           vehiclePassengerRef ! AssignedCarrier(vehicleId)
         }
         beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId,id)))
@@ -231,9 +239,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
       }
       stay()
     case Event(ExitVehicle(tick, passengerVehicleId), info) =>
-      passengers -= passengerVehicleId.passengerVehicleId
-      driver.get ! AlightingConfirmation(passengerVehicleId.passengerVehicleId)
-      beamServices.vehicleRefs.get(passengerVehicleId.passengerVehicleId).foreach{ vehiclePassengerRef =>
+      passengers -= passengerVehicleId.vehicleId
+      driver.get ! AlightingConfirmation(passengerVehicleId.vehicleId)
+      beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach{ vehiclePassengerRef =>
         vehiclePassengerRef ! ResetCarrier
       }
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
@@ -299,8 +307,14 @@ object VehicleAttributes extends Enumeration {
 }
 
 case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
-  def push(vehicle: Id[Vehicle]) = {
-    VehicleStack(vehicle +: nestedVehicles)
+  def isEmpty = nestedVehicles.isEmpty
+
+  def pushIfNew(vehicle: Id[Vehicle]) = {
+    if(!nestedVehicles.isEmpty && nestedVehicles.head == vehicle){
+      VehicleStack(nestedVehicles)
+    }else{
+      VehicleStack(vehicle +: nestedVehicles)
+    }
   }
   def penultimateVehicle(): Id[Vehicle] = {
     if(nestedVehicles.size < 2)throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")
