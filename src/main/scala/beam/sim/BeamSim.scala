@@ -92,7 +92,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     // TODO replace magic numbers
     currentIter = event.getIteration
-    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.xml.gz"))
+    //TODO make events output in CSV possible here
+    val gzExtension = if(services.beamConfig.beam.outputs.eventsFileOutputFormats.contains("gz")){ ".gz" }else{ "" }
+    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"))
     eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()
