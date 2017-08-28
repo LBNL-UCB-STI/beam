@@ -16,6 +16,8 @@ import org.matsim.vehicles.Vehicle
   */
 object RoutingModel {
 
+  type LegCostEstimator = BeamLeg => Option[Double]
+
 
   case class BeamTrip(legs: Vector[BeamLeg],
                       accessMode: BeamMode) {
@@ -35,13 +37,7 @@ object RoutingModel {
 
   case class EmbodiedBeamTrip(legs: Vector[EmbodiedBeamLeg]) {
 
-
-    type CostEstimator = EmbodiedBeamTrip => Option[Double]
-
-    def estimateCost(costEstimators: List[CostEstimator]): Option[Double] = {
-      costEstimators.map(f => f(this)).sum
-    }
-
+    lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
 
