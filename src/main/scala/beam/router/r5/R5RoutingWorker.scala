@@ -271,14 +271,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
             var fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
-            if (fs.nonEmpty)
-              fs = Vector(fs.min)
-            val fare = fs.sum
+
+            val fare = if (fs.nonEmpty) Some(fs.min) else None
 
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = (if (option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime
-            else
+                            else
                               segmentPattern.toArrivalTime ).get(transitJourneyID.time).toEpochSecond -
               segmentPattern.fromDepartureTime.get(transitJourneyID.time).toEpochSecond
 

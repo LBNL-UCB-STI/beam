@@ -58,13 +58,14 @@ object RoutingModel {
         val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
+          val cost = beamLeg.fare.getOrElse(0.0)
           if(Modes.isR5TransitMode(currentMode)) {
             inAccessPhase = false
-            EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,beamLeg.fare,false)
+            EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,cost,false)
           }else if(inAccessPhase){
-            EmbodiedBeamLeg(beamLeg,accessVehiclesByMode.get(currentMode).get,true,None,beamLeg.fare,unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg,accessVehiclesByMode.get(currentMode).get,true,None,cost,unbecomeDriverAtComplete)
           }else{
-            EmbodiedBeamLeg(beamLeg,egressVehiclesByMode.get(currentMode).get,true,None,beamLeg.fare,unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg,egressVehiclesByMode.get(currentMode).get,true,None,cost,unbecomeDriverAtComplete)
           }
         }
         EmbodiedBeamTrip(embodiedLegs)
@@ -88,12 +89,13 @@ object RoutingModel {
     * @param startTime time in seconds from base midnight
     * @param mode
     * @param duration period in seconds
+    * @param cost its optional and may be None at this level
     * @param travelPath
     */
   case class BeamLeg(startTime: Long,
                      mode: BeamMode,
                      duration: Long,
-                     fare: Double = 0.0,
+                     cost: Option[Double] = None,
                      travelPath: BeamPath = empty) {
     def endTime: Long = startTime + duration
   }
