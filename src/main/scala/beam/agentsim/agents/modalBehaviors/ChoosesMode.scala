@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalBehaviors
 
 import beam.agentsim.agents.BeamAgent.BeamAgentInfo
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
+import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
@@ -29,9 +29,9 @@ import scala.util.Random
 trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasServices {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  import beam.utils.CollectionUtils.Option._
 
-  val choiceCalculator: ChoiceCalculator = ChoosesMode.mnlChoice
+
+  val choiceCalculator: ChoiceCalculator = ChoosesMode.driveIfAvailable
   var routingResponse: Option[RoutingResponse] = None
   var rideHailingResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
@@ -66,25 +66,34 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip) = {
     //TODO this is currently working for single leg Transit trips, hasn't been tested on multi-leg transit trips (e.g. BUS WALK BUS)
+
     var inferredVehicle: VehicleStack = VehicleStack()
     var exitNextVehicle = false
     var legsWithPassengerVehicle: Vector[(Id[Vehicle], EmbodiedBeamLeg)] = Vector()
-    for(leg <- chosenTrip.legs){
-      if(exitNextVehicle)inferredVehicle = inferredVehicle.pop()
-      if(!inferredVehicle.nestedVehicles.isEmpty){
-        legsWithPassengerVehicle = legsWithPassengerVehicle :+ (inferredVehicle.outermostVehicle(), leg)
+    val hasRideHailingLeg = chosenTrip.legs.exists(l => l.beamVehicleId.toString.contains("rideHailingVehicle"))
+    // XXXX: Sorry... this is so ugly
+    if(hasRideHailingLeg){
+      val departAt=DiscreteTime(rideHailingResult.get.proposals.head.responseRideHailing2Dest.itineraries.head.legs.head.beamLeg.startTime.toInt)
+      beamServices.rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId,id,currentActivity.getCoord,departAt,nextActivity.right.get.getCoord)
+    }else {
+      for (leg <- chosenTrip.legs) {
+        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+
+        if (inferredVehicle.nestedVehicles.nonEmpty) {
+          legsWithPassengerVehicle = legsWithPassengerVehicle :+ (inferredVehicle.outermostVehicle(), leg)
+        }
+        inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
+        exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion) || !leg.asDriver
       }
-      inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-      exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion) || !leg.asDriver
-    }
-    val transitLegs = legsWithPassengerVehicle.filter(_._2.beamLeg.mode.isTransit)
-    if (transitLegs.nonEmpty) {
-      transitLegs.toVector.groupBy(_._2.beamVehicleId).foreach{ idToLegs =>
-        val legs = idToLegs._2.sortBy(_._2.beamLeg.startTime)
-        val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(idToLegs._1).toString)
-        val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head._2.beamLeg, legs.last._2.beamLeg, legs.head._1, id), idToLegs._1)
-        driverRef ! resRequest
-        awaitingReservationConfirmation = awaitingReservationConfirmation + resRequest.request.requestId
+      val transitLegs = legsWithPassengerVehicle.filter(_._2.beamLeg.mode.isTransit)
+      if (transitLegs.nonEmpty) {
+        transitLegs.toVector.groupBy(_._2.beamVehicleId).foreach { idToLegs =>
+          val legs = idToLegs._2.sortBy(_._2.beamLeg.startTime)
+          val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(idToLegs._1).toString)
+          val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head._2.beamLeg, legs.last._2.beamLeg, legs.head._1, id), idToLegs._1)
+          driverRef ! resRequest
+          awaitingReservationConfirmation = awaitingReservationConfirmation + resRequest.request.requestId
+        }
       }
     }
     stay()

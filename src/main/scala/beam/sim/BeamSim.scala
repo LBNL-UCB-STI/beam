@@ -182,7 +182,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     //TODO the following should be based on config params
     val rideHailingFraction = 0.1
-    val initialLocationJitter = 2000 // meters
+    val initialLocationJitter = 1000 // meters
 
     // Protocol:
     // - Initialize RideHailingAgents to be located within ~initialLocationJitter km of a subset of agents

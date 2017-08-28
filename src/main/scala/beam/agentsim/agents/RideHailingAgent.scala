@@ -8,6 +8,7 @@ import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.resources.vehicle.ReservationResponse
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
@@ -46,7 +47,7 @@ object RideHailingAgent {
     override def identifier = "Traveling"
   }
 
-  case class PickupCustomer(confirmation: ReserveRideResponse, pickUpLocation: Location, destination: Location, tripPlan: Option[BeamTrip])
+  case class PickupCustomer(confirmation: ReservationResponse, pickUpLocation: Location, destination: Location, tripPlan: Option[BeamTrip])
 
   case class DropOffCustomer(newLocation: SpaceTime)
 
@@ -82,6 +83,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   }
 
 
+
+
   //// BOILERPLATE /////
   when(Idle) {
     case ev@Event(_, _) =>
@@ -92,6 +95,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
   }
+
 
   //// END BOILERPLATE ////
   /*
