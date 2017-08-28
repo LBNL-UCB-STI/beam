@@ -43,6 +43,7 @@ object RoutingModel {
     }
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
     def estimateCost(fare: BigDecimal) = Vector(BigDecimal(0.0))
+    def cost = legs.map(_.cost).sum
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
     def toBeamTrip(): BeamTrip = BeamTrip(beamLegs())
   }
@@ -59,11 +60,11 @@ object RoutingModel {
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
           if(Modes.isR5TransitMode(currentMode)) {
             inAccessPhase = false
-            EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,0.0,false)
+            EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,beamLeg.fare,false)
           }else if(inAccessPhase){
-            EmbodiedBeamLeg(beamLeg,accessVehiclesByMode.get(currentMode).get,true,None,0.0,unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg,accessVehiclesByMode.get(currentMode).get,true,None,beamLeg.fare,unbecomeDriverAtComplete)
           }else{
-            EmbodiedBeamLeg(beamLeg,egressVehiclesByMode.get(currentMode).get,true,None,0.0,unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg,egressVehiclesByMode.get(currentMode).get,true,None,beamLeg.fare,unbecomeDriverAtComplete)
           }
         }
         EmbodiedBeamTrip(embodiedLegs)
