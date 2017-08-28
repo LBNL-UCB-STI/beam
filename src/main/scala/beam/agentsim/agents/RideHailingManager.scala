@@ -13,10 +13,10 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle.{CouldNotFindRouteToCustomer, VehicleUnavailable}
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.router.BeamRouter
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
+import beam.router.{BeamRouter, RoutingModel}
 import beam.sim.config.ConfigModule._
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
@@ -145,13 +145,15 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             val responses = result.mapListTo[RoutingResponse].map(res => (res.id, res)).toMap
             val timesToCustomer: Vector[Long] = responses(rideHailing2CustomerRequestId).itineraries.map(t => t.totalTravelTime)
             // TODO: Find better way of doing this error checking than sentry value
-            val timeToCustomer = if (timesToCustomer.nonEmpty) {timesToCustomer.min} else Long.MaxValue
+            val timeToCustomer = if (timesToCustomer.nonEmpty) {
+              timesToCustomer.min
+            } else Long.MaxValue
+            // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
+            val rideHailingFare = DefaultCostPerMinute / 60.0
 
-            if (timeToCustomer < Long.MaxValue) {
-              // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
-              val rideHailingFare = DefaultCostPerMinute / 60.0
-
-              val (customerTripPlan, cost) = responses(customerTripRequestId).itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).minBy(_._2)
+            val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = responses(customerTripRequestId).itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
+            if (timeToCustomer < Long.MaxValue && customerPlans2Costs.nonEmpty) {
+              val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
               //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
               //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
