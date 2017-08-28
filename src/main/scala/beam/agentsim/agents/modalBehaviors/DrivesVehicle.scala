@@ -114,6 +114,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       goto(Waiting)
   }
   chainedWhen(AnyState){
+    // Problem, when this is received from PersonAgent, it is due to a NotifyEndLeg trigger which doesn't have an ack
+    // So the schedule has moved ahead before this can schedule a new StartLegTrigger, so maybe Notify*Leg should be Triggers?
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule), _) =>
       var errorFlag = false
       if(!passengerSchedule.isEmpty){
