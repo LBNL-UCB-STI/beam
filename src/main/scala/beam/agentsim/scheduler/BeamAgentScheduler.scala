@@ -55,9 +55,9 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   val log = Logging(context.system, this)
   var triggerQueue = new mutable.PriorityQueue[ScheduledTrigger]()
   var awaitingResponse: TreeMultimap[java.lang.Double, java.lang.Long] = TreeMultimap.create[java.lang.Double, java.lang.Long]()
-  var awaitingResponseVerbose: TreeMultimap[java.lang.Double, Trigger] = TreeMultimap.create[java.lang.Double, Trigger](com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
+  var awaitingResponseVerbose: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap.create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
   val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long,java.lang.Double]()
-  val triggerIdToTrigger: mutable.Map[Long, Trigger] = scala.collection.mutable.Map[Long,Trigger]()
+  val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] = scala.collection.mutable.Map[Long,ScheduledTrigger]()
   private var idCount: Long = 0L
   var startSender: ActorRef = self
   private var nowInSeconds: Double = 0.0
@@ -97,8 +97,8 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
           //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick, triggerWithId.triggerId)
           if(debugEnabled){
-            awaitingResponseVerbose.put(triggerWithId.trigger.tick,triggerWithId.trigger)
-            triggerIdToTrigger.put(triggerWithId.triggerId,triggerWithId.trigger)
+            awaitingResponseVerbose.put(triggerWithId.trigger.tick,scheduledTrigger)
+            triggerIdToScheduledTrigger.put(triggerWithId.triggerId,scheduledTrigger)
           }
           scheduledTrigger.agent ! triggerWithId
         }
@@ -131,8 +131,8 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
       newTriggers.foreach{scheduleTrigger}
       awaitingResponse.remove(triggerIdToTick(triggerId), triggerId)
       if(debugEnabled){
-        awaitingResponseVerbose.remove(triggerIdToTick(triggerId), triggerIdToTrigger(triggerId))
-        triggerIdToTrigger -= triggerId
+        awaitingResponseVerbose.remove(triggerIdToTick(triggerId), triggerIdToScheduledTrigger(triggerId))
+        triggerIdToScheduledTrigger -= triggerId
       }
       triggerIdToTick -= triggerId
 

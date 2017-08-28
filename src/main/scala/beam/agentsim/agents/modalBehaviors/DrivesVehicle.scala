@@ -68,20 +68,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       }
   }
   chainedWhen(Waiting) {
-    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
-      _currentVehicleUnderControl = beamServices.vehicleRefs.get(assignedVehicle).map { vehicleRef =>
-        BeamVehicleIdAndRef(assignedVehicle, vehicleRef)
-      }
-      newPassengerSchedule match {
-        case Some(passSched) =>
-          passengerSchedule = passSched
-        case None =>
-          passengerSchedule = PassengerSchedule()
-      }
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      val nextLeg = passengerSchedule.schedule.firstKey
-      beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](nextLeg.startTime,self, nextLeg))
-      stay()
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
       holdTickAndTriggerId(tick,triggerId)
       logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
@@ -123,6 +109,20 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       val response = handleVehicleReservation(req, vehicleIdToReserve)
       beamServices.personRefs(req.requesterPerson) ! response
       stay()
+    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
+      _currentVehicleUnderControl = beamServices.vehicleRefs.get(assignedVehicle).map { vehicleRef =>
+        BeamVehicleIdAndRef(assignedVehicle, vehicleRef)
+      }
+      newPassengerSchedule match {
+        case Some(passSched) =>
+          passengerSchedule = passSched
+        case None =>
+          passengerSchedule = PassengerSchedule()
+      }
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      val nextLeg = passengerSchedule.schedule.firstKey
+      beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](nextLeg.startTime,self, nextLeg))
+      goto(Waiting)
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
