@@ -13,6 +13,7 @@ import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}
 import beam.sim.HasServices
+import beam.utils.GeoUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -97,18 +98,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       } else {
         stay()
       }
-  }
-  chainedWhen(AnyState){
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule), _) =>
-      //TODO handle passenger schedule
-      stay()
-    case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
-      require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
-      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
-
-      val response = handleVehicleReservation(req, vehicleIdToReserve)
-      beamServices.personRefs(req.requesterPerson) ! response
-      stay()
     case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
       _currentVehicleUnderControl = beamServices.vehicleRefs.get(assignedVehicle).map { vehicleRef =>
         BeamVehicleIdAndRef(assignedVehicle, vehicleRef)
@@ -123,6 +112,44 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       val nextLeg = passengerSchedule.schedule.firstKey
       beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](nextLeg.startTime,self, nextLeg))
       goto(Waiting)
+  }
+  chainedWhen(AnyState){
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule), _) =>
+      var errorFlag = false
+      if(!passengerSchedule.isEmpty){
+        val endSpaceTime = passengerSchedule.terminalSpacetime()
+        if(updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
+          GeoUtils.distInMeters(updatedPassengerSchedule.initialSpacetime.loc,endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+        ) {
+          errorFlag = true
+        }
+      }
+      if(errorFlag) {
+        logError("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new")
+        goto(BeamAgent.Error)
+      }else{
+        passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
+        updatedPassengerSchedule.schedule.foreach{ legAndManifest =>
+          legAndManifest._2.riders.foreach { rider =>
+            passengerSchedule.addPassenger(rider,Seq(legAndManifest._1))
+          }
+        }
+        val resultingState = _currentLeg match {
+          case None =>
+            beamServices.schedulerRef ! scheduleOne[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self, passengerSchedule.schedule.firstKey)
+            goto(Waiting)
+          case Some(beamLeg) =>
+            stay()
+        }
+        resultingState
+      }
+    case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
+      require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
+      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
+
+      val response = handleVehicleReservation(req, vehicleIdToReserve)
+      beamServices.personRefs(req.requesterPerson) ! response
+      stay()
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
