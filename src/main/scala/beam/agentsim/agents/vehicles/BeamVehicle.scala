@@ -210,6 +210,10 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
         //        beamAgent ! DriverAlreadyAssigned(id, driver.get)
       }
       stay()
+    case Event(ModifyPassengerSchedule(newPassengerSchedule), info) =>
+      driver.get ! ModifyPassengerSchedule(newPassengerSchedule)
+      stay()
+
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if(driver.isEmpty) {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are no longer drivers, but futur versions of BEAM may seek to be robust to this condition
@@ -303,6 +307,8 @@ object VehicleAttributes extends Enumeration {
 }
 
 case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
+  def isEmpty = nestedVehicles.isEmpty
+
   def pushIfNew(vehicle: Id[Vehicle]) = {
     if(!nestedVehicles.isEmpty && nestedVehicles.head == vehicle){
       VehicleStack(nestedVehicles)

@@ -1,8 +1,8 @@
 package beam.agentsim.agents
 
 import akka.actor.Props
-import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Uninitialized}
-import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Finished, Uninitialized}
+import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
@@ -45,8 +45,10 @@ class TransitDriverAgent(val beamServices: BeamServices,
       goto(PersonAgent.Waiting)
   }
 
-//  chainedWhen(Idle) {
-//  }
+  chainedWhen(Waiting) {
+    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
+      goto(Finished) replying completed(triggerId)
+  }
 
 //  chainedWhen(Traveling) {
 //  }
