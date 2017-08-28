@@ -114,7 +114,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     writer.closeFile()
     eventsManager.removeHandler(writer)
     writer = null
-    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, "events.xml.gz"),
+    val gzExtension = if(services.beamConfig.beam.outputs.eventsFileOutputFormats.contains("gz")){ ".gz" }else{ "" }
+    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"),
       services.matsimServices.getControlerIO.getOutputFilename("trips.json"))
   }
 
