@@ -6,6 +6,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajector
 import beam.agentsim.agents.vehicles.{Trajectory, VehicleManager}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.TriggerWithId
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamStreetPath
 import beam.sim.{BeamServices, HasServices}
@@ -54,7 +56,7 @@ class HouseholdActor(services: BeamServices,
   MobilityStatusReponse
 
   override def receive: Receive = {
-    case InitializeTrigger(_) =>
+    case TriggerWithId(InitializeTrigger(tick),triggerId) =>
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
       log.debug(s"Household ${self.path.name} has been initialized ")
       val sortedMembers = _members.sortWith(sortByRank)
@@ -69,8 +71,9 @@ class HouseholdActor(services: BeamServices,
       _vehicles.foreach { veh =>
         services.vehicleRefs.get(veh).get ! UpdateTrajectory(initialTrajectory)
         //TODO following mode should come from the vehicle
-        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR))
+        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, true))
       }
+      sender() ! CompletionNotice(triggerId)
     case MobilityStatusInquiry(personId) =>
       _vehicleAssignments.get(personId) match {
         case Some(vehId) =>

@@ -6,16 +6,20 @@ import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
+
 import akka.actor.Props
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{PassengerSchedule}
+import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
-import beam.router.Modes.BeamMode.{SUBWAY, WALK}
-import beam.router.Modes._
-import beam.router.RoutingModel.BeamLeg._
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{BUS, SUBWAY, TRANSIT, WALK}
+import beam.router.Modes.{BeamMode, _}
+import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
+import beam.router.RoutingWorker.HasProps
+import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
@@ -30,7 +34,9 @@ import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.utils.objectattributes.attributable.Attributes
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -41,6 +47,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO make this actually come from beamConfig
 //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
+  //TODO parameterize the distance threshold here
+  val distanceThresholdToIgnoreWalking = 100.0 // meters
 
   override def init: Unit = {
     loadMap
@@ -58,13 +66,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val networkFile : File = networkFilePath.toFile
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
-      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile)
+      transportNetwork = TransportNetwork.read(networkFile)
     } else {
       log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
-      NetworkCoordinator.transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
-      NetworkCoordinator.transportNetwork.write(networkFile)
-      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
+      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      transportNetwork.write(networkFile)
+      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
   }
 
@@ -77,23 +85,26 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
    * be used to decide what type of vehicle to assign
    *
    */
-  def initTransitVehicles(): Unit = {
+  def initTransit(): Unit = {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
-    NetworkCoordinator.transportNetwork.transitLayer.tripPatterns.listIterator().asScala.foreach { tripPattern =>
+    log.info(s"Start Transit initialization  ${ transportNetwork.transitLayer.tripPatterns.size()} trips founded")
+    val transitTrips  = transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
+    val transitData = transitTrips.flatMap { tripPattern =>
       //      log.debug(tripPattern.toString)
-      val route = NetworkCoordinator.transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      tripPattern.tripSchedules.asScala.foreach { tripSchedule =>
+      val firstStop = tripPattern.tripSchedules.asScala
+      firstStop.map { tripSchedule =>
         // First create a unique for this trip which will become the transit agent and vehicle ids
         val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
         val numStops = tripSchedule.departures.length
         val passengerSchedule = PassengerSchedule()
         tripSchedule.departures.zipWithIndex.foreach { case (departure, i) =>
           val duration = if(i == numStops-1){ 1L }else{ tripSchedule.arrivals(i+1) - departure }
-          val fromStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
-          val toStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
+          val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
+          val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
           val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
           val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
@@ -103,8 +114,47 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
         val matsimVehicle = beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create(mode match { case SUBWAY => "2"; case _ => "1" },classOf[VehicleType]))
 //        val transitVehRef = context.actorOf(TransitVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle))
-
+        (tripVehId,route,passengerSchedule)
       }
+    }
+    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg().startTime).take(1000)
+    transitScheduleToCreate.foreach{ case (tripVehId, route, passengerSchedule) =>
+      createTransitVehicle(tripVehId, route, passengerSchedule)
+    }
+    log.info(s"Finished Transit initialization trips, ${transitData.length}")
+  }
+
+  private def transitVehicles = {
+    beamServices.matsimServices.getScenario.getTransitVehicles
+  }
+
+  def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
+    //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
+    val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+    val vehicleTypeId = Id.create((if(mode==SUBWAY){ 2 }else{ 1 }).toString, classOf[VehicleType])
+    val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
+    mode match {
+      case (BUS | SUBWAY) if vehicleType != null =>
+        val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
+        val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
+        val initialMatsimAttributes = new Attributes()
+        val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, initialMatsimAttributes)
+        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
+        beamServices.vehicles.put(transitVehId, matSimTransitVehicle)
+        beamServices.vehicleRefs.put(transitVehId, transitVehRef)
+        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),transitVehRef)
+
+        val vehicleIdAndRef = BeamVehicleIdAndRef(transitVehId, transitVehRef)
+        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
+        val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, vehicleIdAndRef, passengerSchedule)
+        val transitDriver =  context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+        beamServices.agentRefs.put(transitDriverId.toString, transitDriver)
+        beamServices.transitDriversByVehicle.put(transitVehId,transitDriverId)
+        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
+
+      case _ =>
+        log.error(mode + " is not supported yet")
+
     }
   }
 
@@ -117,10 +167,15 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
 
     val pointToPointQuery = new PointToPointQuery(NetworkCoordinator.transportNetwork)
+    val isRouteForPerson = routingRequestTripInfo.streetVehicles.filter(_.mode == WALK).size > 0
 
-    val profileRequestToVehicles: ProfileRequestToVehicles = buildRequests(routingRequestTripInfo)
-    val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
-    val walkModeToVehicle: Map[BeamMode, Id[Vehicle]] = Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head)
+    val profileRequestToVehicles: ProfileRequestToVehicles = if(isRouteForPerson){
+      buildRequestsForPerson(routingRequestTripInfo)
+    }else{
+      buildRequestsForNonPerson(routingRequestTripInfo)
+    }
+    val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile),isRouteForPerson)
+    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if(isRouteForPerson){ Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) }else{ Map() }
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
     originalResponse.filter(_.accessMode == WALK).foreach { trip =>
@@ -128,10 +183,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }
 
     profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach{ mode =>
-      val vehicleIds = profileRequestToVehicles.originalProfileModeToVehicle(mode)
+      val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
       originalResponse.filter(_.accessMode == mode).foreach { trip =>
-        vehicleIds.foreach { vehId: Id[Vehicle] =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle ++ Map(mode -> vehId), walkModeToVehicle, beamServices)
+        streetVehicles.foreach { veh: StreetVehicle =>
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, beamServices)
         }
       }
     }
@@ -141,6 +196,56 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     RoutingResponse(requestId, embodiedTrips)
   }
 
+  protected def buildRequestsForNonPerson(routingRequestTripInfo: RoutingRequestTripInfo): ProfileRequestToVehicles = {
+    val originalProfileModeToVehicle = new mutable.HashMap[BeamMode, mutable.Set[StreetVehicle]] with mutable.MultiMap[BeamMode, StreetVehicle]
+    var walkOnlyProfiles: Vector[ProfileRequest] = Vector[ProfileRequest]()
+    var vehicleAsOriginProfiles: Map[ProfileRequest,StreetVehicle] = Map[ProfileRequest,StreetVehicle]()
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // From requester's origin to destination, the street modes must be within XXm of origin because this agent can't walk
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
+    if(streetVehiclesAtRequesterOrigin.isEmpty){
+      log.error(s"A routing request for a Non Person (which therefore cannot walk) was submitted with no StreetVehicle within ${distanceThresholdToIgnoreWalking} m of the requested origin.")
+    }
+    val uniqueBeamModes: Vector[BeamMode] = streetVehiclesAtRequesterOrigin.map(_.mode).distinct
+    val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(_.r5Mode.get match { case Left(leg) => leg }).distinct
+    uniqueBeamModes.foreach(beamMode =>
+      streetVehiclesAtRequesterOrigin.filter(_.mode == beamMode).foreach(veh =>
+        originalProfileModeToVehicle.addBinding(beamMode,veh)
+      )
+    )
+
+    val profileRequest = new ProfileRequest()
+    //Set timezone to timezone of transport network
+    profileRequest.zoneId = transportNetwork.getTimeZone
+    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.destination)
+    profileRequest.fromLon = fromPosTransformed.getX
+    profileRequest.fromLat = fromPosTransformed.getY
+    profileRequest.toLon = toPosTransformed.getX
+    profileRequest.toLat = toPosTransformed.getY
+    profileRequest.maxWalkTime = 3*3600
+    profileRequest.maxCarTime = 6*3600
+    profileRequest.maxBikeTime = 3*3600
+    profileRequest.wheelchair = false
+    profileRequest.bikeTrafficStress = 4
+    val time = routingRequestTripInfo.departureTime match {
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
+      case time: WindowTime => time
+    }
+    profileRequest.fromTime = time.fromTime
+    profileRequest.toTime = time.toTime
+    profileRequest.date = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate).toLocalDate
+    profileRequest.directModes = util.EnumSet.copyOf( uniqueLegModes.asJavaCollection )
+    // We constrain these to be non-transit trips since they are by NonPersons who we assume don't board transit
+    profileRequest.transitModes = null
+    profileRequest.accessModes = profileRequest.directModes
+    profileRequest.egressModes = null
+
+    ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
+  }
   /*
    * buildRequests
    *
@@ -148,13 +253,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
    * location of the requester and her CAR and BIKE if those personal vehicles are sufficiently far from her location
    * (otherwise we ignore the difference).
    */
-  protected def buildRequests(routingRequestTripInfo: RoutingRequestTripInfo): ProfileRequestToVehicles = {
-    //TODO parameterize the distance threshold here
-    val distanceThresholdToIgnoreWalking = 100.0 // meters
+  protected def buildRequestsForPerson(routingRequestTripInfo: RoutingRequestTripInfo): ProfileRequestToVehicles = {
 
-    val originalProfileModeToVehicle = new mutable.HashMap[BeamMode, mutable.Set[Id[Vehicle]]] with mutable.MultiMap[BeamMode, Id[Vehicle]]
+    val originalProfileModeToVehicle = new mutable.HashMap[BeamMode, mutable.Set[StreetVehicle]] with mutable.MultiMap[BeamMode, StreetVehicle]
     var walkOnlyProfiles: Vector[ProfileRequest] = Vector[ProfileRequest]()
-    var vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]] = Map[ProfileRequest,Id[Vehicle]]()
+    var vehicleAsOriginProfiles: Map[ProfileRequest,StreetVehicle] = Map[ProfileRequest,StreetVehicle]()
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // First request is from requester's origin to destination, the street modes in addition to WALK depend on
@@ -166,10 +269,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(_.r5Mode.get match { case Left(leg) => leg }).distinct
     uniqueBeamModes.foreach(beamMode =>
       streetVehiclesAtRequesterOrigin.filter(_.mode == beamMode).foreach(veh =>
-        originalProfileModeToVehicle.addBinding(beamMode,veh.id)
+        originalProfileModeToVehicle.addBinding(beamMode,veh)
       )
     )
-    if(!uniqueBeamModes.contains(WALK)) log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
+    if(!uniqueBeamModes.contains(WALK))
+      log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
@@ -205,7 +309,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // The next requests are for walk only trips to vehicles and simultaneously the vehicle to destination
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //TODO can we configure the walkOnly trips so that only one alternative is returned by R5 or do we need to deal with that in post?
-    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking  )
+    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking )
     streetVehiclesNotAtRequesterOrigin.foreach{ veh =>
       // Walking to Vehicle
       val newFromPosTransformed = GeoUtils.transform.Utm2Wgs(veh.location.loc)
@@ -220,13 +324,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       newProfileRequest2.fromLon = newFromPosTransformed.getX
       newProfileRequest2.fromLat = newFromPosTransformed.getY
       newProfileRequest2.directModes = util.EnumSet.copyOf(Vector(veh.mode.r5Mode.get.left.get).asJavaCollection)
-      vehicleAsOriginProfiles = vehicleAsOriginProfiles + (newProfileRequest2 -> veh.id)
+      vehicleAsOriginProfiles = vehicleAsOriginProfiles + (newProfileRequest2 -> veh)
     }
 
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
   }
 
-  def buildResponse(plan: ProfileResponse): Vector[BeamTrip] = {
+  def buildResponse(plan: ProfileResponse, forPerson: Boolean): Vector[BeamTrip] = {
 
     var trips = Vector[BeamTrip]()
     for(option <- plan.options.asScala) {
@@ -252,7 +356,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildStreetPath(access))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
-        if(access.mode != LegMode.WALK) {
+        if(forPerson && access.mode != LegMode.WALK) {
           legs = dummyWalk(tripStartTime) +: legs
           if(!isTransit) legs = legs :+ dummyWalk(tripStartTime + access.duration)
         }
@@ -294,7 +398,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             val egress = option.egress.get(itinerary.connection.egress)
             //start time would be the arival time of last stop and 5 second alighting
             legs = legs :+ BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress))
-            if(egress.mode != WALK) legs :+ dummyWalk(arrivalTime + egress.duration)
+            if(forPerson && egress.mode != LegMode.WALK) legs :+ dummyWalk(arrivalTime + egress.duration)
           }
         }
 
@@ -386,6 +490,4 @@ object R5RoutingWorker extends HasProps {
                                       originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[Id[Vehicle]]],
                                       walkOnlyProfiles: Vector[ProfileRequest],
                                       vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]])
-
-
 }

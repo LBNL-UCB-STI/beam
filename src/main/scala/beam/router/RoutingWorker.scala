@@ -18,14 +18,18 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
           //      log.info(s"Router received routing request from person $personId ($sender)")
           sender() ! calcRoute(requestId, params, getPerson(params.personId))
-    case msg => {
+    case InitTransit =>
+      initTransit
+      sender() ! TransitInited
+    case msg =>
       log.info(s"Unknown message received by Router $msg")
-    }
   }
 
   def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo, person: Person): RoutingResponse
 
   def init
+
+  def initTransit
 
   protected def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 }

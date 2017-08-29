@@ -44,11 +44,11 @@ object RunBeam extends App{
   //TODO this line can be safely deleted, just for exploring structure of config class
 //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
 
+  private lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
   val injector: com.google.inject.Injector =
-    org.matsim.core.controler.Injector.createInjector(ConfigModule.matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
+  org.matsim.core.controler.Injector.createInjector(ConfigModule.matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
         // MATSim defaults
-        val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
         install(new NewControlerModule)
         install(new ScenarioByInstanceModule(scenario))
         install(new ControlerDefaultsModule)
