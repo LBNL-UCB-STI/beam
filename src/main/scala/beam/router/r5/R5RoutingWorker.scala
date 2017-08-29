@@ -118,19 +118,19 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
 
     val profileRequestToVehicles: ProfileRequestToVehicles = buildRequests(routingRequestTripInfo)
-    val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
+    val originalResponse: (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
     val walkModeToVehicle: Map[BeamMode, Id[Vehicle]] = Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head)
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
-    originalResponse.filter(_.accessMode == WALK).foreach { trip =>
-      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle, walkModeToVehicle, beamServices)
+    originalResponse._1.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
+      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse._2(trip._2), beamServices)
     }
 
     profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach{ mode =>
       val vehicleIds = profileRequestToVehicles.originalProfileModeToVehicle(mode)
-      originalResponse.filter(_.accessMode == mode).foreach { trip =>
+      originalResponse._1.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
         vehicleIds.foreach { vehId: Id[Vehicle] =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle ++ Map(mode -> vehId), walkModeToVehicle, beamServices)
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> vehId), walkModeToVehicle, originalResponse._2(trip._2), beamServices)
         }
       }
     }
@@ -225,9 +225,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
   }
 
-  def buildResponse(plan: ProfileResponse): Vector[BeamTrip] = {
+  def buildResponse(plan: ProfileResponse): (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = {
 
     var trips = Vector[BeamTrip]()
+    var tripFares = Vector[Map[Int, Option[Double]]]()
     for(option <- plan.options.asScala) {
 //      log.debug(s"Summary of trip is: $option")
       /*
@@ -242,6 +243,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         */
       for (itinerary <- option.itinerary.asScala) {
         var legs = Vector[BeamLeg]()
+        var legFares = Map[Int, Option[Double]]()
 
         val access = option.access.get(itinerary.connection.access)
 
@@ -281,11 +283,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
                               segmentPattern.toArrivalTime ).get(transitJourneyID.time).toEpochSecond -
               segmentPattern.fromDepartureTime.get(transitJourneyID.time).toEpochSecond
 
-            legs = legs :+ new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)),
+            val leg = new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)),
               mapTransitMode(transitSegment.mode),
-              duration, fare,
-              travelPath = buildPath(transitSegment, transitJourneyID))
+              duration,
+              buildPath(transitSegment, transitJourneyID))
 
+            legFares += legs.size -> fare
+            legs = legs :+ leg
             arrivalTime = toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
             if (transitSegment.middle != null) {
               isMiddle = true
@@ -304,9 +308,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         }
 
         trips = trips :+ BeamTrip(legs, mapLegMode(access.mode))
+        tripFares = tripFares :+ legFares
       }
     }
-    trips
+    (trips,tripFares)
   }
 
   // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as argument of StreetPath

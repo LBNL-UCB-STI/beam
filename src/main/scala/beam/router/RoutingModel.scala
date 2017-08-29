@@ -50,15 +50,16 @@ object RoutingModel {
   object EmbodiedBeamTrip {
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
-    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode,Id[Vehicle]], egressVehiclesByMode: Map[BeamMode,Id[Vehicle]], services: BeamServices): EmbodiedBeamTrip = {
-      if(trip.legs.size==0){
+    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode,Id[Vehicle]], egressVehiclesByMode: Map[BeamMode,Id[Vehicle]], legFares: Map[Int, Option[Double]], services: BeamServices): EmbodiedBeamTrip = {
+      if(trip.legs.isEmpty){
         EmbodiedBeamTrip.empty
       }else {
         var inAccessPhase = true
-        val embodiedLegs: Vector[EmbodiedBeamLeg] = for(beamLeg <- trip.legs) yield {
+        val embodiedLegs: Vector[EmbodiedBeamLeg] = for(tuple <- trip.legs.zipWithIndex) yield {
+          val beamLeg = tuple._1
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
-          val cost = beamLeg.cost.getOrElse(0.0)
+          val cost = legFares(tuple._2).getOrElse(0.0)
           if(Modes.isR5TransitMode(currentMode)) {
             inAccessPhase = false
             EmbodiedBeamLeg(beamLeg,services.transitVehiclesByBeamLeg.get(beamLeg).get,false,None,cost,false)
@@ -89,13 +90,11 @@ object RoutingModel {
     * @param startTime time in seconds from base midnight
     * @param mode
     * @param duration period in seconds
-    * @param cost its optional and may be None at this level
     * @param travelPath
     */
   case class BeamLeg(startTime: Long,
                      mode: BeamMode,
                      duration: Long,
-                     cost: Option[Double] = None,
                      travelPath: BeamPath = empty) {
     def endTime: Long = startTime + duration
   }
