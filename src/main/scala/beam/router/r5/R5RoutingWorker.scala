@@ -486,7 +486,7 @@ object R5RoutingWorker extends HasProps {
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
-                                      originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[Id[Vehicle]]],
+                                      originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[StreetVehicle]],
                                       walkOnlyProfiles: Vector[ProfileRequest],
-                                      vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]])
+                                      vehicleAsOriginProfiles: Map[ProfileRequest,StreetVehicle])
 }
