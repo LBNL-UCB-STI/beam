@@ -19,7 +19,7 @@ import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
-import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
+import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
 import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
@@ -30,7 +30,7 @@ import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.ProfileRequest
 import com.conveyal.r5.streets.StreetLayer
-import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
+import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -53,7 +53,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   override def init: Unit = {
     loadMap
     overrideR5EdgeSearchRadius(2000)
-    initTransitVehicles()
   }
 
   private def loadMap = {
@@ -66,13 +65,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val networkFile : File = networkFilePath.toFile
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.read(networkFile)
+      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile)
     } else {
       log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
-      transportNetwork.write(networkFile)
-      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
+      NetworkCoordinator.transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      NetworkCoordinator.transportNetwork.write(networkFile)
+      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
   }
 
@@ -89,11 +88,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
-    log.info(s"Start Transit initialization  ${ transportNetwork.transitLayer.tripPatterns.size()} trips founded")
-    val transitTrips  = transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
+    log.info(s"Start Transit initialization  ${ NetworkCoordinator.transportNetwork.transitLayer.tripPatterns.size()} trips founded")
+    val transitTrips  = NetworkCoordinator.transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
       //      log.debug(tripPattern.toString)
-      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val route = NetworkCoordinator.transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val firstStop = tripPattern.tripSchedules.asScala
       firstStop.map { tripSchedule =>
@@ -103,8 +102,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val passengerSchedule = PassengerSchedule()
         tripSchedule.departures.zipWithIndex.foreach { case (departure, i) =>
           val duration = if(i == numStops-1){ 1L }else{ tripSchedule.arrivals(i+1) - departure }
-          val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
-          val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
+          val fromStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
+          val toStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
           val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
           val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
@@ -219,7 +218,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = NetworkCoordinator.transportNetwork.getTimeZone
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.origin)
     val toPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
