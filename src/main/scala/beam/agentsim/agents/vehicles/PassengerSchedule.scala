@@ -11,6 +11,9 @@ import scala.collection.mutable
   * BEAM
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
+  def getStartLeg() = {
+    schedule.head._1
+  }
   def addLegs(legs: Seq[BeamLeg]) = {
     legs.foreach(leg =>
       schedule.get(leg) match {
@@ -30,9 +33,9 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
       }
     )
     val firstLeg = legs.head
-    schedule.get(firstLeg).get.boarders += passenger.passengerVehicleId
+    schedule.get(firstLeg).get.boarders += passenger.vehicleId
     val lastLeg = legs.last
-    schedule.get(lastLeg).get.alighters += passenger.passengerVehicleId
+    schedule.get(lastLeg).get.alighters += passenger.vehicleId
   }
 }
 
@@ -41,7 +44,7 @@ object PassengerSchedule {
   def apply(): PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, Manifest]()(BeamLeg.beamLegOrdering))
 }
 
-case class VehiclePersonId(passengerVehicleId: Id[Vehicle], personId: Id[Person])
+case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
 
 class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] ){
   def isEmpty: Boolean = riders.size == 0

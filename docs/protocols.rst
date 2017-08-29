@@ -137,8 +137,8 @@ The process of hailing a ride from a TNC is modeled after the real-world experie
 1. The PersonAgent inquires about the availability and pricing of the service using a RideHailingInquiry message. 
 2. The RideHailingManager responds with a RideHailingInquiryResponse. 
 3. The PersonAgent may choose to use the ride hailing service in the mode choice process. 
-4. The PersonAgent sends a ReserveTaxi message attempting to book the service.
-5. The RideHailingManager responds with a ReserveTaxiResponse which either confirms the reservation or notifies that the resource is unavailable.
+4. The PersonAgent sends a ReserveHailedRide message attempting to book the service.
+5. The RideHailingManager responds with a ReserveHailedRideResponse which either confirms the reservation or notifies that the resource is unavailable.
 
 Inquiry
 ~~~~~~~
@@ -149,7 +149,7 @@ The RideHailingInquiryResponse message contains:
 
 Reserve
 ~~~~~~~
-The ReserveTaxi message contains:
+The ReserveHailedRide message contains:
 
 The RideHailingInquiry message contains:
 

@@ -1,12 +1,12 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.agents.BeamAgent.Initialized
+import beam.agentsim.agents.BeamAgent.{Finished, Initialized}
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.events.{AgentsimEventsBus, EventsSubscriber}
@@ -25,26 +25,34 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.scalatest.Matchers._
 import org.scalatest.mockito.MockitoSugar
+import org.mockito.Mockito._
 import org.scalatest.{FunSpecLike, MustMatchers}
 
+import scala.collection.mutable
 import scala.concurrent.Await
 
 /**
   * Created by sfeygin on 2/7/17.
   */
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
-  with MustMatchers with FunSpecLike with ImplicitSender with MockitoSugar{
+  with MustMatchers with FunSpecLike with ImplicitSender with MockitoSugar {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   private val agentSimEventsBus = new AgentsimEventsBus
 
-  val services: BeamServices = mock[BeamServices]
+  val services: BeamServices = {
+
+    val theServices  = mock[BeamServices]
+    when(theServices.agentSimEventsBus).thenReturn(agentSimEventsBus)
+    when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
+    theServices
+  }
 
   describe("A PersonAgent FSM") {
 
     it("should allow scheduler to set the first activity") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+        val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
@@ -56,7 +64,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule
 
-      personAgentRef.stateName should be(Initialized)
+      personAgentRef.stateName should be(Finished)
     }
 
     it("should be able to be registered in registry") {
@@ -65,7 +73,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val name = "0"
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
-      val props = Props(classOf[PersonAgent], Id.createPersonId(name),plan, Id.create("dummyBody", classOf[Vehicle]), PersonData())
+      val householdId  =  Id.create("dummyHousehold", classOf[Household])
+      val bodyVehicle = Id.create("dummyBody", classOf[Vehicle])
+      val props = PersonAgent.props(services, Id.createPersonId(name), householdId, plan, bodyVehicle)
       val future = registry ? Registry.Register(name, props)
       val result = Await.result(future, timeout.duration).asInstanceOf[AnyRef]
       val ok = result.asInstanceOf[Created]
@@ -91,11 +101,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 //        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
       val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
-      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 11.0, maxWindow = 10.0))
+      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 1000000.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(ActivityStartTrigger(1.0),personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(ActivityEndTrigger(10.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule
 
       EventFilter.info(message = "events-subscriber received actend event!", occurrences = 1)
@@ -111,22 +119,28 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
 
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      homeActivity.setStartTime(0.0)
+      homeActivity.setEndTime(30.0)
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+      workActivity.setStartTime(40.0)
+      workActivity.setEndTime(70.0)
+      val backHomeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      backHomeActivity.setStartTime(80.0)
+      backHomeActivity.setEndTime(100.0)
+
       plan.addActivity(homeActivity)
       plan.addActivity(workActivity)
-      plan.addActivity(homeActivity)
+      plan.addActivity(backHomeActivity)
 //        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
       val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
-      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 12.0, maxWindow = 10.0))
+      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 200.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(ActivityStartTrigger(1.0),personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(ActivityEndTrigger(10.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule
     }
 
-    it("should demonstrate a simple complete daily activity pattern")(pending)
+    //it("should demonstrate a simple complete daily activity pattern")(pending)
   }
 
 }
