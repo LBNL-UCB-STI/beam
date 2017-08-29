@@ -1,31 +1,26 @@
 package beam.router.r5
 
 import java.io.File
-import java.lang.reflect.{Field, Modifier}
 import java.nio.file.Files.exists
 import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
-import org.apache.log4j.Logger
-
 import akka.actor.Props
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{HumanBodyVehicle, HumanBodyVehicleData, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{PassengerSchedule}
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.{SUBWAY, WALK}
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
-import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
+import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel._
 import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.HasProps
-import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
+import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
 import beam.sim.BeamServices
-import beam.utils.{CloneSerializedObject,GeoUtils, RefectionUtils}
+import beam.utils.{GeoUtils, RefectionUtils}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -35,9 +30,7 @@ import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.{Vehicle, VehicleType}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -65,13 +58,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val networkFile : File = networkFilePath.toFile
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.read(networkFile)
+      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile)
     } else {
       log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
-      transportNetwork.write(networkFile)
-      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
+      NetworkCoordinator.transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      NetworkCoordinator.transportNetwork.write(networkFile)
+      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
   }
 
@@ -88,9 +81,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
-    transportNetwork.transitLayer.tripPatterns.listIterator().asScala.foreach { tripPattern =>
+    NetworkCoordinator.transportNetwork.transitLayer.tripPatterns.listIterator().asScala.foreach { tripPattern =>
       //      log.debug(tripPattern.toString)
-      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val route = NetworkCoordinator.transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       tripPattern.tripSchedules.asScala.foreach { tripSchedule =>
         // First create a unique for this trip which will become the transit agent and vehicle ids
@@ -99,8 +92,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val passengerSchedule = PassengerSchedule()
         tripSchedule.departures.zipWithIndex.foreach { case (departure, i) =>
           val duration = if(i == numStops-1){ 1L }else{ tripSchedule.arrivals(i+1) - departure }
-          val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
-          val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
+          val fromStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
+          val toStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
           val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
           val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
@@ -123,7 +116,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       */
 
 
-    val pointToPointQuery = new PointToPointQuery(transportNetwork)
+    val pointToPointQuery = new PointToPointQuery(NetworkCoordinator.transportNetwork)
 
     val profileRequestToVehicles: ProfileRequestToVehicles = buildRequests(routingRequestTripInfo)
     val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
@@ -180,7 +173,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = NetworkCoordinator.transportNetwork.getTimeZone
     val fromPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.origin)
     val toPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
@@ -275,7 +268,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
-            val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
+            val toStopId: String = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime
@@ -387,10 +380,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 object R5RoutingWorker extends HasProps {
   val GRAPH_FILE = "/network.dat"
 
-  var transportNetwork: TransportNetwork = _
-  var linkMap: util.Map[Int, Long] = new util.HashMap[Int, Long]()
-  var copiedNetwork:TransportNetwork  = null
-  val logger = Logger.getLogger("R5RoutingWorker")
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
@@ -398,65 +387,5 @@ object R5RoutingWorker extends HasProps {
                                       walkOnlyProfiles: Vector[ProfileRequest],
                                       vehicleAsOriginProfiles: Map[ProfileRequest,Id[Vehicle]])
 
-  def replaceNetwork = {
-    if(transportNetwork != copiedNetwork)
-      transportNetwork = copiedNetwork
-    else{
-      /**To-do: allow switching if we just say warning or we should stop system to allow here
-        * Log warning to stop or error to warning
-        */
-      /**
-        * This case is might happen as we are operating non thread safe environment it might happen that
-        * transportNetwork variable set by transportNetwork actor not possible visible to if it is not a
-        * critical error as worker will be continue working on obsolete state
-        */
-      logger.warn("Router worker continue execution on obsolete state")
-      logger.error("Router worker continue working on obsolete state")
-      logger.info("Router worker continue execution on obsolete state")
-    }
-  }
 
-  def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
-    copiedNetwork = CloneSerializedObject.deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
-    logger.info("No of edges -> " + copiedNetwork.streetLayer.edgeStore.nEdges())
-    linkMap.keySet().forEach((key) => {
-      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
-      val linkId = edge.getOSMID
-      logger.info("Updating link [" + linkId + "] => edgeIndex (" + edge.getEdgeIndex + ") => linkMap.key => (" + key + ") => ")
-      if(linkId > 0) {
-        val avgTime = getAverageTime(linkId, travelTimeCalculator)
-        logger.info("Updated Avg Time => " + avgTime)
-        val avgTime100 = (avgTime * 100).asInstanceOf[Short]
-        edge.setSpeed(avgTime100)
-      }
-    })
-  }
-
-  def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
-    var totalTime = 0.0
-    val limit = 86400
-    val step = 60
-    val totalIterations = limit/step
-    val link: Id[org.matsim.api.core.v01.network.Link] = Id.createLinkId(linkId)
-
-    if(link != null) {
-      for (i <- 0 until 86400 by 60) {
-        totalTime = totalTime + travelTimeCalculator.getLinkTravelTime(link, i.toDouble)
-      }
-    }
-
-    val avgTime = (totalTime/totalIterations)
-    logger.info("Updated Avg Time => " + avgTime + " , converted to short => " + avgTime.toShort)
-    avgTime.toShort
-  }
-
-  def getOsmId(edgeIndex: Int): Long = {
-    if(linkMap.containsKey(edgeIndex)){
-      linkMap.get(edgeIndex)
-    }else {
-      val osmLinkId = R5RoutingWorker.transportNetwork.streetLayer.edgeStore.getCursor(edgeIndex).getOSMID
-      linkMap.put(edgeIndex, osmLinkId)
-      osmLinkId
-    }
-  }
 }

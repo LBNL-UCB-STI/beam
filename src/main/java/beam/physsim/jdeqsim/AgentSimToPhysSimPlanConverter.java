@@ -10,6 +10,7 @@ import beam.physsim.jdeqsim.akka.EventManagerActor;
 import beam.physsim.jdeqsim.akka.JDEQSimActor;
 import beam.router.Modes;
 import beam.router.RoutingModel;
+import beam.router.r5.NetworkCoordinator;
 import beam.router.r5.R5RoutingWorker;
 import beam.sim.BeamServices;
 import glokka.Registry;
@@ -204,7 +205,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     for(String link : links.split(",")) {
 
                         //long osmLinkId = R5RoutingWorker.transportNetwork().streetLayer.edgeStore.getCursor(Integer.parseInt(link)).getOSMID();
-                        long osmLinkId = R5RoutingWorker.getOsmId(Integer.parseInt(link));
+                        long osmLinkId = NetworkCoordinator.getOsmId(Integer.parseInt(link));
 
                         Id<Link> linkId = Id.createLinkId(osmLinkId);
                         linkIds.add(linkId);

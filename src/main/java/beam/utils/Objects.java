@@ -8,7 +8,8 @@ import java.io.ObjectOutputStream;
 /**
  * Created by salma_000 on 8/25/2017.
  */
-public class CloneSerializedObject {
+
+public class Objects {
 
     static public Object deepCopy(Object oldObj) throws Exception {
         ObjectOutputStream oos = null;
