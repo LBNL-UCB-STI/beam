@@ -14,7 +14,8 @@ import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationRe
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
-import beam.router.RoutingModel.BeamTrip
+import beam.router.RoutingModel
+import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
@@ -54,6 +55,18 @@ object RideHailingAgent {
   case class DropOffCustomer(newLocation: SpaceTime)
 
   case class RegisterRideAvailableWrapper(triggerId: Long)
+
+  def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean ={
+    currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
+  }
+
+  def getRideHailingTrip(chosenTrip: EmbodiedBeamTrip): Vector[RoutingModel.EmbodiedBeamLeg] = {
+    chosenTrip.legs.filter(l => isRideHailingLeg(l))
+  }
+
+  def isRideHailingTrip(chosenTrip: EmbodiedBeamTrip): Boolean ={
+    getRideHailingTrip(chosenTrip).nonEmpty
+  }
 
 }
 

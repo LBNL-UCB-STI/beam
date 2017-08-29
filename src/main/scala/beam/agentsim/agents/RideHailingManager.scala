@@ -127,7 +127,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
           //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), personId)
 
-          // This hbv represents a dummy walk leg for the taxi agent
+          // This hbv represents a customer agent leg
           val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp, departAt.atTime)), WALK, true)
 
           val customerTripRequestId = BeamRouter.nextId

@@ -70,7 +70,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     var inferredVehicle: VehicleStack = VehicleStack()
     var exitNextVehicle = false
     var legsWithPassengerVehicle: Vector[(Id[Vehicle], EmbodiedBeamLeg)] = Vector()
-    val rideHailingLeg = chosenTrip.legs.filter(l => l.beamVehicleId.toString.contains("rideHailingVehicle"))
+    val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
     // XXXX: Sorry... this is so ugly
     if(rideHailingLeg.nonEmpty){
       val departAt=DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
@@ -101,6 +101,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
     }
     stay()
   }
+
+
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip) = {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
@@ -152,7 +154,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with TriggerShortcuts with HasSe
       //TODO parameterize search distance
       val pickUpLocation = currentActivity.getCoord
       beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId,
-        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 5000, nextAct.getCoord)
+        Id.create(info.id.toString, classOf[PersonAgent]), pickUpLocation, departTime, 50000, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()
