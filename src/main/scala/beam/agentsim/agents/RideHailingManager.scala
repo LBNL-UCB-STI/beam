@@ -8,7 +8,7 @@ import beam.agentsim.agents.RideHailingAgent.PickupCustomer
 import beam.agentsim.agents.RideHailingManager._
 import beam.agentsim.agents.util.{AggregatorFactory, SingleActorAggregationResult}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle._
@@ -128,17 +128,17 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
           //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), personId)
 
           // This hbv represents a customer agent leg
-          val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp, departAt.atTime)), WALK, true)
+//          val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp, departAt.atTime)), WALK, asDriver = true)
 
           val customerTripRequestId = BeamRouter.nextId
           val rideHailing2CustomerRequestId = BeamRouter.nextId
-          val rideHailingVehicleAtOrigin = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((rideHailingLocation.currentLocation.loc, departAt.atTime)), CAR, true)
-          val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp, departAt.atTime)), CAR, false)
+          val rideHailingVehicleAtOrigin = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((rideHailingLocation.currentLocation.loc, departAt.atTime)), CAR, asDriver = true)
+          val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp, departAt.atTime)), CAR, asDriver = false)
           val routeRequests = Map(
             beamServices.beamRouter.path -> List(
               RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin), personId)),
               //XXXX: customer trip request might be redundant... possibly pass in info
-              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup), personId)))
+              RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(rideHailingVehicleAtPickup), personId)))
           )
 
           aggregateResponsesTo(customerAgent, routeRequests, Option(self)) { case result: SingleActorAggregationResult =>
@@ -158,6 +158,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
             if (timeToCustomer < Long.MaxValue && customerPlans2Costs.nonEmpty) {
               val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
+
               //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
               //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
@@ -167,7 +168,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
 
               val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod, rideHailing2DestinationResponseMod)
               pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
-              log.info(s"Found ride to hail ${rideHailingLocation.currentLocation} for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
+              log.info(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
               RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
             } else {
               log.warn(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
