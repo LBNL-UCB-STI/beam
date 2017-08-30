@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle.{Reservation, ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
@@ -30,7 +31,7 @@ import scala.util.Random
 trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  val choiceCalculator: ChoiceCalculator = ChoosesMode.driveIfAvailable
+  val choiceCalculator: ChoiceCalculator = ChoosesMode.rideHailIfAvailable
   var routingResponse: Option[RoutingResponse] = None
   var rideHailingResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
@@ -103,7 +104,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
 
 
-  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip) = {
+  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] = Vector()) = {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
     _currentRoute = chosenTrip
@@ -111,7 +112,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     rideHailingResult = None
     hasReceivedCompleteChoiceTrigger = false
     pendingChosenTrip = None
-    beamServices.schedulerRef ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
+    beamServices.schedulerRef ! completed(triggerId = theTriggerId, triggersToSchedule ++ schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
     goto(Waiting)
   }
   /*
@@ -171,7 +172,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(ReservationResponse(requestId,Right(resrvationConfirmation)),_) =>
       awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
       if(awaitingReservationConfirmation.isEmpty){
-        scheduleDepartureWithValidatedTrip(pendingChosenTrip.get)
+        scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, resrvationConfirmation.triggersToSchedule)
       }else{
         stay()
       }

@@ -100,6 +100,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
   private val inServiceRideHailVehicles = mutable.Map[Id[Vehicle], RideHailingAgentLocation]()
   //XXX: let's make sorted-map to be get latest and oldest orders to expire some of the
   private val pendingInquiries = mutable.TreeMap[Id[RideHailingInquiry], (TravelProposal, BeamTrip)]()
+  private val pendingModifyPassengerScheduleAcks = mutable.TreeMap[Id[RideHailingInquiry], ReservationResponse]()
 
   private val transform = CRS.findMathTransform(CRS.decode("EPSG:4326", true), CRS.decode(beamServices.beamConfig.beam.routing.gtfs.crs, true), false)
 
@@ -166,8 +167,8 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
               //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
 
-              val modRHA2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(CAR)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-              val modRHA2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(CAR)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = false, beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
+              val modRHA2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
+              val modRHA2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = (c.beamLeg.mode == WALK), beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
 
               val rideHailingAgent2CustomerResponseMod = RoutingResponse(rideHailingAgent2CustomerResponse.id, modRHA2Cust)
               val rideHailing2DestinationResponseMod = RoutingResponse(rideHailing2DestinationResponse.id, modRHA2Dest)
@@ -203,6 +204,8 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
         case None =>
           customerAgent ! ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Left(VehicleUnavailable))
       }
+    case ModifyPassengerScheduleAck(inquiryIDOption) =>
+      completeReservation(Id.create(inquiryIDOption.get.toString,classOf[RideHailingInquiry]))
     case msg =>
       log.info(s"unknown message received by RideHailingManager $msg")
   }
@@ -240,16 +243,20 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
     val passengerSchedule = PassengerSchedule()
     passengerSchedule.addLegs(travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip.legs)  // Adds empty trip to customer
     passengerSchedule.addPassenger(vehiclePersonId,trip2DestPlan.get.legs.filter(_.mode==CAR))             // Adds customer's actual trip to destination
-    closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
-
     inServiceRideHailVehicles.put(closestRideHailingAgentLocation.vehicleId, closestRideHailingAgentLocation)
     rideHailingAgentSpatialIndex.remove(closestRideHailingAgentLocation.currentLocation.loc.getX, closestRideHailingAgentLocation.currentLocation.loc.getY, closestRideHailingAgentLocation)
 
-    val triggersToSchedule = schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,closestRideHailingAgentLocation.rideHailAgent)
+    // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
+    val triggerToSchedule = schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,closestRideHailingAgentLocation.rideHailAgent,passengerSchedule.schedule.firstKey)
+    pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs.last,vehiclePersonId,triggerToSchedule))))
 
-    // Now confirm to customer
-    val confirmation = ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs.last,vehiclePersonId,triggersToSchedule)))
-    customerAgent ! confirmation
+    closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
+  }
+
+  private def completeReservation(inquiryId: Id[RideHailingInquiry]): Unit ={
+    val response = pendingModifyPassengerScheduleAcks.remove(inquiryId).get
+    val customerRef = beamServices.personRefs(response.response.right.get.passengerVehiclePersonId.personId)
+    customerRef ! response
   }
 
 //  triggerCustomerPickUp(customerPickUp, destination, closestRideHailingAgentLocation, trip2DestPlan, travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip(), confirmation, vehiclePersonId)

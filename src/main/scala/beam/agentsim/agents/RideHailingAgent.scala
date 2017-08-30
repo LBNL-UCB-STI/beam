@@ -7,8 +7,7 @@ import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, 
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.RideHailingManager.{RegisterRideAvailable, RideAvailableAck}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.EndLegTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.SpaceTime
@@ -82,10 +81,9 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[RideHailingAgentData]) =>
-      val schedule = PassengerSchedule()
-      schedule.addLegs(Vector(BeamLeg(tick.toLong, CAR, 0L)))
-      data.vehicleIdAndRef.ref ! BecomeDriver(triggerId, id, Some(schedule))
-      goto(PersonAgent.Waiting) replying completed(triggerId)
+      val passengerSchedule = PassengerSchedule()
+      data.vehicleIdAndRef.ref ! BecomeDriver(triggerId, id, Some(passengerSchedule))
+      goto(PersonAgent.Waiting) replying completed(triggerId, schedule[PassengerScheduleEmptyTrigger](tick,self))
   }
 
   chainedWhen(Waiting) {

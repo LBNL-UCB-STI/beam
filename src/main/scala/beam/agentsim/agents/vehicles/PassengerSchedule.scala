@@ -31,16 +31,15 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
   }
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {
-    legs.foreach(leg=>schedule.getOrElseUpdate(leg,Manifest(passenger)))
 
-//    legs.foreach(leg =>
-//      schedule.get(leg) match {
-//        case Some(manifest) =>
-//          manifest.riders += passenger
-//        case None =>
-//          schedule.put(leg, Manifest(passenger))
-//      }
-//    )
+    legs.foreach(leg =>
+      schedule.get(leg) match {
+        case Some(manifest) =>
+          manifest.riders += passenger
+        case None =>
+          schedule.put(leg, Manifest(passenger))
+      }
+    )
     val firstLeg = legs.head
     schedule.get(firstLeg).get.boarders += passenger.vehicleId
     val lastLeg = legs.last

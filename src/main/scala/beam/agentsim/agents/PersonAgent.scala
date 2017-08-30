@@ -237,7 +237,16 @@ class PersonAgent(val beamServices: BeamServices,
           logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
           goto(Error) replying completed(triggerId)
       }
-
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick), triggerId), _) =>
+      _currentEmbodiedLeg match {
+        case Some(leg) =>
+          // Driver is still traveling to pickup point, reschedule this trigger
+          logWarn("Driver is in state Moving but received NotifyStartLegTrigger, rescheduling this Trigger")
+          stay() replying completed(triggerId,schedule[NotifyLegStartTrigger](tick,self))
+        case None =>
+          logError("Driver is in state Moving but received NotifyStartLegTrigger without a _currentEmbodiedLeg defined, this should never happen.")
+          goto(Error) replying completed(triggerId)
+      }
   }
 
   /*
