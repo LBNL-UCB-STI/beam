@@ -356,8 +356,8 @@ for(extra.work.pen in c(0,0.5,1)){
   all.sites <- rbindlist(list(existing.sites,new.sites),use.names=T)
 
   if(T){
-    write.csv(all.points,file=pp('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
-    write.csv(all.sites,file=pp('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
+    #write.csv(all.points,file=pp('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
+    #write.csv(all.sites,file=pp('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
   }
 }
 
@@ -377,6 +377,6 @@ for(county in u(person.att[!is.na(n)]$spatialGroup)){
 }
 person.att[,n:=NULL]
 if(F){
-  write.csv(person.att,file='~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group-calib.csv',row.names=F)
+  #write.csv(person.att,file='~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group-calib.csv',row.names=F)
 }
 

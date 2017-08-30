@@ -111,7 +111,7 @@ do.or.load('/Users/critter/Documents/beam/input/run0-201-leg-data.Rdata',functio
   list(legs=legs)
 })
 
-do.or.load('/Users/critter/Documents/matsim/input/run0-201-plans-all.Rdata',function(){
+do.or.load('/Users/critter/Documents/beam/input/run0-201-plans-all.Rdata',function(){
   plans <- read.csv('/Users/critter/Documents/matsim/input/run0.201.plans.thinned4.csv',header=F)
 
   person.id <- as.numeric(as.character(plans$V1))
@@ -138,7 +138,7 @@ do.or.load('/Users/critter/Documents/matsim/input/run0-201-plans-all.Rdata',func
   return(list('plans'=plans,'homes'=homes))
 })
 
-do.or.load('/Users/critter/Documents/matsim/input/sf-bay-veh-reg.Rdata',function(){
+do.or.load('/Users/critter/Documents/beam/input/sf-bay-veh-reg.Rdata',function(){
   # Load and analyze the vehicle reg data
   reg <- read.csv('~/Dropbox/ucb/vto/MATSimPEV/spatial-data/sf-bay-area-veh-reg/bay-area-detail-2015.csv')
   names(reg) <- c('zip','cat','segment','fuel','count')
@@ -192,8 +192,8 @@ do.or.load('/Users/critter/Documents/matsim/input/sf-bay-sampled-plans.Rdata',fu
   # For now, ignore NEVs
   pev.pen <- pev.pen[class!="NEV"]
   pev.pen[,id:=1:nrow(pev.pen)]
-  veh.range <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/MATSimPEV/model-inputs/vehicles/vehicle-ranges.csv'))
-  veh.types <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/MATSimPEV/model-inputs/vehicles/vehicle-types.csv'))
+  veh.range <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/beam-core/model-inputs/calibration-v2/vehicles/vehicle-ranges.csv'))
+  veh.types <- data.table(read.csv('/Users/critter/Dropbox/ucb/vto/beam-core/model-inputs/calibration-v2/vehicle-types.csv'))
   pev.pen <- join.on(pev.pen,veh.range,'make.model','vehicleTypeName','epaRange')
 
   setkey(pev.pen,zip)

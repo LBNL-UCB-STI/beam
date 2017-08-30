@@ -44,11 +44,10 @@ out.dirs <- list( 'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/bea
 out.dirs <- list( 'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) )
 
 out.dirs <- list(  'base' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-31_19-29-25-final-base-for-plexos/',0),
-                 'morework-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-53-30-morework100/',0),
+                 #'morework-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-53-30-morework100/',0),
                   'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-22-morework100sameloc/',0),
                    'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) 
                  )
-                  
 
 scens <- names(out.dirs)
 
@@ -88,7 +87,7 @@ ev <- join.on(ev,peeps,'person','personId',c('batteryCapacityInKWh','veh.type','
 ev[,hr:=as.numeric(time)/3600]
 ev[,hour:=floor(hr)]
 stranded.peeps <- u(ev[choice=='stranded']$person)
-vmt <- ev[!person%in%stranded.peeps,list(miles=sum(as.numeric(distance),na.rm=T)*0.000621371,n.veh=length(u(person)),days=round(max(time)/24/3600)-1),by='veh.type']
+vmt <- ev[scenario=='base' & !person%in%stranded.peeps,list(miles=sum(as.numeric(distance),na.rm=T)*0.000621371,n.veh=length(u(person)),days=round(max(time)/24/3600)-1),by='veh.type']
 weekday.to.weekend <- 1.25 # http://onlinepubs.trb.org/onlinepubs/archive/conferences/nhts/Pendyala-Agarwal.pdf   https://www.arb.ca.gov/research/weekendeffect/we-wd_fr_5-7-04.pdf
 vmt[,vmt:=miles/(n.veh)/days*(253 + 112/weekday.to.weekend)] # 261 weekdays per year - 8 holidays
 
@@ -107,11 +106,11 @@ ev[type=='BeginChargingSessionEvent' & is.na(actType),actType:='Home',by=c('scen
 ev <- ev[!type%in%c('arrival','departure','travelled','actend','PreChargeEvent')]
 
 # categorize each charger into Home, Work, Public
-if(length(grep('morework200',scen))>0){
+if(length(grep('morework-200',scen))>0){
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-200pct.csv',stringsAsFactors=F))
-}else if(length(grep('morework100',scen))>0){
+}else if(length(grep('morework-100',scen))>0){
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-100pct.csv',stringsAsFactors=F))
-}else if(length(grep('morework50',scen))>0){
+}else if(length(grep('morework-50',scen))>0){
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-50pct.csv',stringsAsFactors=F))
 }else{
   sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-revised-2017-07.csv',stringsAsFactors=F))
@@ -278,11 +277,11 @@ flex.scenario <- 'base'
   load(pp('/Users/critter/GoogleDriveUCB/beam-core/data/chargepoint/cp.Rdata'))
   cp[category=='Workplace',type:='Work']
   cp[type=='Commercial',type:='Public']
-  wdays <- c('Sat'=0,'Sun'=1,'Mon'=2,'Tue'=3,'Wed'=4,'Thu'=5,'Fri'=6,'Sat'=7)
+  wdays <- c('Sun'=0,'Mon'=1,'Tus'=2,'Wed'=3,'Thu'=4,'Fri'=5,'Sat'=6,'Sun'=7)
   cp[,start.wday:=factor(names(wdays[start.wday]),levels=names(wdays))]
   cp.hr <- cp[,list(kw=sum(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=mean(kw),wday=start.wday[1]),by=c('hour.of.week','type')]
-  ggplot(cp.hr,aes(x=hour.of.week%%24,y=kw,colour=factor(wday)))+geom_line(lwd=1.5)+facet_wrap(~type,scales='free_y')+labs(title="ChargePoint Average Load",x="Hour",y="Load (kW)",colour="Day of Week")
-  cp.day <- cp[,list(kw=sum(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=sum(kw),wday=start.wday[1]),by=c('start.wday','type')]
+  #ggplot(cp.hr,aes(x=hour.of.week%%24,y=kw,colour=factor(wday)))+geom_line(lwd=1.5)+facet_wrap(~type,scales='free_y')+labs(title="ChargePoint Average Load",x="Hour",y="Load (kW)",colour="Day of Week")
+  cp.day <- cp[,list(kw=sum(kw)),by=c('start.month','start.mday','start.wday','hour.of.week','type')][,list(kw=mean(kw),wday=start.wday[1]),by=c('start.wday','type')]
   cp.day.norm <- cp.day[,list(norm.load= kw/mean(kw[!wday%in%c('Sat','Sun')]),wday=wday),by='type']
 
   # Turn aggregated constraints into virtual battery cumul energy, scale by day of week, then repeat for a year
@@ -310,7 +309,7 @@ flex.scenario <- 'base'
   virt[,':='(max=0,min=0)]
   for(the.day in 1:9){
     the.wday <- (the.day-1)%%7+1
-    if(the.wday>1 & the.wday<7){
+    if(the.wday>0 & the.wday<6){
       gap.to.use <- scale.the.gap(copy(gap.weekday),cp.day.norm,the.wday)
     }else{
       gap.to.use <- scale.the.gap(copy(gap.weekend),cp.day.norm,the.wday)
@@ -370,7 +369,7 @@ flex.scenario <- 'base'
   #flex.scenario <- '100-more-workplace'
   #flex.scenario <- '100-more-workplace-sameloc'
   #flex.scenario <- '200-more-workplace'
-  results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2025-v4'
+  results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2025-v5'
   make.dir(pp(results.dir.base,'/',flex.scenario))
   the.utility <- scenarios$Electric.Utility[3]
   pen <- scenarios$penetration[1]
@@ -485,3 +484,74 @@ plexos.constraints[,plexos.battery.max.charge:=plugged.in.charger.capacity - pev
 plexos.constraints[plexos.battery.max.charge<0,plexos.battery.max.charge:=0]
 
 write.csv(plexos.constraints,'/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/example-constraints.csv')
+
+
+##################################################################
+# Results for SWITCH Team
+##################################################################
+
+soc[scenario=='Base' & final.type=='Residential' & hr==floor(hr) & hr<160,list(cumul.energy=sum(cumul.energy)),by=c('scenario','hr','constraint')]
+
+soc <- soc[scenario=='base']
+
+shave.peak <- function(x,y,shave.start,shave.end){
+  c(y[x<shave.start],  approx(x[x%in%c(shave.start,shave.end)],y[x%in%c(shave.start,shave.end)],xout=x[x>=shave.start & x<=shave.end])$y, y[x>shave.end])
+}
+soc.weekday <- copy(soc)
+soc.weekend <- copy(soc)
+# Shift the target day to later in the week without re-writing code below (which pulls out day 2)
+soc.weekday[,hr:=hr-24*3]
+soc.weekend[,hr:=hr-24*3]
+shave.start <- 28; shave.end <- 36
+soc.weekend[,':='(d.energy.level=shave.peak(hr,d.energy.level,shave.start,shave.end)),by=c('scenario','person','final.type','veh.type','constraint')]
+soc.weekend[,':='(cumul.energy=cumsum(d.energy.level)),by=c('scenario','person','final.type','veh.type','constraint')]
+
+gap.weekday <- gap.analysis(soc.weekday[hr>=28 & hr<=52,list(cumul.energy=sum(cumul.energy),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','constraint','final.type','veh.type')])
+gap.weekend <- gap.analysis(soc.weekend[hr>=28 & hr<=52,list(cumul.energy=sum(cumul.energy),plugged.in.capacity=sum(plugged.in.capacity)),by=c('hr','constraint','final.type','veh.type')])
+
+# Note, we pad with a day on both ends, this is designed for 2024 where Jan 1 is a Monday, so the padded day in the
+# front is a Sunday.
+virt <- data.table(expand.grid(list(day=1:9,dhr=1:24,final.type=u(gap.weekday$final.type),veh.type=u(gap.weekday$veh.type))))
+setkey(virt,final.type,veh.type,day,dhr)
+virt[,hr:=(day-1)*24+dhr]
+virt[,':='(max=0,min=0)]
+for(the.day in 1:9){
+  the.wday <- (the.day-1)%%7+1
+  if(the.wday>0 & the.wday<6){
+    gap.to.use <- scale.the.gap(copy(gap.weekday),cp.day.norm,the.wday)
+  }else{
+    gap.to.use <- scale.the.gap(copy(gap.weekend),cp.day.norm,the.wday)
+  }
+  if(the.day==1){
+    virt[day==1,max:=gap.to.use$max.norm]
+    virt[day==1,min:=gap.to.use$min.norm]
+    virt[day==1,plugged.in.capacity:=gap.to.use$plugged.in.capacity]
+  }else{
+    prev.day <- virt[day==the.day-1]
+    prev.day[,current.gap:=max-min]
+    max.mins <- prev.day[,list(max.max=max(max),max.min=max(min),max.current.gap=max(current.gap)),by=c('final.type','veh.type')]
+    max.mins[max.current.gap<0,max.current.gap:=0]
+    max.mins <- join.on(max.mins,gap.to.use[,list(max.desired.gap=max(gap)),by=c('final.type','veh.type')],c('final.type','veh.type'))
+    max.mins[,gap.adjustment:=ifelse(max.current.gap>max.desired.gap,max.current.gap-max.desired.gap,0)]
+    virt <- join.on(virt,max.mins,c('final.type','veh.type'),c('final.type','veh.type'),c('max.max','max.min','gap.adjustment'))
+    if(the.wday==1){
+      virt[,max.min:=max.min+gap.adjustment]
+    }
+    setkey(virt,final.type,veh.type,day,dhr)
+    virt[day==the.day,max:=max.max+gap.to.use$max.norm]
+    virt[day==the.day,min:=max.min+gap.to.use$min.norm.relative.to.min]
+    virt[day==the.day,plugged.in.capacity:=gap.to.use$plugged.in.capacity]
+    virt[,':='(max.max=NULL,max.min=NULL,gap.adjustment=NULL)]
+  }
+}
+setkey(virt,final.type,veh.type,day,hr)
+ggplot(virt[day<10],aes(x=hr,y=max))+geom_line()+geom_line(aes(y=min))+facet_wrap(veh.type~final.type)
+
+n.bev <- length(u(soc[veh.type=='BEV']$person))
+bev.scale <- vmt[veh.type=='BEV']$scale
+virt[max<0,max:=0]
+virt[min<0,min:=0]
+for.switch <- virt[day <=7 & veh.type=='BEV',list(final.type,day,hour.of.day=dhr,hour.of.week=hr,max.cumulative.kwh=max*bev.scale/n.bev,min.cumulative.kwh=min*bev.scale/n.bev,max.power.kw=plugged.in.capacity/n.bev)]
+for.switch[,day.of.week:=names(wdays)[match(day,wdays)]]
+
+write.csv(for.switch,file='/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/beam-constraints-for-switch.csv')
