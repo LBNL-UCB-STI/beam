@@ -25,6 +25,8 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
 import scala.util.Left;
 
@@ -32,11 +34,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+
 /**
  * Created by asif on 8/18/2017.
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
+    private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private Scenario scenario;
     private Population population;
     private PopulationFactory populationFactory;
@@ -158,6 +162,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                         // At most two negative vertex ids are expected, one at the beginning of the route and one at the end
                         // Something might be wrong
                         // This comment should be added to the error log
+                        String errorMessage = "At most two negative vertex ids are expected, one at the beginning of the route and one at the end. " +
+                                "Something might be wrong";
+                        log.error(errorMessage);
+                        //throw new Exception(errorMessage);
                     }
                     Route route = RouteUtils.createNetworkRoute(linkIds, network);
                     leg.setRoute(route);
