@@ -10,8 +10,33 @@ import scala.collection.mutable.Map
 
 object TollCalculator {
 
+  case class Toll(charges: Vector[Charge],
+                  vehicleTypes: Set[String],
+                  isExclusionType: Boolean = false)
+
+  case class Charge(amount: Double,
+                    currency: String,
+                    item: String,
+                    timeUnit: Option[String] = None,
+                    month: Option[ChargeDate] = None,
+                    day: Option[ChargeDate]= None,
+                    hour: Option[ChargeDate] = None)
+
+  object Charge {
+    def apply(charge: String): Charge = {
+      charge.split(";").foreach(_.split(" "))
+//      new Charge(amount, currency, item, timeUnit, month, day, hour)
+      null
+    }
+  }
+
+  trait ChargeDate { val on: String  }
+  case class DiscreteDate(override val on: String) extends ChargeDate
+  case class DateRange(override val on: String, till: String) extends ChargeDate
+
+
   val MIN_TOLL = 1.0
-  var ways: Map[java.lang.Long, Way] = _
+  var ways: Map[java.lang.Long, Toll] = _
 
   def fromDirectory(directory: Path): Unit = {
     /**
@@ -33,7 +58,8 @@ object TollCalculator {
     }
 
     def readTolls(osm: OSM) = {
-      ways = osm.ways.asScala.filter(ns => ns._2.tags != null && ns._2.tags.asScala.exists(t => (t.key == "toll" && t.value != "no") || t.key.startsWith("toll:")))
+      val ways = osm.ways.asScala.filter(ns => ns._2.tags != null && ns._2.tags.asScala.exists(t => (t.key == "toll" && t.value != "no") || t.key.startsWith("toll:")) && ns._2.tags.asScala.exists(_.key == "charge"))
+      ways.map(w => (w._2, w._2.tags.asScala.filter(_.key == "charge")))
       //osm.nodes.values().asScala.filter(ns => ns.tags != null && ns.tags.size() > 1 && ns.tags.asScala.exists(t => (t.key == "fee" && t.value == "yes") || t.key == "charge") && ns.tags.asScala.exists(t => t.key == "toll" || (t.key == "barrier" && t.value == "toll_booth")))
     }
 
@@ -44,7 +70,8 @@ object TollCalculator {
 
   def calcToll(osmIds: Vector[Long]): Double = {
     // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
-    ways.count(w => osmIds.contains(w._1)) * MIN_TOLL
+    ways.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
+   
   }
 
   def main(args: Array[String]): Unit = {
