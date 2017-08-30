@@ -93,6 +93,7 @@ public class JsonFriendlyEventWriterXML implements EventWriter, BasicEventHandle
 				this.out.append("' ");
 			}
 			this.out.append(" />\n");
+			this.out.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

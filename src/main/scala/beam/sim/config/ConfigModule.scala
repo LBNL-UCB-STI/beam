@@ -25,7 +25,7 @@ object ConfigModule {
 
   protected [sim] lazy val typesafeConfig: TypesafeConfig = {
 
-    val inputDir = Option(sys.env("BEAM_SHARED_INPUTS"))
+    val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
     val config = ConfigFileName match {
       case Some(fileName) if Files.exists(Paths.get(fileName)) =>
         ConfigFactory.parseFile(Paths.get(fileName).toFile)

@@ -5,5 +5,5 @@ package beam.agentsim.agents
   */
 sealed trait BehaviorProfile
 
-final case class PersonCanUseTaxi(a: Int) extends BehaviorProfile
+final case class PersonCanUserRideHailingService(a: Int) extends BehaviorProfile
 final case class SubtypeTwo(b: Option[String]) extends BehaviorProfile
