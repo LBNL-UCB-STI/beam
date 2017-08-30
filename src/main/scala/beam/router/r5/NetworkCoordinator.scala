@@ -55,14 +55,11 @@ object NetworkCoordinator {
 
   def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
     copiedNetwork = Objects.deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
-    logger.info("No of edges -> " + copiedNetwork.streetLayer.edgeStore.nEdges())
     linkMap.keySet().forEach((key) => {
       val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
       val linkId = edge.getOSMID
-      logger.info("Updating link [" + linkId + "] => edgeIndex (" + edge.getEdgeIndex + ") => linkMap.key => (" + key + ") => ")
       if(linkId > 0) {
         val avgTime = getAverageTime(linkId, travelTimeCalculator)
-        logger.info("Updated Avg Time => " + avgTime)
         val avgTime100 = (avgTime * 100).asInstanceOf[Short]
         edge.setSpeed(avgTime100)
       }
@@ -83,7 +80,6 @@ object NetworkCoordinator {
     }
 
     val avgTime = (totalTime/totalIterations)
-    logger.info("Updated Avg Time => " + avgTime + " , converted to short => " + avgTime.toShort)
     avgTime.toShort
   }
 

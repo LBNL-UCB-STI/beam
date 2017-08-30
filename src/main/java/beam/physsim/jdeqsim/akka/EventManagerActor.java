@@ -22,7 +22,6 @@ public class EventManagerActor extends UntypedActor {
         } else if (msg instanceof String){
         	String s=(String) msg;
 			 if (s.equalsIgnoreCase("lastMessage")){
-				 System.out.println("number of messages received in total:" + events.size());
 				 jdeqsimActorREF.tell("eventsProcessingFinished", getSelf());
 			 } else if (s.equalsIgnoreCase("registerJDEQSimREF")){
 				 jdeqsimActorREF=getSender();
