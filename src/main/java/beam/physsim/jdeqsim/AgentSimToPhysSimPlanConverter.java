@@ -11,13 +11,10 @@ import beam.physsim.jdeqsim.akka.JDEQSimActor;
 import beam.router.Modes;
 import beam.router.RoutingModel;
 import beam.router.r5.NetworkCoordinator;
-import beam.router.r5.R5RoutingWorker;
 import beam.sim.BeamServices;
 import glokka.Registry;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.events.ActivityEndEvent;
-import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -44,7 +41,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private Population population;
     private PopulationFactory populationFactory;
     private Network network;
-    private Activity latestActivity;
     private BeamServices services;
 
     private ActorRef eventHandlerActorREF;
@@ -55,7 +51,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
         this.services = _services;
         Scenario _scenario = this.services.matsimServices().getScenario();
-        // Is this factory connected to main factory loaded in BeamSim or a new factory
         scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         population = scenario.getPopulation();
         populationFactory = scenario.getPopulation().getFactory();
@@ -65,29 +60,19 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     @Override
     public void reset(int iteration) {
 
-        System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> ITERATION -> " + iteration);
-        // send plans to physsim
-
         // we have to get physsim reference from registry for example
         // either for now have physsim as sub package in this same project called singlecpu
-        System.out.println(getClass().getName() +  " -> Persons -> " + population.getPersons().toString());
-
         for(Person p : population.getPersons().values()){
             Plan plan = p.getSelectedPlan();
             Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
 
-            plan.addActivity(populationFactory.createActivityFromLinkId("dummy", leg.getRoute().getEndLinkId()));
+            plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
         }
         initializeAndRun();
     }
 
     public void initializeAndRun(){
-        /*
-        Change the interface for jdeqSim so that it works with
-        1. network, - We get network from scenario that we created in constructor
-        2. collection of persons, - We have this after iteration completes
-        3. getActivityDurationInterpretation - TODO Get this from somewhere
-         */
+
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
         ActorRef registry = this.services.registry();
         try{
@@ -103,7 +88,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
             jdeqsimActorREF.tell("start", ActorRef.noSender());
             eventHandlerActorREF.tell("registerJDEQSimREF", jdeqsimActorREF);
-            //system.awaitTermination();
         }
         catch(Exception e){
             e.printStackTrace();
@@ -121,56 +105,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     @Override
     public void handleEvent(Event event) {
 
-        // Logic will be like the below
-        /*
-        for every person we will have an entry in hashmap in the population ->
-        we will check existing person and will add the activity and leg/routes to it or we will create new
-        //////////////////////
-        a) Any event handled will fall within a plan
-        b) If a plan already exists corresponding to the person for the event,
-            use that plan to gather activity and leg information from that event
-
-        1. Create Person
-        2. Create an activity from the event
-        3. Create a leg from the event
-        4. Check if a plan already exists for the person from the event
-        4a. Use the existing plan
-        4b. Otherwise create the new plan and use for future events for that person too
-        5. We need plans for people using car mode
-
-        // Load the network which we have created today beamville.xml
-        // change the interface of jdeqsim, instead of scenario it will expect
-        // a network, a collection of persons, a getActivityDurationInterpretation
-        // Whenenver we initialize jdeqsim we will need these three things all this info
-        // configgroup
-        */
-        /////////////////////////
-
-        /*double time = event.getTime();
-        String eventType = event.getEventType();
-        long personId = Long.parseLong(event.getAttributes().get("person")); */
-        System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
-
-        if(event instanceof ActivityStartEvent) {
-            // This is used to for handling the last activity of the day.
-            ActivityStartEvent ase = ((ActivityStartEvent) event);
-            String activityType = ase.getActType();
-            Id<Link> linkId = ase.getLinkId();
-            latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
-
-
-        }else if(event instanceof ActivityEndEvent) {
-            // This is used to find out the last activity before the car leg (PathTraversalEvent)
-            ActivityEndEvent aee = ((ActivityEndEvent) event);
-            String activityType = aee.getActType();
-            Id<Link> linkId = aee.getLinkId();
-            latestActivity = populationFactory.createActivityFromLinkId(activityType, linkId);
-
-        }else if(event instanceof PathTraversalEvent){
+        if(event instanceof PathTraversalEvent){
             PathTraversalEvent ptEvent = (PathTraversalEvent)event;
-            //System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent [Event] -> " + Event.class.getName() + event.toString() + ", " + event.getAttributes().keySet());
-            System.out.println(AgentSimToPhysSimPlanConverter.class.getName() + " -> PathTraversalEvent [ptEvent] -> " + PathTraversalEvent.class.getName() + ptEvent.toString() + ", " + ptEvent.getAttributes().keySet());
-
             String mode = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_MODE());
 
             if(mode != null && mode.equalsIgnoreCase("car")) {
@@ -202,27 +138,39 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     leg.setDepartureTime(beamLeg.startTime());
                     leg.setTravelTime(0);
                     List<Id<Link>> linkIds = new ArrayList<>();
+                    int negCount = 0;
                     for(String link : links.split(",")) {
 
                         //long osmLinkId = R5RoutingWorker.transportNetwork().streetLayer.edgeStore.getCursor(Integer.parseInt(link)).getOSMID();
                         long osmLinkId = NetworkCoordinator.getOsmId(Integer.parseInt(link));
 
-                        Id<Link> linkId = Id.createLinkId(osmLinkId);
-                        linkIds.add(linkId);
+                        if(osmLinkId < 0) {
+                            negCount++;
+                            // The OSM id can be smaller than zero at the start and end of the route [transit stops vertex connected to the road network]
+                        }else {
+                            Id<Link> linkId = Id.createLinkId(osmLinkId);
+                            linkIds.add(linkId);
+                        }
+                    }
+
+                    if(negCount > 2){
+
+                        // At most two negative vertex ids are expected, one at the beginning of the route and one at the end
+                        // Something might be wrong
+                        // This comment should be added to the error log
                     }
                     Route route = RouteUtils.createNetworkRoute(linkIds, network);
                     leg.setRoute(route);
 
-
-                    latestActivity.setLinkId(route.getStartLinkId());
-                    latestActivity.setEndTime(beamLeg.startTime());
+                    Activity dummyActivity = populationFactory.createActivityFromLinkId("DUMMY", route.getEndLinkId());
+                    dummyActivity.setEndTime(beamLeg.startTime());
 
                     Person person = null;
                     if (personAlreadyExist) {
                         person = population.getPersons().get(personId);
 
                         Plan plan = person.getSelectedPlan();
-                        plan.addActivity(latestActivity);
+                        plan.addActivity(dummyActivity);
                         plan.addLeg(leg);
 
 
@@ -230,7 +178,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                         person = populationFactory.createPerson(personId);
 
                         Plan plan = populationFactory.createPlan();
-                        plan.addActivity(latestActivity);
+                        plan.addActivity(dummyActivity);
                         plan.addLeg(leg);
 
                         plan.setPerson(person);
