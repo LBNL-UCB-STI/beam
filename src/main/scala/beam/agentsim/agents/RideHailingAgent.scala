@@ -89,7 +89,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   }
 
   chainedWhen(Waiting) {
-
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
       val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = SpaceTime(info.data.location, tick.toLong))
       val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
@@ -104,7 +103,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 //      val req = ReservationRequest(confirmation.requestId, confirmation.response.right.get.departFrom, confirmation.response.right.get.arriveAt, confirmation.response.right.get.reservedVehicle, Id.createPersonId(id))
       val schedule = PassengerSchedule()
       schedule.addLegs(trip2CustPlan.get.legs)  // Adds trip to customer
-      schedule.addPassenger(VehiclePersonId(confirmation.response.right.get.passenger,customerId),trip2DestPlan.get.legs)  // Adds trip to destination
+      schedule.addPassenger(VehiclePersonId(confirmation.response.right.get.passenger,customerId),trip2DestPlan.get.legs.filter(_.mode==CAR))  // Adds trip to destination
 //      data.vehicleIdAndRef.ref ! req
       data.vehicleIdAndRef.ref ! ModifyPassengerSchedule(schedule)
       stay()
