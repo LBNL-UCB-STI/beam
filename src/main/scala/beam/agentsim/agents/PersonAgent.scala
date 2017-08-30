@@ -195,7 +195,7 @@ class PersonAgent(val beamServices: BeamServices,
          */
         case Some(currentLeg) =>
           beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, self)
-          stay()
+          stay() replying completed(triggerId)
         case None =>
           val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
           processedDataOpt match {
