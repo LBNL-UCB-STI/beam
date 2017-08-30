@@ -161,7 +161,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
                         // At most two negative vertex ids are expected, one at the beginning of the route and one at the end
                         // Something might be wrong
-                        // This comment should be added to the error log
                         String errorMessage = "At most two negative vertex ids are expected, one at the beginning of the route and one at the end. " +
                                 "Something might be wrong";
                         log.error(errorMessage);
