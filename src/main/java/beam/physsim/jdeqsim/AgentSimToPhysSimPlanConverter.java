@@ -64,8 +64,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     @Override
     public void reset(int iteration) {
 
-        // we have to get physsim reference from registry for example
-        // either for now have physsim as sub package in this same project called singlecpu
         for(Person p : population.getPersons().values()){
             Plan plan = p.getSelectedPlan();
             Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
@@ -137,7 +135,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                         personAlreadyExist = population.getPersons().containsKey(personId); // person already exists
                     }
 
-
                     Leg leg = populationFactory.createLeg(beamLeg.mode().matsimMode());
                     leg.setDepartureTime(beamLeg.startTime());
                     leg.setTravelTime(0);
@@ -145,7 +142,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     int negCount = 0;
                     for(String link : links.split(",")) {
 
-                        //long osmLinkId = R5RoutingWorker.transportNetwork().streetLayer.edgeStore.getCursor(Integer.parseInt(link)).getOSMID();
                         long osmLinkId = NetworkCoordinator.getOsmId(Integer.parseInt(link));
 
                         if(osmLinkId < 0) {
@@ -179,8 +175,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                         Plan plan = person.getSelectedPlan();
                         plan.addActivity(dummyActivity);
                         plan.addLeg(leg);
-
-
                     } else {
                         person = populationFactory.createPerson(personId);
 
