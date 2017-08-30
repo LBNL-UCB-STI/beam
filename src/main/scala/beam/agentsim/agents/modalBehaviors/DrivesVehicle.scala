@@ -138,7 +138,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
           case None =>
             val (tick, triggerId) = releaseTickAndTriggerId()
             beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self, passengerSchedule.schedule.firstKey))
-            goto(Waiting)
+            goto(Waiting) replying ModifyPassengerScheduleAck
           case Some(beamLeg) =>
             stay()
         }
