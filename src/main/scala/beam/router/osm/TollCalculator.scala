@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
 import com.conveyal.osmlib.{OSM, Way}
+import com.eaio.uuid.UUIDGen
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.Map
@@ -18,22 +19,58 @@ object TollCalculator {
                     currency: String,
                     item: String,
                     timeUnit: Option[String] = None,
-                    month: Option[ChargeDate] = None,
-                    day: Option[ChargeDate]= None,
-                    hour: Option[ChargeDate] = None)
+                    dates: Vector[ChargeDate])
 
   object Charge {
     def apply(charge: String): Charge = {
-      charge.split(";").foreach(_.split(" "))
+      charge.split(";").map(c => {
+        val tokens = c.split(" ")
+        val tts = tokens.length
+        if(tts >= 2) {
+          val sfxTokens = tokens(tts-1).split("/")
+
+          new Charge(tokens(tts-2).toDouble,
+                      sfxTokens(0),
+                      sfxTokens(1),
+                      if(sfxTokens.length == 3) Option(sfxTokens(2)) else None,
+                      tts match {
+                        case 3 => Vector(ChargeDate.apply(tokens(0)))
+                        case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
+                        case 5 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)), ChargeDate.apply(tokens(2)))
+                      })
+        }
+      })
 //      new Charge(amount, currency, item, timeUnit, month, day, hour)
       null
     }
   }
 
-  trait ChargeDate { val on: String  }
-  case class DiscreteDate(override val on: String) extends ChargeDate
-  case class DateRange(override val on: String, till: String) extends ChargeDate
+  trait ChargeDate { val dType: String; val on: String  }
+  case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
+  case class DateRange(override val dType: String, override val on: String, till: String) extends ChargeDate
 
+  object ChargeDate {
+    private val months = Set("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+    private val days = Set("mo", "tu", "we", "th", "fr", "sa", "su")
+    private val events = Set("dawn", "sunrise", "sunset", "dusk")
+    def apply(pattern: String): ChargeDate = {
+      val dateTokens = pattern.split("-")
+      val dType = if(isMonth(dateTokens(0))) {
+        "m"
+      } else if(isDay(dateTokens(0))) {
+        "d"
+      } else if(isHour(dateTokens(0))) {
+        "h"
+      } else {
+        "y"
+      }
+      if(dateTokens.length == 1) new DiscreteDate(dType, dateTokens(0)) else new DateRange(dType, dateTokens(0), dateTokens(1))
+    }
+
+    def isMonth(m: String) = months.contains(m.toLowerCase)
+    def isDay(d: String) = days.contains(d.toLowerCase)
+    def isHour(h: String) = h.contains(":") || events.exists(h.contains(_))
+  }
 
   val MIN_TOLL = 1.0
   var ways: Map[java.lang.Long, Toll] = _
@@ -71,7 +108,7 @@ object TollCalculator {
   def calcToll(osmIds: Vector[Long]): Double = {
     // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
     ways.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
-   
+
   }
 
   def main(args: Array[String]): Unit = {
