@@ -4,9 +4,10 @@ import akka.actor.FSM
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BoardingConfirmation, UpdateTrajectory, VehicleFull}
-import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
-import beam.agentsim.agents.{BeamAgent, TriggerShortcuts}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, UpdateTrajectory, VehicleFull}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
+import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.events.resources.vehicle._
@@ -29,7 +30,7 @@ object DrivesVehicle {
   case class NotifyLegStartTrigger(tick: Double) extends Trigger
 }
 
-trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with BeamAgent[T]{
+trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   //TODO: double check that mutability here is legit espeically with the schedules passed in
   protected var passengerSchedule: PassengerSchedule = PassengerSchedule()
@@ -106,15 +107,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         case None =>
           passengerSchedule = PassengerSchedule()
       }
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      val nextLeg = passengerSchedule.schedule.firstKey
-      beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](nextLeg.startTime,self, nextLeg))
+      self ! BecomeDriverSuccessAck
       goto(Waiting)
   }
   chainedWhen(AnyState){
     // Problem, when this is received from PersonAgent, it is due to a NotifyEndLeg trigger which doesn't have an ack
     // So the schedule has moved ahead before this can schedule a new StartLegTrigger, so maybe Notify*Leg should be Triggers?
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule), _) =>
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule,requestId), _) =>
       var errorFlag = false
       if(!passengerSchedule.isEmpty){
         val endSpaceTime = passengerSchedule.terminalSpacetime()
@@ -136,11 +135,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         }
         val resultingState = _currentLeg match {
           case None =>
-            val (tick, triggerId) = releaseTickAndTriggerId()
-            beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self, passengerSchedule.schedule.firstKey))
-            goto(Waiting) replying ModifyPassengerScheduleAck
+            goto(Waiting) replying ModifyPassengerScheduleAck(requestId)
           case Some(beamLeg) =>
-            stay()
+            stay() replying ModifyPassengerScheduleAck(requestId)
         }
         resultingState
       }
@@ -149,7 +146,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
 
       val response = handleVehicleReservation(req, vehicleIdToReserve)
-      beamServices.personRefs(req.requesterPerson) ! response
+      beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response
       stay()
   }
 
@@ -187,8 +184,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         }
         if (hasRoom) {
           val legs = tripReservations.map(_._1)
-          passengerSchedule.addPassenger(VehiclePersonId(req.passengerVehicle, req.requesterPerson), legs)
-          ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehicle, vehicleIdToReserve)))
+          passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
+          ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
         } else {
           ReservationResponse(req.requestId, Left(VehicleFull(vehicleIdToReserve)))
         }

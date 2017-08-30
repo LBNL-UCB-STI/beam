@@ -5,13 +5,13 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{ NotifyLegEndTrigger,  NotifyLegStartTrigger}
-import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, EnterVehicle, ExitVehicle, UnbecomeDriver}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
+import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.resources.vehicle.ModifyPassengerSchedule
+import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
@@ -92,7 +92,7 @@ class PersonAgent(val beamServices: BeamServices,
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
-  TriggerShortcuts with HasServices with ChoosesMode with DrivesVehicle[PersonData] {
+  HasServices with ChoosesMode with DrivesVehicle[PersonData] {
 
   var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
   var _currentActivityIndex: Int = 0
@@ -311,6 +311,18 @@ class PersonAgent(val beamServices: BeamServices,
           goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
       }
     }
+  }
+
+  chainedWhen(AnyState){
+    case Event(ModifyPassengerScheduleAck(_), _) =>
+      scheduleStartLegAndStay
+    case Event(BecomeDriverSuccessAck, _)  =>
+      scheduleStartLegAndStay
+  }
+  def scheduleStartLegAndStay() = {
+    val (tick, triggerId) = releaseTickAndTriggerId()
+    beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](_currentEmbodiedLeg.get.beamLeg.startTime,self,_currentEmbodiedLeg.get.beamLeg))
+    stay
   }
 
   /*

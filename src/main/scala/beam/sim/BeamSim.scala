@@ -195,7 +195,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     for ((k, v) <- services.persons) {
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
+//      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
+      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
       val rideHailingName = s"rideHailingAgent-${k}_$iter"
       val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
       val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)

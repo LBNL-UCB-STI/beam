@@ -3,13 +3,12 @@ package beam.agentsim.agents
 import akka.actor.ActorRef
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
-
 import scala.reflect.{ClassTag, _}
 
 /**
   * BEAM
   */
-trait TriggerShortcuts {
+object TriggerUtils {
   def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger] = Vector()): CompletionNotice = {
     CompletionNotice(triggerId, scheduleTriggers)
   }
@@ -42,4 +41,5 @@ trait TriggerShortcuts {
     }
     ScheduleTrigger(trigger.asInstanceOf[T], recipient)
   }
+
 }
