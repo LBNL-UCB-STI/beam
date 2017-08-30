@@ -163,12 +163,15 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
               //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
               //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
-              //TODO: add timeToCustomer to all startTime of customerTripPlan.beamLegs
-              val rideHailing2DestinationResponseMod = RoutingResponse(rideHailing2DestinationResponse.id, rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(CAR)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = false)))))
-              val rideHailingAgent2CustomerResponseMod = RoutingResponse(rideHailingAgent2CustomerResponse.id, rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(CAR)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))))
+
+              val modRHA2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(CAR)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
+              val modRHA2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(CAR)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = false, beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
+
+              val rideHailingAgent2CustomerResponseMod = RoutingResponse(rideHailingAgent2CustomerResponse.id, modRHA2Cust)
+              val rideHailing2DestinationResponseMod = RoutingResponse(rideHailing2DestinationResponse.id, modRHA2Dest)
 
               val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod, rideHailing2DestinationResponseMod)
-              pendingInquiries.put(inquiryId, (travelProposal, customerTripPlan.toBeamTrip))
+              pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip()))
               log.info(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
               RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
             } else {

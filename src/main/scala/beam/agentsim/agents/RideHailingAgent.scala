@@ -90,6 +90,13 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Waiting) {
 
+    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
+      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = SpaceTime(info.data.location, tick.toLong))
+      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
+        RegisterRideAvailableWrapper(triggerId)
+      )
+      managerFuture pipeTo self
+      stay()
     case Event(RegisterRideAvailableWrapper(triggerId), info) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       stay()
@@ -101,13 +108,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 //      data.vehicleIdAndRef.ref ! req
       data.vehicleIdAndRef.ref ! ModifyPassengerSchedule(schedule)
       stay()
-    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = SpaceTime(info.data.location, tick.toLong))
-      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
-        RegisterRideAvailableWrapper(triggerId)
-      )
-      managerFuture pipeTo self
-      stay()
+
   }
 
 
