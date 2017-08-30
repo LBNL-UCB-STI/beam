@@ -179,14 +179,14 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
       case Some(currentLeg) if req.departFrom.startTime < currentLeg.startTime =>
         ReservationResponse(req.requestId, Left(VehicleGone))
       case _ =>
-        val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt)
+        val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.departFrom).toVector
         val vehicleCap = beamServices.vehicles(vehicleIdToReserve).getType.getCapacity
         val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
         val hasRoom = tripReservations.forall { entry =>
           entry._2.riders.size < fullCap
         }
         if (hasRoom) {
-          val legs = tripReservations.keys.toList
+          val legs = tripReservations.map(_._1)
           passengerSchedule.addPassenger(VehiclePersonId(req.passengerVehicle, req.requesterPerson), legs)
           ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehicle, vehicleIdToReserve)))
         } else {
