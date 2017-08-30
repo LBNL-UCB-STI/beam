@@ -3,7 +3,7 @@ package beam.agentsim.agents.modalBehaviors
 import akka.actor.FSM
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, NotifyLegEnd, NotifyLegStart, StartLegTrigger}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BoardingConfirmation, UpdateTrajectory, VehicleFull}
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{BeamAgent, TriggerShortcuts}
@@ -19,16 +19,14 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.HashSet
 
-
-
 /**
   * @author dserdiuk on 7/29/17.
   */
 object DrivesVehicle {
   case class StartLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
   case class EndLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
-  case class NotifyLegEnd(tick: Double)
-  case class NotifyLegStart(tick: Double)
+  case class NotifyLegEndTrigger(tick: Double) extends Trigger
+  case class NotifyLegStartTrigger(tick: Double) extends Trigger
 }
 
 trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServices with BeamAgent[T]{
@@ -53,7 +51,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
             processNextLegOrCompleteMission()
           }else {
             _awaitingAlightConfirmation ++= manifest.alighters
-            manifest.riders.foreach(pv => beamServices.personRefs.get(pv.personId).foreach(_ ! NotifyLegEnd(tick)))
+            manifest.riders.foreach(pv => beamServices.personRefs.get(pv.personId).foreach(personRef => beamServices.schedulerRef ! scheduleOne[NotifyLegEndTrigger](tick,personRef)))
             stay()
           }
         case None =>
@@ -83,7 +81,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
             _awaitingBoardConfirmation ++= manifest.boarders
             manifest.riders.foreach{ personVehicle =>
               logDebug(s"Sending NotifyStartLeg to Person ${personVehicle.personId}")
-              beamServices.personRefs(personVehicle.personId) ! NotifyLegStart(tick)
+              beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick,beamServices.personRefs(personVehicle.personId))
             }
             stay()
           }
@@ -138,7 +136,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends  TriggerShortcuts with HasServic
         }
         val resultingState = _currentLeg match {
           case None =>
-            beamServices.schedulerRef ! scheduleOne[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self, passengerSchedule.schedule.firstKey)
+            val (tick, triggerId) = releaseTickAndTriggerId()
+            beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self, passengerSchedule.schedule.firstKey))
             goto(Waiting)
           case Some(beamLeg) =>
             stay()
