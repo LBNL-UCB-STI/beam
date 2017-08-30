@@ -66,7 +66,7 @@ object RoutingModel {
 
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
-    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode,Id[StreetVehicle]], egressVehiclesByMode: Map[BeamMode,Id[StreetVehicle]], legFares: Map[Int, Option[Double]], services: BeamServices): EmbodiedBeamTrip = {
+    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode, StreetVehicle], egressVehiclesByMode: Map[BeamMode, StreetVehicle], legFares: Map[Int, Option[Double]], services: BeamServices): EmbodiedBeamTrip = {
       if(trip.legs.isEmpty){
         EmbodiedBeamTrip.empty
       } else {

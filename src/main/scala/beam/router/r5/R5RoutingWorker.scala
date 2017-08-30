@@ -169,7 +169,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }else{
       buildRequestsForNonPerson(routingRequestTripInfo)
     }
-    val originalResponse: (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
+    val originalResponse: (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile),isRouteForPerson)
     val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if(isRouteForPerson){ Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) }else{ Map() }
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
@@ -181,7 +181,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
       originalResponse._1.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
         streetVehicles.foreach { veh: StreetVehicle =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle ++ Map(mode -> vehId), walkModeToVehicle, beamServices)
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse._2(trip._2), beamServices)
         }
       }
     }
@@ -325,7 +325,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
   }
 
-  def buildResponse(plan: ProfileResponse): (Vector[BeamTrip], Vector[Map[Int, Option[Double]]], forPerson: Boolean) = {
+  def buildResponse(plan: ProfileResponse, forPerson: Boolean): (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = {
 
     var trips = Vector[BeamTrip]()
     var tripFares = Vector[Map[Int, Option[Double]]]()
