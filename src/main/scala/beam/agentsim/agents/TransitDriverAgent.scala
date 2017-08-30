@@ -1,60 +1,77 @@
 package beam.agentsim.agents
 
 import akka.actor.Props
-import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentInfo, BeamAgentState, Error, Uninitialized}
-import beam.agentsim.agents.TransitDriverAgent.{Idle, TransitDriverData, Traveling}
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Finished, Uninitialized}
+import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
+import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver}
+import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.scheduler.TriggerWithId
+import beam.router.RoutingModel.EmbodiedBeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 
 /**
   * BEAM
   */
 object TransitDriverAgent {
-  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent]) = Props(classOf[TransitDriverAgent], services, transitDriverId, TransitDriverData())
-  case class TransitDriverData() extends BeamAgentData
-  case object Idle extends BeamAgentState {
-    override def identifier = "Idle"
+  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, passengerSchedule: PassengerSchedule) = {
+    Props(classOf[TransitDriverAgent], services, transitDriverId, vehicleIdAndRef, passengerSchedule)
   }
-  case object Traveling extends BeamAgentState {
-    override def identifier = "Traveling"
+  case class TransitDriverData() extends BeamAgentData
+
+  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]) = {
+    Id.create("TransitDriverAgent-" + transitVehicle.toString, classOf[TransitDriverAgent])
   }
 }
 
 class TransitDriverAgent(val beamServices: BeamServices,
-                         override val id: Id[TransitDriverAgent],
-
-                         override val data: TransitDriverData) extends
+                         val transitDriverId: Id[TransitDriverAgent],
+                         val vehicleIdAndRef: BeamVehicleIdAndRef,
+                         val initialPassengerSchedule: PassengerSchedule) extends
   BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
+  override val id: Id[TransitDriverAgent] = transitDriverId
+  override val data: TransitDriverData = TransitDriverData()
   override def logPrefix(): String = s"TransitDriverAgent:$id "
 
-  when(Idle) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
-  }
-  when(Traveling) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
-  }
-
   chainedWhen(Uninitialized){
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
-      beamServices.schedulerRef ! CompletionNotice(triggerId)
-      goto(Idle)
+    case Event(TriggerWithId(InitializeTrigger(tick),triggerId), info: BeamAgentInfo[TransitDriverData]) =>
+      logDebug(s" $id has been initialized, going to Waiting state")
+      holdTickAndTriggerId(tick,triggerId)
+      vehicleIdAndRef.ref ! BecomeDriver(tick, id, Some(initialPassengerSchedule))
+      goto(PersonAgent.Waiting)
   }
 
-//  chainedWhen(Idle) {
-//  }
+  chainedWhen(Waiting) {
+    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
+      goto(Finished) replying completed(triggerId)
+  }
 
 //  chainedWhen(Traveling) {
 //  }
 
+  when(Waiting) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message $msg")
+      goto(Error)
+  }
+  when(Moving) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message $msg")
+      goto(Error)
+  }
+  when(AnyState) {
+    case ev@Event(_, _) =>
+      handleEvent(stateName, ev)
+    case msg@_ =>
+      logError(s"Unrecognized message $msg")
+      goto(Error)
+  }
 }

@@ -13,12 +13,12 @@ trait TriggerShortcuts {
   def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger] = Vector()): CompletionNotice = {
     CompletionNotice(triggerId, scheduleTriggers)
   }
-  def schedule[T <: Trigger](tick: Double, agent: ActorRef, messageArgs: Any*)(implicit tag: scala.reflect.ClassTag[T]): Vector[ScheduleTrigger] = {
-    Vector[ScheduleTrigger](scheduleOne(tick,agent, messageArgs: _*))
+  def schedule[T <: Trigger](tick: Double, recipient: ActorRef, messageArgs: Any*)(implicit tag: scala.reflect.ClassTag[T]): Vector[ScheduleTrigger] = {
+    Vector[ScheduleTrigger](scheduleOne(tick, recipient, messageArgs: _*))
   }
 
   // every trigger should have tick property
-  def scheduleOne[T <: Trigger : ClassTag](tick: Double, agent: ActorRef, messageArgs: Any*): ScheduleTrigger = {
+  def scheduleOne[T <: Trigger : ClassTag](tick: Double, recipient: ActorRef, messageArgs: Any*): ScheduleTrigger = {
     val clazz = classTag[T].runtimeClass
     val trigger = try {
       if (messageArgs.nonEmpty) {
@@ -40,6 +40,6 @@ trait TriggerShortcuts {
         ex.printStackTrace()
         throw ex
     }
-    ScheduleTrigger(trigger.asInstanceOf[T], agent)
+    ScheduleTrigger(trigger.asInstanceOf[T], recipient)
   }
 }
