@@ -38,7 +38,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam{
     "Start without errors" in {
 
 
-      val exc = Try(rumBeamWithConfigFile(Some(s"${System.getenv("PWD")}/test/input/beam-developers/model-inputs/beamville/beam.conf")))
+      val exc = Try(rumBeamWithConfigFile(Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")))
       route_output = ConfigModule.beamConfig.beam.outputs.outputDirectory
       exc.isSuccess shouldBe true
     }
