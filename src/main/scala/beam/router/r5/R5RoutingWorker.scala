@@ -46,7 +46,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
   //TODO parameterize the distance threshold here
-  val distanceThresholdToIgnoreWalking = 100.0 // meters
+  val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
   override def init: Unit = {
     loadMap
