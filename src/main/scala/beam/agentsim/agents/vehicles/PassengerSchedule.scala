@@ -1,5 +1,6 @@
 package beam.agentsim.agents.vehicles
 
+import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -11,19 +12,26 @@ import scala.collection.mutable
   * BEAM
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
+  def isEmpty = schedule.isEmpty
+
+  def initialSpacetime() = {
+    schedule.firstKey.travelPath.toTrajectory.location(schedule.firstKey.startTime)
+  }
+  def terminalSpacetime() = {
+    val lastLeg = schedule.lastKey
+    val endTime = lastLeg.startTime + lastLeg.endTime
+    lastLeg.travelPath.toTrajectory.location(endTime)
+  }
   def getStartLeg() = {
     schedule.head._1
   }
+
   def addLegs(legs: Seq[BeamLeg]) = {
-    legs.foreach(leg =>
-      schedule.get(leg) match {
-        case None =>
-          schedule.put(leg, Manifest())
-        case Some(manifest) =>
-      }
-    )
+    legs.withFilter(leg => !(schedule contains leg)).map(leg => schedule.put(leg, Manifest()))
   }
+
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {
+
     legs.foreach(leg =>
       schedule.get(leg) match {
         case Some(manifest) =>
