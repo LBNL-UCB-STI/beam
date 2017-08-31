@@ -19,6 +19,7 @@ import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
+import beam.router.gtfs.FareCalculator
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
@@ -34,22 +35,25 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.opentripplanner.routing.vertextype.TransitStop
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
-//  val localDateAsString: String = "2016-10-17"
-//  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
+  //  val localDateAsString: String = "2016-10-17"
+  //  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
   //TODO make this actually come from beamConfig
-//  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
+  //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
   //TODO parameterize the distance threshold here
   val distanceThresholdToIgnoreWalking = 100.0 // meters
 
+
   override def init: Unit = {
     loadMap
+    FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
     overrideR5EdgeSearchRadius(2000)
   }
 
@@ -60,7 +64,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       Paths.get(networkDir).toFile.mkdir()
     }
     val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
-    val networkFile : File = networkFilePath.toFile
+    val networkFile: File = networkFilePath.toFile
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
       transportNetwork = TransportNetwork.read(networkFile)
@@ -103,7 +107,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
           val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
           val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
-          val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
+          val theLeg = BeamLeg(departure.toLong, mode, duration, travelPath = transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
           beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
         }
@@ -165,19 +169,19 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }else{
       buildRequestsForNonPerson(routingRequestTripInfo)
     }
-    val originalResponse: Vector[BeamTrip] = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile),isRouteForPerson)
+    val originalResponse: (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile),isRouteForPerson)
     val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if(isRouteForPerson){ Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) }else{ Map() }
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
-    originalResponse.filter(_.accessMode == WALK).foreach { trip =>
-      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle, walkModeToVehicle, beamServices)
+    originalResponse._1.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
+      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse._2(trip._2), beamServices)
     }
 
     profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach{ mode =>
       val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
-      originalResponse.filter(_.accessMode == mode).foreach { trip =>
+      originalResponse._1.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
         streetVehicles.foreach { veh: StreetVehicle =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, beamServices)
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse._2(trip._2), beamServices)
         }
       }
     }
@@ -289,7 +293,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     profileRequest.date = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate).toLocalDate
     profileRequest.directModes = util.EnumSet.copyOf( uniqueLegModes.asJavaCollection )
     val isTransit = routingRequestTripInfo.transitModes.nonEmpty
-    if(isTransit){
+    if (isTransit) {
       val transitModes : Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
       profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
       profileRequest.accessModes = profileRequest.directModes
@@ -321,9 +325,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
   }
 
-  def buildResponse(plan: ProfileResponse, forPerson: Boolean): Vector[BeamTrip] = {
+  def buildResponse(plan: ProfileResponse, forPerson: Boolean): (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = {
 
     var trips = Vector[BeamTrip]()
+    var tripFares = Vector[Map[Int, Option[Double]]]()
     for(option <- plan.options.asScala) {
 //      log.debug(s"Summary of trip is: $option")
       /*
@@ -336,56 +341,65 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         * And after locating through these indexes, constructing BeamLeg for each and
         * finally add these legs back to BeamTrip.
         */
-      for(itinerary <- option.itinerary.asScala) {
+      for (itinerary <- option.itinerary.asScala) {
         var legs = Vector[BeamLeg]()
+        var legFares = Map[Int, Option[Double]]()
 
         val access = option.access.get(itinerary.connection.access)
 
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildStreetPath(access))
+        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
         if(forPerson && access.mode != LegMode.WALK) {
           legs = dummyWalk(tripStartTime) +: legs
-          if(!isTransit) legs = legs :+ dummyWalk(tripStartTime + access.duration)
+          if (!isTransit) legs = legs :+ dummyWalk(tripStartTime + access.duration)
         }
 
-        if(isTransit) {
+        if (isTransit) {
           var arrivalTime: Long = Long.MinValue
           var isMiddle: Boolean = false
           /*
            Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
            assuming that: For each transit in option there is a TransitJourneyID in connection
            */
-          for ((transitSegment, transitJourneyID) <- option.transit.asScala zip itinerary.connection.transit.asScala) {
+          val segments = option.transit.asScala zip itinerary.connection.transit.asScala
+          val fares = FareCalculator.filterTransferFares(FareCalculator.getFareSegments(segments.toVector))
+
+          for ((transitSegment, transitJourneyID) <- segments) {
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
-            val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
+            var fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
+
+            val fare = if (fs.nonEmpty) Some(fs.min) else None
+
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
-            val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
+            val duration = (if (option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime
                             else
                               segmentPattern.toArrivalTime ).get(transitJourneyID.time).toEpochSecond -
               segmentPattern.fromDepartureTime.get(transitJourneyID.time).toEpochSecond
 
-            legs = legs :+ new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)),
+            val leg = new BeamLeg(toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time)),
               mapTransitMode(transitSegment.mode),
               duration,
               buildPath(transitSegment, transitJourneyID))
 
+            legFares += legs.size -> fare
+            legs = legs :+ leg
             arrivalTime = toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
-            if(transitSegment.middle != null) {
+            if (transitSegment.middle != null) {
               isMiddle = true
-              legs = legs :+ BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, buildStreetPath(transitSegment.middle))
+              legs = legs :+ BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, travelPath = buildStreetPath(transitSegment.middle))
               arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
             }
           }
 
           // egress would only be present if there is some transit, so its under transit presence check
-          if(itinerary.connection.egress != null) {
+          if (itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             //start time would be the arival time of last stop and 5 second alighting
             legs = legs :+ BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress))
@@ -394,9 +408,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         }
 
         trips = trips :+ BeamTrip(legs, mapLegMode(access.mode))
+        tripFares = tripFares :+ legFares
       }
     }
-    trips
+    (trips,tripFares)
   }
 
   // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as argument of StreetPath
@@ -405,9 +420,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     var spaceTime = Vector[SpaceTime]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds = activeLinkIds :+ edge.edgeId.toString
-//      if(graphPathOutputsNeeded) {
-//        activeCoords = activeCoords :+ toCoord(edge.geometry)
-//      }
+      //      if(graphPathOutputsNeeded) {
+      //        activeCoords = activeCoords :+ toCoord(edge.geometry)
+      //      }
       //TODO: time need to be extrected and provided as last argument of SpaceTime
       spaceTime = spaceTime :+ SpaceTime(edge.geometry.getCoordinate.x, edge.geometry.getCoordinate.y, -1)
     }
@@ -422,42 +437,47 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     BeamTransitSegment(segment.from.stopId, segment.to.stopId, departureTime)
   }
-/*
-  private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode): BeamStreetPath = {
-    val streetRouter = new StreetRouter(transportNetwork.streetLayer)
-    streetRouter.profileRequest = profileRequest
-    streetRouter.streetMode = streetMode
 
-    // TODO use target pruning instead of a distance limit
-    streetRouter.distanceLimitMeters = 100000
+  def createStopId(stopId: String): Id[TransitStop] = {
+    Id.create(stopId, classOf[TransitStop])
+  }
 
-    streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)
-    streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)
+  /*
+    private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode): BeamStreetPath = {
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer)
+      streetRouter.profileRequest = profileRequest
+      streetRouter.streetMode = streetMode
 
-    streetRouter.route
+      // TODO use target pruning instead of a distance limit
+      streetRouter.distanceLimitMeters = 100000
 
-    //Gets lowest weight state for end coordinate split
-    val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
-    val streetPath = new StreetPath(lastState, transportNetwork)
+      streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)
+      streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)
 
-    var activeLinkIds = Vector[String]()
-    //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
-    var activeCoords = Vector[Coord]()
-    var activeTimes = Vector[Long]()
+      streetRouter.route
 
-    for (state <- streetPath.getStates.asScala) {
-      val edgeIdx = state.backEdge
-      if (edgeIdx != -1) {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
-        activeLinkIds = activeLinkIds :+ edgeIdx.toString
-        if(graphPathOutputsNeeded){
-          activeCoords = activeCoords :+ toCoord(edge.getGeometry)
-          activeTimes = activeTimes :+ state.getDurationSeconds.toLong
+      //Gets lowest weight state for end coordinate split
+      val lastState = streetRouter.getState(streetRouter.getDestinationSplit())
+      val streetPath = new StreetPath(lastState, transportNetwork)
+
+      var activeLinkIds = Vector[String]()
+      //TODO the coords and times should only be collected if the particular logging event that requires them is enabled
+      var activeCoords = Vector[Coord]()
+      var activeTimes = Vector[Long]()
+
+      for (state <- streetPath.getStates.asScala) {
+        val edgeIdx = state.backEdge
+        if (edgeIdx != -1) {
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
+          activeLinkIds = activeLinkIds :+ edgeIdx.toString
+          if(graphPathOutputsNeeded){
+            activeCoords = activeCoords :+ toCoord(edge.getGeometry)
+            activeTimes = activeTimes :+ state.getDurationSeconds.toLong
+          }
         }
       }
-    }
-    BeamStreetPath(activeLinkIds, activeCoords, activeTimes)
-  }*/
+      BeamStreetPath(activeLinkIds, activeCoords, activeTimes)
+    }*/
 
   private def toBaseMidnightSeconds(time: ZonedDateTime): Long = {
     val baseDate = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate)
