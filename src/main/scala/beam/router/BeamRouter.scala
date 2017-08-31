@@ -3,23 +3,32 @@ package beam.router
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
-import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
+import akka.routing.{ActorRefRoutee, Broadcast, RoundRobinRoutingLogic, Router}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamTime, BeamTrip, EmbodiedBeamTrip}
+import beam.router.RoutingModel.{BeamTime, EmbodiedBeamTrip}
+import beam.router.r5.NetworkCoordinator.UpdateTravelTime
+import beam.router.r5.{NetworkCoordinator}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
 
+
 import scala.beans.BeanProperty
+
 
 class BeamRouter(beamServices: BeamServices) extends Actor with Stash with ActorLogging {
   var services: BeamServices = beamServices
-  var router = Router(RoundRobinRoutingLogic(), Vector.fill(5) {
-    ActorRefRoutee(createAndWatch)
-  })
+  var router:Router = null
+  var transportNetworkWorker :ActorRef = null
+  override def preStart(): Unit = {
+    router = Router(RoundRobinRoutingLogic(), Vector.fill(5) {
+      ActorRefRoutee(createAndWatch)
+    })
+    transportNetworkWorker = context.actorOf(NetworkCoordinator.getNetworkCoordinatorProps)
+  }
 
   def receive = uninitialized
 
@@ -65,8 +74,18 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       sender() ! RouterInitialized
     case Terminated(r) =>
       handelTermination(r)
-    case msg =>
-      log.info(s"Unknown message[$msg] received by Router.")
+    case updateRequest: UpdateTravelTime =>
+      log.info("Received TravelTimeCalculator")
+      transportNetworkWorker.tell(updateRequest,ActorRef.noSender)
+    case msg => {
+      log.info(s"Received message[$msg] by Router.")
+      if(msg.equals("REPLACE_NETWORK")){
+        router.route(Broadcast("REPLACE_NETWORK"),self)
+      }
+      else
+        log.info(s"Unknown message[$msg] received by Router.")
+
+    }
   }
 
   private def handelTermination(r: ActorRef): Unit = {
