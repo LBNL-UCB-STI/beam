@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
-    private Scenario scenario;
+    private Scenario jdeqSimScenario;
     private Population population;
     private PopulationFactory populationFactory;
     private Network network;
@@ -51,15 +51,21 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private ActorRef jdeqsimActorREF;
     private EventsManager eventsManager;
 
-    public AgentSimToPhysSimPlanConverter(BeamServices _services){
+    public AgentSimToPhysSimPlanConverter(BeamServices services){
 
-        this.services = _services;
-        Scenario _scenario = this.services.matsimServices().getScenario();
-        scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-        population = scenario.getPopulation();
-        populationFactory = scenario.getPopulation().getFactory();
-        network = _scenario.getNetwork();
+        this.services = services;
+        Scenario agentSimScenario = this.services.matsimServices().getScenario();
+        network = agentSimScenario.getNetwork();
+
+        resetJDEQSimScenario();
     }
+
+    private void resetJDEQSimScenario(){
+        jdeqSimScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        population = jdeqSimScenario.getPopulation();
+        populationFactory = jdeqSimScenario.getPopulation().getFactory();
+    }
+
 
     @Override
     public void reset(int iteration) {
@@ -71,6 +77,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
         }
         initializeAndRun();
+        resetJDEQSimScenario();
     }
 
     public void initializeAndRun(){
@@ -79,13 +86,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         ActorRef registry = this.services.registry();
         try{
 
+            // TODO: adapt code to send new scenario data to jdeqsim actor each time
             if(eventHandlerActorREF == null) {
                 eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props());
                 eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
             }
 
             if(jdeqsimActorREF == null) {
-                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup, scenario, eventsManager, network, this.services.beamRouter()));
+                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup, jdeqSimScenario, eventsManager, network, this.services.beamRouter()));
             }
 
             jdeqsimActorREF.tell("start", ActorRef.noSender());
