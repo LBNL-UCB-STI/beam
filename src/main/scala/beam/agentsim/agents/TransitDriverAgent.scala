@@ -6,8 +6,10 @@ import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, 
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.events.resources.vehicle.ModifyPassengerScheduleAck
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.EmbodiedBeamLeg
 import beam.sim.{BeamServices, HasServices}
@@ -50,8 +52,12 @@ class TransitDriverAgent(val beamServices: BeamServices,
       goto(Finished) replying completed(triggerId)
   }
 
-//  chainedWhen(Traveling) {
-//  }
+  chainedWhen(AnyState) {
+    case Event(BecomeDriverSuccessAck, _) =>
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self,passengerSchedule.schedule.firstKey))
+      stay
+  }
 
   when(Waiting) {
     case ev@Event(_, _) =>
