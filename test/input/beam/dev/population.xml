@@ -1,36 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">
-
-<population>
-	<person id="1" employed="yes">
-		<plan selected="yes">
-			<act end_time="4:40:00" link="sfpt169321" type="Home" x="-122.307291" y="37.901933"/>
-			<leg mode="PEV"><route type="links" start_link="sfpt169321" end_link="sfpt28937" trav_time="1" distance="1">sfpt169321 sfpt28937</route></leg>
-			<act end_time="9:22:00" link="sfpt28937" type="Work" x="-122.253733" y="37.879309"/>
-			<leg mode="PEV"><route type="links" start_link="sfpt28937" end_link="sfpt169321" trav_time="1" distance="1">sfpt169321 sfpt28937</route></leg>
-			<act end_time="14:55:00" link="sfpt169321" type="Home" x="-122.307291" y="37.901933"/>
-		</plan>
-	</person>
-	<person id="2" employed="yes">
-		<plan selected="yes">
-			<act end_time="6:58:00" link="sfpt169321" type="Home" x="-122.282965" y="37.846351"/>
-			<leg mode="PEV"><route type="links" start_link="sfpt169321" end_link="sfpt28937" trav_time="1" distance="1">sfpt169321 sfpt28937</route></leg>
-      <!--<act end_time="12:52:00" link="sfpt28937" type="Work" x="-122.278185" y="37.891427"/>-->
-			<act end_time="12:52:00" link="sfpt28937" type="Work" x="-122.278637" y="37.890727"/>
-			<leg mode="PEV"><route type="links" start_link="sfpt28937" end_link="sfpt169321" trav_time="1" distance="1">sfpt169321 sfpt28937</route></leg>
-			<act end_time="17:58:00" link="sfpt169321" type="Home" x="-122.282965" y="37.846351"/>
-		</plan>
-	</person>
-	<person id="3" employed="yes">
-		<plan selected="yes">
-			<act end_time="7:58:00" link="sfpt169321" type="Home" x="-122.299213" y="37.904606"/>
-			<leg mode="PEV"><route type="links" start_link="sfpt169321" end_link="sfpt28937" trav_time="1" distance="1">sfpt169321 sfpt28937</route></leg>
-			<act end_time="13:52:00" link="sfpt28937" type="Work" x="-122.268220" y="37.853495"/>
-			<leg mode="PEV"><route type="links" start_link="sfpt28937" end_link="sfpt169321" trav_time="1" distance="1">sfpt169321 sfpt28937</route></leg>
-			<act end_time="18:58:00" link="sfpt169321" type="Home" x="-122.299213" y="37.904606"/>
-		</plan>
-	</person>
-
-<!-- ====================================================================== -->
-
-</population>
+version https://git-lfs.github.com/spec/v1
+oid sha256:e2a8904e9c044c25501c835e15976898f9e3a533a6e2e63b44cfd601da62559a
+size 2239
