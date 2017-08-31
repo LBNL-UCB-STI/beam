@@ -89,12 +89,11 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
 
   // improve search to take into account time rideHailingAgentSpatialIndex is available
   private val rideHailingAgentSpatialIndex = {
-    val bbBuffer = beamServices.beamConfig.bbBuffer
     new QuadTree[RideHailingAgentLocation](
-      beamServices.bbox.minX - bbBuffer,
-      beamServices.bbox.minY - bbBuffer,
-      beamServices.bbox.maxX + bbBuffer,
-      beamServices.bbox.maxY + bbBuffer)
+      beamServices.geo.utmbbox.minX,
+      beamServices.geo.utmbbox.minY,
+      beamServices.geo.utmbbox.maxX,
+      beamServices.geo.utmbbox.maxY)
   }
   private val availableRideHailVehicles = mutable.Map[Id[Vehicle], RideHailingAgentLocation]()
   private val inServiceRideHailVehicles = mutable.Map[Id[Vehicle], RideHailingAgentLocation]()
@@ -102,18 +101,11 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
   private val pendingInquiries = mutable.TreeMap[Id[RideHailingInquiry], (TravelProposal, BeamTrip)]()
   private val pendingModifyPassengerScheduleAcks = mutable.TreeMap[Id[RideHailingInquiry], ReservationResponse]()
 
-  private val transform = CRS.findMathTransform(CRS.decode("EPSG:4326", true), CRS.decode(beamServices.beamConfig.beam.routing.gtfs.crs, true), false)
-
   override def receive: Receive = {
     case RegisterRideAvailable(rideHailingAgentRef: ActorRef, vehicleId: Id[Vehicle], availableIn: SpaceTime) =>
       // register
-      val pos = new DirectPosition2D(availableIn.loc.getX, availableIn.loc.getY)
-      val posTransformed = new DirectPosition2D(availableIn.loc.getX, availableIn.loc.getY)
-      if (availableIn.loc.getX <= 180.0 & availableIn.loc.getX >= -180.0 & availableIn.loc.getY > -90.0 & availableIn.loc.getY < 90.0) {
-        transform.transform(pos, posTransformed)
-      }
       val rideHailingAgentLocation = RideHailingAgentLocation(rideHailingAgentRef, vehicleId, availableIn)
-      rideHailingAgentSpatialIndex.put(posTransformed.x, posTransformed.y, rideHailingAgentLocation)
+      rideHailingAgentSpatialIndex.put(availableIn.loc.getX, availableIn.loc.getY, rideHailingAgentLocation)
       availableRideHailVehicles.put(vehicleId, rideHailingAgentLocation)
       inServiceRideHailVehicles.remove(vehicleId)
       sender ! RideAvailableAck

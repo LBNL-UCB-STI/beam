@@ -22,7 +22,7 @@ import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
-import beam.utils.{GeoUtils, RefectionUtils}
+import beam.utils.{RefectionUtils}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -71,6 +71,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       transportNetwork.write(networkFile)
       transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
+    val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
+    beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.maxY = envelopeInUTM.getMaxY + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.minX = envelopeInUTM.getMinX - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
   }
 
   /*
@@ -196,7 +201,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // From requester's origin to destination, the street modes must be within XXm of origin because this agent can't walk
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
+    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
     if(streetVehiclesAtRequesterOrigin.isEmpty){
       log.error(s"A routing request for a Non Person (which therefore cannot walk) was submitted with no StreetVehicle within ${distanceThresholdToIgnoreWalking} m of the requested origin.")
     }
@@ -211,8 +216,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.destination)
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
@@ -255,7 +260,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // whether StreetVehicles are within XXm of the origin
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
+    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
     val uniqueBeamModes: Vector[BeamMode] = streetVehiclesAtRequesterOrigin.map(_.mode).distinct
     val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(_.r5Mode.get match { case Left(leg) => leg }).distinct
     uniqueBeamModes.foreach(beamMode =>
@@ -269,8 +274,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.destination)
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
@@ -300,10 +305,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // The next requests are for walk only trips to vehicles and simultaneously the vehicle to destination
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //TODO can we configure the walkOnly trips so that only one alternative is returned by R5 or do we need to deal with that in post?
-    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking )
+    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking )
     streetVehiclesNotAtRequesterOrigin.foreach{ veh =>
       // Walking to Vehicle
-      val newFromPosTransformed = GeoUtils.transform.Utm2Wgs(veh.location.loc)
+      val newFromPosTransformed = beamServices.geo.utm2Wgs(veh.location.loc)
       val newProfileRequest = profileRequest.clone()
       newProfileRequest.toLon = newFromPosTransformed.getX
       newProfileRequest.toLat = newFromPosTransformed.getY

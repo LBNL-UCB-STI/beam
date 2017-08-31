@@ -17,8 +17,6 @@ class DummyRouter(val beamServices: BeamServices) extends Actor with ActorLoggin
   override def receive: Receive = {
     case InitializeRouter =>
       log.info("Initializing Dummy Router")
-      beamServices.bbox.observeCoord(new Coordinate(-1e12,-1e12))
-      beamServices.bbox.observeCoord(new Coordinate(1e12,1e12))
       sender() ! RouterInitialized
     case RoutingRequest(requestId, RoutingRequestTripInfo(origin, destination, departureTime, modes, streetVehicles, personId)) =>
       log.info(s"Serving Route Request from $personId @ $departureTime")
