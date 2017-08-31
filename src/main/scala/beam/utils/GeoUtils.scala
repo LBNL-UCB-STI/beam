@@ -12,7 +12,7 @@ object GeoUtils {
 
   object transform{
     //TODO fix this monstrosity
-//    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+    //    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
     private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:32631", "EPSG:4326")
 
     def Utm2Wgs(coord:Coord):Coord={
