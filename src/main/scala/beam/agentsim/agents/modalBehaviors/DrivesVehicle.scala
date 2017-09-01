@@ -118,7 +118,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       if(!passengerSchedule.isEmpty){
         val endSpaceTime = passengerSchedule.terminalSpacetime()
         if(updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
-          GeoUtils.distInMeters(updatedPassengerSchedule.initialSpacetime.loc,endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+          beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc,endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
         ) {
           errorFlag = true
         }

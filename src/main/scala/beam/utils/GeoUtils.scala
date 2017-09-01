@@ -1,5 +1,9 @@
 package beam.utils
 
+import beam.sim.{BeamServices, BoundingBox, HasServices}
+import com.google.inject.{ImplementedBy, Inject}
+import com.vividsolutions.jts.geom.{Coordinate, Envelope}
+import org.geotools.geometry.DirectPosition2D
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
@@ -7,29 +11,32 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 /**
   * Created by sfeygin on 4/2/17.
   */
-object GeoUtils {
+@ImplementedBy(classOf[GeoUtilsImpl])
+trait GeoUtils extends HasServices  {
+  lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
+  lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326",beamServices.beamConfig.beam.spatial.localCRS)
+  lazy val utmbbox: BoundingBox = new BoundingBox(beamServices.beamConfig.beam.spatial.localCRS)
 
-
-  object transform{
+  def wgs2Utm(coord: Coord): Coord = {
+    wgs2Utm.transform(coord)
+  }
+  def wgs2Utm(envelope: Envelope): Envelope = {
+    val ll: Coord = wgs2Utm.transform(new Coord(envelope.getMinX, envelope.getMinY))
+    val ur: Coord = wgs2Utm.transform(new Coord(envelope.getMaxX, envelope.getMaxY))
+    new Envelope(ll.getX, ur.getX, ll.getY, ur.getY)
+  }
+  def utm2Wgs(coord:Coord): Coord = {
     //TODO fix this monstrosity
-    //    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
-    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:32631", "EPSG:4326")
-
-    def Utm2Wgs(coord:Coord):Coord={
-      //TODO fix this monstrosity
-      if (coord.getX > 1.0 | coord.getX < -0.0) {
-        utm2Wgs.transform(coord)
-      } else {
-        coord
-      }
+    if (coord.getX > 1.0 | coord.getX < -0.0) {
+      utm2Wgs.transform(coord)
+    } else {
+      coord
     }
   }
-
-  //TODO this is a hack, but we need a general purpose, failsafe way to get distances out of Coords regardless of their project
-  def distInMeters(coord1: Coord, coord2: Coord): Double ={
-    distLatLon2Meters(transform.Utm2Wgs(coord1), transform.Utm2Wgs(coord2))
+  //TODO this is a hack, but we need a general purpose, failsafe way to get distances out of Coords regardless of their projection
+  def distInMeters(coord1: Coord, coord2: Coord): Double = {
+    distLatLon2Meters(utm2Wgs(coord1), utm2Wgs(coord2))
   }
-
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distLatLon2Meters(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
 
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
@@ -44,5 +51,20 @@ object GeoUtils {
 
   }
 
-
+  //TODO if we want to dynamically determined BBox extents, this should be updated to be generic to CRS of the BBox
+  def observeCoord(coord: Coord, boundingBox: BoundingBox): Unit = {
+//    val posTransformed = if (boundingBox.crs == "EPSG:4326" && coord.getX <= 180.0 & coord.getX >= -180.0 & coord.getY > -90.0 & coord.getY < 90.0) {
+//      wgs2utm.transform(coord)
+//    }else{
+//      coord
+//    }
+//    if (posTransformed.getX < boundingBox.minX) boundingBox.minX = posTransformed.getX
+//    if (posTransformed.getY < boundingBox.minY) boundingBox.minY = posTransformed.getY
+//    if (posTransformed.getX > boundingBox.maxX) boundingBox.maxX = posTransformed.getX
+//    if (posTransformed.getY > boundingBox.maxY) boundingBox.maxY = posTransformed.getY
+  }
 }
+
+class GeoUtilsImpl @Inject()(override val beamServices: BeamServices) extends GeoUtils{
+}
+
