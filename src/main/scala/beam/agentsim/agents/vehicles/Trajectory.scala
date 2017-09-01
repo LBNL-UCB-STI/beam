@@ -14,7 +14,7 @@ import scala.collection.Searching.{Found, InsertionPoint, _}
 object Trajectory {
   val transformer = TransformationFactory.getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
 
-  def defaultCoordinateSystem = beamConfig.beam.routing.gtfs.crs
+  def defaultCoordinateSystem = beamConfig.beam.spatial.localCRS
 
   def apply(path: BeamPath): Trajectory = {
     new Trajectory(path)

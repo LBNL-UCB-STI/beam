@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
 import beam.router.RoutingModel.BeamStreetPath.empty
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -52,7 +52,12 @@ object RoutingModel {
         if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
-          theMode = CAR
+          if((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
+            (legs.size>1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle")) ){
+            theMode = RIDEHAIL
+          }else{
+            theMode = CAR
+          }
         } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
           theMode = BIKE
         }
@@ -117,7 +122,7 @@ object RoutingModel {
   }
 
   object BeamLeg {
-    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(_.startTime)
+    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x=>(x.startTime,x.duration))
 
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
   }

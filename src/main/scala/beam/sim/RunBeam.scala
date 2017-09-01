@@ -1,6 +1,8 @@
 package beam.sim
 
 import beam.sim.config.ConfigModule
+import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
+import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.sim.controler.BeamControler
@@ -29,6 +31,7 @@ trait RunBeam {
         install(new ConfigModule)
         install(new AgentsimModule)
         install(new BeamAgentModule)
+        install(new UtilsModule)
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {

@@ -6,7 +6,8 @@ import akka.util.Timeout
 import beam.agentsim.Resource
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, TriggerShortcuts}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
+import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
@@ -92,6 +93,7 @@ object BeamVehicle {
   case class BecomeDriver(tick: Double, driver: Id[_], passengerSchedule: Option[PassengerSchedule] = None)
   case class UnbecomeDriver(tick: Double, driver: Id[_])
   case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], inVehicleId: Id[Vehicle])
+  case object BecomeDriverSuccessAck
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
   case class EnterVehicle(tick: Double, passengerVehicle : VehiclePersonId)
@@ -114,7 +116,7 @@ object BeamVehicle {
   * VehicleManager.
   * Passenger and driver can EnterVehicle and LeaveVehicle
   */
-trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerShortcuts with HasServices with Vehicle {
+trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServices with Vehicle {
   override val id: Id[Vehicle]
   override def logPrefix(): String = s"BeamVehicle:$id "
 
@@ -210,8 +212,11 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with TriggerSh
         //        beamAgent ! DriverAlreadyAssigned(id, driver.get)
       }
       stay()
-    case Event(ModifyPassengerSchedule(newPassengerSchedule), info) =>
-      driver.get ! ModifyPassengerSchedule(newPassengerSchedule)
+    case Event(ModifyPassengerSchedule(newPassengerSchedule,requestId), info) =>
+      driver.get ! ModifyPassengerSchedule(newPassengerSchedule,requestId)
+      stay()
+    case Event(ModifyPassengerScheduleAck(requestId), info) =>
+      driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
     case Event(UnbecomeDriver(tick, theDriver), info) =>

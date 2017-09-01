@@ -9,6 +9,3 @@
 *.mapdb filter=lfs diff=lfs merge=lfs -text
 *.p filter=lfs diff=lfs merge=lfs -text
 *.txt filter=lfs diff=lfs merge=lfs -text
-*.xsd filter=lfs diff=lfs merge=lfs -text
-*.dtd filter=lfs diff=lfs merge=lfs -text
-*.jxb filter=lfs diff=lfs merge=lfs -text
