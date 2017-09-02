@@ -255,7 +255,8 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
     case Event(UpdateTrajectory(newTrajectory), info) =>
       trajectory match {
         case Some(traj) =>
-          traj.append(traj)
+          //traj.append(traj)
+          traj
         case None =>
           trajectory = Some(newTrajectory)
       }
