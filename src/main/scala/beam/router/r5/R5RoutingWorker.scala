@@ -21,6 +21,7 @@ import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker, TrajectoryByEdgeIdsResolver}
+import R5RoutingWorker.stopForIndex
 import beam.sim.BeamServices
 import beam.utils.RefectionUtils
 import com.conveyal.gtfs.model
@@ -50,7 +51,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO parameterize the distance threshold here
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
-  var stopForIndex: util.List[Stop] = _
 
   override def init: Unit = {
     loadMap
@@ -502,6 +502,7 @@ object R5RoutingWorker extends HasProps {
   val GRAPH_FILE = "/network.dat"
 
   var transportNetwork: TransportNetwork = _
+  var stopForIndex: util.List[Stop] = _
 
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
