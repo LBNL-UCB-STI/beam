@@ -150,7 +150,7 @@ object RoutingModel {
     * @param transitStops start and end stop if this path is transit (partial) route
 
     */
-  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], resolver: TrajectoryResolver) {
+  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], protected[router] val resolver: TrajectoryResolver) {
 
     def isTransit = transitStops.isDefined
 
