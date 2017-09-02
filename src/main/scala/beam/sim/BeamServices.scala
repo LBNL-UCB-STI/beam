@@ -9,7 +9,7 @@ import beam.playground.akkaguice.ActorInject
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
 import beam.router.RoutingModel.BeamLeg
-import beam.utils.GeoUtils
+import beam.sim.common.GeoUtils
 import com.google.inject.{ImplementedBy, Inject, Injector, Singleton}
 import glokka.Registry
 import org.matsim.api.core.v01.population.Person

@@ -1,6 +1,6 @@
-package beam.sim.modules;
+package beam.sim.modules
 
-import beam.utils.{GeoUtils, GeoUtilsImpl}
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 

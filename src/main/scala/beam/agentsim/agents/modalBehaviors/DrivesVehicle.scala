@@ -14,7 +14,7 @@ import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}
 import beam.sim.HasServices
-import beam.utils.GeoUtils
+import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
