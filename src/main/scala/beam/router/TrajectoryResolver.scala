@@ -25,8 +25,7 @@ class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer) extends T
   override def resolve(beamPath: BeamPath): Trajectory = {
     val path = beamPath.linkIds.map(_.toInt).flatMap { edgeId =>
       val edge = streetLayer.edgeStore.getCursor(edgeId)
-      //TODO: do we need to do coordinate transformation here
-      //TODO: resolve from stopinfo and tripSchedule, linkid -> stop is one -> one: links.zip(stops)....
+      //TODO: resolve time from stopinfo and tripSchedule(for transit), linkid -> stop is one -> one: links.zip(stops)....
       val time = -1
       edge.getGeometry.getCoordinates.map(coord => SpaceTime(coord.x, coord.y, time))
     }

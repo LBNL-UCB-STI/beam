@@ -45,7 +45,7 @@ object JsonUtils {
   //// Private Methods
 
   private[this] implicit val encodePath: Encoder[BeamPath] = (a: BeamPath) => {
-    val trajectory = a.resolver.resolve(a)
+    val trajectory = a.toTrajectory
     val props = if (a.isTransit) {
       Map(
         "trajectory" ->  Json.fromValues(trajectory.path.map(_.asJson)),
