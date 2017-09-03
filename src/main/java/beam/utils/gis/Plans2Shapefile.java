@@ -53,6 +53,7 @@ public class Plans2Shapefile {
         }
     }
 
+    // Modified method from MATSim source due to unexpected functionality (changed from !stageActivities in 2nd if)
     public static List<Activity> getActivities(
             final List<? extends PlanElement> planElements,
             final StageActivityTypes stageActivities) {
@@ -133,7 +134,7 @@ public class Plans2Shapefile {
         config.plans().setInputFile(args[0]);
         Scenario scenario = ScenarioUtils.loadScenario(config);
         ArrayList<String> filteredActs = new ArrayList<>();
-        if(args.length>2){
+        if(args.length>3){
             String[] split = args[3].split(",");
             filteredActs.addAll(Arrays.asList(split));
         }
