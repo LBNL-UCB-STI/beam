@@ -4,7 +4,7 @@ import java.util
 
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.log4j.Logger
-import org.matsim.api.core.v01.population.{Activity, Person, Plan}
+import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.PopulationUtils
@@ -17,7 +17,6 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, HouseholdsWriterV10}
-import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 import org.opengis.feature.simple.SimpleFeature
 
 import scala.collection.JavaConverters
@@ -121,11 +120,11 @@ object SynthHouseholdParser {
 
 }
 
-object MTCPlansSampler {
+object PlansSampler {
 
   import HasXY._
 
-  private val logger = Logger.getLogger("MTCPlansSampler")
+  private val logger = Logger.getLogger("PlansSampler")
 
   private var planQt: Option[QuadTree[Plan]] = None
   val conf: Config = ConfigUtils.createConfig()
@@ -162,8 +161,8 @@ object MTCPlansSampler {
     while (col.size < n - 1) {
       radius += 1
       val candidates = JavaConverters.collectionAsScalaIterable(planQt.get.getDisk(spCoord.getX, spCoord.getY, radius))
-      for(plan<-candidates){
-        if(!col.contains(plan)){
+      for (plan <- candidates) {
+        if (!col.contains(plan)) {
           col ++= Vector(plan)
         }
       }
@@ -186,22 +185,27 @@ object MTCPlansSampler {
 
     for (sp: SynthHousehold <- synthPop) {
 
-      val N = if(sp.numPersons*3>0){sp.numPersons*3}else{1}
+      val N = if (sp.numPersons * 3 > 0) {
+        sp.numPersons * 3
+      } else {
+        1
+      }
 
       val closestPlans = getClosestNPlans(sp.coord, N)
 
-      val selectedPlans = (0 to sp.numPersons).map(x=>{
-        val x = Random.nextInt(N)-1
-        closestPlans(if(x<0){0}else x)})
+      val selectedPlans = (0 to sp.numPersons).map(x => {
+        val x = Random.nextInt(N) - 1
+        closestPlans(if (x < 0) {
+          0
+        } else x)
+      })
 
       val hhId = Id.create(s"household-${counter.getCounter}", classOf[Household])
       val spHH = hhFac.createHousehold(hhId)
 
       val memberIds = List[Id[Person]]()
-      var homePlan:Option[Plan] = None
+      var homePlan: Option[Plan] = None
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
-        val selPlanIdx: Int = Random.nextInt(if (sp.numPersons > 0) sp.numPersons*5 else 1)
-        val selectedPerson = plan.getPerson
         val newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
         memberIds :+ Vector(newPersonId)
         val newPerson = newPop.getFactory.createPerson(newPersonId)
@@ -211,11 +215,11 @@ object MTCPlansSampler {
         homePlan match {
           case None =>
             homePlan = Some(plan)
-          case Some(p) =>
+          case Some(_) =>
             val firstAct = PopulationUtils.getFirstActivity(homePlan.get)
             val firstActCoord = firstAct.getCoord
-            val homeActs = JavaConverters.collectionAsScalaIterable(PopulationUtils.getActivities(plan,new StageActivityTypesImpl("Home")))
-            for(act<-homeActs){
+            val homeActs = JavaConverters.collectionAsScalaIterable(PopulationUtils.getActivities(plan, new StageActivityTypesImpl("Home")))
+            for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }
         }
@@ -231,7 +235,7 @@ object MTCPlansSampler {
       counter.incCounter()
 
       // Add household to households
-      newHH.getHouseholds.put(hhId,spHH)
+      newHH.getHouseholds.put(hhId, spHH)
     }
     counter.printCounter()
     counter.reset()
@@ -239,17 +243,16 @@ object MTCPlansSampler {
 
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/synthHouseHolds.xml")
 
-    new PopulationWriter(newPop,sc.getNetwork,0.01).write(s"$outDir/synthPlans0.01.xml")
-    new PopulationWriter(newPop,sc.getNetwork,0.1).write(s"$outDir/synthPlans0.1.xml")
+    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml")
+    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml")
     new PopulationWriter(newPop).write(s"$outDir/synthPlansFull.xml")
-
 
   }
 
 }
 
 object PlansSamplerApp extends App {
-  val sampler = MTCPlansSampler
+  val sampler = PlansSampler
   sampler.init(args)
   sampler.run()
 }
