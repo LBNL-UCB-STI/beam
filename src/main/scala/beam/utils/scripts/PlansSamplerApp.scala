@@ -2,6 +2,7 @@ package beam.utils.scripts
 
 import java.util
 
+import beam.utils.gis.Plans2Shapefile
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.{Person, Plan}
@@ -221,11 +222,11 @@ object PlansSampler {
 
         homePlan match {
           case None =>
-            homePlan = Some(plan)
-          case Some(_) =>
-            val firstAct = PopulationUtils.getFirstActivity(homePlan.get)
+            homePlan = Some(newPlan)
+          case Some(hp) =>
+            val firstAct = PopulationUtils.getFirstActivity(hp)
             val firstActCoord = firstAct.getCoord
-            val homeActs = JavaConverters.collectionAsScalaIterable(PopulationUtils.getActivities(plan, new StageActivityTypesImpl("Home")))
+            val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile.getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home")))
             for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }
