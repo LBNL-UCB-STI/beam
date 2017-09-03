@@ -4,11 +4,12 @@ import java.util
 
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.log4j.Logger
-import org.matsim.api.core.v01.population.{Person, Plan}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.io.PopulationWriter
+import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -181,11 +182,11 @@ object MTCPlansSampler {
     val hhFac = hh.getFactory
 
     val newHH = sc.getHouseholds
-    val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created person # ")
+    val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
     for (sp: SynthHousehold <- synthPop) {
 
-      val N = if(sp.numPersons*5>0){sp.numPersons*5}else{1}
+      val N = if(sp.numPersons*3>0){sp.numPersons*3}else{1}
 
       val closestPlans = getClosestNPlans(sp.coord, N)
 
@@ -197,6 +198,7 @@ object MTCPlansSampler {
       val spHH = hhFac.createHousehold(hhId)
 
       val memberIds = List[Id[Person]]()
+      var homePlan:Option[Plan] = None
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
         val selPlanIdx: Int = Random.nextInt(if (sp.numPersons > 0) sp.numPersons*5 else 1)
         val selectedPerson = plan.getPerson
@@ -205,6 +207,19 @@ object MTCPlansSampler {
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         val newPlan = PopulationUtils.createPlan(newPerson)
         PopulationUtils.copyFromTo(plan, newPlan)
+
+        homePlan match {
+          case None =>
+            homePlan = Some(plan)
+          case Some(p) =>
+            val firstAct = PopulationUtils.getFirstActivity(homePlan.get)
+            val firstActCoord = firstAct.getCoord
+            val homeActs = JavaConverters.collectionAsScalaIterable(PopulationUtils.getActivities(plan,new StageActivityTypesImpl("Home")))
+            for(act<-homeActs){
+              act.setCoord(firstActCoord)
+            }
+        }
+
         newPerson.addPlan(newPlan)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
