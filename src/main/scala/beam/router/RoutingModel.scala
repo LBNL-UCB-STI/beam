@@ -157,6 +157,21 @@ object RoutingModel {
     def toTrajectory = {
       resolver.resolve(this)
     }
+
+    def canEqual(other: Any): Boolean = other.isInstanceOf[BeamPath]
+
+    override def equals(other: Any): Boolean = other match {
+      case that: BeamPath =>
+        (that eq this) || (
+          linkIds == that.linkIds &&
+          transitStops == that.transitStops )
+      case _ => false
+    }
+
+    override def hashCode(): Int = {
+      val state = Seq(linkIds, transitStops)
+      state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+    }
   }
 
   //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
