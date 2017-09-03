@@ -184,7 +184,7 @@ object PlansSampler {
     val newHH = sc.getHouseholds
     val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
-    for (sh: SynthHousehold <- Random.shuffle(synthPop).take(100000)) {
+    for (sh: SynthHousehold <- Random.shuffle(synthPop)) {
 
       val N = if (sh.numPersons * 3 > 0) {
         sh.numPersons * 3
