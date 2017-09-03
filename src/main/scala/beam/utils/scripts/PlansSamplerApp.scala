@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.population.io.PopulationWriter
+import org.matsim.core.population.io.{PopulationWriter, StreamingPopulationWriter}
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
@@ -183,17 +183,17 @@ object PlansSampler {
     val newHH = sc.getHouseholds
     val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
-    for (sp: SynthHousehold <- synthPop) {
+    for (sh: SynthHousehold <- Random.shuffle(synthPop).take(100000)) {
 
-      val N = if (sp.numPersons * 3 > 0) {
-        sp.numPersons * 3
+      val N = if (sh.numPersons * 3 > 0) {
+        sh.numPersons * 3
       } else {
         1
       }
 
-      val closestPlans = getClosestNPlans(sp.coord, N)
+      val closestPlans = getClosestNPlans(sh.coord, N)
 
-      val selectedPlans = (0 to sp.numPersons).map(x => {
+      val selectedPlans = (0 to sh.numPersons).map(x => {
         val x = Random.nextInt(N) - 1
         closestPlans(if (x < 0) {
           0
@@ -202,14 +202,21 @@ object PlansSampler {
 
       val hhId = Id.create(s"household-${counter.getCounter}", classOf[Household])
       val spHH = hhFac.createHousehold(hhId)
+      // Add household to households and increment counter now
+      newHH.getHouseholds.put(hhId, spHH)
+      counter.incCounter()
 
-      val memberIds = List[Id[Person]]()
       var homePlan: Option[Plan] = None
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
-        val newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
-        memberIds :+ Vector(newPersonId)
+
+        var newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
         val newPerson = newPop.getFactory.createPerson(newPersonId)
+        newPop.addPerson(newPerson)
+        spHH.getMemberIds.add(newPersonId)
+
+        // Create a new plan for household member based on selected plan of first person
         val newPlan = PopulationUtils.createPlan(newPerson)
+        newPerson.addPlan(newPlan)
         PopulationUtils.copyFromTo(plan, newPlan)
 
         homePlan match {
@@ -224,22 +231,15 @@ object PlansSampler {
             }
         }
 
-        newPerson.addPlan(newPlan)
-        newPop.addPerson(newPerson)
-        spHH.getMemberIds.add(newPersonId)
+        // Create and add car identifiers
+        (1 to sh.cars)
+          .foreach(x => spHH.getVehicleIds.add(Id.createVehicleId(s"car-$hhId-$x")))
+
       }
 
-      // Create and add car identifiers
-      (1 to sp.cars)
-        .foreach(x => spHH.getVehicleIds.add(Id.createVehicleId(s"car-$hhId-$x")))
-      counter.incCounter()
-
-      // Add household to households
-      newHH.getHouseholds.put(hhId, spHH)
     }
     counter.printCounter()
     counter.reset()
-
 
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/synthHouseHolds.xml")
 
