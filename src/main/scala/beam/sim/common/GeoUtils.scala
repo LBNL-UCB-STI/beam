@@ -1,9 +1,8 @@
-package beam.utils
+package beam.sim.common
 
 import beam.sim.{BeamServices, BoundingBox, HasServices}
 import com.google.inject.{ImplementedBy, Inject}
-import com.vividsolutions.jts.geom.{Coordinate, Envelope}
-import org.geotools.geometry.DirectPosition2D
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
