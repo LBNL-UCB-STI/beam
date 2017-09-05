@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
@@ -47,6 +48,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[BeamSim])
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
+  eventsManager.addHandler(new AgentSimToPhysSimPlanConverter(services))
+
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
   var currentIter = 0
@@ -107,6 +110,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     cleanupWriter()
     cleanupVehicle()
     cleanupHouseHolder()
+    eventsManager.resetHandlers(event.getIteration())
   }
 
   private def cleanupWriter() = {

@@ -1,13 +1,10 @@
 package beam.playground.jdeqsim.akka;
 
-import java.util.LinkedList;
-
-import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.events.EventsManagerImpl;
-
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;
+import org.matsim.api.core.v01.events.Event;
+
+import java.util.LinkedList;
 
 public class EventManagerActor extends UntypedActor {
 
@@ -24,7 +21,6 @@ public class EventManagerActor extends UntypedActor {
         } else if (msg instanceof String){
         	String s=(String) msg;
 			 if (s.equalsIgnoreCase("lastMessage")){
-				 System.out.println("number of messages received in total:" + events.size());
 				 jdeqsimActorREF.tell("eventsProcessingFinished", getSelf());
 			 } else if (s.equalsIgnoreCase("registerJDEQSimREF")){
 				 jdeqsimActorREF=getSender();

@@ -3,6 +3,7 @@ package beam.router
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.{Location, RoutingRequestTripInfo, _}
+import beam.router.r5.R5RoutingWorker
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
