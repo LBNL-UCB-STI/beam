@@ -132,6 +132,43 @@ class Integration extends WordSpecLike with Matchers with RunBeam{
       listTrips shouldBe(listTripsEventFile)
 
     }
+    "Events file should contain same pathTraversal defined at stop times file for train input file" in {
+      val route = s"$route_input/r5/train/stop_times.txt"
+      val listTrips = getListIDsWithTag(new File(route), "trip_id", 0).sorted
+
+      val grouped = listTrips.groupBy(identity)
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+
+      val listValueTagEventFile = getListTagsFromXml(new File(file.getPath),"type='PathTraversal' vehicle_id='train.gtfs:","vehicle_id")
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      val groupedXml = listTripsEventFile.groupBy(identity)
+      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
+
+      groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
+
+    }
+
+    "Events file should contain same pathTraversal defined at stop times file for bus input file" in {
+
+      val route = s"$route_input/r5/bus/stop_times.txt"
+      val listTrips = getListIDsWithTag(new File(route), "trip_id", 0).sorted
+      val grouped = listTrips.groupBy(identity)
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+
+      val listValueTagEventFile = getListTagsFromXml(new File(file.getPath),"type='PathTraversal' vehicle_id='bus.gtfs:","vehicle_id")
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      val groupedXml = listTripsEventFile.groupBy(identity)
+      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
+
+      groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
+
+
+    }
+
+
+
+
+
 
   }
 
