@@ -37,7 +37,7 @@ class PointProcessEvent(time: Double, id: Id[Person],
       "typ" -> Json.fromString(EVENT_TYPE),
       "kind" -> Json.fromString(PointProcessType.Choice.name),
       "startTime" -> Json.fromLong(time.toLong),
-      "shp" -> transform.Utm2Wgs(location).asJson,
+      "shp" -> Transformer.Utm2Wgs(location).asJson,
       "attrib" -> Json.fromJsonObject(JsonObject.fromMap(Map("val" -> intensity.asJson)))
     )
     Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))

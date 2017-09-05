@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
@@ -47,6 +48,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[BeamSim])
   val eventsManager: EventsManager = EventsUtils.createEventsManager()
+  eventsManager.addHandler(new AgentSimToPhysSimPlanConverter(services))
+
   implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
   var writer: JsonFriendlyEventWriterXML = _
   var currentIter = 0
@@ -107,6 +110,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     cleanupWriter()
     cleanupVehicle()
     cleanupHouseHolder()
+    eventsManager.resetHandlers(event.getIteration())
   }
 
   private def cleanupWriter() = {
@@ -181,7 +185,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     }
 
     //TODO the following should be based on config params
-    val rideHailingFraction = 0.1
+//    val rideHailingFraction = 0.1
     val initialLocationJitter = 2000 // meters
 
     // Protocol:
@@ -193,21 +197,22 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
 
-    for ((k, v) <- services.persons.take(math.round(rideHailingFraction * services.persons.size).toInt)) {
+    for ((k, v) <- services.persons) {
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
+//      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
+      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
       val rideHailingName = s"rideHailingAgent-${k}_$iter"
       val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
-      val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-@${rideInitialLocation.getX},${rideInitialLocation.getY}") // XXXX: for now identifier will just be initial location (assumed unique)
+      val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
       val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
       val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
       val rideHailingAgent = RideHailingAgent.props(services, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
       val ref: ActorRef = actorSystem.actorOf(rideHailingAgent, rideHailingName)
 
-      // populate maps and initialize via scheduler
+      // populate maps and initialize agent via scheduler
       services.vehicles += (rideHailVehicleId -> rideHailVehicle)
       services.vehicleRefs += vehicleIdAndRef
-
+      services.agentRefs.put(rideHailingName,ref)
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
 
     }

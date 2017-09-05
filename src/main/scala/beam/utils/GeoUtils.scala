@@ -1,5 +1,6 @@
 package beam.utils
 
+import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
@@ -9,13 +10,12 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 object GeoUtils {
 
-
-  object transform{
+  object Transformer {
     //TODO fix this monstrosity
-//    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
-    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:32631", "EPSG:4326")
+    //    private  val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:26910", "EPSG:4326")
+    private val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("EPSG:32631", "EPSG:4326")
 
-    def Utm2Wgs(coord:Coord):Coord={
+    def Utm2Wgs(coord: Coord): Coord = {
       //TODO fix this monstrosity
       if (coord.getX > 1.0 | coord.getX < -0.0) {
         utm2Wgs.transform(coord)
@@ -26,8 +26,8 @@ object GeoUtils {
   }
 
   //TODO this is a hack, but we need a general purpose, failsafe way to get distances out of Coords regardless of their project
-  def distInMeters(coord1: Coord, coord2: Coord): Double ={
-    distLatLon2Meters(transform.Utm2Wgs(coord1), transform.Utm2Wgs(coord2))
+  def distInMeters(coord1: Coord, coord2: Coord): Double = {
+    distLatLon2Meters(Transformer.Utm2Wgs(coord1), Transformer.Utm2Wgs(coord2))
   }
 
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distLatLon2Meters(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
@@ -41,8 +41,9 @@ object GeoUtils {
     val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     val dist = earthRadius * c
     dist
-
   }
 
-
+  def toCoord(geometry: LineString): Coord = {
+    new Coord(geometry.getCoordinate.x, geometry.getCoordinate.y, geometry.getCoordinate.z)
+  }
 }
