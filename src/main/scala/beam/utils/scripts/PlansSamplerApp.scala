@@ -26,7 +26,7 @@ import scala.io.Source
 import scala.util.Random
 
 
-case class SynthHousehold(numPersons: Integer, cars: Integer, coord: Coord)
+case class SynthHousehold(rawPersonId:String,rawHouseholdId:String,numPersons: Integer, cars: Integer, coord: Coord)
 
 
 trait HasXY[T] {
@@ -105,6 +105,7 @@ object SynthHouseholdParser {
 
   import HasXY.wgs2Utm
 
+  private val personId =
   private val hhNumIdx: Int = 0
   private val carNumIdx: Int = 1
   private val homeCoordXIdx: Int = 2
@@ -114,8 +115,9 @@ object SynthHouseholdParser {
     var res = Vector[SynthHousehold]()
     for (line <- Source.fromFile(synthFileName, "utf-8").getLines) {
       val sl = line.split(",")
-      res ++= Vector(SynthHousehold(sl(hhNumIdx).toDouble.toInt, sl(carNumIdx).toDouble.toInt,
-        wgs2Utm.transform(new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble))))
+      val pt = wgs2Utm.transform(new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble))
+
+      res ++= Vector(SynthHousehold(sl(hhNumIdx).toDouble.toInt, sl(carNumIdx).toDouble.toInt,pt)
     }
     res
   }
