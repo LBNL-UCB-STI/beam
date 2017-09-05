@@ -44,8 +44,8 @@ out.dirs <- list( 'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/bea
 out.dirs <- list( 'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) )
 
 out.dirs <- list(  'base' = c('/Users/critter/Documents/beam/beam-output/calibration_2017-07-31_19-29-25-final-base-for-plexos/',0),
-                 #'morework-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-53-30-morework100/',0),
-                  'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-22-morework100sameloc/',0),
+                 'morework-100pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-28_00-19-21-morework100/',0),
+                  #'morework-100pct-sameloc'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-22-morework100sameloc/',0),
                    'morework-200pct'=c('/Users/critter/Documents/beam/beam-output/calibration_2017-08-05_11-58-25-morework200/',0) 
                  )
 
