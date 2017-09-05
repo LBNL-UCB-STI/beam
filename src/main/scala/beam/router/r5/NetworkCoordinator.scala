@@ -11,7 +11,7 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 /**
   * Created by salma_000 on 8/25/2017.
   */
-class NetworkCoordinator(val beamServices: BeamServices) extends Actor with ActorLogging {
+class NetworkCoordinator extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case networkUpdateRequest: UpdateTravelTime =>
