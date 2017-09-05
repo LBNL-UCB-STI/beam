@@ -21,7 +21,7 @@ import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator.GRAPH_FILE
-import beam.router.r5.R5RoutingWorker.ProfileRequestToVehicles
+import beam.router.r5.R5RoutingWorker.{ProfileRequestToVehicles, TripFareTuple}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
 import beam.utils.{GeoUtils, RefectionUtils}
@@ -53,6 +53,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
 
   override def init: Unit = {
+    loadNetwork
     FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
     overrideR5EdgeSearchRadius(2000)
   }
@@ -175,19 +176,19 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     }else{
       buildRequestsForNonPerson(routingRequestTripInfo)
     }
-    val originalResponse: (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile),isRouteForPerson)
+    val originalResponse = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile),isRouteForPerson)
     val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if(isRouteForPerson){ Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) }else{ Map() }
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
-    originalResponse._1.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
-      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse._2(trip._2), beamServices)
+    originalResponse.trips.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
+      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
     }
 
     profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach{ mode =>
       val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
-      originalResponse._1.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
+      originalResponse.trips.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
         streetVehicles.foreach { veh: StreetVehicle =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse._2(trip._2), beamServices)
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
         }
       }
     }
@@ -331,10 +332,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
   }
 
-  def buildResponse(plan: ProfileResponse, forPerson: Boolean): (Vector[BeamTrip], Vector[Map[Int, Option[Double]]]) = {
+  def buildResponse(plan: ProfileResponse, forPerson: Boolean): TripFareTuple = {
 
     var trips = Vector[BeamTrip]()
-    var tripFares = Vector[Map[Int, Option[Double]]]()
+    var tripFares = Vector[Map[Int, Double]]()
     for(option <- plan.options.asScala) {
 //      log.debug(s"Summary of trip is: $option")
       /*
@@ -349,7 +350,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         */
       for (itinerary <- option.itinerary.asScala) {
         var legs = Vector[BeamLeg]()
-        var legFares = Map[Int, Option[Double]]()
+        var legFares = Map[Int, Double]()
 
         val access = option.access.get(itinerary.connection.access)
 
@@ -378,9 +379,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
-            var fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
-
-            val fare = if (fs.nonEmpty) Some(fs.min) else None
+            val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
+            val fare = if (fs.nonEmpty) fs.min else 0.0
 
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = (if (option.transit.indexOf(transitSegment) < option.transit.size() - 1)
@@ -407,7 +407,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           // egress would only be present if there is some transit, so its under transit presence check
           if (itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
-            //start time would be the arival time of last stop and 5 second alighting
+            //start time would be the arrival time of last stop and 5 second alighting
             legs = legs :+ BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress))
             if(forPerson && egress.mode != LegMode.WALK) legs :+ dummyWalk(arrivalTime + egress.duration)
           }
@@ -417,7 +417,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         tripFares = tripFares :+ legFares
       }
     }
-    (trips,tripFares)
+    TripFareTuple(trips,tripFares)
   }
 
   // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as argument of StreetPath
@@ -505,4 +505,5 @@ object R5RoutingWorker extends HasProps {
                                       originalProfileModeToVehicle: mutable.Map[BeamMode,mutable.Set[StreetVehicle]],
                                       walkOnlyProfiles: Vector[ProfileRequest],
                                       vehicleAsOriginProfiles: Map[ProfileRequest,StreetVehicle])
+  case class TripFareTuple(trips: Vector[BeamTrip], tripFares:Vector[Map[Int, Double]])
 }

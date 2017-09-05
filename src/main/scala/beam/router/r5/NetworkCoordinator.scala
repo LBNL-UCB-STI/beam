@@ -73,7 +73,7 @@ object NetworkCoordinator {
 
   var  transportNetwork: TransportNetwork = _
   var copiedNetwork:TransportNetwork  = _
-  var linkMap: Map[Int, Long] = _
+  var linkMap: Map[Int, Long] = Map()
 
   def getOsmId(edgeIndex: Int): Long = {
     linkMap.getOrElse(edgeIndex, {
