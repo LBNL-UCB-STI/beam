@@ -2,11 +2,12 @@ package beam.router.r5
 
 import java.io.File
 import java.nio.file.Files.exists
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, UpdateTravelTime}
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator._
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
@@ -36,26 +37,26 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
   }
 
   def init: Unit = {
-    loadNetwork
-    FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
+    val inputDir = Paths.get(beamServices.beamConfig.beam.routing.r5.directory)
+    loadNetwork(inputDir)
+    FareCalculator.fromDirectory(inputDir)
+    TollCalculator.fromDirectory(inputDir)
     overrideR5EdgeSearchRadius(2000)
   }
 
-  def loadNetwork = {
-    val networkDir = beamServices.beamConfig.beam.routing.r5.directory
-    val networkDirPath = Paths.get(networkDir)
-    if (!exists(networkDirPath)) {
-      Paths.get(networkDir).toFile.mkdir()
+  def loadNetwork(networkDir: Path) = {
+    if (!exists(networkDir)) {
+      networkDir.toFile.mkdir()
     }
-    val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
+    val networkFilePath = Paths.get(beamServices.beamConfig.beam.routing.r5.directory, GRAPH_FILE)
     val networkFile: File = networkFilePath.toFile
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
       transportNetwork = TransportNetwork.read(networkFile)
     } else {
       log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
-      log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      log.debug(s"Initializing router by creating network from: ${networkDir.toAbsolutePath}")
+      transportNetwork = TransportNetwork.fromDirectory(networkDir.toFile)
       transportNetwork.write(networkFile)
       transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }

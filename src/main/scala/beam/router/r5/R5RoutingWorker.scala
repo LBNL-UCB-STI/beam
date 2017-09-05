@@ -305,8 +305,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val access = option.access.get(itinerary.connection.access)
         val toll = if (access.mode == LegMode.CAR) {
           val osm = access.streetEdges.asScala.map(e => transportNetwork.streetLayer.edgeStore.getCursor(e.edgeId).getOSMID).toVector
-          Some(TollCalculator.calcToll(osm))
-        } else None
+          TollCalculator.calcToll(osm)
+        } else 0.0
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
