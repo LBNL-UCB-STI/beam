@@ -3,7 +3,7 @@ package beam.router
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
-import akka.routing.{ActorRefRoutee, Broadcast, RoundRobinRoutingLogic, Router}
+import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter._
@@ -78,12 +78,7 @@ class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogg
       log.info("Received TravelTimeCalculator")
       networkCoordinator ! updateRequest
     case msg => {
-      log.info(s"Received message[$msg] by Router.")
-      if(msg.equals("REPLACE_NETWORK")){
-        router.route(Broadcast("REPLACE_NETWORK"),self)
-      }
-      else
-        log.info(s"Unknown message[$msg] received by Router.")
+      log.info(s"Unknown message[$msg] received by Router.")
     }
   }
 
@@ -102,7 +97,7 @@ object BeamRouter {
   type Location = Coord
 
   def nextId = Id.create(UUID.randomUUID().toString, classOf[RoutingRequest])
-  
+
   case object InitializeRouter
   case object RouterInitialized
   case object RouterNeedInitialization

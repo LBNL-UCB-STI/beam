@@ -99,25 +99,16 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     log.info(s"Finished Transit initialization trips, ${transitData.length}")
   }
 
-  private def transitVehicles = {
-    beamServices.matsimServices.getScenario.getTransitVehicles
-  }
-
   def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
     //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-    val vehicleTypeId = Id.create((if (mode == SUBWAY) {
-      2
-    } else {
-      1
-    }).toString, classOf[VehicleType])
+    val vehicleTypeId = Id.create((if (mode == SUBWAY) 2 else 1).toString, classOf[VehicleType])
     val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
     mode match {
       case BUS | SUBWAY if vehicleType != null =>
         val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
         val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
-        val initialMatsimAttributes = new Attributes()
-        val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, initialMatsimAttributes)
+        val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
         val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
         beamServices.vehicles.put(transitVehId, matSimTransitVehicle)
         beamServices.vehicleRefs.put(transitVehId, transitVehRef)
@@ -133,7 +124,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
       case _ =>
         log.error(mode + " is not supported yet")
-
     }
   }
 
@@ -146,7 +136,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
 
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val isRouteForPerson = routingRequestTripInfo.streetVehicles.filter(_.mode == WALK).size > 0
+    val isRouteForPerson = routingRequestTripInfo.streetVehicles.filter(_.mode == WALK).nonEmpty
 
     val profileRequestToVehicles: ProfileRequestToVehicles = if (isRouteForPerson) {
       buildRequestsForPerson(routingRequestTripInfo)
@@ -154,11 +144,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       buildRequestsForNonPerson(routingRequestTripInfo)
     }
     val originalResponse = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile), isRouteForPerson)
-    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if (isRouteForPerson) {
-      Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head)
-    } else {
-      Map()
-    }
+    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if (isRouteForPerson) Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) else Map()
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
     originalResponse.trips.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
@@ -200,9 +186,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest: ProfileRequest = createProfileRequest(routingRequestTripInfo)
     profileRequest.directModes = util.EnumSet.copyOf(uniqueLegModes.asJavaCollection)
     // We constrain these to be non-transit trips since they are by NonPersons who we assume don't board transit
-    profileRequest.transitModes = null
     profileRequest.accessModes = profileRequest.directModes
-    profileRequest.egressModes = null
 
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, Vector(), Map())
   }
@@ -340,7 +324,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           val segments = option.transit.asScala zip itinerary.connection.transit.asScala
           val fares = FareCalculator.filterTransferFares(FareCalculator.getFareSegments(segments.toVector))
 
-          for ((transitSegment, transitJourneyID) <- segments) {
+          segments.foreach { case (transitSegment, transitJourneyID) =>
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
@@ -453,6 +437,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   private def toBaseMidnightSeconds(time: ZonedDateTime): Long = {
     val baseDate = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate)
     ChronoUnit.SECONDS.between(baseDate, time)
+  }
+
+  private def transitVehicles = {
+    beamServices.matsimServices.getScenario.getTransitVehicles
   }
 }
 
