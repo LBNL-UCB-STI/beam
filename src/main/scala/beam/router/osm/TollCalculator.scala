@@ -1,28 +1,30 @@
 package beam.router.osm
 
 import java.io.File
+import java.lang
 import java.nio.file.{Files, Path, Paths}
 
+import com.conveyal.osmlib.OSMEntity.Tag
 import com.conveyal.osmlib.{OSM, Way}
-import com.eaio.uuid.UUIDGen
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.Map
 
 object TollCalculator {
 
   case class Toll(charges: Vector[Charge],
-                  vehicleTypes: Set[String],
+                  vehicleTypes: Set[String] = Set(),
                   isExclusionType: Boolean = false)
 
   case class Charge(amount: Double,
                     currency: String,
-                    item: String,
+                    item: String = "",
                     timeUnit: Option[String] = None,
-                    dates: Vector[ChargeDate])
+                    dates: Vector[ChargeDate] = Vector())
 
   object Charge {
-    def apply(charge: String): Charge = {
+    def apply(charge: String): Vector[Charge] = {
       charge.split(";").map(c => {
         val tokens = c.split(" ")
         val tts = tokens.length
@@ -38,10 +40,12 @@ object TollCalculator {
                         case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
                         case 5 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)), ChargeDate.apply(tokens(2)))
                       })
-        }
-      })
-//      new Charge(amount, currency, item, timeUnit, month, day, hour)
-      null
+        } else empty
+      }).toVector
+    }
+
+    def empty : Charge = {
+      Charge(0.0, "USD")
     }
   }
 
@@ -73,7 +77,7 @@ object TollCalculator {
   }
 
   val MIN_TOLL = 1.0
-  var ways: Map[java.lang.Long, Toll] = _
+  var ways: mutable.Map[java.lang.Long, Toll] = _
 
   def fromDirectory(directory: Path): Unit = {
     /**
@@ -90,14 +94,24 @@ object TollCalculator {
       // Load OSM data into MapDB
       val osm = new OSM(new File(dir, "osm.mapdb").getPath)
       osm.readFromFile(osmSourceFile)
-      readTolls(osm)
+      ways = readTolls(osm)
       osm.close()
     }
 
+
+
     def readTolls(osm: OSM) = {
       val ways = osm.ways.asScala.filter(ns => ns._2.tags != null && ns._2.tags.asScala.exists(t => (t.key == "toll" && t.value != "no") || t.key.startsWith("toll:")) && ns._2.tags.asScala.exists(_.key == "charge"))
-      ways.map(w => (w._2, w._2.tags.asScala.filter(_.key == "charge")))
       //osm.nodes.values().asScala.filter(ns => ns.tags != null && ns.tags.size() > 1 && ns.tags.asScala.exists(t => (t.key == "fee" && t.value == "yes") || t.key == "charge") && ns.tags.asScala.exists(t => t.key == "toll" || (t.key == "barrier" && t.value == "toll_booth")))
+      ways.map(w => (w._1, wayToToll(w._2)))
+    }
+
+    def wayToToll(w: Way) = {
+      Toll(tagToChange(w.tags.asScala.filter(_.key == "charge").headOption))
+    }
+
+    def tagToChange(tag: Option[Tag]) = {
+      Charge(tag.getOrElse(new Tag("","")).value)
     }
 
     if (Files.isDirectory(directory)) {
