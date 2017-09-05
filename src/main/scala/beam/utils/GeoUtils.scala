@@ -1,5 +1,6 @@
 package beam.utils
 
+import com.vividsolutions.jts.geom.LineString
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
@@ -40,5 +41,9 @@ object GeoUtils {
     val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     val dist = earthRadius * c
     dist
+  }
+
+  def toCoord(geometry: LineString): Coord = {
+    new Coord(geometry.getCoordinate.x, geometry.getCoordinate.y, geometry.getCoordinate.z)
   }
 }

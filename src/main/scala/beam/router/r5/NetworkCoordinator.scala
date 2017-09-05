@@ -2,7 +2,6 @@ package beam.router.r5
 
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.router.r5.NetworkCoordinator.{UpdateTravelTime, copiedNetwork, linkMap, transportNetwork}
-import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -23,10 +22,10 @@ class NetworkCoordinator extends Actor with ActorLogging {
   }
 
   def replaceNetwork = {
-    if(transportNetwork != copiedNetwork)
+    if (transportNetwork != copiedNetwork)
       transportNetwork = copiedNetwork
     else {
-      /**To-do: allow switching if we just say warning or we should stop system to allow here
+      /** To-do: allow switching if we just say warning or we should stop system to allow here
         * Log warning to stop or error to warning
         */
       /**
@@ -45,7 +44,7 @@ class NetworkCoordinator extends Actor with ActorLogging {
     linkMap.keys.foreach(key => {
       val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
       val linkId = edge.getOSMID
-      if(linkId > 0) {
+      if (linkId > 0) {
         val avgTime = getAverageTime(linkId, travelTimeCalculator)
         val avgTimeShort = (avgTime * 100).asInstanceOf[Short]
         edge.setSpeed(avgTimeShort)
@@ -56,30 +55,33 @@ class NetworkCoordinator extends Actor with ActorLogging {
   def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
     val limit = 86400
     val step = 60
-    val totalIterations = limit/step
+    val totalIterations = limit / step
     val link: Id[org.matsim.api.core.v01.network.Link] = Id.createLinkId(linkId)
 
-    val totalTime = if(link != null) (0 until limit by step).map(i => travelTimeCalculator.getLinkTravelTime(link, i.toDouble)).sum else 0.0
-    val avgTime = (totalTime/totalIterations)
+    val totalTime = if (link != null) (0 until limit by step).map(i => travelTimeCalculator.getLinkTravelTime(link, i.toDouble)).sum else 0.0
+    val avgTime = (totalTime / totalIterations)
     avgTime.toShort
   }
 }
 
 object NetworkCoordinator {
+
   trait UpdateNetwork
+
   case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator) extends UpdateNetwork
 
   val GRAPH_FILE = "/network.dat"
 
-  var  transportNetwork: TransportNetwork = _
-  var copiedNetwork:TransportNetwork  = _
+  var transportNetwork: TransportNetwork = _
+  var copiedNetwork: TransportNetwork = _
   var linkMap: Map[Int, Long] = Map()
 
   def getOsmId(edgeIndex: Int): Long = {
     linkMap.getOrElse(edgeIndex, {
       val osmLinkId = transportNetwork.streetLayer.edgeStore.getCursor(edgeIndex).getOSMID
       linkMap += edgeIndex -> osmLinkId
-      osmLinkId})
+      osmLinkId
+    })
   }
 
   def props = Props(classOf[NetworkCoordinator])
