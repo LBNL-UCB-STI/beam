@@ -1,4 +1,4 @@
-package beam.logit;
+package beam.agentsim.agents.choice.logit;
 
 public class MulitnomialLogit {
 

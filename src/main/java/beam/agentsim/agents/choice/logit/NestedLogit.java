@@ -1,4 +1,4 @@
-package beam.logit;
+package beam.agentsim.agents.choice.logit;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.Random;
 
 import org.jdom.Document;
 import org.jdom.Element;
@@ -82,15 +83,15 @@ public class NestedLogit {
 	public NestedLogit(NestedLogitData data) {
         this.data = data;
     }
-	public void evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData){
+	public void evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, Random rand){
 		LinkedHashMap<NestedLogit,Double> conditionalProbs = new LinkedHashMap<NestedLogit,Double>();
 		double totalExpMaxUtil = getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
 		LinkedHashMap<String,Double> marginalProbs = marginalizeAlternativeProbabilities(conditionalProbs);
-		cdf = new DiscreteProbabilityDistribution();
+		cdf = new DiscreteProbabilityDistribution(rand);
 		cdf.setPDF(marginalProbs);
 	}
-	public String makeRandomChoice(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData){
-		if(cdf==null)evaluateProbabilities(inputData);
+	public String makeRandomChoice(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, Random rand){
+		if(cdf==null)evaluateProbabilities(inputData, rand);
 		return cdf.sample();
     }
 	private LinkedHashMap<String, Double> marginalizeAlternativeProbabilities(LinkedHashMap<NestedLogit, Double> conditionalProbs) {

@@ -1,13 +1,10 @@
-package beam.logit;
+package beam.agentsim.agents.choice.logit;
 
 import java.util.LinkedHashMap;
 import java.util.NavigableMap;
 import java.util.Random;
 import java.util.TreeMap;
 
-import org.matsim.core.gbl.MatsimRandom;
-
-import beam.EVGlobalData;
 
 public class DiscreteProbabilityDistribution {
 
@@ -15,8 +12,8 @@ public class DiscreteProbabilityDistribution {
 	private NavigableMap<Double, String> cdf;
 	private Random rand;
 	
-	public DiscreteProbabilityDistribution(){
-		this.rand = EVGlobalData.data.rand;
+	public DiscreteProbabilityDistribution(Random rand){
+		this.rand = rand;
 	}
 	
 	public void addElement(String element, Double probability){

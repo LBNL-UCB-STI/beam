@@ -1,5 +1,6 @@
 package beam.agentsim.events;
 
+import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -15,7 +16,6 @@ import org.matsim.core.controler.listener.BeforeMobsimListener;
 import org.matsim.core.controler.listener.IterationEndsListener;
 import org.matsim.core.controler.listener.ShutdownListener;
 import org.matsim.core.events.algorithms.EventWriter;
-import beam.sim.BeamServices;
 
 import java.util.LinkedList;
 import java.util.List;
