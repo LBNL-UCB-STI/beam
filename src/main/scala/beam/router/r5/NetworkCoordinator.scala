@@ -1,8 +1,17 @@
 package beam.router.r5
 
+import java.io.File
+import java.nio.file.Files.exists
+import java.nio.file.Paths
+
 import akka.actor.{Actor, ActorLogging, Props}
-import beam.router.r5.NetworkCoordinator.{UpdateTravelTime, copiedNetwork, linkMap, transportNetwork}
+import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, UpdateTravelTime}
+import beam.router.gtfs.FareCalculator
+import beam.router.r5.NetworkCoordinator._
+import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
+import beam.utils.RefectionUtils
+import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -10,15 +19,46 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 /**
   * Created by salma_000 on 8/25/2017.
   */
-class NetworkCoordinator extends Actor with ActorLogging {
+class NetworkCoordinator(val beamServices: BeamServices) extends Actor with ActorLogging {
 
   override def receive: Receive = {
+    case InitializeRouter =>
+      log.info("Initializing Router")
+      init
+      context.parent ! RouterInitialized
+      sender() ! RouterInitialized
     case networkUpdateRequest: UpdateTravelTime =>
       log.info("Received UpdateTravelTime")
       updateTimes(networkUpdateRequest.travelTimeCalculator)
       replaceNetwork
 
     case msg => log.info(s"Unknown message[$msg] received by NetworkCoordinator Actor.")
+  }
+
+  def init: Unit = {
+    loadNetwork
+    FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
+    overrideR5EdgeSearchRadius(2000)
+  }
+
+  def loadNetwork = {
+    val networkDir = beamServices.beamConfig.beam.routing.r5.directory
+    val networkDirPath = Paths.get(networkDir)
+    if (!exists(networkDirPath)) {
+      Paths.get(networkDir).toFile.mkdir()
+    }
+    val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
+    val networkFile: File = networkFilePath.toFile
+    if (exists(networkFilePath)) {
+      log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
+      transportNetwork = TransportNetwork.read(networkFile)
+    } else {
+      log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
+      log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
+      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      transportNetwork.write(networkFile)
+      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
+    }
   }
 
   def replaceNetwork = {
@@ -62,14 +102,13 @@ class NetworkCoordinator extends Actor with ActorLogging {
     val avgTime = (totalTime / totalIterations)
     avgTime.toShort
   }
+
+
+  private def overrideR5EdgeSearchRadius(newRadius: Double): Unit =
+    RefectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", newRadius)
 }
 
 object NetworkCoordinator {
-
-  trait UpdateNetwork
-
-  case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator) extends UpdateNetwork
-
   val GRAPH_FILE = "/network.dat"
 
   var transportNetwork: TransportNetwork = _
@@ -84,5 +123,5 @@ object NetworkCoordinator {
     })
   }
 
-  def props = Props(classOf[NetworkCoordinator])
+  def props(beamServices: BeamServices) = Props(classOf[NetworkCoordinator], beamServices)
 }

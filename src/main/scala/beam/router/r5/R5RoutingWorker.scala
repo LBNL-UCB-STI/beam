@@ -1,8 +1,5 @@
 package beam.router.r5
 
-import java.io.File
-import java.nio.file.Files.exists
-import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
@@ -20,17 +17,16 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
-import beam.router.r5.NetworkCoordinator.{GRAPH_FILE, transportNetwork}
+import beam.router.r5.NetworkCoordinator.transportNetwork
 import beam.router.r5.R5RoutingWorker.{ProfileRequestToVehicles, TripFareTuple}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
-import beam.utils.{GeoUtils, RefectionUtils}
+import beam.utils.GeoUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.ProfileRequest
-import com.conveyal.r5.streets.StreetLayer
-import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
+import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -49,33 +45,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   val graphPathOutputsNeeded = false
   //TODO parameterize the distance threshold here
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-
-
-  override def init: Unit = {
-    loadNetwork
-    FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
-    overrideR5EdgeSearchRadius(2000)
-  }
-
-  def loadNetwork = {
-    val networkDir = beamServices.beamConfig.beam.routing.r5.directory
-    val networkDirPath = Paths.get(networkDir)
-    if (!exists(networkDirPath)) {
-      Paths.get(networkDir).toFile.mkdir()
-    }
-    val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
-    val networkFile: File = networkFilePath.toFile
-    if (exists(networkFilePath)) {
-      log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.read(networkFile)
-    } else {
-      log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
-      log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
-      transportNetwork.write(networkFile)
-      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
-    }
-  }
 
   /*
    * Plan of action:
@@ -237,7 +206,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, Vector(), Map())
   }
-
 
   /*
      * buildRequests
@@ -486,9 +454,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val baseDate = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate)
     ChronoUnit.SECONDS.between(baseDate, time)
   }
-
-  private def overrideR5EdgeSearchRadius(newRadius: Double): Unit =
-    RefectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", newRadius)
 }
 
 object R5RoutingWorker extends HasProps {
@@ -500,5 +465,4 @@ object R5RoutingWorker extends HasProps {
                                       vehicleAsOriginProfiles: Map[ProfileRequest, StreetVehicle])
 
   case class TripFareTuple(trips: Vector[BeamTrip], tripFares: Vector[Map[Int, Double]])
-
 }
