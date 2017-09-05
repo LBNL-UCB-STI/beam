@@ -1,6 +1,7 @@
 package beam.utils.scripts
 
 import java.util
+import java.util.UUID
 
 import beam.utils.gis.Plans2Shapefile
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
@@ -9,7 +10,7 @@ import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.population.io.{PopulationWriter, StreamingPopulationWriter}
+import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
@@ -184,10 +185,10 @@ object PlansSampler {
     val newHH = sc.getHouseholds
     val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
-    for (sh: SynthHousehold <- Random.shuffle(synthPop)) {
+    Random.shuffle(synthPop).toStream.par.foreach(sh => {
 
-      val N = if (sh.numPersons * 3 > 0) {
-        sh.numPersons * 3
+      val N = if (sh.numPersons * 2 > 0) {
+        sh.numPersons * 2
       } else {
         1
       }
@@ -208,9 +209,9 @@ object PlansSampler {
       counter.incCounter()
 
       var homePlan: Option[Plan] = None
-      for ((plan, idx) <- selectedPlans.zipWithIndex) {
+      for (plan <- selectedPlans) {
 
-        var newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
+        var newPersonId = Id.createPersonId(s"${UUID.randomUUID}")
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
@@ -237,8 +238,7 @@ object PlansSampler {
           .foreach(x => spHH.getVehicleIds.add(Id.createVehicleId(s"car-$hhId-$x")))
 
       }
-
-    }
+    })
     counter.printCounter()
     counter.reset()
 
