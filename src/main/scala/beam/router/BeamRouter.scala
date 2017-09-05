@@ -27,7 +27,7 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
     router = Router(RoundRobinRoutingLogic(), Vector.fill(5) {
       ActorRefRoutee(createAndWatch)
     })
-    transportNetworkWorker = context.actorOf(NetworkCoordinator.getNetworkCoordinatorProps)
+    transportNetworkWorker = context.actorOf(NetworkCoordinator.props)
   }
 
   def receive = uninitialized

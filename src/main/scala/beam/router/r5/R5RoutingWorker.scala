@@ -8,22 +8,21 @@ import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor.Props
-import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.Modes.BeamMode.{BUS, SUBWAY, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{BUS, SUBWAY, WALK}
 import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
-import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
+import beam.router.r5.NetworkCoordinator.GRAPH_FILE
+import beam.router.r5.R5RoutingWorker.ProfileRequestToVehicles
 import beam.router.{Modes, RoutingWorker}
-import beam.router.RoutingWorker.HasProps
-import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
 import beam.sim.BeamServices
 import beam.utils.{GeoUtils, RefectionUtils}
 import com.conveyal.r5.api.ProfileResponse
@@ -54,12 +53,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
 
   override def init: Unit = {
-    loadMap
     FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
     overrideR5EdgeSearchRadius(2000)
   }
 
-  private def loadMap = {
+  def loadNetwork = {
     val networkDir = beamServices.beamConfig.beam.routing.r5.directory
     val networkDirPath = Paths.get(networkDir)
     if (!exists(networkDirPath)) {
@@ -501,8 +499,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 }
 
 object R5RoutingWorker extends HasProps {
-  val GRAPH_FILE = "/network.dat"
-
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
