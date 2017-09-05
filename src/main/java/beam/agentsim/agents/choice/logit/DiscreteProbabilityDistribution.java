@@ -10,11 +10,8 @@ public class DiscreteProbabilityDistribution {
 
 	private LinkedHashMap<String,Double> pdf;
 	private NavigableMap<Double, String> cdf;
-	private Random rand;
-	
-	public DiscreteProbabilityDistribution(Random rand){
-		this.rand = rand;
-	}
+
+	public DiscreteProbabilityDistribution(){ }
 	
 	public void addElement(String element, Double probability){
 		if(this.pdf==null)this.pdf = new LinkedHashMap<String,Double>();
@@ -55,9 +52,9 @@ public class DiscreteProbabilityDistribution {
 		this.cdf.put(1.0,lastKey);
 	}
 
-	public String sample(){
+	public String sample(Random rand){
 		if(this.cdf == null)createCDF();
-	   return this.cdf.ceilingEntry(this.rand.nextDouble()).getValue();
+	   return this.cdf.ceilingEntry(rand.nextDouble()).getValue();
 	}
 	public LinkedHashMap<String,Double> getProbabilityDensityMap(){
 		return this.pdf;

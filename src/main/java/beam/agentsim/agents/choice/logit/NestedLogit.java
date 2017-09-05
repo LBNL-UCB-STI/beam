@@ -1,5 +1,10 @@
 package beam.agentsim.agents.choice.logit;
 
+import org.jdom.Document;
+import org.jdom.Element;
+import org.jdom.JDOMException;
+import org.jdom.input.SAXBuilder;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,12 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Random;
 
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.JDOMException;
-import org.jdom.input.SAXBuilder;
-
-public class NestedLogit {
+public class NestedLogit implements AbstractLogit{
     public NestedLogitData data;
     public NestedLogit parent;
     public LinkedList<NestedLogit> children;
@@ -63,7 +63,7 @@ public class NestedLogit {
 					tree.ancestorNests = new LinkedList<NestedLogit>();
 					establishAncestry(tree,tree.parent);
 				}
-			}else if(elem.getName().toLowerCase().equals("nestedlogit")){
+			}else if(elem.getName().toLowerCase().equals("nestedlogit") || elem.getName().toLowerCase().equals("alternative")){
 				if(tree.children == null){
 					tree.children = new LinkedList<NestedLogit>();
 				}
@@ -83,16 +83,20 @@ public class NestedLogit {
 	public NestedLogit(NestedLogitData data) {
         this.data = data;
     }
-	public void evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, Random rand){
+
+    @Override
+	public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData){
 		LinkedHashMap<NestedLogit,Double> conditionalProbs = new LinkedHashMap<NestedLogit,Double>();
 		double totalExpMaxUtil = getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
 		LinkedHashMap<String,Double> marginalProbs = marginalizeAlternativeProbabilities(conditionalProbs);
-		cdf = new DiscreteProbabilityDistribution(rand);
+		cdf = new DiscreteProbabilityDistribution();
 		cdf.setPDF(marginalProbs);
+		return cdf;
 	}
+	@Override
 	public String makeRandomChoice(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, Random rand){
-		if(cdf==null)evaluateProbabilities(inputData, rand);
-		return cdf.sample();
+		if(cdf==null)evaluateProbabilities(inputData);
+		return cdf.sample(rand);
     }
 	private LinkedHashMap<String, Double> marginalizeAlternativeProbabilities(LinkedHashMap<NestedLogit, Double> conditionalProbs) {
 		LinkedHashMap<String,Double> marginalProbs = new LinkedHashMap<String,Double>();

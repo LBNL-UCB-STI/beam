@@ -1,8 +1,8 @@
 package beam.agentsim.agents.choice.logit;
 
-import java.util.LinkedHashMap;
-
 import junit.framework.TestCase;
+
+import java.util.LinkedHashMap;
 
 public class NestedLogitTest extends TestCase {
 
@@ -10,40 +10,40 @@ public class NestedLogitTest extends TestCase {
 
 		String xmlTestString = "<nestedLogit name=\"top\">"
 				+ "	<elasticity>1</elasticity>"
-				+ "	<nestedLogit name=\"alternative1\">"
+				+ "	<alternative name=\"alternative1\">"
 				+ "		<elasticity>1</elasticity>"
 				+ "		<utility>"
 				+ "			<param name=\"intercept\" type=\"INTERCEPT\">1.0</param>"
 				+ "			<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
 				+ "			<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
 				+ "		</utility>"
-				+ "	</nestedLogit>"
-				+ "	<nestedLogit name=\"alternative2\">"
+				+ "	</alternative>"
+				+ "	<alternative name=\"alternative2\">"
 				+ "		<elasticity>1</elasticity>"
 				+ "		<utility>"
 				+ "			<param name=\"intercept\" type=\"INTERCEPT\">0.0</param>"
 				+ "			<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
 				+ "			<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
 				+ "		</utility>"
-				+ "	</nestedLogit>"
+				+ "	</alternative>"
 				+ "	<nestedLogit name=\"nest1\">"
 				+ "		<elasticity>0.5</elasticity>"
-				+ "		<nestedLogit name=\"alternative3\">"
+				+ "		<alternative name=\"alternative3\">"
 				+ "			<elasticity>0.5</elasticity>"
 				+ "			<utility>"
 				+ "				<param name=\"intercept\" type=\"INTERCEPT\">-1.0</param>"
 				+ "				<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
 				+ "				<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
 				+ "			</utility>"
-				+ "		</nestedLogit>"
-				+ "		<nestedLogit name=\"alternative4\">"
+				+ "		</alternative>"
+				+ "		<alternative name=\"alternative4\">"
 				+ "			<elasticity>0.5</elasticity>"
 				+ "			<utility>"
 				+ "				<param name=\"intercept\" type=\"INTERCEPT\">-2.0</param>"
 				+ "				<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
 				+ "				<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
 				+ "			</utility>"
-				+ "		</nestedLogit>"
+				+ "		</alternative>"
 				+ "	</nestedLogit>"
 				+ "</nestedLogit>";
 		

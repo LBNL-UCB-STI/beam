@@ -1,23 +1,48 @@
 package beam.agentsim.agents.choice.logit;
 
-import java.util.LinkedHashMap;
-
 import junit.framework.TestCase;
+
+import java.util.LinkedHashMap;
 
 public class MultinomialLogitTest extends TestCase {
 
 	public void testMultinomialLogit(){
 
-		String xmlTestString = "<multinomialLogit>"
-				+ "	<elasticity>1</elasticity>"
-				+ "	<utility>"
-				+ "		<param name=\"intercept\" type=\"INTERCEPT\">1.0</param>"
-				+ "		<param name=\"time\" type=\"MULTIPLIER\">1.0</param>"
-				+ "		<param name=\"cost\" type=\"MULTIPLIER\">1.0</param>"
-				+ "	</utility>"
-				+ "</multinomialLogit>";
+		double timeMultiplier = -1.0;
+		double costMultiplier = -1.0;
 
-		NestedLogit model = NestedLogit.NestedLogitFactory(xmlTestString);
+		String xmlTestString = "<multinomialLogit name=\"mnl\">"
+				+ "	<alternative name=\"alternative1\">"
+				+ "		<utility>"
+				+ "			<param name=\"intercept\" type=\"INTERCEPT\">1.0</param>"
+				+ "			<param name=\"time\" type=\"MULTIPLIER\">"+timeMultiplier+"</param>"
+				+ "			<param name=\"cost\" type=\"MULTIPLIER\">"+costMultiplier+"</param>"
+				+ "		</utility>"
+				+ "	</alternative>"
+				+ "	<alternative name=\"alternative2\">"
+				+ "		<utility>"
+				+ "			<param name=\"intercept\" type=\"INTERCEPT\">1.0</param>"
+				+ "			<param name=\"time\" type=\"MULTIPLIER\">"+timeMultiplier+"</param>"
+				+ "			<param name=\"cost\" type=\"MULTIPLIER\">"+costMultiplier+"</param>"
+				+ "		</utility>"
+				+ "	</alternative>"
+				+ "	<alternative name=\"alternative3\">"
+				+ "		<utility>"
+				+ "			<param name=\"intercept\" type=\"INTERCEPT\">3.0</param>"
+				+ "			<param name=\"time\" type=\"MULTIPLIER\">"+timeMultiplier+"</param>"
+				+ "			<param name=\"cost\" type=\"MULTIPLIER\">"+costMultiplier+"</param>"
+				+ "		</utility>"
+				+ "	</alternative>"
+				+ "	<alternative name=\"alternative4\">"
+				+ "		<utility>"
+				+ "			<param name=\"intercept\" type=\"INTERCEPT\">1.0</param>"
+				+ "			<param name=\"time\" type=\"MULTIPLIER\">"+timeMultiplier+"</param>"
+				+ "			<param name=\"cost\" type=\"MULTIPLIER\">"+costMultiplier+"</param>"
+				+ "		</utility>"
+				+ "	</alternative>"
+				+ "</multinomialLogit>";
+		MulitnomialLogit model = MulitnomialLogit.MulitnomialLogitFactory(xmlTestString);
+
 		
 		LinkedHashMap<String, LinkedHashMap<String,Double>> inputData = new LinkedHashMap<>();
 		LinkedHashMap<String,Double> altData = new LinkedHashMap<>();
@@ -33,7 +58,8 @@ public class MultinomialLogitTest extends TestCase {
 		altData.put("time", 7.5);
 		altData.put("cost", 2.5);
 		inputData.put("alternative4", (LinkedHashMap<String,Double>)altData.clone());
-		
-		//String theChoice = model.makeRandomChoice(inputData);
+
+		DiscreteProbabilityDistribution cdf = model.evaluateProbabilities(inputData);
+		int i = 0;
 	}
 }

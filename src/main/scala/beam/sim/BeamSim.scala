@@ -6,12 +6,14 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents._
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.agentsim.agents.choice.mode._
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
@@ -33,7 +35,6 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.util.Random
 
 /**
   * AgentSim entrypoint.
@@ -68,6 +69,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     subscribe(TeleportationArrivalEvent.EVENT_TYPE)
     subscribe(PersonArrivalEvent.EVENT_TYPE)
     subscribe(PointProcessEvent.EVENT_TYPE)
+
+    services.modeChoiceCalculator = ModeChoiceCalculator(services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, services)
 
     val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], 3600 * 30.0, 300.0,services.beamConfig.beam.agentsim.debugEnabled==1))
     services.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref

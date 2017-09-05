@@ -2,7 +2,7 @@ package beam.agentsim.agents.choice.logit;
 
 public class NestedLogitData {
 	String nestName;
-	Double elasticity, expectedMaximumUtility;
+	Double elasticity = 1.0, expectedMaximumUtility;
 	UtilityFunction utility;
 	
 	public String getNestName() {

@@ -3,7 +3,7 @@ package beam.agentsim.agents.modalBehaviors
 import beam.agentsim.agents.BeamAgent.BeamAgentInfo
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
 import beam.agentsim.agents._
@@ -31,7 +31,6 @@ import scala.util.Random
 trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  val choiceCalculator: ChoiceCalculator = ChoosesMode.transitIfAvailable
   var routingResponse: Option[RoutingResponse] = None
   var rideHailingResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
@@ -49,7 +48,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         routingResponse.get.itineraries
       }
 
-      val chosenTrip = choiceCalculator(combinedItinerariesForChoice)
+      val chosenTrip = beamServices.modeChoiceCalculator(combinedItinerariesForChoice)
 
       if(tripRequiresReservationConfirmation(chosenTrip)){
         pendingChosenTrip = Some(chosenTrip)
@@ -195,97 +194,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
 }
 object ChoosesMode {
-  type ChoiceCalculator = (Vector[EmbodiedBeamTrip]) => EmbodiedBeamTrip
 
   case class BeginModeChoiceTrigger(tick: Double) extends Trigger
   case class FinalizeModeChoiceTrigger(tick: Double) extends Trigger
 
-  def transitIfAvailable(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
-    var containsTransitAlt: Vector[Int] = Vector[Int]()
-    alternatives.zipWithIndex.foreach{ alt =>
-      if(alt._1.tripClassifier.isTransit){
-        containsTransitAlt = containsTransitAlt :+ alt._2
-      }
-    }
-    val chosenIndex = if (containsTransitAlt.size > 0){ containsTransitAlt.head }else{ 0 }
-    if(alternatives.size > 0) {
-      alternatives(chosenIndex)
-    } else {
-      EmbodiedBeamTrip.empty
-    }
-  }
-
-  def rideHailIfAvailable(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
-    var containsDriveAlt: Vector[Int] = Vector[Int]()
-    alternatives.zipWithIndex.foreach{ alt =>
-      if(alt._1.tripClassifier == RIDEHAIL){
-        containsDriveAlt = containsDriveAlt :+ alt._2
-      }
-    }
-    val chosenIndex = if (containsDriveAlt.size > 0){ containsDriveAlt.head }else{ 0 }
-    if(alternatives.size > 0) {
-      alternatives(chosenIndex)
-    } else {
-      EmbodiedBeamTrip.empty
-    }
-  }
-  def driveIfAvailable(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
-    var containsDriveAlt: Vector[Int] = Vector[Int]()
-    alternatives.zipWithIndex.foreach{ alt =>
-      if(alt._1.tripClassifier == CAR){
-        containsDriveAlt = containsDriveAlt :+ alt._2
-      }
-    }
-    val chosenIndex = if (containsDriveAlt.size > 0){ containsDriveAlt.head }else{ 0 }
-    if(alternatives.size > 0) {
-      alternatives(chosenIndex)
-    } else {
-      EmbodiedBeamTrip.empty
-    }
-  }
-
-  def mnlChoice(alternatives: Vector[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
-    var containsDriveAlt = -1
-
-    var altModesAndTimes: Vector[(BeamMode, Double)] = for (i <- alternatives.indices.toVector) yield {
-      val alt = alternatives(i)
-      val altMode = if (alt.legs.size == 1) {
-        alt.legs.head.beamLeg.mode
-      } else {
-        if (alt.legs.head.beamLeg.mode.equals(CAR)) {
-          containsDriveAlt = i
-          CAR
-        } else {
-          TRANSIT
-        }
-      }
-      val travelTime = (for (leg <- alt.legs) yield leg.beamLeg.duration).foldLeft(0.0) {
-        _ + _
-      }
-      (altMode, travelTime)
-    }
-
-    val altUtilities = for (alt <- altModesAndTimes) yield altUtility(alt._1, alt._2)
-    val sumExpUtilities = altUtilities.foldLeft(0.0)(_ + math.exp(_))
-    val altProbabilities = for (util <- altUtilities) yield math.exp(util) / sumExpUtilities
-    val cumulativeAltProbabilities = altProbabilities.scanLeft(0.0)(_ + _)
-    //TODO replace with RNG in services
-    val randDraw = Random.nextDouble()
-    val chosenIndex = for (i <- 1 until cumulativeAltProbabilities.length if randDraw < cumulativeAltProbabilities(i)) yield i - 1
-    if(chosenIndex.size > 0) {
-      alternatives(chosenIndex.head)
-    } else {
-      EmbodiedBeamTrip.empty
-    }
-  }
-
-  def altUtility(mode: BeamMode, travelTime: Double): Double = {
-    val intercept = if(mode.equals(CAR)){ -3.0 }else{ if(mode.equals(RIDEHAIL)){ -5.0}else{0.0} }
-    intercept + -0.001 * travelTime
-  }
-
-  def randomChoice(alternatives: Vector[BeamTrip]): BeamTrip = {
-    Random.shuffle(alternatives.toList).head
-  }
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 }
