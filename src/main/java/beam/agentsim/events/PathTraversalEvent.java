@@ -1,4 +1,4 @@
-package beam.agentsim.events.handling;
+package beam.agentsim.events;
 
 import beam.router.RoutingModel;
 import org.matsim.api.core.v01.Id;
@@ -16,7 +16,7 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_LINK_IDS = "links";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
-    public final static String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
+    public final static String ATTRIBUTE_VEHICLE_ID = "vehicle";
     private final String linkIds;
     private final String vehicleId;
     private final String departureTime;
