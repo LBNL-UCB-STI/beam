@@ -6,7 +6,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.zip.ZipFile
 
-import beam.router.r5.R5RoutingWorker.transportNetwork
+import beam.router.r5.NetworkCoordinator.transportNetwork
 import com.conveyal.gtfs.GTFSFeed
 import com.conveyal.r5.api.util.{SegmentPattern, Stop, TransitJourneyID, TransitSegment}
 
