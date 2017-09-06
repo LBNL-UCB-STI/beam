@@ -2,7 +2,6 @@ package beam.agentsim.events;
 
 import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
@@ -12,8 +11,8 @@ import java.util.Map;
  * BEAM
  */
 public class BeamEventsWriterXML extends BeamEventsWriterBase{
-    public BeamEventsWriterXML(String outfilename, BeamEventsLogger beamEventLogger, MatsimServices matsimServices, BeamServices beamServices, Class<?> eventTypeToLog) {
-        super(outfilename, beamEventLogger, matsimServices, beamServices, eventTypeToLog);
+    public BeamEventsWriterXML(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
+        super(outfilename, beamEventLogger, beamServices, eventTypeToLog);
         writeHeaders();
     }
 
@@ -23,14 +22,6 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
             this.out.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">\n");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
-        }
-    }
-
-    @Override
-    public void handleEvent(final Event event) {
-        if((this.eventTypeToLog != null && this.eventTypeToLog == event.getClass()) ||
-                (this.eventTypeToLog == null && beamEventLogger.logEventsOfClass(event.getClass())) ){
-            writeEvent(event);
         }
     }
 

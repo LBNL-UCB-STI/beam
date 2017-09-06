@@ -4,7 +4,6 @@ import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import beam.utils.IntegerValueHashMap;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
@@ -17,8 +16,8 @@ import java.util.Map;
 public class BeamEventsWriterCSV extends BeamEventsWriterBase{
     IntegerValueHashMap<String> attributeToColumnIndexMapping = new IntegerValueHashMap<>();
 
-    public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, MatsimServices services, BeamServices beamServices, Class<?> eventTypeToLog) {
-        super(outfilename, eventLogger, services, beamServices, eventTypeToLog);
+    public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
+        super(outfilename, eventLogger, beamServices, eventTypeToLog);
 
         if(eventTypeToLog==null){
             for(Class<?> clazz : eventLogger.getAllEventsToLog()){

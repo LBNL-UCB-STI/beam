@@ -65,7 +65,7 @@ object RunBeam extends App{
 
         // Beam -> MATSim Wirings
 
-        bindMobsim().to(classOf[QSim]) //TODO: This will change
+        bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
       }
