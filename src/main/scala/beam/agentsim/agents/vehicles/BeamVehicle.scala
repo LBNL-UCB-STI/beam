@@ -73,7 +73,7 @@ object BeamVehicle {
   }
 
   def buildActorName(matsimVehicle: Vehicle): String = {
-    s"$ActorPrefixName${matsimVehicle.getType.getDescription}-${matsimVehicle.getId.toString}"
+    s"$ActorPrefixName${matsimVehicle.getType.getDescription.replaceAll(" ", "_")}-${matsimVehicle.getId.toString}"
   }
 
   implicit def actorRef2Id(actorRef: ActorRef): Option[Id[Vehicle]] = {

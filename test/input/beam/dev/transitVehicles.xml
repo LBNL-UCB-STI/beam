@@ -1,24 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
-
-<vehicleDefinitions xmlns="http://www.matsim.org/files/dtd"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xsi:schemaLocation="http://www.matsim.org/files/dtd http://www.matsim.org/files/dtd/vehicleDefinitions_v1.0.xsd">
-	<vehicleType id="1">
-		<description>TRAIN: Small Train</description>
-		<capacity>
-			<seats persons="50"/>
-			<standingRoom persons="30"/>
-		</capacity>
-		<length meter="50.0"/>
-	</vehicleType>
-	<vehicleType id="2">
-		<description>BUS: Transit Bus</description>
-		<capacity>
-			<seats persons="50"/>
-			<standingRoom persons="50"/>
-		</capacity>
-		<length meter="15.0"/>
-	</vehicleType>
-	<vehicle id="tr_1" type="1"/>
-	<vehicle id="bus_1" type="2"/>
-</vehicleDefinitions>
+version https://git-lfs.github.com/spec/v1
+oid sha256:0953f2f6c2cf32c5dd8baef88281736189e35a231b3df05c548fc7378e261a4b
+size 743
