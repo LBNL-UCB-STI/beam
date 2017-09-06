@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePer
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.handling.PathTraversalEvent
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}
@@ -158,7 +158,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(_currentVehicleUnderControl.get.id,_currentLeg.get)))
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick,_currentVehicleUnderControl.get.id,_currentLeg.get)))
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
     if(passengerSchedule.schedule.nonEmpty){

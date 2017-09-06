@@ -14,7 +14,7 @@ import beam.agentsim.events._
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.choice.mode._
-import beam.agentsim.events.handling.BeamEventsLogger
+import beam.agentsim.events.handling.{BeamEventsLogger, PathTraversalEvent}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
