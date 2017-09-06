@@ -1,15 +1,16 @@
 package beam.utils.scripts
 
 import java.util
+import java.util.UUID
 
 import beam.utils.gis.Plans2Shapefile
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.log4j.Logger
-import org.matsim.api.core.v01.population.{Person, Plan}
+import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.population.io.{PopulationWriter, StreamingPopulationWriter}
+import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
@@ -17,7 +18,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
-import org.matsim.households.{Household, HouseholdsWriterV10}
+import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
 import org.opengis.feature.simple.SimpleFeature
 
 import scala.collection.JavaConverters
@@ -25,7 +26,7 @@ import scala.io.Source
 import scala.util.Random
 
 
-case class SynthHousehold(numPersons: Integer, cars: Integer, coord: Coord)
+case class SynthHousehold(householdId: Id[Household], numPersons: Integer, cars: Integer, coord: Coord)
 
 
 trait HasXY[T] {
@@ -104,17 +105,23 @@ object SynthHouseholdParser {
 
   import HasXY.wgs2Utm
 
-  private val hhNumIdx: Int = 0
-  private val carNumIdx: Int = 1
-  private val homeCoordXIdx: Int = 2
-  private val homeCoordYIdx: Int = 3
+
+  private val hhIdIdx: Int = 0
+  private val hhNumIdx: Int = 1
+  private val carNumIdx: Int = 2
+  private val homeCoordXIdx: Int = 3
+  private val homeCoordYIdx: Int = 4
 
   def parseFile(synthFileName: String): Vector[SynthHousehold] = {
     var res = Vector[SynthHousehold]()
     for (line <- Source.fromFile(synthFileName, "utf-8").getLines) {
       val sl = line.split(",")
-      res ++= Vector(SynthHousehold(sl(hhNumIdx).toDouble.toInt, sl(carNumIdx).toDouble.toInt,
-        wgs2Utm.transform(new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble))))
+      val pt = wgs2Utm.transform(new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble))
+
+      val householdId = Id.create(sl(hhIdIdx), classOf[Household])
+      val numCars = sl(carNumIdx).toDouble.toInt
+      val numPeople = sl(hhNumIdx).toDouble.toInt
+      res ++= Vector(SynthHousehold(householdId, numPeople, numCars, pt))
     }
     res
   }
@@ -131,6 +138,11 @@ object PlansSampler {
   val conf: Config = ConfigUtils.createConfig()
 
   val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
+  val newPop: Population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+  val hh: Households = sc.getHouseholds
+  val hhFac: HouseholdsFactory = hh.getFactory
+
+  val newHH: Households = sc.getHouseholds
 
   private var synthPop = Vector[SynthHousehold]()
 
@@ -167,7 +179,6 @@ object PlansSampler {
           col ++= Vector(plan)
         }
       }
-
     }
     col.sorted(planOrdering)
   }
@@ -177,17 +188,14 @@ object PlansSampler {
   }
 
   def run(): Unit = {
-    val newPop = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-    val hh = sc.getHouseholds
-    val hhFac = hh.getFactory
 
-    val newHH = sc.getHouseholds
+
     val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
-    for (sh: SynthHousehold <- Random.shuffle(synthPop)) {
+    Random.shuffle(synthPop).take((0.01*synthPop.size).toInt).toStream.foreach(sh => {
 
-      val N = if (sh.numPersons * 3 > 0) {
-        sh.numPersons * 3
+      val N = if (sh.numPersons * 2 > 0) {
+        sh.numPersons * 2
       } else {
         1
       }
@@ -201,16 +209,16 @@ object PlansSampler {
         } else x)
       })
 
-      val hhId = Id.create(s"household-${counter.getCounter}", classOf[Household])
+      val hhId = sh.householdId
       val spHH = hhFac.createHousehold(hhId)
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
       counter.incCounter()
 
       var homePlan: Option[Plan] = None
-      for ((plan, idx) <- selectedPlans.zipWithIndex) {
+      for (plan <- selectedPlans) {
 
-        var newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
+        var newPersonId = Id.createPersonId(s"${UUID.randomUUID()}")
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
@@ -226,27 +234,26 @@ object PlansSampler {
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
             val firstActCoord = firstAct.getCoord
-            val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile.getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home")))
+            val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile
+              .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home")))
             for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }
         }
 
         // Create and add car identifiers
-        (1 to sh.cars)
-          .foreach(x => spHH.getVehicleIds.add(Id.createVehicleId(s"car-$hhId-$x")))
+        (1 to sh.cars).foreach(x => spHH.getVehicleIds.add(Id.createVehicleId(s"car-$hhId-$x")))
 
       }
-
-    }
+    })
     counter.printCounter()
     counter.reset()
 
-    new HouseholdsWriterV10(newHH).writeFile(s"$outDir/synthHouseHolds.xml")
 
-    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml")
-    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml")
-    new PopulationWriter(newPop).write(s"$outDir/synthPlansFull.xml")
+    new HouseholdsWriterV10(newHH).writeFile(s"$outDir/synthHouseHolds.xml.gz")
+//    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
+//    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
+    new PopulationWriter(newPop).write(s"$outDir/synthPlansFull.xml.gz")
 
   }
 
