@@ -4,9 +4,12 @@ import beam.sim.RunBeam
 import beam.sim.config.ConfigModule
 import org.matsim.core.events.{EventsManagerImpl, EventsReaderXMLv1}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-import java.io.File
+import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
+import java.util.zip.GZIPInputStream
 
+import scala.xml.XML
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.Try
 
@@ -18,12 +21,23 @@ import scala.util.Try
 
 trait ReadEvents{
   def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String]
+  def getLinesFrom(file: File): String
 }
 
 class ReadEventsXml extends ReadEvents {
+
+
+  def getLinesFrom(file: File): String = {
+    Source.fromFile(file.getPath).getLines.mkString
+  }
+
   def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
+    getListTagsFromLines(Source.fromFile(file.getPath).getLines.toList, stringContain, tagContain)
+  }
+
+  def getListTagsFromLines(file_lines: List[String], stringContain: String, tagContain: String): scala.List[String] = {
     var listResult = List[String]()
-    for (line <- Source.fromFile(file.getPath).getLines) {
+    for (line <- file_lines) {
       if (line.contains(stringContain)) {
         val temp = scala.xml.XML.loadString(line)
         val value = temp.attributes(tagContain).toString
@@ -35,6 +49,31 @@ class ReadEventsXml extends ReadEvents {
   }
 
 
+}
+
+class ReadEventsXMlGz extends ReadEventsXml {
+
+
+  def extractGzFile(file: File): scala.List[String] = {
+    val fin = new FileInputStream(new java.io.File(file.getPath))
+    val gzis = new GZIPInputStream(fin)
+    val reader =new BufferedReader(new InputStreamReader(gzis, "UTF-8"))
+
+    var lines = new ListBuffer[String]
+
+    while(reader.ready()){
+      lines += reader.readLine()
+    }
+    return  lines.toList
+
+  }
+  override def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
+    getListTagsFromLines(extractGzFile(file), stringContain, tagContain)
+  }
+
+  override def getLinesFrom(file: File): String = {
+    extractGzFile(file).mkString
+  }
 }
 
 class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
@@ -81,13 +120,13 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
     return  listResult
   }
 
-  def getRouteFile(route_output: String): File = {
-    val route = s"$route_output/${getListOfSubDirectories(new File(route_output))}/ITERS/it.0/0.events.xml"
+  def getRouteFile(route_output: String, extension: String): File = {
+    val route = s"$route_output/${getListOfSubDirectories(new File(route_output))}/ITERS/it.0/0.events.$extension"
     new File(route)
   }
 
   lazy val exc = Try(rumBeamWithConfigFile(Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")))
-  lazy val file: File = getRouteFile(ConfigModule.beamConfig.beam.outputs.outputDirectory)
+  lazy val file: File = getRouteFile(ConfigModule.beamConfig.beam.outputs.outputDirectory , ConfigModule.beamConfig.beam.outputs.eventsFileOutputFormats)
 
   lazy val route_input = ConfigModule.beamConfig.beam.sharedInputs
 
@@ -95,7 +134,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
     ConfigModule.beamConfig.beam.outputs.eventsFileOutputFormats match{
       case "xml" => new ReadEventsXml
       case "csv" => ???
-      case "xml.gz" => ???
+      case "xml.gz" => new ReadEventsXMlGz
       case "csv.gz" => ???
       case _ => throw new RuntimeException("Unsupported format")
     }
@@ -118,7 +157,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
     }
 
     "Events  file  is correct" in {
-      val fileContents = Source.fromFile(file.getPath).getLines.mkString
+      val fileContents = eventsReader.getLinesFrom(file)
       (fileContents.contains("<events version") && fileContents.contains("</events>")) shouldBe true
     }
 
@@ -136,7 +175,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val route = s"$route_input/r5/train/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
-      val listValueTagEventFile = getListTagsFromXml(new File(file.getPath),"person='TransitDriverAgent-train.gtfs","vehicle")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person='TransitDriverAgent-train.gtfs","vehicle")
 
       listTrips.size shouldBe(listValueTagEventFile.size)
     }
@@ -146,7 +185,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val route = s"$route_input/r5/bus/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
-      val listValueTagEventFile = getListTagsFromXml(new File(file.getPath),"person='TransitDriverAgent-bus.gtfs","vehicle")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person='TransitDriverAgent-bus.gtfs","vehicle")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
 
       listTrips shouldBe(listTripsEventFile)
@@ -158,7 +197,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val route = s"$route_input/r5/train/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
-      val listValueTagEventFile = getListTagsFromXml(new File(file.getPath),"person='TransitDriverAgent-train.gtfs","vehicle")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person='TransitDriverAgent-train.gtfs","vehicle")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
 
       listTrips shouldBe(listTripsEventFile)
@@ -171,7 +210,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val grouped = listTrips.groupBy(identity)
       val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
 
-      val listValueTagEventFile = getListTagsFromXml(new File(file.getPath),"type='PathTraversal' vehicle_id='train.gtfs:","vehicle_id")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type='PathTraversal' vehicle_id='train.gtfs:","vehicle_id")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
       val groupedXml = listTripsEventFile.groupBy(identity)
       val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
@@ -186,7 +225,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val grouped = listTrips.groupBy(identity)
       val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
 
-      val listValueTagEventFile = getListTagsFromXml(new File(file.getPath),"type='PathTraversal' vehicle_id='bus.gtfs:","vehicle_id")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type='PathTraversal' vehicle_id='bus.gtfs:","vehicle_id")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
       val groupedXml = listTripsEventFile.groupBy(identity)
       val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
