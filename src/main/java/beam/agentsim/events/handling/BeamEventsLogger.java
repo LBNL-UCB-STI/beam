@@ -1,5 +1,7 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.ModeChoiceEvent;
+import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -31,6 +33,7 @@ public class BeamEventsLogger {
 
         // Registry of BEAM events that can be logged by BeamEventLogger
         allLoggableEvents.add(PathTraversalEvent.class);
+        allLoggableEvents.add(ModeChoiceEvent.class);
 
         // Registry of MATSim events that can be logged by BeamEventLogger
         allLoggableEvents.add(ActivityEndEvent.class);

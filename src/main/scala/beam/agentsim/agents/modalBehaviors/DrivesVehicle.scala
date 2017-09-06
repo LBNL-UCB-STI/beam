@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePer
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.handling.PathTraversalEvent
+import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}

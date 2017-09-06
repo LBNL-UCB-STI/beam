@@ -10,7 +10,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.events.resources.vehicle.{Reservation, ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -105,6 +105,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] = Vector()) = {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value)))
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
     _currentRoute = chosenTrip
     routingResponse = None

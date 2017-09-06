@@ -11,8 +11,7 @@ import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Vehic
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
-import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.handling.PathTraversalEvent
+import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}

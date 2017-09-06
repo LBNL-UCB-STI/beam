@@ -14,7 +14,7 @@ import beam.agentsim.events._
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.choice.mode._
-import beam.agentsim.events.handling.{BeamEventsLogger, PathTraversalEvent}
+import beam.agentsim.events.handling.BeamEventsLogger
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
@@ -72,6 +72,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     subscribe(TeleportationArrivalEvent.EVENT_TYPE)
     subscribe(PersonArrivalEvent.EVENT_TYPE)
     subscribe(PointProcessEvent.EVENT_TYPE)
+    subscribe(ModeChoiceEvent.EVENT_TYPE)
 
     services.modeChoiceCalculator = ModeChoiceCalculator(services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, services)
 
