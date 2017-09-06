@@ -25,6 +25,7 @@ public class BeamEventsLogger {
     public BeamEventsLogger(BeamServices beamServices, MatsimServices services) {
 
         this.beamConfig = beamServices.beamConfig();
+        setEventsFileFormats(beamConfig.beam().outputs().eventsFileOutputFormats());
 
         // Registry of BEAM events that can be logged by BeamEventLogger
 
