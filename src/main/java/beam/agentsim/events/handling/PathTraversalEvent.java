@@ -11,7 +11,7 @@ import java.util.Map;
  * BEAM
  */
 public class PathTraversalEvent extends Event {
-    public final static String EVENT_TYPE = "path_traversal";
+    public final static String EVENT_TYPE = "PathTraversal";
     public final static String ATTRIBUTE_VIZ_DATA = "viz_data";
     public final static String ATTRIBUTE_LINK_IDS = "links";
     public final static String ATTRIBUTE_MODE = "mode";
