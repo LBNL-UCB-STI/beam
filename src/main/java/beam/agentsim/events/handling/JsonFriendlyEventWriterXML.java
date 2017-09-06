@@ -18,7 +18,7 @@
  *                                                                         *
  * *********************************************************************** */
 
-package beam.agentsim.events;
+package beam.agentsim.events.handling;
 
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.events.algorithms.EventWriter;

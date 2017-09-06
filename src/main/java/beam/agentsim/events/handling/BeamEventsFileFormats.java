@@ -1,4 +1,4 @@
-package beam.agentsim.events;
+package beam.agentsim.events.handling;
 
 /**
  * BEAM

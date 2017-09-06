@@ -1,4 +1,4 @@
-package beam.agentsim.events;
+package beam.agentsim.events.handling;
 
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
