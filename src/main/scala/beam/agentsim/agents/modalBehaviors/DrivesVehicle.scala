@@ -14,7 +14,7 @@ import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}
 import beam.sim.HasServices
-import beam.utils.GeoUtils
+import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -118,7 +118,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       if(!passengerSchedule.isEmpty){
         val endSpaceTime = passengerSchedule.terminalSpacetime()
         if(updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
-          GeoUtils.distInMeters(updatedPassengerSchedule.initialSpacetime.loc,endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+          beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc,endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
         ) {
           errorFlag = true
         }

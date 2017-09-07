@@ -19,12 +19,10 @@ import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
-import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
+import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
-import beam.router.RoutingWorker.HasProps
-import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles}
 import beam.sim.BeamServices
-import beam.utils.{GeoUtils, RefectionUtils}
+import beam.utils.{RefectionUtils}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -65,14 +63,19 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val networkFile : File = networkFilePath.toFile
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
-      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile)
+      transportNetwork = TransportNetwork.read(networkFile)
     } else {
       log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
-      NetworkCoordinator.transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
-      NetworkCoordinator.transportNetwork.write(networkFile)
-      NetworkCoordinator.transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
+      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      transportNetwork.write(networkFile)
+      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
+    val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
+    beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.maxY = envelopeInUTM.getMaxY + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.minX = envelopeInUTM.getMinX - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
   }
 
   /*
@@ -88,11 +91,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
-    log.info(s"Start Transit initialization  ${ NetworkCoordinator.transportNetwork.transitLayer.tripPatterns.size()} trips founded")
-    val transitTrips  = NetworkCoordinator.transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
+    log.info(s"Start Transit initialization  ${ transportNetwork.transitLayer.tripPatterns.size()} trips founded")
+    val transitTrips  = transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
       //      log.debug(tripPattern.toString)
-      val route = NetworkCoordinator.transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val firstStop = tripPattern.tripSchedules.asScala
       firstStop.map { tripSchedule =>
@@ -102,8 +105,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val passengerSchedule = PassengerSchedule()
         tripSchedule.departures.zipWithIndex.foreach { case (departure, i) =>
           val duration = if(i == numStops-1){ 1L }else{ tripSchedule.arrivals(i+1) - departure }
-          val fromStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
-          val toStop = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
+          val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
+          val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
           val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
           val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
@@ -116,7 +119,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         (tripVehId,route,passengerSchedule)
       }
     }
-    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg().startTime).take(1000)
+    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg().startTime)
     transitScheduleToCreate.foreach{ case (tripVehId, route, passengerSchedule) =>
       createTransitVehicle(tripVehId, route, passengerSchedule)
     }
@@ -159,13 +162,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
-    /**
-      *Make sure not to use static transportNetwork reference more than once respectively copy ref before doing it, otherwise you might be using different
-      *transportNetwork reference during the same operation when it’s get updated
-      */
-
-
-    val pointToPointQuery = new PointToPointQuery(NetworkCoordinator.transportNetwork)
+    val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.filter(_.mode == WALK).size > 0
 
     val profileRequestToVehicles: ProfileRequestToVehicles = if(isRouteForPerson){
@@ -204,7 +201,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // From requester's origin to destination, the street modes must be within XXm of origin because this agent can't walk
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
+    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
     if(streetVehiclesAtRequesterOrigin.isEmpty){
       log.error(s"A routing request for a Non Person (which therefore cannot walk) was submitted with no StreetVehicle within ${distanceThresholdToIgnoreWalking} m of the requested origin.")
     }
@@ -218,9 +215,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = NetworkCoordinator.transportNetwork.getTimeZone
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.destination)
+    profileRequest.zoneId = transportNetwork.getTimeZone
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
@@ -263,7 +260,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // whether StreetVehicles are within XXm of the origin
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
+    val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking  )
     val uniqueBeamModes: Vector[BeamMode] = streetVehiclesAtRequesterOrigin.map(_.mode).distinct
     val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(_.r5Mode.get match { case Left(leg) => leg }).distinct
     uniqueBeamModes.foreach(beamMode =>
@@ -276,9 +273,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = NetworkCoordinator.transportNetwork.getTimeZone
-    val fromPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = GeoUtils.transform.Utm2Wgs(routingRequestTripInfo.destination)
+    profileRequest.zoneId = transportNetwork.getTimeZone
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
@@ -308,10 +305,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     // The next requests are for walk only trips to vehicles and simultaneously the vehicle to destination
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //TODO can we configure the walkOnly trips so that only one alternative is returned by R5 or do we need to deal with that in post?
-    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => GeoUtils.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking )
+    val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking )
     streetVehiclesNotAtRequesterOrigin.foreach{ veh =>
       // Walking to Vehicle
-      val newFromPosTransformed = GeoUtils.transform.Utm2Wgs(veh.location.loc)
+      val newFromPosTransformed = beamServices.geo.utm2Wgs(veh.location.loc)
       val newProfileRequest = profileRequest.clone()
       newProfileRequest.toLon = newFromPosTransformed.getX
       newProfileRequest.toLat = newFromPosTransformed.getY
@@ -371,7 +368,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
             val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
-            val toStopId: String = NetworkCoordinator.transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
+            val toStopId: String = transportNetwork.transitLayer.stopIdForIndex.get(segmentPattern.toIndex)
             // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
             val duration = ( if(option.transit.indexOf(transitSegment) < option.transit.size() - 1)
                               segmentPattern.toDepartureTime
@@ -482,6 +479,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
 object R5RoutingWorker extends HasProps {
   val GRAPH_FILE = "/network.dat"
+
+  var transportNetwork: TransportNetwork = _
 
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
