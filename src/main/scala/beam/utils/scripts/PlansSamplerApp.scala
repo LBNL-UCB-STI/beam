@@ -4,6 +4,8 @@ import java.util
 import java.util.UUID
 
 import beam.utils.gis.Plans2Shapefile
+import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
+import beam.utils.scripts.PopulationAttrib.Rank
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
@@ -19,16 +21,41 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesUtils}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 
-import scala.collection.JavaConverters
+import scala.collection.{JavaConverters, immutable}
 import scala.io.Source
 import scala.util.Random
 
 
 case class SynthHousehold(householdId: Id[Household], numPersons: Integer, cars: Integer, coord: Coord)
 
+import enumeratum._
+import enumeratum.EnumEntry._
+
+
+sealed trait HouseholdAttrib extends EnumEntry
+
+object HouseholdAttrib extends Enum[HouseholdAttrib]{
+
+  override def values: immutable.IndexedSeq[HouseholdAttrib] = findValues
+
+  case object HomeCoordX extends HouseholdAttrib with LowerCamelcase
+  case object HomeCoordY extends HouseholdAttrib with LowerCamelcase
+  case object HousingType extends HouseholdAttrib with LowerCamelcase
+}
+
+
+sealed trait PopulationAttrib extends EnumEntry
+
+object PopulationAttrib extends Enum[PopulationAttrib]{
+
+  override def values: immutable.IndexedSeq[PopulationAttrib] = findValues
+
+  case object Rank extends PopulationAttrib with LowerCamelcase
+}
 
 trait HasXY[T] {
   def getX(t: T): Double
@@ -141,11 +168,12 @@ object PlansSampler {
 
   val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
   val newPop: Population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-  val hh: Households = sc.getHouseholds
-  val hhFac: HouseholdsFactory = hh.getFactory
-  val vehicles = VehicleUtils.createVehiclesContainer()
+  val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
 
+  val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
   val newHH: Households = sc.getHouseholds
+  val newHHFac: HouseholdsFactory = newHH.getFactory
+  val newHHAttributes: ObjectAttributes = sc.getHouseholds.getHouseholdAttributes
 
   private var synthPop = Vector[SynthHousehold]()
 
@@ -195,7 +223,9 @@ object PlansSampler {
 
     // Init vehicle type (easier to do here)
     val defaultVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
-    vehicles.addVehicleType(defaultVehicleType)
+    newVehicles.addVehicleType(defaultVehicleType)
+
+
 
     Random.shuffle(synthPop).take((0.01*synthPop.size).toInt).toStream.foreach(sh => {
 
@@ -215,7 +245,8 @@ object PlansSampler {
       })
 
       val hhId = sh.householdId
-      val spHH = hhFac.createHousehold(hhId)
+      val spHH = newHHFac.createHousehold(hhId)
+
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
       counter.incCounter()
@@ -227,6 +258,7 @@ object PlansSampler {
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
+        newPopAttributes.putAttribute(newPersonId.toString,Rank.entryName,Random.nextInt(sh.numPersons))
 
         // Create a new plan for household member based on selected plan of first person
         val newPlan = PopulationUtils.createPlan(newPerson)
@@ -236,6 +268,12 @@ object PlansSampler {
         homePlan match {
           case None =>
             homePlan = Some(newPlan)
+            val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile
+              .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home")))
+            val homeCoord = homeActs.head.getCoord
+            newHHAttributes.putAttribute(hhId.toString,HomeCoordX.entryName,homeCoord.getX)
+            newHHAttributes.putAttribute(hhId.toString,HomeCoordY.entryName,homeCoord.getY)
+            newHHAttributes.putAttribute(hhId.toString,HousingType.entryName,"House")
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
             val firstActCoord = firstAct.getCoord
@@ -250,7 +288,7 @@ object PlansSampler {
         (1 to sh.cars).foreach(x => {
           val vehicleId = Id.createVehicleId(s"car-${UUID.randomUUID()}")
           val vehicle: Vehicle = VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
-          vehicles.addVehicle(vehicle)
+          newVehicles.addVehicle(vehicle)
           spHH.getVehicleIds.add(vehicleId)
         })
       }
@@ -263,7 +301,7 @@ object PlansSampler {
 //    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
 //    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/synthPlansFull.xml.gz")
-    new VehicleWriterV1(vehicles).writeFile(s"$outDir/vehicles.xml.gz")
+    new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
 
   }
 
