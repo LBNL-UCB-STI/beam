@@ -1,0 +1,7 @@
+{
+    routingDefaults: {
+        walkSpeed: 2.0,
+        stairsReluctance: 4.0,
+        carDropoffTime: 240
+    }
+}
