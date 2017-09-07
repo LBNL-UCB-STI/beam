@@ -207,15 +207,22 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 jar {
     manifest {
-        attributes 'Main-Class': 'beam.EVSimTeleController'
+        attributes "Implementation-Title": project.name,
+                "Implementation-Version": version,
+                "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.sim.RunBeam'
     }
 }
 
 shadowJar {
     baseName = 'beam'
+    zip64 true
     classifier = null
     version = null
 }
+
+assemble.dependsOn shadowJar
 
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
