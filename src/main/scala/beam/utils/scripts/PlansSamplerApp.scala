@@ -21,7 +21,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesUtils}
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesUtils, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 
@@ -297,11 +297,13 @@ object PlansSampler {
     counter.reset()
 
 
-    new HouseholdsWriterV10(newHH).writeFile(s"$outDir/synthHouseHolds.xml.gz")
+    new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
 //    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
 //    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
-    new PopulationWriter(newPop).write(s"$outDir/synthPlansFull.xml.gz")
+    new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
+    new ObjectAttributesXmlWriter(newHHAttributes).writeFile(s"$outDir/householdAttributes.xml.gz")
+    new ObjectAttributesXmlWriter(newPopAttributes).writeFile(s"$outDir/populationAttributes.xml.gz")
 
   }
 
