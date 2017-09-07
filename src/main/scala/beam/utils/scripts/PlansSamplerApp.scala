@@ -19,6 +19,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
+import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 
 import scala.collection.JavaConverters
@@ -132,6 +133,7 @@ object PlansSampler {
 
   import HasXY._
 
+  val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
   private val logger = Logger.getLogger("PlansSampler")
 
   private var planQt: Option[QuadTree[Plan]] = None
@@ -141,6 +143,7 @@ object PlansSampler {
   val newPop: Population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
   val hh: Households = sc.getHouseholds
   val hhFac: HouseholdsFactory = hh.getFactory
+  val vehicles = VehicleUtils.createVehiclesContainer()
 
   val newHH: Households = sc.getHouseholds
 
@@ -152,16 +155,16 @@ object PlansSampler {
   def init(args: Array[String]): Unit = {
 
     conf.plans.setInputFile(args(0))
+    conf.vehicles.setVehiclesFile(args(3))
     sc.setLocked()
     ScenarioUtils.loadScenario(sc)
     pop ++= scala.collection.JavaConverters.mapAsScalaMap(sc.getPopulation.getPersons).values.toVector
-
     synthPop ++= SynthHouseholdParser.parseFile(args(2))
 
     val plans = pop.map(_.getPlans.get(0))
 
     planQt = Some(QuadTreeBuilder.buildQuadTree(args(1), plans))
-    outDir = args(3)
+    outDir = args(4)
   }
 
   def getClosestNPlans(spCoord: Coord, n: Int): Vector[Plan] = {
@@ -190,7 +193,9 @@ object PlansSampler {
   def run(): Unit = {
 
 
-    val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
+    // Init vehicle type (easier to do here)
+    val defaultVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
+    vehicles.addVehicleType(defaultVehicleType)
 
     Random.shuffle(synthPop).take((0.01*synthPop.size).toInt).toStream.foreach(sh => {
 
@@ -242,8 +247,12 @@ object PlansSampler {
         }
 
         // Create and add car identifiers
-        (1 to sh.cars).foreach(x => spHH.getVehicleIds.add(Id.createVehicleId(s"car-$hhId-$x")))
-
+        (1 to sh.cars).foreach(x => {
+          val vehicleId = Id.createVehicleId(s"car-${UUID.randomUUID()}")
+          val vehicle: Vehicle = VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
+          vehicles.addVehicle(vehicle)
+          spHH.getVehicleIds.add(vehicleId)
+        })
       }
     })
     counter.printCounter()
@@ -254,11 +263,20 @@ object PlansSampler {
 //    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
 //    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/synthPlansFull.xml.gz")
+    new VehicleWriterV1(vehicles).writeFile(s"$outDir/vehicles.xml.gz")
 
   }
 
 }
 
+/**
+  * Inputs
+  * [0] Raw plans input filename
+  * [1] AOI shapefile
+  * [2] Synthetic person filename
+  * [3] Default vehicle type(s)
+  * [4] Output directory
+  */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler
   sampler.init(args)
