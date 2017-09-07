@@ -1,17 +1,32 @@
 package beam.agentsim.agents.choice.mode
 
+import java.io.File
 import java.util.Random
 
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.choice.logit.MulitnomialLogit
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
+import org.jdom.Document
+import org.jdom.Element
+import org.jdom.JDOMException
+import org.jdom.input.SAXBuilder;
 
 /**
   * BEAM
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices) extends ModeChoiceCalculator {
+
+  val model: MulitnomialLogit = parseInputForMNL(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
+
+  def parseInputForMNL(modeChoiceParametersFile: String): MulitnomialLogit = {
+    val builder: SAXBuilder = new SAXBuilder()
+    val document: Document = builder.build(new File(modeChoiceParametersFile)).asInstanceOf[Document]
+    val rootNode: Element = document.getRootElement()
+    MulitnomialLogit.MulitnomialLogitFactory(rootNode)
+  }
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     var containsDriveAlt = -1
