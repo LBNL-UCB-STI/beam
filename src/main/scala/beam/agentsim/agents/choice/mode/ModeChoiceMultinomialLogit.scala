@@ -13,6 +13,8 @@ import org.jdom.Document
 import org.jdom.Element
 import org.jdom.JDOMException
 import org.jdom.input.SAXBuilder;
+import scala.collection.JavaConverters._
+
 
 /**
   * BEAM
@@ -24,8 +26,20 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices) extends ModeCho
   def parseInputForMNL(modeChoiceParametersFile: String): MulitnomialLogit = {
     val builder: SAXBuilder = new SAXBuilder()
     val document: Document = builder.build(new File(modeChoiceParametersFile)).asInstanceOf[Document]
-    val rootNode: Element = document.getRootElement()
-    MulitnomialLogit.MulitnomialLogitFactory(rootNode)
+    var theModelOpt: Option[MulitnomialLogit] = None
+
+    document.getRootElement.getChildren.asScala.foreach{child =>
+      if(child.asInstanceOf[Element].getChild("className").getValue.toString.equals("ModeChoiceMultinomialLogit")) {
+        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
+        theModelOpt = Some(MulitnomialLogit.MulitnomialLogitFactory(rootNode))
+      }
+    }
+    theModelOpt match {
+      case Some(theModel) =>
+        theModel
+      case None =>
+        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: ${beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile}")
+    }
   }
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
