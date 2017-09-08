@@ -17,9 +17,7 @@ cache:
     - $HOME/.gradle/wrapper/
 
 script:
-  - pwd
-  - ls
-  - zip -r beam.zip build/libs test appspec.yml || true
+  - zip -r beam.zip beam/build/libs beam/test beam/appspec.yml || true
   - mkdir -p "dpl_cd_upload"
   - mv beam.zip dpl_cd_upload/beam.zip || true
 
@@ -31,8 +29,6 @@ deploy:
     bucket: beam-builds
     region: us-east-2b
     skip_cleanup: true
-    acl: public_read
-    detect_encoding: true
     on:
       repo: LBNL-UCB-STI/beam
       all_branches: true
