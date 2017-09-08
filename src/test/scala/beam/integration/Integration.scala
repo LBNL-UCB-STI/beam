@@ -232,5 +232,16 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
       groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
     }
+
+    "Events file contain exactly one type ModeChoice of mode transit " in {
+
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+      
+      listValueTagEventFile.foreach(println)
+      //var listTransit = listValueTagEventFile.map(e => e.equals("car")).foreach(println)
+      //val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+
+
+    }
   }
 }
