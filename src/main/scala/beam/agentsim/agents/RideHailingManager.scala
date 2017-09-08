@@ -191,8 +191,9 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
           val travelProposal = travelPlanOpt.get._1
           val tripPlan = travelPlanOpt.map(_._2)
           handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent, closestRideHailingAgent, travelProposal, tripPlan)
-//        case Some(closestRideHailingAgent) =>
-//          handleReservation(inquiryId, closestRideHailingAgent, vehiclePersonIds, customerPickUp, departAt, destination, customerAgent)
+        case Some(_) =>
+          // TODO: retry if unavailable
+          customerAgent ! ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Left(VehicleUnavailable))
         case None =>
           customerAgent ! ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Left(VehicleUnavailable))
       }
@@ -246,9 +247,15 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
   }
 
   private def completeReservation(inquiryId: Id[RideHailingInquiry]): Unit ={
-    val response = pendingModifyPassengerScheduleAcks.remove(inquiryId).get
-    val customerRef = beamServices.personRefs(response.response.right.get.passengerVehiclePersonId.personId)
-    customerRef ! response
+    pendingModifyPassengerScheduleAcks.remove(inquiryId) match {
+      case Some(response)=>
+        val customerRef = beamServices.personRefs(response.response.right.get.passengerVehiclePersonId.personId)
+        customerRef ! response
+      case None =>
+        log.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
+        ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Left(VehicleUnavailable))
+    }
+
   }
 
 //  triggerCustomerPickUp(customerPickUp, destination, closestRideHailingAgentLocation, trip2DestPlan, travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip(), confirmation, vehiclePersonId)

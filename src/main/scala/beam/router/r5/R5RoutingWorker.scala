@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, RAIL, SUBWAY, TRAM, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM, TRANSIT, WALK}
 import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
@@ -114,8 +114,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
         }
         // Create the driver agent and vehicle here
-        //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
-//        val transitVehRef = context.actorOf(TransitVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle))
+
         (tripVehId,route,passengerSchedule)
       }
     }
@@ -131,12 +130,12 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   }
 
   def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
-    //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
+
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleTypeId = Id.create(mode.toString.toLowerCase, classOf[VehicleType])
     val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
     mode match {
-      case (BUS | SUBWAY | TRAM | CABLE_CAR| RAIL) if vehicleType != null =>
+      case (BUS | SUBWAY | TRAM | CABLE_CAR| RAIL| FERRY) if vehicleType != null =>
         val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
         val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
         val initialMatsimAttributes = new Attributes()

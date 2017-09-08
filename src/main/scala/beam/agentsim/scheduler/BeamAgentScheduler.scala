@@ -129,7 +129,11 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
     case CompletionNotice(triggerId: Long, newTriggers: Vector[ScheduleTrigger]) =>
 //      log.info(s"recieved notice that trigger triggerId: $triggerId is complete")
       newTriggers.foreach{scheduleTrigger}
-      awaitingResponse.remove(triggerIdToTick(triggerId), triggerId)
+      if(!triggerIdToTick.contains(triggerId) | !awaitingResponse.containsKey(triggerIdToTick(triggerId))){
+        log.error(s"Received bad trigger from ${sender().path}")
+      }else{
+        awaitingResponse.remove(triggerIdToTick(triggerId), triggerId)
+      }
       if(debugEnabled){
         awaitingResponseVerbose.remove(triggerIdToTick(triggerId), triggerIdToScheduledTrigger(triggerId))
         triggerIdToScheduledTrigger -= triggerId

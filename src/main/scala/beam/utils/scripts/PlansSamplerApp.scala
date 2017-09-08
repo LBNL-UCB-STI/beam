@@ -227,7 +227,7 @@ object PlansSampler {
 
 
 
-    Random.shuffle(synthPop).take((0.01*synthPop.size).toInt).toStream.foreach(sh => {
+    Random.shuffle(synthPop).take((0.001*synthPop.size).toInt).toStream.foreach(sh => {
 
       val N = if (sh.numPersons * 2 > 0) {
         sh.numPersons * 2

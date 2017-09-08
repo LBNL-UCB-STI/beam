@@ -159,7 +159,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
     services.households.foreach {
       case (householdId, matSimHousehold) =>
-        personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => (personId -> householdId))
+        personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => personId -> householdId)
     }
 
     val iterId = Option(iter.toString)
@@ -188,19 +188,14 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 //    val rideHailingFraction = 0.1
     val initialLocationJitter = 2000 // meters
 
-    // Protocol:
-    // - Initialize RideHailingAgents to be located within ~initialLocationJitter km of a subset of agents
-    // - Each RideHailingAgent gets a CarVehicle
-    // -
 
     val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
     rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
-
     for ((k, v) <- services.persons) {
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-//      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
-      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
+      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
+//      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
       val rideHailingName = s"rideHailingAgent-${k}_$iter"
       val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
       val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
