@@ -80,12 +80,7 @@ object RoutingModel {
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
           if (Modes.isR5TransitMode(currentMode)) {
-            inAccessPhase = false
-            if(!services.transitVehiclesByBeamLeg.contains(beamLeg)){
-              EmbodiedBeamLeg.empty
-            }else {
               EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
-            }
           } else if (inAccessPhase) {
             EmbodiedBeamLeg(beamLeg, accessVehiclesByMode(currentMode).id, accessVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
           } else {
