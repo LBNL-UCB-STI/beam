@@ -10,7 +10,7 @@ test/output
 output/
 libs
 .idea/*
-!.idea/runConfigurations/RunBeam_BeamVille.xml
+!.idea/runConfigurations/Run*
 .cache*
 target/
 beam.iml
