@@ -1,5 +1,6 @@
 package beam.sim
 
+import beam.Log4jController
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
 import beam.sim.config.ConfigModule
@@ -37,7 +38,6 @@ trait RunBeam {
       override def install(): Unit = {
 
         // Beam -> MATSim Wirings
-
         bindMobsim().to(classOf[QSim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
@@ -55,11 +55,15 @@ trait RunBeam {
     //TODO this line can be safely deleted, just for exploring structure of config class
     //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
 
+    //Mute log
+    Log4jController.muteLog(ConfigModule.beamConfig.beam.levels.loggerLevels)
+
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
     services.controler.run()
+
   }
 }
 
