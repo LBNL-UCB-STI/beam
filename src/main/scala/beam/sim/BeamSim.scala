@@ -57,7 +57,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    eventsManager = services.matsimServices.getEvents
+//    eventsManager = services.matsimServices.getEvents
+    eventsManager = EventsUtils.createEventsManager()
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
@@ -136,10 +137,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-
     if (writer != null && event.isUnexpected) {
       cleanupWriter()
     }
+    eventsManager.finishProcessing()
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(services.schedulerRef)
     actorSystem.terminate()
