@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalBehaviors
 
 import beam.agentsim.agents.BeamAgent.BeamAgentInfo
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
+import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse, RideUnavailableError}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, ChoiceCalculator, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
@@ -176,8 +176,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         stay()
       }
     case Event(ReservationResponse(requestId,Left(reservationError)),_) =>
-      routingResponse = Some(routingResponse.get.copy(itineraries=routingResponse.get.itineraries.diff(Seq(pendingChosenTrip))))
-      if(routingResponse.get.itineraries.isEmpty){
+      pendingChosenTrip.get.tripClassifier match {
+        case RIDEHAIL =>
+          rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(),error = Some(RideUnavailableError)))
+        case _ =>
+          routingResponse = Some(routingResponse.get.copy(itineraries=routingResponse.get.itineraries.diff(Seq(pendingChosenTrip))))
+      }
+      if(routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error != None){
         errorFromEmptyRoutingResponse()
       }else{
         completeChoiceIfReady()
