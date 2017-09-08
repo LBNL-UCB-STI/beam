@@ -244,17 +244,26 @@ object PlansSampler {
         } else x)
       })
 
-      val hhId = sh.householdId
+
+      val hhId = Id.create(counter.getCounter,classOf[Household])
       val spHH = newHHFac.createHousehold(hhId)
 
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
       counter.incCounter()
 
-      var homePlan: Option[Plan] = None
-      for (plan <- selectedPlans) {
+      // Create and add car identifiers
+      (0 to sh.cars).foreach(x => {
+        val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
+        val vehicle: Vehicle = VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
+        newVehicles.addVehicle(vehicle)
+        spHH.getVehicleIds.add(vehicleId)
+      })
 
-        var newPersonId = Id.createPersonId(s"${UUID.randomUUID()}")
+      var homePlan: Option[Plan] = None
+      for ((plan, idx) <- selectedPlans.zipWithIndex) {
+
+        var newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
@@ -283,14 +292,6 @@ object PlansSampler {
               act.setCoord(firstActCoord)
             }
         }
-
-        // Create and add car identifiers
-        (1 to sh.cars).foreach(x => {
-          val vehicleId = Id.createVehicleId(s"car-${UUID.randomUUID()}")
-          val vehicle: Vehicle = VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
-          newVehicles.addVehicle(vehicle)
-          spHH.getVehicleIds.add(vehicleId)
-        })
       }
     })
     counter.printCounter()
