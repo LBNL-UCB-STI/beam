@@ -1,1 +1,3 @@
-id,siteID,plugTypeID,numPlugs,numParkingSpacesPerPoint,compareWithObservedCounts1,1,1,2,2,02,2,1,4,4,03,3,1,4,4,05,5,1,4,4,16,6,1,4,4,17,7,1,4,4,19,9,1,4,4,1
+version https://git-lfs.github.com/spec/v1
+oid sha256:b9963a40323c30e2bc5a7e18068e6bd3eddd746c3611b13a87760e58ba916345
+size 164
