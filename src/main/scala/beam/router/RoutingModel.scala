@@ -72,7 +72,7 @@ object RoutingModel {
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
     def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode, StreetVehicle], egressVehiclesByMode: Map[BeamMode, StreetVehicle], services: BeamServices): EmbodiedBeamTrip = {
-      if (trip.legs.size == 0) {
+      if (trip.legs.isEmpty) {
         EmbodiedBeamTrip.empty
       } else {
         var inAccessPhase = true
@@ -81,11 +81,15 @@ object RoutingModel {
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
           if (Modes.isR5TransitMode(currentMode)) {
             inAccessPhase = false
-            EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg.get(beamLeg).get, false, None, 0.0, false)
+            if(!services.transitVehiclesByBeamLeg.contains(beamLeg)){
+              EmbodiedBeamLeg.empty
+            }else {
+              EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
+            }
           } else if (inAccessPhase) {
-            EmbodiedBeamLeg(beamLeg, accessVehiclesByMode.get(currentMode).get.id, accessVehiclesByMode.get(currentMode).get.asDriver, None, 0.0, unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg, accessVehiclesByMode(currentMode).id, accessVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
           } else {
-            EmbodiedBeamLeg(beamLeg, egressVehiclesByMode.get(currentMode).get.id, egressVehiclesByMode.get(currentMode).get.asDriver, None, 0.0, unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg, egressVehiclesByMode(currentMode).id, egressVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
           }
         }
         EmbodiedBeamTrip(embodiedLegs)
