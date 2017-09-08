@@ -3,3 +3,7 @@ os: linux
 files:
   - source: /
     destination: /home/ubuntu/beam
+hooks:
+  ApplicationStart:
+    - location: test/scripts/install.sh
+      runas: ubuntu

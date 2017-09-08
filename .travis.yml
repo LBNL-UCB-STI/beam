@@ -17,7 +17,7 @@ cache:
     - $HOME/.gradle/wrapper/
 
 script:
-  - zip -r beam.zip build/libs test appspec.yml || true
+  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
   - mkdir -p "dpl_cd_upload"
   - mv beam.zip dpl_cd_upload/beam.zip || true
 
