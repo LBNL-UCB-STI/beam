@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.Modes.BeamMode.{BUS, SUBWAY, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, RAIL, SUBWAY, TRAM, TRANSIT, WALK}
 import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
@@ -22,7 +22,7 @@ import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
-import beam.utils.{RefectionUtils}
+import beam.utils.RefectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -37,6 +37,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import beam.sim.common.GeoUtils._
 
 class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
@@ -133,10 +134,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
     //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-    val vehicleTypeId = Id.create((if(mode==SUBWAY){ 2 }else{ 1 }).toString, classOf[VehicleType])
+    val vehicleTypeId = Id.create(mode.toString.toLowerCase, classOf[VehicleType])
     val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
     mode match {
-      case (BUS | SUBWAY) if vehicleType != null =>
+      case (BUS | SUBWAY | TRAM | CABLE_CAR| RAIL) if vehicleType != null =>
         val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
         val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
         val initialMatsimAttributes = new Attributes()
@@ -163,7 +164,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
-    val isRouteForPerson = routingRequestTripInfo.streetVehicles.filter(_.mode == WALK).size > 0
+    val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
     val profileRequestToVehicles: ProfileRequestToVehicles = if(isRouteForPerson){
       buildRequestsForPerson(routingRequestTripInfo)
@@ -216,8 +217,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
+    val fromPosTransformed = routingRequestTripInfo.origin.toWgs
+    val toPosTransformed = routingRequestTripInfo.destination.toWgs
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
@@ -274,8 +275,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
+    val fromPosTransformed = routingRequestTripInfo.origin.toWgs
+    val toPosTransformed = routingRequestTripInfo.destination.toWgs
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX

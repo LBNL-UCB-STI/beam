@@ -31,7 +31,7 @@ import scala.util.Random
 trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  val choiceCalculator: ChoiceCalculator = ChoosesMode.transitIfAvailable
+  val choiceCalculator: ChoiceCalculator = ChoosesMode.rideHailIfAvailable
   var routingResponse: Option[RoutingResponse] = None
   var rideHailingResult: Option[RideHailingInquiryResponse] = None
   var hasReceivedCompleteChoiceTrigger = false
@@ -90,7 +90,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       }
       val transitLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit)
       if (transitLegs.nonEmpty) {
-        transitLegs.toVector.groupBy(_.leg.beamVehicleId).foreach { idToLegs =>
+        transitLegs.groupBy(_.leg.beamVehicleId).foreach { idToLegs =>
           val legs = idToLegs._2.sortBy(_.leg.beamLeg.startTime)
           val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(idToLegs._1).toString)
           val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg.beamLeg, VehiclePersonId(legs.head.passengerVehicle,id)), idToLegs._1)
