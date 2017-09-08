@@ -16,8 +16,9 @@ cache:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
 
-before_deploy:
-  - cd ..
+script:
+  - pwd
+  - ls
   - zip -r beam.zip build/libs test appspec.yml || true
   - mkdir -p "dpl_cd_upload"
   - mv beam.zip dpl_cd_upload/beam.zip || true
