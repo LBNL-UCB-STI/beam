@@ -3,7 +3,7 @@ package beam.router.r5
 import java.io.File
 import java.nio.file.Files.exists
 import java.nio.file.Paths
-import java.time.ZonedDateTime
+import java.time.{ZoneId, ZonedDateTime}
 import java.time.temporal.ChronoUnit
 import java.util
 
@@ -122,6 +122,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     transitScheduleToCreate.foreach{ case (tripVehId, route, passengerSchedule) =>
       createTransitVehicle(tripVehId, route, passengerSchedule)
     }
+
     log.info(s"Finished Transit initialization trips, ${transitData.length}")
   }
 
@@ -464,8 +465,12 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   }*/
 
   private def toBaseMidnightSeconds(time: ZonedDateTime): Long = {
-    val baseDate = ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate)
-    ChronoUnit.SECONDS.between(baseDate, time)
+    if(transportNetwork.transitLayer.routes.size()==0){
+      ChronoUnit.SECONDS.between(ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate).toLocalDateTime, time)
+    }else{
+      ChronoUnit.SECONDS.between(ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate), time)
+    }
+
   }
 
   private def toCoord(geometry: LineString): Coord = {

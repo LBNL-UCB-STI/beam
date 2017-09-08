@@ -9,6 +9,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 trait RoutingWorker extends Actor with ActorLogging with HasServices {
+
+
   override final def receive: Receive = {
     case InitializeRouter =>
       log.info("Initializing RoutingWorker")
