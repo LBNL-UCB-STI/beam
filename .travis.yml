@@ -27,7 +27,7 @@ deploy:
     secret_access_key: $AWS_SECRET_KEY
     local_dir: dpl_cd_upload
     bucket: beam-builds
-    region: us-east-2b
+    region: us-east-2
     skip_cleanup: true
     on:
       repo: LBNL-UCB-STI/beam
@@ -40,7 +40,7 @@ deploy:
     bundle_type: zip
     application: Beam
     deployment_group: BeamDeploymentGroup
-    region: us-east-2b
+    region: us-east-2
     on:
       repo: LBNL-UCB-STI/beam
       all_branches: true
