@@ -20,13 +20,16 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
-import beam.router.{Modes, RoutingWorker}
+import beam.router.{Modes, RoutingWorker, StreetPathTrajectoryResolver, TrajectoryByEdgeIdsResolver}
+import R5RoutingWorker.stopForIndex
 import beam.sim.BeamServices
-import beam.utils.{RefectionUtils}
+import beam.utils.RefectionUtils
+import com.conveyal.gtfs.model
+import com.conveyal.gtfs.model.Stop
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
-import com.conveyal.r5.profile.ProfileRequest
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
@@ -48,6 +51,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO parameterize the distance threshold here
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
+
   override def init: Unit = {
     loadMap
     overrideR5EdgeSearchRadius(2000)
@@ -64,10 +68,12 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
       transportNetwork = TransportNetwork.read(networkFile)
+      stopForIndex = TransportNetwork.fromDirectory(networkDirPath.toFile).transitLayer.stopForIndex
     } else {
       log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
       transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      stopForIndex = transportNetwork.transitLayer.stopForIndex
       transportNetwork.write(networkFile)
       transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
@@ -80,7 +86,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
   /*
    * Plan of action:
-   * Each TripSchedule within each TripPatter represents a transit vehicle trip and will spawn a transitDriverAgent and a vehicle
+   * Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and a vehicle
    * The arrivals/departures within the TripSchedules are vectors of the same length as the "stops" field in the TripPattern
    * The stop IDs will be used to extract the Coordinate of the stop from the transitLayer (don't see exactly how yet)
    * Also should hold onto the route and trip IDs and use route to lookup the transit agency which ultimately should
@@ -97,25 +103,31 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       //      log.debug(tripPattern.toString)
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      val firstStop = tripPattern.tripSchedules.asScala
-      firstStop.map { tripSchedule =>
+      val transitRouteTrips = tripPattern.tripSchedules.asScala
+      transitRouteTrips.map { transitTrip =>
         // First create a unique for this trip which will become the transit agent and vehicle ids
-        val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
-        val numStops = tripSchedule.departures.length
+        val tripVehId = Id.create(transitTrip.tripId, classOf[Vehicle])
+        val numStops = transitTrip.departures.length
         val passengerSchedule = PassengerSchedule()
-        tripSchedule.departures.zipWithIndex.foreach { case (departure, i) =>
-          val duration = if(i == numStops-1){ 1L }else{ tripSchedule.arrivals(i+1) - departure }
-          val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
-          val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
-          val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
+        transitTrip.departures.zipWithIndex.foreach { case (departure, i) =>
+          val nextStopIndex = if (i == numStops - 1) {
+            tripPattern.stops(0)
+          } else {
+            tripPattern.stops(i + 1)
+          }
+          val duration = if(i == numStops-1){ 1L }else{ transitTrip.arrivals(i+1) - departure }
+          val fromStop = stopForIndex.get(tripPattern.stops(i))
+          val toStop = stopForIndex.get(nextStopIndex)
+          val edgeIds = resolveTransitEdges(fromStop, toStop)
+          //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
+          //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
+          val fromStopId = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
+          val toStopId = transportNetwork.transitLayer.stopIdForIndex.get(nextStopIndex)
+          val transitLeg = BeamPath(edgeIds, Option(TransitStopsInfo(fromStopId, toStopId)), new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer) )
           val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
           beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
         }
-        // Create the driver agent and vehicle here
-        //TODO we need to use the correct vehicle based on the agency and/or route info, for now we hard code 1 == BUS/OTHER and 2 == TRAIN
-        val matsimVehicle = beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.get(Id.create(mode match { case SUBWAY => "2"; case _ => "1" },classOf[VehicleType]))
-//        val transitVehRef = context.actorOf(TransitVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()),BeamVehicle.buildActorName(matsimBodyVehicle))
         (tripVehId,route,passengerSchedule)
       }
     }
@@ -124,6 +136,14 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
       createTransitVehicle(tripVehId, route, passengerSchedule)
     }
     log.info(s"Finished Transit initialization trips, ${transitData.length}")
+  }
+
+  private def resolveTransitEdges(stops: model.Stop*) = {
+    val edgeIds: Vector[String] = stops.flatMap { stop =>
+      val split = transportNetwork.streetLayer.findSplit(stop.stop_lat, stop.stop_lon, 25, StreetMode.CAR)
+      Option(split).map(_.edge.toString)
+    }.toVector.distinct
+    edgeIds
   }
 
   private def transitVehicles = {
@@ -349,7 +369,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         // Using itinerary start as access leg's startTime
         val tripStartTime = toBaseMidnightSeconds(itinerary.startTime)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildStreetPath(access))
+        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, buildStreetPath(access, tripStartTime))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
         if(forPerson && access.mode != LegMode.WALK) {
@@ -384,7 +404,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             arrivalTime = toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time))
             if(transitSegment.middle != null) {
               isMiddle = true
-              legs = legs :+ BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, buildStreetPath(transitSegment.middle))
+              legs = legs :+ BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration,
+                buildStreetPath(transitSegment.middle, arrivalTime))
               arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
             }
           }
@@ -393,7 +414,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           if(itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             //start time would be the arival time of last stop and 5 second alighting
-            legs = legs :+ BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress))
+            legs = legs :+ BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress, arrivalTime))
             if(forPerson && egress.mode != LegMode.WALK) legs :+ dummyWalk(arrivalTime + egress.duration)
           }
         }
@@ -405,27 +426,28 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   }
 
   // TODO Need to figure out vehicle id for access, egress, middle, transit and specify as argument of StreetPath
-  private def buildStreetPath(segment: StreetSegment): BeamStreetPath = {
+  private def buildStreetPath(segment: StreetSegment, tripStartTime: Long): BeamPath = {
     var activeLinkIds = Vector[String]()
-    var spaceTime = Vector[SpaceTime]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds = activeLinkIds :+ edge.edgeId.toString
 //      if(graphPathOutputsNeeded) {
 //        activeCoords = activeCoords :+ toCoord(edge.geometry)
 //      }
-      //TODO: time need to be extrected and provided as last argument of SpaceTime
-      spaceTime = spaceTime :+ SpaceTime(edge.geometry.getCoordinate.x, edge.geometry.getCoordinate.y, -1)
     }
-
-    BeamStreetPath(activeLinkIds, trajectory = Some(spaceTime))
+    BeamPath(activeLinkIds, None, new StreetPathTrajectoryResolver(transportNetwork.streetLayer, tripStartTime, segment.duration))
   }
 
-  private def buildPath(segment: TransitSegment, transitJourneyID: TransitJourneyID): BeamTransitSegment = {
-    val segmentPattern: SegmentPattern = segment.segmentPatterns.get(transitJourneyID.pattern)
-    val beamVehicleId = Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))
-    val departureTime = toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time))
-
-    BeamTransitSegment(segment.from.stopId, segment.to.stopId, departureTime)
+  private def buildPath(segment: TransitSegment, transitJourneyID: TransitJourneyID): BeamPath = {
+    val linkIds = if (segment.middle != null) {
+      segment.middle.streetEdges.asScala.map(_.edgeId.toString).toVector
+    } else {
+      val intStopId = transportNetwork.transitLayer.indexForStopId.get(segment.from.stopId)
+      val fromStop = stopForIndex.get(intStopId)
+      val toIntStopId = transportNetwork.transitLayer.indexForStopId.get(segment.to.stopId)
+      val toStop = stopForIndex.get(toIntStopId)
+      resolveTransitEdges(fromStop, toStop)
+    }
+    BeamPath(linkIds, Option(TransitStopsInfo(segment.from.stopId, segment.to.stopId)), new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer))
   }
 /*
   private def buildPath(profileRequest: ProfileRequest, streetMode: StreetMode): BeamStreetPath = {
@@ -481,6 +503,7 @@ object R5RoutingWorker extends HasProps {
   val GRAPH_FILE = "/network.dat"
 
   var transportNetwork: TransportNetwork = _
+  var stopForIndex: util.List[Stop] = _
 
   override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
