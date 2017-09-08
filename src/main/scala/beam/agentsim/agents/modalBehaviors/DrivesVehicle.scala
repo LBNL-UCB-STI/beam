@@ -89,6 +89,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         case None =>
           logError(s"Driver ${id} did not find a manifest for BeamLeg ${newLeg}")
           goto(BeamAgent.Error) replying completed(triggerId)
+
       }
     case Event(BoardingConfirmation(vehicleId), agentInfo) =>
       _awaitingBoardConfirmation -= vehicleId
