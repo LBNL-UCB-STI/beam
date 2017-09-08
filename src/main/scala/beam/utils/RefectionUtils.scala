@@ -3,8 +3,11 @@ package beam.utils
 import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
 
+import com.google.common.collect.Lists
 import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
 import org.reflections.{ReflectionUtils, Reflections}
+import org.reflections.util.ClasspathHelper
+import org.reflections.util.ConfigurationBuilder
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -16,7 +19,9 @@ object RefectionUtils {
 
   val reflections = {
     val classLoader = RefectionUtils.getClass.getClassLoader
-    new Reflections(new ConfigurationBuilder().addUrls(ClasspathHelper.forClassLoader(classLoader)).addClassLoader(classLoader))
+    val builder = new ConfigurationBuilder
+    builder.addUrls(ClasspathHelper.forPackage(".jnilib"))
+    new Reflections(builder.addUrls(ClasspathHelper.forClassLoader(classLoader)).addClassLoader(classLoader))
   }
 
   def classesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {
@@ -45,4 +50,6 @@ object RefectionUtils {
     modifiersField.setInt(field, field.getModifiers & ~Modifier.FINAL)
     field.set(null, value)
   }
+
+
 }
