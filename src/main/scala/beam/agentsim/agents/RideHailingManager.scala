@@ -160,7 +160,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
 
 
               val modRHA2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-              val modRHA2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = (c.beamLeg.mode == WALK), unbecomeDriverOnCompletion = c.beamLeg==l.legs(2).beamLeg, beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
+              val modRHA2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL)).map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK, unbecomeDriverOnCompletion = c.beamLeg==l.legs(2).beamLeg, beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
 
               val rideHailingAgent2CustomerResponseMod = RoutingResponse(rideHailingAgent2CustomerResponse.id, modRHA2Cust)
               val rideHailing2DestinationResponseMod = RoutingResponse(rideHailing2DestinationResponse.id, modRHA2Dest)

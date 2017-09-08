@@ -307,7 +307,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val streetVehiclesNotAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking )
     streetVehiclesNotAtRequesterOrigin.foreach{ veh =>
       // Walking to Vehicle
-      val newFromPosTransformed = beamServices.geo.utm2Wgs(veh.location.loc)
+      val newFromPosTransformed = veh.location.loc.toWgs
       val newProfileRequest = profileRequest.clone()
       newProfileRequest.toLon = newFromPosTransformed.getX
       newProfileRequest.toLat = newFromPosTransformed.getY
