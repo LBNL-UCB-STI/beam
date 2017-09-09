@@ -54,7 +54,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   var writer: JsonFriendlyEventWriterXML = _
   var currentIter = 0
 
-  private implicit val timeout = Timeout(5000, TimeUnit.SECONDS)
+  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
     val scenario = services.matsimServices.getScenario
