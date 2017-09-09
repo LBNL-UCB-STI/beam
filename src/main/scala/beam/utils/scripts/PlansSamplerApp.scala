@@ -21,6 +21,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
+import org.matsim.pt2matsim.tools.{CoordTools, NetworkTools}
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesUtils, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
@@ -183,16 +184,17 @@ object PlansSampler {
   def init(args: Array[String]): Unit = {
 
     conf.plans.setInputFile(args(0))
-    conf.vehicles.setVehiclesFile(args(3))
+    conf.network.setInputFile(args(2))
+    conf.vehicles.setVehiclesFile(args(4))
     sc.setLocked()
     ScenarioUtils.loadScenario(sc)
     pop ++= scala.collection.JavaConverters.mapAsScalaMap(sc.getPopulation.getPersons).values.toVector
-    synthPop ++= SynthHouseholdParser.parseFile(args(2))
+    synthPop ++= SynthHouseholdParser.parseFile(args(3))
 
     val plans = pop.map(_.getPlans.get(0))
 
     planQt = Some(QuadTreeBuilder.buildQuadTree(args(1), plans))
-    outDir = args(4)
+    outDir = args(5)
   }
 
   def getClosestNPlans(spCoord: Coord, n: Int): Vector[Plan] = {
@@ -280,6 +282,9 @@ object PlansSampler {
             val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile
               .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home")))
             val homeCoord = homeActs.head.getCoord
+            val nearestLink = NetworkTools.getNearestLink(sc.getNetwork,homeCoord,50000) // Search for closest link w/in 50000 m
+            val movedCoord = CoordTools.getClosestPointOnLine(nearestLink.getFromNode.getCoord,nearestLink.getToNode.getCoord,homeCoord)
+            homeActs.head.setCoord(movedCoord)
             newHHAttributes.putAttribute(hhId.toString,HomeCoordX.entryName,homeCoord.getX)
             newHHAttributes.putAttribute(hhId.toString,HomeCoordY.entryName,homeCoord.getY)
             newHHAttributes.putAttribute(hhId.toString,HousingType.entryName,"House")
@@ -314,9 +319,10 @@ object PlansSampler {
   * Inputs
   * [0] Raw plans input filename
   * [1] AOI shapefile
-  * [2] Synthetic person filename
-  * [3] Default vehicle type(s)
-  * [4] Output directory
+  * [2] Network input filename
+  * [3] Synthetic person filename
+  * [4] Default vehicle type(s)
+  * [5] Output directory
   */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler
