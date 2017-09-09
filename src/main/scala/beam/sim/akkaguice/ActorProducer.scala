@@ -1,4 +1,4 @@
-package beam.playground.akkaguice
+package beam.sim.akkaguice
 
 /**
   * Created by sfeygin on 2/6/17.

@@ -47,41 +47,38 @@ object Log4jController {
     rootLogger.addAppender(consoleDEBUG)
     rootLogger.setLevel(Level.OFF)
     //Iterate over the logger option
-   list.foreach {i =>
-     i match
-      {
-        case "INFO" =>
-          //configure the appender for INFO
-          // configures the root logger
-          rootLogger.addAppender(consoleINFO)
-          rootLogger.setLevel(Level.INFO)
+   list.foreach {
+     case "INFO" =>
+       //configure the appender for INFO
+       // configures the root logger
+       rootLogger.addAppender(consoleINFO)
+       rootLogger.setLevel(Level.INFO)
 
-        case "TRACE" =>
-          //configure the appender for TRACE
-          // configures the root logger
-          rootLogger.addAppender(consoleTRACE)
-          rootLogger.setLevel(Level.TRACE)
+     case "TRACE" =>
+       //configure the appender for TRACE
+       // configures the root logger
+       rootLogger.addAppender(consoleTRACE)
+       rootLogger.setLevel(Level.TRACE)
 
-        case "WARN" =>
-          //configure the appender for WARN
-          // configures the root logger
-          rootLogger.addAppender(consoleWARN)
-          rootLogger.setLevel(Level.WARN)
+     case "WARN" =>
+       //configure the appender for WARN
+       // configures the root logger
+       rootLogger.addAppender(consoleWARN)
+       rootLogger.setLevel(Level.WARN)
 
-        case "ERROR" =>
-          //configure the appender for ERROR
-          // configures the root logger
-          rootLogger.addAppender(consoleERROR)
-          rootLogger.setLevel(Level.ERROR)
+     case "ERROR" =>
+       //configure the appender for ERROR
+       // configures the root logger
+       rootLogger.addAppender(consoleERROR)
+       rootLogger.setLevel(Level.ERROR)
 
-        case "DEBUG" =>
-          //configure the appender for DEBUG
-          // configures the root logger
-          rootLogger.addAppender(consoleDEBUG)
-          rootLogger.setLevel(Level.DEBUG)
+     case "DEBUG" =>
+       //configure the appender for DEBUG
+       // configures the root logger
+       rootLogger.addAppender(consoleDEBUG)
+       rootLogger.setLevel(Level.DEBUG)
 
-        case _ => "Invalid entry" // the default, catch-all
-      }
-    }
+     case _ => "Invalid entry" // the default, catch-all
+   }
   }
 }

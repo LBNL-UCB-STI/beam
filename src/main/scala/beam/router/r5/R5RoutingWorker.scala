@@ -22,6 +22,7 @@ import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
 import beam.utils.RefectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -216,8 +217,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = routingRequestTripInfo.origin.toWgs
-    val toPosTransformed = routingRequestTripInfo.destination.toWgs
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
@@ -274,8 +275,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = routingRequestTripInfo.origin.toWgs
-    val toPosTransformed = routingRequestTripInfo.destination.toWgs
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX

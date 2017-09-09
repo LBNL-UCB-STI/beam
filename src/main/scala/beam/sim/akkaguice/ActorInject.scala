@@ -1,4 +1,4 @@
-package beam.playground.akkaguice
+package beam.sim.akkaguice
 
 import akka.actor._
 import com.google.inject.Injector
