@@ -6,4 +6,5 @@ files:
 hooks:
   ApplicationStart:
     - location: test/scripts/install.sh
+      timeout: 60
       runas: ubuntu
