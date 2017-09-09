@@ -80,7 +80,11 @@ object RoutingModel {
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
           if (Modes.isR5TransitMode(currentMode)) {
+            if(services.transitVehiclesByBeamLeg.contains(beamLeg)) {
               EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
+            }else{
+              EmbodiedBeamLeg.empty
+            }
           } else if (inAccessPhase) {
             EmbodiedBeamLeg(beamLeg, accessVehiclesByMode(currentMode).id, accessVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
           } else {
@@ -117,7 +121,7 @@ object RoutingModel {
                      mode: BeamMode,
                      duration: Long,
                      travelPath: BeamPath = empty) {
-    def endTime: Long = startTime + duration
+    val endTime: Long = startTime + duration
   }
 
   object BeamLeg {
@@ -133,7 +137,7 @@ object RoutingModel {
                              cost: BigDecimal,
                              unbecomeDriverOnCompletion: Boolean
                             ) {
-    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+    val isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
   }
 
   object EmbodiedBeamLeg {

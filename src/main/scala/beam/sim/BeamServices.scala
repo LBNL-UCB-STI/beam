@@ -70,8 +70,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val households: collection.concurrent.Map[Id[Household], Household] = collection.concurrent.TrieMap[Id[Household], Household]()
   val householdRefs: collection.concurrent.Map[Id[Household], ActorRef] = collection.concurrent.TrieMap[Id[Household], ActorRef]()
   val agentRefs: collection.concurrent.Map[String, ActorRef] = collection.concurrent.TrieMap[String, ActorRef]()
-  val transitVehiclesByBeamLeg: mutable.Map[BeamLeg, Id[Vehicle]] = mutable.Map[BeamLeg, Id[Vehicle]]()
-  val transitDriversByVehicle: mutable.Map[Id[Vehicle], Id[TransitDriverAgent]] = mutable.Map[Id[Vehicle], Id[TransitDriverAgent]]()
+  val transitVehiclesByBeamLeg: mutable.Map[BeamLeg, Id[Vehicle]] = collection.concurrent.TrieMap[BeamLeg, Id[Vehicle]]()
+  val transitDriversByVehicle: mutable.Map[Id[Vehicle], Id[TransitDriverAgent]] = collection.concurrent.TrieMap[Id[Vehicle], Id[TransitDriverAgent]]()
 
 }
 

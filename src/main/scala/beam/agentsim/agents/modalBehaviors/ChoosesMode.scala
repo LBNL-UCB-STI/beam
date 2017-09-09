@@ -11,6 +11,7 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events.resources.vehicle.{Reservation, ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -22,6 +23,7 @@ import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.vehicles.Vehicle
+import scala.concurrent.duration._
 
 import scala.util.Random
 
@@ -173,16 +175,17 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if(awaitingReservationConfirmation.isEmpty){
         scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, resrvationConfirmation.triggersToSchedule)
       }else{
-        stay()
+        log.error("Too many reservation requests!")
+        errorFromEmptyRoutingResponse()
       }
-    case Event(ReservationResponse(requestId,Left(reservationError)),_) =>
+    case Event(ReservationResponse(requestId,Left(reservationError:ReservationError)),_) =>
       pendingChosenTrip.get.tripClassifier match {
         case RIDEHAIL =>
           rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(),error = Some(RideUnavailableError)))
         case _ =>
           routingResponse = Some(routingResponse.get.copy(itineraries=routingResponse.get.itineraries.diff(Seq(pendingChosenTrip))))
       }
-      if(routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error != None){
+      if(routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined){
         errorFromEmptyRoutingResponse()
       }else{
         completeChoiceIfReady()
