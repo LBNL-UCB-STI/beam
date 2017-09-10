@@ -3,8 +3,6 @@
 
 package beam.sim.config
 
-import beam.Log4jController
-
 case class BeamConfig(
   akka              : BeamConfig.Akka,
   beam              : BeamConfig.Beam,
@@ -118,7 +116,7 @@ object BeamConfig {
     case class Events(
       filterDist          : scala.Int,
       pathTraversalEvents : scala.List[java.lang.String]
-                     )
+    )
     object Events {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Events = {
         BeamConfig.Beam.Events(
@@ -127,20 +125,18 @@ object BeamConfig {
         )
       }
     }
-
-
+          
     case class Levels(
-    loggerLevels : scala.List[java.lang.String]
-                     )
+      loggerLevels : scala.List[java.lang.String]
+    )
     object Levels {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Levels = {
-        Log4jController.muteLog($_L$_str(c.getList("loggerLevels")))
         BeamConfig.Beam.Levels(
           loggerLevels = $_L$_str(c.getList("loggerLevels"))
         )
       }
     }
-
+          
     case class Outputs(
       defaultLoggingLevel     : scala.Int,
       eventsFileOutputFormats : java.lang.String,
@@ -176,7 +172,7 @@ object BeamConfig {
         )
       }
       private def $_LBeamConfig_Beam_Outputs_OverrideLoggingLevels$Elm(cl:com.typesafe.config.ConfigList): scala.List[BeamConfig.Beam.Outputs.OverrideLoggingLevels$Elm] = {
-        import scala.collection.JavaConverters._
+        import scala.collection.JavaConverters._  
         cl.asScala.map(cv => BeamConfig.Beam.Outputs.OverrideLoggingLevels$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
       }
     }
@@ -400,7 +396,7 @@ object BeamConfig {
           )
         }
         private def $_LBeamConfig_Matsim_Modules_PlanCalcScore_Parameterset$Elm(cl:com.typesafe.config.ConfigList): scala.List[BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm] = {
-          import scala.collection.JavaConverters._
+          import scala.collection.JavaConverters._  
           cl.asScala.map(cv => BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
         }
       }
@@ -511,8 +507,7 @@ object BeamConfig {
   }
 
   private def $_L$_str(cl:com.typesafe.config.ConfigList): scala.List[java.lang.String] = {
-
-    import scala.collection.JavaConverters._
+    import scala.collection.JavaConverters._  
     cl.asScala.map(cv => $_str(cv)).toList
   }
   private def $_expE(cv:com.typesafe.config.ConfigValue, exp:java.lang.String) = {
