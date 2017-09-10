@@ -22,7 +22,7 @@ import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
-import beam.utils.{RefectionUtils}
+import beam.utils.reflection.RefectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
