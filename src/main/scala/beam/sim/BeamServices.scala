@@ -5,7 +5,7 @@ import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap, TimeUnit}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.TransitDriverAgent
-import beam.playground.akkaguice.ActorInject
+import beam.sim.akkaguice.ActorInject
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
 import beam.router.RoutingModel.BeamLeg
@@ -32,6 +32,7 @@ trait BeamServices extends ActorInject {
   val controler: ControlerI
   var beamConfig: BeamConfig
   val agentSimEventsBus: AgentsimEventsBus
+
   val registry: ActorRef
   val geo: GeoUtils
 
@@ -56,6 +57,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
+
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
   //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
@@ -72,9 +74,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val agentRefs: collection.concurrent.Map[String, ActorRef] = collection.concurrent.TrieMap[String, ActorRef]()
   val transitVehiclesByBeamLeg: mutable.Map[BeamLeg, Id[Vehicle]] = collection.concurrent.TrieMap[BeamLeg, Id[Vehicle]]()
   val transitDriversByVehicle: mutable.Map[Id[Vehicle], Id[TransitDriverAgent]] = collection.concurrent.TrieMap[Id[Vehicle], Id[TransitDriverAgent]]()
-
 }
 
 object BeamServices {
-  implicit val askTimeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
+  implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 }

@@ -175,7 +175,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if(awaitingReservationConfirmation.isEmpty){
         scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, resrvationConfirmation.triggersToSchedule)
       }else{
-        log.error("Too many reservation requests!")
+        logError("Too many reservation requests!")
         errorFromEmptyRoutingResponse()
       }
     case Event(ReservationResponse(requestId,Left(reservationError:ReservationError)),_) =>

@@ -22,6 +22,7 @@ import beam.router.RoutingWorker.HasProps
 import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, transportNetwork}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
 import beam.utils.RefectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -46,7 +47,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO make this actually come from beamConfig
 //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
-  //TODO parameterize the distance threshold here
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
   override def init: Unit = {
@@ -109,6 +109,9 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           val fromStop = transportNetwork.transitLayer.stopIdForIndex.get(tripPattern.stops(i))
           val toStop = transportNetwork.transitLayer.stopIdForIndex.get(if(i == numStops-1){ tripPattern.stops(0) }else{ tripPattern.stops(i+1)})
           val transitLeg = BeamTransitSegment(fromStop,toStop,departure)
+          if(fromStop.toString.equals("BA.gtfs:UCTY")){
+            val i = 0
+          }
           val theLeg = BeamLeg(departure.toLong, mode, duration, transitLeg)
           passengerSchedule.addLegs(Seq(theLeg))
           beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
@@ -216,15 +219,16 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = routingRequestTripInfo.origin.toWgs
-    val toPosTransformed = routingRequestTripInfo.destination.toWgs
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    profileRequest.maxWalkTime = 3*3600
-    profileRequest.maxCarTime = 6*3600
-    profileRequest.maxBikeTime = 3*3600
+//    profileRequest.maxWalkTime = 2*60
+    profileRequest.maxCarTime = 3*60
+//    profileRequest.maxBikeTime = 3*60
+    profileRequest.maxTripDurationMinutes=3*60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
@@ -274,15 +278,16 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = routingRequestTripInfo.origin.toWgs
-    val toPosTransformed = routingRequestTripInfo.destination.toWgs
+    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    profileRequest.maxWalkTime = 3*3600
-    profileRequest.maxCarTime = 6*3600
-    profileRequest.maxBikeTime = 3*3600
+    profileRequest.maxWalkTime = 60
+    profileRequest.maxCarTime = 3*60
+    profileRequest.maxBikeTime = 3*60
+    profileRequest.maxTripDurationMinutes=3*60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {

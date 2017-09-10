@@ -93,9 +93,9 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
   }
   private val availableRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
   private val inServiceRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
-  //XXX: let's make sorted-map to be get latest and oldest orders to expire some of the
-  private val pendingInquiries = mutable.TreeMap[Id[RideHailingInquiry], (TravelProposal, BeamTrip)]()
-  private val pendingModifyPassengerScheduleAcks = mutable.TreeMap[Id[RideHailingInquiry], ReservationResponse]()
+  //TODO: let's make sorted-map to be get latest and oldest orders to expire some of the
+  private val pendingInquiries = collection.concurrent.TrieMap[Id[RideHailingInquiry], (TravelProposal, BeamTrip)]()
+  private val pendingModifyPassengerScheduleAcks = collection.concurrent.TrieMap[Id[RideHailingInquiry], ReservationResponse]()
 
   override def receive: Receive = {
     case RegisterRideAvailable(rideHailingAgentRef: ActorRef, vehicleId: Id[Vehicle], availableIn: SpaceTime) =>

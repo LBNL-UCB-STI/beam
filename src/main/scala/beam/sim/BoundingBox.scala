@@ -1,7 +1,5 @@
 package beam.sim
 
-import com.vividsolutions.jts.geom.Envelope
-
 /**
   * BEAM
   */
