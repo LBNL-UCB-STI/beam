@@ -22,7 +22,6 @@ import beam.router.r5.R5RoutingWorker.{GRAPH_FILE, ProfileRequestToVehicles, sto
 import beam.router.{Modes, RoutingWorker, TrajectoryByEdgeIdsResolver}
 import beam.sim.BeamServices
 import beam.utils.RefectionUtils
-import com.conveyal.gtfs.model.Stop
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
@@ -47,7 +46,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   val graphPathOutputsNeeded = false
   //TODO parameterize the distance threshold here
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-
 
   override def init: Unit = {
     loadMap
