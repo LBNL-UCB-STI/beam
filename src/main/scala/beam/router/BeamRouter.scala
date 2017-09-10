@@ -3,31 +3,30 @@ package beam.router
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
-import akka.routing.{ActorRefRoutee, Broadcast, RoundRobinRoutingLogic, Router}
+import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, EmbodiedBeamTrip}
-import beam.router.r5.NetworkCoordinator.UpdateTravelTime
-import beam.router.r5.{NetworkCoordinator}
+import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
-
+import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
 import scala.beans.BeanProperty
 
 
-class BeamRouter(beamServices: BeamServices) extends Actor with Stash with ActorLogging {
-  var services: BeamServices = beamServices
-  var router:Router = null
-  var transportNetworkWorker :ActorRef = null
+class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogging {
+  var router: Router = _
+  var networkCoordinator: ActorRef = _
+
   override def preStart(): Unit = {
     router = Router(RoundRobinRoutingLogic(), Vector.fill(5) {
       ActorRefRoutee(createAndWatch)
     })
-    transportNetworkWorker = context.actorOf(NetworkCoordinator.getNetworkCoordinatorProps)
+    networkCoordinator = context.actorOf(NetworkCoordinator.props(services))
   }
 
   def receive = uninitialized
@@ -36,7 +35,7 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
   def uninitialized: Receive = {
     case InitializeRouter =>
       log.info("Initializing Router.")
-      router.route(InitializeRouter, sender())
+      networkCoordinator.forward(InitializeRouter)
       context.become(initializing)
     case RoutingRequest =>
       sender() ! RouterNeedInitialization
@@ -64,6 +63,7 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       log.info(s"Unknown message[$msg] received by Router.")
   }
 
+  // Initialized state
   def initialized: Receive = {
     case w: RoutingRequest =>
       router.route(w, sender())
@@ -76,15 +76,9 @@ class BeamRouter(beamServices: BeamServices) extends Actor with Stash with Actor
       handelTermination(r)
     case updateRequest: UpdateTravelTime =>
       log.info("Received TravelTimeCalculator")
-      transportNetworkWorker.tell(updateRequest,ActorRef.noSender)
+      networkCoordinator ! updateRequest
     case msg => {
-      log.info(s"Received message[$msg] by Router.")
-      if(msg.equals("REPLACE_NETWORK")){
-        router.route(Broadcast("REPLACE_NETWORK"),self)
-      }
-      else
-        log.info(s"Unknown message[$msg] received by Router.")
-
+      log.info(s"Unknown message[$msg] received by Router.")
     }
   }
 
@@ -104,13 +98,12 @@ object BeamRouter {
 
   def nextId = Id.create(UUID.randomUUID().toString, classOf[RoutingRequest])
 
-  sealed trait RouterMessage
-  case object InitializeRouter extends RouterMessage
-  case object RouterInitialized extends RouterMessage
-  case object RouterNeedInitialization extends RouterMessage
+  case object InitializeRouter
+  case object RouterInitialized
+  case object RouterNeedInitialization
   case object InitTransit
   case object TransitInited
-
+  case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator)
 
   /**
     * It is use to represent a request object
@@ -134,7 +127,7 @@ object BeamRouter {
     * @param params route information that is needs a plan
     */
   case class RoutingRequest(@BeanProperty id: Id[RoutingRequest],
-                            params: RoutingRequestTripInfo) extends RouterMessage with Identifiable[RoutingRequest]
+                            params: RoutingRequestTripInfo) extends Identifiable[RoutingRequest]
 
   /**
     * Message to respond a plan against a particular router request
@@ -142,7 +135,7 @@ object BeamRouter {
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(@BeanProperty id: Id[RoutingRequest],
-                             itineraries: Vector[EmbodiedBeamTrip]) extends RouterMessage with Identifiable[RoutingRequest]
+                             itineraries: Vector[EmbodiedBeamTrip]) extends Identifiable[RoutingRequest]
 
   /**
     *
