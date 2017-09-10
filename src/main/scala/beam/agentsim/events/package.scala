@@ -27,7 +27,12 @@ package object events {
         Json.fromDoubleOrNull(MathUtils.roundDouble(a.loc.getY, 5)), // TODO: Ditto.
         Json.fromLong(a.time)))
     }
+
+    implicit val orderingByTime: Ordering[SpaceTime] = (x: SpaceTime, y: SpaceTime) => {
+      x.time.compareTo(y.time)
+    }
   }
+
 
 
 }
