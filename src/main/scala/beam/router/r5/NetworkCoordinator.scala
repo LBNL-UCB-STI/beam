@@ -10,7 +10,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator._
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
-import beam.utils.RefectionUtils
+import beam.utils.reflection.RefectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id

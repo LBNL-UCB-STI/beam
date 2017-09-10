@@ -19,8 +19,7 @@ object Log4jController {
     rootLogger.setLevel(Level.OFF)
     //Iterate over the logger option
     list.foreach {i =>
-      i match
-      {
+      i match {
         case "INFO" =>
           //configure the appender for INFO
           // configures the root logger
@@ -51,7 +50,8 @@ object Log4jController {
           rootLogger.addAppender(console)
           rootLogger.setLevel(Level.DEBUG)
 
-     case _ => "Invalid entry" // the default, catch-all
-   }
+        case _ => "Invalid entry" // the default, catch-all
+      }
+    }
   }
 }

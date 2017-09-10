@@ -21,6 +21,7 @@ public class PathTraversalEvent extends Event {
     private final String vehicleId;
     private final String departureTime;
     private final String mode;
+    private final RoutingModel.BeamLeg beamLeg;
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, RoutingModel.BeamLeg beamLeg) {
         super(time);
@@ -29,6 +30,7 @@ public class PathTraversalEvent extends Event {
         this.vehicleId = vehicleId.toString();
         this.departureTime = (new Double(time)).toString();
         this.mode = beamLeg.mode().value();
+        this.beamLeg = beamLeg;
     }
 
     @Override
@@ -45,6 +47,10 @@ public class PathTraversalEvent extends Event {
 //            attr.put(ATTRIBUTE_LINK_IDS, beamLeg.travelPath.asInstanceOf[BeamStreetPath].linkIds.mkString(","))
 //        }
         return attr;
+    }
+
+    public RoutingModel.BeamLeg getBeamLeg(){
+        return this.beamLeg;
     }
 
 

@@ -38,6 +38,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.reflect.io.File
+import scala.util.Random
 
 /**
   * AgentSim entrypoint.

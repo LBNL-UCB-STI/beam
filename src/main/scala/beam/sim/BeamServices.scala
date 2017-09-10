@@ -6,10 +6,10 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.playground.akkaguice.ActorInject
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
 import beam.router.RoutingModel.BeamLeg
+import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import com.google.inject.{ImplementedBy, Inject, Injector, Singleton}
 import glokka.Registry
