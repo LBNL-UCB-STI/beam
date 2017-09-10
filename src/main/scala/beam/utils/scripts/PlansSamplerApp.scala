@@ -202,15 +202,12 @@ object PlansSampler {
   }
 
   def snapPlanActivityLocsToNearestLink(plan:Plan): Plan ={
-    val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile
-      .getActivities(plan.getPlanElements, new StageActivityTypesImpl("Home")))
-    val homeCoord = homeActs.head.getCoord
 
     val allActivities = PopulationUtils.getActivities(plan, new StageActivityTypesImpl(""))
 
     allActivities.forEach(x => {
-      val nearestLink = NetworkTools.getNearestLink(sc.getNetwork, homeCoord, 20000) // Search for closest link w/in 20000 m
-      val movedCoord = CoordTools.getClosestPointOnLine(nearestLink.getFromNode.getCoord, nearestLink.getToNode.getCoord, homeCoord)
+      val nearestLink = NetworkTools.getNearestLink(sc.getNetwork, x.getCoord, 10000) // Search for closest link w/in 20000 m
+      val movedCoord = CoordTools.getClosestPointOnLine(nearestLink.getFromNode.getCoord, nearestLink.getToNode.getCoord, x.getCoord)
       x.setCoord(movedCoord)
     })
     plan
