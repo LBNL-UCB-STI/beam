@@ -30,6 +30,8 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
 
   def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo, person: Person): RoutingResponse
 
+  def init
+
   def initTransit
 
   protected def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)

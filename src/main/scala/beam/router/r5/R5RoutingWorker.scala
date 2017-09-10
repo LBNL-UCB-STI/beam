@@ -1,5 +1,8 @@
 package beam.router.r5
 
+import java.io.File
+import java.nio.file.{Paths, Files}
+import java.nio.file.Files.exists
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
@@ -21,13 +24,12 @@ import beam.router.r5.NetworkCoordinator.transportNetwork
 import beam.router.r5.R5RoutingWorker.{ProfileRequestToVehicles, TripFareTuple}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtils
-import beam.utils.RefectionUtils
+import beam.sim.common.GeoUtils._
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.ProfileRequest
-import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
+import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -36,7 +38,6 @@ import org.opentripplanner.routing.vertextype.TransitStop
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import beam.sim.common.GeoUtils._
 
 class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
@@ -49,7 +50,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
   override def init: Unit = {
     loadMap
-    overrideR5EdgeSearchRadius(2000)
+//    overrideR5EdgeSearchRadius(2000)
   }
 
   private def loadMap = {
@@ -58,7 +59,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     if (!exists(networkDirPath)) {
       Paths.get(networkDir).toFile.mkdir()
     }
-    val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
+    val networkFilePath = Paths.get(networkDir, "network.dat")
     val networkFile : File = networkFilePath.toFile
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
@@ -312,8 +313,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
       // Vehicle to Destination
       val vehToDestination = profileRequest.clone()
-      vehToDestination.fromLon = vehLocation.getX
-      vehToDestination.fromLat = vehLocation.getY
+      vehToDestination.fromLon = newFromPosTransformed.getX
+      vehToDestination.fromLat = newFromPosTransformed.getY
       vehToDestination.directModes = util.EnumSet.copyOf(Vector(veh.mode.r5Mode.get.left.get).asJavaCollection)
       vehicleAsOriginProfiles = vehicleAsOriginProfiles + (vehToDestination -> veh)
     }
@@ -326,8 +327,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromLocation = GeoUtils.Transformer.Utm2Wgs(routingRequestTripInfo.origin)
-    val toLocation = GeoUtils.Transformer.Utm2Wgs(routingRequestTripInfo.destination)
+    val fromLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    val toLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromLocation.getX
     profileRequest.fromLat = fromLocation.getY
     profileRequest.toLon = toLocation.getX
