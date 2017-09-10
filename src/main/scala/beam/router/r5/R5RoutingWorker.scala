@@ -24,7 +24,7 @@ import beam.router.r5.NetworkCoordinator.transportNetwork
 import beam.router.r5.R5RoutingWorker.{ProfileRequestToVehicles, TripFareTuple}
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtils._
+import beam.utils.reflection.RefectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery

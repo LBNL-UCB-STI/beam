@@ -148,8 +148,8 @@ class PersonAgent(val beamServices: BeamServices,
   chainedWhen(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentAct = currentActivity
-      val startEvent = new ActivityStartEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)
-      beamServices.agentSimEventsBus.publish(MatsimEvent(startEvent))
+//      val startEvent = new ActivityStartEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)
+//      beamServices.agentSimEventsBus.publish(MatsimEvent(startEvent))
       // Since this is the first activity of the day, we don't increment the currentActivityIndex
       logInfo(s"starting at ${currentAct.getType} @ $tick")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentAct.getEndTime, self))
@@ -157,7 +157,6 @@ class PersonAgent(val beamServices: BeamServices,
   chainedWhen(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentAct = currentActivity
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)))
 
       nextActivity.fold(
         msg => {
@@ -166,6 +165,7 @@ class PersonAgent(val beamServices: BeamServices,
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ ${tick}")
+          beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)))
           goto(ChoosingMode) replying completed(triggerId,schedule[BeginModeChoiceTrigger](tick, self))
         }
       )
@@ -305,13 +305,13 @@ class PersonAgent(val beamServices: BeamServices,
           goto(Error) replying completed(triggerId)
       }
     }else{
+      val savedLegMode = _currentRoute.tripClassifier
       _currentEmbodiedLeg = None
       nextActivity match {
         case Left(msg) =>
           logDebug(msg)
           goto(Finished) replying completed(triggerId)
         case Right(activity) =>
-          beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType)))
           _currentActivityIndex = _currentActivityIndex + 1
           val endTime = if(activity.getEndTime < 0.0 || Math.abs(activity.getEndTime) == Double.PositiveInfinity){
             logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
@@ -321,6 +321,8 @@ class PersonAgent(val beamServices: BeamServices,
           }else{
             activity.getEndTime
           }
+          beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value)))
+          beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType)))
           goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
       }
     }
@@ -379,9 +381,9 @@ class PersonAgent(val beamServices: BeamServices,
 
   private def publishPathTraversal(event: PathTraversalEvent): Unit = {
     //TODO: convert pathTraversalEvents to hashset
-    if (beamServices.beamConfig.beam.events.pathTraversalEvents contains event.beamLeg.mode.value.toLowerCase()) {
-      beamServices.agentSimEventsBus.publish(MatsimEvent(event))
-    }
+//    if (beamServices.beamConfig.beam.events.pathTraversalEvents contains event.beamLeg.mode.value.toLowerCase()) {
+//      beamServices.agentSimEventsBus.publish(MatsimEvent(event))
+//    }
   }
 
 }
