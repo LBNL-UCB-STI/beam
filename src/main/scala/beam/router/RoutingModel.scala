@@ -80,11 +80,11 @@ object RoutingModel {
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
           if (Modes.isR5TransitMode(currentMode)) {
             inAccessPhase = false
-            EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg.get(beamLeg).get, false, None, 0.0, false)
+            EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
           } else if (inAccessPhase) {
-            EmbodiedBeamLeg(beamLeg, accessVehiclesByMode.get(currentMode).get.id, accessVehiclesByMode.get(currentMode).get.asDriver, None, 0.0, unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg, accessVehiclesByMode(currentMode).id, accessVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
           } else {
-            EmbodiedBeamLeg(beamLeg, egressVehiclesByMode.get(currentMode).get.id, egressVehiclesByMode.get(currentMode).get.asDriver, None, 0.0, unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg, egressVehiclesByMode(currentMode).id, egressVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
           }
         }
         EmbodiedBeamTrip(embodiedLegs)
@@ -117,6 +117,7 @@ object RoutingModel {
                      mode: BeamMode,
                      duration: Long,
                      travelPath: BeamPath = EmptyBeamPath.path) {
+    require(duration > -1)
     def endTime: Long = startTime + duration
   }
 
@@ -163,14 +164,23 @@ object RoutingModel {
     override def equals(other: Any): Boolean = other match {
       case that: BeamPath =>
         (that eq this) || (
-          linkIds == that.linkIds &&
-          transitStops == that.transitStops )
+            if (this.isTransit && that.isTransit) {
+              transitStops == that.transitStops
+            } else if (!this.isTransit && !that.isTransit) {
+              this.linkIds == that.linkIds
+            } else {
+              false
+            }
+          )
       case _ => false
     }
 
     override def hashCode(): Int = {
-      val state = Seq(linkIds, transitStops)
-      state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+      if (this.isTransit) {
+        transitStops.hashCode()
+      } else {
+        linkIds.hashCode()
+      }
     }
   }
 

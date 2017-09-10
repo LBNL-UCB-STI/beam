@@ -3,6 +3,7 @@ package beam.router
 import beam.agentsim.agents.vehicles.Trajectory
 import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel.BeamPath
+import com.conveyal.r5.api.util.StreetSegment
 import com.conveyal.r5.streets.StreetLayer
 
 /**
@@ -19,24 +20,34 @@ object EmptyTrajectoryResolver extends TrajectoryResolver {
   }
 }
 
-class StreetPathTrajectoryResolver(@transient streetLayer: StreetLayer, tripStartTime: Long, duration: Int) extends TrajectoryResolver {
+/**
+  * Resolve trajectory by predifined street segment and tripStartTime assuming uniform movement,
+  * This is used by leg generation logic and beam paths shouldn't contain lot of links - in most cases 1-3 links.
+  * Thus is safe to assume uniform movement.
+  *
+  * @param streetSegment street segment wih defined geometry
+  * @param tripStartTime when object start moving over this segment
+  */
+class StreetSegmentTrajectoryResolver(streetSegment: StreetSegment, tripStartTime: Long) extends TrajectoryResolver {
   override def resolve(beamPath: BeamPath): Trajectory = {
-    val first = streetLayer.edgeStore.getCursor(beamPath.linkIds.head.toInt)
-    val firstPoint  = SpaceTime(first.getGeometry.getCoordinate.x, first.getGeometry.getCoordinate.y, tripStartTime)
-    val last = streetLayer.edgeStore.getCursor(beamPath.linkIds.last.toInt)
-    val lastPoint  = SpaceTime(last.getGeometry.getCoordinate.x, last.getGeometry.getCoordinate.y, tripStartTime + duration)
+    val checkpoints = streetSegment.geometry.getCoordinates
+    val timeDelta = streetSegment.duration.toDouble / checkpoints.length
+    val path = checkpoints.zipWithIndex.map{ case (coord, i) =>
+        SpaceTime(coord.x, coord.y, (tripStartTime + i*timeDelta).toLong)
+    }
     //XXX: let Trajectory logic interpolate intermediate points
-    Trajectory(Vector(firstPoint, lastPoint))
+    Trajectory(path.toVector)
   }
 }
 
-class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer) extends TrajectoryResolver {
+class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer, departure: Long, duration: Long) extends TrajectoryResolver {
 
   override def resolve(beamPath: BeamPath): Trajectory = {
-    val path = beamPath.linkIds.map(_.toInt).flatMap { edgeId =>
+    val stepDelta = duration.toDouble / beamPath.linkIds.size
+    val path = beamPath.linkIds.map(_.toInt).zipWithIndex.flatMap { case (edgeId, i) =>
       val edge = streetLayer.edgeStore.getCursor(edgeId)
       //TODO: resolve time from stopinfo and tripSchedule(for transit), linkid -> stop is one -> one: links.zip(stops)....
-      val time = -1
+      val time = departure  + (i * stepDelta).toLong
       edge.getGeometry.getCoordinates.map(coord => SpaceTime(coord.x, coord.y, time))
     }
     Trajectory(path)
