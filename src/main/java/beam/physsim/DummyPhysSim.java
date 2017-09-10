@@ -15,7 +15,7 @@ public class DummyPhysSim extends UntypedActor{
     }
 
     public static Props props(BeamServices services){
-        return Props.create(DummyPhysSim.class,services);
+        return Props.create((Class<?>) DummyPhysSim.class,services);
     }
     @Override
     public void onReceive(Object message) throws Throwable {
