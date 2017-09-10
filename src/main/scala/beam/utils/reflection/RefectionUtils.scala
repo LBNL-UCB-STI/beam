@@ -1,15 +1,12 @@
-package beam.utils
+package beam.utils.reflection
 
 import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
 
-import beam.utils.reflection.EmptyIfFileEndingsUrlType
 import com.google.common.collect.Lists
-import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
-import org.reflections.{ReflectionUtils, Reflections}
-import org.reflections.util.ClasspathHelper
 import org.reflections.util.ConfigurationBuilder
 import org.reflections.vfs.Vfs
+import org.reflections.{ReflectionUtils, Reflections}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
