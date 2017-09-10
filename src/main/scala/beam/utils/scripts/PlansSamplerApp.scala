@@ -1,7 +1,6 @@
 package beam.utils.scripts
 
 import java.util
-import java.util.UUID
 
 import beam.utils.gis.Plans2Shapefile
 import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
@@ -22,7 +21,7 @@ import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
 import org.matsim.pt2matsim.tools.{CoordTools, NetworkTools}
-import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesUtils, ObjectAttributesXmlWriter}
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 
@@ -33,29 +32,33 @@ import scala.util.Random
 
 case class SynthHousehold(householdId: Id[Household], numPersons: Integer, cars: Integer, coord: Coord)
 
-import enumeratum._
 import enumeratum.EnumEntry._
+import enumeratum._
 
 
 sealed trait HouseholdAttrib extends EnumEntry
 
-object HouseholdAttrib extends Enum[HouseholdAttrib]{
+object HouseholdAttrib extends Enum[HouseholdAttrib] {
 
   override def values: immutable.IndexedSeq[HouseholdAttrib] = findValues
 
   case object HomeCoordX extends HouseholdAttrib with LowerCamelcase
+
   case object HomeCoordY extends HouseholdAttrib with LowerCamelcase
+
   case object HousingType extends HouseholdAttrib with LowerCamelcase
+
 }
 
 
 sealed trait PopulationAttrib extends EnumEntry
 
-object PopulationAttrib extends Enum[PopulationAttrib]{
+object PopulationAttrib extends Enum[PopulationAttrib] {
 
   override def values: immutable.IndexedSeq[PopulationAttrib] = findValues
 
   case object Rank extends PopulationAttrib with LowerCamelcase
+
 }
 
 trait HasXY[T] {
@@ -157,6 +160,7 @@ object SynthHouseholdParser {
 
 }
 
+
 object PlansSampler {
 
   import HasXY._
@@ -197,6 +201,21 @@ object PlansSampler {
     outDir = args(5)
   }
 
+  def snapPlanActivityLocsToNearestLink(plan:Plan): Plan ={
+    val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile
+      .getActivities(plan.getPlanElements, new StageActivityTypesImpl("Home")))
+    val homeCoord = homeActs.head.getCoord
+
+    val allActivities = PopulationUtils.getActivities(plan, new StageActivityTypesImpl(""))
+
+    allActivities.forEach(x => {
+      val nearestLink = NetworkTools.getNearestLink(sc.getNetwork, homeCoord, 20000) // Search for closest link w/in 20000 m
+      val movedCoord = CoordTools.getClosestPointOnLine(nearestLink.getFromNode.getCoord, nearestLink.getToNode.getCoord, homeCoord)
+      x.setCoord(movedCoord)
+    })
+    plan
+  }
+
   def getClosestNPlans(spCoord: Coord, n: Int): Vector[Plan] = {
     val planOrdering: Ordering[Plan] = Ordering.by(p => CoordUtils.calcEuclideanDistance(spCoord, PopulationUtils.getFirstActivity(p).getCoord))
     val closestPlan = getClosestPlan(spCoord)
@@ -228,8 +247,7 @@ object PlansSampler {
     newVehicles.addVehicleType(defaultVehicleType)
 
 
-
-    Random.shuffle(synthPop).take((0.001*synthPop.size).toInt).toStream.foreach(sh => {
+    Random.shuffle(synthPop).take((0.001 * synthPop.size).toInt).toStream.foreach(sh => {
 
       val N = if (sh.numPersons * 2 > 0) {
         sh.numPersons * 2
@@ -247,7 +265,7 @@ object PlansSampler {
       })
 
 
-      val hhId = Id.create(counter.getCounter,classOf[Household])
+      val hhId = Id.create(counter.getCounter, classOf[Household])
       val spHH = newHHFac.createHousehold(hhId)
 
       // Add household to households and increment counter now
@@ -269,7 +287,7 @@ object PlansSampler {
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
-        newPopAttributes.putAttribute(newPersonId.toString,Rank.entryName,Random.nextInt(sh.numPersons))
+        newPopAttributes.putAttribute(newPersonId.toString, Rank.entryName, Random.nextInt(sh.numPersons))
 
         // Create a new plan for household member based on selected plan of first person
         val newPlan = PopulationUtils.createPlan(newPerson)
@@ -282,12 +300,10 @@ object PlansSampler {
             val homeActs = JavaConverters.collectionAsScalaIterable(Plans2Shapefile
               .getActivities(newPlan.getPlanElements, new StageActivityTypesImpl("Home")))
             val homeCoord = homeActs.head.getCoord
-            val nearestLink = NetworkTools.getNearestLink(sc.getNetwork,homeCoord,50000) // Search for closest link w/in 50000 m
-            val movedCoord = CoordTools.getClosestPointOnLine(nearestLink.getFromNode.getCoord,nearestLink.getToNode.getCoord,homeCoord)
-            homeActs.head.setCoord(movedCoord)
-            newHHAttributes.putAttribute(hhId.toString,HomeCoordX.entryName,homeCoord.getX)
-            newHHAttributes.putAttribute(hhId.toString,HomeCoordY.entryName,homeCoord.getY)
-            newHHAttributes.putAttribute(hhId.toString,HousingType.entryName,"House")
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+            snapPlanActivityLocsToNearestLink(newPlan)
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
             val firstActCoord = firstAct.getCoord
@@ -296,7 +312,9 @@ object PlansSampler {
             for (act <- homeActs) {
               act.setCoord(firstActCoord)
             }
+            snapPlanActivityLocsToNearestLink(newPlan)
         }
+
       }
     })
     counter.printCounter()
@@ -304,8 +322,8 @@ object PlansSampler {
 
 
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
-//    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
-//    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
+    //    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
+    //    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
     new ObjectAttributesXmlWriter(newHHAttributes).writeFile(s"$outDir/householdAttributes.xml.gz")
