@@ -1,9 +1,11 @@
-package beam.utils
+package beam.utils.reflection
 
 import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
 
-import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
+import com.google.common.collect.Lists
+import org.reflections.util.ConfigurationBuilder
+import org.reflections.vfs.Vfs
 import org.reflections.{ReflectionUtils, Reflections}
 
 import scala.collection.JavaConverters._
@@ -16,7 +18,16 @@ object RefectionUtils {
 
   val reflections = {
     val classLoader = RefectionUtils.getClass.getClassLoader
-    new Reflections(new ConfigurationBuilder().addUrls(ClasspathHelper.forClassLoader(classLoader)).addClassLoader(classLoader))
+    val builder = new ConfigurationBuilder
+
+    val urlTypes = Lists.newArrayList[Vfs.UrlType]
+    // include a list of file extensions / filenames to be recognized
+    urlTypes.add(new EmptyIfFileEndingsUrlType(".jnilib"))
+    Vfs.DefaultUrlTypes.values.foreach(typ => urlTypes.add(typ))
+
+    Vfs.setDefaultURLTypes(urlTypes)
+
+    new Reflections(builder.addClassLoader(classLoader))
   }
 
   def classesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {
@@ -45,4 +56,5 @@ object RefectionUtils {
     modifiersField.setInt(field, field.getModifiers & ~Modifier.FINAL)
     field.set(null, value)
   }
+
 }
