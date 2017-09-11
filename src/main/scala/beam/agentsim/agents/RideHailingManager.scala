@@ -122,7 +122,8 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
           val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp, departAt.atTime)), CAR, asDriver = false)
           val routeRequests = Map(
             beamServices.beamRouter.path -> List(
-              RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin), personId)),
+              RoutingRequest(rideHailing2CustomerRequestId, RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(),
+                Vector(rideHailingVehicleAtOrigin), personId)),
               //XXXX: customer trip request might be redundant... possibly pass in info
               RoutingRequest(customerTripRequestId, RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup), personId)))
           )

@@ -1,6 +1,7 @@
 package beam.agentsim.events;
 
 import beam.router.RoutingModel;
+import org.apache.commons.lang3.StringUtils;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.vehicles.Vehicle;
@@ -26,7 +27,7 @@ public class PathTraversalEvent extends Event {
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, RoutingModel.BeamLeg beamLeg) {
         super(time);
 
-        this.linkIds = "";
+        this.linkIds = StringUtils.join(beamLeg.travelPath().linkIds(), ",");
         this.vehicleId = vehicleId.toString();
         this.departureTime = (new Double(time)).toString();
         this.mode = beamLeg.mode().value();
@@ -42,10 +43,6 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_LINK_IDS, linkIds);
 //    attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
-//    beamLeg.travelPath.swap.foreach(sp => attr.put(ATTRIBUTE_LINK_IDS, sp.linkIds.mkString(",")))
-//        if (beamLeg.travelPath.isStreet) {
-//            attr.put(ATTRIBUTE_LINK_IDS, beamLeg.travelPath.asInstanceOf[BeamStreetPath].linkIds.mkString(","))
-//        }
         return attr;
     }
 
