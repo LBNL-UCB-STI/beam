@@ -25,9 +25,8 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.{Vehicle, VehicleType}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 
-import scala.collection.mutable
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
@@ -35,11 +34,11 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   */
 
 object RideHailingManager {
-  val log = LoggerFactory.getLogger(classOf[RideHailingManager])
+  val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailingInquiry])
 
-  case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: Location, departAt: BeamTime, radius: Double, destination: Location)
+  case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: Location, departAt: BeamTime, destination: Location)
 
   case class TravelProposal(rideHailingAgentLocation: RideHailingAgentLocation, timesToCustomer: Long, estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration], responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
 
@@ -81,7 +80,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
 
   val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.rideHailing.defaultCostPerMinute)
-
+  val radius: Double = 1000
 
   // improve search to take into account time rideHailingAgentSpatialIndex is available
   private val rideHailingAgentSpatialIndex = {
@@ -92,6 +91,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       beamServices.geo.utmbbox.maxY)
   }
   private val availableRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
+  private var lockedVehicles = Set[Id[Vehicle]]()
   private val inServiceRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
   //TODO: let's make sorted-map to be get latest and oldest orders to expire some of the
   private val pendingInquiries = collection.concurrent.TrieMap[Id[RideHailingInquiry], (TravelProposal, BeamTrip)]()
@@ -106,19 +106,13 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
       inServiceRideHailVehicles.remove(vehicleId)
       sender ! RideAvailableAck
 
-    case inquiry@RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, radius, destination) =>
-      val nearbyRideHailingAgents = rideHailingAgentSpatialIndex.getDisk(inquiry.pickUpLocation.getX, inquiry.pickUpLocation.getY, radius).asScala.toVector
-      val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
-        val distance = CoordUtils.calcProjectedEuclideanDistance(inquiry.pickUpLocation, rideHailingAgentLocation.currentLocation.loc)
-        (rideHailingAgentLocation, distance)
-      })
-      //TODO: Possibly get multiple taxis in this block
-      val chosenRideLocation = distances2RideHailingAgents.sortBy(_._2).headOption
+    case RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, destination) =>
+
       val customerAgent = sender()
-      chosenRideLocation match {
+      getClosestRideHailingAgent(customerPickUp,radius).filterNot(x => lockedVehicles(x._1.vehicleId)) match {
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
           //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), vehiclePersonId)
-
+          lockedVehicles += rideHailingLocation.vehicleId
           // This hbv represents a customer agent leg
           val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp, departAt.atTime)), WALK, asDriver = true)
 
@@ -157,7 +151,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
               //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
               val modRHA2Cust = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-              val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = (c.beamLeg.mode == WALK), unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg, beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
+              val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK, unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg, beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
 
               val rideHailingAgent2CustomerResponseMod = RoutingResponse(rideHailingAgent2CustomerResponse.id, modRHA2Cust)
               val rideHailing2DestinationResponseMod = RoutingResponse(rideHailing2DestinationResponse.id, modRHA2Dest)
@@ -168,6 +162,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
               RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
             } else {
               log.warn(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
+              lockedVehicles -= rideHailingLocation.vehicleId
               RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
             }
           }
@@ -175,6 +170,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
           // no rides to hail
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(VehicleUnavailable))
       }
+
     case ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
       if (pendingInquiries.contains(inquiryId)) {
         //TODO: probably it make sense to add some expiration time (TTL) to pending inquiries
@@ -184,18 +180,18 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
           * 1. customerAgent ! ReserveRideConfirmation(rideHailingAgentSpatialIndex, customerId, travelProposal)
           * 2. rideHailingAgentSpatialIndex ! PickupCustomer
           */
-        Option(rideHailingAgentSpatialIndex.getClosest(customerPickUp.getX, customerPickUp.getY)) match {
-          case Some(closestRideHailingAgent) if travelPlanOpt.isDefined && closestRideHailingAgent == travelPlanOpt.get._1.rideHailingAgentLocation =>
+        getClosestRideHailingAgent(customerPickUp, radius).filter(x => lockedVehicles(x._1.vehicleId)) match {
+          case Some((closestRideHailingAgent,_)) if travelPlanOpt.isDefined && closestRideHailingAgent == travelPlanOpt.get._1.rideHailingAgentLocation =>
             val travelProposal = travelPlanOpt.get._1
             val tripPlan = travelPlanOpt.map(_._2)
             handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent, closestRideHailingAgent, travelProposal, tripPlan)
-          //        case Some(_) =>
-          //          // TODO: retry if unavailable
-          //          customerAgent ! ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Left(VehicleUnavailable))
+          // We have an agent nearby, but it's not the one we originally wanted
+          case Some((closestRideHailingAgent,_))  =>
+            customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
           case _ =>
             customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
         }
-      }else{
+      } else {
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
       }
     case ModifyPassengerScheduleAck(inquiryIDOption) =>
@@ -238,18 +234,19 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
     passengerSchedule.addLegs(travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip.legs) // Adds empty trip to customer
     passengerSchedule.addPassenger(vehiclePersonId, trip2DestPlan.get.legs.filter(_.mode == CAR)) // Adds customer's actual trip to destination
     inServiceRideHailVehicles.put(closestRideHailingAgentLocation.vehicleId, closestRideHailingAgentLocation)
+    lockedVehicles -= closestRideHailingAgentLocation.vehicleId
     rideHailingAgentSpatialIndex.remove(closestRideHailingAgentLocation.currentLocation.loc.getX, closestRideHailingAgentLocation.currentLocation.loc.getY, closestRideHailingAgentLocation)
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     val triggerToSchedule = schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime, closestRideHailingAgentLocation.rideHailAgent, passengerSchedule.schedule.firstKey)
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs.last, vehiclePersonId, triggerToSchedule))))
-
     closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
   }
 
   private def completeReservation(inquiryId: Id[RideHailingInquiry]): Unit = {
     pendingModifyPassengerScheduleAcks.remove(inquiryId) match {
       case Some(response) =>
+        log.info(s"Completed reservation for $inquiryId")
         val customerRef = beamServices.personRefs(response.response.right.get.passengerVehiclePersonId.personId)
         customerRef ! response
       case None =>
@@ -267,6 +264,16 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
     info.fleet.get(resourceId)
   }
 
+
+  private def getClosestRideHailingAgent(pickupLocation:Coord,radius:Double): Option[(RideHailingAgentLocation, Double)] ={
+    val nearbyRideHailingAgents = rideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala.toVector
+    val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
+      val distance = CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailingAgentLocation.currentLocation.loc)
+      (rideHailingAgentLocation, distance)
+    })
+    //TODO: Possibly get multiple taxis in this block
+    distances2RideHailingAgents.sortBy(_._2).headOption
+  }
   override def findResource(resourceId: Id[Vehicle]): Option[ActorRef] = ???
 
 }

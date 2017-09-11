@@ -154,7 +154,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
       //TODO parameterize search distance
       val pickUpLocation = currentActivity.getCoord
-      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, 50000, nextAct.getCoord)
+      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()
@@ -170,10 +170,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     /*
      * Process ReservationReponses
      */
-    case Event(ReservationResponse(requestId,Right(resrvationConfirmation)),_) =>
+    case Event(ReservationResponse(requestId,Right(reservationConfirmation)),_) =>
       awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
       if(awaitingReservationConfirmation.isEmpty){
-        scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, resrvationConfirmation.triggersToSchedule)
+        scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, reservationConfirmation.triggersToSchedule)
       }else{
         logError("Too many reservation requests!")
         errorFromEmptyRoutingResponse()
