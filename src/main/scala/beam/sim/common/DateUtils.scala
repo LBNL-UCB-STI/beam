@@ -6,14 +6,14 @@ import java.time.{LocalDate, LocalDateTime, ZonedDateTime}
 /**
   * BEAM
   */
-case class DateUtils(val routingBaseDate: String, val localBaseDateTime: LocalDateTime, val zonedBaseDate: ZonedDateTime) {
+case class DateUtils(val routingBaseDate: String, val localBaseDateTime: LocalDateTime, val zonedBaseDateTime: ZonedDateTime) {
   val localBaseDate: LocalDate = localBaseDateTime.toLocalDate
 
   def toBaseMidnightSeconds(time: ZonedDateTime, hasTransit: Boolean): Long = {
     if(hasTransit){
-      ChronoUnit.SECONDS.between(localBaseDate, time)
+      ChronoUnit.SECONDS.between(localBaseDateTime, time)
     }else{
-      ChronoUnit.SECONDS.between(zonedBaseDate, time)
+      ChronoUnit.SECONDS.between(zonedBaseDateTime, time)
     }
   }
 }
