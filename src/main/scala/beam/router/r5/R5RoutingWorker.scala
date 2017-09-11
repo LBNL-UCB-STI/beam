@@ -77,9 +77,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val numStops = transitTrip.departures.length
         val passengerSchedule = PassengerSchedule()
 
-        /*
-        * FROM DENYS
-         */
         if (numStops > 1) {
           var stopStopDepartTuple: Tuple3[String,String,Long] = ("","",0L)
           var previousBeamLeg: Option[BeamLeg] = None
