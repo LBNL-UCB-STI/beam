@@ -9,7 +9,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.BeamStreetPath
+import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
@@ -67,7 +67,7 @@ class HouseholdActor(services: BeamServices,
       }
       //Initialize all vehicles to have a stationary trajectory starting at time zero
       val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
-      val initialTrajectory = Trajectory(BeamStreetPath(Vector(""),None,Some(Vector())))
+      val initialTrajectory = Trajectory(Vector(initialLocation))
       _vehicles.foreach { veh =>
         services.vehicleRefs(veh) ! UpdateTrajectory(initialTrajectory)
         //TODO following mode should come from the vehicle
