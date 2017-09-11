@@ -7,12 +7,15 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents._
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.household.HouseholdActor
-import beam.agentsim.events.{EventsSubscriber, JsonFriendlyEventWriterXML, PathTraversalEvent, PointProcessEvent}
+import beam.agentsim.events._
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.agentsim.agents.choice.mode._
+import beam.agentsim.events.handling.BeamEventsLogger
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
@@ -34,6 +37,7 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
+import scala.reflect.io.File
 import scala.util.Random
 
 /**
@@ -47,19 +51,17 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
                        ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[BeamSim])
-
-  val eventsManager: EventsManager = EventsUtils.createEventsManager()
-  //  eventsManager.addHandler(new AgentSimToPhysSimPlanConverter(services))
-
-  implicit val eventSubscriber: ActorRef = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
-
-  var writer: JsonFriendlyEventWriterXML = _
+  var eventSubscriber: ActorRef = _
+  var eventsManager: EventsManager = _
+  var writer: BeamEventsLogger = _
   var currentIter = 0
 
-  private implicit val timeout: Timeout = Timeout(5000, TimeUnit.SECONDS)
+  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    val scenario = services.matsimServices.getScenario
+//    eventsManager = services.matsimServices.getEvents
+    eventsManager = EventsUtils.createEventsManager()
+    eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
     subscribe(ActivityStartEvent.EVENT_TYPE)
@@ -73,8 +75,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     subscribe(TeleportationArrivalEvent.EVENT_TYPE)
     subscribe(PersonArrivalEvent.EVENT_TYPE)
     subscribe(PointProcessEvent.EVENT_TYPE)
+    subscribe(ModeChoiceEvent.EVENT_TYPE)
 
-    val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], 3600 * 30.0, 300.0, services.beamConfig.beam.agentsim.debugEnabled == 1))
+    services.modeChoiceCalculator = ModeChoiceCalculator(services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, services)
+
+    val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], 3600 * 30.0, 300.0,services.beamConfig.beam.agentsim.debugEnabled==1))
     services.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
     val routerFuture = services.registry ? Registry.Register("router", BeamRouter.props(services))
@@ -95,42 +100,24 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    // TODO replace magic numbers
     currentIter = event.getIteration
-    //TODO make events output in CSV possible here
-    val gzExtension = if (services.beamConfig.beam.outputs.eventsFileOutputFormats.contains("gz")) {
-      ".gz"
-    } else {
-      ""
-    }
-    writer = new JsonFriendlyEventWriterXML(services.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml$gzExtension"))
-    eventsManager.addHandler(writer)
     resetPop(event.getIteration)
     eventsManager.initProcessing()
     // init transit and start movement
     Await.result(services.beamRouter ? InitTransit, timeout.duration)
-    Await.result(services.schedulerRef ? StartSchedule, timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    eventsManager.finishProcessing()
     cleanupWriter()
     cleanupVehicle()
     cleanupHouseHolder()
     eventsManager.resetHandlers(event.getIteration)
   }
 
-  private def cleanupWriter(): Unit = {
-    eventsManager.finishProcessing()
-    writer.closeFile()
-    eventsManager.removeHandler(writer)
-    writer = null
-    val gzExtension = if (services.beamConfig.beam.outputs.eventsFileOutputFormats.contains("gz")) {
-      ".gz"
-    } else {
-      ""
-    }
-    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"),
-      services.matsimServices.getControlerIO.getOutputFilename("trips.json"))
+  private def cleanupWriter() = {
+//    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"),
+//      services.matsimServices.getControlerIO.getOutputFilename("trips.json"))
   }
 
   private def cleanupVehicle(): Unit = {
@@ -153,10 +140,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-
     if (writer != null && event.isUnexpected) {
       cleanupWriter()
     }
+    eventsManager.finishProcessing()
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(services.schedulerRef)
     actorSystem.terminate()

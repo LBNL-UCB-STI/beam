@@ -5,10 +5,11 @@ import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap, TimeUnit}
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.TransitDriverAgent
-import beam.sim.akkaguice.ActorInject
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
 import beam.router.RoutingModel.BeamLeg
+import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import com.google.inject.{ImplementedBy, Inject, Injector, Singleton}
 import glokka.Registry
@@ -35,6 +36,7 @@ trait BeamServices extends ActorInject {
 
   val registry: ActorRef
   val geo: GeoUtils
+  var modeChoiceCalculator: ModeChoiceCalculator
 
   var beamRouter: ActorRef
   var physSim: ActorRef
@@ -60,7 +62,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
-  //TODO find a better way to inject the router, for now this is initilized inside Agentsim.notifyStartup
+  //TODO find a better way to inject these, for now they are initilized inside BeamSim.notifyStartup
+  var modeChoiceCalculator: ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
   var physSim: ActorRef = _
   var schedulerRef: ActorRef = _

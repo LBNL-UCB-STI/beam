@@ -7,6 +7,6 @@ import java.util.Random;
  * BEAM
  */
 public interface AbstractLogit {
-    DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData);
-    String makeRandomChoice(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData, Random rand);
+    public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData);
+    public String makeRandomChoice(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, Random rand);
 }
