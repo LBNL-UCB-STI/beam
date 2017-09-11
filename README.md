@@ -7,14 +7,14 @@ The Framework for Modeling Behavior, Energy, Autonomy, and Mobility in Transport
 BEAM extends the [Multi-Agent Transportation Simulation Framework](https://github.com/matsim-org/matsim) (MATSim)
 to enable powerful and scalable analysis of urban transportation systems.
 
-##Build
-BEAM is a gradle project. To build the project, you are required to run following command:
+## Build
+BEAM is a gradle project. To build the project, you are required to run the following command:
 ````
 gradle build
 ````
 It will generate a shadow jar with all dependencies inside build/libs directory.
 
-##Run
+## Run
 Once the `beam.jar` is ready. You can run beam by executing following command.
 ````
 java -Xmx2g -jar build/libs/beam.jar --config test/input/beamville/beam.conf
