@@ -29,7 +29,7 @@ class DummyRouter(val beamServices: BeamServices) extends Actor with ActorLoggin
       })
       val path = BeamPath(Vector[String](origin.toString,destination.toString), None, new DefinedTrajectoryHolder(dummyTrajectory)
       )
-      val leg = BeamLeg(time+1, BeamMode.CAR, 100, path)
+      val leg = BeamLeg(time+1, BeamMode.CAR, 100, travelPath = path)
       val dummyWalkEnd = BeamLeg.dummyWalk(time+101)
 
       val trip = EmbodiedBeamTrip(BeamTrip(Vector[BeamLeg](dummyWalkStart, leg, dummyWalkEnd)))

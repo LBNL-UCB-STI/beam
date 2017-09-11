@@ -1,6 +1,7 @@
 package beam.sim
 
 import beam.Log4jController
+import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
 import beam.sim.config.ConfigModule
@@ -13,6 +14,9 @@ import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
+import net.codingwell.scalaguice.InjectorExtensions._
+import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.events.EventsUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -38,9 +42,9 @@ trait RunBeam {
       override def install(): Unit = {
 
         // Beam -> MATSim Wirings
-
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[BeamSim])
+        bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
       }
     }))
@@ -61,8 +65,8 @@ trait RunBeam {
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
-
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
+
     services.controler.run()
 
   }

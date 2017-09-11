@@ -70,17 +70,22 @@ object RoutingModel {
 
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
-    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode, StreetVehicle], egressVehiclesByMode: Map[BeamMode, StreetVehicle], services: BeamServices): EmbodiedBeamTrip = {
-      if (trip.legs.isEmpty) {
+    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode, StreetVehicle], egressVehiclesByMode: Map[BeamMode, StreetVehicle], legFares: Map[Int, Double], services: BeamServices): EmbodiedBeamTrip = {
+      if(trip.legs.isEmpty){
         EmbodiedBeamTrip.empty
       } else {
         var inAccessPhase = true
-        val embodiedLegs: Vector[EmbodiedBeamLeg] = for (beamLeg <- trip.legs) yield {
+        val embodiedLegs: Vector[EmbodiedBeamLeg] = for(tuple <- trip.legs.zipWithIndex) yield {
+          val beamLeg = tuple._1
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
+          val cost = legFares.getOrElse(tuple._2, 0.0)
           if (Modes.isR5TransitMode(currentMode)) {
-            inAccessPhase = false
-            EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
+            if(services.transitVehiclesByBeamLeg.contains(beamLeg)) {
+              EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
+            }else{
+              EmbodiedBeamLeg.empty
+            }
           } else if (inAccessPhase) {
             EmbodiedBeamLeg(beamLeg, accessVehiclesByMode(currentMode).id, accessVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
           } else {
@@ -116,9 +121,8 @@ object RoutingModel {
   case class BeamLeg(startTime: Long,
                      mode: BeamMode,
                      duration: Long,
-                     travelPath: BeamPath = EmptyBeamPath.path) {
-    require(duration > -1)
-    def endTime: Long = startTime + duration
+                     travelPath: BeamPath = empty) {
+    val endTime: Long = startTime + duration
   }
 
   object BeamLeg {
@@ -134,7 +138,7 @@ object RoutingModel {
                              cost: BigDecimal,
                              unbecomeDriverOnCompletion: Boolean
                             ) {
-    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+    val isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
   }
 
   object EmbodiedBeamLeg {

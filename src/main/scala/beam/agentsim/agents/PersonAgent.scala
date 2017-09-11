@@ -313,9 +313,13 @@ class PersonAgent(val beamServices: BeamServices,
           goto(Finished) replying completed(triggerId)
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
-          val endTime = if(activity.getEndTime >= 0.0 || Math.abs(activity.getEndTime) < Double.PositiveInfinity){ activity.getEndTime }else{
+          val endTime = if(activity.getEndTime < 0.0 || Math.abs(activity.getEndTime) == Double.PositiveInfinity){
             logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
             tick + 60*10
+          }else if(activity.getEndTime < tick) {
+            tick
+          }else{
+            activity.getEndTime
           }
           beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value)))
           beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType)))
