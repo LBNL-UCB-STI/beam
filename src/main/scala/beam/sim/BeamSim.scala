@@ -15,7 +15,7 @@ import beam.agentsim.events._
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.agentsim.agents.choice.mode._
-import beam.agentsim.events.handling.BeamEventsLogger
+import beam.agentsim.events.handling.{BeamEventsHandling, BeamEventsLogger}
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
@@ -50,6 +50,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val services: BeamServices
                        ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
+
   private val logger: Logger = LoggerFactory.getLogger(classOf[BeamSim])
   var eventSubscriber: ActorRef = _
   var eventsManager: EventsManager = _
@@ -60,7 +61,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyStartup(event: StartupEvent): Unit = {
 //    eventsManager = services.matsimServices.getEvents
-    eventsManager = EventsUtils.createEventsManager()
+
+    eventsManager = services.matsimServices.getEvents
+
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
@@ -186,7 +189,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     //TODO the following should be based on config params
     val rideHailingFraction = 0.1
-    val initialLocationJitter = 2000 // meters
+    val initialLocationJitter = 500 // meters
 
 
     val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
@@ -216,7 +219,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
     services.personRefs.foreach { case (id, ref) =>
-      ref ! SubscribeTransitionCallBack(errorListener)  // Subscribes each person to the error listener
+//      ref ! SubscribeTransitionCallBack(errorListener)  // Subscribes each person to the error listener
       services.agentRefs.put(id.toString, ref)
     }
   }
