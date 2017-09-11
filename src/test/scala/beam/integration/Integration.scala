@@ -19,6 +19,27 @@ import scala.util.Try
   */
 
 
+trait ReadModeChoiceEvent{
+
+
+}
+
+class ModeChoiceTransitIfAvailable extends  ReadModeChoiceEvent{
+
+}
+
+class ModeChoiceDriveIfAvailable extends ReadModeChoiceEvent{
+
+}
+
+class ModeChoiceRideHailIfAvailable extends ReadModeChoiceEvent{
+
+}
+
+class ModeChoiceTransitOnly extends ReadModeChoiceEvent{
+
+}
+
 trait ReadEvents{
   def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String]
   def getLinesFrom(file: File): String
@@ -130,6 +151,8 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
   lazy val route_input = ConfigModule.beamConfig.beam.sharedInputs
 
+  lazy val mode_choice = ConfigModule.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
+
   lazy val eventsReader: ReadEvents = {
     ConfigModule.beamConfig.beam.outputs.eventsFileOutputFormats match{
       case "xml" => new ReadEventsXml
@@ -140,11 +163,24 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
     }
   }
 
+
+  lazy val readModeChoice: ReadModeChoiceEvent = {
+    ConfigModule.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass match {
+      case "ModeChoiceTransitIfAvailable" => new ModeChoiceTransitIfAvailable
+      case "ModeChoiceDriveIfAvailable" => new ModeChoiceDriveIfAvailable
+      case "ModeChoiceRideHailIfAvailable" => new ModeChoiceRideHailIfAvailable
+      case "ModeChoiceTransitOnly" => new ModeChoiceTransitOnly
+      case _ => throw new RuntimeException("Unsupported Mode Choice")
+
+    }
+  }
+
   override def beforeAll(): Unit = {
     exc
     file
     route_input
     eventsReader
+    mode_choice
   }
 
   "Run Beam" must {
@@ -233,15 +269,54 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
     }
 
-    "Events file contain exactly one type ModeChoice of mode transit " in {
+    "Events file contain exactly one type ModeChoice of mode transit and 3 type ModeChoice ride_hailing when modeChoice is ModeChoiceTransitIfAvailable input" in {
 
-      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-      
-      listValueTagEventFile.foreach(println)
-      //var listTransit = listValueTagEventFile.map(e => e.equals("car")).foreach(println)
-      //val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-
+      if (mode_choice.equals("ModeChoiceTransitIfAvailable")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
+        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(3)
+      }
+      else
+        succeed
 
     }
+
+    "Events file contain exactly two type ModeChoice of mode car and two type ModeChoice ride_hailing when modeChoice is ModeChoiceDriveIfAvailable input" in {
+
+      if (mode_choice.equals("ModeChoiceDriveIfAvailable")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("car")).size shouldBe(2)
+        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(2)
+      }
+      else
+        succeed
+
+    }
+
+    "Events file contain exactly 4 type ModeChoice of mode ride_hailing when modeChoice is ModeChoiceRideHailIfAvailable input" in {
+
+      if (mode_choice.equals("ModeChoiceRideHailIfAvailable")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
+      }
+      else
+        succeed
+
+    }
+
+    "Events file contain exactly one type ModeChoice of mode transit when modeChoice is ModeChoiceTransitOnly input" in {
+
+
+      if (mode_choice.equals("ModeChoiceTransitOnly")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
+      }
+      else
+        succeed
+
+    }
+
+
+
   }
 }
