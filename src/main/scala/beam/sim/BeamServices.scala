@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.time.ZonedDateTime
 import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap, TimeUnit}
 
 import akka.actor.{ActorRef, ActorSystem}
@@ -8,9 +9,9 @@ import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
-import beam.router.RoutingModel.BeamLeg
+import beam.router.RoutingModel.{BeamLeg, BeamLegWithNext}
 import beam.sim.akkaguice.ActorInject
-import beam.sim.common.GeoUtils
+import beam.sim.common.{DateUtils, GeoUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector, Singleton}
 import glokka.Registry
 import org.matsim.api.core.v01.population.Person
@@ -38,6 +39,7 @@ trait BeamServices extends ActorInject {
   val registry: ActorRef
   val geo: GeoUtils
   var modeChoiceCalculator: ModeChoiceCalculator
+  val dates: DateUtils
 
   var beamRouter: ActorRef
   var physSim: ActorRef
@@ -53,7 +55,7 @@ trait BeamServices extends ActorInject {
   val transitVehiclesByBeamLeg: TrieMap[BeamLeg, Id[Vehicle]]
   val transitDriversByVehicle: TrieMap[Id[Vehicle], Id[TransitDriverAgent]]
   //TODO refactor this into named case clases
-  val transitLegDurationAndNextDeparture: TrieMap[Tuple3[String, String, Long],Tuple2[Long,Option[Long]]]
+  val transitLegsByStopAndDeparture: TrieMap[Tuple3[String, String, Long],BeamLegWithNext]
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
@@ -64,6 +66,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
+  val dates: DateUtils = DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
 
   var modeChoiceCalculator: ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
@@ -79,7 +82,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
   val transitVehiclesByBeamLeg: TrieMap[BeamLeg, Id[Vehicle]] = TrieMap[BeamLeg, Id[Vehicle]]()
   val transitDriversByVehicle: TrieMap[Id[Vehicle], Id[TransitDriverAgent]] = TrieMap[Id[Vehicle], Id[TransitDriverAgent]]()
-  val transitLegDurationAndNextDeparture: TrieMap[Tuple3[String, String, Long],Tuple2[Long,Option[Long]]] = TrieMap[Tuple3[String, String, Long],Tuple2[Long,Option[Long]]]()
+  val transitLegsByStopAndDeparture: TrieMap[Tuple3[String, String, Long],BeamLegWithNext] = TrieMap[Tuple3[String, String, Long],BeamLegWithNext]()
 }
 
 object BeamServices {

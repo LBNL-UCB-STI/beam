@@ -121,7 +121,7 @@ object RoutingModel {
   case class BeamLeg(startTime: Long,
                      mode: BeamMode,
                      duration: Long,
-                     travelPath: BeamPath = empty) {
+                     travelPath: BeamPath = EmptyBeamPath.path) {
     val endTime: Long = startTime + duration
   }
 
@@ -130,6 +130,8 @@ object RoutingModel {
 
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
   }
+
+  case class BeamLegWithNext(leg: BeamLeg, nextLeg: Option[BeamLeg])
 
   case class EmbodiedBeamLeg(beamLeg: BeamLeg,
                              beamVehicleId: Id[Vehicle],

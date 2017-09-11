@@ -44,7 +44,7 @@ class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer, departure
 
   override def resolve(beamPath: BeamPath): Trajectory = {
     val stepDelta = duration.toDouble / beamPath.linkIds.size
-    val path = beamPath.linkIds.map(_.toInt).zipWithIndex.flatMap { case (edgeId, i) =>
+    val path = beamPath.linkIds.filter(!_.equals("")).map(_.toInt).zipWithIndex.flatMap { case (edgeId, i) =>
       val edge = streetLayer.edgeStore.getCursor(edgeId)
       //TODO: resolve time from stopinfo and tripSchedule(for transit), linkid -> stop is one -> one: links.zip(stops)....
       val time = departure  + (i * stepDelta).toLong
