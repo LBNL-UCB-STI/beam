@@ -192,7 +192,7 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is starting
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick), triggerId), _) =>
-      if(id.toString.equals("2335-2")){
+      if(id.toString.equals("2276-3")){
         val i = 0
       }
       _currentEmbodiedLeg match {
@@ -236,7 +236,7 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is ending
      */
     case Event(TriggerWithId(NotifyLegEndTrigger(tick),triggerId), _) =>
-      if(id.toString.equals("2335-2")){
+      if(id.toString.equals("2276-3")){
         val i = 0
       }
       val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
