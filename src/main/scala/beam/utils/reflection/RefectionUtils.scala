@@ -17,17 +17,17 @@ import scala.reflect.ClassTag
 object RefectionUtils {
 
   val reflections = {
-    val classLoader = RefectionUtils.getClass.getClassLoader
-    val builder = new ConfigurationBuilder
+//    val classLoader = RefectionUtils.getClass.getClassLoader
+//    val builder = new ConfigurationBuilder
+//
+//    val urlTypes = Lists.newArrayList[Vfs.UrlType]
+//    // include a list of file extensions / filenames to be recognized
+//    urlTypes.add(new EmptyIfFileEndingsUrlType(".jnilib"))
+//    Vfs.DefaultUrlTypes.values.foreach(typ => urlTypes.add(typ))
+//
+//    Vfs.setDefaultURLTypes(urlTypes)
 
-    val urlTypes = Lists.newArrayList[Vfs.UrlType]
-    // include a list of file extensions / filenames to be recognized
-    urlTypes.add(new EmptyIfFileEndingsUrlType(".jnilib"))
-    Vfs.DefaultUrlTypes.values.foreach(typ => urlTypes.add(typ))
-
-    Vfs.setDefaultURLTypes(urlTypes)
-
-    new Reflections(builder.addClassLoader(classLoader))
+    new Reflections("org.matsim")
   }
 
   def classesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {
