@@ -90,10 +90,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val physSimInitFuture = services.physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
 
-    val rideHailingManagerFuture = services.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
-      fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles.toMap,
-      services))
-    services.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
   }
 
@@ -190,7 +186,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
     rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
-    val rideHailingAgents: mutable.Map[Id[Vehicle],ActorRef]=mutable.Map[Id[Vehicle],ActorRef]()
+    var rideHailingAgents: Map[Id[Vehicle],ActorRef] = Map[Id[Vehicle],ActorRef]()
 
     for ((k, v) <- services.persons) {
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
@@ -211,6 +207,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
       rideHailingAgents += (rideHailVehicleId -> ref)
     }
+
+    val rideHailingManagerFuture = services.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
+      Map[Id[VehicleType], BigDecimal](), services.vehicles.toMap, services,rideHailingAgents))
+    services.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
+
 
     initHouseholds(iterId)
 

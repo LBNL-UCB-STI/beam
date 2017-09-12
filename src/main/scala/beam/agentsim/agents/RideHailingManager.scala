@@ -66,8 +66,8 @@ object RideHailingManager {
 
   case class RideHailingAgentLocation(rideHailAgent: ActorRef, vehicleId: Id[Vehicle], currentLocation: SpaceTime)
 
-  def props(name: String, fares: Map[Id[VehicleType], BigDecimal], fleet: Map[Id[Vehicle], Vehicle], services: BeamServices) = {
-    Props(classOf[RideHailingManager], RideHailingManagerData(name, fares, fleet), services)
+  def props(name: String, fares: Map[Id[VehicleType], BigDecimal], fleet: Map[Id[Vehicle], Vehicle], services: BeamServices,managedVehicles:Map[Id[Vehicle],ActorRef]) = {
+    Props(classOf[RideHailingManager], RideHailingManagerData(name, fares, fleet), services, managedVehicles: Map[Id[Vehicle], ActorRef])
   }
 }
 
