@@ -219,7 +219,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
     services.personRefs.foreach { case (id, ref) =>
-//      ref ! SubscribeTransitionCallBack(errorListener)  // Subscribes each person to the error listener
+      ref ! SubscribeTransitionCallBack(errorListener)  // Subscribes each person to the error listener
       services.agentRefs.put(id.toString, ref)
     }
   }

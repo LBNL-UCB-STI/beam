@@ -162,13 +162,14 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
               log.info(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
               RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
             } else {
-              log.warn(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
+              log.debug(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
               lockedVehicles -= rideHailingLocation.vehicleId
               RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
             }
           }
         case None =>
           // no rides to hail
+          log.debug(s"Router could not find vehicle for customer person=$personId for inquiryId=$inquiryId")
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(VehicleUnavailable))
       }
 
