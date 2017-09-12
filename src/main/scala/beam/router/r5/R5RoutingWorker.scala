@@ -471,7 +471,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
     val allStopInds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
     val stopsInTrip = tripPattern.stops.map(_.toString).toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId)+1)
-//    val tripSchedules = tripPattern.tripSchedules.asScala.toVector.slice(allStopInds.indexOf(transitSegment.from.stopId),allStopInds.indexOf(transitSegment.to.stopId)).flatMap(sched => (sched.arrivals , sched.departures) )
 
     var workingDepature = departureTime
     if(stopsInTrip.size==1){

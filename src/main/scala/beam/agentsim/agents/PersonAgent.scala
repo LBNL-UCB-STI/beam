@@ -200,14 +200,20 @@ class PersonAgent(val beamServices: BeamServices,
           val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
           processedDataOpt match {
             case Some(processedData) =>
-              val previousVehicleId = _currentVehicle.nestedVehicles.head
-              val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
-              val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
-              nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
-              _currentRoute = processedData.restTrip
-              _currentEmbodiedLeg = Some(processedData.nextLeg)
-              _currentVehicle = _currentVehicle.pushIfNew(nextBeamVehicleId)
-              goto(Moving) replying completed(triggerId)
+              if(processedData.nextLeg.asDriver==true){
+                // We still haven't even processed our personDepartureTrigger
+                beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, self)
+                stay() replying completed(triggerId)
+              }else{
+                val previousVehicleId = _currentVehicle.nestedVehicles.head
+                val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
+                val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
+                nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
+                _currentRoute = processedData.restTrip
+                _currentEmbodiedLeg = Some(processedData.nextLeg)
+                _currentVehicle = _currentVehicle.pushIfNew(nextBeamVehicleId)
+                goto(Moving) replying completed(triggerId)
+              }
             case None =>
               logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
               goto(Error) replying completed(triggerId)
