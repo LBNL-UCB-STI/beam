@@ -11,9 +11,9 @@ case class DateUtils(val routingBaseDate: String, val localBaseDateTime: LocalDa
 
   def toBaseMidnightSeconds(time: ZonedDateTime, hasTransit: Boolean): Long = {
     if(hasTransit){
-      ChronoUnit.SECONDS.between(localBaseDateTime, time)
-    }else{
       ChronoUnit.SECONDS.between(zonedBaseDateTime, time)
+    }else{
+      ChronoUnit.SECONDS.between(localBaseDateTime, time)
     }
   }
 }

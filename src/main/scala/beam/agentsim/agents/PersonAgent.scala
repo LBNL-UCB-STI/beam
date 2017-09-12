@@ -176,6 +176,9 @@ class PersonAgent(val beamServices: BeamServices,
      * Starting Trip
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      if(id.toString.equals("878-1")){
+        val i = 0
+      }
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Complete leg(s) as driver
@@ -186,6 +189,9 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is starting
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick), triggerId), _) =>
+      if(id.toString.equals("878-1")){
+        val i = 0
+      }
       _currentEmbodiedLeg match {
         /*
          * If we already have a leg then we're not ready to start a new one,
@@ -194,16 +200,14 @@ class PersonAgent(val beamServices: BeamServices,
          * Solution for now is to re-send this to self, but this could get expensive...
          */
         case Some(currentLeg) =>
-          beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, self)
-          stay() replying completed(triggerId)
+          stay() replying completed(triggerId,schedule[NotifyLegStartTrigger](tick, self))
         case None =>
           val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
           processedDataOpt match {
             case Some(processedData) =>
               if(processedData.nextLeg.asDriver==true){
                 // We still haven't even processed our personDepartureTrigger
-                beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, self)
-                stay() replying completed(triggerId)
+                stay() replying completed(triggerId,schedule[NotifyLegStartTrigger](tick, self))
               }else{
                 val previousVehicleId = _currentVehicle.nestedVehicles.head
                 val nextBeamVehicleId = processedData.nextLeg.beamVehicleId

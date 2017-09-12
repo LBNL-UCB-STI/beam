@@ -106,6 +106,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] = Vector()) = {
+    if(id.toString.equals("878-1")){
+      val i = 0
+    }
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value)))
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
