@@ -47,10 +47,11 @@ public class BeamEventsLogger {
         allLoggableEvents.add(PersonArrivalEvent.class);
         allLoggableEvents.add(ActivityStartEvent.class);
 
-        if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel() > 0) {
+      //Commented code to handle logging level while writing xml
+     //   if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel() > 0) {
             // All classes are logged by default
             eventsToLog.addAll(getAllLoggableEvents());
-        }
+     //   }
 //        filterLoggingLevels();
         createEventsWriters();
     }
@@ -101,9 +102,10 @@ public class BeamEventsLogger {
         levels.put(eventType, level);
     }
 
-    public Integer getLoggingLevel(Event event) {
+    //Logging control code changed return type from int to String
+    public String getLoggingLevel(Event event) {
         if (levels.containsKey(event.getClass())) {
-            return levels.get(event.getClass());
+            return levels.get(event.getClass()).toString();
         } else {
             return this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel();
         }

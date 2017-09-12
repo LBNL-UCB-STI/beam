@@ -58,7 +58,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyStartup(event: StartupEvent): Unit = {
 //    eventsManager = services.matsimServices.getEvents
-    eventsManager = EventsUtils.createEventsManager()
+  //  eventsManager = EventsUtils.createEventsManager()
+    eventsManager = services.matsimServices.getEvents
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
     subscribe(ActivityEndEvent.EVENT_TYPE)

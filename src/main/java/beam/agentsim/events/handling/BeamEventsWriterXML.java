@@ -1,11 +1,13 @@
 package beam.agentsim.events.handling;
 
 import beam.sim.BeamServices;
+import beam.utils.IntegerValueHashMap;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
-
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.Map;
+import beam.agentsim.events.LoggerLevels;
 
 /**
  * BEAM
@@ -13,8 +15,12 @@ import java.util.Map;
 public class BeamEventsWriterXML extends BeamEventsWriterBase{
     public BeamEventsWriterXML(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, beamEventLogger, beamServices, eventTypeToLog);
+
+
         writeHeaders();
     }
+
+
 
     @Override
     public void writeHeaders(){
@@ -48,22 +54,96 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
     public void reset(final int iter) {
     }
 
+    //Modify the method to control logger and based on logging level writing specific attribute
     @Override
     protected void writeEvent(final Event event) {
-        try {
+        String LoggerLevel=this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel();
+
+        if(LoggerLevel.equals(LoggerLevels.OFF.toString())||LoggerLevel.equals("")){System.out.println("No Logs!");}
+        else {
+            try {
             this.out.append("\t<event ");
             Map<String, String> attr = event.getAttributes();
+
             for (Map.Entry<String, String> entry : attr.entrySet()) {
-                this.out.append(entry.getKey());
-                this.out.append("=\"");
-                this.out.append(encodeAttributeValue(entry.getValue()));
-                this.out.append("\" ");
+
+                if(LoggerLevel.equals(LoggerLevels.VERBOSE.toString())){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+
+                }
+
+                if(LoggerLevel.equals(LoggerLevels.REGULAR.toString())){
+                    if (entry.getKey().equals("time")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                    }
+
+                    if (entry.getKey().equals("type")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                    }
+
+                    if (entry.getKey().equals("vehicle")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                    }
+
+                    if (entry.getKey().equals("departure_time")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                    }
+
+                    if (entry.getKey().equals("mode")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                    }
+
+
+                }
+
+                if(LoggerLevel.equals(LoggerLevels.SHORT.toString())){
+                    if (entry.getKey().equals("time")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                    }
+
+                    if (entry.getKey().equals("type")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                }
+                    if (entry.getKey().equals("person")){
+                        this.out.append(entry.getKey());
+                        this.out.append("=\"");
+                        this.out.append(encodeAttributeValue(entry.getValue()));
+                        this.out.append("\" ");
+                    }
+                }
+
+
             }
+
             this.out.append(" />\n");
 //			this.out.flush();
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }}
     }
 
     // the following method was taken from MatsimXmlWriter in order to correctly encode attributes, but
