@@ -9,7 +9,7 @@ import beam.agentsim.agents.RideHailingManager._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.util.{AggregatorFactory, SingleActorAggregationResult}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{CarVehicle, PassengerSchedule, VehicleManager, VehiclePersonId}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
@@ -78,7 +78,7 @@ object RideHailingManager {
 case class RideHailingManagerData(name: String, fares: Map[Id[VehicleType], BigDecimal],
                                   fleet: Map[Id[Vehicle], Vehicle]) extends BeamAgentData
 
-class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamServices) extends VehicleManager
+class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamServices) extends VehicleManager[Vehicle]
   with HasServices with AggregatorFactory {
 
   import scala.collection.JavaConverters._
@@ -259,6 +259,6 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
     info.fleet.get(resourceId)
   }
 
-  override def findResource(resourceId: Id[Vehicle]): Option[ActorRef] = ???
+  override def findResource(resourceId: Id[Vehicle]): Option[ActorRef] = availableRideHailVehicles.get(resourceId).flatMap(_=>beamServices.vehicleRefs.get(resourceId))
 
 }

@@ -5,9 +5,10 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusReponse}
+import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse}
 import beam.agentsim.agents._
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
@@ -137,7 +138,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ ${tick}")
       holdTickAndTriggerId(tick,triggerId)
-      beamServices.householdRefs.get(_household).foreach(_  ! MobilityStatusInquiry(id))
+      beamServices.householdRefs.get(_household).foreach(_  ! mobilityStatusInquiry(id))
       stay()
     case Event(MobilityStatusReponse(streetVehicles), info: BeamAgentInfo[PersonData]) =>
       val (tick,theTriggerId) = releaseTickAndTriggerId()

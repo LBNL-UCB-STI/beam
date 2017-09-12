@@ -8,13 +8,12 @@ import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles._
 
-
 class CarVehicle(val beamServices: BeamServices,
                  val vehicleId: Id[Vehicle],
                  val data: CarVehicleData,
                  var powerTrain: Powertrain,
                  val initialMatsimVehicle: Vehicle,
-                 val initialMatsimAttributes: Attributes) extends BeamVehicle with HasServices {
+                 val initialMatsimAttributes: Attributes) extends BeamVehicle with HasServices with Vehicle {
 
   override val id: Id[Vehicle] = vehicleId
   override val vehicleTypeName: String = "CarVehicle"

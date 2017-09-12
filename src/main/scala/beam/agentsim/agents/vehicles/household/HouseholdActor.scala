@@ -4,13 +4,14 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse}
-import beam.agentsim.agents.vehicles.{Trajectory, VehicleManager}
+import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamStreetPath
 import beam.sim.{BeamServices, HasServices}
+import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households
@@ -23,6 +24,7 @@ import org.matsim.vehicles.Vehicle
 
 object HouseholdActor {
 
+
   def buildActorName(id: Id[households.Household], iterationName: Option[String] = None): String = {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
@@ -31,7 +33,13 @@ object HouseholdActor {
     Props(new HouseholdActor(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
   }
 
-  case class MobilityStatusInquiry(personId: Id[Person])
+  case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
+
+  object MobilityStatusInquiry {
+    // Smart constructor for MSI
+    def mobilityStatusInquiry(personId: Id[Person]) =
+      MobilityStatusInquiry(Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[MobilityStatusInquiry]), personId)
+  }
 
   case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
 
@@ -46,7 +54,7 @@ class HouseholdActor(services: BeamServices,
                      memberActors: Map[Id[Person], ActorRef],
                      homeCoord: Coord
                     )
-  extends VehicleManager with ActorLogging with HasServices {
+  extends VehicleManager[Vehicle] with ActorLogging with HasServices {
 
   override val beamServices: BeamServices = services
 
@@ -61,9 +69,14 @@ class HouseholdActor(services: BeamServices,
   val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(memb => MemberWithRank(memb, lookupMemberRank(memb)))
 
   /**
+    * Concurrent inquiries
+    */
+  var _pendingInquiries: Map[Id[MobilityStatusInquiry], Id[Vehicle]] = Map[Id[MobilityStatusInquiry], Id[Vehicle]]()
+
+  /**
     * Current [[Vehicle]] assignments
     */
-  var _vehicleAssignments: Map[Id[Person], Id[Vehicle]] = Map[Id[Person], Id[Vehicle]]()
+  var _availableVehicles: Map[Id[Person], Id[Vehicle]] = Map[Id[Person], Id[Vehicle]]()
 
   /**
     * Mapping of [[Vehicle]] to [[StreetVehicle]]
@@ -74,25 +87,33 @@ class HouseholdActor(services: BeamServices,
 
 
   override def receive: Receive = {
+
+    //    case NotifyResourceIsAvailable(vehicleDriverRef: ActorRef, vehicleId: Id[Vehicle], availableIn: Future[SpaceTime]) =>
+    //      // register
+    //      val vehicleAgentLocation = VehicleLocationResponse(vehicleId, availableIn)
+    //      rideHailingAgentSpatialIndex.put(availableIn.loc.getX, availableIn.loc.getY, rideHailingAgentLocation)
+    //      availableRideHailVehicles.put(vehicleId, rideHailingAgentLocation)
+    //      inServiceRideHailVehicles.remove(vehicleId)
+    //      sender ! RideAvailableAck
+
     case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
       initializeHouseholdVehicles()
       log.debug(s"Household ${self.path.name} has been initialized ")
       sender() ! CompletionNotice(triggerId)
-    case MobilityStatusInquiry(personId) =>
+    case MobilityStatusInquiry(inquiryId, personId) =>
+
       // Query available vehicles
-      val availableVehicles = lookupAvailableStreetVehicles(personId)
+      val availableStreetVehicles = lookupAvailableStreetVehicles(personId)
 
-      if(availableVehicles.isEmpty)
-        // Send back response of empty [[Vector]]
-        sender() ! MobilityStatusReponse(availableVehicles)
-      else{
+      if (availableStreetVehicles.isEmpty)
+      // Send back response of empty [[Vector]]
+        sender() ! MobilityStatusReponse(availableStreetVehicles)
+      else {
+        // Send a location request to each vehicle
         // Assign to requesting individual
-
-        sender() ! MobilityStatusReponse(availableVehicles)
+        sender() ! MobilityStatusReponse(availableStreetVehicles)
       }
-
-
 
     case msg@_ =>
       log.warning(s"Unrecognized message $msg")
@@ -118,7 +139,7 @@ class HouseholdActor(services: BeamServices,
     val sortedMembers = _members.sortWith(sortByRank)
     for (i <- _vehicles.indices.toSet ++ sortedMembers.indices.toSet) {
       if (i < _vehicles.size & i < sortedMembers.size) {
-        _vehicleAssignments = _vehicleAssignments + (sortedMembers(i).personId -> _vehicles(i))
+        _availableVehicles = _availableVehicles + (sortedMembers(i).personId -> _vehicles(i))
       }
     }
     // Initial locations and trajectories
@@ -134,9 +155,10 @@ class HouseholdActor(services: BeamServices,
 
   def lookupAvailableStreetVehicles(person: Id[Person]): Vector[StreetVehicle] = Vector(
     for {
-      availableVehicle <- _vehicleAssignments.get(person)
+      availableVehicle <- _availableVehicles.get(person)
       availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
     } yield availableStreetVehicle
   ).flatten
 
 }
+

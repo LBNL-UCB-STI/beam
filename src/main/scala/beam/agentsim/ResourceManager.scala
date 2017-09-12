@@ -1,18 +1,39 @@
 package beam.agentsim
 
 import akka.actor.{Actor, ActorRef}
-import org.matsim.api.core.v01.{Id, Identifiable}
+import beam.agentsim.Resource.ResourceIsAvailableNotification
+import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.BeamAgent.BeamAgentData
+import beam.agentsim.events.SpaceTime
+import org.matsim.api.core.v01.Id
+
+import scala.concurrent.Future
 
 /**
   * Created by dserdiuk on 6/15/17.
   */
 
-case class User(userId: Id[User] )
+trait Resource[R] {
 
-trait Resource
+  this: BeamAgent[BeamAgentData]=>
 
-trait ResourceManager[IdType] {
+  override val id: Id[R]
 
-  def findResource(resourceId : Id[IdType]) : Option[ActorRef]
+  val resourceManager: Option[ActorRef] = None
+
+  def notifyResourceAvailable(when: Future[SpaceTime]): Unit = {
+    resourceManager.foreach(_ ! ResourceIsAvailableNotification(self, id, when))
+  }
+}
+
+object Resource {
+
+  case class ResourceIsAvailableNotification[R](resourceRef: ActorRef, resourceId: Id[R], when: Future[SpaceTime])
+
+}
+
+trait ResourceManager[R] {
+
+  def findResource(resourceId: Id[R]): Option[ActorRef]
 
 }

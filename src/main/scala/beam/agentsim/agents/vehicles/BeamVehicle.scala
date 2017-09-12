@@ -116,7 +116,7 @@ object BeamVehicle {
   * VehicleManager.
   * Passenger and driver can EnterVehicle and LeaveVehicle
   */
-trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServices with Vehicle {
+trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with HasServices with Vehicle {
   override val id: Id[Vehicle]
   override def logPrefix(): String = s"BeamVehicle:$id "
 
@@ -134,6 +134,10 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
     */
   var carrier: Option[ActorRef] = None
   var driver: Option[ActorRef] = None
+  /**
+    * The actor managing this Vehicle
+    */
+  var manager: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
   var trajectory: Option[Trajectory] = None
   var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
@@ -225,7 +229,10 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
         throw new RuntimeException(s"BeamAgent $theDriver attempted to Unbecome driver of vehicle $id but no driver in currently assigned.")
       }else{
         driver = None
-        if(theDriver.isInstanceOf[Id[Person]])beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, theDriver.asInstanceOf[Id[Person]],id)))
+        theDriver match {
+          case personId: Id[Person] => beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, personId, id)))
+          case _ =>
+        }
       }
       stay()
     case Event(EnterVehicle(tick, newPassengerVehicle), info) =>
@@ -249,6 +256,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
       beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach{ vehiclePassengerRef =>
         vehiclePassengerRef ! ResetCarrier
       }
+      notifyResourceAvailable(location(tick))
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId,id)))
       stay()
