@@ -125,7 +125,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] = Vector()) = {
-    if(id.toString.equals("2335-2")){
+    if(id.toString.equals("2276-3")){
       val i = 0
     }
     val (tick, theTriggerId) = releaseTickAndTriggerId()

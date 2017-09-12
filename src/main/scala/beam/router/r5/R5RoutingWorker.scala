@@ -490,7 +490,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
               case Some(theNextLeg) =>
                 workingDepature = theNextLeg.startTime
               case None =>
-                log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture.")
+                log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
             }
           case None =>
         }
