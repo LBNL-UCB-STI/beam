@@ -178,7 +178,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         logError("Too many reservation requests!")
         errorFromEmptyRoutingResponse()
       }
-    case Event(ReservationResponse(requestId,Left(reservationError:ReservationError)),_) =>
+    case Event(ReservationResponse(requestId,Left(_)),_) =>
       pendingChosenTrip.get.tripClassifier match {
         case RIDEHAIL =>
           rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(),error = Some(RideUnavailableError)))
@@ -190,6 +190,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       }else{
         completeChoiceIfReady()
       }
+    case Event(ReservationResponse(_,_),_)=>
+      log.error("unknown res response")
+      errorFromEmptyRoutingResponse()
 
     /*
      * Finishing choice.
