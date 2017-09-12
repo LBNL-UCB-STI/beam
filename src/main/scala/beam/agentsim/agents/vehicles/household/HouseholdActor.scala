@@ -16,6 +16,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
+
 /**
   * @author dserdiuk
   */
@@ -25,17 +26,22 @@ object HouseholdActor {
   def buildActorName(id: Id[households.Household], iterationName: Option[String] = None): String = {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
+
   def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], ActorRef], membersActors: Map[Id[Person], ActorRef], homeCoord: Coord): Props = {
     Props(new HouseholdActor(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
   }
+
   case class MobilityStatusInquiry(personId: Id[Person])
+
   case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
+
   case class MemberWithRank(personId: Id[Person], rank: Option[Int])
+
 }
 
 class HouseholdActor(services: BeamServices,
                      id: Id[households.Household],
-                     matSimHouseHold : org.matsim.households.Household,
+                     matSimHouseHold: org.matsim.households.Household,
                      vehicleActors: Map[Id[Vehicle], ActorRef],
                      memberActors: Map[Id[Person], ActorRef],
                      homeCoord: Coord
@@ -44,62 +50,93 @@ class HouseholdActor(services: BeamServices,
 
   override val beamServices: BeamServices = services
 
+  /**
+    * Available [[Vehicle]]s in [[Household]]
+    */
   val _vehicles: Vector[Id[Vehicle]] = vehicleActors.keys.toVector
-  val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(memb => MemberWithRank(memb,lookupMemberRank(memb)))
+
+  /**
+    * Household members sorted by rank
+    */
+  val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(memb => MemberWithRank(memb, lookupMemberRank(memb)))
+
+  /**
+    * Current [[Vehicle]] assignments
+    */
   var _vehicleAssignments: Map[Id[Person], Id[Vehicle]] = Map[Id[Person], Id[Vehicle]]()
+
+  /**
+    * Mapping of [[Vehicle]] to [[StreetVehicle]]
+    */
   var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
 
   override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = vehicleActors.get(vehicleId)
 
-  MobilityStatusReponse
 
   override def receive: Receive = {
-    case TriggerWithId(InitializeTrigger(tick),triggerId) =>
+    case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
+      initializeHouseholdVehicles()
       log.debug(s"Household ${self.path.name} has been initialized ")
-      val sortedMembers = _members.sortWith(sortByRank)
-      for (i <- _vehicles.indices.toSet ++ sortedMembers.indices.toSet) {
-        if (i < _vehicles.size & i < sortedMembers.size) {
-          _vehicleAssignments = _vehicleAssignments + (sortedMembers(i).personId -> _vehicles(i))
-        }
-      }
-      //Initialize all vehicles to have a stationary trajectory starting at time zero
-      val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
-      val initialTrajectory = Trajectory(BeamStreetPath(Vector(""),None,Some(Vector())))
-      _vehicles.foreach { veh =>
-        services.vehicleRefs(veh) ! UpdateTrajectory(initialTrajectory)
-        //TODO following mode should come from the vehicle
-        _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
-      }
       sender() ! CompletionNotice(triggerId)
     case MobilityStatusInquiry(personId) =>
-      _vehicleAssignments.get(personId) match {
-        case Some(vehId) =>
-          val streetVehicles = _vehicleToStreetVehicle.get(vehId) match {
-            case Some(streetVehicle) =>
-              Vector(streetVehicle)
-            case None =>
-              Vector()
-          }
-          sender() ! MobilityStatusReponse(streetVehicles)
-        case None =>
-          sender() ! MobilityStatusReponse(Vector())
+      // Query available vehicles
+      val availableVehicles = lookupAvailableStreetVehicles(personId)
+
+      if(availableVehicles.isEmpty)
+        // Send back response of empty [[Vector]]
+        sender() ! MobilityStatusReponse(availableVehicles)
+      else{
+        // Assign to requesting individual
+
+        sender() ! MobilityStatusReponse(availableVehicles)
       }
+
+
+
     case msg@_ =>
       log.warning(s"Unrecognized message $msg")
   }
 
-  def lookupMemberRank(member: Id[Person]): Option[Int] ={
-    val theRank = beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank")
-    theRank match{
-      case null =>
-        None
+  def lookupMemberRank(member: Id[Person]): Option[Int] = {
+
+    beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank") match {
       case rank: Integer =>
         Some(rank)
+      case _ =>
+        None
     }
   }
+
   // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last in list
   def sortByRank(r2: MemberWithRank, r1: MemberWithRank): Boolean = {
     r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
   }
+
+  private def initializeHouseholdVehicles(): Unit = {
+    // Initial assignments
+    val sortedMembers = _members.sortWith(sortByRank)
+    for (i <- _vehicles.indices.toSet ++ sortedMembers.indices.toSet) {
+      if (i < _vehicles.size & i < sortedMembers.size) {
+        _vehicleAssignments = _vehicleAssignments + (sortedMembers(i).personId -> _vehicles(i))
+      }
+    }
+    // Initial locations and trajectories
+    //Initialize all vehicles to have a stationary trajectory starting at time zero
+    val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
+    val initialTrajectory = Trajectory(BeamStreetPath(Vector(""), None, Some(Vector())))
+    _vehicles.foreach { veh =>
+      services.vehicleRefs(veh) ! UpdateTrajectory(initialTrajectory)
+      //TODO following mode should come from the vehicle
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
+    }
+  }
+
+  def lookupAvailableStreetVehicles(person: Id[Person]): Vector[StreetVehicle] = Vector(
+    for {
+      availableVehicle <- _vehicleAssignments.get(person)
+      availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
+    } yield availableStreetVehicle
+  ).flatten
+
 }
