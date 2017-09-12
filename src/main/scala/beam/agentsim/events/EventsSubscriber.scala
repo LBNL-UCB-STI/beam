@@ -24,12 +24,7 @@ class EventsSubscriber (private val eventsManager: EventsManager) extends Actor 
   def receive: Receive = {
 
     case event: Event =>
-      try {
-        eventsManager.processEvent(event.wrappedEvent)
-      } catch{
-        case e: IllegalArgumentException=>
-          log.error(s"$e")
-      }
+      eventsManager.processEvent(event.wrappedEvent)
 
     case _ => log.info("received unknown message")
   }
