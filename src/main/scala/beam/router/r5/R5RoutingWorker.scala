@@ -479,18 +479,23 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     var workingDepature = departureTime
     if(stopsInTrip.size==1){
       log.debug("Access and egress point the same on trip. No transit needed.")
+      legs
     }else {
       stopsInTrip.sliding(2).foreach { stopPair =>
-        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDepature)).get
-        legs = legs :+ legPair.leg
-        legPair.nextLeg match {
-          case Some(theNextLeg) =>
-            workingDepature = theNextLeg.startTime
+        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDepature))
+        legPair match {
+          case Some(lp) =>
+            legs = legs :+ lp.leg
+            lp.nextLeg match {
+              case Some(theNextLeg) =>
+                workingDepature = theNextLeg.startTime
+              case None =>
+            }
           case None =>
         }
       }
+      legs
     }
-    legs
   }
 
   def createStopId(stopId: String): Id[TransitStop] = {

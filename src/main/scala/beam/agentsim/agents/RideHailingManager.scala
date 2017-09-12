@@ -189,6 +189,7 @@ class RideHailingManager(info: RideHailingManagerData, val beamServices: BeamSer
             handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent, closestRideHailingAgent, travelProposal, tripPlan)
           // We have an agent nearby, but it's not the one we originally wanted
           case Some((closestRideHailingAgent,_))  =>
+            lockedVehicles -= closestRideHailingAgent.vehicleId
             customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
           case _ =>
             customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
