@@ -100,13 +100,13 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             passengerSchedule.addLegs(Seq(theLeg))
             beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
 
-            stopStopDepartTuple = (fromStopId, toStopId, departureFrom.toLong)
             previousBeamLeg match {
               case Some(prevLeg) =>
                 beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(prevLeg,Some(theLeg)))
               case None =>
             }
             previousBeamLeg = Some(theLeg)
+            stopStopDepartTuple = (previousBeamLeg.get.travelPath.transitStops.get.fromStopId, previousBeamLeg.get.travelPath.transitStops.get.toStopId, previousBeamLeg.get.startTime)
           }
           beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(previousBeamLeg.get,None))
         } else {
@@ -470,7 +470,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     val beamVehicleId = Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))
     val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
     val allStopInds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
-    val stopsInTrip = allStopInds.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId))
+    val stopsInTrip = tripPattern.stops.map(_.toString).toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId)+1)
 //    val tripSchedules = tripPattern.tripSchedules.asScala.toVector.slice(allStopInds.indexOf(transitSegment.from.stopId),allStopInds.indexOf(transitSegment.to.stopId)).flatMap(sched => (sched.arrivals , sched.departures) )
 
     var workingDepature = departureTime
