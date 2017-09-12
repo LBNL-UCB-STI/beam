@@ -474,13 +474,17 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 //    val tripSchedules = tripPattern.tripSchedules.asScala.toVector.slice(allStopInds.indexOf(transitSegment.from.stopId),allStopInds.indexOf(transitSegment.to.stopId)).flatMap(sched => (sched.arrivals , sched.departures) )
 
     var workingDepature = departureTime
-    stopsInTrip.sliding(2).foreach{ stopPair =>
-      val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0),stopPair(1),workingDepature)).get
-      legs = legs :+ legPair.leg
-      legPair.nextLeg match {
-        case Some(theNextLeg) =>
-          workingDepature = theNextLeg.startTime
-        case None =>
+    if(stopsInTrip.size==1){
+      log.debug("Access and egress point the same on trip. No transit needed.")
+    }else {
+      stopsInTrip.sliding(2).foreach { stopPair =>
+        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDepature)).get
+        legs = legs :+ legPair.leg
+        legPair.nextLeg match {
+          case Some(theNextLeg) =>
+            workingDepature = theNextLeg.startTime
+          case None =>
+        }
       }
     }
     legs
