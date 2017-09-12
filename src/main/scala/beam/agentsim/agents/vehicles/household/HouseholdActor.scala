@@ -2,17 +2,17 @@ package beam.agentsim.agents.vehicles.household
 
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory, VehicleLocationRequest, VehicleLocationResponse}
-import beam.agentsim.agents.vehicles.{Trajectory, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse}
+import beam.agentsim.agents.vehicles.{Trajectory, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamStreetPath
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
@@ -22,11 +22,11 @@ import org.matsim.vehicles.Vehicle
 
 object HouseholdActor {
 
-  def buildActorName(id: Id[households.Household], iterationName: Option[String] = None) = {
+  def buildActorName(id: Id[households.Household], iterationName: Option[String] = None): String = {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
-  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], ActorRef], membersActors: Map[Id[Person], ActorRef], homeCoord: Coord) = {
-    Props(classOf[HouseholdActor], beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
+  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], ActorRef], membersActors: Map[Id[Person], ActorRef], homeCoord: Coord): Props = {
+    Props(new HouseholdActor(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
   }
   case class MobilityStatusInquiry(personId: Id[Person])
   case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
@@ -41,8 +41,6 @@ class HouseholdActor(services: BeamServices,
                      homeCoord: Coord
                     )
   extends VehicleManager with ActorLogging with HasServices {
-
-  import scala.concurrent.ExecutionContext.Implicits.global
 
   override val beamServices: BeamServices = services
 
@@ -88,7 +86,7 @@ class HouseholdActor(services: BeamServices,
           sender() ! MobilityStatusReponse(Vector())
       }
     case msg@_ =>
-      log.warning(s"Unrecognized message ${msg}")
+      log.warning(s"Unrecognized message $msg")
   }
 
   def lookupMemberRank(member: Id[Person]): Option[Int] ={
@@ -102,6 +100,6 @@ class HouseholdActor(services: BeamServices,
   }
   // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last in list
   def sortByRank(r2: MemberWithRank, r1: MemberWithRank): Boolean = {
-    r1.rank.isEmpty || (!r2.rank.isEmpty && r1.rank.get > r2.rank.get)
+    r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
   }
 }
