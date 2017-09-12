@@ -177,7 +177,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       case Some(currentLeg) if req.departFrom.startTime < currentLeg.startTime =>
         ReservationResponse(req.requestId, Left(VehicleGone))
       case _ =>
-        val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.departFrom).toVector
+        val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
         val vehicleCap = beamServices.vehicles(vehicleIdToReserve).getType.getCapacity
         val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
         val hasRoom = tripReservations.forall { entry =>
