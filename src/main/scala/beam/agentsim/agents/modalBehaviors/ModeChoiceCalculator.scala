@@ -24,6 +24,8 @@ object ModeChoiceCalculator {
         new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
         new ModeChoiceMultinomialLogit(beamServices)
+      case "ModeChoiceTransitOnly" =>
+        new ModeChoiceTransitOnly(beamServices)
     }
   }
 }

@@ -18,7 +18,6 @@ import scala.util.Try
   * 
   */
 
-
 trait ReadEvents{
   def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String]
   def getLinesFrom(file: File): String
@@ -130,6 +129,8 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
   lazy val route_input = ConfigModule.beamConfig.beam.sharedInputs
 
+  lazy val mode_choice = ConfigModule.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
+
   lazy val eventsReader: ReadEvents = {
     ConfigModule.beamConfig.beam.outputs.eventsFileOutputFormats match{
       case "xml" => new ReadEventsXml
@@ -145,6 +146,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
     file
     route_input
     eventsReader
+    mode_choice
   }
 
   "Run Beam" must {
@@ -203,7 +205,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       listTrips shouldBe(listTripsEventFile)
 
     }
-    "Events file contain same pathTraversal defined at stop times file for train input file" in {
+    "Events file contains same pathTraversal defined at stop times file for train input file" in {
       val route = s"$route_input/r5/train/stop_times.txt"
       val listTrips = getListIDsWithTag(new File(route), "trip_id", 0).sorted
 
@@ -219,7 +221,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
     }
 
-    "Events file contain same pathTraversal defined at stop times file for bus input file" in {
+    "Events file contains same pathTraversal defined at stop times file for bus input file" in {
       val route = s"$route_input/r5/bus/stop_times.txt"
       val listTrips = getListIDsWithTag(new File(route), "trip_id", 0).sorted
       val grouped = listTrips.groupBy(identity)
@@ -232,5 +234,53 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
       groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
     }
+
+    "Events file contains exactly one transit type for ModeChoice and 3 ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceTransitIfAvailable in input file" in {
+
+      if (mode_choice.equals("ModeChoiceTransitIfAvailable")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
+        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(3)
+      }
+      else
+        succeed
+
+    }
+
+    "Events file contains exactly two car type for ModeChoice and two ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceDriveIfAvailable in input file" in {
+
+      if (mode_choice.equals("ModeChoiceDriveIfAvailable")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("car")).size shouldBe(2)
+        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(2)
+      }
+      else
+        succeed
+
+    }
+
+    "Events file contains exactly 4 ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceRideHailIfAvailable in input file" in {
+
+      if (mode_choice.equals("ModeChoiceRideHailIfAvailable")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
+      }
+      else
+        succeed
+
+    }
+
+    "Events file contain exactly one transit type for ModeChoice when modeChoice is ModeChoiceTransitOnly in input file" in {
+      if (mode_choice.equals("ModeChoiceTransitOnly")){
+        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
+      }
+      else
+        succeed
+
+    }
+
+
+
   }
 }
