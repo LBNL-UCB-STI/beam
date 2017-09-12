@@ -25,7 +25,7 @@ val vizData = for (rayIndex <- 0 to numRays - 1) yield {
     var y = location.getY + len * sin(deltaRadian * rayIndex)
     if (doTransform) {
       val thePos = new DirectPosition2D(x, y)
-      val thePosTransformed = GeoUtils.transform(new Coord(x, y))
+      val thePosTransformed = GeoUtils.Transformer(new Coord(x, y))
       x = thePosTransformed.getX
       y = thePosTransformed.getY
     }

@@ -165,7 +165,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val route = s"$route_input/r5/bus/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
-      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person='TransitDriverAgent-bus.gtfs","vehicle")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person=\"TransitDriverAgent-bus.gtfs","vehicle")
 
       listTrips.size shouldBe(listValueTagEventFile.size)
 
@@ -175,7 +175,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val route = s"$route_input/r5/train/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
-      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person='TransitDriverAgent-train.gtfs","vehicle")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person=\"TransitDriverAgent-train.gtfs","vehicle")
 
       listTrips.size shouldBe(listValueTagEventFile.size)
     }
@@ -185,7 +185,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val route = s"$route_input/r5/bus/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
-      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person='TransitDriverAgent-bus.gtfs","vehicle")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person=\"TransitDriverAgent-bus.gtfs","vehicle")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
 
       listTrips shouldBe(listTripsEventFile)
@@ -197,7 +197,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       val route = s"$route_input/r5/train/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
-      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person='TransitDriverAgent-train.gtfs","vehicle")
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"person=\"TransitDriverAgent-train.gtfs","vehicle")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
 
       listTrips shouldBe(listTripsEventFile)

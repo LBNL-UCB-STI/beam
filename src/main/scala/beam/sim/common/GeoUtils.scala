@@ -74,7 +74,7 @@ object GeoUtils {
 
     def toWgs: Coord= {
       lazy val config = BeamConfig(ConfigModule.typesafeConfig)
-      lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(config.beam.spatial.localCRS, "EPSG:4326")
+      lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(config.beam.spatial.localCRS, "epsg:4326")
       //TODO fix this monstrosity
       if (coord.getX > 1.0 | coord.getX < -0.0) {
         utm2Wgs.transform(coord)
@@ -85,7 +85,7 @@ object GeoUtils {
 
     def toUtm: Coord ={
       lazy val config = BeamConfig(ConfigModule.typesafeConfig)
-      lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326",config.beam.spatial.localCRS)
+      lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("epsg:4326",config.beam.spatial.localCRS)
       wgs2Utm.transform(coord)
     }
   }
