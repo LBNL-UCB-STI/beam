@@ -190,6 +190,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
     rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
+    val rideHailingAgents: mutable.Map[Id[Vehicle],ActorRef]=mutable.Map[Id[Vehicle],ActorRef]()
 
     for ((k, v) <- services.persons) {
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
@@ -208,7 +209,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       services.vehicleRefs += vehicleIdAndRef
       services.agentRefs.put(rideHailingName,ref)
       services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
-
+      rideHailingAgents += (rideHailVehicleId -> ref)
     }
 
     initHouseholds(iterId)

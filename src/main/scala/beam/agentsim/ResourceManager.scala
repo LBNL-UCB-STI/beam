@@ -6,6 +6,7 @@ import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.Future
 
@@ -33,7 +34,11 @@ object Resource {
 }
 
 trait ResourceManager[R] {
-
+  val resources: Map[Id[R],ActorRef]
   def findResource(resourceId: Id[R]): Option[ActorRef]
 
+}
+
+object ResourceManager {
+  trait VehicleManager extends Actor with ResourceManager[Vehicle]
 }

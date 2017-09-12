@@ -1,10 +1,11 @@
 package beam.agentsim.agents.vehicles.household
 
 import akka.actor.{ActorLogging, ActorRef, Props}
+import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse}
-import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory, VehicleManager}
+import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
@@ -54,9 +55,10 @@ class HouseholdActor(services: BeamServices,
                      memberActors: Map[Id[Person], ActorRef],
                      homeCoord: Coord
                     )
-  extends VehicleManager[Vehicle] with ActorLogging with HasServices {
+  extends VehicleManager with ActorLogging with HasServices {
 
   override val beamServices: BeamServices = services
+  override val resources:Map[Id[Vehicle],ActorRef]= vehicleActors
 
   /**
     * Available [[Vehicle]]s in [[Household]]
@@ -83,7 +85,7 @@ class HouseholdActor(services: BeamServices,
     */
   var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
 
-  override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = vehicleActors.get(vehicleId)
+  override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = ???
 
 
   override def receive: Receive = {
