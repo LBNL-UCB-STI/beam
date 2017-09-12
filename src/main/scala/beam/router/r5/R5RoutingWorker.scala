@@ -107,6 +107,10 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             }
             previousBeamLeg = Some(theLeg)
             stopStopDepartTuple = (previousBeamLeg.get.travelPath.transitStops.get.fromStopId, previousBeamLeg.get.travelPath.transitStops.get.toStopId, previousBeamLeg.get.startTime)
+//            if(stopStopDepartTuple._1.eq("0") && stopStopDepartTuple._2.eq("23")){
+            if(stopStopDepartTuple._1.eq("0")){
+              val i = 0
+            }
           }
           beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(previousBeamLeg.get,None))
         } else {

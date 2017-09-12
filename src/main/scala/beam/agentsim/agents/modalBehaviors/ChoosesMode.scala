@@ -106,7 +106,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] = Vector()) = {
-    if(id.toString.equals("878-1")){
+    if(id.toString.equals("2335-2")){
       val i = 0
     }
     val (tick, theTriggerId) = releaseTickAndTriggerId()
@@ -178,8 +178,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if(awaitingReservationConfirmation.isEmpty){
         scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, reservationConfirmation.triggersToSchedule)
       }else{
-        logError("Too many reservation requests!")
-        errorFromEmptyRoutingResponse()
+        stay()
       }
     case Event(ReservationResponse(requestId,Left(_)),_) =>
       pendingChosenTrip.get.tripClassifier match {

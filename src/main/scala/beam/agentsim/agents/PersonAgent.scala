@@ -158,6 +158,9 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentAct = currentActivity
 
+      if(id.toString.equals("2335-2")){
+        val i = 0
+      }
       nextActivity.fold(
         msg => {
           logInfo(s"didn't get nextActivity because $msg")
@@ -176,7 +179,7 @@ class PersonAgent(val beamServices: BeamServices,
      * Starting Trip
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      if(id.toString.equals("878-1")){
+      if(id.toString.equals("2335-2")){
         val i = 0
       }
       processNextLegOrStartActivity(triggerId, tick)
@@ -189,7 +192,7 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is starting
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick), triggerId), _) =>
-      if(id.toString.equals("878-1")){
+      if(id.toString.equals("2335-2")){
         val i = 0
       }
       _currentEmbodiedLeg match {
@@ -208,6 +211,10 @@ class PersonAgent(val beamServices: BeamServices,
               if(processedData.nextLeg.asDriver==true){
                 // We still haven't even processed our personDepartureTrigger
                 stay() replying completed(triggerId,schedule[NotifyLegStartTrigger](tick, self))
+              }else if(processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
+                _currentRoute = processedData.restTrip
+                _currentEmbodiedLeg = Some(processedData.nextLeg)
+                goto(Moving) replying completed(triggerId)
               }else{
                 val previousVehicleId = _currentVehicle.nestedVehicles.head
                 val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
@@ -229,12 +236,16 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is ending
      */
     case Event(TriggerWithId(NotifyLegEndTrigger(tick),triggerId), _) =>
+      if(id.toString.equals("2335-2")){
+        val i = 0
+      }
       val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
       processedDataOpt match {
         case Some(processedData) => // There are more legs in the trip...
           if(processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()){
-            // The next vehicle is the same as current so we do nothing
-            stay() replying completed(triggerId)
+            // The next vehicle is the same as current so just update state and go to Waiting
+            _currentEmbodiedLeg = None
+            goto(Waiting) replying completed(triggerId)
           }else{
             // The next vehicle is different from current so we exit the current vehicle
             val passengerVehicleId = _currentVehicle.penultimateVehicle()
@@ -252,6 +263,9 @@ class PersonAgent(val beamServices: BeamServices,
         case Some(leg) =>
           // Driver is still traveling to pickup point, reschedule this trigger
           logWarn("Driver is in state Moving but received NotifyStartLegTrigger, rescheduling this Trigger")
+          if(id.toString.equals("2335-2")){
+            val i = 0
+          }
           stay() replying completed(triggerId,schedule[NotifyLegStartTrigger](tick,self))
         case None =>
           logError("Driver is in state Moving but received NotifyStartLegTrigger without a _currentEmbodiedLeg defined, this should never happen.")
@@ -306,7 +320,7 @@ class PersonAgent(val beamServices: BeamServices,
             _currentEmbodiedLeg = Some(processedData.nextLeg)
             stay()
           }else{
-            // We don't update PersonData with the rest of the currentRoute, this will happen when the agent recieves the NotifyStartLeg message
+            // We don't update the rest of the currentRoute, this will happen when the agent recieves the NotifyStartLegTrigger
             _currentEmbodiedLeg = None
             goto(Waiting) replying completed(triggerId)
           }
