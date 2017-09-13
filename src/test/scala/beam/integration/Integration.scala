@@ -244,52 +244,5 @@ class IntegrationSpec extends WordSpecLike with Matchers with RunBeam with Befor
       groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
     }
 
-    "Events file contains exactly one transit type for ModeChoice and 3 ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceTransitIfAvailable in input file" in {
-
-      if (mode_choice.equals("ModeChoiceTransitIfAvailable")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
-        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(3)
-      }
-      else
-        succeed
-
-    }
-
-    "Events file contains exactly two car type for ModeChoice and two ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceDriveIfAvailable in input file" in {
-
-      if (mode_choice.equals("ModeChoiceDriveIfAvailable")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("car")).size shouldBe(2)
-        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(2)
-      }
-      else
-        succeed
-
-    }
-
-    "Events file contains exactly 4 ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceRideHailIfAvailable in input file" in {
-
-      if (mode_choice.equals("ModeChoiceRideHailIfAvailable")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
-      }
-      else
-        succeed
-
-    }
-
-    "Events file contain exactly one transit type for ModeChoice when modeChoice is ModeChoiceTransitOnly in input file" in {
-      if (mode_choice.equals("ModeChoiceTransitOnly")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
-      }
-      else
-        succeed
-
-    }
-
-
-
   }
 }

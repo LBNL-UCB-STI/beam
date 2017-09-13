@@ -52,7 +52,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
-    "Generate events file with exactly one transit type for ModeChoice and 3 ride_hailing type entries for ModeChoice" in new StartWithModeChoice("ModeChoiceDriveIfAvailable"){
+    "Generate events file with exactly two car type for ModeChoice and two ride_hailing type entries for ModeChoice" in new StartWithModeChoice("ModeChoiceDriveIfAvailable"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
       listValueTagEventFile.filter(s => s.equals("car")).size shouldBe(2)
       listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(2)
@@ -66,5 +66,41 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
       listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(3)
     }
   }
+
+  "Running beam with modeChoiceClass ModeChoiceTransitOnly" must {
+    "Generate events file with exactly one transit type for ModeChoice" in new StartWithModeChoice("ModeChoiceTransitOnly"){
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+      listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
+    }
+  }
+
+  "Running beam with modeChoiceClass ModeChoiceRideHailIfAvailable" must {
+    "Generate events file with exactly four ride_hailing type for ModeChoice" in new StartWithModeChoice("ModeChoiceRideHailIfAvailable"){
+      val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+      listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
+    }
+  }
+
+  "Running beam with modeChoiceClass ModeChoiceMultinomialLogit" must {
+    "Generate events file with for ModeChoice" in new StartWithModeChoice("ModeChoiceMultinomialLogit"){
+      //val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+      //listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
+      fail("Unpredictable output to evaluate")
+    }
+  }
+
+  "Running beam with modeChoiceClass ModeChoiceUniformRandom" must {
+    "Generate events file with exactly four ride_hailing type for ModeChoice" in new StartWithModeChoice("ModeChoiceUniformRandom"){
+      //val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
+      //listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
+      fail("Beam doesn't work in this ModeChoice")
+    }
+  }
+
+
+
+
+
+
 
 }
