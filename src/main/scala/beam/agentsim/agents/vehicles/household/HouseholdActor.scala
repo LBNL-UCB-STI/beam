@@ -1,6 +1,7 @@
 package beam.agentsim.agents.vehicles.household
 
 import akka.actor.{ActorLogging, ActorRef, Props}
+import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory}
@@ -98,6 +99,9 @@ class HouseholdActor(services: BeamServices,
     //      inServiceRideHailVehicles.remove(vehicleId)
     //      sender ! RideAvailableAck
 
+    case ResourceIsAvailableNotification(ref,resourceId,when) =>
+      log.debug(s"Resource $resourceId is now available ")
+
     case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
       initializeHouseholdVehicles()
@@ -150,6 +154,7 @@ class HouseholdActor(services: BeamServices,
     val initialTrajectory = Trajectory(BeamStreetPath(Vector(""), None, Some(Vector())))
     _vehicles.foreach { veh =>
       services.vehicleRefs(veh) ! UpdateTrajectory(initialTrajectory)
+
       //TODO following mode should come from the vehicle
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
     }

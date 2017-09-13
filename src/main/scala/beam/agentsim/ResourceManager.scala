@@ -20,21 +20,21 @@ trait Resource[R] {
 
   override val id: Id[R]
 
-  val resourceManager: Option[ActorRef] = None
+  var manager: Option[ActorRef]
 
-  def notifyResourceAvailable(when: Future[SpaceTime]): Unit = {
-    resourceManager.foreach(_ ! ResourceIsAvailableNotification(self, id, when))
+  def notifyManagerResourceIsAvailable(when:SpaceTime): Unit = {
+    manager.foreach(_ ! ResourceIsAvailableNotification(self, id,when))
   }
 }
 
 object Resource {
 
-  case class ResourceIsAvailableNotification[R](resourceRef: ActorRef, resourceId: Id[R], when: Future[SpaceTime])
-
+  case class ResourceIsAvailableNotification[R](resourceRef: ActorRef, resourceId: Id[_],when:SpaceTime)
+  case class AssignManager(managerRef:ActorRef)
 }
 
 trait ResourceManager[R] {
-  val resources: Map[Id[R],ActorRef]
+  val resources: Map[Id[R],ActorRef]=Map.empty
   def findResource(resourceId: Id[R]): Option[ActorRef]
 
 }

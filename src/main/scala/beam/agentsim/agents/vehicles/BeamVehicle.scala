@@ -4,6 +4,7 @@ import akka.actor.{ActorContext, ActorRef, Props}
 import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
+import beam.agentsim.Resource.AssignManager
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
@@ -137,7 +138,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
   /**
     * The actor managing this Vehicle
     */
-  var manager: Option[ActorRef] = None
+  override var manager: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
   var trajectory: Option[Trajectory] = None
   var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
@@ -180,6 +181,9 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
   }
 
   chainedWhen(Uninitialized){
+    case Event(AssignManager(managerRef),_)=>
+      manager = Some(managerRef)
+      stay()
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       log.debug(s" $id has been initialized, going to Idle state")
       goto(Idle) replying completed(triggerId)
@@ -196,6 +200,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
   }
 
   chainedWhen(Idle) {
+
     case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
       if(driver.isEmpty || driver.get == beamServices.agentRefs(newDriver.toString)) {
         if (driver.isEmpty) {
@@ -256,7 +261,12 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach{ vehiclePassengerRef =>
         vehiclePassengerRef ! ResetCarrier
       }
-      notifyResourceAvailable(location(tick))
+
+      if(!id.toString.startsWith("rideHailingVehicle")) {
+        val currentLocation = location(tick).value.get.get
+        notifyManagerResourceIsAvailable(currentLocation.copy(loc = beamServices.geo.wgs2Utm(currentLocation.loc)))
+      }
+
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId,id)))
       stay()

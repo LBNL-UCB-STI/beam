@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.PersonAgent
 import beam.sim.{BeamServices, HasServices}

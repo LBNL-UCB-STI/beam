@@ -3,6 +3,7 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, Props}
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.RideHailingManager._
@@ -29,6 +30,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
+import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
@@ -95,19 +97,25 @@ class RideHailingManager(info: RideHailingManagerData,
       beamServices.geo.utmbbox.maxX,
       beamServices.geo.utmbbox.maxY)
   }
+
+  private def inBounds(coord: Coord) = coord.getX > rideHailingAgentSpatialIndex.getMinEasting  && coord.getX < rideHailingAgentSpatialIndex.getMaxEasting && coord.getY > rideHailingAgentSpatialIndex.getMinNorthing && coord.getY < rideHailingAgentSpatialIndex.getMaxNorthing
+
   private val availableRideHailVehicles = mutable.Map[Id[Vehicle], RideHailingAgentLocation]()
   private val inServiceRideHailVehicles = mutable.Map[Id[Vehicle], RideHailingAgentLocation]()
   //XXX: let's make sorted-map to be get latest and oldest orders to expire some of the
   private val pendingInquiries = mutable.TreeMap[Id[RideHailingInquiry], (TravelProposal, BeamTrip)]()
   private val pendingModifyPassengerScheduleAcks = mutable.TreeMap[Id[RideHailingInquiry], ReservationResponse]()
+  import scala.concurrent.ExecutionContext.Implicits._
 
   override def receive: Receive = {
-    case RegisterRideAvailable(rideHailingAgentRef: ActorRef, vehicleId: Id[Vehicle], availableIn: SpaceTime) =>
-      // register
-      val rideHailingAgentLocation = RideHailingAgentLocation(rideHailingAgentRef, vehicleId, availableIn)
+
+    case ResourceIsAvailableNotification(vehicleAgentRef: ActorRef, vehicleId: Id[Vehicle], availableIn: SpaceTime) =>
+
+      val rideHailingAgentLocation = RideHailingAgentLocation(vehicleAgentRef, vehicleId, availableIn)
       rideHailingAgentSpatialIndex.put(availableIn.loc.getX, availableIn.loc.getY, rideHailingAgentLocation)
       availableRideHailVehicles.put(vehicleId, rideHailingAgentLocation)
       inServiceRideHailVehicles.remove(vehicleId)
+
       sender ! RideAvailableAck
 
     case inquiry@RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, radius, destination) =>
