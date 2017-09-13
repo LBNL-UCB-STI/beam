@@ -6,7 +6,7 @@ import org.matsim.core.controler.corelisteners.EventsHandling;
 import org.matsim.core.controler.corelisteners.PlansDumping;
 import org.matsim.core.controler.corelisteners.PlansReplanning;
 import org.matsim.core.scoring.PlansScoringModule;
-import beam.agentsim.events.BeamEventsHandling;
+import beam.agentsim.events.handling.BeamEventsHandling;
 
 public class BeamControllerCoreListenersModule extends AbstractModule {
 

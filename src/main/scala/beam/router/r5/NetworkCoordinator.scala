@@ -10,7 +10,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator._
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
-import beam.utils.RefectionUtils
+import beam.utils.reflection.RefectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -59,6 +59,13 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       transportNetwork.write(networkFile)
       transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
+    transportNetwork.rebuildTransientIndexes()
+    beamPathBuilder = new BeamPathBuilder(transportNetwork = transportNetwork, beamServices)
+    val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
+    beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.maxY = envelopeInUTM.getMaxY + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.minX = envelopeInUTM.getMinX - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
   }
 
   def replaceNetwork = {
@@ -114,6 +121,7 @@ object NetworkCoordinator {
   var transportNetwork: TransportNetwork = _
   var copiedNetwork: TransportNetwork = _
   var linkMap: Map[Int, Long] = Map()
+  var beamPathBuilder: BeamPathBuilder = _
 
   def getOsmId(edgeIndex: Int): Long = {
     linkMap.getOrElse(edgeIndex, {
