@@ -155,3 +155,42 @@ the.str <- '\n<!-- =============================================================
 cat(the.str,file=outfile,append=T)
 cat(the.str,file=outfile.500,append=T)
 
+
+# Same process but now do k-fold subsamples of the plans
+load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-10.Rdata')
+
+new.plans[,orig.i:=1:nrow(new.plans)]
+setkey(new.plans,id)
+peeps <- unique(new.plans[,.(id)])
+
+pop.n <- nrow(peeps)
+k <- 5e3
+for(k in 1000*c(2.5,5,10,20)){
+  ns <- seq(k,pop.n,by=k)
+  peeps[,ord:=sample(1:pop.n)]
+  
+  plans <- copy(join.on(new.plans,peeps,'id','id'))
+  setkey(plans,ord,orig.i)
+
+  for(n in ns){
+    if(pop.n - n < k)next
+
+    to.write <- plans[id%in%peeps[(n-k+1):n]$id]
+
+    outfile <- pp('/Users/critter/Documents/beam/input/kfold/sf-bay-sampled-plans-10day-kfold',k/1e3,'-samp',n/1e3,'.xml')
+
+    the.str <- '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">\n\n<population>\n'
+    cat(the.str,file=outfile,append=F)
+    for(person in u(to.write$id)){
+      the.str <- pp('\t<person id="',person,'" employed="yes">\n\t\t<plan selected="yes">\n')
+      the.hr <- as.numeric(strftime(to.write[id==person]$end_time,'%H')) + 24*(as.numeric(strftime(to.write[id==person]$end_time,'%j'))-1)
+      the.min <- as.numeric(strftime(to.write[id==person]$end_time,'%M'))
+      the.acts <- pp('\t\t\t<act end_time="',the.hr,':',formatC(the.min,width = 2, format = "d", flag = "0"),':00" link="',to.write[id==person]$link,'" type="',to.write[id==person]$type,'" x="',to.write[id==person]$x,'" y="',to.write[id==person]$y,'"/>')
+      the.legs <- pp('\t\t\t<leg mode="PEV"><route type="links" start_link="',new.legs[id==person]$start_link,'" end_link="',new.legs[id==person]$end_link,'" trav_time="',new.legs[id==person]$trav_time,'" distance="',new.legs[id==person]$distance,'">',new.legs[id==person]$start_link,' ',new.legs[id==person]$end_link,'</route></leg>')
+      the.str <- pp(the.str,pp(rbind(the.acts,c(the.legs,'')),collapse='\n'),'\t\t</plan>\n\t</person>\n')
+      cat(the.str,file=outfile,append=T)
+    }
+    the.str <- '\n<!-- ====================================================================== -->\n\n</population>'
+    cat(the.str,file=outfile,append=T)
+  }
+}
