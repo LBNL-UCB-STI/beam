@@ -9,16 +9,16 @@ to enable powerful and scalable analysis of urban transportation systems.
 
 ## Build
 BEAM is a gradle project. To build the project, you are required to run the following command:
-````
+```
 gradle build
-````
+```
 It will generate a shadow jar with all dependencies inside build/libs directory.
 
 ## Run
-Once the `beam.jar` is ready. You can run beam by executing following command.
-````
+Once the `beam.jar` is ready. You can run beam by executing the following command.
+```
 java -Xmx2g -jar build/libs/beam.jar --config test/input/beamville/beam.conf
-````
+```
 
 > You need to set an environment variable named `PWD` to BEAM home.
 

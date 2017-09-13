@@ -84,6 +84,19 @@ object Modes {
       case _ => false
     }
   }
+  def isOnStreetTransit(beamMode: BeamMode): Boolean = {
+    beamMode.r5Mode match {
+      case Some(Left(streetMode)) =>
+        false
+      case Some(Right(transitMode)) =>
+        transitMode match {
+          case TransitModes.BUS =>
+            true
+          case _ =>
+            false
+        }
+    }
+  }
 
   def mapLegMode(mode: LegMode): BeamMode = mode match {
     case LegMode.BICYCLE | LegMode.BICYCLE_RENT => BeamMode.BIKE
