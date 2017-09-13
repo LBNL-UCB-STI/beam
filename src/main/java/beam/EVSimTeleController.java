@@ -78,13 +78,13 @@ public class EVSimTeleController {
 		EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH = args[2];
 
 		EVSimTeleController evSimTeleController = new EVSimTeleController();
-		evSimTeleController.init();
+		evSimTeleController.init(args);
 
 		evSimTeleController.startSimulation();
 	}
 
-	public void init() {
-		EVGlobalData.data.config = setupConfig();
+	public void init(String[] args) {
+		EVGlobalData.data.config = setupConfig(args);
 		MatsimRandom.reset(EVGlobalData.data.config.global().getRandomSeed());
 		EVGlobalData.data.rand = MatsimRandom.getLocalInstance();
 		initControler();
@@ -321,11 +321,16 @@ public class EVSimTeleController {
 //		EVGlobalData.data.scheduler.addCallBackMethod(100*3600.0, EVGlobalData.data.globalActions, "pauseForHour");
 	}
 
-	public Config setupConfig() {
+	public Config setupConfig(String[] args) {
 		String inputDirectory = EVGlobalData.data.INPUT_DIRECTORY_BASE_PATH + File.separator;
 		Config config = ConfigUtils.loadConfig(inputDirectory + EVGlobalData.data.CONFIG_RELATIVE_PATH);
 		config.setParam("network", "inputNetworkFile", inputDirectory + config.getModule("network").getParams().get("inputNetworkFile"));
-		config.setParam("plans", "inputPlansFile", inputDirectory + config.getModule("plans").getParams().get("inputPlansFile"));
+		config.setParam("network", "inputNetworkFile", inputDirectory + config.getModule("network").getParams().get("inputNetworkFile"));
+		if(args.length ==4){
+			config.setParam("plans", "inputPlansFile", inputDirectory + args[3]);
+		}else{
+			config.setParam("plans", "inputPlansFile", inputDirectory + config.getModule("plans").getParams().get("inputPlansFile"));
+		}
 		String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
 		ConfigGroup evModule = config.getModule(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLE_MODULE_NAME);
 		EVGlobalData.data.OUTPUT_DIRECTORY_NAME = evModule.getValue(EVGlobalData.data.SIMULATION_NAME) + "_" + timestamp;
