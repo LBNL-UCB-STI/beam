@@ -240,6 +240,10 @@ class PersonAgent(val beamServices: BeamServices,
               goto(Error) replying completed(triggerId)
           }
       }
+
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg),triggerId), _) =>
+      logError(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: ${beamLeg}")
+      goto(Error) replying completed(triggerId)
   }
 
   chainedWhen(Moving) {
@@ -283,7 +287,7 @@ class PersonAgent(val beamServices: BeamServices,
           // Driver is still traveling to pickup point, reschedule this trigger
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
         case None =>
-          logError("Driver is in state Moving but received NotifyLegStartTrigger without a _currentEmbodiedLeg defined, this should never happen.")
+          logError(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg defined, beamLeg: ${beamLeg}")
           goto(Error) replying completed(triggerId)
       }
   }
