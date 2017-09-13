@@ -46,6 +46,9 @@ def slf4jVersion = "1.7.12"
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
 sourceSets.main.java.srcDirs = []
 
+sourceSets.test.java.srcDirs = ["src/test/java"]
+sourceSets.test.scala.srcDirs = ["src/test/scala"]
+
 if (project.hasProperty('env')) {
     sourceSets {
         main {
@@ -153,9 +156,9 @@ dependencies {
     //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
     //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
     // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
-    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.10"
+    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
 // https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
-    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.12"
+    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
     // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
     compile group: 'io.circe', name: "circe-core_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-generic_2.12
@@ -192,7 +195,7 @@ dependencies {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/test', '-o']
+    args = ['-R', 'build/classes/scala/test', '-o']
     classpath = sourceSets.test.runtimeClasspath
 }
 // test.dependsOn spec
@@ -207,15 +210,22 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 jar {
     manifest {
-        attributes 'Main-Class': 'beam.EVSimTeleController'
+        attributes "Implementation-Title": project.name,
+                "Implementation-Version": version,
+                "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.sim.RunBeam'
     }
 }
 
 shadowJar {
     baseName = 'beam'
+    zip64 true
     classifier = null
     version = null
 }
+
+assemble.dependsOn shadowJar
 
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
