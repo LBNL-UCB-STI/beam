@@ -103,6 +103,7 @@ dependencies {
     compile group: 'org.javassist', name: 'javassist', version: '3.19.0-GA'
     compile group: 'javax.inject', name: 'javax.inject', version: '1'
     compile group: 'jdom', name: 'jdom', version: '1.1'
+    compile group: 'org.jdom', name: 'jdom2', version: '2.0.5'
     compile group: 'log4j', name: 'log4j', version: '1.2.16'
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.8.0'
     compile group: 'org.objenesis', name: 'objenesis', version: '2.4'
@@ -206,15 +207,22 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 jar {
     manifest {
-        attributes 'Main-Class': 'beam.EVSimTeleController'
+        attributes "Implementation-Title": project.name,
+                "Implementation-Version": version,
+                "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.sim.RunBeam'
     }
 }
 
 shadowJar {
     baseName = 'beam'
+    zip64 true
     classifier = null
     version = null
 }
+
+assemble.dependsOn shadowJar
 
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
