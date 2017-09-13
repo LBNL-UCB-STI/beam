@@ -9,7 +9,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.BeamStreetPath
+import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
@@ -60,16 +60,16 @@ class HouseholdActor(services: BeamServices,
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
       log.debug(s"Household ${self.path.name} has been initialized ")
       val sortedMembers = _members.sortWith(sortByRank)
-      for (i <- (_vehicles.indices.toSet ++ sortedMembers.indices.toSet)) {
+      for (i <- _vehicles.indices.toSet ++ sortedMembers.indices.toSet) {
         if (i < _vehicles.size & i < sortedMembers.size) {
           _vehicleAssignments = _vehicleAssignments + (sortedMembers(i).personId -> _vehicles(i))
         }
       }
       //Initialize all vehicles to have a stationary trajectory starting at time zero
       val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
-      val initialTrajectory = Trajectory(BeamStreetPath(Vector(""),None,Some(Vector())))
+      val initialTrajectory = Trajectory(Vector(initialLocation))
       _vehicles.foreach { veh =>
-        services.vehicleRefs.get(veh).get ! UpdateTrajectory(initialTrajectory)
+        services.vehicleRefs(veh) ! UpdateTrajectory(initialTrajectory)
         //TODO following mode should come from the vehicle
         _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, true))
       }
@@ -102,6 +102,6 @@ class HouseholdActor(services: BeamServices,
   }
   // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last in list
   def sortByRank(r2: MemberWithRank, r1: MemberWithRank): Boolean = {
-    r1.rank.isEmpty || (!r2.rank.isEmpty && r1.rank.get > r2.rank.get)
+    r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
   }
 }
