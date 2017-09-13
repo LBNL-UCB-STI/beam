@@ -392,7 +392,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val tripStartTime = beamServices.dates.toBaseMidnightSeconds(itinerary.startTime,transportNetwork.transitLayer.routes.size()==0)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
         legFares += legs.size -> toll
-        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access))
+        legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = beamPathBuilder.buildStreetPath(access,tripStartTime))
 
         //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
         if (forPerson && access.mode != LegMode.WALK) {
