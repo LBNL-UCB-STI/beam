@@ -100,7 +100,7 @@ class HouseholdActor(services: BeamServices,
     //      sender ! RideAvailableAck
 
     case ResourceIsAvailableNotification(ref,resourceId,when) =>
-      log.debug(s"Resource $resourceId is now available ")
+      log.error(s"Resource $resourceId is available at $when")
 
     case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
@@ -116,7 +116,6 @@ class HouseholdActor(services: BeamServices,
       // Send back response of empty [[Vector]]
         sender() ! MobilityStatusReponse(availableStreetVehicles)
       else {
-        // Send a location request to each vehicle
         // Assign to requesting individual
         sender() ! MobilityStatusReponse(availableStreetVehicles)
       }

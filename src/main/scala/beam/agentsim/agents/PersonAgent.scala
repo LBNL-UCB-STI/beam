@@ -1,6 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.{ActorRef, Props}
+import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
@@ -265,7 +266,12 @@ class PersonAgent(val beamServices: BeamServices,
       case Some(embodiedBeamLeg) =>
         if(embodiedBeamLeg.unbecomeDriverOnCompletion){
           beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! UnbecomeDriver(tick,id)
+          if(!embodiedBeamLeg.isHumanBodyVehicle){
+            val spaceTime = embodiedBeamLeg.beamLeg.travelPath.toTrajectory.location(tick)
+            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! TellManagerResourceIsAvailable(spaceTime)
+          }
           _currentVehicle = _currentVehicle.pop()
+
         }
       case None =>
     }
@@ -383,5 +389,8 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
 }
+
+
+
 
 

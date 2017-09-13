@@ -134,7 +134,7 @@ object RoutingModel {
                              cost: BigDecimal,
                              unbecomeDriverOnCompletion: Boolean
                             ) {
-    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+    def isHumanBodyVehicle: Boolean = beamVehicleId.toString.startsWith("body")
   }
 
   object EmbodiedBeamLeg {

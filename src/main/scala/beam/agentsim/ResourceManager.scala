@@ -28,7 +28,7 @@ trait Resource[R] {
 }
 
 object Resource {
-
+  case class TellManagerResourceIsAvailable(when:SpaceTime)
   case class ResourceIsAvailableNotification[R](resourceRef: ActorRef, resourceId: Id[_],when:SpaceTime)
   case class AssignManager(managerRef:ActorRef)
 }

@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, ActorRef, Props}
 import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
-import beam.agentsim.Resource.AssignManager
+import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
@@ -228,6 +228,9 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
+    case Event(TellManagerResourceIsAvailable(when:SpaceTime),_)=>
+      notifyManagerResourceIsAvailable(when)
+      stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if(driver.isEmpty) {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are no longer drivers, but futur versions of BEAM may seek to be robust to this condition
@@ -262,10 +265,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         vehiclePassengerRef ! ResetCarrier
       }
 
-      if(!id.toString.startsWith("rideHailingVehicle")) {
-        val currentLocation = location(tick).value.get.get
-        notifyManagerResourceIsAvailable(currentLocation.copy(loc = beamServices.geo.wgs2Utm(currentLocation.loc)))
-      }
+
 
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId,id)))
