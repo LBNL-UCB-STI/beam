@@ -220,7 +220,7 @@ class PersonAgent(val beamServices: BeamServices,
             case Some(processedData) =>
               if(processedData.nextLeg.beamLeg != beamLeg || processedData.nextLeg.asDriver==true){
                 // We've recevied this leg out of order from 2 different drivers or we haven't our personDepartureTrigger
-                warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg)
+                warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
               }else if(processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
                 _currentRoute = processedData.restTrip
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
