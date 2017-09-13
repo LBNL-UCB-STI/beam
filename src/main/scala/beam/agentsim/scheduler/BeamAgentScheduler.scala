@@ -173,9 +173,15 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
         "empty"
       } else {
         if (debugEnabled) {
-          s"${awaitingResponseVerbose.get(awaitingResponseVerbose.keySet().first())}}"
+          awaitingResponse.synchronized(
+            s"${awaitingResponseVerbose.get(awaitingResponseVerbose.keySet().first())}}"
+          )
         } else {
-          s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
+          awaitingResponse.synchronized(
+            awaitingResponseVerbose.synchronized(
+              s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
+            )
+          )
         }
       }
     }

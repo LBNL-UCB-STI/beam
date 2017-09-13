@@ -26,8 +26,8 @@ import scala.collection.immutable.HashSet
 object DrivesVehicle {
   case class StartLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
   case class EndLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
-  case class NotifyLegEndTrigger(tick: Double) extends Trigger
-  case class NotifyLegStartTrigger(tick: Double) extends Trigger
+  case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
+  case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
 }
 
 trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
@@ -54,7 +54,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
               logDebug(s"Scheduling NotifyLegEndTrigger for Person ${personRef}")
-              beamServices.schedulerRef ! scheduleOne[NotifyLegEndTrigger](tick, personRef)
+              beamServices.schedulerRef ! scheduleOne[NotifyLegEndTrigger](tick, personRef,completedLeg)
             }
           }
           if(manifest.alighters.isEmpty){
@@ -62,6 +62,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           }else {
             logDebug(s" will wait for ${manifest.alighters.size} alighters: ${manifest.alighters}")
             _awaitingAlightConfirmation ++= manifest.alighters
+            if(_awaitingAlightConfirmation.contains(Id.create("body-2276-3",classOf[Vehicle]))){
+              val i = 0
+            }
             stay()
           }
         case None =>
@@ -89,8 +92,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           _currentLeg = Some(newLeg)
           _currentVehicleUnderControl.get.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory)
           manifest.riders.foreach{ personVehicle =>
-            logDebug(s"Scheduling NotifyStartLegTrigger for Person ${personVehicle.personId}")
-            beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick,beamServices.personRefs(personVehicle.personId))
+            logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
+            beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs(personVehicle.personId), newLeg)
           }
           if(manifest.boarders.isEmpty){
             releaseAndScheduleEndLeg()
