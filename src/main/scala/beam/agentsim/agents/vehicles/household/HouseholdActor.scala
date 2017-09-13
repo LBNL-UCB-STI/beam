@@ -20,6 +20,8 @@ import org.matsim.households
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable
+
 /**
   * @author dserdiuk
   */
@@ -79,8 +81,9 @@ class HouseholdActor(services: BeamServices,
   /**
     * Current [[Vehicle]] assignments
     */
-  var _availableVehicles: Map[Id[Person], Id[Vehicle]] = Map[Id[Person], Id[Vehicle]]()
+  var _availableVehicles: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
 
+  var _checkedOutVehicles: mutable.Map[Id[Vehicle],Id[Person]]= mutable.Map[Id[Vehicle], Id[Person]]()
   /**
     * Mapping of [[Vehicle]] to [[StreetVehicle]]
     */
@@ -91,16 +94,13 @@ class HouseholdActor(services: BeamServices,
 
   override def receive: Receive = {
 
-    //    case NotifyResourceIsAvailable(vehicleDriverRef: ActorRef, vehicleId: Id[Vehicle], availableIn: Future[SpaceTime]) =>
-    //      // register
-    //      val vehicleAgentLocation = VehicleLocationResponse(vehicleId, availableIn)
-    //      rideHailingAgentSpatialIndex.put(availableIn.loc.getX, availableIn.loc.getY, rideHailingAgentLocation)
-    //      availableRideHailVehicles.put(vehicleId, rideHailingAgentLocation)
-    //      inServiceRideHailVehicles.remove(vehicleId)
-    //      sender ! RideAvailableAck
-
     case ResourceIsAvailableNotification(ref,resourceId,when) =>
-      log.error(s"Resource $resourceId is available at $when")
+      val vehicleId = Id.createVehicleId(resourceId)
+      val personId = _checkedOutVehicles(vehicleId)
+      _checkedOutVehicles.remove(vehicleId)
+      _availableVehicles.put(personId,vehicleId)
+
+      log.info(s"Resource $resourceId is now available again at $when")
 
     case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
@@ -117,6 +117,10 @@ class HouseholdActor(services: BeamServices,
         sender() ! MobilityStatusReponse(availableStreetVehicles)
       else {
         // Assign to requesting individual
+        availableStreetVehicles.foreach{x=>
+          _availableVehicles.remove(personId)
+          _checkedOutVehicles.put(x.id,personId)
+        }
         sender() ! MobilityStatusReponse(availableStreetVehicles)
       }
 

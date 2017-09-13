@@ -268,10 +268,10 @@ class PersonAgent(val beamServices: BeamServices,
           beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! UnbecomeDriver(tick,id)
           if(!embodiedBeamLeg.isHumanBodyVehicle){
             val spaceTime = embodiedBeamLeg.beamLeg.travelPath.toTrajectory.location(tick)
-            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! TellManagerResourceIsAvailable(spaceTime)
+            val utmSpacetime = spaceTime.copy(loc=beamServices.geo.wgs2Utm(spaceTime.loc))
+            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! TellManagerResourceIsAvailable(utmSpacetime)
           }
           _currentVehicle = _currentVehicle.pop()
-
         }
       case None =>
     }
