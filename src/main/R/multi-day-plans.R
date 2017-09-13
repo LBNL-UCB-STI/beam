@@ -173,7 +173,8 @@ for(k in 1000*c(2.5,5,10,20)){
   setkey(plans,ord,orig.i)
 
   for(n in ns){
-    if(pop.n - n < k)next
+    my.cat(pp('writing ',n,' of ',k,'-fold'))
+    if(n < tail(ns,1))next
 
     to.write <- plans[id%in%peeps[(n-k+1):n]$id]
 

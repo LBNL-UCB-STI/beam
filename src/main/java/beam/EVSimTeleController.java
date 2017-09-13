@@ -325,7 +325,6 @@ public class EVSimTeleController {
 		String inputDirectory = EVGlobalData.data.INPUT_DIRECTORY_BASE_PATH + File.separator;
 		Config config = ConfigUtils.loadConfig(inputDirectory + EVGlobalData.data.CONFIG_RELATIVE_PATH);
 		config.setParam("network", "inputNetworkFile", inputDirectory + config.getModule("network").getParams().get("inputNetworkFile"));
-		config.setParam("network", "inputNetworkFile", inputDirectory + config.getModule("network").getParams().get("inputNetworkFile"));
 		if(args.length ==4){
 			config.setParam("plans", "inputPlansFile", inputDirectory + args[3]);
 		}else{
