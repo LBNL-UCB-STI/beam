@@ -18,9 +18,7 @@ import scala.util.Try
   * 
   */
 
-//TODO
-trait CommonStuff {
-
+trait EventsFileHandlingCommon {
   def beamConfig: BeamConfig
   //Obtains name of latest created folder
   //Assumes that dir is a directory known to exist
@@ -137,7 +135,7 @@ class ReadEventsXMlGz extends ReadEventsXml {
   }
 }
 
-class IntegrationSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with CommonStuff{
+class EventsFileCorrectnessSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with EventsFileHandlingCommon{
 
   val beamConfig = ConfigModule.beamConfig
 
