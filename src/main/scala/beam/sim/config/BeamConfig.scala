@@ -68,6 +68,7 @@ object BeamConfig {
     sharedInputs : java.lang.String,
     spatial      : BeamConfig.Beam.Spatial
   )
+
   object Beam {
     case class Agentsim(
       agents                      : BeamConfig.Beam.Agentsim.Agents,

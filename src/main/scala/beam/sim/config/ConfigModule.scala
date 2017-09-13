@@ -43,6 +43,7 @@ object ConfigModule {
     config.resolve()
   }
 
+
   protected [beam] lazy val matSimConfig: MatSimConfig = {
     try {
       val configBuilder = new MatSimBeamConfigBuilder(typesafeConfig)

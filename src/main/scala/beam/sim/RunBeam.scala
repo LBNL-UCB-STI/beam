@@ -1,9 +1,8 @@
 package beam.sim
 
+import beam.sim.config.{BeamConfig, ConfigModule}
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.config.ConfigModule
-import beam.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
@@ -18,7 +17,7 @@ import scala.collection.mutable.ListBuffer
 
 trait RunBeam {
 
-  def beamInjector(scenario: Scenario,  matSimConfig: Config): com.google.inject.Injector =
+  def beamInjector(scenario: Scenario,  matSimConfig: Config, mBeamConfig: Option[BeamConfig] = None): com.google.inject.Injector =
     org.matsim.core.controler.Injector.createInjector(matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
         // MATSim defaults
@@ -41,6 +40,8 @@ trait RunBeam {
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
+        mBeamConfig.foreach(beamConfig => bind(classOf[BeamConfig]).toInstance(beamConfig))
+//
       }
     }))
 
@@ -57,6 +58,17 @@ trait RunBeam {
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
+
+    val services: BeamServices = injector.getInstance(classOf[BeamServices])
+    services.controler.run()
+  }
+
+  def runBeamWithConfig(beamConfig: BeamConfig, matsimConfig: Config) = {
+    // Inject and use tsConfig instead here
+    // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
+    FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)
+    lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
+    val injector = beamInjector(scenario, matsimConfig, Some(beamConfig))
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
     services.controler.run()
