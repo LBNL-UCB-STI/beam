@@ -1,1 +1,3 @@
-id,className,extraDataAsXML1,ChargingNetworkOperatorDumbCharging,<policy><pricePerKWH><level1>0.3</level1><level2>0.4</level2><level3>0.5</level3></pricePerKWH></policy>2,ChargingNetworkOperatorSmartCharging,<policy><pricePerKWH><level1>0.3</level1><level2>0.4</level2><level3>0.5</level3></pricePerKWH></policy>3,ChargingNetworkOperatorV2G,<policy><pricePerKWH><level1>0.3</level1><level2>0.4</level2><level3>0.5</level3></pricePerKWH></policy>
+version https://git-lfs.github.com/spec/v1
+oid sha256:002f1eea781104d99ee0b9c01646422cbb5d52d761ae14bff4310330fb700e61
+size 448

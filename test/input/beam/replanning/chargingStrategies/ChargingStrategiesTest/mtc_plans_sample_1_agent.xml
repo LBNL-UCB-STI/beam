@@ -1,13 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?> 
-<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">
-<population>
-  <person employed="yes" id="1">
-    <plan>
-      <act end_time="12:28:00" type="Home" x="563423.27782" y="4191859.51207"/>
-      <leg mode="car"/>
-      <act end_time="18:21:00" type="Escort" x="564073.696992" y="4191743.85786"/>
-      <leg mode="car"/>
-      <act type="Home" x="563423.27782" y="4191859.51207"/>
-    </plan>
-  </person>
-  </population>
+version https://git-lfs.github.com/spec/v1
+oid sha256:433476d6f4c8dce5ac5c75c4ee1b3f002e246c6c28d486c3605ad2ef7bd7cfd0
+size 502
