@@ -3,7 +3,7 @@ package beam.router
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
-import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router}
+import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router, SmallestMailboxRoutingLogic}
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter._
@@ -23,7 +23,7 @@ class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogg
   var networkCoordinator: ActorRef = _
 
   override def preStart(): Unit = {
-    router = Router(RoundRobinRoutingLogic(), Vector.fill(5) {
+    router = Router(SmallestMailboxRoutingLogic(), Vector.fill(100) {
       ActorRefRoutee(createAndWatch)
     })
     networkCoordinator = context.actorOf(NetworkCoordinator.props(services))
