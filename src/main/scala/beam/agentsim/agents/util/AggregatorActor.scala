@@ -46,7 +46,7 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
     case AggregatedRequest(theRequests) =>
       requests = theRequests
       if (requests.nonEmpty) {
-        log.debug(s"${self.toString()} got a request from ${sender()} ")
+//        log.debug(s"${self.toString()} got a request from ${sender()} ")
         for ((targetActor, messages) <- requests) {
           for ( message <- messages) {
             context.actorSelection(targetActor) ! message
@@ -57,7 +57,7 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
   expect {
     case response: Any =>
       if (requests != null) {
-        log.debug(s"Got response from ${sender()} ")
+//        log.debug(s"Got response from ${sender()} ")
         val parentPath = sender().path.parent
         if (requests.contains(parentPath)) {
           val values = responses.get(parentPath).map(values => values :+ response).getOrElse(List(response))
