@@ -48,9 +48,6 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   val graphPathOutputsNeeded = false
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
-  override def init: Unit = {
-  }
-
   /*
    * Plan of action:
    * Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and a vehicle
