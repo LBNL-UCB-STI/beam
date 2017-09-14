@@ -251,3 +251,18 @@ task repl(type: JavaExec) {
     standardInput System.in
     args '-usejavacp'
 }
+
+task deleteSf {
+    doLast {
+        if (project.file('production/application-sfbay/r5/network.dat').exists()) {
+            delete 'production/application-sfbay/r5/network.dat'
+        }
+        if (project.file('production/application-sfbay/r5/osm.mapdb').exists()) {
+            delete 'production/application-sfbay/r5/osm.mapdb'
+        }
+        if (project.file('production/application-sfbay/r5/osm.mapdb.p').exists()) {
+            delete 'production/application-sfbay/r5/osm.mapdb.p'
+        }
+    }
+}
+
