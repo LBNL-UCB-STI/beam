@@ -68,7 +68,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     val workerNumber = beamServices.beamConfig.beam.routing.workerNumber
     val patternsPerWorker  = size / workerNumber
     val patternsStartIndex = patternsPerWorker * workerId
-    Math.min(patternsStartIndex + patternsPerWorker,size)
     //XXX: last worker takes rest of schedule
     val patternsEndIndex = if (workerId == workerNumber - 1) {
       size
