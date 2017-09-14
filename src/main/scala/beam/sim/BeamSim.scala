@@ -154,6 +154,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   def resetPop(iter: Int): Unit = {
 
+    val random = new Random(services.matsimServices.getConfig.global().getRandomSeed)
+
     val errorListener = createErrorListener(iter)
 
     services.persons ++= scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons)
@@ -198,7 +200,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     for ((k, v) <- services.persons) {
       if (Random.nextDouble() < rideHailingFraction) {
         val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-        val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
+        val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (random.nextDouble() - 0.5))
         //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
         val rideHailingName = s"rideHailingAgent-${k}_$iter"
         val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
