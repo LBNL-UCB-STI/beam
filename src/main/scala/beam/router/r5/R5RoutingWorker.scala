@@ -26,7 +26,7 @@ import beam.utils.reflection.RefectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
-import com.conveyal.r5.profile.ProfileRequest
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.vividsolutions.jts.geom.LineString
@@ -276,6 +276,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     profileRequest.zoneId = transportNetwork.getTimeZone
     val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
     val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
+    val split = transportNetwork.streetLayer.findSplit(fromPosTransformed.getX,fromPosTransformed.getY,1000,StreetMode.WALK)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX

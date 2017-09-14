@@ -22,8 +22,8 @@ trait Resource[R] {
 
   var manager: Option[ActorRef]
 
-  def notifyManagerResourceIsAvailable(when:SpaceTime): Unit = {
-    manager.foreach(_ ! ResourceIsAvailableNotification(self, id,when))
+  def notifyManagerResourceIsAvailable(whenWhere:SpaceTime): Unit = {
+    manager.foreach(_ ! ResourceIsAvailableNotification(self, id,whenWhere))
   }
 }
 

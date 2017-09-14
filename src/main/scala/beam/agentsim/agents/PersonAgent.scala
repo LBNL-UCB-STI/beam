@@ -266,11 +266,6 @@ class PersonAgent(val beamServices: BeamServices,
       case Some(embodiedBeamLeg) =>
         if(embodiedBeamLeg.unbecomeDriverOnCompletion){
           beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! UnbecomeDriver(tick,id)
-          if(!embodiedBeamLeg.isHumanBodyVehicle){
-            val spaceTime = embodiedBeamLeg.beamLeg.travelPath.toTrajectory.location(tick)
-            val utmSpacetime = spaceTime.copy(loc=beamServices.geo.wgs2Utm(spaceTime.loc))
-            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! TellManagerResourceIsAvailable(utmSpacetime)
-          }
           _currentVehicle = _currentVehicle.pop()
         }
       case None =>
@@ -319,6 +314,14 @@ class PersonAgent(val beamServices: BeamServices,
           goto(Finished) replying completed(triggerId)
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
+          if(currentActivity.getType.equals("Home")){
+            currentTourPersonalVehicle match {
+              case Some(personalVeh) =>
+                beamServices.vehicleRefs(personalVeh) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
+                currentTourPersonalVehicle = None
+              case None =>
+            }
+          }
           val endTime = if(activity.getEndTime >= 0.0 || Math.abs(activity.getEndTime) < Double.PositiveInfinity){ activity.getEndTime }else{
             logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
             tick + 60*10

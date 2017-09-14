@@ -228,8 +228,8 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
-    case Event(TellManagerResourceIsAvailable(when:SpaceTime),_)=>
-      notifyManagerResourceIsAvailable(when)
+    case Event(TellManagerResourceIsAvailable(whenWhere:SpaceTime),_)=>
+      notifyManagerResourceIsAvailable(whenWhere)
       stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if(driver.isEmpty) {
