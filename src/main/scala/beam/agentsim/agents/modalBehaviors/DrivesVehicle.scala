@@ -45,9 +45,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
       //we have just completed a leg
       logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
-      if(id.toString.equals("TransitDriverAgent-BA.gtfs:05R10") && completedLeg.startTime==19620L){
-        val i =0
-      }
       passengerSchedule.schedule.get(completedLeg) match {
         case Some(manifest) =>
           holdTickAndTriggerId(tick, triggerId)
@@ -62,9 +59,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           }else {
             logDebug(s" will wait for ${manifest.alighters.size} alighters: ${manifest.alighters}")
             _awaitingAlightConfirmation ++= manifest.alighters
-            if(_awaitingAlightConfirmation.contains(Id.create("body-2276-3",classOf[Vehicle]))){
-              val i = 0
-            }
             stay()
           }
         case None =>

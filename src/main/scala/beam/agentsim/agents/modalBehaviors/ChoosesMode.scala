@@ -73,7 +73,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip) = {
     //TODO this is currently working for single leg Transit trips, hasn't been tested on multi-leg transit trips (e.g. BUS WALK BUS)
-    if(id.toString.equals("2276-3")){
+    if(id.toString.equals("1060-1")){
       val i = 0
     }
 
@@ -128,15 +128,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] = Vector()) = {
-    if(id.toString.equals("2276-3")){
-      val i = 0
-    }
+
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value)))
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
     _currentRoute = chosenTrip
     routingResponse = None
     rideHailingResult = None
+    awaitingReservationConfirmation = Set()
     hasReceivedCompleteChoiceTrigger = false
     pendingChosenTrip = None
     beamServices.schedulerRef ! completed(triggerId = theTriggerId, triggersToSchedule ++ schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
@@ -196,6 +195,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Process ReservationReponses
      */
     case Event(ReservationResponse(requestId,Right(reservationConfirmation)),_) =>
+      if(id.toString.equals("1910-1")){
+        val i = 0
+      }
       awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
       if(awaitingReservationConfirmation.isEmpty){
         scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, reservationConfirmation.triggersToSchedule)
@@ -205,6 +207,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(ReservationResponse(requestId,Left(_)),_) =>
       pendingChosenTrip.get.tripClassifier match {
         case RIDEHAIL =>
+          awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
           rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(),error = Some(RideUnavailableError)))
         case _ =>
           routingResponse = Some(routingResponse.get.copy(itineraries=routingResponse.get.itineraries.diff(Seq(pendingChosenTrip))))
