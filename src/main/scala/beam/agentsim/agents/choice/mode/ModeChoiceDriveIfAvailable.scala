@@ -19,9 +19,9 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
       }
       val chosenIndex = if (containsDriveAlt.size > 0){ containsDriveAlt.head }else{ 0 }
       if(alternatives.size > 0) {
-        alternatives(chosenIndex)
+        Some(alternatives(chosenIndex))
       } else {
-        EmbodiedBeamTrip.empty
+        None
       }
   }
 
