@@ -55,13 +55,16 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
       val chosenTrip = beamServices.modeChoiceCalculator(combinedItinerariesForChoice)
 
-      if(tripRequiresReservationConfirmation(chosenTrip)){
-        pendingChosenTrip = Some(chosenTrip)
-        sendReservationRequests(chosenTrip)
-      }else if(chosenTrip.legs.isEmpty) {
-        errorFromEmptyRoutingResponse()
-      }else{
-        scheduleDepartureWithValidatedTrip(chosenTrip)
+      chosenTrip match {
+        case Some(theChosenTrip) if theChosenTrip.legs.nonEmpty =>
+          if(tripRequiresReservationConfirmation(theChosenTrip)){
+            pendingChosenTrip = chosenTrip
+            sendReservationRequests(theChosenTrip)
+          }else{
+            scheduleDepartureWithValidatedTrip(theChosenTrip)
+          }
+        case _ =>
+          errorFromEmptyRoutingResponse()
       }
     } else {
       stay()
