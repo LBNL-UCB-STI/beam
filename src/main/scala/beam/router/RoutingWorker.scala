@@ -2,13 +2,14 @@ package beam.router
 
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.agentsim.agents.PersonAgent
-import beam.router.BeamRouter.{RoutingRequestTripInfo, _}
+import beam.router.BeamRouter.{InitTransit, RoutingRequestTripInfo, _}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 trait RoutingWorker extends Actor with ActorLogging with HasServices {
 
+  def workerId: Int
 
   override final def receive: Receive = {
     case InitializeRouter =>
@@ -21,7 +22,7 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
           sender() ! calcRoute(requestId, params, getPerson(params.personId))
     case InitTransit =>
       initTransit
-      sender() ! TransitInited
+      sender() ! TransitInited(List(workerId))
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
       sender() ! calcRoute(requestId, params, getPerson(params.personId))
     case msg =>
@@ -40,15 +41,15 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
 object RoutingWorker {
 
   trait HasProps {
-    def props(beamServices: BeamServices): Props
+    def props(beamServices: BeamServices, workerId: Int): Props
   }
 
-  def getRouterProps(routerClass: String, services: BeamServices): Props = {
+  def getRouterProps(routerClass: String, services: BeamServices, workerId: Int): Props = {
     val runtimeMirror = scala.reflect.runtime.universe.runtimeMirror(getClass.getClassLoader)
     val module = runtimeMirror.staticModule(routerClass)
     val obj = runtimeMirror.reflectModule(module)
     val routerObject: HasProps = obj.instance.asInstanceOf[HasProps]
-    routerObject.props(services)
+    routerObject.props(services, workerId)
   }
 }
 
