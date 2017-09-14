@@ -175,9 +175,6 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
-    if(id.toString.equals("1511-1")){
-      val i = 0
-    }
     val toSchedule = if(isStart) {
       schedule[NotifyLegStartTrigger](tick, self, beamLeg)
     }else{
@@ -192,9 +189,7 @@ class PersonAgent(val beamServices: BeamServices,
      * Starting Trip
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      if(id.toString.equals("2335-2")){
-        val i = 0
-      }
+
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Complete leg(s) as driver
