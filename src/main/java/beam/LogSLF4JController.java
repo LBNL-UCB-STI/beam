@@ -6,14 +6,14 @@ import org.slf4j.LoggerFactory;
 import scala.collection.immutable.List;
 
 
-public class LogSFLJ4Controller {
-public void cutOff (List<String> classList,String loggerLevels){
-    LoggerContext root = (LoggerContext) LoggerFactory.getILoggerFactory();
-    scala.collection.Iterator classIterator = classList.iterator();
-    while (classIterator.hasNext()) {
-        String className = classIterator.next().toString();
-        Logger rootLogger = root.getLogger(className);
-        rootLogger.setLevel(Level.OFF);
+public class LogSLF4JController {
+    public void cutOff (List<String> classList,String loggerLevels){
+        LoggerContext root = (LoggerContext) LoggerFactory.getILoggerFactory();
+        scala.collection.Iterator classIterator = classList.iterator();
+        while (classIterator.hasNext()) {
+            String className = classIterator.next().toString();
+            Logger rootLogger = root.getLogger(className);
+            rootLogger.setLevel(Level.OFF);
 
             if("INFO".equals(loggerLevels)){
                 //configures the root logger for INFO

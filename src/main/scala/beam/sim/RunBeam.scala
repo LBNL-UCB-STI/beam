@@ -1,6 +1,6 @@
 package beam.sim
 
-import beam.{Log4jController, LogSFLJ4Controller}
+import beam.{Log4jController, LogSLF4JController}
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
@@ -64,7 +64,7 @@ trait RunBeam {
 
     //Mute log
     Log4jController.muteLog(ConfigModule.beamConfig.beam.levels.dependencyLoggingLevels)
-    val LogSFLJ4 = new LogSFLJ4Controller
+    val LogSFLJ4 = new LogSLF4JController
     LogSFLJ4.cutOff(ConfigModule.beamConfig.beam.packages,ConfigModule.beamConfig.beam.levels.beamLoggingLevels)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
