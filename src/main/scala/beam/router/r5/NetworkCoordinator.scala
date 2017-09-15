@@ -58,6 +58,8 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
       transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
       transportNetwork.write(networkFile)
+      //beamServices.beamConfig.matsim.modules.network.inputNetworkFile
+//      beamServices.reloadMATSimNetwork = true
       transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
     }
     transportNetwork.rebuildTransientIndexes()
