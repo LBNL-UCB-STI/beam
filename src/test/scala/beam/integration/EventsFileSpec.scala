@@ -137,7 +137,7 @@ class ReadEventsXMlGz extends ReadEventsXml {
 
 class EventsFileCorrectnessSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with EventsFileHandlingCommon{
 
-  val beamConfig = ConfigModule.beamConfig
+  lazy val beamConfig = ConfigModule.beamConfig
 
   lazy val exc = Try(rumBeamWithConfigFile(Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")))
   lazy val file: File = getRouteFile(ConfigModule.beamConfig.beam.outputs.outputDirectory , ConfigModule.beamConfig.beam.outputs.eventsFileOutputFormats)
