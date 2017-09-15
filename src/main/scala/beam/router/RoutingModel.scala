@@ -17,7 +17,6 @@ object RoutingModel {
 
   type LegCostEstimator = BeamLeg => Option[Double]
 
-
   case class BeamTrip(legs: Vector[BeamLeg],
                       accessMode: BeamMode) {
     lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {

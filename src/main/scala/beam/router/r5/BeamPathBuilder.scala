@@ -18,6 +18,7 @@ import org.matsim.api.core.v01.Coord
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scalaz.Memo
 
 object BeamPathBuilder {
   private val log  =LoggerFactory.getLogger(classOf[BeamPathBuilder])
@@ -62,6 +63,8 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
     routeTransitPathThroughStreets(transitTripStartTime, fromStopIdx, toStopIdx, TransitStopsInfo(fromStopIdx.toString, toStopIdx.toString),duration)
   }
 
+
+
   /**
     * Does point2point routing request to resolve appropriated route between stops
     * @param departure departure from start stop
@@ -70,7 +73,7 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
     * @param transitStopsInfo stop details
     * @return
     */
-  def routeTransitPathThroughStreets(departure: Long, fromStopIdx: Int, toStopIdx: Int, transitStopsInfo: TransitStopsInfo, duration: Int) = {
+  def routeTransitPathThroughStreets(departure: Long, fromStopIdx: Int, toStopIdx: Int, transitStopsInfo: TransitStopsInfo, duration: Int): BeamPath = {
 
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val profileRequest = new ProfileRequest()

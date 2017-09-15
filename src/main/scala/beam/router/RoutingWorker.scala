@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, Props}
 import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.{InitTransit, RoutingRequestTripInfo, _}
 import beam.sim.{BeamServices, HasServices}
+import beam.utils.ProfilingUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
@@ -21,7 +22,7 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
           //      log.info(s"Router received routing request from person $personId ($sender)")
           sender() ! calcRoute(requestId, params, getPerson(params.personId))
     case InitTransit =>
-      initTransit
+      log.error(s"\n\nIt took ${ProfilingUtils.timeWork(initTransit)} to init transit\n\n")
       sender() ! TransitInited(List(workerId))
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
       sender() ! calcRoute(requestId, params, getPerson(params.personId))
