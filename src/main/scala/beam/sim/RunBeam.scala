@@ -1,11 +1,8 @@
 package beam.sim
 
-import beam.{Log4jController, LogSLF4JController}
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.sim.config.ConfigModule
+import beam.sim.config.{BEAMSIMLogggerController, ConfigModule, MATSIMandR5LoggerController}
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.config.ConfigModule
-import beam.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
@@ -63,9 +60,8 @@ trait RunBeam {
     //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
 
     //Mute log
-    Log4jController.muteLog(ConfigModule.beamConfig.beam.levels.dependencyLoggingLevels)
-    val LogSFLJ4 = new LogSLF4JController
-    LogSFLJ4.cutOff(ConfigModule.beamConfig.beam.packages,ConfigModule.beamConfig.beam.levels.beamLoggingLevels)
+    MATSIMandR5LoggerController.muteLog(ConfigModule.beamConfig.matsim.levels.dependencyLoggingLevels,ConfigModule.beamConfig.matsim.R5Packages)
+    BEAMSIMLogggerController.cutOff(ConfigModule.beamConfig.beam.packages,ConfigModule.beamConfig.beam.levels.beamLoggingLevels)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
