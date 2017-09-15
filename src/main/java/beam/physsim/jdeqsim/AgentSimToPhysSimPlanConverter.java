@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
- * Created by asif on 8/18/2017.
+ * @Authors asif and rwaraich.
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
@@ -52,9 +52,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private EventsManager eventsManager;
 
     public AgentSimToPhysSimPlanConverter(BeamServices services){
-
-        this.services = services;
-        Scenario agentSimScenario = this.services.matsimServices().getScenario();
+        services.matsimServices().getEvents().addHandler(this);
+        this.services=services;
+        Scenario agentSimScenario = services.matsimServices().getScenario();
         network = agentSimScenario.getNetwork();
 
         resetJDEQSimScenario();
@@ -70,14 +70,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     @Override
     public void reset(int iteration) {
 
-        for(Person p : population.getPersons().values()){
-            Plan plan = p.getSelectedPlan();
-            Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-
-            plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
-        }
-        initializeAndRun();
-        resetJDEQSimScenario();
     }
 
     public void initializeAndRun(){
@@ -198,6 +190,19 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 }
             }
         }
+    }
+
+
+    public void startPhysSim() {
+
+        for(Person p : population.getPersons().values()){
+            Plan plan = p.getSelectedPlan();
+            Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
+
+            plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
+        }
+        initializeAndRun();
+        resetJDEQSimScenario();
     }
 }
 
