@@ -40,7 +40,7 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
           Option(clazz.newInstance())
         } catch {
           case e: IllegalAccessException =>
-            logger.warn(s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'. It doesn't have default public constructor.Falling back to setAccessible(). Cause : " + e.getMessage)
+            logger.debug(s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'. It doesn't have default public constructor.Falling back to setAccessible(). Cause : " + e.getMessage)
             Try {
               val c = clazz.getDeclaredConstructor()
               c.setAccessible(true)
