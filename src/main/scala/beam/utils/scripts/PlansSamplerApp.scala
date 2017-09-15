@@ -10,6 +10,7 @@ import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
+import org.matsim.core.network.NetworkUtils
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.router.StageActivityTypesImpl
@@ -206,9 +207,8 @@ object PlansSampler {
     val allActivities = PopulationUtils.getActivities(plan, new StageActivityTypesImpl(""))
 
     allActivities.forEach(x => {
-      val nearestLink = NetworkTools.getNearestLink(sc.getNetwork, x.getCoord, 20000) // Search for closest link w/in 20000 m
-      val movedCoord = CoordTools.getClosestPointOnLine(nearestLink.getFromNode.getCoord, nearestLink.getToNode.getCoord, x.getCoord)
-      x.setCoord(movedCoord)
+      val nearestLink = NetworkUtils.getNearestLink(sc.getNetwork, x.getCoord)
+      x.setCoord(nearestLink.getCoord)
     })
     plan
   }
