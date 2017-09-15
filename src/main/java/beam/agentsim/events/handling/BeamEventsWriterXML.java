@@ -1,13 +1,12 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.LoggerLevels;
 import beam.sim.BeamServices;
-
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
+
 import java.io.IOException;
 import java.util.Map;
-import beam.agentsim.events.LoggerLevels;
-import scala.collection.immutable.List;
 
 /**
  * BEAM
@@ -17,8 +16,6 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
         super(outfilename, beamEventLogger, beamServices, eventTypeToLog);
         writeHeaders();
     }
-
-
 
     @Override
     public void writeHeaders(){
@@ -52,44 +49,25 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
     public void reset(final int iter) {
     }
 
-    //Modify the method to control logger and based on logging level writing specific attribute
     @Override
     protected void writeEvent(final Event event) {
-        String LoggerLevel=this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel();
-
-        if(!LoggerLevel.equals(LoggerLevels.OFF.toString())&& !LoggerLevel.equals("")){
-
-            List loggerinfotype= null;
-            try {
-                if(LoggerLevel.equals(LoggerLevels.VERBOSE.toString())) {
-                    loggerinfotype = this.beamServices.beamConfig().beam().outputs().VERBOSELoggingLevel();
-                }
-
-                else if(LoggerLevel.equals(LoggerLevels.REGULAR.toString())) {
-                    loggerinfotype = this.beamServices.beamConfig().beam().outputs().REGULARLoggingLevel();
-                }
-
-                else if(LoggerLevel.equals(LoggerLevels.SHORT.toString())) {
-                    loggerinfotype = this.beamServices.beamConfig().beam().outputs().SHORTLoggingLevel();
-                }
-
+        if(! (beamEventLogger.getLoggingLevel(event) == LoggerLevels.OFF)){
+            try{
                 this.out.append("\t<event ");
-                Map<String, String> attr = event.getAttributes();
+                Map<String, String> attr = beamEventLogger.getAttributes(event);
                 for (Map.Entry<String, String> entry : attr.entrySet()) {
-
-                    if(loggerinfotype.contains(entry.getKey())) {
-                        this.out.append(entry.getKey());
-                        this.out.append("=\"");
-                        this.out.append(encodeAttributeValue(entry.getValue()));
-                        this.out.append("\" ");
-                    }
+                    this.out.append(entry.getKey());
+                    this.out.append("=\"");
+                    this.out.append(encodeAttributeValue(entry.getValue()));
+                    this.out.append("\" ");
                 }
 
              this.out.append(" />\n");
 //			this.out.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }}
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     // the following method was taken from MatsimXmlWriter in order to correctly encode attributes, but

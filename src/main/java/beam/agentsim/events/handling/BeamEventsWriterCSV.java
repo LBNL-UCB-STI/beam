@@ -64,7 +64,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
     protected void writeEvent(Event event) {
         String[] row = new String[attributeToColumnIndexMapping.getKeySet().size()];
 
-        Map<String, String> attributes = event.getAttributes();
+        Map<String, String> attributes = this.beamEventLogger.getAttributes(event);
         for (String attribute : attributes.keySet()) {
             if (!attributeToColumnIndexMapping.containsKey(attribute)){
                 if(this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)){

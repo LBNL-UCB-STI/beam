@@ -13,14 +13,17 @@ public class ModeChoiceEvent extends Event {
     public final static String EVENT_TYPE = "ModeChoice";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_PERSON_ID = "person";
+    public final static String VERBOSE_ATTRIBUTE_ALTERNATIVES = "alternatives";
     private final String personId;
     private final String mode;
+    public final String alternatives;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode) {
         super(time);
 
         this.personId = personId.toString();
         this.mode = chosenMode;
+        this.alternatives = "dummy";
     }
 
     @Override

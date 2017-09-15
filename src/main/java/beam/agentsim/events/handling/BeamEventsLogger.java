@@ -1,5 +1,6 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.LoggerLevels;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.BeamServices;
@@ -9,6 +10,7 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 /**
  * BEAM
@@ -18,12 +20,15 @@ public class BeamEventsLogger {
     private final EventsManager eventsManager;
     private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
 
-    HashMap<Class<?>, Integer> levels = new HashMap<>();
+    HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
+    LoggerLevels defaultLevel;
+
     private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog=new HashSet<>();
     private BeamServices beamServices;
     private String eventsFileFormats;
     private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
-    private String logfilePath;
+    private HashMap<Class, String> eventFieldsToDropWhenShort = new HashMap<>();
+    private HashMap<Class, String> eventFieldsToAddWhenVerbose = new HashMap<>();
 
     public BeamEventsLogger(BeamServices beamServices, EventsManager eventsManager) {
 
@@ -47,11 +52,14 @@ public class BeamEventsLogger {
         allLoggableEvents.add(PersonArrivalEvent.class);
         allLoggableEvents.add(ActivityStartEvent.class);
 
-      //Commented code to handle logging level while writing xml
-     //   if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel() > 0) {
-            // All classes are logged by default
+        eventFieldsToDropWhenShort.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_ALTERNATIVES);
+
+        defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
+
+        if(defaultLevel != LoggerLevels.OFF){
             eventsToLog.addAll(getAllLoggableEvents());
-     //   }
+        }
 //        filterLoggingLevels();
         createEventsWriters();
     }
@@ -98,16 +106,16 @@ public class BeamEventsLogger {
         return null;
     }
 
-    private void setLoggingLevel(Class<?> eventType, int level) {
+    private void setLoggingLevel(Class<?> eventType, LoggerLevels level) {
         levels.put(eventType, level);
     }
 
     //Logging control code changed return type from int to String
-    public String getLoggingLevel(Event event) {
+    public LoggerLevels getLoggingLevel(Event event) {
         if (levels.containsKey(event.getClass())) {
-            return levels.get(event.getClass()).toString();
+            return levels.get(event.getClass());
         } else {
-            return this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel();
+            return defaultLevel;
         }
     }
 
@@ -119,6 +127,7 @@ public class BeamEventsLogger {
     public HashSet<Class<?>> getAllEventsToLog(){
         return eventsToLog;
     }
+
     public HashSet<Class<?>> getAllLoggableEvents(){
         return allLoggableEvents;
     }
@@ -142,6 +151,15 @@ public class BeamEventsLogger {
         }
     }
 
+    public Map<String,String> getAttributes(Event event) {
+        Map<String,String> attributes = event.getAttributes();
+        if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
+            // remove fields from attributes heres
+        }else if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
+            // add fields from attributes here, assume they are public fields on the event, e.g. event.alternatives
+        }
+        return attributes;
+    }
 
     public void filterLoggingLevels() {
         //TODO re-implement filter on logging level for individual event types
@@ -164,4 +182,5 @@ public class BeamEventsLogger {
 //            }
 //        }
     }
+
 }
