@@ -39,7 +39,7 @@ import org.opentripplanner.routing.vertextype.TransitStop
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
+class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
   //  val localDateAsString: String = "2016-10-17"
   //  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
@@ -64,8 +64,18 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
-    log.info(s"Start Transit initialization  ${ transportNetwork.transitLayer.tripPatterns.size()} trips founded")
-    val transitTrips  = transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
+    val size  = transportNetwork.transitLayer.tripPatterns.size()
+    val workerNumber = beamServices.beamConfig.beam.routing.workerNumber
+    val patternsPerWorker  = size / workerNumber
+    val patternsStartIndex = patternsPerWorker * workerId
+    //XXX: last worker takes rest of schedule
+    val patternsEndIndex = if (workerId == workerNumber - 1) {
+      size
+    } else  {
+      patternsStartIndex + patternsPerWorker
+    }
+    log.info(s" ${ transportNetwork.transitLayer.tripPatterns.size()} trips founded, Start Transit initialization of [$patternsStartIndex, $patternsEndIndex) slice")
+    val transitTrips  = transportNetwork.transitLayer.tripPatterns.subList(patternsStartIndex, patternsEndIndex).asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
       //      log.debug(tripPattern.toString)
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
@@ -100,10 +110,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
             passengerSchedule.addLegs(Seq(theLeg))
             beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
 
-            previousBeamLeg match {
-              case Some(prevLeg) =>
+            previousBeamLeg.foreach{ prevLeg =>
                 beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(prevLeg,Some(theLeg)))
-              case None =>
             }
             previousBeamLeg = Some(theLeg)
             val previousTransitStops: TransitStopsInfo = previousBeamLeg.get.travelPath.transitStops match {
@@ -552,7 +560,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 }
 
 object R5RoutingWorker extends HasProps {
-  override def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
+  override def props(beamServices: BeamServices, workerId: Int) = Props(classOf[R5RoutingWorker], beamServices, workerId)
 
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
                                       originalProfileModeToVehicle: mutable.Map[BeamMode, mutable.Set[StreetVehicle]],

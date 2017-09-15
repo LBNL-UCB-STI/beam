@@ -2,8 +2,8 @@ package beam.router
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
-import akka.routing.{ActorRefRoutee, RoundRobinRoutingLogic, Router, SmallestMailboxRoutingLogic}
+import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, Props, Stash, Terminated}
+import akka.routing._
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter._
@@ -21,11 +21,13 @@ import scala.beans.BeanProperty
 class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogging {
   var router: Router = _
   var networkCoordinator: ActorRef = _
+  private var routerWorkers: Vector[Routee] = _
 
   override def preStart(): Unit = {
-    router = Router(SmallestMailboxRoutingLogic(), Vector.fill(100) {
-      ActorRefRoutee(createAndWatch)
-    })
+    routerWorkers = (0 until services.beamConfig.beam.routing.workerNumber).map { workerId =>
+      ActorRefRoutee(createAndWatch(workerId))
+    }.toVector
+    router = Router(SmallestMailboxRoutingLogic(), routerWorkers)
     networkCoordinator = context.actorOf(NetworkCoordinator.props(services))
   }
 
@@ -68,7 +70,7 @@ class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogg
     case w: RoutingRequest =>
       router.route(w, sender())
     case InitTransit =>
-      router.route(InitTransit, sender())
+      router.route(Broadcast(InitTransit), sender())
     case InitializeRouter =>
       log.debug("Router already initialized.")
       sender() ! RouterInitialized
@@ -83,13 +85,39 @@ class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogg
   }
 
   private def handelTermination(r: ActorRef): Unit = {
-    router = router.removeRoutee(r)
-    router = router.addRoutee(createAndWatch)
+    if (r.path.name.startsWith("router-worker-")) {
+      val workerId = r.path.name.substring("router-worker-".length).toInt
+      router = router.removeRoutee(r)
+      val workerActor = createAndWatch(workerId)
+      router = router.addRoutee(workerActor)
+    } else {
+      log.warning(s"Can't resolve router workerId from ${r.path.name}. Invalid actor name")
+    }
   }
 
-  private def createAndWatch(): ActorRef = {
-    val r = context.actorOf(RoutingWorker.getRouterProps(services.beamConfig.beam.routing.routerClass, services))
+  private def createAndWatch(workerId: Int): ActorRef = {
+    val routerProps = RoutingWorker.getRouterProps(services.beamConfig.beam.routing.routerClass, services, workerId)
+    val r = context.actorOf(routerProps, s"router-worker-$workerId")
     context watch r
+  }
+}
+
+class TransitInitCoordinator(router: ActorRef, private var workerCount: Int) extends Actor with ActorLogging {
+  private var transitInitSender: ActorRef = _
+  private var finishedWorkers: Map[ActorRef, Int] =  Map[ActorRef, Int]()
+
+  override def receive: Receive = {
+    case InitTransit =>
+      transitInitSender = sender()
+      router ! InitTransit
+    case TransitInited(workerId :: Nil) =>
+      val workerRef = sender()
+      finishedWorkers = finishedWorkers + ((workerRef, workerId))
+      if (workerCount == finishedWorkers.size) {
+        log.info(s"Received TransitInited response from workers $finishedWorkers ")
+        transitInitSender ! TransitInited(finishedWorkers.values.toList)
+        context.stop(self)
+      }
   }
 }
 
@@ -102,7 +130,7 @@ object BeamRouter {
   case object RouterInitialized
   case object RouterNeedInitialization
   case object InitTransit
-  case object TransitInited
+  case class TransitInited(workerIds: List[Int])
   case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator)
 
   /**
