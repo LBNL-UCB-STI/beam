@@ -1,22 +1,3 @@
-<component name="ProjectRunConfigurationManager">
-    <configuration default="false" name="RunBeam BeamVille" type="Application" factoryName="Application" singleton="true">
-        <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea">
-            <pattern>
-                <option name="PATTERN" value="beam.agentsim.sim.*" />
-                <option name="ENABLED" value="true" />
-            </pattern>
-        </extension>
-        <option name="MAIN_CLASS_NAME" value="beam.sim.RunBeam" />
-        <option name="VM_PARAMETERS" value="-Xmx2048m " />
-        <option name="PROGRAM_PARAMETERS" value="--config ./test/input/beam-developers/model-inputs/beamville/beam.conf" />
-        <option name="WORKING_DIRECTORY" value="" />
-        <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
-        <option name="ALTERNATIVE_JRE_PATH" />
-        <option name="ENABLE_SWING_INSPECTOR" value="false" />
-        <option name="ENV_VARIABLES" />
-        <option name="PASS_PARENT_ENVS" value="true" />
-        <module name="beam_main" />
-        <envs />
-        <method />
-    </configuration>
-</component>
+version https://git-lfs.github.com/spec/v1
+oid sha256:4c18d2e5f3ec672b666c8f78e813bca8e8a9cfd36721e9f91f03f28d4ca8e561
+size 1033
