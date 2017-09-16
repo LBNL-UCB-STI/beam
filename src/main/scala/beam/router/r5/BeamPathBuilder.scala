@@ -68,7 +68,14 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
   }
 
   def createFromExistingWithUpdatedTimes(existingBeamPath: BeamPath, departure: Long, duration: Int): BeamPath={
-    BeamPath(existingBeamPath.linkIds,existingBeamPath.transitStops,new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer,departure.toLong, duration))
+    existingBeamPath.resolver match {
+      case sstr: StreetSegmentTrajectoryResolver => BeamPath(existingBeamPath.linkIds,existingBeamPath.transitStops,
+        StreetSegmentTrajectoryResolver(sstr.asInstanceOf[StreetSegmentTrajectoryResolver].streetSegment,
+          departure))
+      case tbeir: TrajectoryByEdgeIdsResolver => BeamPath(existingBeamPath.linkIds,existingBeamPath.transitStops,
+        TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departure,duration))
+    }
+
   }
 
 

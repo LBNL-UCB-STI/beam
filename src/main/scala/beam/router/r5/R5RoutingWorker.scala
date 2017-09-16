@@ -106,7 +106,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
               }
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-              BeamPath(edgeIds, Option(stopsInfo), new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureFrom.toLong, duration))
+              BeamPath(edgeIds, Option(stopsInfo), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureFrom.toLong, duration))
             }
             val theLeg = BeamLeg(departureFrom.toLong, mode, duration, transitPath)
             passengerSchedule.addLegs(Seq(theLeg))

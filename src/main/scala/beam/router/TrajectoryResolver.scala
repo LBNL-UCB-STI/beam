@@ -28,7 +28,7 @@ object EmptyTrajectoryResolver extends TrajectoryResolver {
   * @param streetSegment street segment wih defined geometry
   * @param tripStartTime when object start moving over this segment
   */
-class StreetSegmentTrajectoryResolver(streetSegment: StreetSegment, tripStartTime: Long) extends TrajectoryResolver {
+case class StreetSegmentTrajectoryResolver(streetSegment: StreetSegment, tripStartTime: Long) extends TrajectoryResolver {
   override def resolve(beamPath: BeamPath): Trajectory = {
     val checkpoints = streetSegment.geometry.getCoordinates
     val timeDelta = streetSegment.duration.toDouble / checkpoints.length
@@ -40,7 +40,7 @@ class StreetSegmentTrajectoryResolver(streetSegment: StreetSegment, tripStartTim
   }
 }
 
-class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer, departure: Long, duration: Long) extends TrajectoryResolver {
+case class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer, departure: Long, duration: Long) extends TrajectoryResolver {
 
   override def resolve(beamPath: BeamPath): Trajectory = {
     val stepDelta = duration.toDouble / beamPath.linkIds.size
@@ -54,7 +54,7 @@ class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer, departure
   }
 }
 
-class DefinedTrajectoryHolder(trajectory: Trajectory) extends TrajectoryResolver {
+case class DefinedTrajectoryHolder(trajectory: Trajectory) extends TrajectoryResolver {
   override def resolve(beamPath: BeamPath): Trajectory = {
     require(beamPath.resolver == this, "Wrong beam path")
     trajectory
