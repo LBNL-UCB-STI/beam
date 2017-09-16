@@ -361,13 +361,13 @@ class PersonAgent(val beamServices: BeamServices,
               case None =>
             }
           }
-          val endTime = if(activity.getEndTime >= 0.0 || Math.abs(activity.getEndTime) < Double.PositiveInfinity){ activity.getEndTime }else{
-            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
-            tick + 60*10
-          }else if(activity.getEndTime < tick) {
+          val endTime = if(activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity){
+            activity.getEndTime
+          }else if(activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
             tick
           }else{
-            activity.getEndTime
+            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+            tick + 60*10
           }
           beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value)))
           beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType)))

@@ -154,7 +154,7 @@ class HouseholdActor(services: BeamServices,
     // Initial locations and trajectories
     //Initialize all vehicles to have a stationary trajectory starting at time zero
     val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
-    val initialTrajectory = Trajectory(BeamStreetPath(Vector(""), None, Some(Vector())))
+    val initialTrajectory = Trajectory(Vector(initialLocation))
     _vehicles.foreach { veh =>
       services.vehicleRefs(veh) ! UpdateTrajectory(initialTrajectory)
 
