@@ -106,7 +106,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     val totalIterations = limit / step
 
     val totalTime = if (linkId != null) (0 until limit by step).map(i => travelTimeCalculator.getLinkTravelTime(linkId, i.toDouble)).sum else 0.0
-    val avgTime = (totalTime / totalIterations) // TODO: check if intotalIterations off by 1 or not?
+    val avgTime = (totalTime / totalIterations)
     avgTime
   }
 
