@@ -14,6 +14,10 @@ trait ModeChoiceCalculator extends HasServices{
 object ModeChoiceCalculator {
   def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculator = {
     classname match {
+      case "ModeChoiceLCCM" =>
+        new ModeChoiceLCCM(beamServices)
+      case "ModeChoiceMultinomialLogit" =>
+        new ModeChoiceMultinomialLogit(beamServices)
       case "ModeChoiceTransitIfAvailable" =>
         new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
@@ -22,8 +26,6 @@ object ModeChoiceCalculator {
         new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
         new ModeChoiceUniformRandom(beamServices)
-      case "ModeChoiceMultinomialLogit" =>
-        new ModeChoiceMultinomialLogit(beamServices)
       case "ModeChoiceTransitOnly" =>
         new ModeChoiceTransitOnly(beamServices)
     }
