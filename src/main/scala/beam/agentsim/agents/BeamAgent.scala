@@ -1,8 +1,10 @@
 package beam.agentsim.agents
 
+import java.util.{Set, TreeSet}
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{FSM, LoggingFSM}
+import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
+import akka.actor.{ActorRef, FSM, LoggingFSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -71,6 +73,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
+  protected var listener: Option[ActorRef] = None
 
   private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState,StateFunction]
   final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit = {
@@ -86,6 +89,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         // do nothing
     }
     var theEvent = event.copy(stateData = theStateData)
+
+
+
     if(chainedStateFunctions.contains(state)) {
       var resultingBeamStates = List[BeamAgentState]()
       var resultingReplies = List[Any]()
@@ -103,6 +109,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
           s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
       } else if(newStates.isEmpty && state == AnyState){
+
         logError(s"Did not handle the event=$event")
         FSM.State(Error, event.stateData)
       } else if(newStates.isEmpty){
@@ -130,6 +137,12 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   startWith(Uninitialized, BeamAgentInfo[T](id, data))
 
   when(Uninitialized){
+    case ev @ Event(SubscribeTransitionCallBack(actorRef),_)=>
+      listener = Some(actorRef)
+      // send current state back as reference point
+      actorRef ! CurrentState(self, this.stateName)
+      stay()
+
     case ev @ Event(_,_) =>
       handleEvent(stateName, ev)
   }

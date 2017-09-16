@@ -11,7 +11,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.BeamStreetPath
+import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person

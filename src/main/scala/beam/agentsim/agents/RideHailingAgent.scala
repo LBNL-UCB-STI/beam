@@ -84,7 +84,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[RideHailingAgentData]) =>
       val passengerSchedule = PassengerSchedule()
-      data.vehicleIdAndRef.ref ! BecomeDriver(triggerId, id, Some(passengerSchedule))
+      data.vehicleIdAndRef.ref ! BecomeDriver(tick, id, Some(passengerSchedule))
       goto(PersonAgent.Waiting) replying completed(triggerId, schedule[PassengerScheduleEmptyTrigger](tick,self))
   }
 

@@ -1,6 +1,6 @@
 package beam.utils
 
-import beam.router.RoutingModel.{BeamLeg, BeamStreetPath, BeamTransitSegment}
+import beam.router.RoutingModel.{BeamLeg, BeamPath}
 import io.circe.{Encoder, Json, JsonObject}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.io.IOUtils
@@ -18,12 +18,9 @@ object JsonUtils {
   object syntax {
     implicit val encodeLeg: Encoder[BeamLeg] = (a: BeamLeg) => {
       val jsonBuilder: Map[String, Json] = Map(
-        "typ" -> Json.fromString("trajectory"), "mode" -> a.mode.asJson, "shp" -> (a.travelPath match {
-//          case Left(s) => s.asJson
-          case s: BeamStreetPath => s.asJson
-//          case Right(t) => t.asJson
-          case t:BeamTransitSegment => t.asJson
-        }))
+        "typ" -> Json.fromString("trajectory"), "mode" -> a.mode.asJson, "shp" ->
+          a.travelPath.asJson
+      )
 
       Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
     }
@@ -47,15 +44,26 @@ object JsonUtils {
 
   //// Private Methods
 
-  private[this] implicit val encodeStreetPath: Encoder[BeamStreetPath] = (a: BeamStreetPath) => {
-    Json.fromValues(a.trajectory.map(_.asJson))
+  private[this] implicit val encodePath: Encoder[BeamPath] = (a: BeamPath) => {
+    val trajectory = a.toTrajectory
+    val props = if (a.isTransit) {
+      Map(
+        "trajectory" ->  Json.fromValues(trajectory.path.map(_.asJson)),
+        "fId" -> a.transitStops.get.fromStopId.asJson,
+        "tId" ->  a.transitStops.get.toStopId.asJson
+      )
+    } else {
+      Map("trajectory" ->  Json.fromValues(trajectory.path.map(_.asJson)) )
+    }
+    Json.fromJsonObject(JsonObject.fromMap(props))
   }
-
-  private[this] implicit val encodeTransitSegment: Encoder[BeamTransitSegment] = (a: BeamTransitSegment) => {
-    val jsonBuilder: Map[String, Json] = Map(
-      "vId" -> "dummy".asJson, "fId" -> a.fromStopId.toString.asJson, "tId" -> a.toStopId.toString.asJson, "time" -> a.departureTime.asJson)
-    Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
-  }
+//
+//
+//  private[this] implicit val encodeTransitSegment: Encoder[BeamTransitSegment] = (a: BeamTransitSegment) => {
+//    val jsonBuilder: Map[String, Json] = Map(
+//      "vId" -> "dummy".asJson, "fId" -> a.fromStopId.toString.asJson, "tId" -> a.toStopId.toString.asJson, "time" -> a.departureTime.asJson)
+//    Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
+//  }
 
   //~
 }

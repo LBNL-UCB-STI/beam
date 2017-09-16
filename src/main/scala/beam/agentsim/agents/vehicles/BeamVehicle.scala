@@ -74,7 +74,7 @@ object BeamVehicle {
   }
 
   def buildActorName(matsimVehicle: Vehicle): String = {
-    s"$ActorPrefixName${matsimVehicle.getType.getDescription}-${matsimVehicle.getId.toString}"
+    s"$ActorPrefixName${matsimVehicle.getType.getDescription.replaceAll(" ", "_")}-${matsimVehicle.getId.toString}"
   }
 
   implicit def actorRef2Id(actorRef: ActorRef): Option[Id[Vehicle]] = {
@@ -273,7 +273,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case Event(UpdateTrajectory(newTrajectory), info) =>
       trajectory match {
         case Some(traj) =>
-          traj.append(traj)
+          traj.append(newTrajectory)
         case None =>
           trajectory = Some(newTrajectory)
       }
