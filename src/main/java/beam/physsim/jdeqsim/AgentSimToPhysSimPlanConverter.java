@@ -140,28 +140,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     leg.setTravelTime(0);
                     List<Id<Link>> linkIds = new ArrayList<>();
                     int negCount = 0;
+
+                    links=links.replace("Vector(","");
+                    links=links.replace("),","");
+
                     for(String link : links.split(",")) {
-
-                        long osmLinkId = NetworkCoordinator.getOsmId(Integer.parseInt(link));
-
-                        if(osmLinkId < 0) {
-                            negCount++;
-                            // The OSM id can be smaller than zero at the start and end of the route [transit stops vertex connected to the road network]
-                        }else {
-                            Id<Link> linkId = Id.createLinkId(osmLinkId);
-                            linkIds.add(linkId);
-                        }
+                        Id<Link> linkId = Id.createLinkId(link.trim());
+                        linkIds.add(linkId);
                     }
 
-                    if(negCount > 2){
-
-                        // At most two negative vertex ids are expected, one at the beginning of the route and one at the end
-                        // Something might be wrong
-                        String errorMessage = "At most two negative vertex ids are expected, one at the beginning of the route and one at the end. " +
-                                "Something might be wrong";
-                        log.error(errorMessage);
-                        //throw new Exception(errorMessage);
-                    }
                     Route route = RouteUtils.createNetworkRoute(linkIds, network);
                     leg.setRoute(route);
 
