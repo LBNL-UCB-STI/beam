@@ -14,7 +14,7 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
-import beam.router.r5.NetworkCoordinator._
+import beam.router.r5.NetworkCoordinator.{beamPathBuilder, _}
 import beam.router.r5.R5RoutingWorker.{ProfileRequestToVehicles, TripFareTuple}
 import beam.router.{Modes, RoutingWorker, TrajectoryByEdgeIdsResolver}
 import beam.sim.BeamServices
@@ -97,8 +97,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
             val toStopId = tripPattern.stops(to).toString
             val stopsInfo = TransitStopsInfo(fromStopId, toStopId)
             val transitPath = if (isOnStreetTransit(mode)) {
-              transitCache.getOrElseUpdate((fromStopIdx, toStopIdx),
-                beamPathBuilder.routeTransitPathThroughStreets(departureFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration))
+              transitCache.get((fromStopIdx,toStopIdx)).fold{
+                val bp = beamPathBuilder.routeTransitPathThroughStreets(departureFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
+                transitCache += ((fromStopIdx,toStopIdx)->bp)
+              bp}
+              {x =>
+                beamPathBuilder.createFromExistingWithUpdatedTimes(x,departureFrom,duration)
+              }
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
               BeamPath(edgeIds, Option(stopsInfo), new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureFrom.toLong, duration))
@@ -119,9 +124,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
             }
             stopStopDepartTuple = (previousTransitStops.fromStopId, previousTransitStops.toStopId, previousBeamLeg.get.startTime)
             //            if(stopStopDepartTuple._1.eq("0") && stopStopDepartTuple._2.eq("23")){
-            if (stopStopDepartTuple._1.equals("0") || stopStopDepartTuple._2.equals("0")) {
-              val i = 0
-            }
+//            if (stopStopDepartTuple._1.equals("0") || stopStopDepartTuple._2.equals("0")) {
+//              val i = 0
+//            }
           }
           beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(previousBeamLeg.get, None))
         } else {

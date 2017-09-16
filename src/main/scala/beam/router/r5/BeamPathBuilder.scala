@@ -18,7 +18,10 @@ import org.matsim.api.core.v01.Coord
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scalaz.Memo
+
+
 
 object BeamPathBuilder {
   private val log  =LoggerFactory.getLogger(classOf[BeamPathBuilder])
@@ -59,10 +62,14 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
       buildTransitPath(fromStopIntId, toStopIntId, transitTripStartTime: Long, duration)
     }
   }
+
   def buildTransitPath(fromStopIdx: Int, toStopIdx: Int, transitTripStartTime: Long, duration: Int): BeamPath = {
     routeTransitPathThroughStreets(transitTripStartTime, fromStopIdx, toStopIdx, TransitStopsInfo(fromStopIdx.toString, toStopIdx.toString),duration)
   }
 
+  def createFromExistingWithUpdatedTimes(existingBeamPath: BeamPath, departure: Long, duration: Int): BeamPath={
+    BeamPath(existingBeamPath.linkIds,existingBeamPath.transitStops,new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer,departure.toLong, duration))
+  }
 
 
   /**

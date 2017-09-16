@@ -22,7 +22,7 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
           //      log.info(s"Router received routing request from person $personId ($sender)")
           sender() ! calcRoute(requestId, params, getPerson(params.personId))
     case InitTransit =>
-      log.error(s"\n\nIt took ${ProfilingUtils.timeWork(initTransit)} to init transit\n\n")
+      initTransit
       sender() ! TransitInited(List(workerId))
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
       sender() ! calcRoute(requestId, params, getPerson(params.personId))
