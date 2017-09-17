@@ -7,8 +7,9 @@ import beam.agentsim.Resource
 import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent, RemovePassengerFromTrip}
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.modalBehaviors.CancelReservation
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
@@ -265,8 +266,6 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         vehiclePassengerRef ! ResetCarrier
       }
 
-
-
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId,id)))
       stay()
@@ -290,6 +289,12 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case Event(ResetCarrier, _) =>
       carrier = None
       stay()
+//    case Event(a:RemovePassengerFromTrip,_)=> {
+//      driver.foreach{ d =>
+//        d ! a
+//      }
+//      stay()
+//    }
     case Event(request: ReservationRequest, _) =>
       driver match {
         case Some(driverActor) =>
