@@ -14,13 +14,12 @@ import scala.collection.mutable
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
   def isEmpty = schedule.isEmpty
 
-  def initialSpacetime() = {
-    schedule.firstKey.travelPath.toTrajectory.location(schedule.firstKey.startTime)
+  def initialSpacetime(): SpaceTime = {
+    schedule.firstKey.travelPath.getStartPoint()
   }
-  def terminalSpacetime() = {
+  def terminalSpacetime(): SpaceTime = {
     val lastLeg = schedule.lastKey
-    val endTime = lastLeg.startTime + lastLeg.endTime
-    lastLeg.travelPath.toTrajectory.location(endTime)
+    lastLeg.travelPath.getEndPoint()
   }
   def getStartLeg() = {
     schedule.head._1

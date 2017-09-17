@@ -12,12 +12,19 @@ import com.conveyal.r5.streets.StreetLayer
 trait TrajectoryResolver {
 
   def resolve(beamPath: BeamPath): Trajectory
+
+  def resolveStart(beamPath: BeamPath): SpaceTime
+  def resolveEnd(beamPath: BeamPath): SpaceTime
 }
 
 object EmptyTrajectoryResolver extends TrajectoryResolver {
   override def resolve(beamPath: BeamPath): Trajectory = {
     Trajectory(Vector())
   }
+
+  override def resolveStart(beamPath: BeamPath): SpaceTime = SpaceTime.zero
+
+  override def resolveEnd(beamPath: BeamPath): SpaceTime = SpaceTime.zero
 }
 
 /**
@@ -38,6 +45,22 @@ case class StreetSegmentTrajectoryResolver(streetSegment: StreetSegment, tripSta
     //XXX: let Trajectory logic interpolate intermediate points
     Trajectory(path.toVector)
   }
+
+  override def resolveStart(beamPath: BeamPath): SpaceTime = {
+    Option(streetSegment.geometry.getStartPoint).map{
+      p => SpaceTime(p.getX, p.getY, tripStartTime)
+    }.getOrElse{
+      SpaceTime.zero
+    }
+  }
+
+  override def resolveEnd(beamPath: BeamPath): SpaceTime = {
+    Option(streetSegment.geometry.getEndPoint).map{
+      p => SpaceTime(p.getX, p.getY, tripStartTime + streetSegment.duration)
+    }.getOrElse{
+      SpaceTime.zero
+    }
+  }
 }
 
 case class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer, departure: Long, duration: Long) extends TrajectoryResolver {
@@ -46,11 +69,33 @@ case class TrajectoryByEdgeIdsResolver(@transient streetLayer: StreetLayer, depa
     val stepDelta = duration.toDouble / beamPath.linkIds.size
     val path = beamPath.linkIds.filter(!_.equals("")).map(_.toInt).zipWithIndex.flatMap { case (edgeId, i) =>
       val edge = streetLayer.edgeStore.getCursor(edgeId)
-      //TODO: resolve time from stopinfo and tripSchedule(for transit), linkid -> stop is one -> one: links.zip(stops)....
+      //TODO: resolve time from stopinfo and tripSchedule(for transit)
       val time = departure  + (i * stepDelta).toLong
       edge.getGeometry.getCoordinates.map(coord => SpaceTime(coord.x, coord.y, time))
     }
     Trajectory(path)
+  }
+
+  override def resolveStart(beamPath: BeamPath): SpaceTime = {
+    beamPath.linkIds.find(!_.equals("")).flatMap{ startEdgeId =>
+      val edge = streetLayer.edgeStore.getCursor(startEdgeId.toInt)
+      Option(edge.getGeometry.getStartPoint).map(p =>
+        SpaceTime(p.getX, p.getY, departure)
+      )
+    }.getOrElse{
+      SpaceTime.zero
+    }
+  }
+
+  override def resolveEnd(beamPath: BeamPath): SpaceTime = {
+    beamPath.linkIds.filter(!_.equals("")).lastOption.flatMap{ startEdgeId =>
+      val edge = streetLayer.edgeStore.getCursor(startEdgeId.toInt)
+      Option(edge.getGeometry.getEndPoint).map(p =>
+        SpaceTime(p.getX, p.getY, departure + duration)
+      )
+    }.getOrElse{
+      SpaceTime.zero
+    }
   }
 }
 
@@ -58,5 +103,17 @@ case class DefinedTrajectoryHolder(trajectory: Trajectory) extends TrajectoryRes
   override def resolve(beamPath: BeamPath): Trajectory = {
     require(beamPath.resolver == this, "Wrong beam path")
     trajectory
+  }
+
+  override def resolveStart(beamPath: BeamPath): SpaceTime = {
+    trajectory.path.headOption.getOrElse{
+      SpaceTime.zero
+    }
+  }
+
+  override def resolveEnd(beamPath: BeamPath): SpaceTime = {
+    trajectory.path.lastOption.getOrElse{
+      SpaceTime.zero
+    }
   }
 }

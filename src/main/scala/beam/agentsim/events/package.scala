@@ -31,6 +31,8 @@ package object events {
     implicit val orderingByTime: Ordering[SpaceTime] = (x: SpaceTime, y: SpaceTime) => {
       x.time.compareTo(y.time)
     }
+
+    val zero = SpaceTime(0,0,0)
   }
 
 
