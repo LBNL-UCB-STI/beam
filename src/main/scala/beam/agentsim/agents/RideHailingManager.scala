@@ -30,8 +30,6 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import beam.agentsim.agents.vehicles.{CarVehicle, PassengerSchedule, VehiclePersonId}
-import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager, VehiclePersonId}
 
 /**
   * BEAM
@@ -68,7 +66,7 @@ object RideHailingManager {
 
   case class RideHailingAgentLocation(rideHailAgent: ActorRef, vehicleId: Id[Vehicle], currentLocation: SpaceTime)
 
-  def props(name: String, fares: Map[Id[VehicleType], BigDecimal], fleet: Map[Id[Vehicle], Vehicle], services: BeamServices,managedVehicles:Map[Id[Vehicle],ActorRef]) = {
+  def props(name: String, fares: Map[Id[VehicleType], BigDecimal], fleet: Map[Id[Vehicle], Vehicle], services: BeamServices, managedVehicles: Map[Id[Vehicle], ActorRef]) = {
     Props(classOf[RideHailingManager], RideHailingManagerData(name, fares, fleet), services, managedVehicles: Map[Id[Vehicle], ActorRef])
   }
 }
@@ -118,7 +116,7 @@ class RideHailingManager(info: RideHailingManagerData,
     case RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, destination) =>
 
       val customerAgent = sender()
-      getClosestRideHailingAgent(customerPickUp,radius).filterNot(x => lockedVehicles(x._1.vehicleId)) match {
+      getClosestRideHailingAgent(customerPickUp, radius).filterNot(x => lockedVehicles(x._1.vehicleId)) match {
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
           //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), vehiclePersonId)
           lockedVehicles += rideHailingLocation.vehicleId
@@ -183,22 +181,26 @@ class RideHailingManager(info: RideHailingManagerData,
       }
 
     case ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
-      if (pendingInquiries.contains(inquiryId)) {//TODO: probably it make sense to add some expiration time (TTL) to pending inquiries
-      val travelPlanOpt = pendingInquiries.remove(inquiryId)
-      val customerAgent = sender()
-      /**
-        * 1. customerAgent ! ReserveRideConfirmation(rideHailingAgentSpatialIndex, customerId, travelProposal)
-        * 2. rideHailingAgentSpatialIndex ! PickupCustomer
-        */
-      getClosestRideHailingAgent(customerPickUp, radius).filter(x => lockedVehicles(x._1.vehicleId)) match {
-        case Some((closestRideHailingAgent,_)) if travelPlanOpt.isDefined && closestRideHailingAgent == travelPlanOpt.get._1.rideHailingAgentLocation =>
-          val travelProposal = travelPlanOpt.get._1
-          val tripPlan = travelPlanOpt.map(_._2)
-          handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent, closestRideHailingAgent, travelProposal, tripPlan)
-// We have an agent nearby, but it's not the one we originally wanted       case Some((closestRideHailingAgent,_)) =>
-lockedVehicles -= closestRideHailingAgent.vehicleId customerAgent! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
-        case _ =>
-          customerAgent ! ReservationResponse(Id.create(inquiryId.toString,classOf[ReservationRequest]), Left(VehicleUnavailable))}
+      if (pendingInquiries.contains(inquiryId)) {
+        //TODO: probably it make sense to add some expiration time (TTL) to pending inquiries
+        val travelPlanOpt = pendingInquiries.remove(inquiryId)
+        val customerAgent = sender()
+        /**
+          * 1. customerAgent ! ReserveRideConfirmation(rideHailingAgentSpatialIndex, customerId, travelProposal)
+          * 2. rideHailingAgentSpatialIndex ! PickupCustomer
+          */
+        getClosestRideHailingAgent(customerPickUp, radius).filter(x => lockedVehicles(x._1.vehicleId)) match {
+          case Some((closestRideHailingAgent, _)) if travelPlanOpt.isDefined && closestRideHailingAgent == travelPlanOpt.get._1.rideHailingAgentLocation =>
+            val travelProposal = travelPlanOpt.get._1
+            val tripPlan = travelPlanOpt.map(_._2)
+            handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent, closestRideHailingAgent, travelProposal, tripPlan)
+            // We have an agent nearby, but it's not the one we originally wanted
+          case Some((closestRideHailingAgent,_)) =>
+            lockedVehicles -= closestRideHailingAgent.vehicleId
+            customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
+          case _ =>
+            customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
+        }
       } else {
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
       }
@@ -273,7 +275,7 @@ lockedVehicles -= closestRideHailingAgent.vehicleId customerAgent! ReservationRe
   }
 
 
-  private def getClosestRideHailingAgent(pickupLocation:Coord,radius:Double): Option[(RideHailingAgentLocation, Double)] ={
+  private def getClosestRideHailingAgent(pickupLocation: Coord, radius: Double): Option[(RideHailingAgentLocation, Double)] = {
     val nearbyRideHailingAgents = rideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala.toVector
     val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
       val distance = CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailingAgentLocation.currentLocation.loc)
@@ -282,6 +284,7 @@ lockedVehicles -= closestRideHailingAgent.vehicleId customerAgent! ReservationRe
     //TODO: Possibly get multiple taxis in this block
     distances2RideHailingAgents.sortBy(_._2).headOption
   }
+
   override def findResource(resourceId: Id[Vehicle]): Option[ActorRef] = ???
 
 }

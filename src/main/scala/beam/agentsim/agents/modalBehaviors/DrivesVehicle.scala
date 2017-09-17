@@ -159,7 +159,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response
       stay()
     case Event(CancelReservation(req,id),_)=>{
-      passengerSchedule.removePassenger()
+//      passengerSchedule.removePassenger()
       logError(s"Reservation canceled for $req")
       stay()
     }
