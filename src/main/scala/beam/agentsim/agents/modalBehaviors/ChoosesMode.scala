@@ -88,14 +88,15 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       beamServices.rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId, VehiclePersonId(_humanBodyVehicle, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
       awaitingReservationConfirmation = awaitingReservationConfirmation + (rideHailingId -> None)
     } else {
+      var prevLeg = chosenTrip.legs.head
       for (leg <- chosenTrip.legs) {
-        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
 
         if (inferredVehicle.nestedVehicles.nonEmpty) {
           legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-        exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion) || !leg.asDriver
+        exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
       }
       val ungroupedLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit).toList
       var runningVehId = ungroupedLegs.head.leg.beamVehicleId

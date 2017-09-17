@@ -393,16 +393,14 @@ class PersonAgent(val beamServices: BeamServices,
   def cancelTrip() = {
     var inferredVehicle: VehicleStack = _currentVehicle
     var exitNextVehicle = false
+    var prevLeg = _currentRoute.legs.head
     var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
 
     if(inferredVehicle.nestedVehicles.nonEmpty)inferredVehicle = inferredVehicle.pop()
 
     for (leg <- _currentRoute.legs) {
-      if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+      if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
 
-      if (inferredVehicle.nestedVehicles.nonEmpty) {
-        legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
-      }
       if(inferredVehicle.outermostVehicle() != leg.beamVehicleId){
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
         if(inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver){
@@ -410,7 +408,8 @@ class PersonAgent(val beamServices: BeamServices,
           driverRef ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
         }
       }
-      exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion) || !leg.asDriver
+      exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
+      prevLeg = leg
     }
   }
 
@@ -427,6 +426,7 @@ class PersonAgent(val beamServices: BeamServices,
         beamServices.vehicleRefs(vehicle) ! RemovePassengerFromTrip(VehiclePersonId(vehicle,id))
       )
       logWarn(s"Agent $id received NotifyLegEndTrigger while in Error. Sending RemovePassengerFromTrip request.")
+      cancelTrip()
       stay() replying completed(triggerId)
   }
 
