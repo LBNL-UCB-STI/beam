@@ -196,26 +196,34 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     } else {
       buildRequestsForNonPerson(routingRequestTripInfo)
     }
-    val originalResponse = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile), isRouteForPerson)
-    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if (isRouteForPerson) Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) else Map()
-
-    var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
-    originalResponse.trips.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
-      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
+    val profileResponse = try {
+      Some(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
+    }catch{
+      case e: IllegalStateException =>
+        None
     }
+    profileResponse match {
+      case Some(response) =>
+        val originalResponse = buildResponse(response, isRouteForPerson)
+        val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if (isRouteForPerson) Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) else Map()
 
-    profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach { mode =>
-      val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
-      originalResponse.trips.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
-        streetVehicles.foreach { veh: StreetVehicle =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
+        var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
+        originalResponse.trips.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
         }
-      }
+
+        profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach { mode =>
+          val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
+          originalResponse.trips.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
+            streetVehicles.foreach { veh: StreetVehicle =>
+              embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
+            }
+          }
+        }
+        RoutingResponse(requestId, embodiedTrips)
+      case None =>
+        RoutingResponse(requestId, Vector())
     }
-
-    //TODO: process the walkOnly and vehicleCentered profiles and their responses here...
-
-    RoutingResponse(requestId, embodiedTrips)
   }
 
   protected def buildRequestsForNonPerson(routingRequestTripInfo: RoutingRequestTripInfo): ProfileRequestToVehicles = {

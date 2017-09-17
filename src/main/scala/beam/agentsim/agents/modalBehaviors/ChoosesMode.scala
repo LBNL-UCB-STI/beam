@@ -122,6 +122,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         }
       }
     }
+    if(awaitingReservationConfirmation.size > 100){
+      val i = 0
+    }
     stay()
   }
 
