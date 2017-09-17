@@ -163,6 +163,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         agent ! CancelReservation(res, id)
       })
     }
+    awaitingReservationConfirmation.clear()
   }
 
   chainedWhen(ChoosingMode) {
