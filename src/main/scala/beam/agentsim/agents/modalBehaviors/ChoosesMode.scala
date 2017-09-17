@@ -229,6 +229,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         errorFromEmptyRoutingResponse(error.errorCode.toString)
       } else {
         cancelReservations()
+        awaitingReservationConfirmation.clear()
         completeChoiceIfReady()
       }
     case Event(ReservationResponse(_, _), _) =>
