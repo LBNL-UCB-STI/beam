@@ -1,12 +1,19 @@
+import com.amazonaws.services.lambda.model.InvocationType;
+
+import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask;
+import jp.classmethod.aws.gradle.lambda.AWSLambdaMigrateFunctionTask;
+
 buildscript {
     repositories {
         jcenter()
         mavenLocal()
         mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
 }
 
@@ -199,6 +206,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 // test.dependsOn spec
+
 //////////////////////////////////////////////////////////////////////
 // BUNDLING FOR EXECUTION
 //
@@ -226,6 +234,37 @@ shadowJar {
 }
 
 assemble.dependsOn shadowJar
+
+//////////////////////////////////////////////////////////////////////
+// Amazon WS task to run beam sim on Lambda
+//////////////////////////////////////////////////////////////////////
+
+apply plugin: "base"
+apply plugin: "jp.classmethod.aws.lambda"
+
+aws {
+    profileName = "default"
+    region = "us-east-2"
+}
+
+lambda {
+    region = "us-east-2"
+}
+
+def payload = """{
+    "build": "$beamBuild",
+    "branch": "$beamBranch",
+    "input": "$beamInput"
+}"""
+
+task runAwsSim(type: AWSLambdaInvokeTask) {
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = payload
+    doLast {
+        println "Lambda function result: " + new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
 
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
