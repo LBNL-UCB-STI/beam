@@ -17,9 +17,9 @@ cache:
     - $HOME/.gradle/wrapper/
 
 script:
-  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
-  - mkdir -p "dpl_cd_upload"
-  - mv beam.zip dpl_cd_upload/beam.zip || true
+#  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
+  - mkdir -p "dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-TRAVIS_BRANCH}"
+  - cp build/libs/beam.jar dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-TRAVIS_BRANCH}/beam-${TRAVIS_BUILD_NUMBER}.jar || true
 
 deploy:
   - provider: s3
@@ -32,18 +32,18 @@ deploy:
     on:
       repo: LBNL-UCB-STI/beam
       all_branches: true
-  - provider: codedeploy
-    access_key_id: $AWS_ACCESS_KEY # declared in Travis repo settings
-    secret_access_key: $AWS_SECRET_KEY
-    bucket: beam-builds
-    key: beam.zip
-    bundle_type: zip
-    application: Beam
-    deployment_group: BeamDeploymentGroup
-    region: us-east-2
-    on:
-      repo: LBNL-UCB-STI/beam
-      all_branches: true
+#  - provider: codedeploy
+#    access_key_id: $AWS_ACCESS_KEY # declared in Travis repo settings
+#    secret_access_key: $AWS_SECRET_KEY
+#    bucket: beam-builds
+#    key: beam.zip
+#    bundle_type: zip
+#    application: Beam
+#    deployment_group: BeamDeploymentGroup
+#    region: us-east-2
+#    on:
+#      repo: LBNL-UCB-STI/beam
+#      all_branches: true
 
 after_deploy:
   - echo "Performing after deploy procedures..."
