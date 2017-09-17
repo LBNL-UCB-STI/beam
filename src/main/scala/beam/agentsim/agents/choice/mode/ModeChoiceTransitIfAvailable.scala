@@ -7,21 +7,21 @@ import beam.sim.BeamServices
 /**
   * BEAM
   */
-class ModeChoiceTransitIfAvailable (val beamServices: BeamServices) extends ModeChoiceCalculator {
+class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     var containsTransitAlt: Vector[Int] = Vector[Int]()
-    alternatives.zipWithIndex.foreach{ alt =>
-      if(alt._1.tripClassifier.isTransit){
+    alternatives.zipWithIndex.foreach { alt =>
+      if (alt._1.tripClassifier.isTransit) {
         containsTransitAlt = containsTransitAlt :+ alt._2
       }
     }
-    val chosenIndex = if (containsTransitAlt.size > 0){ containsTransitAlt.head }else{ 0 }
-    if(alternatives.size > 0) {
-      Some(alternatives(chosenIndex))
-    } else {
-      None
+    (if (containsTransitAlt.nonEmpty) {
+      Some(containsTransitAlt.head)
     }
+    else {
+      chooseRandomAlternativeIndex(alternatives)
+    }).map(x => alternatives(x))
   }
 
 }

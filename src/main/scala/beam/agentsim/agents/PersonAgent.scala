@@ -246,9 +246,6 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is ending
      */
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg),triggerId), _) =>
-      if(id.toString.equals("2276-3")){
-        val i = 0
-      }
       _currentEmbodiedLeg match {
         case Some(currentLeg) if currentLeg.beamLeg == beamLeg =>
           val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
@@ -274,9 +271,7 @@ class PersonAgent(val beamServices: BeamServices,
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
       }
     case Event(TriggerWithId(NotifyLegStartTrigger(tick,beamLeg), triggerId), _) =>
-      if(id.toString.equals("2276-3")){
-        val i = 0
-      }
+
       _currentEmbodiedLeg match {
         case Some(leg) =>
           // Driver is still traveling to pickup point, reschedule this trigger

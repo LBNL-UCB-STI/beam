@@ -195,9 +195,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Process ReservationReponses
      */
     case Event(ReservationResponse(requestId,Right(reservationConfirmation)),_) =>
-      if(id.toString.equals("1910-1")){
-        val i = 0
-      }
       awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
       if(awaitingReservationConfirmation.isEmpty){
         scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, reservationConfirmation.triggersToSchedule)
@@ -215,6 +212,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if(routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined){
         errorFromEmptyRoutingResponse()
       }else{
+        for{resId<-awaitingReservationConfirmation}{
+          sender() ! CancelReservation(resId)
+        }
         completeChoiceIfReady()
       }
     case Event(ReservationResponse(_,_),_)=>
@@ -238,3 +238,5 @@ object ChoosesMode {
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 }
+
+case class CancelReservation(reservationId: Id[ReservationRequest])

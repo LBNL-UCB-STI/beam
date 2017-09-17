@@ -14,7 +14,7 @@ import scala.util.Random
 class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
-    Some(Random.shuffle(alternatives.toList).head)
+    chooseRandomAlternativeIndex(alternatives).map(x=>alternatives(x))
   }
 
 }

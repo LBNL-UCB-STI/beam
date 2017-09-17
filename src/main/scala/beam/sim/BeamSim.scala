@@ -163,6 +163,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     services.persons ++= scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons)
     services.vehicles ++= services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
     services.households ++= services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
+    logger.info(s"Loaded ${services.persons.size} people in ${services.households.size} households with ${services.vehicles.size} vehicles")
     var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
     services.households.foreach {
       case (householdId, matSimHousehold) =>
@@ -218,6 +219,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
       }
     }
+
+    logger.info(s"Initialized ${(services.persons.size*rideHailingFraction).toInt} ride hailing agents")
 
     initHouseholds(iterId)
 
