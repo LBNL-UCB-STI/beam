@@ -399,7 +399,7 @@ class PersonAgent(val beamServices: BeamServices,
     if(inferredVehicle.nestedVehicles.nonEmpty)inferredVehicle = inferredVehicle.pop()
 
     for (leg <- _currentRoute.legs) {
-      if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
+      if (exitNextVehicle|| (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
 
       if(inferredVehicle.outermostVehicle() != leg.beamVehicleId){
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
@@ -415,16 +415,12 @@ class PersonAgent(val beamServices: BeamServices,
 
   chainedWhen(Error){
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
-      _currentVehicle.nestedVehicles.foreach(vehicle=>
-        beamServices.vehicleRefs(vehicle) ! RemovePassengerFromTrip(VehiclePersonId(vehicle,id))
-      )
+
       logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Sending RemovePassengerFromTrip request.")
       cancelTrip()
       stay() replying completed(triggerId)
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg), triggerId), _) =>
-      _currentVehicle.nestedVehicles.foreach(vehicle=>
-        beamServices.vehicleRefs(vehicle) ! RemovePassengerFromTrip(VehiclePersonId(vehicle,id))
-      )
+      cancelTrip()
       logWarn(s"Agent $id received NotifyLegEndTrigger while in Error. Sending RemovePassengerFromTrip request.")
       cancelTrip()
       stay() replying completed(triggerId)
