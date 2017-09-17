@@ -203,7 +203,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Process ReservationReponses
      */
     case Event(ReservationResponse(requestId, Right(reservationConfirmation)), _) =>
-      awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
+      awaitingReservationConfirmation = awaitingReservationConfirmation + (requestId->Some(sender()))
       if (awaitingReservationConfirmation.values.forall(x => x.isDefined)) {
         scheduleDepartureWithValidatedTrip(pendingChosenTrip.get, reservationConfirmation.triggersToSchedule)
       } else {
@@ -250,3 +250,4 @@ object ChoosesMode {
 }
 
 case class CancelReservation(reservationId: Id[ReservationRequest], passengerId: Id[Person])
+case class CancelReservationWithVehicle(reservationId: Id[ReservationRequest], passengerId: Id[Person])

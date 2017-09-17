@@ -6,7 +6,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, UpdateTrajectory, VehicleFull}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
-import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.{BeamAgent, RemovePassengerFromTrip}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.PathTraversalEvent
@@ -160,16 +160,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       val response = handleVehicleReservation(req, vehicleIdToReserve)
       beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response
       stay()
-    case Event(CancelReservation(req,id),_)=>{
+
+    case Event(RemovePassengerFromTrip(id),_)=>{
 //      passengerSchedule.removePassenger()
       // find passenger
-       for {entry <- passengerSchedule.schedule
-            passengerInfo: VehiclePersonId <- entry._2.riders.find(x => x.personId.equals(id))
-       }yield passengerSchedule.removePassenger(passengerInfo)
-
+        passengerSchedule.removePassenger(id)
+      log.error(s"Passenger $id removed from trip")
         stay()
-      logError(s"Reservation canceled for $req")
-      stay()
     }
   }
 

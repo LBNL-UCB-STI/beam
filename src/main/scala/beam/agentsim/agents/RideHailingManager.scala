@@ -176,7 +176,7 @@ class RideHailingManager(info: RideHailingManagerData,
           }
         case None =>
           // no rides to hail
-          log.debug(s"Router could not find vehicle for customer person=$personId for inquiryId=$inquiryId")
+//          log.debug(s"Router could not find vehicle for customer person=$personId for inquiryId=$inquiryId")
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(VehicleUnavailable))
       }
 

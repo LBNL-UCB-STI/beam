@@ -1,10 +1,10 @@
 package beam.agentsim.agents
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, Kill, PoisonPill, Props}
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
+import beam.agentsim.agents.modalBehaviors.{CancelReservation, ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
@@ -23,6 +23,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
 
+import scala.concurrent.duration._
 import scala.collection.mutable
 
 /**
@@ -103,6 +104,7 @@ class PersonAgent(val beamServices: BeamServices,
   var _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var _household: Id[Household] = householdId
+//  var _inError: Boolean =false
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _activityChain.length) Left(msg) else Right(_activityChain(ind))
@@ -176,6 +178,17 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
+//    if(_inError){
+//      stay() replying completed(triggerId)
+//    }else {
+//      val toSchedule = if (isStart) {
+//        schedule[NotifyLegStartTrigger](tick, self, beamLeg)
+//      } else {
+//        schedule[NotifyLegEndTrigger](tick, self, beamLeg)
+//      }
+//      logWarn(s"Rescheduling: ${toSchedule}")
+//      stay() replying completed(triggerId, toSchedule)
+//    }
     val toSchedule = if(isStart) {
       schedule[NotifyLegStartTrigger](tick, self, beamLeg)
     }else{
@@ -232,6 +245,11 @@ class PersonAgent(val beamServices: BeamServices,
                 goto(Moving) replying completed(triggerId)
               }
             case None =>
+//              logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}... " +
+//                s"capturing empty triggers for 20 seconds and then dying.")
+//              _inError = true
+//              setTimer("ErrorTimer",Kill,20 seconds)
+//              goto(Waiting) replying completed(triggerId)
               logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
               goto(Error) replying completed(triggerId)
           }
@@ -239,6 +257,8 @@ class PersonAgent(val beamServices: BeamServices,
 
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg),triggerId), _) =>
       logError(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: ${beamLeg}")
+//      _inError=true
+//      warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
       goto(Error) replying completed(triggerId)
   }
 
@@ -265,6 +285,7 @@ class PersonAgent(val beamServices: BeamServices,
                 processNextLegOrStartActivity(triggerId,tick)
               }
             case None =>
+//              stay() replying completed(triggerId)
               logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
               goto(Error) replying completed(triggerId)
           }
@@ -341,6 +362,8 @@ class PersonAgent(val beamServices: BeamServices,
           }
         case None =>
           logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
+//          _inError = true
+//          goto(Waiting) replying completed(triggerId)
           goto(Error) replying completed(triggerId)
       }
     }else{
@@ -365,6 +388,15 @@ class PersonAgent(val beamServices: BeamServices,
           goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
       }
     }
+  }
+
+  chainedWhen(Error){
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick,beamLeg), triggerId), _) =>
+      logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Ignoring.")
+      stay() replying completed(triggerId)
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg), triggerId), _) =>
+      logWarn(s"Agent $id received NotifyLegEndTrigger while in Error. Ignoring.")
+      stay() replying completed(triggerId)
   }
 
   chainedWhen(AnyState){
@@ -426,6 +458,8 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
 }
+
+case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
 
 
