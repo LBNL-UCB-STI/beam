@@ -97,6 +97,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
         exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
+        prevLeg = leg
       }
       val ungroupedLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit).toList
       var runningVehId = ungroupedLegs.head.leg.beamVehicleId
