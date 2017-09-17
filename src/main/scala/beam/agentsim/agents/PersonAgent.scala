@@ -5,7 +5,7 @@ import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.{CancelReservation, ChoosesMode, DrivesVehicle}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
@@ -390,12 +390,37 @@ class PersonAgent(val beamServices: BeamServices,
     }
   }
 
+  def cancelTrip() = {
+    var inferredVehicle: VehicleStack = _currentVehicle
+    var exitNextVehicle = false
+    var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
+
+    if(inferredVehicle.nestedVehicles.nonEmpty)inferredVehicle = inferredVehicle.pop()
+
+    for (leg <- _currentRoute.legs) {
+      if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+
+      if (inferredVehicle.nestedVehicles.nonEmpty) {
+        legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
+      }
+      if(inferredVehicle.outermostVehicle() != leg.beamVehicleId){
+        inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
+        if(inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver){
+          val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(inferredVehicle.outermostVehicle()).toString)
+          driverRef ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
+        }
+      }
+      exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion) || !leg.asDriver
+    }
+  }
+
   chainedWhen(Error){
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
       _currentVehicle.nestedVehicles.foreach(vehicle=>
         beamServices.vehicleRefs(vehicle) ! RemovePassengerFromTrip(VehiclePersonId(vehicle,id))
       )
       logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Sending RemovePassengerFromTrip request.")
+      cancelTrip()
       stay() replying completed(triggerId)
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg), triggerId), _) =>
       _currentVehicle.nestedVehicles.foreach(vehicle=>
