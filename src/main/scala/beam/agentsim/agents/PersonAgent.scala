@@ -392,11 +392,15 @@ class PersonAgent(val beamServices: BeamServices,
 
   chainedWhen(Error){
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
-      beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! RemovePassengerFromTrip(VehiclePersonId(_currentVehicle.outermostVehicle(),id))
+      _currentVehicle.nestedVehicles.foreach(vehicle=>
+        beamServices.vehicleRefs(vehicle) ! RemovePassengerFromTrip(VehiclePersonId(vehicle,id))
+      )
       logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Sending RemovePassengerFromTrip request.")
       stay() replying completed(triggerId)
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg), triggerId), _) =>
-      beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! RemovePassengerFromTrip(VehiclePersonId(_currentVehicle.outermostVehicle(),id))
+      _currentVehicle.nestedVehicles.foreach(vehicle=>
+        beamServices.vehicleRefs(vehicle) ! RemovePassengerFromTrip(VehiclePersonId(vehicle,id))
+      )
       logWarn(s"Agent $id received NotifyLegEndTrigger while in Error. Sending RemovePassengerFromTrip request.")
       stay() replying completed(triggerId)
   }
