@@ -51,8 +51,26 @@ public class BeamEventsLogger {
         allLoggableEvents.add(PersonLeavesVehicleEvent.class);
         allLoggableEvents.add(PersonArrivalEvent.class);
         allLoggableEvents.add(ActivityStartEvent.class);
-
+        //Adding attribute which should be removed when the logger level SHORT
         eventFieldsToDropWhenShort.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        eventFieldsToDropWhenShort.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_LINK_IDS);
+        eventFieldsToDropWhenShort.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME);
+        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_PERSON);
+        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_PERSON);
+        eventFieldsToDropWhenShort.put(PersonEntersVehicleEvent.class,PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_NETWORKMODE);
+        eventFieldsToDropWhenShort.put(LinkLeaveEvent.class,LinkLeaveEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(LinkEnterEvent.class,LinkEnterEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_NETWORKMODE);
+        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_POSITION);
+        eventFieldsToDropWhenShort.put(PersonArrivalEvent.class,PersonArrivalEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_LINK);
+
+
         eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_ALTERNATIVES);
 
         defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
@@ -153,8 +171,10 @@ public class BeamEventsLogger {
 
     public Map<String,String> getAttributes(Event event) {
         Map<String,String> attributes = event.getAttributes();
-        if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
-            // remove fields from attributes heres
+        if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToDropWhenShort.containsKey(event.getClass())){
+            for (Map.Entry<Class, String> entry : eventFieldsToDropWhenShort.entrySet()) {
+                attributes.remove(entry.getValue());
+            }
         }else if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
             // add fields from attributes here, assume they are public fields on the event, e.g. event.alternatives
         }
