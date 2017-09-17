@@ -4,6 +4,7 @@ import akka.actor.{ActorContext, ActorRef, Props}
 import akka.pattern.{pipe, _}
 import akka.util.Timeout
 import beam.agentsim.Resource
+import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
@@ -116,7 +117,7 @@ object BeamVehicle {
   * VehicleManager.
   * Passenger and driver can EnterVehicle and LeaveVehicle
   */
-trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServices with Vehicle {
+trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with HasServices with Vehicle {
   override val id: Id[Vehicle]
   override def logPrefix(): String = s"BeamVehicle:$id "
 
@@ -134,6 +135,10 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
     */
   var carrier: Option[ActorRef] = None
   var driver: Option[ActorRef] = None
+  /**
+    * The actor managing this Vehicle
+    */
+  override var manager: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
   var trajectory: Option[Trajectory] = None
   var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
@@ -176,6 +181,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
   }
 
   chainedWhen(Uninitialized){
+    case Event(AssignManager(managerRef),_)=>
+      manager = Some(managerRef)
+      stay()
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       log.debug(s" $id has been initialized, going to Idle state")
       goto(Idle) replying completed(triggerId)
@@ -192,6 +200,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
   }
 
   chainedWhen(Idle) {
+
     case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
       if(driver.isEmpty || driver.get == beamServices.agentRefs(newDriver.toString)) {
         if (driver.isEmpty) {
@@ -219,13 +228,19 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
       driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
+    case Event(TellManagerResourceIsAvailable(when:SpaceTime),_)=>
+      notifyManagerResourceIsAvailable(when)
+      stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if(driver.isEmpty) {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are no longer drivers, but futur versions of BEAM may seek to be robust to this condition
         throw new RuntimeException(s"BeamAgent $theDriver attempted to Unbecome driver of vehicle $id but no driver in currently assigned.")
       }else{
         driver = None
-        if(theDriver.isInstanceOf[Id[Person]])beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, theDriver.asInstanceOf[Id[Person]],id)))
+        theDriver match {
+          case personId: Id[Person] => beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, personId, id)))
+          case _ =>
+        }
       }
       stay()
     case Event(EnterVehicle(tick, newPassengerVehicle), info) =>
@@ -249,6 +264,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
       beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach{ vehiclePassengerRef =>
         vehiclePassengerRef ! ResetCarrier
       }
+
+
+
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId,id)))
       stay()
