@@ -289,12 +289,12 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case Event(ResetCarrier, _) =>
       carrier = None
       stay()
-//    case Event(a:RemovePassengerFromTrip,_)=> {
-//      driver.foreach{ d =>
-//        d ! a
-//      }
-//      stay()
-//    }
+    case Event(a:RemovePassengerFromTrip,_)=> {
+      driver.foreach{ d =>
+        d ! a
+      }
+      stay()
+    }
     case Event(request: ReservationRequest, _) =>
       driver match {
         case Some(driverActor) =>

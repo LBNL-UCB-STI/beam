@@ -162,9 +162,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stay()
 
     case Event(RemovePassengerFromTrip(id),_)=>{
-//      passengerSchedule.removePassenger()
-      // find passenger
         passengerSchedule.removePassenger(id)
+        _awaitingAlightConfirmation -= id.vehicleId
+        _awaitingBoardConfirmation -= id.vehicleId
       log.error(s"Passenger $id removed from trip")
         stay()
     }
