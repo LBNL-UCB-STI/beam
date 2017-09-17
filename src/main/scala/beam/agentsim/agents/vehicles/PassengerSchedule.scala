@@ -33,13 +33,13 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
   def removePassenger(passenger: VehiclePersonId): Unit = {
     schedule.foreach(lm =>{
       if(lm._2.riders.contains(passenger)){
-        schedule.remove(lm._1)
+        lm._2.riders-=passenger
       }
       if(lm._2.alighters.contains(passenger.vehicleId)){
-        schedule.remove(lm._1)
+        lm._2.alighters-=passenger.vehicleId
       }
       if(lm._2.boarders.contains(passenger.vehicleId)){
-        schedule.remove(lm._1)
+        lm._2.boarders-=passenger.vehicleId
       }
     })
   }
