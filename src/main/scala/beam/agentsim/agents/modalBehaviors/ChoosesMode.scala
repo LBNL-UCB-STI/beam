@@ -72,7 +72,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip) = {
-    //TODO this is currently working for single leg Transit trips, hasn't been tested on multi-leg transit trips (e.g. BUS WALK BUS)
     if (id.toString.equals("1060-1")) {
       val i = 0
     }
@@ -81,7 +80,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     var exitNextVehicle = false
     var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
     val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
-    // XXXX: Sorry... this is so ugly
+
     if (rideHailingLeg.nonEmpty) {
       val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
       val rideHailingVehicleId = rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId
@@ -148,7 +147,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   def tripRequiresReservationConfirmation(chosenTrip: EmbodiedBeamTrip): Boolean = chosenTrip.legs.exists(!_.asDriver)
 
   def errorFromEmptyRoutingResponse(reason: String): ChoosesMode.this.State = {
-    log.error(s"No trip chosen because RoutingResponse empty [reason: $reason], person $id going to Error")
+    logWarn(s"No trip chosen because RoutingResponse empty [reason: $reason], person $id going to Error")
     beamServices.schedulerRef ! completed(triggerId = _currentTriggerId.get)
     goto(BeamAgent.Error)
   }
