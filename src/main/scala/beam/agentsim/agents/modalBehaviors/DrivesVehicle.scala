@@ -19,6 +19,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.HashSet
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * @author dserdiuk on 7/29/17.
@@ -127,7 +129,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       var errorFlag = false
       if(!passengerSchedule.isEmpty){
         val endSpaceTime = passengerSchedule.terminalSpacetime()
-        if(updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
+        if(updatedPassengerSchedule.initialSpacetime().time < endSpaceTime.time ||
           beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc,endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
         ) {
           errorFlag = true
@@ -160,6 +162,12 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stay()
     case Event(CancelReservation(req,id),_)=>{
 //      passengerSchedule.removePassenger()
+      // find passenger
+       for {entry <- passengerSchedule.schedule
+            passengerInfo: VehiclePersonId <- entry._2.riders.find(x => x.personId.equals(id))
+       }yield passengerSchedule.removePassenger(passengerInfo)
+
+        stay()
       logError(s"Reservation canceled for $req")
       stay()
     }

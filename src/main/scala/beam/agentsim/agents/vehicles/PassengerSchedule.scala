@@ -30,8 +30,8 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
     legs.withFilter(leg => !(schedule contains leg)).map(leg => schedule.put(leg, Manifest()))
   }
 
-  def removePassenger(passenger:VehiclePersonId,legs:Seq[BeamLeg]) = {
-
+  def removePassenger(passenger:VehiclePersonId) = {
+      schedule.foreach(entry=>entry._2.riders.remove(entry._2.riders.indexOf(passenger)))
   }
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {
