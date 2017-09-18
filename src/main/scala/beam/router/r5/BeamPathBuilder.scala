@@ -41,30 +41,30 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
     BeamPath(activeLinkIds, None, new StreetSegmentTrajectoryResolver(segment, tripStartTime))
   }
 
-  def buildTransitPath(segment: StreetSegment, tripStartTime: Long, fromStopId: String, toStopId: String): BeamPath = {
-
-    var activeLinkIds = Vector[String]()
-    for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
-      activeLinkIds = activeLinkIds :+ edge.edgeId.toString
-    }
-    BeamPath(activeLinkIds, Option(TransitStopsInfo(fromStopId, toStopId)),
-      new StreetSegmentTrajectoryResolver(segment, tripStartTime))
-  }
+//  def buildTransitPath(segment: StreetSegment, tripStartTime: Long, fromStopId: String, toStopId: String): BeamPath = {
+//
+//    var activeLinkIds = Vector[String]()
+//    for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
+//      activeLinkIds = activeLinkIds :+ edge.edgeId.toString
+//    }
+//    BeamPath(activeLinkIds, Option(TransitStopsInfo(fromStopId, toStopId)),
+//      new StreetSegmentTrajectoryResolver(segment, tripStartTime))
+//  }
 
   def buildTransitPath(transitSegment: TransitSegment, transitTripStartTime: Long, duration: Int): BeamPath = {
+    val fromStopIntId = this.transportNetwork.transitLayer.indexForStopId.get(transitSegment.from.stopId)
+    val toStopIntId = this.transportNetwork.transitLayer.indexForStopId.get(transitSegment.to.stopId)
     if (transitSegment.middle != null) {
       val linkIds = transitSegment.middle.streetEdges.asScala.map(_.edgeId.toString).toVector
-      BeamPath(linkIds, Option(TransitStopsInfo(transitSegment.from.stopId, transitSegment.to.stopId)),
-        new StreetSegmentTrajectoryResolver(transitSegment.middle, transitTripStartTime))
+      BeamPath(linkIds, Option(TransitStopsInfo(fromStopIntId, toStopIntId)),
+      StreetSegmentTrajectoryResolver(transitSegment.middle, transitTripStartTime))
     } else {
-      val fromStopIntId = this.transportNetwork.transitLayer.indexForStopId.get(transitSegment.from.stopId)
-      val toStopIntId = this.transportNetwork.transitLayer.indexForStopId.get(transitSegment.to.stopId)
       buildTransitPath(fromStopIntId, toStopIntId, transitTripStartTime: Long, duration)
     }
   }
 
   def buildTransitPath(fromStopIdx: Int, toStopIdx: Int, transitTripStartTime: Long, duration: Int): BeamPath = {
-    routeTransitPathThroughStreets(transitTripStartTime, fromStopIdx, toStopIdx, TransitStopsInfo(fromStopIdx.toString, toStopIdx.toString),duration)
+    routeTransitPathThroughStreets(transitTripStartTime, fromStopIdx, toStopIdx, TransitStopsInfo(fromStopIdx, toStopIdx),duration)
   }
 
   def createFromExistingWithUpdatedTimes(existingBeamPath: BeamPath, departure: Long, duration: Int): BeamPath={
@@ -129,11 +129,14 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
         for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
           activeLinkIds = activeLinkIds :+ edge.edgeId.toString
         }
-        BeamPath(activeLinkIds, Option(transitStopsInfo), new StreetSegmentTrajectoryResolver(streetSeg, tripStartTime))
+        BeamPath(activeLinkIds, Option(transitStopsInfo), StreetSegmentTrajectoryResolver(streetSeg, tripStartTime))
       case None =>
         val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
         val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
-        BeamPath(Vector(fromEdge.getEdgeIndex.toString,toEdge.getEdgeIndex.toString),Some(TransitStopsInfo(fromStopIdx.toString,toStopIdx.toString)),new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer,departure.toLong, duration))
+        BeamPath(linkIds = Vector(fromEdge.getEdgeIndex.toString,toEdge.getEdgeIndex.toString),
+                  transitStops = Option(TransitStopsInfo(fromStopIdx,toStopIdx)),
+                   resolver = TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer,departure.toLong, duration)
+        )
     }
     legsBetweenStops
   }

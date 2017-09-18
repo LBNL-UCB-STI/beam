@@ -4,7 +4,7 @@ import akka.actor.FSM
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, UpdateTrajectory, VehicleFull}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, AppendToTrajectory, VehicleFull}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{BeamAgent, RemovePassengerFromTrip}
 import beam.agentsim.agents.TriggerUtils._
@@ -86,7 +86,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
           _currentLeg = Some(newLeg)
-          _currentVehicleUnderControl.get.ref ! UpdateTrajectory(newLeg.travelPath.toTrajectory)
+          _currentVehicleUnderControl.get.ref ! AppendToTrajectory(newLeg.travelPath)
           manifest.riders.foreach{ personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
             beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs(personVehicle.personId), newLeg)

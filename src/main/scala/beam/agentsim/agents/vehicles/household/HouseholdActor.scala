@@ -4,12 +4,13 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{StreetVehicle, UpdateTrajectory}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AppendToTrajectory, StreetVehicle}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse}
 import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
+import beam.router.DefinedTrajectoryHolder
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
@@ -154,9 +155,9 @@ class HouseholdActor(services: BeamServices,
     // Initial locations and trajectories
     //Initialize all vehicles to have a stationary trajectory starting at time zero
     val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
-    val initialTrajectory = Trajectory(Vector(initialLocation))
+    val initialBeamPath = BeamPath(Vector(), None, DefinedTrajectoryHolder(Trajectory(Vector(initialLocation))))
     _vehicles.foreach { veh =>
-      services.vehicleRefs(veh) ! UpdateTrajectory(initialTrajectory)
+      services.vehicleRefs(veh) ! AppendToTrajectory(initialBeamPath)
 
       //TODO following mode should come from the vehicle
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
