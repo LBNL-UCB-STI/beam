@@ -137,13 +137,15 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
       newTriggers.foreach {
         scheduleTrigger
       }
-      if (!triggerIdToTick.contains(triggerId) | !awaitingResponse.containsKey(triggerIdToTick(triggerId))) {
+      val completionTickOpt = triggerIdToTick.get(triggerId)
+      val completionTick = completionTickOpt.get
+      if (!triggerIdToTick.contains(triggerId) | !awaitingResponse.containsKey(completionTick)) {
         log.error(s"Received bad trigger from ${sender().path}")
       } else {
-        awaitingResponse.remove(triggerIdToTick(triggerId), triggerId)
+        awaitingResponse.remove(completionTick, triggerId)
       }
       if (debugEnabled) {
-        awaitingResponseVerbose.remove(triggerIdToTick(triggerId), triggerIdToScheduledTrigger(triggerId))
+        awaitingResponseVerbose.remove(completionTick, triggerIdToScheduledTrigger(triggerId))
         triggerIdToScheduledTrigger -= triggerId
       }
       triggerIdToTick -= triggerId
@@ -155,11 +157,16 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
       log.error(s"received unknown message: $msg")
   }
 
-  val monitorThread = if (log.isInfoEnabled) {
+  val monitorThread = if (log.isErrorEnabled) {
     Option(context.system.scheduler.schedule(new FiniteDuration(10, TimeUnit.SECONDS), new FiniteDuration(10, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
-        if (log.isInfoEnabled) {
-          log.info(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
+        try {
+          if (log.isErrorEnabled) {
+            log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
+          }
+        } catch {
+          case e : Throwable =>
+          //do nothing
         }
       }
     }))

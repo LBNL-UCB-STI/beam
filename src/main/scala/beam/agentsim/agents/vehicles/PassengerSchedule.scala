@@ -14,13 +14,12 @@ import scala.collection.mutable
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
   def isEmpty = schedule.isEmpty
 
-  def initialSpacetime() = {
-    schedule.firstKey.travelPath.toTrajectory.location(schedule.firstKey.startTime)
+  def initialSpacetime(): SpaceTime = {
+    schedule.firstKey.travelPath.getStartPoint()
   }
-  def terminalSpacetime() = {
+  def terminalSpacetime(): SpaceTime = {
     val lastLeg = schedule.lastKey
-    val endTime = lastLeg.startTime + lastLeg.endTime
-    lastLeg.travelPath.toTrajectory.location(endTime)
+    lastLeg.travelPath.getEndPoint()
   }
   def getStartLeg() = {
     schedule.head._1
@@ -28,6 +27,20 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
 
   def addLegs(legs: Seq[BeamLeg]) = {
     legs.withFilter(leg => !(schedule contains leg)).map(leg => schedule.put(leg, Manifest()))
+  }
+
+  def removePassenger(passenger: VehiclePersonId): Unit = {
+    schedule.foreach(lm =>{
+      if(lm._2.riders.contains(passenger)){
+        lm._2.riders-=passenger
+      }
+      if(lm._2.alighters.contains(passenger.vehicleId)){
+        lm._2.alighters-=passenger.vehicleId
+      }
+      if(lm._2.boarders.contains(passenger.vehicleId)){
+        lm._2.boarders-=passenger.vehicleId
+      }
+    })
   }
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {

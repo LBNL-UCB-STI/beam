@@ -81,7 +81,7 @@ class AggregatorActor(responseTo: ActorRef, transform: Option[PartialFunction[An
         case _ =>
           responseWithSender(transform.get(result))
       }
-      log.debug(s"Finished aggregation request from ${sender()} ")
+//      log.debug(s"Finished aggregation request from ${sender()} ")
       context stop self
     }
   }

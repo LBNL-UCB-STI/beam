@@ -2,11 +2,9 @@ package beam.sim
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import beam.agentsim.Resource.AssignManager
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
@@ -17,18 +15,18 @@ import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
-import beam.router.{BeamRouter, TransitInitCoordinator}
-import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
+import beam.router.BeamRouter
+import beam.router.BeamRouter.{InitTransit, InitializeRouter}
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
+import kamon.Kamon
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
-import org.matsim.core.events.EventsUtils
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.slf4j.{Logger, LoggerFactory}
@@ -36,7 +34,6 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.reflect.io.File
 import scala.util.Random
 
 /**
@@ -58,13 +55,13 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
+
   override def notifyStartup(event: StartupEvent): Unit = {
-//    eventsManager = services.matsimServices.getEvents
-
-    eventsManager = services.matsimServices.getEvents
-
     //    eventsManager = services.matsimServices.getEvents
+
+
     eventsManager = services.matsimServices.getEvents
+
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
@@ -91,16 +88,20 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val routerInitFuture = services.beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
 
+    //    val printer = actorSystem.actorOf(Props(new StatsPrinterActor),"StatsPrinter")
+    //    val stat = actorSystem.actorOf(Props(new MonitorStatisticsActor(period = 10 seconds, processMargin = 1000,
+    //      storeSummaries = printer)))
+    //    actorSystem.eventStream.subscribe(stat, classOf[MailboxStatistics])
+
     val physSimFuture = services.registry ? Registry.Register("physSim", DummyPhysSim.props(services))
     services.physSim = Await.result(physSimFuture, timeout.duration).asInstanceOf[Created].ref
     val physSimInitFuture = services.physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
 
-
     val rideHailingManagerFuture = services.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
-      Map[Id[VehicleType], BigDecimal](), services.vehicles.toMap, services, Map.empty))
+      fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles.toMap,
+      services))
     services.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
-
 
   }
 
@@ -109,9 +110,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     resetPop(event.getIteration)
     eventsManager.initProcessing()
     // init transit and start movement
-    val coordinator = actorSystem.actorOf(Props(classOf[TransitInitCoordinator], services.beamRouter, services.beamConfig.beam.routing.workerNumber))
-    val response = Await.result( (coordinator ? InitTransit).mapTo[TransitInited], timeout.duration)
-    logger.info(s"Transit schedule has been initialized by workers: ${response.workerIds}")
+    Await.result(services.beamRouter ? InitTransit, timeout.duration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -154,18 +153,16 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(services.schedulerRef)
     actorSystem.terminate()
+    Kamon.shutdown()
   }
 
   def resetPop(iter: Int): Unit = {
-
-    val random = new Random(services.matsimServices.getConfig.global().getRandomSeed)
 
     val errorListener = createErrorListener(iter)
 
     services.persons ++= scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons)
     services.vehicles ++= services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
     services.households ++= services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
-    logger.info(s"Loaded ${services.persons.size} people in ${services.households.size} households with ${services.vehicles.size} vehicles")
     var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
     services.households.foreach {
       case (householdId, matSimHousehold) =>
@@ -195,7 +192,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     }
 
     //TODO the following should be based on config params
-    //    val rideHailingFraction = 0.1
     val rideHailingFraction = 0.1
     val initialLocationJitter = 500 // meters
 
@@ -203,45 +199,42 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
     rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
-    var rideHailingVehicles: Map[Id[Vehicle], ActorRef] = Map[Id[Vehicle], ActorRef]()
-
     for ((k, v) <- services.persons) {
-      val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-      //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
-      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
-      val rideHailingName = s"rideHailingAgent-${k}_$iter"
-      val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
-      val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
-      val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
-      val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
-      val rideHailingAgent = RideHailingAgent.props(services, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
-      val rideHailingAgentRef: ActorRef = actorSystem.actorOf(rideHailingAgent, rideHailingName)
-
-      // populate maps and initialize agent via scheduler
-      services.vehicles += (rideHailVehicleId -> rideHailVehicle)
-      services.vehicleRefs += vehicleIdAndRef
-      services.agentRefs.put(rideHailingName, rideHailingAgentRef)
-      vehicleIdAndRef._2 ! AssignManager(services.rideHailingManager)
-      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), vehicleIdAndRef._2)
-      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
-
-      rideHailingVehicles += (rideHailVehicleId -> vehicleIdAndRef._2)
+      if (Random.nextDouble() < rideHailingFraction) {
+        val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+        val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (Random.nextDouble() - 0.5))
+        //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
+        val rideHailingName = s"rideHailingAgent-${k}_$iter"
+        val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
+        val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
+        val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
+        val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
+        val rideHailingAgent = RideHailingAgent.props(services, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
+        val ref: ActorRef = actorSystem.actorOf(rideHailingAgent, rideHailingName)
+        // populate maps and initialize agent via scheduler
+        services.vehicles += (rideHailVehicleId -> rideHailVehicle)
+        services.vehicleRefs += vehicleIdAndRef
+        services.agentRefs.put(rideHailingName, ref)
+        services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
+      }
     }
-
-    logger.info(s"Initialized ${(services.persons.size*rideHailingFraction).toInt} ride hailing agents")
 
     initHouseholds(iterId)
 
     //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
     services.personRefs.foreach { case (id, ref) =>
+<<<<<<< HEAD
+      //      ref ! SubscribeTransitionCallBack(errorListener)  // Subscribes each person to the error listener
+=======
       ref ! SubscribeTransitionCallBack(errorListener)  // Subscribes each person to the error listener
+>>>>>>> application-sfbay
       services.agentRefs.put(id.toString, ref)
     }
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     val householdAttrs = services.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-    services.households.foreach {
+    val actors = services.households.foreach {
       case (householdId, matSimHousehold) =>
         //TODO a good example where projection should accompany the data
         val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homeCoordX").asInstanceOf[Double],
@@ -261,11 +254,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         }.toMap
         val props = HouseholdActor.props(services, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
-        houseHoldVehicles.values.foreach{
-          vehicle =>
-            vehicle ! AssignManager(householdActor)
-            services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), vehicle)
-        }
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), householdActor)
         services.householdRefs.put(householdId, householdActor)
     }
@@ -287,7 +275,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
     }
     val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(matSimVehicle))
-
+    services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), beamVehicleRef)
     (vehicleId, beamVehicleRef)
 
   }
@@ -297,7 +285,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     services.agentSimEventsBus.subscribe(eventSubscriber, eventType)
   }
 
-  private def createErrorListener(iter:Int): ActorRef = actorSystem.actorOf(ErrorListener.props(iter))
+  private def createErrorListener(iter: Int): ActorRef = actorSystem.actorOf(ErrorListener.props(iter))
 
 
 }
