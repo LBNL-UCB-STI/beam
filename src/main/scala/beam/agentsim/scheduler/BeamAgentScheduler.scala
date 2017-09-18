@@ -28,7 +28,6 @@ object BeamAgentScheduler {
       CompletionNotice(triggerId, scheduleTriggers)
     }
 
-    //    require(trigger.tick>=0, "Negative ticks not supported!")
   }
 
   /**

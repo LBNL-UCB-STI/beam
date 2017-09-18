@@ -100,7 +100,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         case None =>
           logError(s"Driver ${id} did not find a manifest for BeamLeg ${newLeg}")
           goto(BeamAgent.Error) replying completed(triggerId)
-
       }
     case Event(BoardingConfirmation(vehicleId), agentInfo) =>
       _awaitingBoardConfirmation -= vehicleId
@@ -120,7 +119,19 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           passengerSchedule = PassengerSchedule()
       }
       self ! BecomeDriverSuccessAck
-      goto(Waiting)
+      stay()
+
+    case Event(req: CancelReservation,_) => {
+      _currentVehicleUnderControl.foreach{vehicleIdAndRef=>
+        val vehiclePersonId = VehiclePersonId(vehicleIdAndRef.id,req.passengerId)
+        passengerSchedule.removePassenger(vehiclePersonId)
+        _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
+        _awaitingBoardConfirmation -= vehiclePersonId.vehicleId
+        vehicleIdAndRef.ref ! CancelReservationWithVehicle(vehiclePersonId)
+      }
+      stay()
+    }
+
   }
   chainedWhen(AnyState){
     // Problem, when this is received from PersonAgent, it is due to a NotifyEndLeg trigger which doesn't have an ack
@@ -201,6 +212,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       goto(Waiting)
     }
   }
+
+
 
   private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
     val response = _currentLeg match {

@@ -1,5 +1,6 @@
 package beam.agentsim.events.resources.vehicle
 
+import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources._

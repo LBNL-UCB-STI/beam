@@ -71,9 +71,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip) = {
-    if (id.toString.equals("1060-1")) {
-      val i = 0
-    }
 
     var inferredVehicle: VehicleStack = VehicleStack()
     var exitNextVehicle = false
@@ -256,4 +253,4 @@ object ChoosesMode {
 }
 
 case class CancelReservation(reservationId: Id[ReservationRequest], passengerId: Id[Person])
-case class CancelReservationWithVehicle(reservationId: Id[ReservationRequest], passengerId: Id[Person])
+case class CancelReservationWithVehicle(vehiclePersonId:VehiclePersonId)
