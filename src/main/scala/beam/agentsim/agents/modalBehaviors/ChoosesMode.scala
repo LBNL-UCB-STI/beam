@@ -158,7 +158,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   def cancelReservations(): Unit = {
-    cancelTrip(pendingChosenTrip.get, _currentVehicle)
+    cancelTrip(pendingChosenTrip.get.legs, _currentVehicle)
     awaitingReservationConfirmation.clear()
   }
 

@@ -41,6 +41,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
+  var hasWarnedAboutLegPair = Set[Tuple2[Int,Int]]()
 
   override def init: Unit = {
   }
@@ -513,7 +514,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
               case Some(theNextLeg) =>
                 workingDepature = theNextLeg.startTime
               case None =>
-                log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
+                if(!hasWarnedAboutLegPair.contains(Tuple2(stopPair(0),stopPair(1)))){
+                  log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
+                  hasWarnedAboutLegPair = hasWarnedAboutLegPair + Tuple2(stopPair(0),stopPair(1))
+                }
             }
           case None =>
         }
