@@ -129,6 +129,7 @@ class PersonAgent(val beamServices: BeamServices,
   var _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var _household: Id[Household] = householdId
+  var _numReschedules: Int = 0
 //  var _inError: Boolean =false
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
@@ -205,6 +206,7 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
+
 //    if(_inError){
 //      stay() replying completed(triggerId)
 //    }else {
@@ -216,13 +218,19 @@ class PersonAgent(val beamServices: BeamServices,
 //      logWarn(s"Rescheduling: ${toSchedule}")
 //      stay() replying completed(triggerId, toSchedule)
 //    }
-    val toSchedule = if(isStart) {
-      schedule[NotifyLegStartTrigger](tick, self, beamLeg)
+    _numReschedules = _numReschedules + 1
+    if(_numReschedules > 50){
+      logError(s"Too many reschedule attempts, erroring")
+      goto(Error) replying completed(triggerId)
     }else{
-      schedule[NotifyLegEndTrigger](tick, self, beamLeg)
+      val toSchedule = if(isStart) {
+        schedule[NotifyLegStartTrigger](tick, self, beamLeg)
+      }else{
+        schedule[NotifyLegEndTrigger](tick, self, beamLeg)
+      }
+      logWarn(s"Rescheduling: ${toSchedule}")
+      stay() replying completed(triggerId, toSchedule)
     }
-    logWarn(s"Rescheduling: ${toSchedule}")
-    stay() replying completed(triggerId, toSchedule)
   }
 
   chainedWhen(Waiting) {
