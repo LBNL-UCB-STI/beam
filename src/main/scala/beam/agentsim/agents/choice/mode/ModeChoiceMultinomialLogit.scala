@@ -71,9 +71,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices) extends ModeCho
     val randDraw = (new Random()).nextDouble()
     val chosenIndex = for (i <- 1 until cumulativeAltProbabilities.length if randDraw < cumulativeAltProbabilities(i)) yield i - 1
     if (chosenIndex.size > 0) {
-      alternatives(chosenIndex.head)
+      Some(alternatives(chosenIndex.head))
     } else {
-      EmbodiedBeamTrip.empty
+      None
     }
   }
   private def altUtility(mode: BeamMode, travelTime: Double): Double = {

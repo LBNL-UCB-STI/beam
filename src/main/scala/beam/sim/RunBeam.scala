@@ -1,6 +1,8 @@
 package beam.sim
 
 import beam.sim.config.{BeamConfig, ConfigModule}
+import beam.Log4jController
+import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
 import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
@@ -11,6 +13,9 @@ import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
+import net.codingwell.scalaguice.InjectorExtensions._
+import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.events.EventsUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -36,9 +41,9 @@ trait RunBeam {
       override def install(): Unit = {
 
         // Beam -> MATSim Wirings
-
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[BeamSim])
+        bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
         mBeamConfig.foreach(beamConfig => bind(classOf[BeamConfig]).toInstance(beamConfig))
 //
@@ -56,6 +61,9 @@ trait RunBeam {
     //TODO this line can be safely deleted, just for exploring structure of config class
     //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
 
+    //Mute log
+    Log4jController.muteLog(ConfigModule.beamConfig.beam.levels.loggerLevels)
+
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
 
@@ -71,7 +79,9 @@ trait RunBeam {
     val injector = beamInjector(scenario, matsimConfig, Some(beamConfig))
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
+
     services.controler.run()
+
   }
 }
 
@@ -98,5 +108,4 @@ object RunBeam extends RunBeam with App{
   val argsMap = parseArgs()
 
   rumBeamWithConfigFile(argsMap.get("config"))
-
 }
