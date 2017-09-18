@@ -71,9 +71,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip) = {
-    if (id.toString.equals("1060-1")) {
-      val i = 0
-    }
 
     var inferredVehicle: VehicleStack = VehicleStack()
     var exitNextVehicle = false
@@ -211,14 +208,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         case _ =>
           routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq(pendingChosenTrip.get))))
       }
+      cancelReservations()
       if (routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined) {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
         // if more agents could be hailed.
         errorFromEmptyRoutingResponse(error.errorCode.toString)
       } else {
-        completeChoiceIfReady()
         pendingChosenTrip = None
-        errorFromEmptyRoutingResponse("Canceled reservations... debugging move")
+        completeChoiceIfReady()
       }
     case Event(ReservationResponse(_, _), _) =>
       errorFromEmptyRoutingResponse("unknown res response")
