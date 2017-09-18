@@ -1,14 +1,14 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.BeamAgent.BeamAgentInfo
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse, RideUnavailableError}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse}
+import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusReponse
 import beam.agentsim.agents._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
@@ -48,8 +48,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
       val combinedItinerariesForChoice: Vector[EmbodiedBeamTrip] = if (rideHailingResult.get.proposals.nonEmpty) {
         rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.get.itineraries
-      }
-      else {
+      } else {
         routingResponse.get.itineraries
       }
 
@@ -96,7 +95,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-        exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
+        exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
         prevLeg = leg
       }
       val ungroupedLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit).toList
@@ -123,9 +122,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           awaitingReservationConfirmation = awaitingReservationConfirmation + (resRequest.request.requestId -> None)
         }
       }
-    }
-    if(awaitingReservationConfirmation.size > 100){
-      val i = 0
     }
     stay()
   }
@@ -155,15 +151,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     logWarn(s"No trip chosen because RoutingResponse empty [reason: $reason], person $id going to Error")
     beamServices.schedulerRef ! completed(triggerId = _currentTriggerId.get)
     goto(BeamAgent.Error)
-  }
-
-  def cancelReservations(): Unit = {
-    for {(res, agentOpt) <- awaitingReservationConfirmation} {
-      agentOpt.foreach({ agent =>
-        agent ! CancelReservation(res, id)
-      })
-    }
-    awaitingReservationConfirmation.clear()
   }
 
   chainedWhen(ChoosingMode) {
@@ -222,14 +209,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
           rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(), error = Some(RideUnavailableError)))
         case _ =>
-          routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq(pendingChosenTrip))))
+          routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq(pendingChosenTrip.get))))
       }
       if (routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined) {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
         // if more agents could be hailed.
         errorFromEmptyRoutingResponse(error.errorCode.toString)
       } else {
-        cancelReservations()
+        completeChoiceIfReady()
         pendingChosenTrip = None
         errorFromEmptyRoutingResponse("Canceled reservations... debugging move")
       }
@@ -243,6 +230,18 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       hasReceivedCompleteChoiceTrigger = true
       completeChoiceIfReady()
   }
+  chainedWhen(AnyState) {
+    case Event(res@ReservationResponse(_,_),_) =>
+//      logWarn(s"Reservation confirmation received from state ${stateName}: ${reservationConfirmation}")
+      logError(s"Going to error, reservation response received from state ${stateName}: ${res}")
+      goto(BeamAgent.Error)
+  }
+
+  def cancelReservations(): Unit = {
+    cancelTrip(pendingChosenTrip.get.legs, _currentVehicle)
+    awaitingReservationConfirmation.clear()
+  }
+
 
 }
 
