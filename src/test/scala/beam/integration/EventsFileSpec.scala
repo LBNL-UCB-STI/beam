@@ -1,7 +1,7 @@
 package beam.integration
 
 import beam.sim.RunBeam
-import beam.sim.config.ConfigModule
+import beam.sim.config.{BeamConfig, ConfigModule}
 import org.matsim.core.events.{EventsManagerImpl, EventsReaderXMLv1}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
@@ -17,6 +17,66 @@ import scala.util.Try
   * Created by fdariasm on 29/08/2017
   * 
   */
+
+trait EventsFileHandlingCommon {
+  def beamConfig: BeamConfig
+  //Obtains name of latest created folder
+  //Assumes that dir is a directory known to exist
+  def getListOfSubDirectories(dir: File): String = {
+    val simName = beamConfig.beam.agentsim.simulationName
+    val prefix = s"${simName}_"
+    dir.listFiles
+      .filter(s => s.isDirectory && s.getName.startsWith(prefix))
+      .map(_.getName)
+      .toList
+      .sorted
+      .reverse
+      .head
+  }
+
+  def getListIDsWithTag(file: File, tagIgnore: String, positionID: Int): List[String] = {
+    var listResult = List[String]()
+    for (line <- Source.fromFile(file.getPath).getLines) {
+      if (!line.startsWith(tagIgnore)) {
+        listResult = line.split(",")(positionID) :: listResult
+
+      }
+    }
+
+    return listResult
+
+  }
+
+  def getListTagsFromXml(file: File, stringContain: String, tagContain: String): List[String] = {
+    var listResult = List[String]()
+    for (line <- Source.fromFile(file.getPath).getLines) {
+      if (line.contains(stringContain)) {
+        val temp = scala.xml.XML.loadString(line)
+        val value = temp.attributes(tagContain).toString
+        listResult = value:: listResult
+
+      }
+    }
+
+    return  listResult
+  }
+
+  def getRouteFile(route_output: String, extension: String): File = {
+    val route = s"$route_output/${getListOfSubDirectories(new File(route_output))}/ITERS/it.0/0.events.$extension"
+    new File(route)
+  }
+
+  def getEventsReader(beamConfig: BeamConfig): ReadEvents = {
+    beamConfig.beam.outputs.eventsFileOutputFormats match{
+      case "xml" => new ReadEventsXml
+      case "csv" => ???
+      case "xml.gz" => new ReadEventsXMlGz
+      case "csv.gz" => ???
+      case _ => throw new RuntimeException("Unsupported format")
+    }
+  }
+
+}
 
 trait ReadEvents{
   def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String]
@@ -75,54 +135,9 @@ class ReadEventsXMlGz extends ReadEventsXml {
   }
 }
 
-class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
+class EventsFileCorrectnessSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with EventsFileHandlingCommon{
 
-
-  //Obtains name of latest created folder
-  //Assumes that dir is a directory known to exist
-  def getListOfSubDirectories(dir: File): String = {
-    val simName = ConfigModule.beamConfig.beam.agentsim.simulationName
-    val prefix = s"${simName}_"
-    dir.listFiles
-      .filter(s => s.isDirectory && s.getName.startsWith(prefix))
-      .map(_.getName)
-      .toList
-      .sorted
-      .reverse
-      .head
-  }
-
-  def getListIDsWithTag(file: File, tagIgnore: String, positionID: Int): List[String] = {
-    var listResult = List[String]()
-    for (line <- Source.fromFile(file.getPath).getLines) {
-      if (!line.startsWith(tagIgnore)) {
-        listResult = line.split(",")(positionID) :: listResult
-
-      }
-    }
-
-    return listResult
-
-  }
-
-  def getListTagsFromXml(file: File, stringContain: String, tagContain: String): List[String] = {
-    var listResult = List[String]()
-    for (line <- Source.fromFile(file.getPath).getLines) {
-      if (line.contains(stringContain)) {
-        val temp = scala.xml.XML.loadString(line)
-        val value = temp.attributes(tagContain).toString
-        listResult = value:: listResult
-
-      }
-    }
-
-    return  listResult
-  }
-
-  def getRouteFile(route_output: String, extension: String): File = {
-    val route = s"$route_output/${getListOfSubDirectories(new File(route_output))}/ITERS/it.0/0.events.$extension"
-    new File(route)
-  }
+  lazy val beamConfig = ConfigModule.beamConfig
 
   lazy val exc = Try(rumBeamWithConfigFile(Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")))
   lazy val file: File = getRouteFile(ConfigModule.beamConfig.beam.outputs.outputDirectory , ConfigModule.beamConfig.beam.outputs.eventsFileOutputFormats)
@@ -131,15 +146,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
   lazy val mode_choice = ConfigModule.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
 
-  lazy val eventsReader: ReadEvents = {
-    ConfigModule.beamConfig.beam.outputs.eventsFileOutputFormats match{
-      case "xml" => new ReadEventsXml
-      case "csv" => ???
-      case "xml.gz" => new ReadEventsXMlGz
-      case "csv.gz" => ???
-      case _ => throw new RuntimeException("Unsupported format")
-    }
-  }
+  lazy val eventsReader: ReadEvents = getEventsReader(ConfigModule.beamConfig)
 
   override def beforeAll(): Unit = {
     exc
@@ -234,53 +241,6 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
       groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
     }
-
-    "Events file contains exactly one transit type for ModeChoice and 3 ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceTransitIfAvailable in input file" in {
-
-      if (mode_choice.equals("ModeChoiceTransitIfAvailable")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
-        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(3)
-      }
-      else
-        succeed
-
-    }
-
-    "Events file contains exactly two car type for ModeChoice and two ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceDriveIfAvailable in input file" in {
-
-      if (mode_choice.equals("ModeChoiceDriveIfAvailable")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("car")).size shouldBe(2)
-        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(2)
-      }
-      else
-        succeed
-
-    }
-
-    "Events file contains exactly 4 ride_hailing type entries for ModeChoice when modeChoice is ModeChoiceRideHailIfAvailable in input file" in {
-
-      if (mode_choice.equals("ModeChoiceRideHailIfAvailable")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
-      }
-      else
-        succeed
-
-    }
-
-    "Events file contain exactly one transit type for ModeChoice when modeChoice is ModeChoiceTransitOnly in input file" in {
-      if (mode_choice.equals("ModeChoiceTransitOnly")){
-        val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-        listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe(1)
-      }
-      else
-        succeed
-
-    }
-
-
 
   }
 }

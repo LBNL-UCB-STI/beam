@@ -1,4 +1,4 @@
-package beam.utils
+package beam.utils.reflection
 
 import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
@@ -12,11 +12,18 @@ import scala.reflect.ClassTag
 /**
   * Created by dserdiuk on 5/19/17.
   */
-object RefectionUtils {
 
-  val reflections = {
-    val classLoader = RefectionUtils.getClass.getClassLoader
-    new Reflections(new ConfigurationBuilder().addUrls(ClasspathHelper.forClassLoader(classLoader)).addClassLoader(classLoader))
+trait RefectionUtils {
+
+  /**
+    *
+    * @return package name to scan in
+    */
+  def packageName: String
+
+  lazy val reflections = {
+    val locationToLookIn = ClasspathHelper.forPackage(packageName)
+    new Reflections(new ConfigurationBuilder().addUrls(locationToLookIn))
   }
 
   def classesOfType[T](implicit ct: ClassTag[T]): List[Class[T]] = {
@@ -36,6 +43,9 @@ object RefectionUtils {
     val allSuperTypes = ReflectionUtils.getAllSuperTypes(clazz)
     allSuperTypes.contains(subType)
   }
+}
+
+object RefectionUtils {
 
   def setFinalField(clazz: Class[_], fieldName: String, value: Any) = {
     val field: Field = clazz.getField(fieldName)
