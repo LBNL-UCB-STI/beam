@@ -12,6 +12,6 @@ object ProfilingUtils {
     val startTime = System.currentTimeMillis()
     val data = work
     val endTime = System.currentTimeMillis()
-    startTime - endTime
+    endTime - startTime
   }
 }

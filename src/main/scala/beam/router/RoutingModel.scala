@@ -148,7 +148,7 @@ object RoutingModel {
     def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
   }
 
-  case class TransitStopsInfo(fromStopId: String, toStopId: String)
+  case class TransitStopsInfo(fromStopId: Int, toStopId: Int)
 
   /**
     *
@@ -163,6 +163,10 @@ object RoutingModel {
     def toTrajectory = {
       resolver.resolve(this)
     }
+
+    def getStartPoint() = resolver.resolveStart(this)
+
+    def getEndPoint() = resolver.resolveEnd(this)
 
     def canEqual(other: Any): Boolean = other.isInstanceOf[BeamPath]
 
