@@ -122,6 +122,8 @@ object RoutingModel {
                      duration: Long,
                      travelPath: BeamPath = EmptyBeamPath.path) {
     val endTime: Long = startTime + duration
+
+    override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
   }
 
   object BeamLeg {
@@ -163,6 +165,8 @@ object RoutingModel {
     def toTrajectory = {
       resolver.resolve(this)
     }
+
+    def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
     def getStartPoint() = resolver.resolveStart(this)
 
