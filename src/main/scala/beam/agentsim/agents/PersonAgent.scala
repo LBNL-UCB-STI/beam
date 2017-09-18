@@ -390,18 +390,18 @@ class PersonAgent(val beamServices: BeamServices,
     }
   }
 
-  def cancelTrip() = {
-    var inferredVehicle: VehicleStack = _currentVehicle
+  def cancelTrip(tripToCancel: EmbodiedBeamTrip, startingVehicle: VehicleStack): Unit = {
+    var inferredVehicle = startingVehicle
     var exitNextVehicle = false
-    var prevLeg = _currentRoute.legs.head
+    var prevLeg = tripToCancel.legs.head
     var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
 
     if(inferredVehicle.nestedVehicles.nonEmpty)inferredVehicle = inferredVehicle.pop()
 
-    for (leg <- _currentRoute.legs) {
+    for (leg <- tripToCancel.legs) {
       if (exitNextVehicle|| (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
 
-      if(inferredVehicle.outermostVehicle() != leg.beamVehicleId){
+      if(inferredVehicle.isEmpty || inferredVehicle.outermostVehicle() != leg.beamVehicleId){
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
         if(inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver){
           val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(inferredVehicle.outermostVehicle()).toString)
@@ -417,12 +417,11 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
 
       logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Sending RemovePassengerFromTrip request.")
-      cancelTrip()
+      cancelTrip(_currentRoute, _currentVehicle)
       stay() replying completed(triggerId)
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg), triggerId), _) =>
-      cancelTrip()
       logWarn(s"Agent $id received NotifyLegEndTrigger while in Error. Sending RemovePassengerFromTrip request.")
-      cancelTrip()
+      cancelTrip(_currentRoute, _currentVehicle)
       stay() replying completed(triggerId)
   }
 

@@ -158,11 +158,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   def cancelReservations(): Unit = {
-    for {(res, agentOpt) <- awaitingReservationConfirmation} {
-      agentOpt.foreach({ agent =>
-        agent ! CancelReservation(res, id)
-      })
-    }
+    cancelTrip(pendingChosenTrip.get, _currentVehicle)
     awaitingReservationConfirmation.clear()
   }
 
@@ -222,7 +218,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
           rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(), error = Some(RideUnavailableError)))
         case _ =>
-          routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq(pendingChosenTrip))))
+          routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq(pendingChosenTrip.get))))
       }
       if (routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined) {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
