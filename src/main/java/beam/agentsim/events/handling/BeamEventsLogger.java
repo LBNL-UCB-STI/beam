@@ -7,10 +7,7 @@ import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
+import java.util.*;
 
 /**
  * BEAM
@@ -27,8 +24,9 @@ public class BeamEventsLogger {
     private BeamServices beamServices;
     private String eventsFileFormats;
     private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
-    private HashMap<Class, String> eventFieldsToDropWhenShort = new HashMap<>();
-    private HashMap<Class, String> eventFieldsToAddWhenVerbose = new HashMap<>();
+    private HashMap<Class, List<String>> eventFieldsToDropWhenShort = new HashMap<Class, List<String>>();
+    private HashMap<Class, List<String>> eventFieldsToAddWhenVerbose = new HashMap<Class, List<String>>();
+    private List<String> eventFields = null;
 
     public BeamEventsLogger(BeamServices beamServices, EventsManager eventsManager) {
 
@@ -52,31 +50,64 @@ public class BeamEventsLogger {
         allLoggableEvents.add(PersonArrivalEvent.class);
         allLoggableEvents.add(ActivityStartEvent.class);
         //Adding attribute which should be removed when the logger level SHORT
-        eventFieldsToDropWhenShort.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
-        eventFieldsToDropWhenShort.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-        eventFieldsToDropWhenShort.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME);
-        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_PERSON);
-        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_PERSON);
-        eventFieldsToDropWhenShort.put(PersonEntersVehicleEvent.class,PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
-        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_NETWORKMODE);
-        eventFieldsToDropWhenShort.put(LinkLeaveEvent.class,LinkLeaveEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(LinkEnterEvent.class,LinkEnterEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_NETWORKMODE);
-        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_POSITION);
-        eventFieldsToDropWhenShort.put(PersonArrivalEvent.class,PersonArrivalEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_LINK);
+
+        eventFields = new ArrayList<String>();
+        eventFields.add(PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        eventFields.add(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
+        eventFields.add(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME);
+        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(ActivityEndEvent.ATTRIBUTE_LINK);
+        eventFields.add(ActivityEndEvent.ATTRIBUTE_PERSON);
+        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(PersonDepartureEvent.ATTRIBUTE_LINK);
+        eventFields.add(PersonDepartureEvent.ATTRIBUTE_PERSON);
+        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+        eventFieldsToDropWhenShort.put(PersonEntersVehicleEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(VehicleEntersTrafficEvent.ATTRIBUTE_LINK);
+        eventFields.add(VehicleEntersTrafficEvent.ATTRIBUTE_NETWORKMODE);
+        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(LinkLeaveEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(LinkLeaveEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(LinkEnterEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(LinkEnterEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(VehicleLeavesTrafficEvent.ATTRIBUTE_LINK);
+        eventFields.add(VehicleLeavesTrafficEvent.ATTRIBUTE_NETWORKMODE);
+        eventFields.add(VehicleLeavesTrafficEvent.ATTRIBUTE_POSITION);
+        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(PersonArrivalEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(PersonArrivalEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(ActivityStartEvent.ATTRIBUTE_LINK);
+        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,eventFields);
         //Adding attribute which should be added when the logger level VERBOSE
-        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_ALTERNATIVES);
-        eventFieldsToAddWhenVerbose.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_FACILITY);
-        eventFieldsToAddWhenVerbose.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
-        eventFieldsToAddWhenVerbose.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_FACILITY);
-        eventFieldsToAddWhenVerbose.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        eventFields = new ArrayList<String>();
+        eventFields.add(ModeChoiceEvent.VERBOSE_ATTRIBUTE_ALTERNATIVES);
+        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(ActivityEndEvent.ATTRIBUTE_FACILITY);
+        eventFieldsToAddWhenVerbose.put(ActivityEndEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        eventFieldsToAddWhenVerbose.put(PathTraversalEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(ActivityStartEvent.ATTRIBUTE_FACILITY);
+        eventFieldsToAddWhenVerbose.put(ActivityStartEvent.class,eventFields);
+        eventFields = new ArrayList<String>();
+        eventFields.add(PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        eventFieldsToAddWhenVerbose.put(PathTraversalEvent.class,eventFields);
+
         if (!this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals("")&&!this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals(LoggerLevels.OFF)) {
             defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
+            System.out.println("defaultLevel=--------------"+defaultLevel);
             eventsToLog.addAll(getAllLoggableEvents());
         }
         //        filterLoggingLevels();
@@ -173,12 +204,14 @@ public class BeamEventsLogger {
     public Map<String,String> getAttributes(Event event) {
         Map<String,String> attributes = event.getAttributes();
         if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToDropWhenShort.containsKey(event.getClass())){
-            for (Map.Entry<Class, String> entry : eventFieldsToDropWhenShort.entrySet()) {
-                attributes.remove(entry.getValue());
+            eventFields = eventFieldsToDropWhenShort.get(event.getClass());
+            for(String key:eventFields){
+                attributes.remove(key);
             }
         }else if(getLoggingLevel(event) == LoggerLevels.VERBOSE && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
-            for (Map.Entry<Class, String> entry : eventFieldsToAddWhenVerbose.entrySet()) {
-                attributes.put(entry.getValue(),"DUMMY DATA");
+            eventFields = eventFieldsToAddWhenVerbose.get(event.getClass());
+            for(String key:eventFields){
+                attributes.put(key,"DUMMY DATA");
             }
         }
         return attributes;
