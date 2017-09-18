@@ -69,16 +69,17 @@ public class BeamEventsLogger {
         eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_POSITION);
         eventFieldsToDropWhenShort.put(PersonArrivalEvent.class,PersonArrivalEvent.ATTRIBUTE_LINK);
         eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_LINK);
-
-
+        //Adding attribute which should be added when the logger level VERBOSE
         eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_ALTERNATIVES);
-
-        defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
-
-        if(defaultLevel != LoggerLevels.OFF){
+        eventFieldsToAddWhenVerbose.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_FACILITY);
+        eventFieldsToAddWhenVerbose.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        eventFieldsToAddWhenVerbose.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_FACILITY);
+        eventFieldsToAddWhenVerbose.put(PathTraversalEvent.class,PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+        if (!this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals("")&&!this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals(LoggerLevels.OFF)) {
+            defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
             eventsToLog.addAll(getAllLoggableEvents());
         }
-//        filterLoggingLevels();
+        //        filterLoggingLevels();
         createEventsWriters();
     }
 
@@ -175,8 +176,10 @@ public class BeamEventsLogger {
             for (Map.Entry<Class, String> entry : eventFieldsToDropWhenShort.entrySet()) {
                 attributes.remove(entry.getValue());
             }
-        }else if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
-            // add fields from attributes here, assume they are public fields on the event, e.g. event.alternatives
+        }else if(getLoggingLevel(event) == LoggerLevels.VERBOSE && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
+            for (Map.Entry<Class, String> entry : eventFieldsToAddWhenVerbose.entrySet()) {
+                attributes.put(entry.getValue(),"DUMMY DATA");
+            }
         }
         return attributes;
     }
