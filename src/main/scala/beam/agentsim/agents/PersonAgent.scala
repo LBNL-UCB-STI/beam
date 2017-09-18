@@ -1,18 +1,18 @@
 package beam.agentsim.agents
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, Kill, PoisonPill, Props}
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.modalBehaviors.{CancelReservation, ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
-import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
+import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.PathTraversalEvent
-import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ReservationResponse}
+import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
+import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
@@ -45,9 +45,7 @@ object PersonAgent {
   }
 
   case class PersonData() extends BeamAgentData {}
-
   object PersonData {
-
     import scala.collection.JavaConverters._
 
     def planToVec(plan: Plan): Vector[Activity] = {
@@ -56,61 +54,38 @@ object PersonAgent {
   }
 
   sealed trait InActivity extends BeamAgentState
-
   case object PerformingActivity extends InActivity {
     override def identifier = "Performing an Activity"
   }
-
   sealed trait Traveling extends BeamAgentState
-
   case object ChoosingMode extends Traveling {
     override def identifier = "ChoosingMode"
   }
-
   case object Waiting extends Traveling {
     override def identifier = "Waiting"
   }
-
   case object Moving extends Traveling {
     override def identifier = "Moving"
   }
 
   case class ResetPersonAgent(tick: Double) extends Trigger
-
   case class ActivityStartTrigger(tick: Double) extends Trigger
-
   case class ActivityEndTrigger(tick: Double) extends Trigger
-
   case class RouteResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip]) extends Trigger
-
   case class RideHailingInquiryTrigger(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip], timesToCustomer: Vector[Double]) extends Trigger
-
   case class MakeRideHailingReservationResponseWrapper(tick: Double, triggerId: Long, rideHailingAgentOpt: Option[ActorRef], timeToCustomer: Double, tripChoice: BeamTrip) extends Trigger
-
   case class FinishWrapper(tick: Double, triggerId: Long) extends Trigger
-
   case class NextActivityWrapper(tick: Double, triggerId: Long) extends Trigger
-
   case class PersonDepartureTrigger(tick: Double) extends Trigger
-
   case class PersonEntersRideHailingVehicleTrigger(tick: Double) extends Trigger
-
   case class PersonLeavesRideHailingVehicleTrigger(tick: Double) extends Trigger
-
   case class PersonEntersBoardingQueueTrigger(tick: Double) extends Trigger
-
   case class PersonEntersAlightingQueueTrigger(tick: Double) extends Trigger
-
   case class PersonArrivesTransitStopTrigger(tick: Double) extends Trigger
-
   case class PersonArrivalTrigger(tick: Double) extends Trigger
-
   case class TeleportationArrivalTrigger(tick: Double) extends Trigger
-
   case class CompleteDrivingMissionTrigger(tick: Double) extends Trigger
-
   case class PassengerScheduleEmptyTrigger(tick: Double) extends Trigger
-
 }
 
 class PersonAgent(val beamServices: BeamServices,
@@ -136,11 +111,9 @@ class PersonAgent(val beamServices: BeamServices,
     if (ind < 0 || ind >= _activityChain.length) Left(msg) else Right(_activityChain(ind))
   }
   def currentActivity: Activity = _activityChain(_currentActivityIndex)
-
   def nextActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex + 1, "plan finished")
   }
-
   def prevActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex - 1, "at start")
   }
@@ -426,31 +399,32 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   def cancelTrip(legsToCancel: Vector[EmbodiedBeamLeg], startingVehicle: VehicleStack): Unit = {
-    var inferredVehicle = startingVehicle
-    var exitNextVehicle = false
-    var prevLeg = legsToCancel.head
-    var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
+    if(legsToCancel.nonEmpty) {
+      var inferredVehicle = startingVehicle
+      var exitNextVehicle = false
+      var prevLeg = legsToCancel.head
+      var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
 
-    if(inferredVehicle.nestedVehicles.nonEmpty)inferredVehicle = inferredVehicle.pop()
+      if (inferredVehicle.nestedVehicles.nonEmpty) inferredVehicle = inferredVehicle.pop()
 
-    for (leg <- legsToCancel) {
-      if (exitNextVehicle|| (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
+      for (leg <- legsToCancel) {
+        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
 
-      if (inferredVehicle.isEmpty || inferredVehicle.outermostVehicle() != leg.beamVehicleId) {
-        inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-        if(inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver){
-          val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(inferredVehicle.outermostVehicle()).toString)
-          driverRef ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
+        if (inferredVehicle.isEmpty || inferredVehicle.outermostVehicle() != leg.beamVehicleId) {
+          inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
+          if (inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver) {
+            val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(inferredVehicle.outermostVehicle()).toString)
+            driverRef ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
+          }
         }
+        exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
+        prevLeg = leg
       }
-      exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
-      prevLeg = leg
     }
   }
 
   chainedWhen(Error){
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
-
       logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Sending RemovePassengerFromTrip request.")
       cancelTrip(_currentEmbodiedLeg ++: _currentRoute.legs, _currentVehicle)
       stay() replying completed(triggerId)
