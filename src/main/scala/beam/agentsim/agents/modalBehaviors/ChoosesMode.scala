@@ -96,7 +96,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-        exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
+        exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
         prevLeg = leg
       }
       val ungroupedLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit).toList
@@ -230,7 +230,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         errorFromEmptyRoutingResponse(error.errorCode.toString)
       } else {
         cancelReservations()
-        completeChoiceIfReady()
+        pendingChosenTrip = None
+        errorFromEmptyRoutingResponse("Canceled reservations... debugging move")
       }
     case Event(ReservationResponse(_, _), _) =>
       errorFromEmptyRoutingResponse("unknown res response")
@@ -256,4 +257,4 @@ object ChoosesMode {
 }
 
 case class CancelReservation(reservationId: Id[ReservationRequest], passengerId: Id[Person])
-case class CancelReservationWithVehicle(reservationId: Id[ReservationRequest], passengerId: Id[Person])
+case class CancelReservationWithVehicle(vehiclePersonId:VehiclePersonId)
