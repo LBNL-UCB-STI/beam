@@ -18,9 +18,9 @@ class ModeChoiceTransitIfAvailable (val beamServices: BeamServices) extends Mode
     }
     val chosenIndex = if (containsTransitAlt.size > 0){ containsTransitAlt.head }else{ 0 }
     if(alternatives.size > 0) {
-      alternatives(chosenIndex)
+      Some(alternatives(chosenIndex))
     } else {
-      EmbodiedBeamTrip.empty
+      None
     }
   }
 
