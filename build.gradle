@@ -272,8 +272,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
     from sourceSets.main.allSource
 }
 
+//
+// Run Via application plugin
+// ./gradlew run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
+//
 mainClassName = "beam.sim.RunBeam"
-// Use following for debug mode
+// Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx128g","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
 applicationDefaultJvmArgs = ["-Xmx128g"]
 
