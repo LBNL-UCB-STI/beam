@@ -174,7 +174,7 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   }
 
   val monitorThread = if (log.isErrorEnabled) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(2, TimeUnit.MINUTES), new FiniteDuration(1, TimeUnit.SECONDS), new Runnable {
+    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.MINUTES), new FiniteDuration(5, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
         try {
           if (log.isErrorEnabled) {
