@@ -13,7 +13,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/matsim/pev/development_2016-07-19_19-28-47/ITERS/it.0/run0.0.events.xml'
+  args<-'test/output/sf-bay_2017-09-19_13-46-01/ITERS/it.0/0.events.xml'
   args <- parse_args(OptionParser(option_list = option_list,usage = "xml2Rdata.R [file-to-convert]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "xml2Rdata.R [file-to-convert]"),positional_arguments=T)
@@ -36,7 +36,7 @@ for(file.path in args$args){
   root.name <- xmlName(xmlRoot(dat))
 
   attrs <- c()
-  for(i in c(1:min(xmlSize(xmlRoot(dat)),10000))){
+  for(i in c(1:min(xmlSize(xmlRoot(dat)),1000000))){
     attrs <- u(c(attrs,names(xmlAttrs(xmlRoot(dat)[[i]]))))
   }
   df <- data.frame(xml.node=names(xmlRoot(dat)))
