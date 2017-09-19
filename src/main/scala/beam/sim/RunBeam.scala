@@ -60,8 +60,8 @@ trait RunBeam {
     //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
 
     //Mute log
-    MATSIMandR5LoggerController.muteLog(ConfigModule.beamConfig.matsim.levels.dependencyLoggingLevels,ConfigModule.beamConfig.matsim.R5Packages)
-    BEAMSIMLogggerController.cutOff(ConfigModule.beamConfig.beam.packages,ConfigModule.beamConfig.beam.levels.beamLoggingLevels)
+    MATSIMandR5LoggerController.muteLog(ConfigModule.beamConfig.matsim.levels.dependencyLoggingLevel,ConfigModule.beamConfig.r5.packages)
+    BEAMSIMLogggerController.cutOff(ConfigModule.beamConfig.beam.packages,ConfigModule.beamConfig.beam.levels.beamLoggingLevel)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)

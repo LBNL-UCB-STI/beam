@@ -10,7 +10,7 @@ abstract  class BEAMSIMLogggerController{
 }
 object BEAMSIMLogggerController {
 
-  def cutOff(classList: List[String], loggerLevels: String): Unit = {
+  def cutOff(classList: List[String], loggerLevel: String): Unit = {
     val root = LoggerFactory.getILoggerFactory.asInstanceOf[LoggerContext]
     //get package or class to control it's logging
     classList.foreach{
@@ -19,7 +19,7 @@ object BEAMSIMLogggerController {
         val rootLogger = root.getLogger(className)
         rootLogger.setLevel(Level.OFF)
 
-        loggerLevels match {
+        loggerLevel match {
           case "INFO" =>
             rootLogger.setLevel(Level.INFO) //configures the root logger for INFO
           case "TRACE" =>
