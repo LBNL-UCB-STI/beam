@@ -27,8 +27,6 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
       }
       log.info(s"\n\nIt took $timeTaken to init transit\n\n")
       sender() ! TransitInited(List(workerId))
-    case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
-      sender() ! calcRoute(requestId, params, getPerson(params.personId))
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
