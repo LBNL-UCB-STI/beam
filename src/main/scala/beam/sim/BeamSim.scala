@@ -180,7 +180,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val matsimHumanBodyVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle", classOf[VehicleType]))
     matsimHumanBodyVehicleType.setDescription("Human")
 
-    for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
+    for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)){ // if personId.toString.startsWith("9607-") ){
       val bodyVehicleIdFromPerson = HumanBodyVehicle.createId(personId)
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, matsimHumanBodyVehicleType)
       val bodyVehicleRef = actorSystem.actorOf(HumanBodyVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()), BeamVehicle.buildActorName(matsimBodyVehicle))
