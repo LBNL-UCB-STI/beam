@@ -5,6 +5,6 @@ files:
     destination: /home/ubuntu/beam
 hooks:
   ApplicationStart:
-    - location: test/scripts/install.sh
+    - location: scripts/run-beam.sh
       timeout: 60
       runas: ubuntu
