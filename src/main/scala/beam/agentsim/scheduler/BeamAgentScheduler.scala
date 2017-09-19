@@ -182,10 +182,12 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
             currentTotalAwaitingResponse.set(awaitingResponseVerbose.values().stream().count())
             if (currentTotalAwaitingResponse.get() == previousTotalAwaitingRespone.get() && currentTotalAwaitingResponse.get()!=0) {
               numReps = numberRepeats.incrementAndGet()
+              log.error(s"DEBUG: $numReps repeats.")
             } else {
               numberRepeats.set(0)
             }
-            if (numReps > 5) {
+            if (numReps > 2) {
+              log.error(s"DEBUG: $numReps > 2 repeats!!! Clearing out stuck agents and proceeding with schedule")
               awaitingResponseVerbose.values().stream().forEach({ x =>
                 x.agent ! IllegalTriggerGoToError
                 currentTotalAwaitingResponse.set(0)
