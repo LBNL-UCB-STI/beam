@@ -18,6 +18,7 @@ object BeamAgentScheduler {
   sealed trait SchedulerMessage
 
   case object StartSchedule extends SchedulerMessage
+  case object IllegalTriggerGoToError extends SchedulerMessage
 
   case class DoSimStep(tick: Double) extends SchedulerMessage
 
@@ -76,12 +77,18 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
     if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow) {
-      throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
+      if(debugEnabled){
+        log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
+        triggerToSchedule.agent ! IllegalTriggerGoToError
+      }else{
+        throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
+      }
+    }else{
+      val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
+      triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
+      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
+      //    log.info(s"recieved trigger to schedule $triggerToSchedule")
     }
-    val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
-    triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
-    triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
-    //    log.info(s"recieved trigger to schedule $triggerToSchedule")
   }
 
   def receive: Receive = {
