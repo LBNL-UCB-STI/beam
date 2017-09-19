@@ -64,11 +64,11 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     //    transportNetwork.transitLayer.routes.listIterator().asScala.foreach{ routeInfo =>
     //      log.debug(routeInfo.toString)
     //    }
-    log.info(s"Start Transit initialization  ${ transportNetwork.transitLayer.tripPatterns.size()} trips founded")
-    val transitTrips  = transportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
+    log.info(s"Start Transit initialization  ${ prunedTransportNetwork.transitLayer.tripPatterns.size()} trips founded")
+    val transitTrips  = prunedTransportNetwork.transitLayer.tripPatterns.listIterator().asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
       //      log.debug(tripPattern.toString)
-      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val route = prunedTransportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitRouteTrips = tripPattern.tripSchedules.asScala
       transitRouteTrips.filter(_.getNStops > 0).map { transitTrip =>
@@ -94,7 +94,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
               beamPathBuilder.routeTransitPathThroughStreets(departureFrom.toLong, fromStopIdx, toStopIdx, stopsInfo)
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-              BeamPath(edgeIds, Option(stopsInfo), new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureFrom.toLong, duration) )
+              BeamPath(edgeIds, Option(stopsInfo), new TrajectoryByEdgeIdsResolver(prunedTransportNetwork.streetLayer, departureFrom.toLong, duration) )
             }
             val theLeg = BeamLeg(departureFrom.toLong, mode, duration, transitPath)
             passengerSchedule.addLegs(Seq(theLeg))
@@ -124,7 +124,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
           val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx)
           val stopsInfo = TransitStopsInfo(fromStopId, fromStopId)
           val transitPath = BeamPath(edgeIds, Option(stopsInfo),
-            new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration) )
+            new TrajectoryByEdgeIdsResolver(prunedTransportNetwork.streetLayer, departureStart.toLong, duration) )
           val theLeg = BeamLeg(departureStart.toLong, mode, duration, transitPath)
           passengerSchedule.addLegs(Seq(theLeg))
           beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
@@ -172,7 +172,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
-    val pointToPointQuery = new PointToPointQuery(transportNetwork)
+    val pointToPointQuery = new PointToPointQuery(prunedTransportNetwork)
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
     val profileRequestToVehicles: ProfileRequestToVehicles = if(isRouteForPerson){
@@ -222,7 +222,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = prunedTransportNetwork.getTimeZone
     val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
     val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
@@ -281,7 +281,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = prunedTransportNetwork.getTimeZone
     val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
     val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
@@ -339,7 +339,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
   private def createProfileRequest(routingRequestTripInfo: RoutingRequestTripInfo) = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = prunedTransportNetwork.getTimeZone
     val fromLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
     val toLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromLocation.getX
@@ -385,7 +385,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
         val access = option.access.get(itinerary.connection.access)
 
         // Using itinerary start as access leg's startTime
-        val tripStartTime = beamServices.dates.toBaseMidnightSeconds(itinerary.startTime,transportNetwork.transitLayer.routes.size()==0)
+        val tripStartTime = beamServices.dates.toBaseMidnightSeconds(itinerary.startTime,prunedTransportNetwork.transitLayer.routes.size()==0)
         val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
         legs = legs :+ BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = beamPathBuilder.buildStreetPath(access,tripStartTime))
 
@@ -472,8 +472,8 @@ class R5RoutingWorker(val beamServices: BeamServices) extends RoutingWorker {
     var legs: Vector[BeamLeg] = Vector()
     val segmentPattern: SegmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
     val beamVehicleId = Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))
-    val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
-    val allStopInds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
+    val tripPattern = prunedTransportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
+    val allStopInds = tripPattern.stops.map(prunedTransportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
     val stopsInTrip = tripPattern.stops.map(_.toString).toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId)+1)
 
     var workingDepature = departureTime

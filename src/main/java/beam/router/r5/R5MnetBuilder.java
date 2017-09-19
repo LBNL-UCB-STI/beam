@@ -21,12 +21,13 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- *
+ * Build the pruned R5 network and MATSim network. These two networks have 1-1 link parity.
+ * The R5 edgeIndex values match the MATSim link IDs w/ 1-1 parity.
  *
  * Created by Andrew A. Campbell on 6/7/17.
  */
-public class MNetfromR5 {
-	private static final Logger log = Logger.getLogger(MNetfromR5.class);
+public class R5MnetBuilder {
+	private static final Logger log = Logger.getLogger(R5MnetBuilder.class);
 
 	private TransportNetwork r5Network = null;  // R5 mNetowrk
 	private Network mNetowrk = null;  // MATSim mNetowrk
@@ -45,13 +46,15 @@ public class MNetfromR5 {
 
 	private HashMap<Integer, Long> r5ToMNetMap = new HashMap<>();
 
+	private boolean mNetCleaned = false;
+
 	/**
 	 *
 	 * @param r5NetPath Path to R5 network.dat file.
 	 * @param modeFlags EnumSet defining the modes to be included in the network. See
 	 *                     com.conveyal.r5.streets.EdgeStore.EdgeFlag for EdgeFlag definitions.
 	 */
-	public MNetfromR5(String r5NetPath, String osmPath, EnumSet<EdgeStore.EdgeFlag> modeFlags){
+	public R5MnetBuilder(String r5NetPath, String osmPath, EnumSet<EdgeStore.EdgeFlag> modeFlags){
 		this.osmFile = osmPath;
 		File netFile = new File(r5NetPath);
 		log.info("Found R5 Transport Network file, loading....");
@@ -68,11 +71,11 @@ public class MNetfromR5 {
 	 * Defaults to only using automobiles for the network.
 	 * @param r5NetPath
 	 */
-	public MNetfromR5(String r5NetPath, String osmPath) {
+	public R5MnetBuilder(String r5NetPath, String osmPath) {
 		this(r5NetPath, osmPath, EnumSet.of(EdgeStore.EdgeFlag.ALLOWS_CAR));
 	}
 
-	private void buildMNet() {
+	public void buildMNet() {
 		// Load the OSM file for retrieving the number of lanes, which is not stored in the R5 network
 		OSM osm = new OSM(this.osmFile);
 		Map<Long, Way> ways = osm.ways;
@@ -165,6 +168,18 @@ public class MNetfromR5 {
 		}
 	}
 
+	// TODO - do we really need this optional method? Or can we just clean inside of buildMnet()? (AAC 17/09/19)
+	public void cleanMnet(){
+		if (! this.mNetCleaned){
+			NetworkCleaner nC = new NetworkCleaner();
+			log.info("Running NetowrkCleaner");
+			nC.run(this.mNetowrk);
+			this.mNetCleaned = true;
+		} else {
+			log.warn("MATSim network already cleaned. Not running NetworkCleaner.run()");
+		}
+	}
+
 	public void setTransformCRS(String to, String from){
 		this.toCRS = to;
 		this.fromCRS = from;
@@ -237,43 +252,55 @@ public class MNetfromR5 {
 		return out;
 	}
 
-
-	// TODO - delete this local class if we don't need to use link to/from nodes as keys in a Map
 	/**
-	 * Class for using tuples of MATSim Coords as keys for a Map
+	 * Prunes any links in the R5 network that are not in the MATSim network. Linkes are "pruned" by removing the
+	 * allowable modes (they are not actually deleted from the R5 network).
 	 */
-	public class CoordKey {
-
-		private final Coord fromCoord;
-		private final Coord toCoord;
-
-		public CoordKey(Coord fromCoord, Coord toCoord) {
-			this.fromCoord = fromCoord;
-			this.toCoord = toCoord;
+	public void pruneR5() {
+		if (!this.mNetCleaned) {
+			log.warn("Running pruneR5(), but MATSim network not cleaned.");
 		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) return true;
-			if (!(o instanceof CoordKey)) return false;
-			CoordKey key = (CoordKey) o;
-			return fromCoord == key.fromCoord && toCoord == key.toCoord;
+		EdgeStore.Edge cursor = this.r5Network.streetLayer.edgeStore.getCursor();
+		Integer removed = 0;
+		Integer kept = 0;
+		while (cursor.advance()) {
+			Integer edgeIndex = cursor.getEdgeIndex();
+			if (this.r5ToMNetMap.containsKey(edgeIndex)) { // This R5 link is in the pre-cleaning MATSim network.
+				Long mNetIDLong = this.r5ToMNetMap.get(edgeIndex);
+				Id<Link> mNetID = Id.create(mNetIDLong, Link.class);
+				if (!this.mNetowrk.getLinks().containsKey(mNetID)) {
+					removed++;
+					log.info("R5 link not in post-cleaning MATSim network: " + String.valueOf(edgeIndex));
+					// This R5 link has been removed. Need to set permissions to "remove" from network
+					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_CAR);
+					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_BIKE);
+					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_PEDESTRIAN);
+				} else { // R5 link in the pre and post-cleaning MATSim network
+					kept++;
+				}
+			} else { // not in the pre-cleaning MATSim network
+				log.info("R5 Link not in the pre-cleaning MATSim network: " + String.valueOf(edgeIndex));
+			}
 		}
-
-		@Override
-		public int hashCode() {
-			int result = Integer.valueOf(fromCoord.toString());
-			result = 31 * result + Integer.valueOf(toCoord.toString());
-			return result;
+		log.info("No. R5 Links Remvoed: " + String.valueOf(removed));
+		log.info("No. R5 Links kept: " + String.valueOf(kept));
+		log.info("No. of post-cleaning MATSim links: " + String.valueOf(this.mNetowrk.getLinks().size()));
+		Integer n = 0;
+		for (Integer k : this.r5ToMNetMap.keySet()) {
+			Long lK = new Long(k);
+			Long v = this.r5ToMNetMap.get(k);
+			if (!lK.equals(v)) {
+				n++;
+			}
+		}
+		log.info("No. non-matching link IDs: " + String.valueOf(n));
+		if (n>0){
+			log.warn("No. non-matching link IDs: " + String.valueOf(n));
 		}
 	}
 
-	/**
-	 * This class is based off of MATSim's OsmNetworkReader. Particularly, it is used to generate all the link
-	 * attributes in the MATSim network based on the OSM way's tags the same way OsmNetworkReader does.
-	 */
-	public class OsmWayToMATSim {
-
+	public TransportNetwork getR5Network() {
+		return r5Network;
 	}
 
 	/**
@@ -291,7 +318,7 @@ public class MNetfromR5 {
 		String osmPath = args[1];
 		String mNetPath = args[2];
 		// If mode flags passed, use the constructor with the modeFlags parameter
-		MNetfromR5 mn = null;
+		R5MnetBuilder mn = null;
 		if (args.length > 3){
 			String[] flagStrings = args[4].trim().split(",");
 			EnumSet<EdgeStore.EdgeFlag> modeFlags = EnumSet.noneOf(EdgeStore.EdgeFlag.class);
@@ -299,18 +326,19 @@ public class MNetfromR5 {
 				modeFlags.add(EdgeStore.EdgeFlag.valueOf(f));
 			}
 			System.out.println("USING MODE FLAGS HURRAY!!!!!!!!!");
-			mn = new MNetfromR5(inFolder, osmPath, modeFlags);
+			mn = new R5MnetBuilder(inFolder, osmPath, modeFlags);
 		}
 		// otherwise use the default constructor
 		else {
-			mn = new MNetfromR5(inFolder, osmPath);
+			mn = new R5MnetBuilder(inFolder, osmPath);
 		}
 
 		mn.buildMNet();
 		log.info("Finished building network.");
-		NetworkCleaner nC = new NetworkCleaner();
-		log.info("Running NetowrkCleaner");
-		nC.run(mn.mNetowrk);
+//		NetworkCleaner nC = new NetworkCleaner();
+//		log.info("Running NetowrkCleaner");
+//		nC.run(mn.mNetowrk);
+		mn.cleanMnet();
 		log.info("Number of links:" + mn.mNetowrk.getLinks().size());
 		log.info("Number of nodes: " + mn.mNetowrk.getNodes().size());
 		mn.writeMNet(mNetPath);
@@ -341,7 +369,6 @@ public class MNetfromR5 {
 		System.out.println("No. R5 Links Remvoed: " + String.valueOf(removed));
 		System.out.println("No. R5 Links kept: " + String.valueOf(kept));
 		System.out.println("No. of post-cleaning MATSim links: " + String.valueOf(mn.mNetowrk.getLinks().size()));
-		mn.r5Network.write(new File(args[3]));
 		Integer n = 0;
 		for (Integer k: mn.r5ToMNetMap.keySet()){
 			Long lK = new Long(k);
@@ -351,7 +378,9 @@ public class MNetfromR5 {
 			}
 		}
 		System.out.println("No. non-matching link IDs: " + String.valueOf(n));
+		mn.r5Network.write(new File(args[3]));
 	}
+
 
 }
 
