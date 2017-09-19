@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
+import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
@@ -196,7 +197,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     //TODO the following should be based on config params
     //    val rideHailingFraction = 0.1
-    val rideHailingFraction = 0.1
+    val rideHailingFraction = 0.5
     val initialLocationJitter = 500 // meters
 
 

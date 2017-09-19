@@ -2,6 +2,7 @@ package beam.agentsim.scheduler
 
 import java.lang.Double
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
@@ -18,6 +19,7 @@ object BeamAgentScheduler {
   sealed trait SchedulerMessage
 
   case object StartSchedule extends SchedulerMessage
+
   case object IllegalTriggerGoToError extends SchedulerMessage
 
   case class DoSimStep(tick: Double) extends SchedulerMessage
@@ -69,6 +71,14 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   private var nowInSeconds: Double = 0.0
   @volatile var isRunning = true
 
+  private var previousTotalAwaitingRespone: AtomicLong = new AtomicLong(0)
+  private var currentTotalAwaitingResponse: AtomicLong = new AtomicLong(0)
+  private var numberRepeats: AtomicLong = new AtomicLong(0)
+
+  def increment(): Unit = {
+    previousTotalAwaitingRespone.incrementAndGet
+  }
+
 
   override def postStop(): Unit = {
     monitorThread.foreach(_.cancel())
@@ -77,13 +87,13 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
     if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow) {
-      if(debugEnabled){
+      if (debugEnabled) {
         log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
         triggerToSchedule.agent ! IllegalTriggerGoToError
-      }else{
+      } else {
         throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
       }
-    }else{
+    } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
       triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
       triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
@@ -164,14 +174,31 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   }
 
   val monitorThread = if (log.isErrorEnabled) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(10, TimeUnit.SECONDS), new FiniteDuration(10, TimeUnit.SECONDS), new Runnable {
+    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.MINUTES), new FiniteDuration(5, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
         try {
           if (log.isErrorEnabled) {
+            var numReps = 0L
+            currentTotalAwaitingResponse.set(awaitingResponseVerbose.values().stream().count())
+            if (currentTotalAwaitingResponse.get() == previousTotalAwaitingRespone.get() && currentTotalAwaitingResponse.get()!=0) {
+              numReps = numberRepeats.incrementAndGet()
+              log.error(s"DEBUG: $numReps repeats.")
+            } else {
+              numberRepeats.set(0)
+            }
+            if (numReps > 2) {
+              log.error(s"DEBUG: $numReps > 2 repeats!!! Clearing out stuck agents and proceeding with schedule")
+              awaitingResponseVerbose.values().stream().forEach({ x =>
+                x.agent ! IllegalTriggerGoToError
+                currentTotalAwaitingResponse.set(0)
+                self ! CompletionNotice(x.triggerWithId.triggerId)
+              })
+            }
+            previousTotalAwaitingRespone.set(currentTotalAwaitingResponse.get())
             log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
           }
         } catch {
-          case e : Throwable =>
+          case e: Throwable =>
           //do nothing
         }
       }
@@ -200,3 +227,5 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
     }
   }
 }
+
+
