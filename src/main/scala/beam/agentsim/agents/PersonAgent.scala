@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{ActorRef, Kill, PoisonPill, Props}
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.vehicles.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -355,6 +356,7 @@ class PersonAgent(val beamServices: BeamServices,
           if(currentActivity.getType.equals("Home")){
             currentTourPersonalVehicle match {
               case Some(personalVeh) =>
+                beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id,personalVeh)
                 beamServices.vehicleRefs(personalVeh) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
                 currentTourPersonalVehicle = None
               case None =>

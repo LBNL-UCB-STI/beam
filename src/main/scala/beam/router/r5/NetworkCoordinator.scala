@@ -41,7 +41,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
   def init: Unit = {
     loadNetwork
     FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
-    overrideR5EdgeSearchRadius(2000)
   }
 
   def loadNetwork = {
@@ -52,6 +51,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     }
     val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
     val networkFile: File = networkFilePath.toFile
+    overrideR5EdgeSearchRadius(2000)
     if (exists(networkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
       transportNetwork = TransportNetwork.read(networkFile)

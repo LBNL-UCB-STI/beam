@@ -8,9 +8,10 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusReponse
+import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents._
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegEndTrigger
 import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
@@ -132,14 +133,19 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value)))
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
     val personalVehicleUsed = availablePersonalStreetVehicles.intersect(chosenTrip.vehiclesInTrip)
-    if(!personalVehicleUsed.isEmpty){
-      if(personalVehicleUsed.size>1){
+    if(personalVehicleUsed.nonEmpty){
+      if(personalVehicleUsed.size>1) {
         logWarn(s"Found multiple personal vehicle in use for chosenTrip: ${chosenTrip} but only expected one. Using only one for subequent planning.")
       }
       currentTourPersonalVehicle = Some(personalVehicleUsed(0))
+      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot personalVehicleUsed(0).==
     }
-    _currentRoute = chosenTrip
+    val householdRef: ActorRef = beamServices.householdRefs.get(_household).get
+    availablePersonalStreetVehicles.foreach{ vehId =>
+      householdRef ! ReleaseVehicleReservation(id, vehId)
+    }
     availablePersonalStreetVehicles = Vector()
+    _currentRoute = chosenTrip
     routingResponse = None
     rideHailingResult = None
     awaitingReservationConfirmation.clear()
@@ -182,11 +188,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
 
       currentTourPersonalVehicle match {
-        case Some(personalVeh) if availablePersonalStreetVehicles.contains(personalVeh) =>
-          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
         case Some(personalVeh) =>
-          logWarn(s"Person appears to be in a tour using vehicle ${personalVeh} but MobilityStatusResponse did not contain this vehilce, so considering all modes.")
-          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
+          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
         case None =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
       }

@@ -306,9 +306,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
-    val split = transportNetwork.streetLayer.findSplit(fromPosTransformed.getX,fromPosTransformed.getY,1000,StreetMode.WALK)
+    val fromPosTransformed =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin))
+    val toPosTransformed = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination))
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX

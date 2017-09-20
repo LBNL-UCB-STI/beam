@@ -1,12 +1,14 @@
 package beam.sim
 
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.sim.config.{ConfigModule, BeamLoggingSetup}
+import beam.sim.config.{BeamLoggingSetup, ConfigModule}
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
 import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
+import beam.utils.reflection.RefectionUtils
+import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -48,6 +50,8 @@ trait RunBeam {
     }))
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
+    RefectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+
     //set config filename before Guice start init procedure
     ConfigModule.ConfigFileName = configFileName
 

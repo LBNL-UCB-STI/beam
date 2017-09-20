@@ -117,24 +117,25 @@ object RouterApp extends App{
     streetRouter.route()
     // Gets lowest weight state for end coordinate split
     val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
-    val streetPath = new StreetPath(lastState, transportNetwork)
-    val totalDistance = 0
-    var stateIdx = 0
-    // TODO: this can be improved since end and start vertices are the same
-    // in all the edges.
-
-    for (state <- streetPath.getStates.asScala) {
-      val edgeIdx = state.backEdge
-      if (edgeIdx != -1) {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
-        LOG.info("{} - EdgeIndex [{}]", stateIdx, edgeIdx)
-        LOG.info("\t Lat/Long [{}]", edge.getGeometry)
-        LOG.info("\tweight [{}]", state.weight)
-        LOG.info("\tduration sec [{}:{}]", state.getDurationSeconds / 60, state.getDurationSeconds % 60)
-        LOG.info("\tdistance [{}]", state.distance / 1000)
-      }
-    }
-    totalDistance
+//    val streetPath = new StreetPath(lastState, transportNetwork)
+//    val totalDistance = 0
+//    var stateIdx = 0
+//    // TODO: this can be improved since end and start vertices are the same
+//    // in all the edges.
+//
+//    for (state <- streetPath.getStates.asScala) {
+//      val edgeIdx = state.backEdge
+//      if (edgeIdx != -1) {
+//        val edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx)
+//        LOG.info("{} - EdgeIndex [{}]", stateIdx, edgeIdx)
+//        LOG.info("\t Lat/Long [{}]", edge.getGeometry)
+//        LOG.info("\tweight [{}]", state.weight)
+//        LOG.info("\tduration sec [{}:{}]", state.getDurationSeconds / 60, state.getDurationSeconds % 60)
+//        LOG.info("\tdistance [{}]", state.distance / 1000)
+//      }
+//    }
+//    totalDistance
+    0L
   }
 
   def calcRoute2: ProfileResponse = {
