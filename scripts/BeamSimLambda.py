@@ -41,7 +41,7 @@ def check_branch(branch):
 def get_latest_build(branch):
     get_last_modified = lambda obj: int(obj['LastModified'].strftime('%s'))
     objs = s3.list_objects_v2(Bucket='beam-builds', Prefix=branch+'/')['Contents']
-    last_added = [obj['Key'] for obj in sorted(objs, key=get_last_modified)][0]
+    last_added = [obj['Key'] for obj in sorted(objs, key=get_last_modified, reverse=True)][0]
     return last_added[last_added.rfind('-')+1:-4]
 
 ec2 = boto3.client('ec2',region_name=os.environ['REGION'])
