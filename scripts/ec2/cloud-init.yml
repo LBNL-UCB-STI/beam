@@ -1,0 +1,15 @@
+#cloud-config
+runcmd:
+  - cd /home/ubuntu/beam/test/input
+  - sudo aws --region "$REGION" s3 cp s3://beam-inputs/$INPUTS.zip $INPUTS.zip
+  - sudo aws --region "$REGION" s3 cp s3://beam-inputs/dtd.zip dtd.zip
+  - sudo unzip $INPUTS.zip
+  - sudo unzip dtd.zip
+  - cd ../..
+  - sudo aws --region "$REGION" s3 cp s3://beam-builds/$BRANCH/beam-$BUILD_ID.jar beam.jar
+  - java -jar beam.jar --config test/input/$INPUTS/$CONFIG
+  - sleep 10s
+  - echo "---- BEAM Simulation completed. ----"
+  - for file in test/output/*; do sudo zip "${file%.*}_$UID.zip" "$file"; done
+  - sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
+  - sudo shutdown -h +$SHUTDOWN_WAIT
