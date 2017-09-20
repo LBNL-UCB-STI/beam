@@ -47,16 +47,13 @@ class TransitDriverAgent(val beamServices: BeamServices,
       goto(PersonAgent.Waiting)
   }
 
-  chainedWhen(Waiting) {
-    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
-      goto(Finished) replying completed(triggerId)
-  }
-
   chainedWhen(AnyState) {
     case Event(BecomeDriverSuccessAck, _) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self,passengerSchedule.schedule.firstKey))
       stay
+    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
+      goto(Finished) replying completed(triggerId)
   }
 
   when(Waiting) {
