@@ -21,7 +21,9 @@ runcmd:
   - sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''
+
 s3 = boto3.client('s3')
+ec2 = boto3.client('ec2',region_name=os.environ['REGION'])
 
 def check_resource(bucket, key):
     try:
@@ -43,8 +45,6 @@ def get_latest_build(branch):
     objs = s3.list_objects_v2(Bucket='beam-builds', Prefix=branch+'/')['Contents']
     last_added = [obj['Key'] for obj in sorted(objs, key=get_last_modified, reverse=True)][0]
     return last_added[last_added.rfind('-')+1:-4]
-
-ec2 = boto3.client('ec2',region_name=os.environ['REGION'])
 
 def deploy(script):
     res = ec2.run_instances(ImageId=os.environ['IMAGE_ID'],
@@ -91,7 +91,7 @@ def lambda_handler(event, context):
                 script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$BUILD_ID', build_id).replace('$INPUTS', input).replace('$CONFIG', cfg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
                 instance_id = deploy(script)
                 host = get_dns(instance_id)
-                txt = txt + 'Started build: {build} with config: {config} at host {dns}. Please locate outputs with prefix code [{prefix}], '.format(build=build_id, config=cfg, dns='123', prefix=uid)
+                txt = txt + 'Started build: {build} with config: {config} at host {dns}. Please locate outputs with prefix code [{prefix}], '.format(build=build_id, config=cfg, dns=host, prefix=uid)
         else:
             txt = 'Unable to find input with provided name: ' + input + '.'
     else:
