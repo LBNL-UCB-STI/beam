@@ -27,7 +27,7 @@ public class PathTraversalEvent extends Event {
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, RoutingModel.BeamLeg beamLeg) {
         super(time);
 
-        this.linkIds = StringUtils.join(beamLeg.travelPath().linkIds(), ",");
+        this.linkIds = beamLeg.travelPath().linkIds().mkString(",");
         this.vehicleId = vehicleId.toString();
         this.departureTime = (new Double(time)).toString();
         this.mode = beamLeg.mode().value();

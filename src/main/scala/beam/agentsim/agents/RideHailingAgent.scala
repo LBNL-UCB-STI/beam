@@ -2,6 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
@@ -24,6 +25,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
   */
@@ -88,7 +90,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = SpaceTime(info.data.location, tick.toLong))
+      val rideAvailable = ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
       val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
         RegisterRideAvailableWrapper(triggerId)
       )
@@ -97,13 +99,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case Event(RegisterRideAvailableWrapper(triggerId), info) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       stay()
-  }
-
-
-  chainedWhen(Moving) {
-    case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[RideHailingAgentData]) =>
-      beamServices.rideHailingManager ? RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = newLocation)
-      goto(Idle) using BeamAgentInfo(id, info.data.copy(location = newLocation.loc))
   }
 
   chainedWhen(AnyState) {

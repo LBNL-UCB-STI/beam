@@ -109,14 +109,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
         if(event instanceof PathTraversalEvent){
             PathTraversalEvent ptEvent = (PathTraversalEvent)event;
-            String mode = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_MODE);
+            String mode = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
 
             if(mode != null && mode.equalsIgnoreCase("car")) {
 
-                String links = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_LINK_IDS);
+                String links = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
 
-                String departureTime = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_DEPARTURE_TIME);
-                String vehicleId = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_VEHICLE_ID);
+                String departureTime = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME);
+                String vehicleId = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
                 double time = ptEvent.getTime();
                 String eventType = ptEvent.getEventType();
                 RoutingModel.BeamLeg beamLeg = ptEvent.getBeamLeg();

@@ -1,7 +1,7 @@
 package beam.router
 
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
+import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
@@ -16,7 +16,6 @@ import org.matsim.vehicles.Vehicle
 object RoutingModel {
 
   type LegCostEstimator = BeamLeg => Option[Double]
-
 
   case class BeamTrip(legs: Vector[BeamLeg],
                       accessMode: BeamMode) {
@@ -123,6 +122,8 @@ object RoutingModel {
                      duration: Long,
                      travelPath: BeamPath = EmptyBeamPath.path) {
     val endTime: Long = startTime + duration
+
+    override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
   }
 
   object BeamLeg {
@@ -140,7 +141,7 @@ object RoutingModel {
                              cost: BigDecimal,
                              unbecomeDriverOnCompletion: Boolean
                             ) {
-    val isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
   }
 
   object EmbodiedBeamLeg {
@@ -149,7 +150,7 @@ object RoutingModel {
     def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
   }
 
-  case class TransitStopsInfo(fromStopId: String, toStopId: String)
+  case class TransitStopsInfo(fromStopId: Int, toStopId: Int)
 
   /**
     *
@@ -164,6 +165,12 @@ object RoutingModel {
     def toTrajectory = {
       resolver.resolve(this)
     }
+
+    def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
+
+    def getStartPoint() = resolver.resolveStart(this)
+
+    def getEndPoint() = resolver.resolveEnd(this)
 
     def canEqual(other: Any): Boolean = other.isInstanceOf[BeamPath]
 
