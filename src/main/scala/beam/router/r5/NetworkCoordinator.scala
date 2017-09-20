@@ -8,13 +8,14 @@ import akka.actor.{Actor, ActorLogging, Props}
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, UpdateTravelTime}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator._
+import beam.router.r5.NetworkCoordinator.{copiedNetwork, _}
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
 import beam.utils.reflection.RefectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.Link
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
 /**
@@ -89,26 +90,25 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 
   def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
     copiedNetwork = deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
-    linkMap.keys.foreach(key => {
-      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
-      val linkId = edge.getOSMID
-      if (linkId > 0) {
-        val avgTime = getAverageTime(linkId, travelTimeCalculator)
-        val avgTimeShort = (avgTime * 100).asInstanceOf[Short]
-        edge.setSpeed(avgTimeShort)
-      }
-    })
+
+    beamServices.matsimServices.getScenario.getNetwork.getLinks.values().forEach { link =>
+      val linkIndex = link.getId.toString().toInt
+      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(linkIndex)
+      val avgTime = getAverageTime(link.getId, travelTimeCalculator)
+      edge.setSpeed((link.getLength/avgTime).asInstanceOf[Short])
   }
 
-  def getAverageTime(linkId: Long, travelTimeCalculator: TravelTimeCalculator) = {
+//    val edgeStore=copiedNetwork.streetLayer.edgeStore;
+  }
+
+  def getAverageTime(linkId: Id[Link], travelTimeCalculator: TravelTimeCalculator) = {
     val limit = 86400
     val step = 60
     val totalIterations = limit / step
-    val link: Id[org.matsim.api.core.v01.network.Link] = Id.createLinkId(linkId)
 
-    val totalTime = if (link != null) (0 until limit by step).map(i => travelTimeCalculator.getLinkTravelTime(link, i.toDouble)).sum else 0.0
+    val totalTime = if (linkId != null) (0 until limit by step).map(i => travelTimeCalculator.getLinkTravelTime(linkId, i.toDouble)).sum else 0.0
     val avgTime = (totalTime / totalIterations)
-    avgTime.toShort
+    avgTime
   }
 
 
@@ -121,16 +121,7 @@ object NetworkCoordinator {
 
   var transportNetwork: TransportNetwork = _
   var copiedNetwork: TransportNetwork = _
-  var linkMap: Map[Int, Long] = Map()
   var beamPathBuilder: BeamPathBuilder = _
-
-  def getOsmId(edgeIndex: Int): Long = {
-    linkMap.getOrElse(edgeIndex, {
-      val osmLinkId = transportNetwork.streetLayer.edgeStore.getCursor(edgeIndex).getOSMID
-      linkMap += edgeIndex -> osmLinkId
-      osmLinkId
-    })
-  }
 
   def props(beamServices: BeamServices) = Props(classOf[NetworkCoordinator], beamServices)
 }
