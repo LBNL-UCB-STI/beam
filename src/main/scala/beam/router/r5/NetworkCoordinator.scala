@@ -11,8 +11,10 @@ import beam.router.r5.NetworkCoordinator.{copiedNetwork, _}
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
 import beam.utils.reflection.RefectionUtils
+import com.conveyal.gtfs.model.Stop
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
+import com.conveyal.r5.util.ExpandingMMFBytez
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -57,10 +59,14 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
       transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+
+//      ExpandingMMFBytez.writeObjectToFile(new File(s"${networkDirPath}/stops.dat"), transportNetwork.transitLayer.stopForIndex)
       transportNetwork.write(networkFile)
+      //beamServices.beamConfig.matsim.modules.network.inputNetworkFile
+//      beamServices.reloadMATSimNetwork = true
       transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
+//      transportNetwork.transitLayer.stopForIndex = ExpandingMMFBytez.readObjectFromFile(new File(s"${networkDirPath}/stops.dat"))
     }
-    transportNetwork.rebuildTransientIndexes()
     beamPathBuilder = new BeamPathBuilder(transportNetwork = transportNetwork, beamServices)
     val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
     beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
@@ -120,6 +126,7 @@ object NetworkCoordinator {
 
   var transportNetwork: TransportNetwork = _
   var copiedNetwork: TransportNetwork = _
+  var linkMap: Map[Int, Long] = Map()
   var beamPathBuilder: BeamPathBuilder = _
 
   def props(beamServices: BeamServices) = Props(classOf[NetworkCoordinator], beamServices)

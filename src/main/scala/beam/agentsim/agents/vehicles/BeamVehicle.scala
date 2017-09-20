@@ -1,32 +1,33 @@
 package beam.agentsim.agents.vehicles
 
-import akka.actor.{ActorContext, ActorRef, Props}
-import akka.pattern.{pipe, _}
-import akka.util.Timeout
+import akka.actor.{ActorRef, Props}
+import akka.pattern._
 import beam.agentsim.Resource
-import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Initialized, Uninitialized}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, DriverAlreadyAssigned, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, UpdateTrajectory, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
+import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Uninitialized}
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.modalBehaviors.{CancelReservation, CancelReservationWithVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, RemovePassengerFromTrip}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle._
-import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.router.{BeamRouter, RoutingModel}
+import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
+import beam.agentsim.scheduler.TriggerWithId
 import beam.router.Modes.BeamMode
+import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
+import scala.collection.generic.FilterMonadic
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.reflect.ClassTag
 /**
   * @author dserdiuk
   */
@@ -102,7 +103,7 @@ object BeamVehicle {
     override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceCapacityExhausted
   }
 
-  case class UpdateTrajectory(trajectory: Trajectory)
+  case class AppendToTrajectory(beamPath: BeamPath)
   case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
   case class AssignedCarrier(carrierVehicleId: Id[Vehicle])
   case object ResetCarrier
@@ -116,7 +117,7 @@ object BeamVehicle {
   * VehicleManager.
   * Passenger and driver can EnterVehicle and LeaveVehicle
   */
-trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServices with Vehicle {
+trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with HasServices with Vehicle {
   override val id: Id[Vehicle]
   override def logPrefix(): String = s"BeamVehicle:$id "
 
@@ -134,25 +135,27 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
     */
   var carrier: Option[ActorRef] = None
   var driver: Option[ActorRef] = None
+  /**
+    * The actor managing this Vehicle
+    */
+  override var manager: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
-  var trajectory: Option[Trajectory] = None
+  var lastVisited:  SpaceTime = SpaceTime.zero
   var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
 
   def location(time: Double): Future[SpaceTime] = {
-    trajectory match {
-      case Some(traj) =>
-        carrier match {
-          case Some(carrierVehicle) =>
-            (carrierVehicle ? VehicleLocationRequest(time)).mapTo[SpaceTime].recover[SpaceTime] {
-              case error: Throwable =>
-                log.warning(s"Failed to get location of from carrier. ", error)
-              traj.location(time)
-            }(context.dispatcher)
-          case None =>
-            Future.successful(traj.location(time))
+    carrier match {
+      case Some(carrierVehicle) =>
+        (carrierVehicle ? VehicleLocationRequest(time)).mapTo[SpaceTime].recover[SpaceTime] {
+          case error: Throwable =>
+            log.warning(s"Failed to get location from carrier ${carrierVehicle.path.name}. ", error)
+            lastVisited
         }
       case None =>
-        Future.failed(new RuntimeException("No trajectory defined."))
+        if (time > lastVisited.time) {
+          logWarn(s"Requested time ${time} is in future. return lastVisited")
+        }
+        Future.successful(lastVisited)
     }
   }
 
@@ -176,12 +179,15 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
   }
 
   chainedWhen(Uninitialized){
+    case Event(AssignManager(managerRef),_)=>
+      manager = Some(managerRef)
+      stay()
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       log.debug(s" $id has been initialized, going to Idle state")
       goto(Idle) replying completed(triggerId)
   }
 
- private def sendPendingReservations(driverActor: ActorRef) = {
+  private def sendPendingReservations(driverActor: ActorRef) = {
     if (pendingReservations.nonEmpty) {
       log.info(s"Sending pending ${pendingReservations.size} reservation request(s) to driver ${driverActor.path.name}")
       pendingReservations.foreach { reservation =>
@@ -192,8 +198,9 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
   }
 
   chainedWhen(Idle) {
+
     case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
-      if(driver.isEmpty || driver.get == beamServices.agentRefs(newDriver.toString)) {
+      if (driver.isEmpty || driver.get == beamServices.agentRefs(newDriver.toString)) {
         if (driver.isEmpty) {
           driver = Some(beamServices.agentRefs(newDriver.toString))
           if (newDriver.isInstanceOf[Id[Person]]) beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newDriver.asInstanceOf[Id[Person]], id)))
@@ -204,7 +211,7 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
         // because that driver would not be ready to receive.
         val driverActor = driver.get
         sendPendingReservations(driverActor)
-        driverActor  ! BecomeDriverSuccess(newPassengerSchedule, id)
+        driverActor ! BecomeDriverSuccess(newPassengerSchedule, id)
       } else {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are drivers, but futur versions of BEAM may seek to be robust to this condition
         throw new RuntimeException(s"BeamAgent $newDriver attempted to become driver of vehicle $id but driver ${driver.get} already assigned.")
@@ -212,31 +219,37 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
         //        beamAgent ! DriverAlreadyAssigned(id, driver.get)
       }
       stay()
-    case Event(ModifyPassengerSchedule(newPassengerSchedule,requestId), info) =>
-      driver.get ! ModifyPassengerSchedule(newPassengerSchedule,requestId)
+    case Event(ModifyPassengerSchedule(newPassengerSchedule, requestId), info) =>
+      driver.get ! ModifyPassengerSchedule(newPassengerSchedule, requestId)
       stay()
     case Event(ModifyPassengerScheduleAck(requestId), info) =>
       driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
+    case Event(TellManagerResourceIsAvailable(when: SpaceTime), _) =>
+      notifyManagerResourceIsAvailable(when)
+      stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
-      if(driver.isEmpty) {
+      if (driver.isEmpty) {
         //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are no longer drivers, but futur versions of BEAM may seek to be robust to this condition
         throw new RuntimeException(s"BeamAgent $theDriver attempted to Unbecome driver of vehicle $id but no driver in currently assigned.")
-      }else{
+      } else {
         driver = None
-        if(theDriver.isInstanceOf[Id[Person]])beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, theDriver.asInstanceOf[Id[Person]],id)))
+        theDriver match {
+          case personId: Id[Person] => beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, personId, id)))
+          case _ =>
+        }
       }
       stay()
     case Event(EnterVehicle(tick, newPassengerVehicle), info) =>
       val fullCapacity = getType.getCapacity.getSeats + getType.getCapacity.getStandingRoom
-      if (passengers.size < fullCapacity){
+      if (passengers.size < fullCapacity) {
         passengers += newPassengerVehicle.vehicleId
         driver.get ! BoardingConfirmation(newPassengerVehicle.vehicleId)
-        beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach{ vehiclePassengerRef =>
+        beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach { vehiclePassengerRef =>
           vehiclePassengerRef ! AssignedCarrier(vehicleId)
         }
-        beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId,id)))
+        beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId, id)))
       } else {
         val leftSeats = fullCapacity - passengers.size
         val beamAgent = sender()
@@ -246,23 +259,19 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
     case Event(ExitVehicle(tick, passengerVehicleId), info) =>
       passengers -= passengerVehicleId.vehicleId
       driver.get ! AlightingConfirmation(passengerVehicleId.vehicleId)
-      beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach{ vehiclePassengerRef =>
+      beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach { vehiclePassengerRef =>
         vehiclePassengerRef ! ResetCarrier
       }
+
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId,id)))
+      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id)))
       stay()
-    case Event(UpdateTrajectory(newTrajectory), info) =>
-      trajectory match {
-        case Some(traj) =>
-          traj.append(traj)
-        case None =>
-          trajectory = Some(newTrajectory)
-      }
+    case Event(AppendToTrajectory(newSegments), info) =>
+      lastVisited = newSegments.getEndPoint()
       stay()
   }
 
-  chainedWhen(AnyState){
+  chainedWhen(AnyState) {
     case Event(VehicleLocationRequest(time), _) =>
       sender() ! VehicleLocationResponse(id, location(time))
       stay()
@@ -272,6 +281,20 @@ trait BeamVehicle extends Resource with  BeamAgent[BeamAgentData] with HasServic
     case Event(ResetCarrier, _) =>
       carrier = None
       stay()
+    case Event(a: RemovePassengerFromTrip, _) => {
+      driver.foreach { d =>
+        d ! a
+      }
+      stay()
+    }
+    case Event(req: CancelReservationWithVehicle,_) => {
+      pendingReservations = pendingReservations.filterNot(x=>x.passengerVehiclePersonId.equals(req.vehiclePersonId))
+      driver.foreach{ d=>
+        d ! RemovePassengerFromTrip(req.vehiclePersonId)
+      }
+      stay()
+    }
+
     case Event(request: ReservationRequest, _) =>
       driver match {
         case Some(driverActor) =>
@@ -315,16 +338,18 @@ case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
   def isEmpty = nestedVehicles.isEmpty
 
   def pushIfNew(vehicle: Id[Vehicle]) = {
-    if(!nestedVehicles.isEmpty && nestedVehicles.head == vehicle){
+    if (!nestedVehicles.isEmpty && nestedVehicles.head == vehicle) {
       VehicleStack(nestedVehicles)
-    }else{
+    } else {
       VehicleStack(vehicle +: nestedVehicles)
     }
   }
+
   def penultimateVehicle(): Id[Vehicle] = {
-    if(nestedVehicles.size < 2)throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")
+    if (nestedVehicles.size < 2) throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")
     nestedVehicles(1)
   }
+
   def outermostVehicle(): Id[Vehicle] = {
     nestedVehicles(0)
   }

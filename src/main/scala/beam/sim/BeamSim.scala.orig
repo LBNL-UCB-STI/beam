@@ -15,7 +15,14 @@ import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.events._
 import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
+<<<<<<< HEAD
+import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.agentsim.agents.choice.mode._
+import beam.agentsim.events.handling.{BeamEventsHandling, BeamEventsLogger}
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
+=======
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+>>>>>>> agentsim
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
@@ -121,7 +128,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     cleanupWriter()
     cleanupVehicle()
     cleanupHouseHolder()
+<<<<<<< HEAD
     agentSimToPhysSimPlanConverter.startPhysSim()
+=======
+    eventsManager.resetHandlers(event.getIteration)
+>>>>>>> agentsim
   }
 
   private def cleanupWriter() = {
