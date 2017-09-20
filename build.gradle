@@ -1,12 +1,19 @@
+import com.amazonaws.services.lambda.model.InvocationType;
+
+import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask;
+import jp.classmethod.aws.gradle.lambda.AWSLambdaMigrateFunctionTask;
+
 buildscript {
     repositories {
         jcenter()
         mavenLocal()
         mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
 }
 
@@ -200,6 +207,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 // test.dependsOn spec
+
 //////////////////////////////////////////////////////////////////////
 // BUNDLING FOR EXECUTION
 //
@@ -211,14 +219,53 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 jar {
     manifest {
-        attributes 'Main-Class': 'beam.EVSimTeleController'
+        attributes "Implementation-Title": project.name,
+                "Implementation-Version": version,
+                "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.sim.RunBeam'
     }
 }
 
 shadowJar {
     baseName = 'beam'
+    zip64 true
     classifier = null
     version = null
+}
+
+assemble.dependsOn shadowJar
+
+//////////////////////////////////////////////////////////////////////
+// Amazon WS task to run beam sim on Lambda
+//////////////////////////////////////////////////////////////////////
+
+apply plugin: "base"
+apply plugin: "jp.classmethod.aws.lambda"
+
+aws {
+    profileName = "gradle"
+    region = "us-east-2"
+}
+
+lambda {
+    region = "us-east-2"
+}
+
+def pload = """{
+  "branch": "$beamBranch",
+  "build": "$beamBuild",
+  "input": "$beamInput",
+  "shutdown_wait": "$shutdownWait"
+}"""
+
+task runAwsSim(type: AWSLambdaInvokeTask) {
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+    doLast {
+        println "Lambda function result: " + new String(invokeResult.payload.array(), "UTF-8")
+    }
 }
 
 //////////////////////////////////////////////////////////////////////

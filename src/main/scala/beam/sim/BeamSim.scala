@@ -16,6 +16,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
@@ -56,14 +57,12 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   var eventsManager: EventsManager = _
   var writer: BeamEventsLogger = _
   var currentIter = 0
+  var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(services)
 
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-//    eventsManager = services.matsimServices.getEvents
-
     eventsManager = services.matsimServices.getEvents
-
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
@@ -118,7 +117,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     cleanupWriter()
     cleanupVehicle()
     cleanupHouseHolder()
-    eventsManager.resetHandlers(event.getIteration)
+    agentSimToPhysSimPlanConverter.startPhysSim()
   }
 
   private def cleanupWriter() = {
