@@ -16,6 +16,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
@@ -61,11 +62,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-//    eventsManager = services.matsimServices.getEvents
-
-    eventsManager = services.matsimServices.getEvents
-
-    //    eventsManager = services.matsimServices.getEvents
     eventsManager = services.matsimServices.getEvents
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
