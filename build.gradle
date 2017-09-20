@@ -256,14 +256,17 @@ def pload = """{
   "branch": "$beamBranch",
   "build": "$beamBuild",
   "input": "$beamInput",
+  "configs": [ "${beamConfigs.split(',').join("\", \"")}" ],
   "shutdown_wait": "$shutdownWait"
 }"""
 
 task runAwsSim(type: AWSLambdaInvokeTask) {
-    functionName = "simulateBeam"
+    functionName = "testSim"
     invocationType = InvocationType.RequestResponse
     payload = pload
+
     doLast {
+        println pload
         println "Lambda function result: " + new String(invokeResult.payload.array(), "UTF-8")
     }
 }
