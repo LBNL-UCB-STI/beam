@@ -1,11 +1,9 @@
 package beam.sim
 
-import beam.Log4jController
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.sim.config.{ConfigModule, BeamLoggingSetup}
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.config.ConfigModule
-import beam.sim.modules.{AgentsimModule, BeamAgentModule}
 import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
@@ -59,16 +57,13 @@ trait RunBeam {
 
     //TODO this line can be safely deleted, just for exploring structure of config class
     //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
-
-    //Mute log
-    Log4jController.muteLog(ConfigModule.beamConfig.beam.levels.loggerLevels)
+    BeamLoggingSetup.configureLogs(ConfigModule.beamConfig)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 
     services.controler.run()
-
   }
 }
 

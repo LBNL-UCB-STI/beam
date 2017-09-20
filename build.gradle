@@ -1,7 +1,5 @@
-import com.amazonaws.services.lambda.model.InvocationType;
-
-import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask;
-import jp.classmethod.aws.gradle.lambda.AWSLambdaMigrateFunctionTask;
+import com.amazonaws.services.lambda.model.InvocationType
+import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 
 buildscript {
     repositories {
