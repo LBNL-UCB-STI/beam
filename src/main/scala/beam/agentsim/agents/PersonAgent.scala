@@ -467,13 +467,6 @@ class PersonAgent(val beamServices: BeamServices,
 
   case class ProcessedData(nextLeg: EmbodiedBeamLeg, restTrip: EmbodiedBeamTrip, nextStart: Double)
 
-  private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    //TODO: convert pathTraversalEvents to hashset
-//    if (beamServices.beamConfig.beam.events.pathTraversalEvents contains event.beamLeg.mode.value.toLowerCase()) {
-//      beamServices.agentSimEventsBus.publish(MatsimEvent(event))
-//    }
-  }
-
 }
 
 case class RemovePassengerFromTrip(passId: VehiclePersonId)
