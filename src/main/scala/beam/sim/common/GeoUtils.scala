@@ -2,6 +2,8 @@ package beam.sim.common
 
 import beam.sim.config.{BeamConfig, ConfigModule}
 import beam.sim.{BeamServices, BoundingBox, HasServices}
+import com.conveyal.r5.profile.StreetMode
+import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
@@ -65,6 +67,16 @@ trait GeoUtils extends HasServices  {
 //    if (posTransformed.getY < boundingBox.minY) boundingBox.minY = posTransformed.getY
 //    if (posTransformed.getX > boundingBox.maxX) boundingBox.maxX = posTransformed.getX
 //    if (posTransformed.getY > boundingBox.maxY) boundingBox.maxY = posTransformed.getY
+  }
+
+  def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
+    var radius = 100.0
+    var theSplit: Split = null
+    while(theSplit == null && radius < maxRadius) {
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, 1000, streetMode);
+      radius = radius * 10
+    }
+    new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
   }
 }
 

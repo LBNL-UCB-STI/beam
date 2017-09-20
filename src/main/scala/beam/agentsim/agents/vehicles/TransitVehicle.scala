@@ -2,8 +2,6 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.Props
 import beam.agentsim.agents.BeamAgent.BeamAgentData
-import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleObject, Dimension, Powertrain}
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TripSchedule
 import org.matsim.api.core.v01.Id
