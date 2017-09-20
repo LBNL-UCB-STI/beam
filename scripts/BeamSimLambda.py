@@ -89,7 +89,7 @@ def lambda_handler(event, context):
         if check_resource('beam-inputs', zip):
             instance_id = deploy(branch, build_id, input, shutdown_wait)
             host = get_dns(instance_id)
-            txt = 'Started instance: ' + instance_id + ' with DNS: ' + host + '. Please locate your output with suffix code [' + uid + '].'
+            txt = 'Started with build: ' + build_id + ' on host: ' + host + '. Please locate your output with suffix code [' + uid + '].'
         else:
             txt = 'Unable to find input with provided name: ' + input + '.'
     else:
