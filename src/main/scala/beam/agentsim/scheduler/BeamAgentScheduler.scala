@@ -67,7 +67,7 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long, java.lang.Double]()
   val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] = scala.collection.mutable.Map[Long, ScheduledTrigger]()
   private var idCount: Long = 0L
-  var startSender: ActorRef = self
+  var startSender: ActorRef = _
   private var nowInSeconds: Double = 0.0
   @volatile var isRunning = true
 
@@ -174,7 +174,7 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
   }
 
   val monitorThread = if (log.isErrorEnabled) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.MINUTES), new FiniteDuration(5, TimeUnit.SECONDS), new Runnable {
+    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.SECONDS), new FiniteDuration(5, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
         try {
           if (log.isErrorEnabled) {

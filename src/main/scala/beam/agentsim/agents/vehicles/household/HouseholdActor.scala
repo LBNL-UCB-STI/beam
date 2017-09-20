@@ -1,5 +1,6 @@
 package beam.agentsim.agents.vehicles.household
 
+import akka.actor.FSM.Event
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
 import beam.agentsim.ResourceManager.VehicleManager
@@ -96,6 +97,11 @@ class HouseholdActor(services: BeamServices,
   override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = ???
 
   override def receive: Receive = {
+
+    case TriggerWithId(InitializeTrigger(tick),triggerId) =>
+      initializeHouseholdVehicles()
+      sender() ! CompletionNotice(triggerId,Vector())
+
 
     case ResourceIsAvailableNotification(ref,resourceId,when) =>
       val vehicleId = Id.createVehicleId(resourceId)
