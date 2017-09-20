@@ -61,6 +61,8 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 
 //      ExpandingMMFBytez.writeObjectToFile(new File(s"${networkDirPath}/stops.dat"), transportNetwork.transitLayer.stopForIndex)
       transportNetwork.write(networkFile)
+      //beamServices.beamConfig.matsim.modules.network.inputNetworkFile
+//      beamServices.reloadMATSimNetwork = true
       transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
 //      transportNetwork.transitLayer.stopForIndex = ExpandingMMFBytez.readObjectFromFile(new File(s"${networkDirPath}/stops.dat"))
     }

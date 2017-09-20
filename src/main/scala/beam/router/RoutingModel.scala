@@ -122,6 +122,8 @@ object RoutingModel {
                      duration: Long,
                      travelPath: BeamPath = EmptyBeamPath.path) {
     val endTime: Long = startTime + duration
+
+    override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
   }
 
   object BeamLeg {
@@ -148,7 +150,7 @@ object RoutingModel {
     def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
   }
 
-  case class TransitStopsInfo(fromStopId: String, toStopId: String)
+  case class TransitStopsInfo(fromStopId: Int, toStopId: Int)
 
   /**
     *
@@ -163,6 +165,12 @@ object RoutingModel {
     def toTrajectory = {
       resolver.resolve(this)
     }
+
+    def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
+
+    def getStartPoint() = resolver.resolveStart(this)
+
+    def getEndPoint() = resolver.resolveEnd(this)
 
     def canEqual(other: Any): Boolean = other.isInstanceOf[BeamPath]
 

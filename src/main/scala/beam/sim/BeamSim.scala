@@ -6,20 +6,20 @@ import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import beam.agentsim.Resource.AssignManager
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.events._
+import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
-import beam.agentsim.agents.choice.mode._
-import beam.agentsim.events.handling.{BeamEventsHandling, BeamEventsLogger}
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.{DummyPhysSim, InitializePhysSim}
 import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
-import beam.utils.JsonUtils
+import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
@@ -64,6 +64,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     eventsManager = services.matsimServices.getEvents
 
+    //    eventsManager = services.matsimServices.getEvents
+    eventsManager = services.matsimServices.getEvents
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
@@ -82,7 +84,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     services.modeChoiceCalculator = ModeChoiceCalculator(services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, services)
 
-    val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], 3600 * 30.0, 300.0,services.beamConfig.beam.agentsim.debugEnabled==1))
+    val schedulerFuture = services.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], 3600 * 30.0, 300.0, services.beamConfig.beam.agentsim.debugEnabled == 1))
     services.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
     val routerFuture = services.registry ? Registry.Register("router", BeamRouter.props(services))
@@ -95,10 +97,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val physSimInitFuture = services.physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
 
+
     val rideHailingManagerFuture = services.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
-      fares = Map[Id[VehicleType], BigDecimal](), fleet = services.vehicles.toMap,
-      services))
+      Map[Id[VehicleType], BigDecimal](), services.vehicles.toMap, services, Map.empty))
     services.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
+
 
   }
 
@@ -121,8 +124,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def cleanupWriter() = {
-//    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"),
-//      services.matsimServices.getControlerIO.getOutputFilename("trips.json"))
+    //    JsonUtils.processEventsFileVizData(services.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"),
+    //      services.matsimServices.getControlerIO.getOutputFilename("trips.json"))
   }
 
   private def cleanupVehicle(): Unit = {
@@ -163,6 +166,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     services.persons ++= scala.collection.JavaConverters.mapAsScalaMap(services.matsimServices.getScenario.getPopulation.getPersons)
     services.vehicles ++= services.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
     services.households ++= services.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
+    logger.info(s"Loaded ${services.persons.size} people in ${services.households.size} households with ${services.vehicles.size} vehicles")
     var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
     services.households.foreach {
       case (householdId, matSimHousehold) =>
@@ -177,7 +181,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val matsimHumanBodyVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle", classOf[VehicleType]))
     matsimHumanBodyVehicleType.setDescription("Human")
 
-    for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)) {
+    for ((personId, matsimPerson) <- services.persons.take(services.beamConfig.beam.agentsim.numAgents)){ // if personId.toString.startsWith("9607-") ){
       val bodyVehicleIdFromPerson = HumanBodyVehicle.createId(personId)
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, matsimHumanBodyVehicleType)
       val bodyVehicleRef = actorSystem.actorOf(HumanBodyVehicle.props(services, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()), BeamVehicle.buildActorName(matsimBodyVehicle))
@@ -192,32 +196,40 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     }
 
     //TODO the following should be based on config params
-    val rideHailingFraction = 0.1
+    //    val rideHailingFraction = 0.1
+    val rideHailingFraction = 0.5
     val initialLocationJitter = 500 // meters
 
 
     val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
     rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
+    var rideHailingVehicles: Map[Id[Vehicle], ActorRef] = Map[Id[Vehicle], ActorRef]()
+
     for ((k, v) <- services.persons) {
-      if (Random.nextDouble() < rideHailingFraction) {
-        val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-        val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (random.nextDouble() - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (random.nextDouble() - 0.5))
-        //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
-        val rideHailingName = s"rideHailingAgent-${k}_$iter"
-        val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
-        val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
-        val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
-        val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
-        val rideHailingAgent = RideHailingAgent.props(services, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
-        val ref: ActorRef = actorSystem.actorOf(rideHailingAgent, rideHailingName)
-        // populate maps and initialize agent via scheduler
-        services.vehicles += (rideHailVehicleId -> rideHailVehicle)
-        services.vehicleRefs += vehicleIdAndRef
-        services.agentRefs.put(rideHailingName, ref)
-        services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
-      }
+      val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+      //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
+      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
+      val rideHailingName = s"rideHailingAgent-${k}_$iter"
+      val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
+      val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
+      val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
+      val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
+      val rideHailingAgent = RideHailingAgent.props(services, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
+      val rideHailingAgentRef: ActorRef = actorSystem.actorOf(rideHailingAgent, rideHailingName)
+
+      // populate maps and initialize agent via scheduler
+      services.vehicles += (rideHailVehicleId -> rideHailVehicle)
+      services.vehicleRefs += vehicleIdAndRef
+      services.agentRefs.put(rideHailingName, rideHailingAgentRef)
+      vehicleIdAndRef._2 ! AssignManager(services.rideHailingManager)
+      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), vehicleIdAndRef._2)
+      services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
+
+      rideHailingVehicles += (rideHailVehicleId -> vehicleIdAndRef._2)
     }
+
+    logger.info(s"Initialized ${(services.persons.size*rideHailingFraction).toInt} ride hailing agents")
 
     initHouseholds(iterId)
 
@@ -230,7 +242,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     val householdAttrs = services.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-    val actors = services.households.foreach {
+    services.households.foreach {
       case (householdId, matSimHousehold) =>
         //TODO a good example where projection should accompany the data
         val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homeCoordX").asInstanceOf[Double],
@@ -250,6 +262,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         }.toMap
         val props = HouseholdActor.props(services, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
+        houseHoldVehicles.values.foreach{
+          vehicle =>
+            vehicle ! AssignManager(householdActor)
+            services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), vehicle)
+        }
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), householdActor)
         services.householdRefs.put(householdId, householdActor)
     }
@@ -271,7 +288,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       CarVehicle.props(services, vehicleId, matSimVehicle, powerTrain)
     }
     val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(matSimVehicle))
-    services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), beamVehicleRef)
+
     (vehicleId, beamVehicleRef)
 
   }

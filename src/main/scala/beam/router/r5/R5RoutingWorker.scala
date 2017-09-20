@@ -14,7 +14,7 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
-import beam.router.r5.NetworkCoordinator._
+import beam.router.r5.NetworkCoordinator.{beamPathBuilder, _}
 import beam.router.r5.R5RoutingWorker.{ProfileRequestToVehicles, TripFareTuple}
 import beam.router.{Modes, RoutingWorker, TrajectoryByEdgeIdsResolver}
 import beam.sim.BeamServices
@@ -41,6 +41,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
+  var hasWarnedAboutLegPair = Set[Tuple2[Int,Int]]()
 
   override def init: Unit = {
   }
@@ -84,7 +85,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
         val passengerSchedule = PassengerSchedule()
 
         if (numStops > 1) {
-          var stopStopDepartTuple: Tuple3[String, String, Long] = ("", "", 0L)
+          var stopStopDepartTuple = (-1, -1, 0L)
           var previousBeamLeg: Option[BeamLeg] = None
           val travelStops = transitTrip.departures.zipWithIndex.sliding(2)
           travelStops.foreach { case Array((departureFrom, from), (departureTo, to)) =>
@@ -93,15 +94,20 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
             //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
             val fromStopIdx = tripPattern.stops(from)
             val toStopIdx = tripPattern.stops(to)
-            val fromStopId = tripPattern.stops(from).toString
-            val toStopId = tripPattern.stops(to).toString
+            val fromStopId = tripPattern.stops(from)
+            val toStopId = tripPattern.stops(to)
             val stopsInfo = TransitStopsInfo(fromStopId, toStopId)
             val transitPath = if (isOnStreetTransit(mode)) {
-              transitCache.getOrElseUpdate((fromStopIdx, toStopIdx),
-                beamPathBuilder.routeTransitPathThroughStreets(departureFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration))
+              transitCache.get((fromStopIdx,toStopIdx)).fold{
+                val bp = beamPathBuilder.routeTransitPathThroughStreets(departureFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
+                transitCache += ((fromStopIdx,toStopIdx)->bp)
+              bp}
+              {x =>
+                beamPathBuilder.createFromExistingWithUpdatedTimes(x,departureFrom,duration)
+              }
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-              BeamPath(edgeIds, Option(stopsInfo), new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureFrom.toLong, duration))
+              BeamPath(edgeIds, Option(stopsInfo), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureFrom.toLong, duration))
             }
             val theLeg = BeamLeg(departureFrom.toLong, mode, duration, transitPath)
             passengerSchedule.addLegs(Seq(theLeg))
@@ -115,13 +121,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
               case Some(stops) =>
                 stops
               case None =>
-                TransitStopsInfo("-1", "-1")
+                TransitStopsInfo(-1, -1)
             }
             stopStopDepartTuple = (previousTransitStops.fromStopId, previousTransitStops.toStopId, previousBeamLeg.get.startTime)
             //            if(stopStopDepartTuple._1.eq("0") && stopStopDepartTuple._2.eq("23")){
-            if (stopStopDepartTuple._1.equals("0") || stopStopDepartTuple._2.equals("0")) {
-              val i = 0
-            }
+//            if (stopStopDepartTuple._1.equals("0") || stopStopDepartTuple._2.equals("0")) {
+//              val i = 0
+//            }
           }
           beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(previousBeamLeg.get, None))
         } else {
@@ -130,10 +136,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
           val fromStopIdx = tripPattern.stops(0)
           //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
           //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
-          val fromStopId = fromStopIdx.toString
           val duration = 1L
           val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx)
-          val stopsInfo = TransitStopsInfo(fromStopId, fromStopId)
+          val stopsInfo = TransitStopsInfo(fromStopIdx, fromStopIdx)
           val transitPath = BeamPath(edgeIds, Option(stopsInfo),
             new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration))
           val theLeg = BeamLeg(departureStart.toLong, mode, duration, transitPath)
@@ -198,26 +203,34 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     } else {
       buildRequestsForNonPerson(routingRequestTripInfo)
     }
-    val originalResponse = buildResponse(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile), isRouteForPerson)
-    val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if (isRouteForPerson) Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) else Map()
-
-    var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
-    originalResponse.trips.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
-      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
+    val profileResponse = try {
+      Some(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
+    }catch{
+      case e: IllegalStateException =>
+        None
     }
+    profileResponse match {
+      case Some(response) =>
+        val originalResponse = buildResponse(response, isRouteForPerson)
+        val walkModeToVehicle: Map[BeamMode, StreetVehicle] = if (isRouteForPerson) Map(WALK -> profileRequestToVehicles.originalProfileModeToVehicle(WALK).head) else Map()
 
-    profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach { mode =>
-      val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
-      originalResponse.trips.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
-        streetVehicles.foreach { veh: StreetVehicle =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
+        var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
+        originalResponse.trips.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
+          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
         }
-      }
+
+        profileRequestToVehicles.originalProfileModeToVehicle.keys.foreach { mode =>
+          val streetVehicles = profileRequestToVehicles.originalProfileModeToVehicle(mode)
+          originalResponse.trips.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
+            streetVehicles.foreach { veh: StreetVehicle =>
+              embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
+            }
+          }
+        }
+        RoutingResponse(requestId, embodiedTrips)
+      case None =>
+        RoutingResponse(requestId, Vector())
     }
-
-    //TODO: process the walkOnly and vehicleCentered profiles and their responses here...
-
-    RoutingResponse(requestId, embodiedTrips)
   }
 
   protected def buildRequestsForNonPerson(routingRequestTripInfo: RoutingRequestTripInfo): ProfileRequestToVehicles = {
@@ -492,13 +505,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     val beamVehicleId = Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))
     val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
     val allStopInds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
-    val stopsInTrip = tripPattern.stops.map(_.toString).toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId) + 1)
+    val stopsInTrip = tripPattern.stops.toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId) + 1)
 
-    var workingDepature = departureTime
     if (stopsInTrip.size == 1) {
       log.debug("Access and egress point the same on trip. No transit needed.")
       legs
     } else {
+      var workingDepature = departureTime
       stopsInTrip.sliding(2).foreach { stopPair =>
         val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDepature))
         legPair match {
@@ -508,7 +521,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
               case Some(theNextLeg) =>
                 workingDepature = theNextLeg.startTime
               case None =>
-                log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
+                if(!hasWarnedAboutLegPair.contains(Tuple2(stopPair(0),stopPair(1)))){
+                  log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
+                  hasWarnedAboutLegPair = hasWarnedAboutLegPair + Tuple2(stopPair(0),stopPair(1))
+                }
             }
           case None =>
         }
