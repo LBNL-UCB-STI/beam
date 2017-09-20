@@ -113,17 +113,12 @@ class HouseholdActor(services: BeamServices,
       // Query available vehicles
       val availableStreetVehicles = lookupAvailableStreetVehicles(personId)
 
-      if (availableStreetVehicles.isEmpty)
-      // Send back response of empty [[Vector]]
-        sender() ! MobilityStatusReponse(availableStreetVehicles)
-      else {
-        // Assign to requesting individual
-        availableStreetVehicles.foreach{x=>
-          _availableVehicles.remove(personId)
-          _checkedOutVehicles.put(x.id,personId)
-        }
-        sender() ! MobilityStatusReponse(availableStreetVehicles)
+      // Assign to requesting individual
+      availableStreetVehicles.foreach{x=>
+        _availableVehicles.remove(personId)
+        _checkedOutVehicles.put(x.id,personId)
       }
+      sender() ! MobilityStatusReponse(availableStreetVehicles)
 
     case msg@_ =>
       log.warning(s"Unrecognized message $msg")
