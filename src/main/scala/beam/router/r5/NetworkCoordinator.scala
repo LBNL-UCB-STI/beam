@@ -10,7 +10,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator.{copiedNetwork, _}
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
-import beam.utils.reflection.RefectionUtils
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -137,7 +137,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 
 
   private def overrideR5EdgeSearchRadius(newRadius: Double): Unit =
-    RefectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", newRadius)
+    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", newRadius)
 }
 
 object NetworkCoordinator {

@@ -7,7 +7,7 @@ import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
 import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
-import beam.utils.reflection.RefectionUtils
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
@@ -53,7 +53,7 @@ trait RunBeam {
     }))
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
-    RefectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
     //set config filename before Guice start init procedure
     ConfigModule.ConfigFileName = configFileName

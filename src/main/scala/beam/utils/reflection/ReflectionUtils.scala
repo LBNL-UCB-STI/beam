@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
   * Created by dserdiuk on 5/19/17.
   */
 
-trait RefectionUtils {
+trait ReflectionUtils {
 
   /**
     *
@@ -45,7 +45,7 @@ trait RefectionUtils {
   }
 }
 
-object RefectionUtils {
+object ReflectionUtils {
 
   def setFinalField(clazz: Class[_], fieldName: String, value: Any) = {
     val field: Field = clazz.getField(fieldName)

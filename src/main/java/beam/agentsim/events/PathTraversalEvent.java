@@ -29,7 +29,6 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
     public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
 
-
     private final VehicleType vehicleType;
     private final String linkIds;
     private final String vehicleId;
