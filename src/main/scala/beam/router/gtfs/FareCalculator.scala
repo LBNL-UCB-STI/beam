@@ -6,7 +6,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util.zip.ZipFile
 
-import beam.router.r5.NetworkCoordinator.prunedTransportNetwork
+import beam.router.r5.NetworkCoordinator.transportNetwork
 import com.conveyal.gtfs.GTFSFeed
 import com.conveyal.r5.api.util.{SegmentPattern, Stop, TransitJourneyID, TransitSegment}
 
@@ -283,10 +283,10 @@ object FareCalculator {
 
 
   private def getRoute(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
-    prunedTransportNetwork.transitLayer.routes.get(getPattern(transitSegment, transitJourneyID).routeIndex)
+    transportNetwork.transitLayer.routes.get(getPattern(transitSegment, transitJourneyID).routeIndex)
 
   private def getRoute(segmentPattern: SegmentPattern) =
-    prunedTransportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
+    transportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
 
   private def getPattern(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
     transitSegment.segmentPatterns.get(transitJourneyID.pattern)
