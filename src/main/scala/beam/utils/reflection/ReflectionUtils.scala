@@ -40,7 +40,7 @@ trait ReflectionUtils {
   }
 
   def isExtends[T](clazz: Class[_], subType: Class[T]): Boolean = {
-    val allSuperTypes = ReflectionUtils.getAllSuperTypes(clazz)
+    val allSuperTypes = org.reflections.ReflectionUtils.getAllSuperTypes(clazz)
     allSuperTypes.contains(subType)
   }
 }
