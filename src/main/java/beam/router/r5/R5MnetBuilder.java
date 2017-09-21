@@ -51,11 +51,12 @@ public class R5MnetBuilder {
 	/**
 	 *
 	 * @param r5NetPath Path to R5 network.dat file.
+	 * @param osmDBPath Path to mapdb file with OSM data
 	 * @param modeFlags EnumSet defining the modes to be included in the network. See
 	 *                     com.conveyal.r5.streets.EdgeStore.EdgeFlag for EdgeFlag definitions.
 	 */
-	public R5MnetBuilder(String r5NetPath, String osmPath, EnumSet<EdgeStore.EdgeFlag> modeFlags){
-		this.osmFile = osmPath;
+	public R5MnetBuilder(String r5NetPath, String osmDBPath, EnumSet<EdgeStore.EdgeFlag> modeFlags){
+		this.osmFile = osmDBPath;
 		File netFile = new File(r5NetPath);
 		log.info("Found R5 Transport Network file, loading....");
 		try {

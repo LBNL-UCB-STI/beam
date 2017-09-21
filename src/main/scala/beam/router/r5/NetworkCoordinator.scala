@@ -70,7 +70,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       log.debug(s"Create the cleaned MATSim network from unpuned R5 network")
       val osmFilePath = beamServices.beamConfig.beam.routing.r5.osmFile
       // TODO - implement option to use EdgeFlags (AAC 17/09/19)
-      rmNetBuilder = new R5MnetBuilder(unprunedNetworkFile.toString, osmFilePath)
+      rmNetBuilder = new R5MnetBuilder(unprunedNetworkFile.toString, beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
       rmNetBuilder.buildMNet()
       rmNetBuilder.cleanMnet()
       log.debug(s"Pruned MATSim network created and written")
