@@ -4,7 +4,6 @@ import akka.actor.FSM.Event
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
 import beam.agentsim.ResourceManager.VehicleManager
-import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{AppendToTrajectory, StreetVehicle}
 import beam.agentsim.agents.vehicles.household.HouseholdActor._
 import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory}
@@ -96,13 +95,11 @@ class HouseholdActor(services: BeamServices,
     */
   var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
 
+  initializeHouseholdVehicles()
+
   override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = ???
 
   override def receive: Receive = {
-
-    case TriggerWithId(InitializeTrigger(tick),triggerId) =>
-      initializeHouseholdVehicles()
-      sender() ! CompletionNotice(triggerId,Vector())
 
     case NotifyNewVehicleLocation(vehId,whenWhere) =>
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))

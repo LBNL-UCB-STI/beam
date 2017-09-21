@@ -267,7 +267,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
             vehicle ! AssignManager(householdActor)
             beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), vehicle)
         }
-        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), householdActor)
         beamServices.householdRefs.put(householdId, householdActor)
     }
   }
