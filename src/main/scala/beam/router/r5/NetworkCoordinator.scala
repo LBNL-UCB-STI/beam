@@ -60,7 +60,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       log.debug(s"Initializing router by creating unpruned network from: ${networkDirPath.toAbsolutePath}")
       unprunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
       unprunedTransportNetwork.write(unprunedNetworkFile)
-
       ////
       // Run R5MnetBuilder to create the pruned R5 network and matching MATSim network
       ////
@@ -78,8 +77,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 
       // Now network has been pruned
       transportNetwork.write(prunedNetworkFile)
-      //beamServices.beamConfig.matsim.modules.network.inputNetworkFile
-//      beamServices.reloadMATSimNetwork = true
       transportNetwork = TransportNetwork.read(prunedNetworkFile) // Needed because R5 closes DB on write
     }
     //
@@ -121,9 +118,9 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
         edge.setSpeed(avgTimeShort)
       }
     })
-  }
+    }
 
-//    val edgeStore=copiedNetwork.streetLayer.edgeStore;
+    //    val edgeStore=copiedNetwork.streetLayer.edgeStore;
 
   def getAverageTime(linkId: Id[Link], travelTimeCalculator: TravelTimeCalculator) = {
     val limit = 86400

@@ -41,7 +41,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  var hasWarnedAboutLegPair = Set[Tuple2[Int,Int]]()
+  var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
 
   override def init: Unit = {
   }
@@ -74,7 +74,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     log.info(s" ${transportNetwork.transitLayer.tripPatterns.size()} trips founded, Start Transit initialization of [$patternsStartIndex, $patternsEndIndex) slice")
     val transitTrips = transportNetwork.transitLayer.tripPatterns.subList(patternsStartIndex, patternsEndIndex).asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
-      //      log.debug(tripPattern.toString)
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitRouteTrips = tripPattern.tripSchedules.asScala
@@ -98,12 +97,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
             val toStopId = tripPattern.stops(to)
             val stopsInfo = TransitStopsInfo(fromStopId, toStopId)
             val transitPath = if (isOnStreetTransit(mode)) {
-              transitCache.get((fromStopIdx,toStopIdx)).fold{
+              transitCache.get((fromStopIdx, toStopIdx)).fold {
                 val bp = beamPathBuilder.routeTransitPathThroughStreets(departureFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
-                transitCache += ((fromStopIdx,toStopIdx)->bp)
-              bp}
-              {x =>
-                beamPathBuilder.createFromExistingWithUpdatedTimes(x,departureFrom,duration)
+                transitCache += ((fromStopIdx, toStopIdx) -> bp)
+                bp
+              } { x =>
+                beamPathBuilder.createFromExistingWithUpdatedTimes(x, departureFrom, duration)
               }
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
@@ -124,10 +123,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
                 TransitStopsInfo(-1, -1)
             }
             stopStopDepartTuple = (previousTransitStops.fromStopId, previousTransitStops.toStopId, previousBeamLeg.get.startTime)
-            //            if(stopStopDepartTuple._1.eq("0") && stopStopDepartTuple._2.eq("23")){
-//            if (stopStopDepartTuple._1.equals("0") || stopStopDepartTuple._2.equals("0")) {
-//              val i = 0
-//            }
           }
           beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(previousBeamLeg.get, None))
         } else {
@@ -198,7 +193,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     }
     val profileResponse = try {
       Some(pointToPointQuery.getPlan(profileRequestToVehicles.originalProfile))
-    }catch{
+    } catch {
       case e: IllegalStateException =>
         None
     }
@@ -244,29 +239,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
       )
     )
 
-    val profileRequest = new ProfileRequest()
-    //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
-    profileRequest.fromLon = fromPosTransformed.getX
-    profileRequest.fromLat = fromPosTransformed.getY
-    profileRequest.toLon = toPosTransformed.getX
-    profileRequest.toLat = toPosTransformed.getY
-    //    profileRequest.maxWalkTime = 2*60
+    val profileRequest = createProfileRequest(routingRequestTripInfo)
     profileRequest.maxCarTime = 3 * 60
-    //    profileRequest.maxBikeTime = 3*60
     profileRequest.maxTripDurationMinutes = 3 * 60
-    profileRequest.wheelchair = false
-    profileRequest.bikeTrafficStress = 4
-    val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
-      case time: WindowTime => time
-    }
-    profileRequest.fromTime = time.fromTime
-    profileRequest.toTime = time.toTime
-    profileRequest.date = beamServices.dates.localBaseDate
-    //      ZonedDateTime.parse(beamServices.beamConfig.beam.routing.baseDate).toLocalDate
+
     profileRequest.directModes = util.EnumSet.copyOf(uniqueLegModes.asJavaCollection)
     // We constrain these to be non-transit trips since they are by NonPersons who we assume don't board transit
     profileRequest.accessModes = profileRequest.directModes
@@ -303,28 +279,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     if (!uniqueBeamModes.contains(WALK))
       log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
 
-    val profileRequest = new ProfileRequest()
-    //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin))
-    val toPosTransformed = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination))
-    profileRequest.fromLon = fromPosTransformed.getX
-    profileRequest.fromLat = fromPosTransformed.getY
-    profileRequest.toLon = toPosTransformed.getX
-    profileRequest.toLat = toPosTransformed.getY
+    val profileRequest = createProfileRequest(routingRequestTripInfo, true)
+
     profileRequest.maxWalkTime = 60
     profileRequest.maxCarTime = 3 * 60
     profileRequest.maxBikeTime = 3 * 60
     profileRequest.maxTripDurationMinutes = 3 * 60
-    profileRequest.wheelchair = false
-    profileRequest.bikeTrafficStress = 4
-    val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
-      case time: WindowTime => time
-    }
-    profileRequest.fromTime = time.fromTime
-    profileRequest.toTime = time.toTime
-    profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = util.EnumSet.copyOf(uniqueLegModes.asJavaCollection)
     val isTransit = routingRequestTripInfo.transitModes.nonEmpty
     if (isTransit) {
@@ -359,21 +319,20 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     ProfileRequestToVehicles(profileRequest, originalProfileModeToVehicle, walkOnlyProfiles, vehicleAsOriginProfiles)
   }
 
-
-  private def createProfileRequest(routingRequestTripInfo: RoutingRequestTripInfo) = {
+  private def createProfileRequest(routingRequestTripInfo: RoutingRequestTripInfo, isPerson: Boolean = false) = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
-    val toLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
+    var fromLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
+    var toLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
+    if(isPerson) {
+      fromLocation =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin))
+      toLocation = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination))
+    }
     profileRequest.fromLon = fromLocation.getX
     profileRequest.fromLat = fromLocation.getY
     profileRequest.toLon = toLocation.getX
     profileRequest.toLat = toLocation.getY
-    // Max times for walk, bike or car may not required, as R5 already has reasonable defaults, see ProfileRequest
-    //    profileRequest.maxWalkTime = 3*60
-    //    profileRequest.maxCarTime = 6*60
-    //    profileRequest.maxBikeTime = 3*60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
@@ -475,48 +434,29 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     TripFareTuple(trips, tripFares)
   }
 
-  /*
-  private def buildStreetPath(segment: StreetSegment): BeamStreetPath = {
-    var activeLinkIds = Vector[String]()
-    var spaceTime = Vector[SpaceTime]()
-    for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
-      activeLinkIds = activeLinkIds :+ edge.edgeId.toString
-      //      if(graphPathOutputsNeeded) {
-      //        activeCoords = activeCoords :+ GeoUtils.toCoord(edge.geometry)
-      //      }
-      //TODO: time need to be extrected and provided as last argument of SpaceTime
-      spaceTime = spaceTime :+ SpaceTime(edge.geometry.getCoordinate.x, edge.geometry.getCoordinate.y, -1)
-    }
-
-    BeamStreetPath(activeLinkIds, trajectory = Some(spaceTime))
-  }
-  */
-
   private def buildPath(departureTime: Long, mode: BeamMode, totalDuration: Long, transitSegment: TransitSegment, transitJourneyID: TransitJourneyID): Vector[BeamLeg] = {
     var legs: Vector[BeamLeg] = Vector()
-    val segmentPattern: SegmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
-    val beamVehicleId = Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))
-    val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
-    val allStopInds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
-    val stopsInTrip = tripPattern.stops.toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId) + 1)
+    val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(transitJourneyID.pattern).patternIdx)
+    val allStopIds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
+    val stopsInTrip = tripPattern.stops.toVector.slice(allStopIds.indexOf(transitSegment.from.stopId), allStopIds.indexOf(transitSegment.to.stopId) + 1)
 
     if (stopsInTrip.size == 1) {
       log.debug("Access and egress point the same on trip. No transit needed.")
       legs
     } else {
-      var workingDepature = departureTime
+      var workingDeparture = departureTime
       stopsInTrip.sliding(2).foreach { stopPair =>
-        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDepature))
+        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDeparture))
         legPair match {
           case Some(lp) =>
             legs = legs :+ lp.leg
             lp.nextLeg match {
               case Some(theNextLeg) =>
-                workingDepature = theNextLeg.startTime
+                workingDeparture = theNextLeg.startTime
               case None =>
-                if(!hasWarnedAboutLegPair.contains(Tuple2(stopPair(0),stopPair(1)))){
-                  log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
-                  hasWarnedAboutLegPair = hasWarnedAboutLegPair + Tuple2(stopPair(0),stopPair(1))
+                if (!hasWarnedAboutLegPair.contains(Tuple2(stopPair(0), stopPair(1)))) {
+                  log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDeparture} not found in beamServices.transitLegsByStopAndDeparture")
+                  hasWarnedAboutLegPair = hasWarnedAboutLegPair + Tuple2(stopPair(0), stopPair(1))
                 }
             }
           case None =>
