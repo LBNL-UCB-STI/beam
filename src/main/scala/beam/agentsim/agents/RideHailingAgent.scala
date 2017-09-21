@@ -135,30 +135,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
       goto(Error)
   }
 
-
-  //// END BOILERPLATE ////
-  /*
-   * Helper methods
-  def logInfo(msg: String): Unit = {
-    //    log.info(s"PersonAgent $id: $msg")
-  }
-
-  def logWarn(msg: String): Unit = {
-    log.warning(s"PersonAgent $id: $msg")
-  }
-
-  def logError(msg: String): Unit = {
-    log.error(s"PersonAgent $id: $msg")
-  }
-
-  private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    if(beamConfig.beam.events.pathTraversalEvents contains event.mode){
-      agentSimEventsBus.publish(MatsimEvent(event))
-
-    }
-  }
-   */
-
 }
 
 

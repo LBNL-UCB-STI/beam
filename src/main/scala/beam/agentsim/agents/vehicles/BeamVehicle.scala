@@ -203,7 +203,10 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       if (driver.isEmpty || driver.get == beamServices.agentRefs(newDriver.toString)) {
         if (driver.isEmpty) {
           driver = Some(beamServices.agentRefs(newDriver.toString))
-          if (newDriver.isInstanceOf[Id[Person]]) beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newDriver.asInstanceOf[Id[Person]], id)))
+          newDriver match {
+            case personId: Id[Person] => beamServices.agentSimEventsBus.publish(new PersonEntersVehicleEvent(tick, personId, id))
+            case _ =>
+          }
         }
         // Important Note: the following works (asynchronously processing pending res's and then notifying driver of success)
         // only because we throw an exception when BecomeDriver fails. In other words, if the requesting
@@ -226,8 +229,8 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
-    case Event(TellManagerResourceIsAvailable(when: SpaceTime), _) =>
-      notifyManagerResourceIsAvailable(when)
+    case Event(TellManagerResourceIsAvailable(whenWhere:SpaceTime),_)=>
+      notifyManagerResourceIsAvailable(whenWhere)
       stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if (driver.isEmpty) {

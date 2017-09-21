@@ -83,8 +83,8 @@ class RideHailingManager(info: RideHailingManagerData,
 
   override val resources: Map[Id[Vehicle], ActorRef] = managedVehicles
 
-  val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.rideHailing.defaultCostPerMile)
-  val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.rideHailing.defaultCostPerMinute)
+  val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
+  val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 1000
 
   // improve search to take into account time rideHailingAgentSpatialIndex is available
@@ -286,5 +286,6 @@ class RideHailingManager(info: RideHailingManagerData,
   }
 
   override def findResource(resourceId: Id[Vehicle]): Option[ActorRef] = ???
+
 
 }

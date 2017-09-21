@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{ActorRef, Kill, PoisonPill, Props}
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.vehicles.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -304,11 +305,6 @@ class PersonAgent(val beamServices: BeamServices,
       case Some(embodiedBeamLeg) =>
         if(embodiedBeamLeg.unbecomeDriverOnCompletion){
           beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! UnbecomeDriver(tick,id)
-          if(!embodiedBeamLeg.isHumanBodyVehicle){
-            val spaceTime = embodiedBeamLeg.beamLeg.travelPath.toTrajectory.location(tick)
-            val utmSpacetime = spaceTime.copy(loc=beamServices.geo.wgs2Utm(spaceTime.loc))
-            beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! TellManagerResourceIsAvailable(utmSpacetime)
-          }
           _currentVehicle = _currentVehicle.pop()
         }
       case None =>
@@ -357,13 +353,24 @@ class PersonAgent(val beamServices: BeamServices,
           goto(Finished) replying completed(triggerId)
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
-          val endTime = if(activity.getEndTime < 0.0 || Math.abs(activity.getEndTime) == Double.PositiveInfinity){
-            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
-            tick + 60*10
-          }else if(activity.getEndTime < tick) {
+          currentTourPersonalVehicle match {
+            case Some(personalVeh) =>
+              if(currentActivity.getType.equals("Home")) {
+                beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id, personalVeh)
+                beamServices.vehicleRefs(personalVeh) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
+                currentTourPersonalVehicle = None
+              }else {
+                beamServices.householdRefs(_household) ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity.getCoord, tick.toLong))
+              }
+            case None =>
+          }
+          val endTime = if(activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity){
+            activity.getEndTime
+          }else if(activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
             tick
           }else{
-            activity.getEndTime
+            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+            tick + 60*10
           }
           beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value)))
           beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType)))
@@ -463,13 +470,6 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   case class ProcessedData(nextLeg: EmbodiedBeamLeg, restTrip: EmbodiedBeamTrip, nextStart: Double)
-
-  private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    //TODO: convert pathTraversalEvents to hashset
-//    if (beamServices.beamConfig.beam.events.pathTraversalEvents contains event.beamLeg.mode.value.toLowerCase()) {
-//      beamServices.agentSimEventsBus.publish(MatsimEvent(event))
-//    }
-  }
 
 }
 

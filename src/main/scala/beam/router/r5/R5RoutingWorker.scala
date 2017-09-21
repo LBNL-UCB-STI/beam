@@ -22,7 +22,7 @@ import beam.sim.common.GeoUtils._
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
-import com.conveyal.r5.profile.ProfileRequest
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -306,8 +306,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
+    val fromPosTransformed =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin))
+    val toPosTransformed = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination))
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
