@@ -431,7 +431,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
 
   private def buildPath(departureTime: Long, mode: BeamMode, totalDuration: Long, transitSegment: TransitSegment, transitJourneyID: TransitJourneyID): Vector[BeamLeg] = {
     var legs: Vector[BeamLeg] = Vector()
-    val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
+    val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(transitJourneyID.pattern).patternIdx)
     val allStopIds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
     val stopsInTrip = tripPattern.stops.toVector.slice(allStopIds.indexOf(transitSegment.from.stopId), allStopIds.indexOf(transitSegment.to.stopId) + 1)
 
