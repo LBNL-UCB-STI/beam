@@ -4,7 +4,7 @@ import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.{BeamLoggingSetup, ConfigModule}
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
+import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
 import beam.utils.reflection.RefectionUtils
@@ -32,6 +32,7 @@ trait RunBeam {
         install(new ControlerDefaultsModule)
         install(new BeamControllerCoreListenersModule)
 
+
         // Beam Inject below:
         install(new ConfigModule)
         install(new AgentsimModule)
@@ -40,6 +41,8 @@ trait RunBeam {
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
+        // Override MATSim Defaults
+        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
 
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
