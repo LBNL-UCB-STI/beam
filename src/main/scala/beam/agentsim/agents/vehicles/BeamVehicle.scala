@@ -269,9 +269,6 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id)))
       stay()
-    case Event(AppendToTrajectory(newSegments), info) =>
-      lastVisited = newSegments.getEndPoint()
-      stay()
   }
 
   chainedWhen(AnyState) {
@@ -283,6 +280,9 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       stay()
     case Event(ResetCarrier, _) =>
       carrier = None
+      stay()
+    case Event(AppendToTrajectory(newSegments), info) =>
+      lastVisited = newSegments.getEndPoint()
       stay()
     case Event(a: RemovePassengerFromTrip, _) => {
       driver.foreach { d =>
