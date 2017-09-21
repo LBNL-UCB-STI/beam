@@ -41,7 +41,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  var hasWarnedAboutLegPair = Set[Tuple2[Int,Int]]()
 
   override def init: Unit = {
   }
@@ -75,7 +74,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     val transitTrips = transportNetwork.transitLayer.tripPatterns.subList(patternsStartIndex, patternsEndIndex).asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
       //      log.debug(tripPattern.toString)
-      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+      val route = prunedTransportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitRouteTrips = tripPattern.tripSchedules.asScala
       transitRouteTrips.filter(_.getNStops > 0).map { transitTrip =>
@@ -188,7 +187,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
-    val pointToPointQuery = new PointToPointQuery(transportNetwork)
+    val pointToPointQuery = new PointToPointQuery(prunedTransportNetwork)
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
     val profileRequestToVehicles: ProfileRequestToVehicles = if (isRouteForPerson) {
@@ -246,7 +245,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
 
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = prunedTransportNetwork.getTimeZone
     val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
     val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromPosTransformed.getX
@@ -363,7 +362,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   private def createProfileRequest(routingRequestTripInfo: RoutingRequestTripInfo) = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
-    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.zoneId = prunedTransportNetwork.getTimeZone
     val fromLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
     val toLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     profileRequest.fromLon = fromLocation.getX

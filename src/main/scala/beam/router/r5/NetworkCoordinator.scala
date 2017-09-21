@@ -14,7 +14,8 @@ import beam.utils.reflection.RefectionUtils
 import com.conveyal.gtfs.model.Stop
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
-import com.conveyal.r5.util.ExpandingMMFBytez
+//import com.conveyal.r5.streets.StreetLayer
+//import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -49,26 +50,45 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     if (!exists(networkDirPath)) {
       Paths.get(networkDir).toFile.mkdir()
     }
-    val networkFilePath = Paths.get(networkDir, GRAPH_FILE)
-    val networkFile: File = networkFilePath.toFile
-    overrideR5EdgeSearchRadius(2000)
-    if (exists(networkFilePath)) {
-      log.debug(s"Initializing router by reading network from: ${networkFilePath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.read(networkFile)
-    } else {
-      log.debug(s"Network file [${networkFilePath.toAbsolutePath}] not found. ")
-      log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
 
-//      ExpandingMMFBytez.writeObjectToFile(new File(s"${networkDirPath}/stops.dat"), transportNetwork.transitLayer.stopForIndex)
-      transportNetwork.write(networkFile)
+    val unprunedNetworkFilePath = Paths.get(networkDir, UNPRUNED_GRAPH_FILE)  // The first R5 network, created w/out island pruning
+    val unprunedNetworkFile: File = unprunedNetworkFilePath.toFile
+    val prunedNetworkFilePath = Paths.get(networkDir, PRUNED_GRAPH_FILE)  // The final R5 network that matches the cleaned (pruned) MATSim network
+    val prunedNetworkFile: File = prunedNetworkFilePath.toFile
+    if (exists(prunedNetworkFilePath)) {
+      log.debug(s"Initializing router by reading network from: ${prunedNetworkFilePath.toAbsolutePath}")
+      prunedTransportNetwork = TransportNetwork.read(prunedNetworkFile)
+    } else {  // Need to create the unpruned and pruned networks from directory
+      log.debug(s"Network file [${prunedNetworkFilePath.toAbsolutePath}] not found. ")
+      log.debug(s"Initializing router by creating unpruned network from: ${networkDirPath.toAbsolutePath}")
+      unprunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
+      unprunedTransportNetwork.write(unprunedNetworkFile)
+
+      ////
+      // Run R5MnetBuilder to create the pruned R5 network and matching MATSim network
+      ////
+      log.debug(s"Create the cleaned MATSim network from unpuned R5 network")
+      val osmFilePath = beamServices.beamConfig.beam.routing.r5.osmFile
+      // TODO - implement option to use EdgeFlags (AAC 17/09/19)
+      rmNetBuilder = new R5MnetBuilder(unprunedNetworkFile.toString, beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
+      rmNetBuilder.buildMNet()
+      rmNetBuilder.cleanMnet()
+      log.debug(s"Pruned MATSim network created and written")
+      rmNetBuilder.writeMNet(beamServices.beamConfig.matsim.modules.network.inputNetworkFile)
+      log.debug(s"Prune the R5 network")
+      rmNetBuilder.pruneR5()
+      prunedTransportNetwork = rmNetBuilder.getR5Network
+
+      // Now network has been pruned
+      prunedTransportNetwork.write(prunedNetworkFile)
       //beamServices.beamConfig.matsim.modules.network.inputNetworkFile
 //      beamServices.reloadMATSimNetwork = true
-      transportNetwork = TransportNetwork.read(networkFile) // Needed because R5 closes DB on write
-//      transportNetwork.transitLayer.stopForIndex = ExpandingMMFBytez.readObjectFromFile(new File(s"${networkDirPath}/stops.dat"))
+      prunedTransportNetwork = TransportNetwork.read(prunedNetworkFile) // Needed because R5 closes DB on write
     }
-    beamPathBuilder = new BeamPathBuilder(transportNetwork = transportNetwork, beamServices)
-    val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
+    //
+    prunedTransportNetwork.rebuildTransientIndexes()
+    beamPathBuilder = new BeamPathBuilder(transportNetwork = prunedTransportNetwork, beamServices)
+    val envelopeInUTM = beamServices.geo.wgs2Utm(prunedTransportNetwork.streetLayer.envelope)
     beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
     beamServices.geo.utmbbox.maxY = envelopeInUTM.getMaxY + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
     beamServices.geo.utmbbox.minX = envelopeInUTM.getMinX - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
@@ -76,8 +96,8 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
   }
 
   def replaceNetwork = {
-    if (transportNetwork != copiedNetwork)
-      transportNetwork = copiedNetwork
+    if (prunedTransportNetwork != copiedNetwork)
+      prunedTransportNetwork = copiedNetwork
     else {
       /** To-do: allow switching if we just say warning or we should stop system to allow here
         * Log warning to stop or error to warning
@@ -94,13 +114,16 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
   }
 
   def updateTimes(travelTimeCalculator: TravelTimeCalculator) = {
-    copiedNetwork = deepCopy(transportNetwork).asInstanceOf[TransportNetwork]
-
-    beamServices.matsimServices.getScenario.getNetwork.getLinks.values().forEach { link =>
-      val linkIndex = link.getId.toString().toInt
-      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(linkIndex)
-      val avgTime = getAverageTime(link.getId, travelTimeCalculator)
-      edge.setSpeed((link.getLength/avgTime).asInstanceOf[Short])
+    copiedNetwork = deepCopy(prunedTransportNetwork).asInstanceOf[TransportNetwork]
+    linkMap.keys.foreach(key => {
+      val edge = copiedNetwork.streetLayer.edgeStore.getCursor(key)
+      val linkId = edge.getOSMID
+      if (linkId > 0) {
+        val avgTime = getAverageTime(linkId, travelTimeCalculator)
+        val avgTimeShort = (avgTime * 100).asInstanceOf[Short]
+        edge.setSpeed(avgTimeShort)
+      }
+    })
   }
 
 //    val edgeStore=copiedNetwork.streetLayer.edgeStore;
@@ -122,12 +145,23 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 }
 
 object NetworkCoordinator {
-  val GRAPH_FILE = "/network.dat"
+  val PRUNED_GRAPH_FILE = "/pruned_network.dat"
+  val UNPRUNED_GRAPH_FILE = "/unpruned_network.dat"
 
-  var transportNetwork: TransportNetwork = _
+  var prunedTransportNetwork: TransportNetwork = _
+  var unprunedTransportNetwork: TransportNetwork = _
   var copiedNetwork: TransportNetwork = _
+  var rmNetBuilder: R5MnetBuilder = _
   var linkMap: Map[Int, Long] = Map()
   var beamPathBuilder: BeamPathBuilder = _
+
+  def getOsmId(edgeIndex: Int): Long = {
+    linkMap.getOrElse(edgeIndex, {
+      val osmLinkId = prunedTransportNetwork.streetLayer.edgeStore.getCursor(edgeIndex).getOSMID
+      linkMap += edgeIndex -> osmLinkId
+      osmLinkId
+    })
+  }
 
   def props(beamServices: BeamServices) = Props(classOf[NetworkCoordinator], beamServices)
 }
