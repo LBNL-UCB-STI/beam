@@ -186,6 +186,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
+      if(id.toString.equals("1")){
+        val i = 0
+      }
 
       currentTourPersonalVehicle match {
         case Some(personalVeh) =>
@@ -204,7 +207,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Receive and store data needed for choice.
      */
     case Event(theRouterResult: RoutingResponse, info: BeamAgentInfo[PersonData]) =>
-      routingResponse = Some(theRouterResult)
+      currentTourPersonalVehicle match {
+        case Some(personalVeh) =>
+          // Here we remove all WALK-only trips from routing response if we are requiring Person to continue using their personal vehicle
+          routingResponse = Some(theRouterResult.copy(itineraries = theRouterResult.itineraries.filter(itin => itin.tripClassifier != WALK)))
+        case None =>
+          routingResponse = Some(theRouterResult)
+      }
       completeChoiceIfReady()
     case Event(theRideHailingResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)

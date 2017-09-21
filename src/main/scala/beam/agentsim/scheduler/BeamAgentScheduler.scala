@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicLong
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.Logging
 import beam.agentsim.scheduler.BeamAgentScheduler._
+import beam.sim.{BeamServices, HasServices}
 import com.google.common.collect.TreeMultimap
 
 import scala.collection.mutable
@@ -59,7 +60,8 @@ object BeamAgentScheduler {
   }
 }
 
-class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugEnabled: Boolean = false) extends Actor {
+class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val maxWindow: Double) extends Actor with HasServices {
+  val debugEnabled = beamServices.beamConfig.beam.debug.debugEnabled
   val log = Logging(context.system, this)
   var triggerQueue = new mutable.PriorityQueue[ScheduledTrigger]()
   var awaitingResponse: TreeMultimap[java.lang.Double, java.lang.Long] = TreeMultimap.create[java.lang.Double, java.lang.Long]()
@@ -148,21 +150,20 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
         self ! DoSimStep(nowInSeconds)
       }
 
-    case CompletionNotice(triggerId: Long, newTriggers: Vector[ScheduleTrigger]) =>
+    case notice@CompletionNotice(triggerId: Long, newTriggers: Vector[ScheduleTrigger]) =>
       //      log.info(s"recieved notice that trigger triggerId: $triggerId is complete")
       newTriggers.foreach {
         scheduleTrigger
       }
       val completionTickOpt = triggerIdToTick.get(triggerId)
-      val completionTick = completionTickOpt.get
-      if (!triggerIdToTick.contains(triggerId) | !awaitingResponse.containsKey(completionTick)) {
-        log.error(s"Received bad trigger from ${sender().path}")
+      if (completionTickOpt.isEmpty || !triggerIdToTick.contains(triggerId) || !awaitingResponse.containsKey(completionTickOpt.get)) {
+        log.error(s"Received bad completion notice ${notice} from ${sender().path}")
       } else {
-        awaitingResponse.remove(completionTick, triggerId)
-      }
-      if (debugEnabled) {
-        awaitingResponseVerbose.remove(completionTick, triggerIdToScheduledTrigger(triggerId))
-        triggerIdToScheduledTrigger -= triggerId
+        awaitingResponse.remove(completionTickOpt.get, triggerId)
+        if (debugEnabled) {
+          awaitingResponseVerbose.remove(completionTickOpt.get, triggerIdToScheduledTrigger(triggerId))
+          triggerIdToScheduledTrigger -= triggerId
+        }
       }
       triggerIdToTick -= triggerId
 
@@ -173,14 +174,14 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
       log.error(s"received unknown message: $msg")
   }
 
-  val monitorThread = if (log.isErrorEnabled) {
+  val monitorThread = if (debugEnabled || beamServices.beamConfig.beam.debug.skipOverBadActors ) {
     Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.SECONDS), new FiniteDuration(5, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
         try {
-          if (log.isErrorEnabled) {
+          if (beamServices.beamConfig.beam.debug.skipOverBadActors) {
             var numReps = 0L
             currentTotalAwaitingResponse.set(awaitingResponseVerbose.values().stream().count())
-            if (currentTotalAwaitingResponse.get() == previousTotalAwaitingRespone.get() && currentTotalAwaitingResponse.get()!=0) {
+            if (currentTotalAwaitingResponse.get() == previousTotalAwaitingRespone.get() && currentTotalAwaitingResponse.get() != 0) {
               numReps = numberRepeats.incrementAndGet()
               log.error(s"DEBUG: $numReps repeats.")
             } else {
@@ -195,6 +196,8 @@ class BeamAgentScheduler(val stopTick: Double, val maxWindow: Double, val debugE
               })
             }
             previousTotalAwaitingRespone.set(currentTotalAwaitingResponse.get())
+          }
+          if(debugEnabled){
             log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
           }
         } catch {

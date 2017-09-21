@@ -84,7 +84,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
-    val schedulerFuture = beamServices.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], 3600 * 30.0, 300.0, beamServices.beamConfig.beam.agentsim.debugEnabled == 1))
+    val schedulerFuture = beamServices.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], beamServices, 3600 * 30.0, 300.0))
     beamServices.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
     val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices))

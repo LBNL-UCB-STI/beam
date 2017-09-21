@@ -6,7 +6,7 @@ import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{AppendToTrajectory, StreetVehicle}
-import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse, ReleaseVehicleReservation}
+import beam.agentsim.agents.vehicles.household.HouseholdActor._
 import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -48,6 +48,8 @@ object HouseholdActor {
   }
 
   case class ReleaseVehicleReservation[R](personId: Id[Person], vehId: Id[Vehicle])
+
+  case class NotifyNewVehicleLocation[R](vehId: Id[Vehicle], whenWhere: SpaceTime)
 
   case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
 
@@ -102,6 +104,8 @@ class HouseholdActor(services: BeamServices,
       initializeHouseholdVehicles()
       sender() ! CompletionNotice(triggerId,Vector())
 
+    case NotifyNewVehicleLocation(vehId,whenWhere) =>
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
     case ResourceIsAvailableNotification(ref,resourceId,when) =>
       val vehicleId = Id.createVehicleId(resourceId)

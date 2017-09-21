@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.vehicles.household.HouseholdActor.ReleaseVehicleReservation
+import beam.agentsim.agents.vehicles.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -353,14 +353,16 @@ class PersonAgent(val beamServices: BeamServices,
           goto(Finished) replying completed(triggerId)
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
-          if(currentActivity.getType.equals("Home")){
-            currentTourPersonalVehicle match {
-              case Some(personalVeh) =>
-                beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id,personalVeh)
+          currentTourPersonalVehicle match {
+            case Some(personalVeh) =>
+              if(currentActivity.getType.equals("Home")) {
+                beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id, personalVeh)
                 beamServices.vehicleRefs(personalVeh) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
                 currentTourPersonalVehicle = None
-              case None =>
-            }
+              }else {
+                beamServices.householdRefs(_household) ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity.getCoord, tick.toLong))
+              }
+            case None =>
           }
           val endTime = if(activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity){
             activity.getEndTime
