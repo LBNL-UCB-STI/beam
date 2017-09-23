@@ -245,8 +245,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.households.foreach {
       case (householdId, matSimHousehold) =>
         //TODO a good example where projection should accompany the data
-        val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homeCoordX").asInstanceOf[Double],
-          householdAttrs.getAttribute(householdId.toString, "homeCoordY").asInstanceOf[Double])
+        val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homecoordx").asInstanceOf[Double],
+          householdAttrs.getAttribute(householdId.toString, "homecoordy").asInstanceOf[Double])
         val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map {
           vehicleId =>
             val vehicleActRef = beamServices.vehicleRefs.get(vehicleId)
