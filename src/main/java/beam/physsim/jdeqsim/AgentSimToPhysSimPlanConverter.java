@@ -50,6 +50,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private ActorRef eventHandlerActorREF;
     private ActorRef jdeqsimActorREF;
     private EventsManager eventsManager;
+    private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
 
     public AgentSimToPhysSimPlanConverter(BeamServices services){
         services.matsimServices().getEvents().addHandler(this);
@@ -157,6 +158,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                             removeLinks.add(linkId);
                         }
                     }
+                    numberOfLinksRemovedFromRouteAsNonCarModeLinks+=removeLinks.size();
                     linkIds.removeAll(removeLinks);
 
                     if (linkIds.size()==0){
@@ -210,6 +212,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
             plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
         }
+
+        log.warn("numberOfLinksRemovedFromRouteAsNonCarModeLinks (for physsim):" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         initializeAndRun();
         resetJDEQSimScenario();
     }
