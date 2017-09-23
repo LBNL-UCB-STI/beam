@@ -258,9 +258,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
   chainedWhen(AnyState) {
     case Event(res@ReservationResponse(_,_),_) =>
-//      logWarn(s"Reservation confirmation received from state ${stateName}: ${reservationConfirmation}")
-      logError(s"Going to error, reservation response received from state ${stateName}: ${res}")
-      goto(BeamAgent.Error)
+      logWarn(s"Reservation confirmation received from state ${stateName}: ${res.response}")
+      stay()
+//      logError(s"Going to error, reservation response received from state ${stateName}: ${res}")
+//      goto(BeamAgent.Error)
   }
 
   def cancelReservations(): Unit = {

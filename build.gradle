@@ -334,9 +334,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 // ./gradlew run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
 //
 mainClassName = "beam.sim.RunBeam"
+
+def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
+
 // Use following for remote debug mode
-//applicationDefaultJvmArgs = ["-Xmx128g","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx128g"]
+//applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}"]
 
 run {
     if (project.hasProperty("appArgs")) {
