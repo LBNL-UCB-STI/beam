@@ -1,16 +1,13 @@
 package beam.agentsim.events;
 
 import beam.router.RoutingModel;
-import com.conveyal.r5.common.GeometryUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.geotools.graph.util.geom.GeometryUtil;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
+import scala.collection.IndexedSeq;
 
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * BEAM
@@ -49,7 +46,7 @@ public class PathTraversalEvent extends Event {
             fuel="NA";
         }
 
-        this.linkIds = beamLeg.travelPath().linkIds().mkString(",");
+        this.linkIds = ((IndexedSeq)beamLeg.travelPath().linkIds()).mkString(",");
 
         this.vehicleId = vehicleId.toString();
         this.departureTime = (new Double(time)).toString();

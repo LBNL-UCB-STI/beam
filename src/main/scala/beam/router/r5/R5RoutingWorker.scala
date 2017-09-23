@@ -28,7 +28,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-import org.opentripplanner.routing.vertextype.TransitStop
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -526,10 +525,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
       }
       legs
     }
-  }
-
-  def createStopId(stopId: String): Id[TransitStop] = {
-    Id.create(stopId, classOf[TransitStop])
   }
 
   /*
