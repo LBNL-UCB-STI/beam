@@ -59,22 +59,17 @@ class TransitDriverAgent(val beamServices: BeamServices,
   when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
   }
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error(Some(errMsg)))
   }
 }

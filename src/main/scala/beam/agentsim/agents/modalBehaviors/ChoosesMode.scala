@@ -66,7 +66,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
             scheduleDepartureWithValidatedTrip(theChosenTrip)
           }
         case _ =>
-          errorFromEmptyRoutingResponse("no alternatives found")
+          val (tick, theTriggerId) = releaseTickAndTriggerId()
+          errorFromChoosesMode("no alternatives found", theTriggerId)
       }
     } else {
       stay()
@@ -160,10 +161,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
    */
   def tripRequiresReservationConfirmation(chosenTrip: EmbodiedBeamTrip): Boolean = chosenTrip.legs.exists(!_.asDriver)
 
-  def errorFromEmptyRoutingResponse(reason: String): ChoosesMode.this.State = {
-    logWarn(s"No trip chosen because RoutingResponse empty [reason: $reason], person $id going to Error")
-    beamServices.schedulerRef ! completed(triggerId = _currentTriggerId.get)
-    goto(BeamAgent.Error)
+  def errorFromChoosesMode(reason: String, triggerId: Long): ChoosesMode.this.State = {
+    _errorMessage = reason
+    logError(s"Erroring: From ChoosesMode ${id}, reason: ${_errorMessage}")
+    if(triggerId>=0)beamServices.schedulerRef ! completed(triggerId)
+    goto(BeamAgent.Error(Some(reason)))
   }
 
   chainedWhen(ChoosingMode) {
@@ -241,13 +243,15 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if (routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined) {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
         // if more agents could be hailed.
-        errorFromEmptyRoutingResponse(error.errorCode.toString)
+        val (tick, theTriggerId) = releaseTickAndTriggerId()
+        errorFromChoosesMode(error.errorCode.toString,theTriggerId)
       } else {
         pendingChosenTrip = None
         completeChoiceIfReady()
       }
     case Event(ReservationResponse(_, _), _) =>
-      errorFromEmptyRoutingResponse("unknown res response")
+      val (tick, theTriggerId) = releaseTickAndTriggerId()
+      errorFromChoosesMode("unknown res response", theTriggerId)
     /*
      * Finishing choice.
      */

@@ -38,7 +38,7 @@ object BeamAgent {
     override def identifier = "Finished"
   }
 
-  case object Error extends BeamAgentState {
+  case class Error(reason: Option[String] = None) extends BeamAgentState {
     override def identifier: String = s"Error!"
   }
 
@@ -109,9 +109,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
           s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
       } else if(newStates.isEmpty && state == AnyState){
-
-        logError(s"Did not handle the event=$event")
-        FSM.State(Error, event.stateData)
+        val errMsg = "Did not handle the event=$event"
+        logError(errMsg)
+        FSM.State(Error(Some(errMsg)), event.stateData)
       } else if(newStates.isEmpty){
         handleEvent(AnyState, event)
       } else {
@@ -156,7 +156,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       goto(Uninitialized)
   }
 
-  when(Error) {
+  when(Error()) {
     case ev@Event(_, _) =>
       handleEvent(stateName,ev)
   }
@@ -171,8 +171,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         result
       }
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error(Some(errMsg)))
   }
 
   /*
