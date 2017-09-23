@@ -111,7 +111,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             PathTraversalEvent ptEvent = (PathTraversalEvent)event;
             String mode = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
 
-            if(mode != null && mode.equalsIgnoreCase("car")) {
+            if(mode != null && (mode.equalsIgnoreCase("car") || mode.equalsIgnoreCase("bus"))) {
 
                 String links = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
 
@@ -135,9 +135,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                         personAlreadyExist = population.getPersons().containsKey(personId); // person already exists
                     }
 
-                    Leg leg = populationFactory.createLeg(beamLeg.mode().matsimMode());
-                    leg.setDepartureTime(beamLeg.startTime());
-                    leg.setTravelTime(0);
+
+
                     List<Id<Link>> linkIds = new ArrayList<>();
                     int negCount = 0;
 
@@ -149,7 +148,30 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                         linkIds.add(linkId);
                     }
 
+
+                    // hack: removing non-car links from route
+                    // TODO: solve problem properly later
+                    List<Id<Link>> removeLinks = new ArrayList<>();
+                    for (Id<Link> linkId: linkIds){
+                        if (!network.getLinks().containsKey(linkId)){
+                            removeLinks.add(linkId);
+                        }
+                    }
+                    linkIds.removeAll(removeLinks);
+
+                    if (linkIds.size()==0){
+                        return;
+                    }
+
+
+                    // end of hack
+
+
+
                     Route route = RouteUtils.createNetworkRoute(linkIds, network);
+                    Leg leg = populationFactory.createLeg(beamLeg.mode().matsimMode());
+                    leg.setDepartureTime(beamLeg.startTime());
+                    leg.setTravelTime(0);
                     leg.setRoute(route);
 
                     Activity dummyActivity = populationFactory.createActivityFromLinkId("DUMMY", route.getEndLinkId());
