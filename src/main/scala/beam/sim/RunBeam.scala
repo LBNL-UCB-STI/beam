@@ -64,7 +64,7 @@ trait RunBeam {
 
     //TODO this line can be safely deleted, just for exploring structure of config class
     //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
-    BeamLoggingSetup.configureLogs(ConfigModule.beamConfig)
+    //BeamLoggingSetup.configureLogs(ConfigModule.beamConfig)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
