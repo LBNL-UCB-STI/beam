@@ -255,6 +255,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.toLat = toPosTransformed.getY
     //    profileRequest.maxWalkTime = 2*60
     profileRequest.maxCarTime = 3 * 60
+    profileRequest.streetTime = 3 * 60
     //    profileRequest.maxBikeTime = 3*60
     profileRequest.maxTripDurationMinutes = 3 * 60
     profileRequest.wheelchair = false
@@ -315,6 +316,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.maxWalkTime = 60
     profileRequest.maxCarTime = 3 * 60
     profileRequest.maxBikeTime = 3 * 60
+    profileRequest.streetTime = 3 * 60
     profileRequest.maxTripDurationMinutes = 3 * 60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
