@@ -3,8 +3,10 @@ package beam.sim.monitoring
 import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.FSM.{CurrentState, Transition}
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, FSM, Props}
 import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentInfo, BeamAgentState}
+import beam.agentsim.agents.PersonAgent.PersonData
 import beam.sim.monitoring.ErrorListener.{ErrorReasonResponse, RequestErrorReason}
 
 import scala.collection.concurrent.TrieMap
@@ -33,12 +35,13 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
       }
     case Transition(agentRef: ActorRef,_,_)=>
       //Do nothing
-    case ErrorReasonResponse(reasonOpt,tick) =>
+    case ErrorReasonResponse(reasonOpt,tick,errorData) =>
+      val theErrorData = errorData.zipWithIndex.map{case(le,idx)=>s"$idx) ${le.event}"}.mkString("\n\t")
       var theMessage = reasonOpt match {
         case Some(msg) =>
           msg
         case None =>
-          "No reason provided"
+          "No reason provided."
       }
       val hourOfSim = tick match {
         case Some(tickDouble) =>
@@ -69,5 +72,5 @@ object ErrorListener {
     Props(new ErrorListener(iter: Int))
   }
   case object RequestErrorReason
-  case class ErrorReasonResponse(reason: Option[String], tick: Option[Double])
+  case class ErrorReasonResponse[T<:BeamAgentData](reason: Option[String], tick: Option[Double], errorData: Seq[FSM.LogEntry[BeamAgentState,BeamAgentInfo[T]]])
 }

@@ -7,6 +7,7 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.sim.monitoring.ErrorListener.{ErrorReasonResponse, RequestErrorReason}
@@ -69,6 +70,8 @@ sealed trait MemoryEvent extends Event
   * state data types.
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] {
+
+  override def logDepth = 12
 
   def id: Id[_]
   def data: T
@@ -160,7 +163,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
 
   when(Error) {
     case Event(RequestErrorReason,info) =>
-      sender() ! ErrorReasonResponse(info.errorReason, _currentTick)
+      sender() ! ErrorReasonResponse(info.errorReason, _currentTick,getLog)
       stay()
     case ev@Event(_, _) =>
       handleEvent(stateName,ev)
