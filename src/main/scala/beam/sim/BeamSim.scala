@@ -92,11 +92,12 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val routerInitFuture = beamServices.beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
 
+    /*
     val physSimFuture = beamServices.registry ? Registry.Register("physSim", DummyPhysSim.props(beamServices))
     beamServices.physSim = Await.result(physSimFuture, timeout.duration).asInstanceOf[Created].ref
     val physSimInitFuture = beamServices.physSim ? new InitializePhysSim()
     Await.result(physSimInitFuture, timeout.duration)
-
+*/
 
     val rideHailingManagerFuture = beamServices.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
       Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
