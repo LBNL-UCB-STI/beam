@@ -23,32 +23,14 @@ import scalaz.Digit._1
 /**
   * BEAM
   */
-class ModeChoiceMultinomialLogit(val beamServices: BeamServices) extends ModeChoiceCalculator {
+class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MulitnomialLogit ) extends ModeChoiceCalculator {
 
-  val model: MulitnomialLogit = parseInputForMNL(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
-
-  def parseInputForMNL(modeChoiceParametersFile: String): MulitnomialLogit = {
-    val builder: SAXBuilder = new SAXBuilder()
-    val document: Document = builder.build(new File(modeChoiceParametersFile)).asInstanceOf[Document]
-    var theModelOpt: Option[MulitnomialLogit] = None
-
-    document.getRootElement.getChildren.asScala.foreach{child =>
-      if(child.asInstanceOf[Element].getChild("className").getValue.toString.equals("ModeChoiceMultinomialLogit")) {
-        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
-        theModelOpt = Some(MulitnomialLogit.MulitnomialLogitFactory(rootNode))
-      }
-    }
-    theModelOpt match {
-      case Some(theModel) =>
-        theModel
-      case None =>
-        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: ${beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile}")
-    }
+  override def clone(): ModeChoiceCalculator = {
+    val  mnl: MulitnomialLogit = this.model.clone()
+    new ModeChoiceMultinomialLogit(beamServices,mnl)
   }
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
-    var containsDriveAlt = -1
-
     val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
 
     val modeCostTimes = alternatives.map { alt => ModeCostTime(alt.tripClassifier, alt.costEstimate, alt.totalTravelTime) }
@@ -59,7 +41,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices) extends ModeCho
       modeCostTimeSegment.map { mct => (mct.time / 3600 * 18 + mct.cost.toDouble, mct) }.sortBy(_._1).head._2
     }
 
-
     bestInGroup.foreach{ mct =>
       val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
       altData.put("cost",mct.cost.toDouble)
@@ -67,10 +48,16 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices) extends ModeCho
       inputData.put(mct.mode.value, altData)
     }
 
-    model.evaluateProbabilities(inputData)
-    val i = 0
+    val chosenMode = model.makeRandomChoice(inputData, new Random())
+    model.clear()
+    val chosenAlts = alternatives.filter(_.tripClassifier.value.equalsIgnoreCase(chosenMode))
 
-    Some(alternatives.head)
+    chosenAlts.isEmpty match {
+      case true =>
+        None
+      case false =>
+        Some(chosenAlts.head)
+    }
   }
 
 //    val altUtilities = for (alt <- altModesAndTimes) yield altUtility(alt._1, alt._2)
@@ -103,4 +90,29 @@ object ModeChoiceMultinomialLogit {
     ModeCostTime(BeamMode.BIKE,BigDecimal(Double.MaxValue),Double.PositiveInfinity),
     ModeCostTime(BeamMode.TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity)
   )
+
+  def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
+    new ModeChoiceMultinomialLogit(beamServices,ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
+  }
+
+  def parseInputForMNL(beamServices: BeamServices): MulitnomialLogit = {
+    val modeChoiceParametersFile = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
+    val builder: SAXBuilder = new SAXBuilder()
+    val document: Document = builder.build(new File(modeChoiceParametersFile)).asInstanceOf[Document]
+    var theModelOpt: Option[MulitnomialLogit] = None
+
+    document.getRootElement.getChildren.asScala.foreach{child =>
+      if(child.asInstanceOf[Element].getChild("className").getValue.toString.equals("ModeChoiceMultinomialLogit")) {
+        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
+        theModelOpt = Some(MulitnomialLogit.MulitnomialLogitFactory(rootNode))
+      }
+    }
+    theModelOpt match {
+      case Some(theModel) =>
+        theModel
+      case None =>
+        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: ${modeChoiceParametersFile}")
+    }
+  }
+
 }

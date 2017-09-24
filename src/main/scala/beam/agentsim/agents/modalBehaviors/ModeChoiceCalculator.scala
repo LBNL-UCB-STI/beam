@@ -10,7 +10,7 @@ import scala.util.Random
 /**
   * BEAM
   */
-trait ModeChoiceCalculator extends HasServices{
+trait ModeChoiceCalculator extends HasServices with Cloneable{
   def apply(alternatives: Vector[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
 
   @tailrec
@@ -25,6 +25,10 @@ trait ModeChoiceCalculator extends HasServices{
     } else{
       None
     }
+  }
+
+  override def clone(): ModeChoiceCalculator = {
+    this.clone()
   }
 }
 
@@ -46,7 +50,7 @@ object ModeChoiceCalculator {
       case "ModeChoiceUniformRandom" =>
         new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
-        new ModeChoiceMultinomialLogit(beamServices)
+        ModeChoiceMultinomialLogit(beamServices)
     }
   }
 }
