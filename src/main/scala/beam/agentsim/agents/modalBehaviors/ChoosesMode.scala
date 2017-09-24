@@ -46,7 +46,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
   var availablePersonalStreetVehicles: Vector[Id[Vehicle]] = Vector()
 
-
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
 
@@ -191,15 +190,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
-      if(id.toString.equals("1")){
-        val i = 0
-      }
-
       currentTourPersonalVehicle match {
         case Some(personalVeh) =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
+          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id).toString)
         case None =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
+          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id).toString)
       }
 
       //TODO parameterize search distance

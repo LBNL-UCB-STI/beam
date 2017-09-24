@@ -245,6 +245,12 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.households.foreach {
       case (householdId, matSimHousehold) =>
         //TODO a good example where projection should accompany the data
+        if(householdAttrs.getAttribute(householdId.toString, "homecoordx") == null){
+          logger.error(s"Cannot find homeCoordX for household ${householdId} which will be intepreted at 0.0")
+        }
+        if(householdAttrs.getAttribute(householdId.toString.toLowerCase(), "homecoordy") == null){
+          logger.error(s"Cannot find homeCoordY for household ${householdId} which will be intepreted at 0.0")
+        }
         val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homecoordx").asInstanceOf[Double],
           householdAttrs.getAttribute(householdId.toString, "homecoordy").asInstanceOf[Double])
         val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map {
