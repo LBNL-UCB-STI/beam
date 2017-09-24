@@ -129,19 +129,19 @@ class PersonAgent(val beamServices: BeamServices,
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message ${msg} from state ChoosingMode", -1L)
+      errorFromPerson(s"Unrecognized message ${msg} from state ChoosingMode", -1L, None)
   }
   when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message ${msg} from state Waiting", -1L)
+      errorFromPerson(s"Unrecognized message ${msg} from state Waiting", -1L, None)
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message ${msg} from state Moving", -1L)
+      errorFromPerson(s"Unrecognized message ${msg} from state Moving", -1L, None)
   }
 
   chainedWhen(Uninitialized){
@@ -174,7 +174,7 @@ class PersonAgent(val beamServices: BeamServices,
 
     _numReschedules = _numReschedules + 1
     if(_numReschedules > 50){
-      errorFromPerson(s"Too many reschedule attempts.", triggerId)
+      errorFromPerson(s"Too many reschedule attempts.", triggerId, Some(tick))
     }else{
       val toSchedule = if(isStart) {
         schedule[NotifyLegStartTrigger](tick, self, beamLeg)
@@ -233,12 +233,12 @@ class PersonAgent(val beamServices: BeamServices,
                 goto(Moving) replying completed(triggerId)
               }
             case None =>
-              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}",triggerId)
+              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}",triggerId, Some(tick))
           }
       }
 
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg),triggerId), _) =>
-      errorFromPerson(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: ${beamLeg}",triggerId)
+      errorFromPerson(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: ${beamLeg}",triggerId, Some(tick))
   }
 
   chainedWhen(Moving) {
@@ -265,7 +265,7 @@ class PersonAgent(val beamServices: BeamServices,
               }
             case None =>
 //              stay() replying completed(triggerId)
-              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}",triggerId)
+              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}",triggerId, Some(tick))
           }
         case _ =>
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
@@ -277,7 +277,7 @@ class PersonAgent(val beamServices: BeamServices,
           // Driver is still traveling to pickup point, reschedule this trigger
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
         case None =>
-          errorFromPerson(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg defined, beamLeg: ${beamLeg}", triggerId)
+          errorFromPerson(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg defined, beamLeg: ${beamLeg}", triggerId, Some(tick))
       }
   }
 
@@ -333,7 +333,7 @@ class PersonAgent(val beamServices: BeamServices,
             goto(Waiting) replying completed(triggerId)
           }
         case None =>
-          errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}", triggerId)
+          errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}", triggerId, Some(tick))
       }
     }else{
       val savedLegMode = _currentRoute.tripClassifier
@@ -415,15 +415,16 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(BecomeDriverSuccessAck, _)  =>
       scheduleStartLegAndStay
     case Event(IllegalTriggerGoToError, _)  =>
-      errorFromPerson("Illegal Trigger sent to Scheduler",-1L)
+      errorFromPerson("Illegal Trigger sent to Scheduler",-1L, None)
   }
   def scheduleStartLegAndStay() = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](_currentEmbodiedLeg.get.beamLeg.startTime,self,_currentEmbodiedLeg.get.beamLeg))
     stay
   }
-  def errorFromPerson (reason: String, triggerId: Long): PersonAgent.this.State = {
+  def errorFromPerson (reason: String, triggerId: Long, tick: Option[Double]): PersonAgent.this.State = {
     _errorMessage = reason
+    _currentTick = tick
     logError(s"Erroring: From PersonAgent ${id}, reason: ${_errorMessage}")
     if(triggerId >=0)beamServices.schedulerRef ! completed(triggerId)
     goto(Error) using stateData.copy(errorReason = Some(reason))

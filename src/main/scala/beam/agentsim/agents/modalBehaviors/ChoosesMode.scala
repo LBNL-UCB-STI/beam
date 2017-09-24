@@ -68,7 +68,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           }
         case _ =>
           val (tick, theTriggerId) = releaseTickAndTriggerId()
-          errorFromChoosesMode("no alternatives found", theTriggerId)
+          errorFromChoosesMode("no alternatives found", theTriggerId, Some(tick))
       }
     } else {
       stay()
@@ -163,8 +163,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
    */
   def tripRequiresReservationConfirmation(chosenTrip: EmbodiedBeamTrip): Boolean = chosenTrip.legs.exists(!_.asDriver)
 
-  def errorFromChoosesMode(reason: String, triggerId: Long): ChoosesMode.this.State = {
+  def errorFromChoosesMode(reason: String, triggerId: Long, tick: Option[Double]): ChoosesMode.this.State = {
     _errorMessage = reason
+    _currentTick = tick
     logError(s"Erroring: From ChoosesMode ${id}, reason: ${_errorMessage}")
     if(triggerId>=0)beamServices.schedulerRef ! completed(triggerId)
     goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
@@ -246,14 +247,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
         // if more agents could be hailed.
         val (tick, theTriggerId) = releaseTickAndTriggerId()
-        errorFromChoosesMode(error.errorCode.toString,theTriggerId)
+        errorFromChoosesMode(error.errorCode.toString,theTriggerId,Some(tick))
       } else {
         pendingChosenTrip = None
         completeChoiceIfReady()
       }
     case Event(ReservationResponse(_, _), _) =>
       val (tick, theTriggerId) = releaseTickAndTriggerId()
-      errorFromChoosesMode("unknown res response", theTriggerId)
+      errorFromChoosesMode("unknown res response", theTriggerId, Some(tick))
     /*
      * Finishing choice.
      */

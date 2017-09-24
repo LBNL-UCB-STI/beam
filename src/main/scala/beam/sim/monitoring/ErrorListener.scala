@@ -47,7 +47,7 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
           -1
       }
       if(errorReasons.contains(theMessage)){
-        if(errorReasons.get(theMessage).contains(hourOfSim)) {
+        if(errorReasons.get(theMessage).get.contains(hourOfSim)) {
           errorReasons.get(theMessage).get.put(hourOfSim,errorReasons.get(theMessage).get(hourOfSim) + 1)
         }else{
           errorReasons.get(theMessage).get.put(hourOfSim,1)
@@ -59,7 +59,7 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
   }
 
   def formatErrorReasons(): String = {
-    errorReasons.map{case(msg, cntByHour) => s"${msg}:\n\tHour\t${cntByHour.map{ case(hr, cnt) => hr.toString}.mkString("\t")}\n\t\t${cntByHour.map{ case(hr, cnt) => cnt.toString}.mkString("\t")}"}.mkString("\n")
+    errorReasons.map{case(msg, cntByHour) => s"${msg}:\n\tHour\t${cntByHour.map{ case(hr, cnt) => hr.toString}.mkString("\t")}\n\tCnt \t${cntByHour.map{ case(hr, cnt) => cnt.toString}.mkString("\t")}"}.mkString("\n")
   }
 
 }
