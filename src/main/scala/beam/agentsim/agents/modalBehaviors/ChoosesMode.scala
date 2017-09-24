@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse, RideUnavailableError}
@@ -66,7 +67,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
             scheduleDepartureWithValidatedTrip(theChosenTrip)
           }
         case _ =>
-          errorFromEmptyRoutingResponse("no alternatives found")
+          val (tick, theTriggerId) = releaseTickAndTriggerId()
+          errorFromChoosesMode("no alternatives found", theTriggerId, Some(tick))
       }
     } else {
       stay()
@@ -143,6 +145,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val householdRef: ActorRef = beamServices.householdRefs.get(_household).get
     availablePersonalStreetVehicles.foreach{ vehId =>
       householdRef ! ReleaseVehicleReservation(id, vehId)
+      householdRef ! ResourceIsAvailableNotification(self,vehId,new SpaceTime(currentActivity.getCoord,tick.toLong))
     }
     availablePersonalStreetVehicles = Vector()
     _currentRoute = chosenTrip
@@ -160,10 +163,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
    */
   def tripRequiresReservationConfirmation(chosenTrip: EmbodiedBeamTrip): Boolean = chosenTrip.legs.exists(!_.asDriver)
 
-  def errorFromEmptyRoutingResponse(reason: String): ChoosesMode.this.State = {
-    logWarn(s"No trip chosen because RoutingResponse empty [reason: $reason], person $id going to Error")
-    beamServices.schedulerRef ! completed(triggerId = _currentTriggerId.get)
-    goto(BeamAgent.Error)
+  def errorFromChoosesMode(reason: String, triggerId: Long, tick: Option[Double]): ChoosesMode.this.State = {
+    _errorMessage = reason
+    _currentTick = tick
+    logError(s"Erroring: From ChoosesMode ${id}, reason: ${_errorMessage}")
+    if(triggerId>=0)beamServices.schedulerRef ! completed(triggerId)
+    goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
   }
 
   chainedWhen(ChoosingMode) {
@@ -241,13 +246,15 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if (routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined) {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
         // if more agents could be hailed.
-        errorFromEmptyRoutingResponse(error.errorCode.toString)
+        val (tick, theTriggerId) = releaseTickAndTriggerId()
+        errorFromChoosesMode(error.errorCode.toString,theTriggerId,Some(tick))
       } else {
         pendingChosenTrip = None
         completeChoiceIfReady()
       }
     case Event(ReservationResponse(_, _), _) =>
-      errorFromEmptyRoutingResponse("unknown res response")
+      val (tick, theTriggerId) = releaseTickAndTriggerId()
+      errorFromChoosesMode("unknown res response", theTriggerId, Some(tick))
     /*
      * Finishing choice.
      */
