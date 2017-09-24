@@ -47,10 +47,6 @@ object RideHailingManager {
 
   case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Vector[TravelProposal], error: Option[ReservationError] = None)
 
-  case object RideUnavailableError extends ReservationError {
-    override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
-  }
-
   case class ReserveRide(inquiryId: Id[RideHailingInquiry], customerIds: VehiclePersonId, pickUpLocation: Location, departAt: BeamTime, destination: Location)
 
   case class ReserveRideResponse(inquiryId: Id[RideHailingInquiry], data: Either[ReservationError, RideHailConfirmData])
@@ -178,7 +174,7 @@ class RideHailingManager(info: RideHailingManagerData,
         case None =>
           // no rides to hail
 //          log.debug(s"Router could not find vehicle for customer person=$personId for inquiryId=$inquiryId")
-          customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(VehicleUnavailable))
+          customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
       }
 
     case ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
@@ -190,20 +186,26 @@ class RideHailingManager(info: RideHailingManagerData,
           * 1. customerAgent ! ReserveRideConfirmation(rideHailingAgentSpatialIndex, customerId, travelProposal)
           * 2. rideHailingAgentSpatialIndex ! PickupCustomer
           */
-        getClosestRideHailingAgent(customerPickUp, radius) match {
-          case Some((closestRideHailingAgent, _)) if travelPlanOpt.isDefined && closestRideHailingAgent == travelPlanOpt.get._1.rideHailingAgentLocation =>
+        val nearbyRideHailingAgents = rideHailingAgentSpatialIndex.getDisk(customerPickUp.getX, customerPickUp.getY, radius).asScala.toVector
+        val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
+          val distance = CoordUtils.calcProjectedEuclideanDistance(customerPickUp, rideHailingAgentLocation.currentLocation.loc)
+          rideHailingAgentLocation
+        })
+        val closestRHA: Option[RideHailingAgentLocation] = distances2RideHailingAgents.filter(x =>
+          lockedVehicles(x.vehicleId)).find(x =>
+          x.vehicleId.equals(travelPlanOpt.get._1.responseRideHailing2Pickup.itineraries.head.vehiclesInTrip.head))
+
+        closestRHA match {
+          case Some((closestRideHailingAgent)) =>
             val travelProposal = travelPlanOpt.get._1
             val tripPlan = travelPlanOpt.map(_._2)
             handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent, closestRideHailingAgent, travelProposal, tripPlan)
             // We have an agent nearby, but it's not the one we originally wanted
-          case Some((closestRideHailingAgent,_)) =>
-            lockedVehicles -= closestRideHailingAgent.vehicleId
-            customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
           case _ =>
-            customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
+            customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(UnknownRideHailReservationError))
         }
       } else {
-        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
+        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(UnknownInquiryId))
       }
     case ModifyPassengerScheduleAck(inquiryIDOption) =>
       completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]))
@@ -270,7 +272,7 @@ class RideHailingManager(info: RideHailingManagerData,
         customerRef ! response
       case None =>
         log.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
-        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(VehicleUnavailable))
+        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(RideHailVehicleTaken))
     }
 
   }
@@ -298,3 +300,5 @@ class RideHailingManager(info: RideHailingManagerData,
 
 
 }
+
+

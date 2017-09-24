@@ -16,8 +16,8 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
   /**
     * Total number of current riders (we don't count alighters or boarders in this sum).
     */
-  val curTotalNumPassengers: Int = {
-    schedule.map({ case (_, manifest) => manifest.riders.size }).sum
+  def curTotalNumPassengers(beamLeg: BeamLeg): Int = {
+    schedule(beamLeg).riders.size
   }
 
   def isEmpty = schedule.isEmpty

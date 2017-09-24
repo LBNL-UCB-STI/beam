@@ -295,6 +295,9 @@ class PersonAgent(val beamServices: BeamServices,
   def processNextLegOrStartActivity(triggerId: Long, tick: Double): PersonAgent.this.State = {
     _currentEmbodiedLeg match {
       case Some(embodiedBeamLeg) =>
+        if(id.toString.equals("5")){
+          val i = 0
+        }
         if(embodiedBeamLeg.unbecomeDriverOnCompletion){
           beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! UnbecomeDriver(tick,id)
           _currentVehicle = _currentVehicle.pop()

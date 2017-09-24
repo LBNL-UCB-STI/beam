@@ -31,9 +31,19 @@ case class ReservationResponse(requestId: Id[ReservationRequest], response: Eith
 
 case class ReserveConfirmInfo(departFrom: BeamLeg, arriveAt: BeamLeg, passengerVehiclePersonId: VehiclePersonId, triggersToSchedule: Vector[ScheduleTrigger] = Vector())
 
-case object VehicleUnavailable extends ReservationError {
-  override def errorCode: ReservationErrorCode = ReservationErrorCode.RideHailVehicleNotFound
+case object RideHailVehicleTaken extends ReservationError {
+  override def errorCode: ReservationErrorCode = ReservationErrorCode.RideHailVehicleTaken
 }
+
+case object UnknownRideHailReservationError extends ReservationError {
+  override def errorCode: ReservationErrorCode = ReservationErrorCode.UnknownRideHailReservationError
+}
+
+
+case object UnknownInquiryId extends ReservationError {
+  override def errorCode: ReservationErrorCode = ReservationErrorCode.UnknownInquiryId
+}
+
 
 case object CouldNotFindRouteToCustomer extends ReservationError {
   override def errorCode: ReservationErrorCode = ReservationErrorCode.RideHailRouteNotFound
@@ -42,3 +52,5 @@ case object CouldNotFindRouteToCustomer extends ReservationError {
 case object VehicleGone extends ReservationError {
   override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
 }
+
+
