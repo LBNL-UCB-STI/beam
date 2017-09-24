@@ -242,6 +242,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     val householdAttrs = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
+
     beamServices.households.foreach {
       case (householdId, matSimHousehold) =>
         //TODO a good example where projection should accompany the data
