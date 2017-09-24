@@ -49,4 +49,7 @@ object ReservationErrorCode extends Enumeration {
   val ResourceUnAvailable = Value("NoResourceAvailable")
   val ResourceCapacityExhausted = Value("ResourceCapacityExhausted")
 
+  val RideHailRouteNotFound = Value("RouteNotFound")
+  val RideHailVehicleNotFound = Value("RideHailVehicleNotFound")
+
 }
