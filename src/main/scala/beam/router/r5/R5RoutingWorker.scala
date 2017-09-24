@@ -187,6 +187,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
+    if(person.getId.toString.equals("1")){
+      val i = 0
+    }
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
