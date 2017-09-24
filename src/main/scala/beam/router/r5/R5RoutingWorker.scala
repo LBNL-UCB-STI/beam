@@ -159,8 +159,15 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
 
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-    val vehicleTypeId = Id.create(mode.toString.toLowerCase, classOf[VehicleType])
-    val vehicleType = transitVehicles.getVehicleTypes.get(vehicleTypeId)
+    val vehicleTypeId = Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
+
+    val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)){
+      transitVehicles.getVehicleTypes.get(vehicleTypeId);
+    } else {
+      log.info(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
+      transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]));
+    }
+
     mode match {
       case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY) if vehicleType != null =>
         val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
