@@ -111,7 +111,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
           s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
       } else if(newStates.isEmpty && state == AnyState){
-        val errMsg = s"Did not handle the event=${event}"
+        val errMsg = s"Did not handle the event=${event.event.getClass}"
         logError(errMsg)
         FSM.State(Error, event.stateData.copy(errorReason = Some(errMsg)))
       } else if(newStates.isEmpty){
