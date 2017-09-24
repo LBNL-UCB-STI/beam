@@ -300,7 +300,6 @@ class PersonAgent(val beamServices: BeamServices,
         }
         if(embodiedBeamLeg.unbecomeDriverOnCompletion){
           beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! UnbecomeDriver(tick,id)
-          _currentVehicleUnderControl=None
           _currentVehicle = _currentVehicle.pop()
         }
       case None =>
