@@ -11,6 +11,7 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.util.{AggregatorFactory, SingleActorAggregationResult}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.vehicles.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
@@ -85,7 +86,7 @@ class RideHailingManager(info: RideHailingManagerData,
 
   val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
-  val radius: Double = 1000
+  val radius: Double = 1000000000
 
   // improve search to take into account time rideHailingAgentSpatialIndex is available
   private val rideHailingAgentSpatialIndex = {
@@ -116,7 +117,7 @@ class RideHailingManager(info: RideHailingManagerData,
     case RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, destination) =>
 
       val customerAgent = sender()
-      getClosestRideHailingAgent(customerPickUp, radius).filterNot(x => lockedVehicles(x._1.vehicleId)) match {
+      getClosestRideHailingAgent(customerPickUp, radius) match {
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
           //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), vehiclePersonId)
           lockedVehicles += rideHailingLocation.vehicleId
@@ -206,9 +207,17 @@ class RideHailingManager(info: RideHailingManagerData,
       }
     case ModifyPassengerScheduleAck(inquiryIDOption) =>
       completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]))
+
+    case ReleaseVehicleReservation(personId,vehId)=>
+      lockedVehicles -= vehId
+
     case msg =>
       log.debug(s"unknown message received by RideHailingManager $msg")
+
+
   }
+
+
 
   //  private def handleReservation(inquiryId: Id[RideHailingInquiry], closestRideHailingAgentLocation: RideHailingAgentLocation, vehiclePersonId: Id[PersonAgent], customerPickUp: Location, departAt: BeamTime, destination: Location, customerAgent: ActorRef) = {
   //    //    val params = RoutingRequestParams(departAt, Vector(TAXI), vehiclePersonId)
@@ -282,7 +291,7 @@ class RideHailingManager(info: RideHailingManagerData,
       (rideHailingAgentLocation, distance)
     })
     //TODO: Possibly get multiple taxis in this block
-    distances2RideHailingAgents.sortBy(_._2).headOption
+    distances2RideHailingAgents.sortBy(_._2).filterNot(x => lockedVehicles(x._1.vehicleId)).headOption
   }
 
   override def findResource(resourceId: Id[Vehicle]): Option[ActorRef] = ???

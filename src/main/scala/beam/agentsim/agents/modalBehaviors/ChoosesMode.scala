@@ -147,6 +147,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       householdRef ! ReleaseVehicleReservation(id, vehId)
       householdRef ! ResourceIsAvailableNotification(self,vehId,new SpaceTime(currentActivity.getCoord,tick.toLong))
     }
+    if(chosenTrip.tripClassifier!=RIDEHAIL && rideHailingResult.get.proposals.nonEmpty){
+      beamServices.rideHailingManager ! ReleaseVehicleReservation(id,rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId)
+    }
     availablePersonalStreetVehicles = Vector()
     _currentRoute = chosenTrip
     routingResponse = None
@@ -191,7 +194,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(tick.toInt)
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
-      if(id.toString.equals("1")){
+      if(id.toString.startsWith("155")){
         val i = 0
       }
 
