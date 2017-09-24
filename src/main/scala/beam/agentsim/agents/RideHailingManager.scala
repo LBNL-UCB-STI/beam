@@ -190,7 +190,7 @@ class RideHailingManager(info: RideHailingManagerData,
           * 1. customerAgent ! ReserveRideConfirmation(rideHailingAgentSpatialIndex, customerId, travelProposal)
           * 2. rideHailingAgentSpatialIndex ! PickupCustomer
           */
-        getClosestRideHailingAgent(customerPickUp, radius).filter(x => lockedVehicles(x._1.vehicleId)) match {
+        getClosestRideHailingAgent(customerPickUp, radius) match {
           case Some((closestRideHailingAgent, _)) if travelPlanOpt.isDefined && closestRideHailingAgent == travelPlanOpt.get._1.rideHailingAgentLocation =>
             val travelProposal = travelPlanOpt.get._1
             val tripPlan = travelPlanOpt.map(_._2)
