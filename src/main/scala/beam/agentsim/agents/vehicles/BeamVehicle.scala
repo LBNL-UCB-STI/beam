@@ -167,15 +167,17 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      val errMsg = s"From state Idle: Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      val errMsg = s"From state Moving: Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   chainedWhen(Uninitialized){
@@ -203,7 +205,10 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       if (driver.isEmpty || driver.get == beamServices.agentRefs(newDriver.toString)) {
         if (driver.isEmpty) {
           driver = Some(beamServices.agentRefs(newDriver.toString))
-          if (newDriver.isInstanceOf[Id[Person]]) beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newDriver.asInstanceOf[Id[Person]], id)))
+          newDriver match {
+            case personId: Id[Person] => beamServices.agentSimEventsBus.publish(new PersonEntersVehicleEvent(tick, personId, id))
+            case _ =>
+          }
         }
         // Important Note: the following works (asynchronously processing pending res's and then notifying driver of success)
         // only because we throw an exception when BecomeDriver fails. In other words, if the requesting
@@ -226,8 +231,8 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
-    case Event(TellManagerResourceIsAvailable(when: SpaceTime), _) =>
-      notifyManagerResourceIsAvailable(when)
+    case Event(TellManagerResourceIsAvailable(whenWhere:SpaceTime),_)=>
+      notifyManagerResourceIsAvailable(whenWhere)
       stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if (driver.isEmpty) {
@@ -266,9 +271,6 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id)))
       stay()
-    case Event(AppendToTrajectory(newSegments), info) =>
-      lastVisited = newSegments.getEndPoint()
-      stay()
   }
 
   chainedWhen(AnyState) {
@@ -280,6 +282,9 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       stay()
     case Event(ResetCarrier, _) =>
       carrier = None
+      stay()
+    case Event(AppendToTrajectory(newSegments), info) =>
+      lastVisited = newSegments.getEndPoint()
       stay()
     case Event(a: RemovePassengerFromTrip, _) => {
       driver.foreach { d =>

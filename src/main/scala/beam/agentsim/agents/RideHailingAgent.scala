@@ -115,49 +115,28 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
-
-
-  //// END BOILERPLATE ////
-  /*
-   * Helper methods
-  def logInfo(msg: String): Unit = {
-    //    log.info(s"PersonAgent $id: $msg")
-  }
-
-  def logWarn(msg: String): Unit = {
-    log.warning(s"PersonAgent $id: $msg")
-  }
-
-  def logError(msg: String): Unit = {
-    log.error(s"PersonAgent $id: $msg")
-  }
-
-  private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    if(beamConfig.beam.events.pathTraversalEvents contains event.mode){
-      agentSimEventsBus.publish(MatsimEvent(event))
-
-    }
-  }
-   */
 
 }
 

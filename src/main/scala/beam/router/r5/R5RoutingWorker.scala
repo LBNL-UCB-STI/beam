@@ -22,13 +22,12 @@ import beam.sim.common.GeoUtils._
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
-import com.conveyal.r5.profile.ProfileRequest
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-import org.opentripplanner.routing.vertextype.TransitStop
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -195,6 +194,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
+    if(person.getId.toString.equals("1")){
+      val i = 0
+    }
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
@@ -260,8 +262,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    //    profileRequest.maxWalkTime = 2*60
+        profileRequest.maxWalkTime = 2*60
     profileRequest.maxCarTime = 3 * 60
+    profileRequest.streetTime = 3 * 60
     //    profileRequest.maxBikeTime = 3*60
     profileRequest.maxTripDurationMinutes = 3 * 60
     profileRequest.wheelchair = false
@@ -313,16 +316,17 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
-    val toPosTransformed = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
+    val fromPosTransformed =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin),10E3)
+    val toPosTransformed = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination),10E3)
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    profileRequest.maxWalkTime = 60
-    profileRequest.maxCarTime = 3 * 60
-    profileRequest.maxBikeTime = 3 * 60
-    profileRequest.maxTripDurationMinutes = 3 * 60
+    profileRequest.maxWalkTime = 3 * 60
+    profileRequest.maxCarTime = 4 * 60
+    profileRequest.maxBikeTime = 4 * 60
+    profileRequest.streetTime = 4 * 60
+    profileRequest.maxTripDurationMinutes = 4 * 60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
@@ -531,10 +535,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
       }
       legs
     }
-  }
-
-  def createStopId(stopId: String): Id[TransitStop] = {
-    Id.create(stopId, classOf[TransitStop])
   }
 
   /*

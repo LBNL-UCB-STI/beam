@@ -1,12 +1,17 @@
+import com.amazonaws.services.lambda.model.InvocationType
+import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+
 buildscript {
     repositories {
         jcenter()
         mavenLocal()
         mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
 }
 
@@ -18,6 +23,13 @@ plugins {
 configurations.all {
     // check for updates every build
     resolutionStrategy.cacheChangingModulesFor 86400, 'seconds'
+}
+
+configurations {
+    // Depending on which binding you want to use for slf4j, use these to exclude all others
+//    runtime.exclude group: "org.slf4j", module: "slf4j-log4j12"
+    runtime.exclude group: 'org.slf4j', module: 'slf4j-simple'
+    runtime.exclude group: 'ch.qos.logback', module: 'logback-classic'
 }
 
 //ext {
@@ -124,9 +136,10 @@ dependencies {
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: false
-    compile group: 'com.github.colinsheppard', name: 'OpenTripPlanner', version: 'otp-1.0.0-beam-SNAPSHOT', changing: false
     compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: false
-    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
+//    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
+    compile group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'beam-SNAPSHOT', changing: true
+
 
     testCompile group: 'junit', name: 'junit', version: '4.4'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
@@ -190,6 +203,7 @@ dependencies {
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.0'
 
 }
 
@@ -200,6 +214,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 // test.dependsOn spec
+
 //////////////////////////////////////////////////////////////////////
 // BUNDLING FOR EXECUTION
 //
@@ -211,14 +226,56 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 jar {
     manifest {
-        attributes 'Main-Class': 'beam.EVSimTeleController'
+        attributes "Implementation-Title": project.name,
+                "Implementation-Version": version,
+                "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.sim.RunBeam'
     }
 }
 
 shadowJar {
     baseName = 'beam'
+    zip64 true
     classifier = null
     version = null
+}
+
+assemble.dependsOn shadowJar
+
+//////////////////////////////////////////////////////////////////////
+// Amazon WS task to run beam sim on Lambda
+//////////////////////////////////////////////////////////////////////
+
+apply plugin: "base"
+apply plugin: "jp.classmethod.aws.lambda"
+
+aws {
+    profileName = "gradle"
+    region = "us-east-2"
+}
+
+lambda {
+    region = "us-east-2"
+}
+
+def pload = """{
+  "branch": "$beamBranch",
+  "build": "$beamBuild",
+  "input": "$beamInput",
+  "configs": [ "${beamConfigs.split(',').join("\", \"")}" ],
+  "shutdown_wait": "$shutdownWait"
+}"""
+
+task runAwsSim(type: AWSLambdaInvokeTask) {
+    functionName = "testSim"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println "Lambda function result: " + new String(invokeResult.payload.array(), "UTF-8")
+    }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -277,9 +334,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 // ./gradlew run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
 //
 mainClassName = "beam.sim.RunBeam"
+
+def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
+
 // Use following for remote debug mode
-//applicationDefaultJvmArgs = ["-Xmx128g","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx128g"]
+//applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}"]
 
 run {
     if (project.hasProperty("appArgs")) {

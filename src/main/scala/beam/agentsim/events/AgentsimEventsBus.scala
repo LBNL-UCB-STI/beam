@@ -2,7 +2,7 @@ package beam.agentsim.events
 
 import akka.actor.ActorRef
 import akka.event.{ActorEventBus, LookupClassification}
-import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
+
 
 
 /**
@@ -13,10 +13,15 @@ object AgentsimEventsBus{
   case class AddEventSubscriber(ref: ActorRef)
   case class RemoveEventSubscriber(ref: ActorRef)
   case class MatsimEvent(wrappedEvent:org.matsim.api.core.v01.events.Event)
+
+  implicit def matsimEvent[T<:org.matsim.api.core.v01.events.Event](ev:T): MatsimEvent ={
+    MatsimEvent(ev)
+  }
 }
 
 class AgentsimEventsBus extends ActorEventBus with LookupClassification {
 
+  import AgentsimEventsBus._
   override type Event = MatsimEvent
   override type Classifier = String
   override type Subscriber = ActorRef

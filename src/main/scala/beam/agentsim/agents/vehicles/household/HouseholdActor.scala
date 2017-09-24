@@ -1,11 +1,11 @@
 package beam.agentsim.agents.vehicles.household
 
+import akka.actor.FSM.Event
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
 import beam.agentsim.ResourceManager.VehicleManager
-import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{AppendToTrajectory, StreetVehicle}
-import beam.agentsim.agents.vehicles.household.HouseholdActor.{MemberWithRank, MobilityStatusInquiry, MobilityStatusReponse}
+import beam.agentsim.agents.vehicles.household.HouseholdActor._
 import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -46,6 +46,10 @@ object HouseholdActor {
       MobilityStatusInquiry(Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[MobilityStatusInquiry]), personId)
   }
 
+  case class ReleaseVehicleReservation[R](personId: Id[Person], vehId: Id[Vehicle])
+
+  case class NotifyNewVehicleLocation[R](vehId: Id[Vehicle], whenWhere: SpaceTime)
+
   case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
 
   case class MemberWithRank(personId: Id[Person], rank: Option[Int])
@@ -82,48 +86,58 @@ class HouseholdActor(services: BeamServices,
   /**
     * Current [[Vehicle]] assignments
     */
-  var _availableVehicles: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
-
+  var _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
+  var _reservedForPerson: mutable.Map[Id[Person],Id[Vehicle]]= mutable.Map[Id[Person], Id[Vehicle]]()
   var _checkedOutVehicles: mutable.Map[Id[Vehicle],Id[Person]]= mutable.Map[Id[Vehicle], Id[Person]]()
+
   /**
     * Mapping of [[Vehicle]] to [[StreetVehicle]]
     */
   var _vehicleToStreetVehicle: Map[Id[Vehicle], StreetVehicle] = Map()
 
-  override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = ???
+  initializeHouseholdVehicles()
 
+  override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = ???
 
   override def receive: Receive = {
 
+    case NotifyNewVehicleLocation(vehId,whenWhere) =>
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+
     case ResourceIsAvailableNotification(ref,resourceId,when) =>
       val vehicleId = Id.createVehicleId(resourceId)
-      val personId = _checkedOutVehicles(vehicleId)
-      _checkedOutVehicles.remove(vehicleId)
-      _availableVehicles.put(personId,vehicleId)
-
+      val personIDOpt = _checkedOutVehicles.remove(vehicleId)
+      personIDOpt match {
+        case Some(personId) =>
+          _reservedForPerson.get(personId) match {
+            case None =>
+              _availableVehicles.add(vehicleId)
+            case Some(_) =>
+          }
+        case None =>
+      }
       log.info(s"Resource $resourceId is now available again at $when")
 
-    case TriggerWithId(InitializeTrigger(tick), triggerId) =>
-      //TODO this needs to be updated to differentiate between CAR and BIKE and allow individuals to get assigned one of each
-      initializeHouseholdVehicles()
-      log.debug(s"Household ${self.path.name} has been initialized ")
-      sender() ! CompletionNotice(triggerId)
-    case MobilityStatusInquiry(inquiryId, personId) =>
-
-      // Query available vehicles
-      val availableStreetVehicles = lookupAvailableStreetVehicles(personId)
-
-      if (availableStreetVehicles.isEmpty)
-      // Send back response of empty [[Vector]]
-        sender() ! MobilityStatusReponse(availableStreetVehicles)
-      else {
-        // Assign to requesting individual
-        availableStreetVehicles.foreach{x=>
-          _availableVehicles.remove(personId)
-          _checkedOutVehicles.put(x.id,personId)
-        }
-        sender() ! MobilityStatusReponse(availableStreetVehicles)
+    case ReleaseVehicleReservation(personId, vehId) =>
+      _reservedForPerson.get(personId) match {
+        case Some(vehicleId) if vehicleId == vehId =>
+          log.info(s"Vehicle ${vehicleId} is now available for anyone in household $id")
+          _reservedForPerson.remove(personId)
+          _availableVehicles.add(vehicleId)
+        case _ =>
       }
+
+    case MobilityStatusInquiry(inquiryId, personId) =>
+      // Query reserved vehicles
+      var availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles
+
+      // Assign to requesting individual
+      availableStreetVehicles.foreach{x=>
+        _availableVehicles.remove(x.id)
+        _checkedOutVehicles.put(x.id,personId)
+      }
+      sender() ! MobilityStatusReponse(availableStreetVehicles)
+
 
     case msg@_ =>
       log.warning(s"Unrecognized message $msg")
@@ -149,7 +163,7 @@ class HouseholdActor(services: BeamServices,
     val sortedMembers = _members.sortWith(sortByRank)
     for (i <- _vehicles.indices.toSet ++ sortedMembers.indices.toSet) {
       if (i < _vehicles.size & i < sortedMembers.size) {
-        _availableVehicles = _availableVehicles + (sortedMembers(i).personId -> _vehicles(i))
+        _reservedForPerson = _reservedForPerson + (sortedMembers(i).personId -> _vehicles(i))
       }
     }
     // Initial locations and trajectories
@@ -163,10 +177,16 @@ class HouseholdActor(services: BeamServices,
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
     }
   }
-
-  def lookupAvailableStreetVehicles(person: Id[Person]): Vector[StreetVehicle] = Vector(
+  def lookupAvailableVehicles(): Vector[StreetVehicle] = Vector(
     for {
-      availableVehicle <- _availableVehicles.get(person)
+      availableVehicle <- _availableVehicles
+      availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
+    } yield availableStreetVehicle
+  ).flatten
+
+  def lookupReservedVehicles(person: Id[Person]): Vector[StreetVehicle] = Vector(
+    for {
+      availableVehicle <- _reservedForPerson.get(person)
       availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
     } yield availableStreetVehicle
   ).flatten

@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
- * Created by asif on 8/18/2017.
+ * @Authors asif and rwaraich.
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
@@ -50,11 +50,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private ActorRef eventHandlerActorREF;
     private ActorRef jdeqsimActorREF;
     private EventsManager eventsManager;
+    private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
 
     public AgentSimToPhysSimPlanConverter(BeamServices services){
-
-        this.services = services;
-        Scenario agentSimScenario = this.services.matsimServices().getScenario();
+        services.matsimServices().getEvents().addHandler(this);
+        this.services=services;
+        Scenario agentSimScenario = services.matsimServices().getScenario();
         network = agentSimScenario.getNetwork();
 
         resetJDEQSimScenario();
@@ -70,14 +71,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     @Override
     public void reset(int iteration) {
 
-        for(Person p : population.getPersons().values()){
-            Plan plan = p.getSelectedPlan();
-            Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-
-            plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
-        }
-        initializeAndRun();
-        resetJDEQSimScenario();
     }
 
     public void initializeAndRun(){
@@ -119,7 +112,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             PathTraversalEvent ptEvent = (PathTraversalEvent)event;
             String mode = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
 
-            if(mode != null && mode.equalsIgnoreCase("car")) {
+            if(mode != null && (mode.equalsIgnoreCase("car") || mode.equalsIgnoreCase("bus"))) {
 
                 String links = ptEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
 
@@ -143,34 +136,44 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                         personAlreadyExist = population.getPersons().containsKey(personId); // person already exists
                     }
 
+
+
+                    List<Id<Link>> linkIds = new ArrayList<>();
+                    int negCount = 0;
+
+                    links=links.replace("Vector(","");
+                    links=links.replace("),","");
+
+                    for(String link : links.split(",")) {
+                        Id<Link> linkId = Id.createLinkId(link.trim());
+                        linkIds.add(linkId);
+                    }
+
+
+                    // hack: removing non-car links from route
+                    // TODO: solve problem properly later
+                    List<Id<Link>> removeLinks = new ArrayList<>();
+                    for (Id<Link> linkId: linkIds){
+                        if (!network.getLinks().containsKey(linkId)){
+                            removeLinks.add(linkId);
+                        }
+                    }
+                    numberOfLinksRemovedFromRouteAsNonCarModeLinks+=removeLinks.size();
+                    linkIds.removeAll(removeLinks);
+
+                    if (linkIds.size()==0){
+                        return;
+                    }
+
+
+                    // end of hack
+
+
+
+                    Route route = RouteUtils.createNetworkRoute(linkIds, network);
                     Leg leg = populationFactory.createLeg(beamLeg.mode().matsimMode());
                     leg.setDepartureTime(beamLeg.startTime());
                     leg.setTravelTime(0);
-                    List<Id<Link>> linkIds = new ArrayList<>();
-                    int negCount = 0;
-                    for(String link : links.split(",")) {
-
-                        long osmLinkId = NetworkCoordinator.getOsmId(Integer.parseInt(link));
-
-                        if(osmLinkId < 0) {
-                            negCount++;
-                            // The OSM id can be smaller than zero at the start and end of the route [transit stops vertex connected to the road network]
-                        }else {
-                            Id<Link> linkId = Id.createLinkId(osmLinkId);
-                            linkIds.add(linkId);
-                        }
-                    }
-
-                    if(negCount > 2){
-
-                        // At most two negative vertex ids are expected, one at the beginning of the route and one at the end
-                        // Something might be wrong
-                        String errorMessage = "At most two negative vertex ids are expected, one at the beginning of the route and one at the end. " +
-                                "Something might be wrong";
-                        log.error(errorMessage);
-                        //throw new Exception(errorMessage);
-                    }
-                    Route route = RouteUtils.createNetworkRoute(linkIds, network);
                     leg.setRoute(route);
 
                     Activity dummyActivity = populationFactory.createActivityFromLinkId("DUMMY", route.getEndLinkId());
@@ -198,6 +201,21 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 }
             }
         }
+    }
+
+
+    public void startPhysSim() {
+
+        for(Person p : population.getPersons().values()){
+            Plan plan = p.getSelectedPlan();
+            Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
+
+            plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
+        }
+
+        log.warn("numberOfLinksRemovedFromRouteAsNonCarModeLinks (for physsim):" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
+        initializeAndRun();
+        resetJDEQSimScenario();
     }
 }
 

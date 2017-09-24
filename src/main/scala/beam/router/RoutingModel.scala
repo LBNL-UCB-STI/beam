@@ -37,6 +37,7 @@ object RoutingModel {
 
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
+    lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
 
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
@@ -61,6 +62,10 @@ object RoutingModel {
         }
       }
       theMode
+    }
+
+    def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
+      legs.map(leg => leg.beamVehicleId).distinct
     }
   }
 
@@ -162,9 +167,11 @@ object RoutingModel {
 
     def isTransit = transitStops.isDefined
 
-    def toTrajectory = {
+    def toTrajectory: Trajectory = {
       resolver.resolve(this)
     }
+
+    lazy val distanceInM: Double = resolver.resolveLengthInM(this)
 
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 

@@ -244,7 +244,7 @@ object PlansSampler {
     newVehicles.addVehicleType(defaultVehicleType)
 
 
-    Random.shuffle(synthPop).take((0.1 * synthPop.size).toInt).toStream.foreach(sh => {
+    Random.shuffle(synthPop).take((0.0001 * synthPop.size).toInt).toStream.foreach(sh => {
 
       val N = if (sh.numPersons * 2 > 0) {
         sh.numPersons * 2

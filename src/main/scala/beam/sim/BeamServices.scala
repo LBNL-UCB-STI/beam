@@ -11,7 +11,8 @@ import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
 import beam.router.RoutingModel.{BeamLeg, BeamLegWithNext, BeamPath}
 import beam.sim.akkaguice.ActorInject
-import beam.sim.common.{DateUtils, GeoUtils}
+import beam.sim.common.GeoUtils
+import beam.utils.DateUtils
 import com.google.inject.{ImplementedBy, Inject, Injector, Singleton}
 import glokka.Registry
 import org.matsim.api.core.v01.population.Person
