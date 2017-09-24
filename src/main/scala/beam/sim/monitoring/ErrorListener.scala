@@ -26,12 +26,14 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
     case CurrentState(agentRef: ActorRef, BeamAgent.Uninitialized) =>
       log.debug(s"Monitoring ${agentRef.path}")
     case Transition(agentRef: ActorRef, _, BeamAgent.Error) =>
-      agentRef ! RequestErrorReason
-      erroredAgents += agentRef
-      val i = this.counter.incrementAndGet
-      val n = this.nextCounter.get
-      if (i >= n) if (this.nextCounter.compareAndSet(n, n * 2)) {
-        log.error(s"\n\n\t****** Iteration: $iter\t||\tAgents gone to Error: ${n.toString} ********\n${formatErrorReasons()}")
+      if(!erroredAgents.contains(agentRef)) {
+        agentRef ! RequestErrorReason
+        erroredAgents += agentRef
+        val i = this.counter.incrementAndGet
+        val n = this.nextCounter.get
+        if (i >= n) if (this.nextCounter.compareAndSet(n, n * 2)) {
+          log.error(s"\n\n\t****** Iteration: $iter\t||\tAgents gone to Error: ${n.toString} ********\n${formatErrorReasons()}")
+        }
       }
     case Transition(agentRef: ActorRef,_,_)=>
       //Do nothing

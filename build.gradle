@@ -290,7 +290,7 @@ task generateConfig {
             }
         }
         javaexec {
-            main = "-jar";
+            main = "-jar"
             args = [
                     "build/tscfg-0.8.1.jar",
                     "--spec", "src/main/resources/beam-template.conf",
