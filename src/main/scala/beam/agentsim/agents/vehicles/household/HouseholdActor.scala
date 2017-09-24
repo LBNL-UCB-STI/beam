@@ -125,7 +125,6 @@ class HouseholdActor(services: BeamServices,
           _reservedForPerson.remove(personId)
           _availableVehicles.add(vehicleId)
         case _ =>
-          log.warning(s"Vehicle ${vehId} is not reserved for person ${personId} but ReleaseVehicleReservation message received ")
       }
 
     case MobilityStatusInquiry(inquiryId, personId) =>

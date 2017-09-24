@@ -147,7 +147,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       if(errorFlag) {
         _errorMessageFromDrivesVehicle = "Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"
         logError(_errorMessageFromDrivesVehicle)
-        goto(BeamAgent.Error(Some(_errorMessageFromDrivesVehicle)))
+        goto(BeamAgent.Error) using stateData.copy(errorReason = Some(_errorMessageFromDrivesVehicle))
       }else{
         passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
         updatedPassengerSchedule.schedule.foreach{ legAndManifest =>
@@ -216,7 +216,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     _errorMessageFromDrivesVehicle = reason
     logError(s"Erroring: From DrivesVehicle ${id}, reason: ${_errorMessageFromDrivesVehicle}")
     if(triggerId>=0)beamServices.schedulerRef ! completed(triggerId)
-    goto(BeamAgent.Error(Some(reason)))
+    goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
   }
 
   private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {

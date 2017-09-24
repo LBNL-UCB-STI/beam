@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse, RideUnavailableError}
@@ -144,6 +145,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val householdRef: ActorRef = beamServices.householdRefs.get(_household).get
     availablePersonalStreetVehicles.foreach{ vehId =>
       householdRef ! ReleaseVehicleReservation(id, vehId)
+      householdRef ! ResourceIsAvailableNotification(self,vehId,new SpaceTime(currentActivity.getCoord,tick.toLong))
     }
     availablePersonalStreetVehicles = Vector()
     _currentRoute = chosenTrip
@@ -165,7 +167,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     _errorMessage = reason
     logError(s"Erroring: From ChoosesMode ${id}, reason: ${_errorMessage}")
     if(triggerId>=0)beamServices.schedulerRef ! completed(triggerId)
-    goto(BeamAgent.Error(Some(reason)))
+    goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
   }
 
   chainedWhen(ChoosingMode) {

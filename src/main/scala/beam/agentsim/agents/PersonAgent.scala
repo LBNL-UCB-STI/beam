@@ -395,7 +395,7 @@ class PersonAgent(val beamServices: BeamServices,
     }
   }
 
-  chainedWhen(Error()){
+  chainedWhen(Error){
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
       logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Sending RemovePassengerFromTrip request.")
       cancelTrip(_currentEmbodiedLeg ++: _currentRoute.legs, _currentVehicle)
@@ -426,7 +426,7 @@ class PersonAgent(val beamServices: BeamServices,
     _errorMessage = reason
     logError(s"Erroring: From PersonAgent ${id}, reason: ${_errorMessage}")
     if(triggerId >=0)beamServices.schedulerRef ! completed(triggerId)
-    goto(Error(Some(reason)))
+    goto(Error) using stateData.copy(errorReason = Some(reason))
   }
 
   /*

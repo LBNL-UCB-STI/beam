@@ -169,7 +169,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case msg@_ =>
       val errMsg = s"From state Idle: Unrecognized message ${msg}"
       logError(errMsg)
-      goto(Error(Some(errMsg)))
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
   when(Moving) {
     case ev@Event(_, _) =>
@@ -177,7 +177,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case msg@_ =>
       val errMsg = s"From state Moving: Unrecognized message ${msg}"
       logError(errMsg)
-      goto(Error(Some(errMsg)))
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   chainedWhen(Uninitialized){

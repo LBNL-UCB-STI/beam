@@ -70,6 +70,6 @@ class TransitDriverAgent(val beamServices: BeamServices,
     case msg@_ =>
       val errMsg = s"Unrecognized message ${msg}"
       logError(errMsg)
-      goto(Error(Some(errMsg)))
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 }
