@@ -13,8 +13,10 @@ public class ModeChoiceEvent extends Event {
     public final static String EVENT_TYPE = "ModeChoice";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_PERSON_ID = "person";
-    public final static String VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
-    public final static String VERBOSE_ATTRIBUTE_LOCATION = "location";
+//    public final static String VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
+//    public final static String VERBOSE_ATTRIBUTE_LOCATION = "location";
+    public final static String ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
+    public final static String ATTRIBUTE_LOCATION = "location";
     private final String personId;
     private final String mode;
     private final String expectedMaxUtility;
@@ -38,14 +40,16 @@ public class ModeChoiceEvent extends Event {
 
         attr.put(ATTRIBUTE_PERSON_ID, personId);
         attr.put(ATTRIBUTE_MODE, mode);
+        attr.put(ATTRIBUTE_EXP_MAX_UTILITY, expectedMaxUtility);
+        attr.put(ATTRIBUTE_LOCATION, location);
 
         return attr;
     }
 
     public Map<String, String> getVerboseAttributes() {
         Map<String, String> attr = getAttributes();
-        attr.put(VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY, expectedMaxUtility);
-        attr.put(VERBOSE_ATTRIBUTE_LOCATION, location);
+        attr.put(ATTRIBUTE_EXP_MAX_UTILITY, expectedMaxUtility);
+        attr.put(ATTRIBUTE_LOCATION, location);
         return attr;
     }
 
