@@ -240,9 +240,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     )
 
     val profileRequest = createProfileRequest(routingRequestTripInfo)
-    profileRequest.maxCarTime = 3 * 60
-    profileRequest.maxTripDurationMinutes = 3 * 60
-
     profileRequest.directModes = util.EnumSet.copyOf(uniqueLegModes.asJavaCollection)
     // We constrain these to be non-transit trips since they are by NonPersons who we assume don't board transit
     profileRequest.accessModes = profileRequest.directModes
@@ -280,11 +277,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
       log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
 
     val profileRequest = createProfileRequest(routingRequestTripInfo, true)
-
     profileRequest.maxWalkTime = 60
-    profileRequest.maxCarTime = 3 * 60
     profileRequest.maxBikeTime = 3 * 60
-    profileRequest.maxTripDurationMinutes = 3 * 60
     profileRequest.directModes = util.EnumSet.copyOf(uniqueLegModes.asJavaCollection)
     val isTransit = routingRequestTripInfo.transitModes.nonEmpty
     if (isTransit) {
@@ -326,8 +320,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     var fromLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.origin)
     var toLocation = beamServices.geo.utm2Wgs(routingRequestTripInfo.destination)
     if(isPerson) {
-      fromLocation =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin))
-      toLocation = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination))
+      fromLocation =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, fromLocation)
+      toLocation = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, toLocation)
     }
     profileRequest.fromLon = fromLocation.getX
     profileRequest.fromLat = fromLocation.getY
@@ -342,6 +336,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
     profileRequest.date = beamServices.dates.localBaseDate
+    profileRequest.maxCarTime = 3 * 60
+    profileRequest.maxTripDurationMinutes = 3 * 60
     profileRequest
   }
 
