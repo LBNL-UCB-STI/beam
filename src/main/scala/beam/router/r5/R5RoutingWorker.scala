@@ -27,7 +27,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.attributable.Attributes
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -59,6 +59,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     //      log.debug(routeInfo.toString)
     //    }
     val transitCache = mutable.Map[(Int, Int), BeamPath]()
+
+    transitVehicles.getVehicleTypes.asScala.foreach{ case(typeId, vehType) =>
+      val theCap: VehicleCapacity = vehType.getCapacity
+      theCap.setSeats((theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
+      theCap.setStandingRoom((theCap.getStandingRoom * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
+    }
 
     val size = transportNetwork.transitLayer.tripPatterns.size()
     val workerNumber = beamServices.beamConfig.beam.routing.workerNumber

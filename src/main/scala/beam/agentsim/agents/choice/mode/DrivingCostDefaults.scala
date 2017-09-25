@@ -9,7 +9,7 @@ import beam.sim.BeamServices
   */
 object DrivingCostDefaults {
 
-  def estimateDrivingCostIfNone(alternatives: Vector[EmbodiedBeamTrip], beamServices: BeamServices): Vector[BigDecimal] = {
+  def estimateDrivingCost(alternatives: Vector[EmbodiedBeamTrip], beamServices: BeamServices): Vector[BigDecimal] = {
     alternatives.map{ alt =>
       alt.tripClassifier match {
         case CAR if alt.costEstimate == 0.0 =>

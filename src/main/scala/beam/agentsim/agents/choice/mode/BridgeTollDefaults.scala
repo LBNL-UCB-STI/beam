@@ -25,7 +25,7 @@ object BridgeTollDefaults {
     "668214" -> 5
   )
 
-  def estimateBrdigesFares(alternatives: Vector[EmbodiedBeamTrip], beamServices: BeamServices): Vector[BigDecimal] = {
+  def estimateBrdigeFares(alternatives: Vector[EmbodiedBeamTrip], beamServices: BeamServices): Vector[BigDecimal] = {
     var tollPrices: Map[String, Double] = Map();
     if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("beamville")) {
       tollPrices = tollPricesBeamVille;

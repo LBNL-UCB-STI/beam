@@ -67,6 +67,9 @@ object RoutingModel {
     def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
     }
+    override def toString() = {
+      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+    }
   }
 
   object EmbodiedBeamTrip {
