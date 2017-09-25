@@ -4,7 +4,7 @@ import akka.actor.FSM
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, AppendToTrajectory, VehicleFull}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, VehicleFull}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{BeamAgent, RemovePassengerFromTrip}
 import beam.agentsim.agents.TriggerUtils._
@@ -13,9 +13,12 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}
+import beam.router.r5.NetworkCoordinator
 import beam.sim.HasServices
 import beam.sim.common.GeoUtils
-import org.matsim.api.core.v01.Id
+import com.vividsolutions.jts.geom.{Coordinate}
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.HashSet
@@ -197,9 +200,41 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     goto(Moving)
   }
 
+  private def getLinks():Vector[String] ={
+    val pathLinks: Vector[String]=_currentLeg match{
+      case Some(leg) =>
+        leg.travelPath.linkIds
+      case None =>
+        Vector()
+    }
+    pathLinks
+  }
+
+
+  private def getStartCoord(): Coord = {
+    val startCoord=  try {
+      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.asInstanceOf[String].toInt).getGeometry.getCoordinate
+      Some(new Coord(r5Coord.x,r5Coord.y))
+    } catch {
+      case e: Exception => None
+    }
+    startCoord.getOrElse(null)
+  }
+
+  private def getEndCoord(): Coord = {
+    val endCoord:Option[Coord]=  try {
+      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.tail.asInstanceOf[String].toInt).getGeometry.getCoordinate
+      Some(new Coord(r5Coord.x,r5Coord.y))
+    } catch {
+      case e: Exception => None
+    }
+    endCoord.getOrElse(null)
+  }
+
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick,_currentVehicleUnderControl.get.id,beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,passengerSchedule.curTotalNumPassengers(_currentLeg.get),_currentLeg.get)))
+
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick,_currentVehicleUnderControl.get.id,beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,passengerSchedule.curTotalNumPassengers(_currentLeg.get),_currentLeg.get,getStartCoord,getEndCoord)))
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
     if(passengerSchedule.schedule.nonEmpty){
