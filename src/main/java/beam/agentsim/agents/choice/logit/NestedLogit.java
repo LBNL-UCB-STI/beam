@@ -98,6 +98,10 @@ public class NestedLogit implements AbstractLogit{
 		if(cdf==null)evaluateProbabilities(inputData);
 		return cdf.sample(rand);
     }
+	@Override
+	public void clear() {
+		cdf = null;
+	}
 	private LinkedHashMap<String, Double> marginalizeAlternativeProbabilities(LinkedHashMap<NestedLogit, Double> conditionalProbs) {
 		LinkedHashMap<String,Double> marginalProbs = new LinkedHashMap<String,Double>();
 		for(NestedLogit node : conditionalProbs.keySet()){

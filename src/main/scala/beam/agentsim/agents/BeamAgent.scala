@@ -7,8 +7,10 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.PersonAgent.PersonData
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.sim.monitoring.ErrorListener.{ErrorReasonResponse, RequestErrorReason}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 
@@ -48,8 +50,9 @@ object BeamAgent {
 
   case class BeamAgentInfo[T <: BeamAgentData](id: Id[_],
                                                implicit val data: T,
-                                               val triggerId: Option[Long] = None,
-                                               val tick: Option[Double] = None) extends Info
+                                               triggerId: Option[Long] = None,
+                                               tick: Option[Double] = None,
+                                               errorReason: Option[String] = None) extends Info
   case class NoData() extends BeamAgentData
 
 }
@@ -67,6 +70,8 @@ sealed trait MemoryEvent extends Event
   * state data types.
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] {
+
+  override def logDepth = 12
 
   def id: Id[_]
   def data: T
@@ -109,9 +114,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
           s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
       } else if(newStates.isEmpty && state == AnyState){
-
-        logError(s"Did not handle the event=$event")
-        FSM.State(Error, event.stateData)
+        val errMsg = s"Did not handle the event=${event.event.getClass}"
+        logError(errMsg)
+        FSM.State(Error, event.stateData.copy(errorReason = Some(errMsg)))
       } else if(newStates.isEmpty){
         handleEvent(AnyState, event)
       } else {
@@ -157,8 +162,11 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   }
 
   when(Error) {
-    case Event(StopEvent, _) =>
-      stop()
+    case Event(RequestErrorReason,info) =>
+      sender() ! ErrorReasonResponse(info.errorReason, _currentTick,getLog)
+      stay()
+    case ev@Event(_, _) =>
+      handleEvent(stateName,ev)
   }
 
   whenUnhandled {
@@ -171,8 +179,9 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         result
       }
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   /*

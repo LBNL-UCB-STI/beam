@@ -1,7 +1,7 @@
 package beam.router
 
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
+import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
@@ -16,7 +16,6 @@ import org.matsim.vehicles.Vehicle
 object RoutingModel {
 
   type LegCostEstimator = BeamLeg => Option[Double]
-
 
   case class BeamTrip(legs: Vector[BeamLeg],
                       accessMode: BeamMode) {
@@ -38,6 +37,7 @@ object RoutingModel {
 
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
+    lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
 
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
@@ -63,6 +63,10 @@ object RoutingModel {
       }
       theMode
     }
+
+    def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
+      legs.map(leg => leg.beamVehicleId).distinct
+    }
   }
 
   object EmbodiedBeamTrip {
@@ -79,6 +83,7 @@ object RoutingModel {
           val beamLeg = tuple._1
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
+
           val cost = legFares.getOrElse(tuple._2, 0.0)
           if (Modes.isR5TransitMode(currentMode)) {
             if(services.transitVehiclesByBeamLeg.contains(beamLeg)) {
@@ -123,6 +128,8 @@ object RoutingModel {
                      duration: Long,
                      travelPath: BeamPath = EmptyBeamPath.path) {
     val endTime: Long = startTime + duration
+
+    override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
   }
 
   object BeamLeg {
@@ -140,7 +147,7 @@ object RoutingModel {
                              cost: BigDecimal,
                              unbecomeDriverOnCompletion: Boolean
                             ) {
-    val isHumanBodyVehicle: Boolean = beamVehicleId.toString.equalsIgnoreCase("body")
+    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
   }
 
   object EmbodiedBeamLeg {
@@ -149,7 +156,7 @@ object RoutingModel {
     def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
   }
 
-  case class TransitStopsInfo(fromStopId: String, toStopId: String)
+  case class TransitStopsInfo(fromStopId: Int, toStopId: Int)
 
   /**
     *
@@ -161,9 +168,17 @@ object RoutingModel {
 
     def isTransit = transitStops.isDefined
 
-    def toTrajectory = {
+    def toTrajectory: Trajectory = {
       resolver.resolve(this)
     }
+
+    lazy val distanceInM: Double = resolver.resolveLengthInM(this)
+
+    def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
+
+    def getStartPoint() = resolver.resolveStart(this)
+
+    def getEndPoint() = resolver.resolveEnd(this)
 
     def canEqual(other: Any): Boolean = other.isInstanceOf[BeamPath]
 

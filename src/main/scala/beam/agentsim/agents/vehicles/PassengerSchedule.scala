@@ -11,23 +11,49 @@ import scala.collection.mutable
 /**
   * BEAM
   */
-class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
+class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
+
+  /**
+    * Total number of current riders (we don't count alighters or boarders in this sum).
+    */
+  def curTotalNumPassengers(beamLeg: BeamLeg): Int = {
+    schedule(beamLeg).riders.size
+  }
+
   def isEmpty = schedule.isEmpty
 
-  def initialSpacetime() = {
-    schedule.firstKey.travelPath.toTrajectory.location(schedule.firstKey.startTime)
+  def initialSpacetime(): SpaceTime = {
+    schedule.firstKey.travelPath.getStartPoint()
   }
-  def terminalSpacetime() = {
+
+  def terminalSpacetime(): SpaceTime = {
     val lastLeg = schedule.lastKey
-    val endTime = lastLeg.startTime + lastLeg.endTime
-    lastLeg.travelPath.toTrajectory.location(endTime)
+    lastLeg.travelPath.getEndPoint()
   }
+
   def getStartLeg() = {
     schedule.head._1
   }
 
   def addLegs(legs: Seq[BeamLeg]) = {
     legs.withFilter(leg => !(schedule contains leg)).map(leg => schedule.put(leg, Manifest()))
+  }
+
+  def removePassenger(passenger: VehiclePersonId): Boolean = {
+    var anyRemoved = false
+    schedule.foreach(lm => {
+      if (lm._2.riders.contains(passenger)) {
+        lm._2.riders -= passenger
+        anyRemoved = true
+      }
+      if (lm._2.alighters.contains(passenger.vehicleId)) {
+        lm._2.alighters -= passenger.vehicleId
+      }
+      if (lm._2.boarders.contains(passenger.vehicleId)) {
+        lm._2.boarders -= passenger.vehicleId
+      }
+    })
+    anyRemoved
   }
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {
@@ -45,6 +71,8 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]){
     val lastLeg = legs.last
     schedule.get(lastLeg).get.alighters += passenger.vehicleId
   }
+
+
 }
 
 
@@ -54,11 +82,12 @@ object PassengerSchedule {
 
 case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
 
-class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]] ){
+class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]]) {
   def isEmpty: Boolean = riders.size == 0
 }
 
-object Manifest{
-  def apply(): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
-  def apply(passenger: VehiclePersonId): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](passenger),mutable.ListBuffer[Id[Vehicle]](),mutable.ListBuffer[Id[Vehicle]]())
+object Manifest {
+  def apply(): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](), mutable.ListBuffer[Id[Vehicle]](), mutable.ListBuffer[Id[Vehicle]]())
+
+  def apply(passenger: VehiclePersonId): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](passenger), mutable.ListBuffer[Id[Vehicle]](), mutable.ListBuffer[Id[Vehicle]]())
 }

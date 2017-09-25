@@ -5,8 +5,6 @@ import com.conveyal.r5.api.util.*;
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery;
 import com.conveyal.r5.profile.ProfileRequest;
 import com.conveyal.r5.profile.StreetMode;
-import com.conveyal.r5.profile.StreetPath;
-import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.streets.StreetRouter;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.vividsolutions.jts.geom.Coordinate;
@@ -130,25 +128,27 @@ public class TripPlanner {
         // Gets lowest weight state for end coordinate split
         StreetRouter.State lastState = streetRouter.getState(streetRouter.getDestinationSplit());
 
-        StreetPath streetPath = new StreetPath(lastState, transportNetwork);
+//        StreetPath streetPath = new StreetPath(lastState, transportNetwork);
 
-        long totalDistance = 0;
-        int stateIdx = 0;
-
-        // TODO: this can be improved since end and start vertices are the same
-        // in all the edges.
-        for (StreetRouter.State state : streetPath.getStates()) {
-            Integer edgeIdx = state.backEdge;
-            if (!(edgeIdx == -1 || edgeIdx == null)) {
-                EdgeStore.Edge edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx);
-                LOG.info("{} - Lat/Long for edgeIndex [{}] are [{}]", stateIdx++, edgeIdx, edge.getGeometry());
-                LOG.info("\tmode [{}]", state.streetMode);
-                LOG.info("\tweight [{}]", state.weight);
-                LOG.info("\tduration sec [{}:{}]", state.getDurationSeconds()/60, state.getDurationSeconds()%60);
-                LOG.info("\tdistance [{}]", state.distance / 1000);
-            }
-        }
-        return totalDistance;
+//
+//        long totalDistance = 0;
+//        int stateIdx = 0;
+//
+//        // TODO: this can be improved since end and start vertices are the same
+//        // in all the edges.
+//        for (StreetRouter.State state : streetPath.getStates()) {
+//            Integer edgeIdx = state.backEdge;
+//            if (!(edgeIdx == -1 || edgeIdx == null)) {
+//                EdgeStore.Edge edge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIdx);
+//                LOG.info("{} - Lat/Long for edgeIndex [{}] are [{}]", stateIdx++, edgeIdx, edge.getGeometry());
+//                LOG.info("\tmode [{}]", state.streetMode);
+//                LOG.info("\tweight [{}]", state.weight);
+//                LOG.info("\tduration sec [{}:{}]", state.getDurationSeconds()/60, state.getDurationSeconds()%60);
+//                LOG.info("\tdistance [{}]", state.distance / 1000);
+//            }
+//        }
+//        return totalDistance;
+        return 0;
     }
 
     public ProfileResponse calcRoute2() {

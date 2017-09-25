@@ -9,20 +9,18 @@ import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
-import beam.router.RoutingModel.{BeamLeg, BeamLegWithNext}
+import beam.router.RoutingModel.{BeamLeg, BeamLegWithNext, BeamPath}
 import beam.sim.akkaguice.ActorInject
-import beam.sim.common.{DateUtils, GeoUtils}
+import beam.sim.common.GeoUtils
+import beam.utils.DateUtils
 import com.google.inject.{ImplementedBy, Inject, Injector, Singleton}
 import glokka.Registry
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler._
-import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.collection.concurrent.TrieMap
 
@@ -55,7 +53,9 @@ trait BeamServices extends ActorInject {
   val transitVehiclesByBeamLeg: TrieMap[BeamLeg, Id[Vehicle]]
   val transitDriversByVehicle: TrieMap[Id[Vehicle], Id[TransitDriverAgent]]
   //TODO refactor this into named case clases
-  val transitLegsByStopAndDeparture: TrieMap[Tuple3[String, String, Long],BeamLegWithNext]
+  val transitLegsByStopAndDeparture: TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
+  //val transitCache = TrieMap[(Int, Int), BeamPath]()
+
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
@@ -82,7 +82,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
   val transitVehiclesByBeamLeg: TrieMap[BeamLeg, Id[Vehicle]] = TrieMap[BeamLeg, Id[Vehicle]]()
   val transitDriversByVehicle: TrieMap[Id[Vehicle], Id[TransitDriverAgent]] = TrieMap[Id[Vehicle], Id[TransitDriverAgent]]()
-  val transitLegsByStopAndDeparture: TrieMap[Tuple3[String, String, Long],BeamLegWithNext] = TrieMap[Tuple3[String, String, Long],BeamLegWithNext]()
+  val transitLegsByStopAndDeparture: TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext] = TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]()
 }
 
 object BeamServices {

@@ -2,6 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
@@ -24,6 +25,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
   */
@@ -88,7 +90,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = SpaceTime(info.data.location, tick.toLong))
+      val rideAvailable = ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
       val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
         RegisterRideAvailableWrapper(triggerId)
       )
@@ -97,13 +99,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case Event(RegisterRideAvailableWrapper(triggerId), info) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       stay()
-  }
-
-
-  chainedWhen(Moving) {
-    case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[RideHailingAgentData]) =>
-      beamServices.rideHailingManager ? RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = newLocation)
-      goto(Idle) using BeamAgentInfo(id, info.data.copy(location = newLocation.loc))
   }
 
   chainedWhen(AnyState) {
@@ -120,49 +115,28 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
-
-
-  //// END BOILERPLATE ////
-  /*
-   * Helper methods
-  def logInfo(msg: String): Unit = {
-    //    log.info(s"PersonAgent $id: $msg")
-  }
-
-  def logWarn(msg: String): Unit = {
-    log.warning(s"PersonAgent $id: $msg")
-  }
-
-  def logError(msg: String): Unit = {
-    log.error(s"PersonAgent $id: $msg")
-  }
-
-  private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    if(beamConfig.beam.events.pathTraversalEvents contains event.mode){
-      agentSimEventsBus.publish(MatsimEvent(event))
-
-    }
-  }
-   */
 
 }
 

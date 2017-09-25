@@ -1,11 +1,14 @@
 package beam.sim
 
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.sim.config.{BEAMSIMLogggerController, ConfigModule, MATSIMandR5LoggerController}
+import beam.sim.config.{BeamLoggingSetup, ConfigModule}
+import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
+import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
+import beam.utils.reflection.ReflectionUtils
+import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
@@ -31,6 +34,7 @@ trait RunBeam {
         install(new ControlerDefaultsModule)
         install(new BeamControllerCoreListenersModule)
 
+
         // Beam Inject below:
         install(new ConfigModule)
         install(new AgentsimModule)
@@ -39,6 +43,8 @@ trait RunBeam {
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
+        // Override MATSim Defaults
+        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
 
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
@@ -49,6 +55,8 @@ trait RunBeam {
     }))
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
+    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+
     //set config filename before Guice start init procedure
     ConfigModule.ConfigFileName = configFileName
 
@@ -58,17 +66,13 @@ trait RunBeam {
 
     //TODO this line can be safely deleted, just for exploring structure of config class
     //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
-
-    //Mute log
-    MATSIMandR5LoggerController.muteLog(ConfigModule.beamConfig.matsim.levels.dependencyLoggingLevel,ConfigModule.beamConfig.r5.packages)
-    BEAMSIMLogggerController.cutOff(ConfigModule.beamConfig.beam.packages,ConfigModule.beamConfig.beam.levels.beamLoggingLevel)
+    BeamLoggingSetup.configureLogs(ConfigModule.beamConfig)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 
     services.controler.run()
-
   }
 }
 
