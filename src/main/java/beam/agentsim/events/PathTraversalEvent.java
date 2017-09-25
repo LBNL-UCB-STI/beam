@@ -1,6 +1,7 @@
 package beam.agentsim.events;
 
 import beam.router.RoutingModel;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.vehicles.Vehicle;
@@ -25,6 +26,11 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
     public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
+    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_X = "start.x";
+    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_Y = "start.y";
+    public final static String VERBOSE_ATTRIBUTE_END_COORDINATE_X = "end.x";
+    public final static String VERBOSE_ATTRIBUTE_END_COORDINATE_Y = "end.y";
+
 
     private final VehicleType vehicleType;
     private final String linkIds;
@@ -34,10 +40,13 @@ public class PathTraversalEvent extends Event {
     private final Double length;
     private final String fuel;
     private final Integer numPass;
+    private final Coord startCoord;
+    private final Coord endCoord;
+
 
     private final RoutingModel.BeamLeg beamLeg;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg) {
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, Coord startCoord, Coord endCoord) {
         super(time);
         this.vehicleType = vehicleType;
         if (vehicleType.getEngineInformation()!=null && vehicleType.getEngineInformation().getFuelType() != null) {
@@ -54,6 +63,8 @@ public class PathTraversalEvent extends Event {
         this.beamLeg = beamLeg;
         this.length = beamLeg.travelPath().distanceInM();
         this.numPass = numPass;
+        this.startCoord=startCoord;
+        this.endCoord=startCoord;
     }
 
     @Override
@@ -69,6 +80,23 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_LINK_IDS, linkIds);
         attr.put(ATTRIBUTE_FUEL,fuel);
+
+        if (startCoord!=null){
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_X,Double.toString(startCoord.getX()));
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_Y,Double.toString(startCoord.getY()));
+        } else {
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_X,"");
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_Y,"");
+        }
+
+
+        if (endCoord!=null){
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_X,Double.toString(endCoord.getX()));
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_Y,Double.toString(endCoord.getY()));
+        } else {
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_X,"");
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_Y,"");
+        }
 
 //        attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
 

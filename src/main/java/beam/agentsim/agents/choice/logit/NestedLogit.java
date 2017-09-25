@@ -164,6 +164,10 @@ public class NestedLogit implements AbstractLogit{
 			return sumMarginalProbsOfNest(this,nestName,this.cdf.getProbabilityDensityMap());
 		}
 	}
+	@Override
+	public Double getExpectedMaximumUtility() {
+		return this.data.getExpectedMaxUtility();
+	}
 	public Double getExpectedMaximumUtility(String nestName) {
 		if(this.data.nestName.equals(nestName)){
 			return this.data.getExpectedMaxUtility();

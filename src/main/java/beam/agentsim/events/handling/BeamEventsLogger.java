@@ -4,13 +4,15 @@ import beam.agentsim.events.LoggerLevels;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.BeamServices;
-import org.matsim.api.core.v01.events.*;
-import org.matsim.core.api.experimental.events.EventsManager;
+import beam.utils.DebugLib;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-
+import org.matsim.api.core.v01.events.*;
+import org.matsim.core.api.experimental.events.EventsManager;
 
 import java.util.*;
+
+import static beam.agentsim.events.LoggerLevels.OFF;
 
 /**
  * BEAM
@@ -56,26 +58,15 @@ public class BeamEventsLogger {
         allLoggableEvents.add(ActivityStartEvent.class);
 
         //filter according loggerLevel
-        if (!this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals("")&&!this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals(LoggerLevels.OFF)) {
+        if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals("")){
+            defaultLevel = OFF;
+        }else{
             defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
             eventsToLog.addAll(getAllLoggableEvents());
-            //If logger level SHORT configure the events
-            if(defaultLevel.equals(LoggerLevels.SHORT)){
-                shortLoggerForPathTraversalEvent();
-                shortLoggerForActivityEndEvent();
-                shortLoggerForPersonDepartureEvent();
-                shortLoggerForVehicleEntersTrafficEvent();
-                shortLoggerForLinkLeaveEvent();
-                shortLoggerForLinkEnterEvent();
-                shortLoggerForVehicleLeavesTrafficEvent();
-                shortLoggerForPersonArrivalEvent();
-                shortLoggerForActivityStartEvent();
-            }
-            //If logger level VERBOSE configure the events
-            else if(defaultLevel.equals(LoggerLevels.VERBOSE)){
-                verboseLoggerForModeChoiceEvent();
-            }
         }
+        overrideDefaultLoggerSetup();
+        shortLoggerSetup();
+        verboseLoggerSetup();
 
         //Write events for filter LoggingLevels();
         createEventsWriters();
@@ -129,8 +120,11 @@ public class BeamEventsLogger {
 
     //Logging control code changed return type from int to String
     public LoggerLevels getLoggingLevel(Event event) {
-        if (levels.containsKey(event.getClass())) {
-            return levels.get(event.getClass());
+        return getLoggingLevel(event.getClass());
+    }
+    public LoggerLevels getLoggingLevel(Class clazz) {
+        if (levels.containsKey(clazz)){
+            return levels.get(clazz);
         } else {
             return defaultLevel;
         }
@@ -189,85 +183,53 @@ public class BeamEventsLogger {
         return attributes;
     }
 
-    public void filterLoggingLevels() {
-        //TODO re-implement filter on logging level for individual event types
-//        Class<?> theClass = null;
-//        for (String key : params.keySet()) {
-//            if(key.contains(".level") && !key.equals("Default.level")) {
-//                Integer loggingLevel = Integer.parseInt(params.get(key));
-//                try {
-//                    theClass = Class.forName(key.replaceAll(".level", ""));
-//                } catch (ClassNotFoundException e) {
-//                    e.printStackTrace();
-//                    DebugLib.stopSystemAndReportInconsistency("Logging class name '"+theClass.getCanonicalName()+"' is not a valid class, use fully qualified class names (e.g. .");
-//                }
-//                setLoggingLevel(theClass, loggingLevel);
-//                if(beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel() <= 0 & loggingLevel > 0){
-//                    eventsToLog.add(theClass);
-//                }else if(beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel() > 0 & loggingLevel <= 0){
-//                    eventsToLog.remove(theClass);
-//                }
-//            }
-//        }
+    public void overrideDefaultLoggerSetup() {
+        Class<?> theClass = null;
+
+        for(String classAndLevel : beamServices.beamConfig().beam().outputs().overrideLoggingLevels().split(",")){
+            String[] splitClassLevel = classAndLevel.split(":");
+            String classString = splitClassLevel[0].trim();
+            String levelString = splitClassLevel[1].trim();
+            LoggerLevels theLevel = LoggerLevels.valueOf(levelString);
+            try {
+                theClass = Class.forName(classString);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+                DebugLib.stopSystemAndReportInconsistency("Logging class name '" + theClass.getCanonicalName() + "' is not a valid class, use fully qualified class names (e.g. .");
+            }
+            setLoggingLevel(theClass, theLevel);
+            if (theLevel != OFF){
+                eventsToLog.add(theClass);
+            } else if (theLevel == OFF){
+                eventsToLog.remove(theClass);
+            }
+        }
     }
 
-    //Adding attribute for PathTraversalEvent
-    public void shortLoggerForPathTraversalEvent() {
-        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
-        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME);
+    public void shortLoggerSetup() {
+//        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+//        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_LINK_IDS);
+//        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME);
+//        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_ACTTYPE);
+//        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LEGMODE);
+//        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_NETWORKMODE);
+//        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_POSITION);
+//        eventFieldsToDropWhenShort.put(LinkLeaveEvent.class,LinkLeaveEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(LinkEnterEvent.class,LinkEnterEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_NETWORKMODE);
+//        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_POSITION);
+//        eventFieldsToDropWhenShort.put(PersonArrivalEvent.class,PersonArrivalEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_ACTTYPE);
     }
 
-    //Adding attribute for ActivityEndEvent
-    public void shortLoggerForActivityEndEvent() {
-        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_ACTTYPE);
-    }
-
-    //Adding attribute for PersonDepartureEvent
-    public void shortLoggerForPersonDepartureEvent() {
-        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LEGMODE);
-    }
-
-    //Adding attribute for VehicleEntersTrafficEvent
-    public void shortLoggerForVehicleEntersTrafficEvent() {
-        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_NETWORKMODE);
-        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_POSITION);
-    }
-
-    //Adding attribute for LinkLeaveEvent
-    public void shortLoggerForLinkLeaveEvent() {
-        eventFieldsToDropWhenShort.put(LinkLeaveEvent.class,LinkLeaveEvent.ATTRIBUTE_LINK);
-    }
-
-    //Adding attribute for LinkEnterEvent
-    public void shortLoggerForLinkEnterEvent() {
-        eventFieldsToDropWhenShort.put(LinkEnterEvent.class,LinkEnterEvent.ATTRIBUTE_LINK);
-    }
-
-    //Adding attribute for VehicleLeavesTrafficEvent
-    public void shortLoggerForVehicleLeavesTrafficEvent() {
-        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_NETWORKMODE);
-        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_POSITION);
-    }
-
-    //Adding attribute for PersonArrivalEvent
-    public void shortLoggerForPersonArrivalEvent() {
-        eventFieldsToDropWhenShort.put(PersonArrivalEvent.class,PersonArrivalEvent.ATTRIBUTE_LINK);
-    }
-
-    //Adding attribute for ActivityStartEvent
-    public void shortLoggerForActivityStartEvent() {
-        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_LINK);
-        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_ACTTYPE);
-    }
-
-    //Adding attribute for ModeChoiceEvent
-    public void verboseLoggerForModeChoiceEvent() {
-        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_ALTERNATIVES);
+    public void verboseLoggerSetup() {
+        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY);
+        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_LOCATION);
     }
 
 

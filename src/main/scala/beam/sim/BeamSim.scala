@@ -197,17 +197,16 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     }
 
     //TODO the following should be based on config params
-    //    val rideHailingFraction = 0.1
-    val rideHailingFraction = 0.5
+    //    val numRideHailAgents = 0.1
+    val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
     val initialLocationJitter = 500 // meters
-
 
     val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
     rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
 
     var rideHailingVehicles: Map[Id[Vehicle], ActorRef] = Map[Id[Vehicle], ActorRef]()
 
-    for ((k, v) <- beamServices.persons) {
+    for ((k, v) <- beamServices.persons.take(numRideHailAgents)) {
       val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
       //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
       val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
@@ -230,7 +229,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       rideHailingVehicles += (rideHailVehicleId -> vehicleIdAndRef._2)
     }
 
-    logger.info(s"Initialized ${(beamServices.persons.size*rideHailingFraction).toInt} ride hailing agents")
+    logger.info(s"Initialized ${numRideHailAgents} ride hailing agents")
 
     initHouseholds(iterId)
 

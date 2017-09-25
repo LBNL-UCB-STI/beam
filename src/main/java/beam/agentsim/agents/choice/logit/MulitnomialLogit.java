@@ -64,6 +64,12 @@ public class MulitnomialLogit implements AbstractLogit, Cloneable{
 	public String makeRandomChoice(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData, Random rand) {
 		return tree.makeRandomChoice(inputData,rand);
 	}
+
+	@Override
+	public Double getExpectedMaximumUtility() {
+		return tree.getExpectedMaximumUtility();
+	}
+
 	@Override
 	public MulitnomialLogit clone(){
 		MulitnomialLogit mnl = new MulitnomialLogit(this.tree);

@@ -9,17 +9,13 @@ import beam.agentsim.agents.choice.logit.MulitnomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, TRANSIT}
-import beam.router.RoutingModel
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
-import beam.utils.DebugLib
 import org.jdom.Document
 import org.jdom.Element
-import org.jdom.JDOMException
 import org.jdom.input.SAXBuilder
 
 import scala.collection.JavaConverters._
-import scalaz.Digit._1
 
 
 /**
@@ -27,89 +23,69 @@ import scalaz.Digit._1
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MulitnomialLogit ) extends ModeChoiceCalculator {
 
+  var expectedMaximumUtility: Double = 0.0
+
   override def clone(): ModeChoiceCalculator = {
     val  mnl: MulitnomialLogit = this.model.clone()
     new ModeChoiceMultinomialLogit(beamServices,mnl)
   }
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
-    val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
-
-    val transitFareDefaults: Vector[BigDecimal] = TransitFareDefaults.estimateTransitFaresIfNone(alternatives)
-    val gasolineCostDefaults: Vector[BigDecimal] = DrivingCostDefaults.estimateDrivingCostIfNone(alternatives, beamServices)
-
-    val modeCostTimes = alternatives.map { alt => ModeCostTime(alt.tripClassifier, alt.costEstimate, alt.totalTravelTime) }
-    val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
-
-    val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
-      // Which dominates at $18/hr
-      modeCostTimeSegment.map { mct => (mct.time / 3600 * 18 + mct.cost.toDouble, mct) }.sortBy(_._1).head._2
-    }
-
-    bestInGroup.foreach{ mct =>
-      val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
-      altData.put("cost",mct.cost.toDouble)
-      altData.put("time",mct.time)
-      inputData.put(mct.mode.value, altData)
-    }
-
-    val chosenMode = model.makeRandomChoice(inputData, new Random())
-    model.clear()
-    val chosenAlts = alternatives.filter(_.tripClassifier.value.equalsIgnoreCase(chosenMode))
-
-    chosenAlts.isEmpty match {
+    alternatives.isEmpty match {
       case true =>
         None
       case false =>
-        Some(chosenAlts.head)
+
+        val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
+
+        val transitFareDefaults: Vector[BigDecimal] = TransitFareDefaults.estimateTransitFares(alternatives)
+        val gasolineCostDefaults: Vector[BigDecimal] = DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
+        val bridgeTollsDefaults: Vector[BigDecimal] = BridgeTollDefaults.estimateBrdigeFares(alternatives, beamServices)
+
+        if (bridgeTollsDefaults.map(_.toDouble).sum > 0) {
+          val i = 0
+        }
+
+        val modeCostTimes = alternatives.zipWithIndex.map { altAndIdx =>
+          val totalCost = altAndIdx._1.tripClassifier match {
+            case TRANSIT =>
+              (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2))*beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2)
+            case RIDEHAIL =>
+              altAndIdx._1.costEstimate*beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(altAndIdx._2)*beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+            case CAR =>
+              altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2)*beamServices.beamConfig.beam.agentsim.tuning.tollPrice
+            case _ =>
+              altAndIdx._1.costEstimate
+          }
+          ModeCostTime(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTime)
+        }
+        val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
+
+        val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
+          // Which dominates at $18/hr
+          modeCostTimeSegment.map { mct => (mct.time / 3600 * 18 + mct.cost.toDouble, mct) }.sortBy(_._1).head._2
+        }
+
+        bestInGroup.foreach { mct =>
+          val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
+          altData.put("cost", mct.cost.toDouble)
+          altData.put("time", mct.time)
+          inputData.put(mct.mode.value, altData)
+        }
+
+        val chosenMode = model.makeRandomChoice(inputData, new Random())
+        expectedMaximumUtility = model.getExpectedMaximumUtility
+        model.clear()
+        val chosenAlts = alternatives.filter(_.tripClassifier.value.equalsIgnoreCase(chosenMode))
+
+        chosenAlts.isEmpty match {
+          case true =>
+            None
+          case false =>
+            Some(chosenAlts.head)
+        }
     }
   }
-
-  object BridgeTolls {
-
-    val tollPricesBeamVille = Map[String, Double](
-      "1" -> 100,
-      "2" -> 200
-    )
-
-    // source: https://www.transit.wiki/
-    val tollPricesSFBay = Map[String, Double](
-      "1191692" -> 5,
-      "502" -> 5,
-      "998142" -> 5,
-      "722556" -> 5,
-      "1523426" -> 5,
-      "1053032" -> 5,
-      "1457468" -> 7,
-      "668214" -> 5
-    )
-
-    def estimateBrdigesFares(alternatives: Vector[EmbodiedBeamTrip]): Vector[BigDecimal] = {
-      var tollPrices: Map[String, Double] = Map();
-      if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("beamville")) {
-        tollPrices = tollPricesBeamVille;
-      } else if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("sf-bay")) {
-        tollPrices = tollPricesSFBay;
-      }
-
-      alternatives.map { alt =>
-        alt.tripClassifier match {
-          case CAR =>
-            BigDecimal(alt.toBeamTrip().legs.map { beamLeg =>
-              if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
-                beamLeg.travelPath.linkIds.filter(tollPrices.contains(_)).map{ linkId =>
-                  tollPrices.get(linkId).get
-                }.sum
-              } else {
-                0
-              }
-            }.sum)
-          case _ =>
-            BigDecimal(0)
-        }
-      }
-
-  }}
 
   //    val altUtilities = for (alt <- altModesAndTimes) yield altUtility(alt._1, alt._2)
 //    val sumExpUtilities = altUtilities.foldLeft(0.0)(_ + math.exp(_))
@@ -128,9 +104,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
 //    intercept + -0.001 * travelTime
 //  }
 
-
-
 }
+
 object ModeChoiceMultinomialLogit {
   case class ModeCostTime(mode: BeamMode, cost: BigDecimal, time: Double)
 
