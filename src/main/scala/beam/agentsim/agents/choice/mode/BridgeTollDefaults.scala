@@ -29,7 +29,7 @@ object BridgeTollDefaults {
     var tollPrices: Map[String, Double] = Map();
     if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("beamville")) {
       tollPrices = tollPricesBeamVille;
-    } else if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("sf-bay")) {
+    } else {
       tollPrices = tollPricesSFBay;
     }
 
