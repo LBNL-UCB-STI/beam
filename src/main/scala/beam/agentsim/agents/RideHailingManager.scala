@@ -156,7 +156,11 @@ class RideHailingManager(info: RideHailingManagerData,
               //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
               val modRHA2Cust = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-              val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK, unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg, beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer)))))
+              val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK,
+                unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg,
+                beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer),
+                cost = if(c.beamLeg == l.legs(1).beamLeg){ cost }else{ 0.0 }
+              ))))
 
               val rideHailingAgent2CustomerResponseMod = RoutingResponse(rideHailingAgent2CustomerResponse.id, modRHA2Cust)
               val rideHailing2DestinationResponseMod = RoutingResponse(rideHailing2DestinationResponse.id, modRHA2Dest)

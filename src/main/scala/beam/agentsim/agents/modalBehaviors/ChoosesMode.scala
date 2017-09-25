@@ -2,11 +2,12 @@ package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
 import beam.agentsim.Resource.ResourceIsAvailableNotification
-import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo}
+import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo, Initialized, Uninitialized}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
@@ -43,6 +44,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var pendingChosenTrip: Option[EmbodiedBeamTrip] = None
   var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
   var availablePersonalStreetVehicles: Vector[Id[Vehicle]] = Vector()
+  var modeChoiceCalculator: ModeChoiceCalculator = _
+  var expectedMaxUtilityOfLatestChoice: Option[Double] = None
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
@@ -53,7 +56,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         routingResponse.get.itineraries
       }
 
-      val chosenTrip = beamServices.modeChoiceCalculator(combinedItinerariesForChoice)
+      val chosenTrip = modeChoiceCalculator(combinedItinerariesForChoice)
+      if(modeChoiceCalculator.isInstanceOf[ModeChoiceMultinomialLogit]){
+        expectedMaxUtilityOfLatestChoice = Some(modeChoiceCalculator.asInstanceOf[ModeChoiceMultinomialLogit].expectedMaximumUtility)
+      }
 
       chosenTrip match {
         case Some(theChosenTrip) if theChosenTrip.legs.nonEmpty =>
@@ -169,6 +175,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     logError(s"Erroring: From ChoosesMode ${id}, reason: ${_errorMessage}")
     if (triggerId >= 0) beamServices.schedulerRef ! completed(triggerId)
     goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
+  }
+
+  chainedWhen(Uninitialized){
+    case Event(TriggerWithId(InitializeTrigger(tick), _), _) =>
+      modeChoiceCalculator = beamServices.modeChoiceCalculator.clone().asInstanceOf[ModeChoiceCalculator]
+      goto(Initialized)
   }
 
   chainedWhen(ChoosingMode) {
