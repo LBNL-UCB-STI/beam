@@ -35,7 +35,7 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 import org.matsim.core.events.EventsUtils
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles.{Vehicle, VehicleCapacity, VehicleType, VehicleUtils}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
@@ -86,6 +86,17 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     val schedulerFuture = beamServices.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], beamServices, 3600 * 30.0, 300.0))
     beamServices.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
+
+    // Before we initialize router we need to scale the transit vehicle capacities
+    val alreadyScaled: mutable.HashSet[VehicleCapacity] = mutable.HashSet()
+    beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.asScala.foreach{ case(typeId, vehType) =>
+      val theCap: VehicleCapacity = vehType.getCapacity
+      if(!alreadyScaled.contains(theCap)){
+        theCap.setSeats(math.round(theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
+        theCap.setStandingRoom(math.round(theCap.getStandingRoom * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
+        alreadyScaled.add(theCap)
+      }
+    }
 
     val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices))
     beamServices.beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref

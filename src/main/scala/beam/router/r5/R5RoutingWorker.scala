@@ -60,12 +60,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     //    }
     val transitCache = mutable.Map[(Int, Int), BeamPath]()
 
-    transitVehicles.getVehicleTypes.asScala.foreach{ case(typeId, vehType) =>
-      val theCap: VehicleCapacity = vehType.getCapacity
-      theCap.setSeats(math.round(theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
-      theCap.setStandingRoom(math.round(theCap.getStandingRoom * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
-    }
-
     val size = transportNetwork.transitLayer.tripPatterns.size()
     val workerNumber = beamServices.beamConfig.beam.routing.workerNumber
     val patternsPerWorker = size / workerNumber
