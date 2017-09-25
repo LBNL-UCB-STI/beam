@@ -33,6 +33,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
 
+    val transitFareDefaults: Vector[BigDecimal] = TransitFareDefaults.estimateTransitFaresIfNone(alternatives)
+    val gasolineCostDefaults: Vector[BigDecimal] = DrivingCostDefaults.estimateDrivingCostIfNone(alternatives, beamServices)
+
     val modeCostTimes = alternatives.map { alt => ModeCostTime(alt.tripClassifier, alt.costEstimate, alt.totalTravelTime) }
     val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
 

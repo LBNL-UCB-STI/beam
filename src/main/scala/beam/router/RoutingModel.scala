@@ -83,6 +83,7 @@ object RoutingModel {
           val beamLeg = tuple._1
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
+
           val cost = legFares.getOrElse(tuple._2, 0.0)
           if (Modes.isR5TransitMode(currentMode)) {
             if(services.transitVehiclesByBeamLeg.contains(beamLeg)) {
