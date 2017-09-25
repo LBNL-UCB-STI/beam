@@ -62,8 +62,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
 
     transitVehicles.getVehicleTypes.asScala.foreach{ case(typeId, vehType) =>
       val theCap: VehicleCapacity = vehType.getCapacity
-      theCap.setSeats((theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
-      theCap.setStandingRoom((theCap.getStandingRoom * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
+      theCap.setSeats(math.round(theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
+      theCap.setStandingRoom(math.round(theCap.getStandingRoom * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
     }
 
     val size = transportNetwork.transitLayer.tripPatterns.size()
