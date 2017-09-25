@@ -30,45 +30,51 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
   }
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
-    val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
-
-    val transitFareDefaults: Vector[BigDecimal] = TransitFareDefaults.estimateTransitFaresIfNone(alternatives)
-    val gasolineCostDefaults: Vector[BigDecimal] = DrivingCostDefaults.estimateDrivingCostIfNone(alternatives, beamServices)
-    val bridgeTollsDeafaults: Vector[BigDecimal] = BridgeTollDefaults.estimateBrdigesFares(alternatives, beamServices)
-
-    if(bridgeTollsDeafaults.map(_.toDouble).sum > 0){
-      val i =0
-    }
-
-    val modeCostTimes = alternatives.zipWithIndex.map { altAndIdx =>
-      ModeCostTime(altAndIdx._1.tripClassifier,
-        altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2) + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDeafaults(altAndIdx._2),
-        altAndIdx._1.totalTravelTime)
-    }
-    val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
-
-    val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
-      // Which dominates at $18/hr
-      modeCostTimeSegment.map { mct => (mct.time / 3600 * 18 + mct.cost.toDouble, mct) }.sortBy(_._1).head._2
-    }
-
-    bestInGroup.foreach{ mct =>
-      val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
-      altData.put("cost",mct.cost.toDouble)
-      altData.put("time",mct.time)
-      inputData.put(mct.mode.value, altData)
-    }
-
-    val chosenMode = model.makeRandomChoice(inputData, new Random())
-    expectedMaximumUtility = model.getExpectedMaximumUtility
-    model.clear()
-    val chosenAlts = alternatives.filter(_.tripClassifier.value.equalsIgnoreCase(chosenMode))
-
-    chosenAlts.isEmpty match {
-      case true =>
-        None
+    alternatives.isEmpty match {
       case false =>
-        Some(chosenAlts.head)
+        None
+      case true =>
+
+        val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
+
+        val transitFareDefaults: Vector[BigDecimal] = TransitFareDefaults.estimateTransitFaresIfNone(alternatives)
+        val gasolineCostDefaults: Vector[BigDecimal] = DrivingCostDefaults.estimateDrivingCostIfNone(alternatives, beamServices)
+        val bridgeTollsDeafaults: Vector[BigDecimal] = BridgeTollDefaults.estimateBrdigesFares(alternatives, beamServices)
+
+        if (bridgeTollsDeafaults.map(_.toDouble).sum > 0) {
+          val i = 0
+        }
+
+        val modeCostTimes = alternatives.zipWithIndex.map { altAndIdx =>
+          ModeCostTime(altAndIdx._1.tripClassifier,
+            altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2) + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDeafaults(altAndIdx._2),
+            altAndIdx._1.totalTravelTime)
+        }
+        val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
+
+        val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
+          // Which dominates at $18/hr
+          modeCostTimeSegment.map { mct => (mct.time / 3600 * 18 + mct.cost.toDouble, mct) }.sortBy(_._1).head._2
+        }
+
+        bestInGroup.foreach { mct =>
+          val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
+          altData.put("cost", mct.cost.toDouble)
+          altData.put("time", mct.time)
+          inputData.put(mct.mode.value, altData)
+        }
+
+        val chosenMode = model.makeRandomChoice(inputData, new Random())
+        expectedMaximumUtility = model.getExpectedMaximumUtility
+        model.clear()
+        val chosenAlts = alternatives.filter(_.tripClassifier.value.equalsIgnoreCase(chosenMode))
+
+        chosenAlts.isEmpty match {
+          case true =>
+            None
+          case false =>
+            Some(chosenAlts.head)
+        }
     }
   }
 
