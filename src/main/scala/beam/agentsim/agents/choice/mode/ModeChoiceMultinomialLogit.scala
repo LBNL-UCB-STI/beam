@@ -9,8 +9,10 @@ import beam.agentsim.agents.choice.logit.MulitnomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, TRANSIT}
+import beam.router.RoutingModel
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
+import beam.utils.DebugLib
 import org.jdom.Document
 import org.jdom.Element
 import org.jdom.JDOMException
@@ -32,6 +34,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
 
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
+
 
     val modeCostTimes = alternatives.map { alt => ModeCostTime(alt.tripClassifier, alt.costEstimate, alt.totalTravelTime) }
     val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
@@ -60,7 +63,53 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
     }
   }
 
-//    val altUtilities = for (alt <- altModesAndTimes) yield altUtility(alt._1, alt._2)
+  object BridgeTolls {
+
+    val tollPricesBeamVille = Map[String, Double](
+      "1" -> 100,
+      "2" -> 200
+    )
+
+    // source: https://www.transit.wiki/
+    val tollPricesSFBay = Map[String, Double](
+      "1191692" -> 5,
+      "502" -> 5,
+      "998142" -> 5,
+      "722556" -> 5,
+      "1523426" -> 5,
+      "1053032" -> 5,
+      "1457468" -> 7,
+      "668214" -> 5
+    )
+
+    def estimateBrdigesFares(alternatives: Vector[EmbodiedBeamTrip]): Vector[BigDecimal] = {
+      var tollPrices: Map[String, Double] = Map();
+      if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("beamville")) {
+        tollPrices = tollPricesBeamVille;
+      } else if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("sf-bay")) {
+        tollPrices = tollPricesSFBay;
+      }
+
+      alternatives.map { alt =>
+        alt.tripClassifier match {
+          case CAR =>
+            BigDecimal(alt.toBeamTrip().legs.map { beamLeg =>
+              if (beamLeg.mode.toString.equalsIgnoreCase("CAR")) {
+                beamLeg.travelPath.linkIds.filter(tollPrices.contains(_)).map{ linkId =>
+                  tollPrices.get(linkId).get
+                }.sum
+              } else {
+                0
+              }
+            }.sum)
+          case _ =>
+            BigDecimal(0)
+        }
+      }
+
+  }}
+
+  //    val altUtilities = for (alt <- altModesAndTimes) yield altUtility(alt._1, alt._2)
 //    val sumExpUtilities = altUtilities.foldLeft(0.0)(_ + math.exp(_))
 //    val altProbabilities = for (util <- altUtilities) yield math.exp(util) / sumExpUtilities
 //    val cumulativeAltProbabilities = altProbabilities.scanLeft(0.0)(_ + _)
