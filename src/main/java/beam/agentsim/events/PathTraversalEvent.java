@@ -26,10 +26,10 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
     public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
-    public final static String VERBOSE_START_COORDINATE_X = "start.x";
-    public final static String VERBOSE_START_COORDINATE_Y = "start.y";
-    public final static String VERBOSE_END_COORDINATE_X = "end.x";
-    public final static String VERBOSE_END_COORDINATE_Y = "end.y";
+    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_X = "start.x";
+    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_Y = "start.y";
+    public final static String VERBOSE_ATTRIBUTE_END_COORDINATE_X = "end.x";
+    public final static String VERBOSE_ATTRIBUTE_END_COORDINATE_Y = "end.y";
 
 
     private final VehicleType vehicleType;
@@ -82,20 +82,20 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_FUEL,fuel);
 
         if (startCoord!=null){
-            attr.put(VERBOSE_START_COORDINATE_X,Double.toString(startCoord.getX()));
-            attr.put(VERBOSE_START_COORDINATE_Y,Double.toString(startCoord.getY()));
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_X,Double.toString(startCoord.getX()));
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_Y,Double.toString(startCoord.getY()));
         } else {
-            attr.put(VERBOSE_START_COORDINATE_X,"");
-            attr.put(VERBOSE_START_COORDINATE_Y,"");
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_X,"");
+            attr.put(VERBOSE_ATTRIBUTE_START_COORDINATE_Y,"");
         }
 
 
         if (endCoord!=null){
-            attr.put(VERBOSE_END_COORDINATE_X,Double.toString(endCoord.getX()));
-            attr.put(VERBOSE_START_COORDINATE_Y,Double.toString(endCoord.getY()));
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_X,Double.toString(endCoord.getX()));
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_Y,Double.toString(endCoord.getY()));
         } else {
-            attr.put(VERBOSE_END_COORDINATE_X,"");
-            attr.put(VERBOSE_END_COORDINATE_Y,"");
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_X,"");
+            attr.put(VERBOSE_ATTRIBUTE_END_COORDINATE_Y,"");
         }
 
 //        attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
