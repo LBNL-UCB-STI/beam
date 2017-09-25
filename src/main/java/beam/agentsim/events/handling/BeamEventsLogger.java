@@ -177,7 +177,7 @@ public class BeamEventsLogger {
             eventFields = (List) eventFieldsToAddWhenVerbose.get(event.getClass());
             // iterate through the key set
             for (String key : eventFields) {
-                attributes.put(key,"DUMMY DATA");
+//                attributes.putAll(event.getVer);
             }
         }
         return attributes;
@@ -228,8 +228,8 @@ public class BeamEventsLogger {
     }
 
     public void verboseLoggerSetup() {
-        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY);
-        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_LOCATION);
+//        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY);
+//        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_LOCATION);
     }
 
 
