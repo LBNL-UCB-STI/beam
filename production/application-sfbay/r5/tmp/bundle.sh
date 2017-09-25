@@ -5,4 +5,5 @@ do
     cd $D
     zip "$D.zip" *
     mv "$D.zip" ../
+    cd ..
 done
