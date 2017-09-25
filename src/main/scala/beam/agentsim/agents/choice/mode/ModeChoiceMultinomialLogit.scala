@@ -22,6 +22,8 @@ import scala.collection.JavaConverters._
   */
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MulitnomialLogit ) extends ModeChoiceCalculator {
 
+  var expectedMaximumUtility: Double = 0.0
+
   override def clone(): ModeChoiceCalculator = {
     val  mnl: MulitnomialLogit = this.model.clone()
     new ModeChoiceMultinomialLogit(beamServices,mnl)
@@ -58,6 +60,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
     }
 
     val chosenMode = model.makeRandomChoice(inputData, new Random())
+    expectedMaximumUtility = model.getExpectedMaximumUtility
     model.clear()
     val chosenAlts = alternatives.filter(_.tripClassifier.value.equalsIgnoreCase(chosenMode))
 
