@@ -1,6 +1,6 @@
 #!/bin/bash
 sudo apt install s3fs
-echo ***REMOVED*** > ~/.passwd-s3fs
+echo $1 > ~/.passwd-s3fs
 chmod 600 ~/.passwd-s3fs
 mkdir /tmp/cache
 chmod 777 /tmp/cache
