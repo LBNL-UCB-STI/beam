@@ -26,6 +26,7 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
     public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
+    public final static String ATTRIBUTE_VEHICLE_CAPACITY = "capacity";
 //    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_X = "start.x";
 //    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_Y = "start.y";
 //    public final static String VERBOSE_ATTRIBUTE_END_COORDINATE_X = "end.x";
@@ -44,6 +45,7 @@ public class PathTraversalEvent extends Event {
     private final Double length;
     private final String fuel;
     private final Integer numPass;
+    private final Integer capacity;
     private final Coord startCoord;
     private final Coord endCoord;
 
@@ -62,6 +64,7 @@ public class PathTraversalEvent extends Event {
         this.beamLeg = beamLeg;
         this.length = beamLeg.travelPath().distanceInM();
         this.numPass = numPass;
+        this.capacity = vehicleType.getCapacity().getSeats() + vehicleType.getCapacity().getStandingRoom();
         this.startCoord=startCoord;
         this.endCoord=endCoord;
         if (vehicleType.getEngineInformation()!=null){
@@ -84,6 +87,7 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_LINK_IDS, linkIds);
         attr.put(ATTRIBUTE_FUEL,fuel);
+        attr.put(ATTRIBUTE_VEHICLE_CAPACITY,capacity.toString());
 
         if (startCoord!=null){
             attr.put(ATTRIBUTE_START_COORDINATE_X,Double.toString(startCoord.getX()));
