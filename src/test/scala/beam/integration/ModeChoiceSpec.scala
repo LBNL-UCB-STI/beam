@@ -35,6 +35,8 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
                 modeChoiceClass = modeChoice
               )
             )
+          ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
+            eventsFileOutputFormats = "xml"
           )
         )
       )
