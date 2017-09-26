@@ -53,11 +53,6 @@ public class PathTraversalEvent extends Event {
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, Coord startCoord, Coord endCoord) {
         super(time);
         this.vehicleType = vehicleType;
-        if (vehicleType.getEngineInformation()!=null && vehicleType.getEngineInformation().getFuelType() != null) {
-            fuel=vehicleType.getEngineInformation().getFuelType().name();
-        } else{
-            fuel="NA";
-        }
 
         this.linkIds = ((IndexedSeq)beamLeg.travelPath().linkIds()).mkString(",");
 
@@ -68,7 +63,12 @@ public class PathTraversalEvent extends Event {
         this.length = beamLeg.travelPath().distanceInM();
         this.numPass = numPass;
         this.startCoord=startCoord;
-        this.endCoord=startCoord;
+        this.endCoord=endCoord;
+        if (vehicleType.getEngineInformation()!=null){
+            fuel=new Double(vehicleType.getEngineInformation().getGasConsumption() * this.length).toString();
+        } else{
+            fuel="NA";
+        }
     }
 
     @Override
