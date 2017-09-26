@@ -223,7 +223,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   private def getEndCoord(): Coord = {
     val endCoord:Option[Coord]=  try {
-      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.tail.asInstanceOf[String].toInt).getGeometry.getCoordinate
+      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks()(getLinks.size-1).asInstanceOf[String].toInt).getGeometry.getCoordinate
       Some(new Coord(r5Coord.x,r5Coord.y))
     } catch {
       case e: Exception => None
