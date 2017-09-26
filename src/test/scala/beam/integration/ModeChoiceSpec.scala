@@ -47,38 +47,49 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
     val eventsReader: ReadEvents = getEventsReader(beamConfig)
   }
 
+  def maxRepetition(listValueTag: List[String]): String = {
+    val grouped = listValueTag.groupBy(s => s)
+    val groupedCount = grouped.map{case (k, v) => (k, v.size)}
+    val (maxK, _) = groupedCount.max
+
+    println(s"-----------GroupedCount $groupedCount")
+
+    maxK
+  }
+
   "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
-    "Generate events file with exactly two car type for ModeChoice and two ride_hailing type entries for ModeChoice" in new StartWithModeChoice("ModeChoiceDriveIfAvailable"){
+    "prefer more mode choice car type than other modes" in new StartWithModeChoice("ModeChoiceDriveIfAvailable"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-      val one = listValueTagEventFile.filter(s => s.equals("car")).size
-      val two = listValueTagEventFile.filter(s => s.equals("walk")).size
-      println("AQUI")
-      one should be < two
+
+      val maxK = maxRepetition(listValueTagEventFile)
+      maxK shouldBe "car"
+
       //listValueTagEventFile.filter(s => s.equals("walk")).size shouldBe(2)
-
-
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
-    "Generate events file with exactly one transit type for ModeChoice and 3 ride_hailing type entries for ModeChoice" in new StartWithModeChoice("ModeChoiceTransitIfAvailable"){
+    "prefer more mode choice transit type than other modes" in new StartWithModeChoice("ModeChoiceTransitIfAvailable"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-      listValueTagEventFile.filter(s => s.equals("transit")).size should be < listValueTagEventFile.filter(s => s.equals("walk")).size
-      //listValueTagEventFile.filter(s => s.equals("walk")).size shouldBe(2)
+
+      val maxK = maxRepetition(listValueTagEventFile)
+      maxK shouldBe "transit"
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitOnly" must {
-    "Generate events file with exactly one transit type for ModeChoice" in new StartWithModeChoice("ModeChoiceTransitOnly"){
+    "Generate ModeChoice events file with only transit types" in new StartWithModeChoice("ModeChoiceTransitOnly"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
       listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe listValueTagEventFile.size
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceRideHailIfAvailable" must {
-    "Generate events file with exactly four ride_hailing type for ModeChoice" in new StartWithModeChoice("ModeChoiceRideHailIfAvailable"){
+    "prefer more mode choice ride hail type than other modes" in new StartWithModeChoice("ModeChoiceRideHailIfAvailable"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-      listValueTagEventFile.filter(s => s.equals("walk")).size should be > listValueTagEventFile.size
+
+      val maxK = maxRepetition(listValueTagEventFile)
+      maxK shouldBe "ride_hailing"
     }
   }
 
@@ -91,7 +102,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceDriveOnly" must {
-    "Generate events file with for ModeChoice" in new StartWithModeChoice("ModeChoiceDriveOnly"){
+    "Generate ModeChoice events file with only car types" in new StartWithModeChoice("ModeChoiceDriveOnly"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
       listValueTagEventFile.filter(s => s.equals("car")).size shouldBe listValueTagEventFile.size
       
@@ -99,10 +110,9 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceRideHailOnly" must {
-    "Generate events file with for ModeChoice" in new StartWithModeChoice("ModeChoiceRideHailOnly"){
+    "Generate ModeChoice events file with only ride hail types" in new StartWithModeChoice("ModeChoiceRideHailOnly"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-      listValueTagEventFile.size shouldBe(0)
-
+      listValueTagEventFile.filter(_.equals("ride_hailing")).size shouldBe listValueTagEventFile.size
     }
   }
 

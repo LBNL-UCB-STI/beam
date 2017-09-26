@@ -67,25 +67,6 @@ trait EventsFileHandlingCommon {
   }
 
   def getEventsReader(beamConfig: BeamConfig): ReadEvents = {
-
-    val j:Array[ReadEvents] = beamConfig.beam.outputs.eventsFileOutputFormats
-      .split(",")
-      .map({
-        s => s match {
-          case "xml" => new ReadEventsXml
-          case "csv" => ???
-          case "xml.gz" => new ReadEventsXMlGz
-          case "csv.gz" => ???
-          case _ => throw new RuntimeException("Unsupported format")
-        }
-      })
-
-
-    j.foreach(println);
-    //"xml,csv,xml.gz"
-
-
-
     beamConfig.beam.outputs.eventsFileOutputFormats match{
       case "xml" => new ReadEventsXml
       case "csv" => ???
@@ -93,7 +74,6 @@ trait EventsFileHandlingCommon {
       case "csv.gz" => ???
       case _ => throw new RuntimeException("Unsupported format")
     }
-
   }
 
 }
@@ -125,13 +105,9 @@ class ReadEventsXml extends ReadEvents {
     }
     return  listResult
   }
-
-
 }
 
 class ReadEventsXMlGz extends ReadEventsXml {
-
-
   def extractGzFile(file: File): scala.List[String] = {
     val fin = new FileInputStream(new java.io.File(file.getPath))
     val gzis = new GZIPInputStream(fin)
@@ -165,7 +141,7 @@ trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with Event
     it should " contain all bus routes" in {
       val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
       val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-bus.gtfs","vehicle")
-      listTrips.size shouldBe(listValueTagEventFile.size)
+      listValueTagEventFile.size shouldBe listTrips.size
     }
   }
 
@@ -173,7 +149,7 @@ trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with Event
     it should " contain all bus routes" in {
       val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
       val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-train.gtfs","vehicle")
-      listTrips.size shouldBe(listValueTagEventFile.size)
+      listValueTagEventFile.size shouldBe listTrips.size
     }
   }
 
@@ -182,7 +158,7 @@ trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with Event
       val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
       val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-bus.gtfs","vehicle")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-      listTrips shouldBe(listTripsEventFile)
+      listTripsEventFile shouldBe listTrips
     }
   }
 
@@ -191,7 +167,7 @@ trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with Event
       val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
       val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-train.gtfs","vehicle")
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-      listTrips shouldBe(listTripsEventFile)
+      listTripsEventFile shouldBe listTrips
     }
   }
 
@@ -209,14 +185,11 @@ trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with Event
       val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
 
 
-      groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
+      groupedXmlWithCount should contain theSameElementsAs groupedWithCount
     }
-
-
   }
 
   def containsSameTrainEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
-
     it should "contain same pathTraversal defined at stop times file for train input file" in {
       val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
       val grouped = listTrips.groupBy(identity)
@@ -228,13 +201,9 @@ trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with Event
       val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
 
 
-      groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
+      groupedXmlWithCount should contain theSameElementsAs groupedWithCount
     }
-
   }
-
-
-
 }
 
 class EventsFileSpec extends FlatSpec with Matchers with RunBeam with EventsFileHandlingCommon with EventsFileBehaviors {
