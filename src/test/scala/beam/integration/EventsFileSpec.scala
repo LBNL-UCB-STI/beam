@@ -165,10 +165,75 @@ trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with Event
     it should " contain all bus routes" in {
       val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
       val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-bus.gtfs","vehicle")
-      listValueTagEventFile.foreach(println)
       listTrips.size shouldBe(listValueTagEventFile.size)
     }
   }
+
+  def containsAllTrainRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
+    it should " contain all bus routes" in {
+      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
+      val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-train.gtfs","vehicle")
+      listTrips.size shouldBe(listValueTagEventFile.size)
+    }
+  }
+
+  def containsExactlyBusRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
+    it should "contain the same bus trips entries" in {
+      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
+      val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-bus.gtfs","vehicle")
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      listTrips shouldBe(listTripsEventFile)
+    }
+  }
+
+  def containsExactlyTrainRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
+    it should "contain the same train trips entries" in {
+      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
+      val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"person=\"TransitDriverAgent-train.gtfs","vehicle")
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      listTrips shouldBe(listTripsEventFile)
+    }
+  }
+
+
+  def containsSameBusEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
+
+    it should "contain same pathTraversal defined at stop times file for bus input file" in {
+      val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
+      val grouped = listTrips.groupBy(identity)
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+      val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"type=\"PathTraversal\" vehicle_id=\"bus:","vehicle_id")
+
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      val groupedXml = listTripsEventFile.groupBy(identity)
+      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
+
+
+      groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
+    }
+
+
+  }
+
+  def containsSameTrainEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
+
+    it should "contain same pathTraversal defined at stop times file for train input file" in {
+      val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
+      val grouped = listTrips.groupBy(identity)
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+      val listValueTagEventFile = eventsReader.getListTagsFrom(eventsFile,"type=\"PathTraversal\" vehicle_id=\"train:","vehicle_id")
+
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      val groupedXml = listTripsEventFile.groupBy(identity)
+      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
+
+
+      groupedWithCount should contain theSameElementsAs(groupedXmlWithCount)
+    }
+
+  }
+
+
 
 }
 
@@ -195,6 +260,10 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with EventsFile
 //  val csvEventsReader: ReadEvents = ???
 
   val busTripsFile = new File(s"$route_input/r5/bus/trips.txt")
+  val trainTripsFile = new File(s"$route_input/r5/train/trips.txt")
+
+  val busStopTimesFile = new File(s"$route_input/r5/bus/stop_times.txt")
+  val trainStopTimesFile = new File(s"$route_input/r5/train/stop_times.txt")
 
   it should "Start without errors" in {
     exc.isSuccess shouldBe true
@@ -204,8 +273,17 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with EventsFile
 
   "Create csv events file in output directory" should behave like fileExists(csvFile)
 
-  "Events file contains all train routes" should behave like containsAllBusRoutes(busTripsFile, xmlFile, xmlEventsReader)
+  "Events file contains all bus routes" should behave like containsAllBusRoutes(busTripsFile, xmlFile, xmlEventsReader)
 
+  "Events file contains all train routes" should behave like containsAllTrainRoutes(trainTripsFile, xmlFile, xmlEventsReader)
+
+  "Events file contains exactly the same bus trips entries" should behave like containsExactlyBusRoutes(busTripsFile, xmlFile, xmlEventsReader)
+
+  "Events file contains exactly the same train trips entries" should behave like containsExactlyTrainRoutes(busTripsFile, xmlFile, xmlEventsReader)
+
+  "Events file contains same pathTraversal defined at stop times file for bus input file" should behave like containsSameBusEntriesPathTraversal(busStopTimesFile,xmlFile,xmlEventsReader)
+
+  "Events file contains same pathTraversal defined at stop times file for train input file" should behave like containsSameTrainEntriesPathTraversal(trainStopTimesFile,xmlFile,xmlEventsReader)
 }
 //
 //class EventsFileCorrectnessSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with EventsFileHandlingCommon{
