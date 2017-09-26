@@ -64,7 +64,11 @@ public class PathTraversalEvent extends Event {
         this.beamLeg = beamLeg;
         this.length = beamLeg.travelPath().distanceInM();
         this.numPass = numPass;
-        this.capacity = vehicleType.getCapacity().getSeats() + vehicleType.getCapacity().getStandingRoom();
+        if (vehicleType.getCapacity()!=null) {
+            this.capacity = vehicleType.getCapacity().getSeats() + vehicleType.getCapacity().getStandingRoom();
+        }else{
+            this.capacity = 0;
+        }
         this.startCoord=startCoord;
         this.endCoord=endCoord;
         if (vehicleType.getEngineInformation()!=null){

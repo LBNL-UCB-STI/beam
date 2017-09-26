@@ -86,6 +86,7 @@ ggplot(ev[type=='PathTraversal'],aes(x=time/3600))+geom_histogram()+facet_grid(l
 
 # Transit use
 ggplot(ev[tripmode=='transit',],aes(x=length,y= num_passengers))+geom_point()
+ggplot(ev[tripmode=='transit',],aes(x=length,y= num_passengers/capacity))+geom_point()
 
 ###########################
 # Tables
