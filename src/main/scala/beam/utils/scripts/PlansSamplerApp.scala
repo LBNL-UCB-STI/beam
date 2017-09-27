@@ -213,14 +213,13 @@ object PlansSampler {
     plan
   }
 
-  def getClosestNPlans(spCoord: Coord, n: Int): Vector[Plan] = {
-    val planOrdering: Ordering[Plan] = Ordering.by(p => CoordUtils.calcEuclideanDistance(spCoord, PopulationUtils.getFirstActivity(p).getCoord))
+  def getClosestNPlans(spCoord: Coord, n: Int): Set[Plan] = {
     val closestPlan = getClosestPlan(spCoord)
-    var col = Vector(closestPlan)
+    var col = Set(closestPlan)
 
     var radius = CoordUtils.calcEuclideanDistance(spCoord, PopulationUtils.getFirstActivity(closestPlan).getCoord)
 
-    while (col.size < n - 1) {
+    while (col.size < n ) {
       radius += 1
       val candidates = JavaConverters.collectionAsScalaIterable(planQt.get.getDisk(spCoord.getX, spCoord.getY, radius))
       for (plan <- candidates) {
@@ -229,7 +228,7 @@ object PlansSampler {
         }
       }
     }
-    col.sorted(planOrdering)
+    col
   }
 
   def getClosestPlan(spCoord: Coord): Plan = {
@@ -252,14 +251,9 @@ object PlansSampler {
         1
       }
 
-      val closestPlans = getClosestNPlans(sh.coord, N)
+      val closestPlans: Set[Plan] = getClosestNPlans(sh.coord, N)
 
-      val selectedPlans = (0 to sh.numPersons).map(x => {
-        val x = Random.nextInt(N) - 1
-        closestPlans(if (x < 0) {
-          0
-        } else x)
-      })
+      val selectedPlans = Random.shuffle(closestPlans).take(sh.numPersons)
 
 
       val hhId = Id.create(counter.getCounter, classOf[Household])
@@ -280,7 +274,7 @@ object PlansSampler {
       var homePlan: Option[Plan] = None
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
 
-        var newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
+        val newPersonId = Id.createPersonId(s"${counter.getCounter}-$idx")
         val newPerson = newPop.getFactory.createPerson(newPersonId)
         newPop.addPerson(newPerson)
         spHH.getMemberIds.add(newPersonId)
