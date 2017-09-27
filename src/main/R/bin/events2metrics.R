@@ -22,7 +22,8 @@ load.libraries(c('optparse'),quietly=T)
 #}
 
 exp.file <- '~/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/scenarios/experiment.csv'
-outs.dir <- '/Users/critter/Documents/beam/beam-output/experiments'
+outs.dir.base <- '/Users/critter/Documents/beam/beam-output/experiments'
+outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price')
 
 ######################################################################################################
 # Load the exp config
@@ -61,6 +62,8 @@ for(out.dir in list.files(outs.dir)){
   evs[[length(evs)+1]] <- cbind(ev,exp.to.add)
 }
 ev <- rbindlist(evs)
+#export to csv for colleagues
+write.csv(ev,file=pp(outs.dir,"/combined-events.csv"))
 
 ###########################
 # Clean and relabel
@@ -69,8 +72,16 @@ ev[vehicle_type=="bus",vehicle_type:="Bus"]
 ev[vehicle_type=="CAR",vehicle_type:="TNC"]
 ev[vehicle_type=="subway",vehicle_type:="BART"]
 ev[vehicle_type=="SUV",vehicle_type:="Car"]
-ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail'),'transit',mode)]
+ev[vehicle_type=="cable_car",vehicle_type:="Cable_Car"]
+ev[vehicle_type=="tram",vehicle_type:="Muni"]
+ev[vehicle_type=="rail",vehicle_type:="Caltrain"]
+ev[vehicle_type=="ferry",vehicle_type:="Ferry"]
+ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail'),'transit',as.character(mode))]
 ev[,hour:=time/3600]
+ev[,hr:=round(hour)]
+setkey(ev,vehicle_type)
+
+save(ev,file=pp(outs.dir,"/combined-events.Rdata"))
 
 ###########################
 # Plots 
@@ -81,12 +92,23 @@ ggplot(ev[type=='PathTraversal'],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,c
 # BART tracks
 ggplot(ev[type=='PathTraversal' & vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
 
-# Num by time and mode
-ggplot(ev[type=='PathTraversal'],aes(x=time/3600))+geom_histogram()+facet_grid(level~vehicle_type)
+# Beam leg by time and mode
+ggplot(ev[type=='PathTraversal'],aes(x=time/3600))+geom_histogram()+facet_wrap(name~vehicle_type)+labs(x="Hour",y="# Vehicle Movements")
+setkey(ev,name,vehicle_type)
+ggplot(ev[type=='PathTraversal',.(num=length(num_passengers)),by=c('hr','name','vehicle_type')],aes(x=hr,y=num))+geom_bar(stat='identity')+facet_wrap(name~vehicle_type)+labs(x="Hour",y="Person Movements")
+
+# VMT by time and mode
+ggplot(ev[experiment=='ridehail' & factor=='price' & type=='PathTraversal' & !vehicle_type%in%c('Ferry','Caltrain'),.(vmt=sum(length/1609)),by=c('hr','name','vehicle_type')],aes(x=hr,y=vmt))+geom_bar(stat='identity')+facet_grid(name~vehicle_type)+labs(x="Hour",y="Vehicle Miles Traveled")
 
 # Transit use
 ggplot(ev[tripmode=='transit',],aes(x=length,y= num_passengers))+geom_point()
 ggplot(ev[tripmode=='transit',],aes(x=length,y= num_passengers/capacity))+geom_point()
+
+# Mode choice shape
+shp <- ev[experiment=='ridehail'&factor=='price'&type=='ModeChoice',.(length(time)),by=c('hr','experiment','factor','level','tripmode')]
+ggplot(shp,aes(x=hr,y=V1,fill=tripmode))+geom_bar(stat='identity',position='stack')+facet_wrap(~level)
+
+
 
 ###########################
 # Tables
