@@ -234,7 +234,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick,_currentVehicleUnderControl.get.id,beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,passengerSchedule.curTotalNumPassengers(_currentLeg.get),_currentLeg.get,getStartCoord,getEndCoord)))
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick,_currentVehicleUnderControl.get.id,
+      beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,
+      passengerSchedule.curTotalNumPassengers(_currentLeg.get),
+      _currentLeg.get,getStartCoord,getEndCoord)))
+
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
     if(passengerSchedule.schedule.nonEmpty){
