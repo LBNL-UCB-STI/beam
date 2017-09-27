@@ -306,7 +306,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     }
     val beamVehicleRef = actorSystem.actorOf(props, BeamVehicle.buildActorName(matSimVehicle))
 
-    (vehicleId, beamVehicleRef)
 
     (vehicleId, beamVehicleRef)
 

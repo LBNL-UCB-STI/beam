@@ -30,7 +30,7 @@ trait RunBeam {
         // MATSim defaults
         install(new NewControlerModule)
         install(new ScenarioByInstanceModule(scenario))
-        install(new ControlerDefaultsModule)
+        install(new controler.ControlerDefaultsModule)
         install(new BeamControllerCoreListenersModule)
 
 
