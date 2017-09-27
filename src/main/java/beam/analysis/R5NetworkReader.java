@@ -13,8 +13,8 @@ import java.util.HashMap;
  */
 public class R5NetworkReader {
 
-    public static HashMap<Integer, R5NetworkLink> readR5Network(String path, boolean withCounties) {
-        HashMap<Integer, R5NetworkLink> r5NetworkLinks = new HashMap<Integer, R5NetworkLink>();
+    public static HashMap<String, R5NetworkLink> readR5Network(String path, boolean withCounties) {
+        HashMap<String, R5NetworkLink> r5NetworkLinks = new HashMap<String, R5NetworkLink>();
         String csvFile = path;
         BufferedReader br = null;
         String line = "";
@@ -27,7 +27,7 @@ public class R5NetworkReader {
             while ((line = br.readLine()) != null) {
 
                 String[] columns = line.split(cvsSplitBy);
-                R5NetworkLink r5NetworkLink = new R5NetworkLink(Integer.parseInt(columns[offSet+0]), new Coord(Double.parseDouble(columns[offSet+1]), Double.parseDouble(columns[offSet+2])), Double.parseDouble(columns[offSet+3]),withCounties?columns[5]:"");
+                R5NetworkLink r5NetworkLink = new R5NetworkLink(columns[offSet+0], new Coord(Double.parseDouble(columns[offSet+1]), Double.parseDouble(columns[offSet+2])), Double.parseDouble(columns[offSet+3]),withCounties?columns[5]:"");
                 r5NetworkLinks.put(r5NetworkLink.linkId, r5NetworkLink);
             }
 

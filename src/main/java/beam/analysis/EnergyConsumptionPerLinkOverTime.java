@@ -43,12 +43,12 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
 
     Table<String, String, Double>[] numberOfPassengers = new Table[numberOfBins];
 
-    public static HashMap<Integer, R5NetworkLink> r5NetworkLinks;
+    public static HashMap<String, R5NetworkLink> r5NetworkLinks;
 
     public static void main(String[] args) {
         //String pathToEventsFile = "C:\\tmp\\events2.xml.gz";
-        //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
-        String pathToEventsFile = "C:\\tmp\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
+        String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
+        //String pathToEventsFile = "C:\\tmp\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-2.tar\\base_2017-09-26_18-13-2\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
         String r5NetworkPath = "C:\\tmp\\bayAreaR5NetworkLinksWithCounties.csv\\bayAreaR5NetworkLinksWithCounties.csv";
 
@@ -115,13 +115,14 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
             PrintWriter pw = new PrintWriter(new File(path));
             StringBuilder sb = new StringBuilder();
 
-            sb.append("linkId\ttimeBin\tmode\tfuelConsumption[MJ]\tfuelType\tnumberOfVehicles\tnumberOfPassengers");
+            sb.append("linkId\ttimeBin\tmode\tfuelConsumption[MJ]\tfuelType\tnumberOfVehicles\tnumberOfPassengers\txCoord\tyCoord\tlengthInMeters\tcounty");
             sb.append('\n');
             for (int i = 0; i < numberOfBins; i++) {
 
                 for (Table.Cell<String, String, Double> cell : energyConsumption[i].cellSet()) {
                     String linkId = cell.getRowKey();
                     String vehicleAndFuelType = cell.getColumnKey();
+                    R5NetworkLink r5link=getR5LinkTakeCareOfTransit(linkId);
 
                     String vehicleType = getVehicleType(vehicleAndFuelType);
                     String fuelType = getFuelType(vehicleAndFuelType);
@@ -139,6 +140,14 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
                     sb.append(Math.round(numberOfVehicles[i].get(linkId, vehicleAndFuelType)));
                     sb.append("\t");
                     sb.append(Math.round(numberOfPassengers[i].get(linkId, vehicleAndFuelType)));
+                    sb.append("\t");
+                    sb.append(r5link.coord.getX());
+                    sb.append("\t");
+                    sb.append(r5link.coord.getY());
+                    sb.append("\t");
+                    sb.append(r5link.lengthInMeters);
+                    sb.append("\t");
+                    sb.append(r5link.countyName);
                     sb.append('\n');
                     pw.write(sb.toString());
                     if (j < printToConsoleNumberOfLines) {
@@ -153,6 +162,22 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
             exception.printStackTrace();
         }
     }
+
+    private R5NetworkLink getR5LinkTakeCareOfTransit(String linkId){
+        if (r5NetworkLinks.containsKey(linkId)){
+            return r5NetworkLinks.get(linkId);
+        } else {
+            String[] linkSplit=linkId.split(",");
+            R5NetworkLink startLink=r5NetworkLinks.get(linkSplit[0].trim());
+            R5NetworkLink endLink=r5NetworkLinks.get(linkSplit[1].trim());
+            Coord centerCoord=new Coord((startLink.coord.getX()+endLink.coord.getX())/2,(startLink.coord.getY()+endLink.coord.getY())/2);
+            double lengthInMeters= GeoUtils.distInMeters(startLink.coord.getY(),startLink.coord.getX(),endLink.coord.getY(),endLink.coord.getX());
+            return new R5NetworkLink(linkId,centerCoord,lengthInMeters,startLink.countyName);
+            // taking county name from start coordinate as data not available for centerCoord to county mapping
+        }
+
+    }
+
 
     private int getBinId(double time){
         return (int)Math.round(time / (binSizeInSeconds));
@@ -193,12 +218,12 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
                 addValueToTable(numberOfVehicles[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), 1.0);
                 addValueToTable(numberOfPassengers[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), numOfPassengers);
             } else {
-                LinkedList<Integer> linkIds = getIntegerLinks(links);
+                LinkedList<String> linkIds = getIntegerLinks(links);
 
-                for (Integer linkId : linkIds) {
-                    addValueToTable(energyConsumption[getBinId(event.getTime())], linkId.toString(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), getFuelShareOfLink(linkId, linkIds, fuel));
-                    addValueToTable(numberOfVehicles[getBinId(event.getTime())], linkId.toString(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), 1.0);
-                    addValueToTable(numberOfPassengers[getBinId(event.getTime())], linkId.toString(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), numOfPassengers);
+                for (String linkId : linkIds) {
+                    addValueToTable(energyConsumption[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), getFuelShareOfLink(linkId, linkIds, fuel));
+                    addValueToTable(numberOfVehicles[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), 1.0);
+                    addValueToTable(numberOfPassengers[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), numOfPassengers);
                 }
             }
         }
@@ -222,26 +247,25 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
         }
     }
 
-    LinkedList<Integer> getIntegerLinks(String links) {
-        LinkedList<Integer> linkIds = new LinkedList<Integer>();
+    LinkedList<String> getIntegerLinks(String links) {
+        LinkedList<String> linkIds = new LinkedList<String>();
         if (links.trim().length() != 0) {
             for (String link : links.split(",")) {
-                Integer linkId = Integer.parseInt(link.trim());
-                linkIds.add(linkId);
+                linkIds.add(link.trim());
             }
         }
 
         return linkIds;
     }
 
-    double getFuelShareOfLink(Integer linkIdPartOfPath, LinkedList<Integer> pathLinkIds, double pathFuelConsumption) {
+    double getFuelShareOfLink(String linkIdPartOfPath, LinkedList<String> pathLinkIds, double pathFuelConsumption) {
         double pathLength = 0;
 
-        for (Integer linkId : pathLinkIds) {
-            pathLength += r5NetworkLinks.get(linkId).lengthInMeters;
+        for (String linkId : pathLinkIds) {
+            pathLength += r5NetworkLinks.get(linkId.toString()).lengthInMeters;
         }
 
-        return r5NetworkLinks.get(linkIdPartOfPath).lengthInMeters / pathLength * pathFuelConsumption;
+        return r5NetworkLinks.get(linkIdPartOfPath.toString()).lengthInMeters / pathLength * pathFuelConsumption;
     }
 
 
