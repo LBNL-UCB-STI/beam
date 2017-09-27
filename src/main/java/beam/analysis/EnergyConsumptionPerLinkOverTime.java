@@ -34,7 +34,7 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
     int maxTimeInSeconds = 3600 * 24;
     int binSizeInSeconds = 3600 * 12;
     int numberOfBins = maxTimeInSeconds / binSizeInSeconds;
-    double samplePct = 0.1;
+    double samplePct = 1.0;
     int printToConsoleNumberOfLines=10;
 
     Table<String, String, Double>[] energyConsumption = new Table[numberOfBins];
@@ -44,22 +44,11 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
     Table<String, String, Double>[] numberOfPassengers = new Table[numberOfBins];
 
     public static HashMap<Integer, R5NetworkLink> r5NetworkLinks;
-// TODO: add column fuelType (electric or diesel)
-// TODO: load vehicle type
-    // test on final, that correct number of hours
-    /*
-    kwh- >
-    diesel-> burning MJ
-    */
 
-    // OPEN ISSUES: TRAINSIT LINK-PAIRS NOT WORKING YET PROPERLY, WHY?
-
-    // TODO: write out data faster?
-
-    // TODO: change to hourly
     public static void main(String[] args) {
         //String pathToEventsFile = "C:\\tmp\\events2.xml.gz";
-        String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
+        //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
+        String pathToEventsFile = "C:\\tmp\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-2.tar\\base_2017-09-26_18-13-2\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
         String r5NetworkPath = "C:\\tmp\\bayAreaR5NetworkLinksWithCounties.csv\\bayAreaR5NetworkLinksWithCounties.csv";
 
@@ -67,7 +56,6 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
 
         //       Vehicles veh = VehicleUtils.createVehiclesContainer();
         //      new VehicleReaderV1(veh).readFile("C:\\Users\\rwaraich\\IdeaProjects\\application_sfbay_7\\beam\\production\\application-sfbay\\transitVehicles.xml");
-
 
         EventsManager events = EventsUtils.createEventsManager();
 
@@ -77,7 +65,6 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
         MatsimEventsReader reader = new MatsimEventsReader(events);
         reader.readFile(pathToEventsFile);
 
-        //energyConsumptionPerLinkOverTime.printLinkEnergyVehicleCountAndNumberOfPassengersDataToConsole();
         energyConsumptionPerLinkOverTime.printDataToFile("c:\\tmp\\energyConsumption.txt");
     }
 
@@ -135,16 +122,6 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
                 for (Table.Cell<String, String, Double> cell : energyConsumption[i].cellSet()) {
                     String linkId = cell.getRowKey();
                     String vehicleAndFuelType = cell.getColumnKey();
-                    /*
-                        if (!energyConsumption[i].contains(linkId, vehicleAndFuelType)){
-                            continue;
-                        } else {
-                            // making sure all values are present initialized (otherwise we would get null for return value)
-                            addValueToTable(energyConsumption[i], linkId, vehicleAndFuelType, 0);
-                            addValueToTable(numberOfVehicles[i], linkId, vehicleAndFuelType, 0);
-                            addValueToTable(numberOfPassengers[i], linkId, vehicleAndFuelType, 0);
-                        }
-*/
 
                     String vehicleType = getVehicleType(vehicleAndFuelType);
                     String fuelType = getFuelType(vehicleAndFuelType);
@@ -177,34 +154,6 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
         }
     }
 
-/*
-    public void printLinkEnergyVehicleCountAndNumberOfPassengersDataToConsole() {
-        System.out.println("linkId\ttimeBin\tmode\tfuelConsumption[MJ]\tnumberOfVehicles\tnumberOfPassengers");
-        for (int i = 0; i < numberOfBins; i++) {
-            for (String linkId : energyConsumption[i].rowKeySet()) {
-                for (String vehicleType : energyConsumption[i].columnKeySet()) {
-                    // making sure all values are present (otherwise we would get null for return value)
-                    addValueToTable(energyConsumption[i], linkId, vehicleType, 0);
-                    addValueToTable(numberOfVehicles[i], linkId, vehicleType, 0);
-                    addValueToTable(numberOfPassengers[i], linkId, vehicleType, 0);
-
-                    System.out.print(linkId);
-                    System.out.print("\t");
-                    System.out.print(i);
-                    System.out.print("\t");
-                    System.out.print(convertVehicleType(vehicleType));
-                    System.out.print("\t");
-                    System.out.print(energyConsumption[i].get(linkId, vehicleType));
-                    System.out.print("\t");
-                    System.out.print(Math.round(numberOfVehicles[i].get(linkId, vehicleType)));
-                    System.out.print("\t");
-                    System.out.println(Math.round(numberOfPassengers[i].get(linkId, vehicleType)));
-                }
-            }
-        }
-    }
-*/
-
     private int getBinId(double time){
         return (int)Math.round(time / (binSizeInSeconds));
     }
@@ -213,11 +162,11 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
     public void handleEvent(Event event) {
         Random r = new Random();
 
-/*
+
         if (r.nextDouble()>samplePct){
             return;
         }
-*/
+
 
         if (getBinId(event.getTime()) >= numberOfBins) {
             return;
