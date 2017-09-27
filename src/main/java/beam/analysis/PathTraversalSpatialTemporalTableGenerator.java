@@ -1,41 +1,32 @@
 package beam.analysis;
 
-import beam.agentsim.events.PathTraversalEvent;
-import beam.utils.IntegerValueHashMap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import org.matsim.api.core.v01.Coord;
-import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler;
-import org.matsim.api.core.v01.events.handler.ActivityStartEventHandler;
-import org.matsim.api.core.v01.events.handler.LinkEnterEventHandler;
-import org.matsim.api.core.v01.events.handler.PersonDepartureEventHandler;
-import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
-import org.matsim.core.events.handler.EventHandler;
-import org.matsim.vehicles.VehicleReaderV1;
-import org.matsim.vehicles.VehicleUtils;
-import org.matsim.vehicles.Vehicles;
 
 import java.io.*;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Random;
 
 /**
  * @author rwaraich
+ * <p>
+ * Create table for spatial and temporal analysis based on pathTraversalEvents (xml)
+ * outputs: linkId, vehicleType, fuelConsumption, fuelType, numberOfVehicles, numberOfPassengers, linkCoordinates, linkLengthInMeters, county
+ * for subway, tram, ferry and cable_car the link is reported as a pair of start and end link
  */
-public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
+public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHandler {
     int maxTimeInSeconds = 3600 * 24;
     int binSizeInSeconds = 3600 * 12;
     int numberOfBins = maxTimeInSeconds / binSizeInSeconds;
     double samplePct = 1.0;
-    int printToConsoleNumberOfLines=10;
+    int printToConsoleNumberOfLines = 10;
 
     Table<String, String, Double>[] energyConsumption = new Table[numberOfBins];
 
@@ -47,8 +38,8 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
 
     public static void main(String[] args) {
         //String pathToEventsFile = "C:\\tmp\\events2.xml.gz";
-        String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
-        //String pathToEventsFile = "C:\\tmp\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
+        //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
+        String pathToEventsFile = "C:\\tmp\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-2.tar\\base_2017-09-26_18-13-2\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
         String r5NetworkPath = "C:\\tmp\\bayAreaR5NetworkLinksWithCounties.csv\\bayAreaR5NetworkLinksWithCounties.csv";
 
@@ -59,7 +50,7 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
 
         EventsManager events = EventsUtils.createEventsManager();
 
-        EnergyConsumptionPerLinkOverTime energyConsumptionPerLinkOverTime = new EnergyConsumptionPerLinkOverTime();
+        PathTraversalSpatialTemporalTableGenerator energyConsumptionPerLinkOverTime = new PathTraversalSpatialTemporalTableGenerator();
         events.addHandler(energyConsumptionPerLinkOverTime);
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
@@ -68,7 +59,7 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
         energyConsumptionPerLinkOverTime.printDataToFile("c:\\tmp\\energyConsumption.txt");
     }
 
-    public EnergyConsumptionPerLinkOverTime() {
+    public PathTraversalSpatialTemporalTableGenerator() {
         for (int i = 0; i < numberOfBins; i++) {
             energyConsumption[i] = HashBasedTable.create();
             numberOfVehicles[i] = HashBasedTable.create();
@@ -101,16 +92,16 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
         }
     }
 
-    private String getVehicleType(String vehicleAndFuelType){
+    private String getVehicleType(String vehicleAndFuelType) {
         return vehicleAndFuelType.split("@")[0];
     }
 
-    private String getFuelType(String vehicleAndFuelType){
+    private String getFuelType(String vehicleAndFuelType) {
         return vehicleAndFuelType.split("@")[1];
     }
 
     public void printDataToFile(String path) {
-        int j=0;
+        int j = 0;
         try {
             PrintWriter pw = new PrintWriter(new File(path));
             StringBuilder sb = new StringBuilder();
@@ -122,7 +113,11 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
                 for (Table.Cell<String, String, Double> cell : energyConsumption[i].cellSet()) {
                     String linkId = cell.getRowKey();
                     String vehicleAndFuelType = cell.getColumnKey();
-                    R5NetworkLink r5link=getR5LinkTakeCareOfTransit(linkId);
+                    R5NetworkLink r5link = getR5LinkTakeCareOfTransit(linkId);
+
+                    if (r5link==null){
+                        continue;
+                    }
 
                     String vehicleType = getVehicleType(vehicleAndFuelType);
                     String fuelType = getFuelType(vehicleAndFuelType);
@@ -163,38 +158,42 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
         }
     }
 
-    private R5NetworkLink getR5LinkTakeCareOfTransit(String linkId){
-        if (r5NetworkLinks.containsKey(linkId)){
-            return r5NetworkLinks.get(linkId);
-        } else {
-            String[] linkSplit=linkId.split(",");
-            R5NetworkLink startLink=r5NetworkLinks.get(linkSplit[0].trim());
-            R5NetworkLink endLink=r5NetworkLinks.get(linkSplit[1].trim());
-            Coord centerCoord=new Coord((startLink.coord.getX()+endLink.coord.getX())/2,(startLink.coord.getY()+endLink.coord.getY())/2);
-            double lengthInMeters= GeoUtils.distInMeters(startLink.coord.getY(),startLink.coord.getX(),endLink.coord.getY(),endLink.coord.getX());
-            return new R5NetworkLink(linkId,centerCoord,lengthInMeters,startLink.countyName);
-            // taking county name from start coordinate as data not available for centerCoord to county mapping
+    private R5NetworkLink getR5LinkTakeCareOfTransit(String linkId) {
+        try {
+            if (r5NetworkLinks.containsKey(linkId)) {
+                return r5NetworkLinks.get(linkId);
+            } else {
+                String[] linkSplit = linkId.split(",");
+                R5NetworkLink startLink = r5NetworkLinks.get(linkSplit[0].trim());
+                R5NetworkLink endLink = r5NetworkLinks.get(linkSplit[1].trim());
+                Coord centerCoord = new Coord((startLink.coord.getX() + endLink.coord.getX()) / 2, (startLink.coord.getY() + endLink.coord.getY()) / 2);
+                double lengthInMeters = GeoUtils.distInMeters(startLink.coord.getY(), startLink.coord.getX(), endLink.coord.getY(), endLink.coord.getX());
+                return new R5NetworkLink(linkId, centerCoord, lengthInMeters, startLink.countyName);
+                // taking county name from start coordinate as data not available for centerCoord to county mapping
+            }
+        } catch (Exception e)
+        {
+            System.out.println("'" + linkId + "' not recognized (skipping)");
+            // this was introduced, as for ferry links=",730420" found, which does not allow to process it
         }
-
+        return null;
     }
 
 
-    private int getBinId(double time){
-        return (int)Math.round(time / (binSizeInSeconds));
+    private int getBinId(double time) {
+        return (int) Math.floor(time / (binSizeInSeconds));
     }
 
     @Override
     public void handleEvent(Event event) {
         Random r = new Random();
 
-
-        if (r.nextDouble()>samplePct){
+        if (r.nextDouble() > samplePct) {
             return;
         }
 
-
-        if (getBinId(event.getTime()) >= numberOfBins) {
-            return;
+        if (getBinId(event.getTime()) >= getBinId(maxTimeInSeconds)) {
+            return; // not using data after 'maxTimeInSeconds'
         }
 
         if (event.getEventType().equalsIgnoreCase("PathTraversal")) {
@@ -209,7 +208,7 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
             if (!fuelString.contains("NA")) {
                 fuel = Double.parseDouble(event.getAttributes().get("fuel"));
             }
-            boolean isElectricEnergy=isElectricEnergy(vehicleType,vehicleId);
+            boolean isElectricEnergy = isElectricEnergy(vehicleType, vehicleId);
 
             fuel = convertFuelToMJ(fuel, isElectricEnergy);
 
@@ -230,10 +229,10 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
     }
 
     private String getVehicleTypeWithFuelType(String vehicleType, boolean isElectricEnergy) {
-        return vehicleType + (isElectricEnergy?"@e":"@d");
+        return vehicleType + (isElectricEnergy ? "@e" : "@d");
     }
 
-    private boolean isElectricEnergy(String vehicleType, String vehicleId){
+    private boolean isElectricEnergy(String vehicleType, String vehicleId) {
         return vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("cable_car") || vehicleType.equalsIgnoreCase("tram") || (vehicleType.equalsIgnoreCase("bus") && vehicleId.contains("MS"));
     }
 
