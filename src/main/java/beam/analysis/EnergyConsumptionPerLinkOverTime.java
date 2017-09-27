@@ -24,6 +24,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.LinkedList;
 
 // TODO: readin transit vehicles?
 
@@ -36,33 +37,20 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
     int binSizeInSeconds=60*15;
     int numberOfBins=maxTimeInSeconds/binSizeInSeconds;
 
-    Table<Integer, String, Double>[] energyConsumption = new Table[96];
+    Table<Integer, String, Double>[] energyConsumption = new Table[numberOfBins];
 
-    Table<Integer, String, Double>[] numberOfVehicles = new Table[96];
+    Table<Integer, String, Double>[] numberOfVehicles = new Table[numberOfBins];
 
-    Table<Integer, String, Double>[] numberOfPassengers = new Table[96];
+    Table<Integer, String, Double>[] numberOfPassengers = new Table[numberOfBins];
 
-    public static void addValueToTable(Table<Integer, String, Double> table, Integer key1, String key2, double value) {
-        if (!table.contains(key1, key2)) {
-            table.put(key1, key2, 0.0);
-        }
+    public static HashMap<Integer, R5NetworkLink> r5NetworkLinks;
 
-        table.put(key1, key2, table.get(key1, key2) + value);
-    }
-
-    public EnergyConsumptionPerLinkOverTime() {
-        for (int i = 0; i < numberOfBins; i++) {
-            energyConsumption[i] = HashBasedTable.create();
-            numberOfVehicles[i] = HashBasedTable.create();
-            numberOfPassengers[i] = HashBasedTable.create();
-        }
-    }
 
     public static void main(String[] args) {
         String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
         String r5NetworkPath = "C:\\tmp\\bayAreaR5NetworkLinks.txt";
 
-        HashMap<Integer, R5NetworkLink> r5NetworkLinks=R5NetworkReader.readR5Network(r5NetworkPath);
+        r5NetworkLinks=R5NetworkReader.readR5Network(r5NetworkPath);
 
         EventsManager events = EventsUtils.createEventsManager();
 
@@ -74,6 +62,16 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
 
         energyConsumptionPerLinkOverTime.printLinkEnergyVehicleCountAndNumberOfPassengersDataToConsole();
     }
+
+    public EnergyConsumptionPerLinkOverTime() {
+        for (int i = 0; i < numberOfBins; i++) {
+            energyConsumption[i] = HashBasedTable.create();
+            numberOfVehicles[i] = HashBasedTable.create();
+            numberOfPassengers[i] = HashBasedTable.create();
+        }
+    }
+
+
 
     @Override
     public void reset(int iteration) {
@@ -123,17 +121,51 @@ public class EnergyConsumptionPerLinkOverTime implements BasicEventHandler {
 
                     Integer numOfPassengers = Integer.parseInt(event.getAttributes().get("num_passengers"));
 
-                    for (String link : links.split(",")) {
-                        addValueToTable(energyConsumption[(int) Math.round(event.getTime() / (binSizeInSeconds))], Integer.parseInt(link.trim()), mode, fuel);
-                        addValueToTable(numberOfVehicles[(int) Math.round(event.getTime() / (binSizeInSeconds))], Integer.parseInt(link.trim()), mode, 1.0);
-                        addValueToTable(numberOfPassengers[(int) Math.round(event.getTime() / (binSizeInSeconds))], Integer.parseInt(link.trim()), mode, numOfPassengers);
+                    LinkedList<Integer> linkIds=getIntegerLinks(links);
+
+                    for (Integer linkId : linkIds) {
+                        addValueToTable(energyConsumption[(int) Math.round(event.getTime() / (binSizeInSeconds))],linkId , mode, getFuelShareOfLink(linkId,linkIds,fuel));
+                        addValueToTable(numberOfVehicles[(int) Math.round(event.getTime() / (binSizeInSeconds))], linkId, mode, 1.0);
+                        addValueToTable(numberOfPassengers[(int) Math.round(event.getTime() / (binSizeInSeconds))], linkId, mode, numOfPassengers);
                     }
                 }
             }
         }
     }
 
+    LinkedList<Integer> getIntegerLinks(String links){
+        LinkedList<Integer> linkIds= new LinkedList<Integer>();
+        if (links.trim().length()!=0){
+            for (String link : links.split(",")) {
+                Integer linkId=Integer.parseInt(link.trim());
+                linkIds.add(linkId);
+            }
+        }
 
+        return linkIds;
+    }
+
+    double getFuelShareOfLink(Integer linkIdPartOfPath, LinkedList<Integer> pathLinkIds, double pathFuelConsumption){
+        double pathLength=0;
+
+        for (Integer linkId: pathLinkIds){
+            pathLength+=r5NetworkLinks.get(linkId).lengthInMeters;
+        }
+
+        return r5NetworkLinks.get(linkIdPartOfPath).lengthInMeters / pathLength * pathFuelConsumption;
+    }
+
+
+
+
+
+    public static void addValueToTable(Table<Integer, String, Double> table, Integer key1, String key2, double value) {
+        if (!table.contains(key1, key2)) {
+            table.put(key1, key2, 0.0);
+        }
+
+        table.put(key1, key2, table.get(key1, key2) + value);
+    }
 
 
 

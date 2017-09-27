@@ -19,6 +19,7 @@ public class R5NetworkReader {
 
         try {
             br = new BufferedReader(new FileReader(csvFile));
+            line = br.readLine(); // skipping header line
             while ((line = br.readLine()) != null) {
 
                 String[] columns = line.split(cvsSplitBy);
