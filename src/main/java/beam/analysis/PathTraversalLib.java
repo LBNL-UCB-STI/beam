@@ -20,9 +20,23 @@ public class PathTraversalLib {
         return linkIds;
     }
 
+
+    public static boolean hasEmptyStartOrEndCoordinate(Map<String,String> pathTraversalEventAttributes){
+        Tuple<Coord, Coord> startAndEndCoordinates = getStartAndEndCoordinates(pathTraversalEventAttributes);
+        return startAndEndCoordinates.getFirst()==null || startAndEndCoordinates.getSecond()==null;
+    }
+
     public static Tuple<Coord,Coord> getStartAndEndCoordinates(Map<String,String> pathTraversalEventAttributes){
-        Coord startCoord=new Coord(Double.parseDouble(pathTraversalEventAttributes.get("start.x")),Double.parseDouble(pathTraversalEventAttributes.get("start.y")));
-        Coord endCoord=new Coord(Double.parseDouble(pathTraversalEventAttributes.get("end.x")),Double.parseDouble(pathTraversalEventAttributes.get("end.y")));
+        Coord startCoord=null;
+        Coord endCoord=null;
+        if (pathTraversalEventAttributes.get("start.x").length()!=0 && pathTraversalEventAttributes.get("start.y").length()!=0){
+            startCoord=new Coord(Double.parseDouble(pathTraversalEventAttributes.get("start.x")),Double.parseDouble(pathTraversalEventAttributes.get("start.y")));
+        }
+
+        if (pathTraversalEventAttributes.get("end.x").length()!=0 && pathTraversalEventAttributes.get("end.y").length()!=0){
+            endCoord=new Coord(Double.parseDouble(pathTraversalEventAttributes.get("end.x")),Double.parseDouble(pathTraversalEventAttributes.get("end.y")));
+        }
+
         return new Tuple<>(startCoord,endCoord);
     }
 

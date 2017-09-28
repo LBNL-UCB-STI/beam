@@ -164,6 +164,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
     }
 
+
+
     public double getFuelUsageBasedOnStartEndCoordinates(double fuelEconomy, Map<String,String> pathTraversalEventAttributes){
         Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(pathTraversalEventAttributes);
 
@@ -214,6 +216,11 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
 
         if (event.getEventType().equalsIgnoreCase("PathTraversal")) {
+            if (PathTraversalLib.hasEmptyStartOrEndCoordinate(event.getAttributes())){
+                return; // don't consider traversal events which are missing start or end coordinates
+            }
+
+
             String vehicleType = event.getAttributes().get("vehicle_type");
             String vehicleId = event.getAttributes().get("vehicle_id");
             String links = event.getAttributes().get("links");
