@@ -9,10 +9,10 @@ import java.util.Map;
 public class PathTraversalLib {
 
 
-    public static LinkedList<String> getLinkIdList(String links) {
+    public static LinkedList<String> getLinkIdList(String links,String separator) {
         LinkedList<String> linkIds = new LinkedList<String>();
         if (links.trim().length() != 0) {
-            for (String link : links.split(",")) {
+            for (String link : links.split(separator)) {
                 linkIds.add(link.trim());
             }
         }
