@@ -1,14 +1,18 @@
 package beam.analysis;
 
+import beam.sim.config.BeamConfig;
+import beam.utils.DebugLib;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import org.matsim.api.core.v01.Coord;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
+import org.matsim.vehicles.*;
 
 import java.io.*;
 import java.util.HashMap;
@@ -27,7 +31,7 @@ import java.util.Random;
 
 public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHandler {
     int maxTimeInSeconds = 3600 * 24;
-    int binSizeInSeconds = 3600 * 12;
+    int binSizeInSeconds = 3600 * 1;
     int numberOfBins = maxTimeInSeconds / binSizeInSeconds;
     double samplePct = 1.0;
     int printToConsoleNumberOfLines = 10;
@@ -38,9 +42,11 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     Table<String, String, Double>[] numberOfPassengers = new Table[numberOfBins];
 
-    HashMap<String, Tuple<Coord,Coord>> startAndEndCoordNonRoadModes = new HashMap();
+    HashMap<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap();
 
     public static HashMap<String, R5NetworkLink> r5NetworkLinks;
+
+    private static Vehicles veh;
 
     public static void main(String[] args) {
         //String pathToEventsFile = "C:\\tmp\\events2.xml.gz";
@@ -51,8 +57,9 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
         r5NetworkLinks = R5NetworkReader.readR5Network(r5NetworkPath, true);
 
-        //       Vehicles veh = VehicleUtils.createVehiclesContainer();
-        //      new VehicleReaderV1(veh).readFile("C:\\Users\\rwaraich\\IdeaProjects\\application_sfbay_7\\beam\\production\\application-sfbay\\transitVehicles.xml");
+        veh = VehicleUtils.createVehiclesContainer();
+        new VehicleReaderV1(veh).readFile("C:\\Users\\rwaraich\\IdeaProjects\\application_sfbay_7\\beam\\production\\application-sfbay\\transitVehicles.xml");
+
 
         EventsManager events = EventsUtils.createEventsManager();
 
@@ -83,12 +90,11 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         HashMap<String, String> oldLabelToNewLabel = new HashMap<>();
 
         oldLabelToNewLabel.put("bus", "Bus");
-        oldLabelToNewLabel.put("CAR", "TNC");
         oldLabelToNewLabel.put("subway", "BART");
         oldLabelToNewLabel.put("SUV", "Car");
         oldLabelToNewLabel.put("cable_car", "Cable_Car");
         oldLabelToNewLabel.put("tram", "Muni");
-        oldLabelToNewLabel.put("rail", "Caltrain");
+        oldLabelToNewLabel.put("rail", "Rail");
         oldLabelToNewLabel.put("ferry", "Ferry");
 
         if (oldLabelToNewLabel.containsKey(vehicleType)) {
@@ -121,7 +127,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                     String vehicleAndFuelType = cell.getColumnKey();
                     R5NetworkLink r5link = getR5LinkTakeCareOfTransit(linkId);
 
-                    if (r5link==null){
+                    if (r5link == null) {
                         continue;
                     }
 
@@ -165,13 +171,10 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
 
-
-    public double getFuelUsageBasedOnStartEndCoordinates(double fuelEconomy, Map<String,String> pathTraversalEventAttributes){
+    public double getFuelUsageBasedOnStartEndCoordinates(double fuelEconomy, Map<String, String> pathTraversalEventAttributes) {
         Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(pathTraversalEventAttributes);
-
         double lengthInMeters = GeoUtils.distInMeters(startAndEndCoordinates.getFirst().getY(), startAndEndCoordinates.getFirst().getX(), startAndEndCoordinates.getSecond().getY(), startAndEndCoordinates.getSecond().getX());
-
-        return fuelEconomy*lengthInMeters;
+        return fuelEconomy * lengthInMeters;
     }
 
     private R5NetworkLink getR5LinkTakeCareOfTransit(String linkId) {
@@ -179,7 +182,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             if (r5NetworkLinks.containsKey(linkId)) {
                 return r5NetworkLinks.get(linkId);
             } else {
-               // Tuple<Coord,Coord> startAndEndCoord=startAndEndCoordNonRoadModes.get(linkId); // just using for debugging here
+                // Tuple<Coord,Coord> startAndEndCoord=startAndEndCoordNonRoadModes.get(linkId); // just using for debugging here
                 String[] linkSplit = linkId.split(",");
                 R5NetworkLink startLink = r5NetworkLinks.get(linkSplit[0].trim());
                 R5NetworkLink endLink = r5NetworkLinks.get(linkSplit[1].trim());
@@ -188,15 +191,12 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                 return new R5NetworkLink(linkId, centerCoord, lengthInMeters, startLink.countyName);
                 // taking county name from start coordinate as data not available for centerCoord to county mapping
             }
-        } catch (Exception e)
-        {
+        } catch (Exception e) {
             System.out.println("'" + linkId + "' not recognized (skipping)");
             // this was introduced, as for ferry links=",730420" found, which does not allow to process it
         }
         return null;
     }
-
-
 
 
     private int getBinId(double time) {
@@ -216,12 +216,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
 
         if (event.getEventType().equalsIgnoreCase("PathTraversal")) {
-            if (PathTraversalLib.hasEmptyStartOrEndCoordinate(event.getAttributes())){
-                return; // don't consider traversal events which are missing start or end coordinates
-            }
-
-
             String vehicleType = event.getAttributes().get("vehicle_type");
+            String mode = event.getAttributes().get("mode");
             String vehicleId = event.getAttributes().get("vehicle_id");
             String links = event.getAttributes().get("links");
             Integer numOfPassengers = Integer.parseInt(event.getAttributes().get("num_passengers"));
@@ -229,29 +225,56 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
             // initialize Fuel
             String fuelString = event.getAttributes().get("fuel");
-            Double fuel;
+            Double fuel = 0.0;
             if (fuelString.contains("NA")) {
-                double carFuelEconomyInLiterPerMeter=0.00031;
-                fuel = carFuelEconomyInLiterPerMeter*lengthInMeters;
-                // fix for ride hailing vehicles
+                if (vehicleId.contains("rideHailing")) {
+                    double carFuelEconomyInLiterPerMeter = 0.00031;
+                    fuel = carFuelEconomyInLiterPerMeter * lengthInMeters;
+                    // fix for ride hailing vehicles
+                } else if (vehicleType.contains("Human")) {
+                    if (lengthInMeters>0){
+                        DebugLib.emptyFunctionForSettingBreakPoint();
+                    }
+
+                    // based on weight of average noth american (177.9lb), walking speed of 4km/h -> 259.5 J/m
+                    // sources:
+                    // https://en.wikipedia.org/wiki/Human_body_weight
+                    // https://www.brianmac.co.uk/energyexp.htm
+                    double walkingEnergyInJoulePerMeter=259.5;
+                    fuel = walkingEnergyInJoulePerMeter*lengthInMeters; // in Joule
+                } else {
+                    DebugLib.stopSystemAndReportInconsistency();
+                }
             } else {
                 fuel = Double.parseDouble(event.getAttributes().get("fuel"));
             }
 
+            if (vehicleId.contains("rideHailing")) {
+                vehicleType = "TNC";
+            }
+
+
+
 
             boolean isElectricEnergy = isElectricEnergy(vehicleType, vehicleId);
 
-            fuel = convertFuelToMJ(fuel, isElectricEnergy);
+            fuel = convertFuelToMJ(fuel,mode, isElectricEnergy);
 
-            if (vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("rail") || vehicleType.equalsIgnoreCase("ferry") || vehicleType.equalsIgnoreCase("cable_car") || vehicleType.equalsIgnoreCase("tram") ) {
-                double fuelEconomy=fuel/lengthInMeters;
+            if (vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("rail") || vehicleType.equalsIgnoreCase("ferry") || vehicleType.equalsIgnoreCase("cable_car") || vehicleType.equalsIgnoreCase("tram")) {
+                if (PathTraversalLib.hasEmptyStartOrEndCoordinate(event.getAttributes())) {
+                    System.out.println("not processing pathTraversal, as it has empty start or end coordinates: ");
+                    System.out.println(event.toString());
+                    return; // don't consider traversal events which are missing start or end coordinates
+                }
+
+                double fuelEconomy = fuel / lengthInMeters;
                 double fuelUsageBasedOnStartEndCoordinates = getFuelUsageBasedOnStartEndCoordinates(fuelEconomy, event.getAttributes());
 
-                addValueToTable(energyConsumption[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), fuelUsageBasedOnStartEndCoordinates);
-                addValueToTable(numberOfVehicles[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), 1.0);
-                addValueToTable(numberOfPassengers[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), numOfPassengers);
+                addValueToTable(energyConsumption[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, vehicleId, mode, isElectricEnergy), fuelUsageBasedOnStartEndCoordinates);
+                addValueToTable(numberOfVehicles[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, vehicleId, mode, isElectricEnergy), 1.0);
+                addValueToTable(numberOfPassengers[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, vehicleId, mode, isElectricEnergy), numOfPassengers);
 
-                if (!startAndEndCoordNonRoadModes.containsKey(links.trim())){
+                if (!startAndEndCoordNonRoadModes.containsKey(links.trim())) {
                     startAndEndCoordNonRoadModes.put(links.trim(), PathTraversalLib.getStartAndEndCoordinates(event.getAttributes()));
                 }
 
@@ -259,23 +282,59 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                 LinkedList<String> linkIds = PathTraversalLib.getLinkIdList(links);
 
                 for (String linkId : linkIds) {
-                    addValueToTable(energyConsumption[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), getFuelShareOfLink(linkId, linkIds, fuel));
-                    addValueToTable(numberOfVehicles[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), 1.0);
-                    addValueToTable(numberOfPassengers[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), numOfPassengers);
+                    addValueToTable(energyConsumption[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, vehicleId, mode, isElectricEnergy), getFuelShareOfLink(linkId, linkIds, fuel));
+                    addValueToTable(numberOfVehicles[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, vehicleId, mode, isElectricEnergy), 1.0);
+                    addValueToTable(numberOfPassengers[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, vehicleId, mode, isElectricEnergy), numOfPassengers);
                 }
             }
         }
     }
 
-    private String getVehicleTypeWithFuelType(String vehicleType, boolean isElectricEnergy) {
-        return vehicleType + (isElectricEnergy ? "@e" : "@d");
+    private String getVehicleTypeWithFuelType(String vehicleTypeString, String vehicleIdString, String mode, boolean isElectricEnergy) {
+        String transitAgency = null;
+
+        if (mode.equalsIgnoreCase("CAR")) {
+            return vehicleTypeString + "@gasoline";
+        }
+
+        if (mode.equalsIgnoreCase("walk")) {
+            return vehicleTypeString + "@food";
+        }
+
+        if (vehicleIdString.contains(":")) {
+            // is transit agency
+            transitAgency = vehicleIdString.split(":")[0].trim();
+            Id<VehicleType> vehicleTypeId = Id.create((mode + "-" + transitAgency).toUpperCase(), VehicleType.class);
+            if (!veh.getVehicleTypes().containsKey(vehicleTypeId)) {
+                vehicleTypeId = Id.create((mode + "-DEFAULT").toUpperCase(), VehicleType.class);
+            }
+
+            VehicleType vehicleType = veh.getVehicleTypes().get(vehicleTypeId);
+            String vehicleFuelType = vehicleType.getEngineInformation().getFuelType().name();
+
+            if (vehicleFuelType.equalsIgnoreCase("biodiesel")) {
+                vehicleFuelType = "naturalGas";
+            }
+
+            return vehicleTypeString + "@" + vehicleFuelType;
+        }
+
+
+        //return vehicleType + (isElectricEnergy ? "@electricity" : "@diesel");
+
+        return vehicleTypeString;
     }
 
     private boolean isElectricEnergy(String vehicleType, String vehicleId) {
         return vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("cable_car") || vehicleType.equalsIgnoreCase("tram") || (vehicleType.equalsIgnoreCase("bus") && vehicleId.contains("MS"));
     }
 
-    private Double convertFuelToMJ(Double fuel, boolean isElectricEnergy) {
+    private Double convertFuelToMJ(Double fuel, String mode, boolean isElectricEnergy) {
+        if (mode.contains("walk")){
+            return fuel/1000000; // converting Joule to MJ
+        }
+
+
         if (isElectricEnergy) {
             return 3.6 * fuel; // converting kWh to MJ
         } else {
