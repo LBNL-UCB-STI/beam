@@ -228,7 +228,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             Double fuel = 0.0;
             if (fuelString.contains("NA")) {
                 if (vehicleId.contains("rideHailing")) {
-                    double carFuelEconomyInLiterPerMeter = 0.00031;
+                    double carFuelEconomyInLiterPerMeter = 0.0001069; // ca. 22 mpg
                     fuel = carFuelEconomyInLiterPerMeter * lengthInMeters;
                     // fix for ride hailing vehicles
                 } else if (vehicleType.contains("Human")) {
@@ -290,6 +290,15 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
     }
 
+
+    private String getFuelType(String vehicleIdString, String mode){
+
+
+        return null;
+
+    }
+
+
     private String getVehicleTypeWithFuelType(String vehicleTypeString, String vehicleIdString, String mode, boolean isElectricEnergy) {
         String transitAgency = null;
 
@@ -318,9 +327,6 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
             return vehicleTypeString + "@" + vehicleFuelType;
         }
-
-
-        //return vehicleType + (isElectricEnergy ? "@electricity" : "@diesel");
 
         return vehicleTypeString;
     }
