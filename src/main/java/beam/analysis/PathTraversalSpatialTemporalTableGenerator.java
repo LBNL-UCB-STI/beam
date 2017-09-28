@@ -8,10 +8,12 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.matsim.core.utils.collections.Tuple;
 
 import java.io.*;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Random;
 
 /**
@@ -21,6 +23,8 @@ import java.util.Random;
  * outputs: linkId, vehicleType, fuelConsumption, fuelType, numberOfVehicles, numberOfPassengers, linkCoordinates, linkLengthInMeters, county
  * for subway, tram, ferry and cable_car the link is reported as a pair of start and end link
  */
+
+
 public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHandler {
     int maxTimeInSeconds = 3600 * 24;
     int binSizeInSeconds = 3600 * 12;
@@ -33,6 +37,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     Table<String, String, Double>[] numberOfVehicles = new Table[numberOfBins];
 
     Table<String, String, Double>[] numberOfPassengers = new Table[numberOfBins];
+
+    HashMap<String, Tuple<Coord,Coord>> startAndEndCoordNonRoadModes = new HashMap();
 
     public static HashMap<String, R5NetworkLink> r5NetworkLinks;
 
@@ -158,11 +164,20 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
     }
 
+    public double getFuelUsageBasedOnStartEndCoordinates(double fuelEconomy, Map<String,String> pathTraversalEventAttributes){
+        Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(pathTraversalEventAttributes);
+
+        double lengthInMeters = GeoUtils.distInMeters(startAndEndCoordinates.getFirst().getY(), startAndEndCoordinates.getFirst().getX(), startAndEndCoordinates.getSecond().getY(), startAndEndCoordinates.getSecond().getX());
+
+        return fuelEconomy*lengthInMeters;
+    }
+
     private R5NetworkLink getR5LinkTakeCareOfTransit(String linkId) {
         try {
             if (r5NetworkLinks.containsKey(linkId)) {
                 return r5NetworkLinks.get(linkId);
             } else {
+               // Tuple<Coord,Coord> startAndEndCoord=startAndEndCoordNonRoadModes.get(linkId); // just using for debugging here
                 String[] linkSplit = linkId.split(",");
                 R5NetworkLink startLink = r5NetworkLinks.get(linkSplit[0].trim());
                 R5NetworkLink endLink = r5NetworkLinks.get(linkSplit[1].trim());
@@ -178,6 +193,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
         return null;
     }
+
+
 
 
     private int getBinId(double time) {
@@ -201,23 +218,38 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             String vehicleId = event.getAttributes().get("vehicle_id");
             String links = event.getAttributes().get("links");
             Integer numOfPassengers = Integer.parseInt(event.getAttributes().get("num_passengers"));
+            double lengthInMeters = Double.parseDouble(event.getAttributes().get("length"));
 
             // initialize Fuel
             String fuelString = event.getAttributes().get("fuel");
-            Double fuel = 0.0;
-            if (!fuelString.contains("NA")) {
+            Double fuel;
+            if (fuelString.contains("NA")) {
+                double carFuelEconomyInLiterPerMeter=0.00031;
+                fuel = carFuelEconomyInLiterPerMeter*lengthInMeters;
+                // fix for ride hailing vehicles
+            } else {
                 fuel = Double.parseDouble(event.getAttributes().get("fuel"));
             }
+
+
             boolean isElectricEnergy = isElectricEnergy(vehicleType, vehicleId);
 
             fuel = convertFuelToMJ(fuel, isElectricEnergy);
 
-            if (vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("rail") || vehicleType.equalsIgnoreCase("ferry") || vehicleType.equalsIgnoreCase("cable_car")) {
-                addValueToTable(energyConsumption[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), fuel);
+            if (vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("rail") || vehicleType.equalsIgnoreCase("ferry") || vehicleType.equalsIgnoreCase("cable_car") || vehicleType.equalsIgnoreCase("tram") ) {
+                double fuelEconomy=fuel/lengthInMeters;
+                double fuelUsageBasedOnStartEndCoordinates = getFuelUsageBasedOnStartEndCoordinates(fuelEconomy, event.getAttributes());
+
+                addValueToTable(energyConsumption[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), fuelUsageBasedOnStartEndCoordinates);
                 addValueToTable(numberOfVehicles[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), 1.0);
                 addValueToTable(numberOfPassengers[getBinId(event.getTime())], links.trim(), getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), numOfPassengers);
+
+                if (!startAndEndCoordNonRoadModes.containsKey(links.trim())){
+                    startAndEndCoordNonRoadModes.put(links.trim(), PathTraversalLib.getStartAndEndCoordinates(event.getAttributes()));
+                }
+
             } else {
-                LinkedList<String> linkIds = getIntegerLinks(links);
+                LinkedList<String> linkIds = PathTraversalLib.getLinkIdList(links);
 
                 for (String linkId : linkIds) {
                     addValueToTable(energyConsumption[getBinId(event.getTime())], linkId, getVehicleTypeWithFuelType(vehicleType, isElectricEnergy), getFuelShareOfLink(linkId, linkIds, fuel));
@@ -246,16 +278,6 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
     }
 
-    LinkedList<String> getIntegerLinks(String links) {
-        LinkedList<String> linkIds = new LinkedList<String>();
-        if (links.trim().length() != 0) {
-            for (String link : links.split(",")) {
-                linkIds.add(link.trim());
-            }
-        }
-
-        return linkIds;
-    }
 
     double getFuelShareOfLink(String linkIdPartOfPath, LinkedList<String> pathLinkIds, double pathFuelConsumption) {
         double pathLength = 0;
