@@ -61,12 +61,12 @@ public class PathTraversalEventGenerationFromCsv {
 
                     for (int i = 0; i < columnLabels.length; i++) {
 
-                        if (columns[i].contains(";")){
-                            columns[i]=columns[i].replaceAll(";",","); // undo introduction of ';' and replace again with ','
-                        }
-
-
                         if (i<=18){ // there was a bug in one of the csv's (contained "," after vehicle id)
+
+                            if (columns[i].contains(";")){
+                                columns[i]=columns[i].replaceAll(";",","); // undo introduction of ';' and replace again with ','
+                            }
+
                             attributes.put(columnLabelMapping.get(i), columns[i]);
                         }
                     }

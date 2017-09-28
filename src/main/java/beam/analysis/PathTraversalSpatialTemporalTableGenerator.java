@@ -27,7 +27,7 @@ import java.util.*;
 
 
 public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHandler {
-    static boolean readFromCSV = false;
+    static boolean readFromCSV = true;
     int maxTimeInSeconds = 3600 * 24;
     int binSizeInSeconds = 3600 * 1;
     int numberOfBins = maxTimeInSeconds / binSizeInSeconds;
@@ -58,7 +58,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     private static Vehicles veh;
 
     public static void main(String[] args) {
-        String pathToEventsFile="C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events_part.xml";
+        //String pathToEventsFile="C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events_part.xml";
+        String pathToEventsFile="C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
         // String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-2.tar\\base_2017-09-26_18-13-2\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
@@ -76,8 +77,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         PathTraversalSpatialTemporalTableGenerator energyConsumptionPerLinkOverTime = new PathTraversalSpatialTemporalTableGenerator();
 
         if (readFromCSV) {
-            String eventCsvPath="C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events_partial.csv";
-
+           // String eventCsvPath="C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events_partial.csv";
+            String eventCsvPath="C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.csv\\0.events.csv";
             //String eventCsvPath="C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events.csv";
             //String eventCsvPath = "C:\\tmp\\csv analysis\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\test\\output\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\ITERS\\it.0\\0.events.csv\\0.events.csv";
 
@@ -94,7 +95,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
 
 
-        energyConsumptionPerLinkOverTime.printDataToFile("c:\\tmp\\energyConsumption.txt");
+        energyConsumptionPerLinkOverTime.printDataToFile("c:\\tmp\\csv analysis\\energyConsumption.txt");
     }
 
     public PathTraversalSpatialTemporalTableGenerator() {
