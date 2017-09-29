@@ -33,7 +33,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     int numberOfBins = maxTimeInSeconds / binSizeInSeconds;
     double samplePct = 1.0;
     int printToConsoleNumberOfLines = 10;
-    int numberOfInterpolationLinksUsedForNonRoadModes = 20;
+    int distanceIntermediateNonRoadModeLinksInMeters=100;
+
 
     public static final String ELECTRICITY = "electricity";
     public static final String DIESEL = "diesel";
@@ -226,7 +227,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                 double lengthInMeters = GeoUtils.distInMeters(startLink.coord.getY(), startLink.coord.getX(), endLink.coord.getY(), endLink.coord.getX());
 
                 //r5Links.add(new R5NetworkLink(linkId, centerCoord, lengthInMeters, startLink.countyName));
-                r5Links.addAll(createIntermediateTransitLinks(new R5NetworkLink(linkId, centerCoord, lengthInMeters, startLink.countyName), startAndEndCoord, vehicleAndFuelType, currentBinIndex));
+                r5Links.addAll(createIntermediateTransitLinks(new R5NetworkLink(linkId, centerCoord, lengthInMeters, startLink.countyName), startAndEndCoord, vehicleAndFuelType, currentBinIndex, lengthInMeters));
                 // taking county name from start coordinate as data not available for centerCoord to county mapping
             }
         } catch (Exception e) {
@@ -237,12 +238,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
 
-    private LinkedList<R5NetworkLink> createIntermediateTransitLinks(R5NetworkLink r5TransitLink, Tuple<Coord,Coord> startAndEndCoord, String vehicleAndFuelType, int currentBinIndex) {
+    private LinkedList<R5NetworkLink> createIntermediateTransitLinks(R5NetworkLink r5TransitLink, Tuple<Coord,Coord> startAndEndCoord, String vehicleAndFuelType, int currentBinIndex, double lengthInMeters) {
         LinkedList<R5NetworkLink> r5TransitLinks = new LinkedList<>();
 
         Coord startCoord=startAndEndCoord.getFirst();
         Coord endCoord=startAndEndCoord.getSecond();
 
+        int numberOfInterpolationLinksUsedForNonRoadModes = (int)Math.round(lengthInMeters/distanceIntermediateNonRoadModeLinksInMeters);
 
         double deltaX = (endCoord.getX() - startCoord.getX()) / (numberOfInterpolationLinksUsedForNonRoadModes - 1);
         double deltaY = (endCoord.getY() - startCoord.getY()) / (numberOfInterpolationLinksUsedForNonRoadModes - 1);
