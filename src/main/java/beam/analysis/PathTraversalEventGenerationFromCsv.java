@@ -12,6 +12,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 
+/**
+ * @author rwaraich
+ */
 public class PathTraversalEventGenerationFromCsv {
 
     public static void main(String[] args) {
