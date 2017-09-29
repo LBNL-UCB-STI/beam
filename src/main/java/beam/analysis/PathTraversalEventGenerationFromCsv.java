@@ -44,33 +44,25 @@ public class PathTraversalEventGenerationFromCsv {
 
                 if (line.contains("PathTraversal")) {
 
-
-                    String[] lineSplit = line.split("\"");
-
-                    if (lineSplit.length == 3) {
-                        // replace ',' in linkIds with ";" before split
+                    if (line.contains("\"")) {
+                        // line contains links starting and ending with quotes, furthermore separated by ',' (which is used as column separater as well)
+                        // replace ',' in linkIds with ";" before split (to not interpret ',' as columns in column split)
+                        String[] lineSplit = line.split("\"");
                         line = lineSplit[0] + lineSplit[1].replaceAll(",", ";") + lineSplit[2];
                     }
-
 
                     HashMap<String, String> attributes = new HashMap();
 
                     String[] columns = line.split(cvsSplitBy);
 
+                    for (int i = 0; i < columns.length; i++) {
 
-
-                    for (int i = 0; i < columnLabels.length; i++) {
-
-                        if (i<=18){ // there was a bug in one of the csv's (contained "," after vehicle id)
-
-                            if (columns[i].contains(";")){
-                                columns[i]=columns[i].replaceAll(";",","); // undo introduction of ';' and replace again with ','
-                            }
-
-                            attributes.put(columnLabelMapping.get(i), columns[i]);
+                        if (columns[i].contains(";")) {
+                            columns[i] = columns[i].replaceAll(";", ","); // undo introduction of ';' and replace again with ','
                         }
-                    }
 
+                        attributes.put(columnLabelMapping.get(i), columns[i]);
+                    }
 
                     handler.handleEvent(Double.parseDouble(columns[columnIndexTime]), attributes);
                     DebugLib.emptyFunctionForSettingBreakPoint();
