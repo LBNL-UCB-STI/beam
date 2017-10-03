@@ -243,7 +243,7 @@ object PlansSampler {
     newVehicles.addVehicleType(defaultVehicleType)
 
 
-    Random.shuffle(synthPop).take((0.00015 * synthPop.size).toInt).toStream.foreach(sh => {
+    Random.shuffle(synthPop).take((0.0001 * synthPop.size).toInt).toStream.foreach(sh => {
 
       val N = if (sh.numPersons * 2 > 0) {
         sh.numPersons * 2
@@ -316,6 +316,7 @@ object PlansSampler {
     //    new PopulationWriter(newPop, sc.getNetwork, 0.01).write(s"$outDir/synthPlans0.01.xml.gz")
     //    new PopulationWriter(newPop, sc.getNetwork, 0.1).write(s"$outDir/synthPlans0.1.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
+    PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
     new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
     new ObjectAttributesXmlWriter(newHHAttributes).writeFile(s"$outDir/householdAttributes.xml.gz")
     new ObjectAttributesXmlWriter(newPopAttributes).writeFile(s"$outDir/populationAttributes.xml.gz")
