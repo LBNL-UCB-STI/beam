@@ -82,7 +82,7 @@ class RideHailingManager(info: RideHailingManagerData,
 
   val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
-  val radius: Double = 2000
+  val radius: Double = 5000
 
   // improve search to take into account time rideHailingAgentSpatialIndex is available
   private val rideHailingAgentSpatialIndex = {
