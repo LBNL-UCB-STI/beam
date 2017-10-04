@@ -15,5 +15,6 @@ plans <- join.on(plans,ids,'id','id')
 plans[is.na(noalt),noalt:=F]
 plans[end.time<0,end.time:=30*3600]
 
-ggplot(plans,aes(x=x,y=y,colour=noalt))+geom_point()
+ggplot(plans[type=='Home'],aes(x=x,y=y,colour=tick/3600))+geom_point()+facet_wrap(~noalt)
 
+3-0

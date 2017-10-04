@@ -232,6 +232,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
             }
           }
         }
+        if(embodiedTrips.isEmpty){
+          val i = 0
+        }
         RoutingResponse(requestId, embodiedTrips)
       case None =>
         RoutingResponse(requestId, Vector())
@@ -273,7 +276,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
       case time: WindowTime => time
     }
     profileRequest.fromTime = time.fromTime
@@ -333,7 +336,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
       case time: WindowTime => time
     }
     profileRequest.fromTime = time.fromTime
@@ -391,7 +394,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
       case time: WindowTime => time
     }
     profileRequest.fromTime = time.fromTime

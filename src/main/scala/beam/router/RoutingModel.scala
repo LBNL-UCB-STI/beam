@@ -231,8 +231,8 @@ object RoutingModel {
   }
 
   object WindowTime {
-    def apply(atTime: Int, r5: BeamConfig.Beam.Routing.R5): WindowTime =
-      new WindowTime(atTime, r5.departureWindow * 60)
+    def apply(atTime: Int, departureWindow: Double): WindowTime =
+      new WindowTime(atTime, math.round(departureWindow * 60.0).toInt)
   }
 
 }
