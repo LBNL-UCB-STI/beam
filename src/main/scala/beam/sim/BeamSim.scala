@@ -212,8 +212,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
     val initialLocationJitter = 500 // meters
 
-    val rideHailingVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("RideHailingVehicle", classOf[VehicleType]))
-    rideHailingVehicleType.setDescription("CAR") // Make hailed rides equivalent to cars for now
+    val rideHailingVehicleType = beamServices.matsimServices.getScenario.getVehicles.getVehicleTypes().get(Id.create("1",classOf[VehicleType]))
 
     var rideHailingVehicles: Map[Id[Vehicle], ActorRef] = Map[Id[Vehicle], ActorRef]()
 

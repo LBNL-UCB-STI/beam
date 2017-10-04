@@ -87,8 +87,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
           var stopStopDepartTuple = (-1, -1, 0L)
           var previousBeamLeg: Option[BeamLeg] = None
           val travelStops = transitTrip.departures.zipWithIndex.sliding(2)
-          travelStops.foreach { case Array((departureFrom, from), (departureTo, to)) =>
-            val duration = transitTrip.arrivals(to) - departureFrom
+          travelStops.foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
+            val duration = transitTrip.arrivals(to) - departureTimeFrom
             //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
             //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
             val fromStopIdx = tripPattern.stops(from)
@@ -96,19 +96,22 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
             val fromStopId = tripPattern.stops(from)
             val toStopId = tripPattern.stops(to)
             val stopsInfo = TransitStopsInfo(fromStopId, toStopId)
+            if(tripVehId.toString.equals("SM:43|10748241:T1|15:00") && departureTimeFrom.toLong == 1500L){
+              val i =0
+            }
             val transitPath = if (isOnStreetTransit(mode)) {
               transitCache.get((fromStopIdx,toStopIdx)).fold{
-                val bp = beamPathBuilder.routeTransitPathThroughStreets(departureFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
+                val bp = beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
                 transitCache += ((fromStopIdx,toStopIdx)->bp)
               bp}
               {x =>
-                beamPathBuilder.createFromExistingWithUpdatedTimes(x,departureFrom,duration)
+                beamPathBuilder.createFromExistingWithUpdatedTimes(x,departureTimeFrom,duration)
               }
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-              BeamPath(edgeIds, Option(stopsInfo), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureFrom.toLong, duration))
+              BeamPath(edgeIds, Option(stopsInfo), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTimeFrom.toLong, duration))
             }
-            val theLeg = BeamLeg(departureFrom.toLong, mode, duration, transitPath)
+            val theLeg = BeamLeg(departureTimeFrom.toLong, mode, duration, transitPath)
             passengerSchedule.addLegs(Seq(theLeg))
             beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
 
@@ -194,7 +197,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo, person: Person): RoutingResponse = {
     //Gets a response:
-    if(person.getId.toString.equals("1")){
+    if(routingRequestTripInfo.departureTime == 1500){
       val i = 0
     }
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
@@ -228,6 +231,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
               embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, originalResponse.tripFares(trip._2), beamServices)
             }
           }
+        }
+        if(embodiedTrips.isEmpty){
+          val i = 0
         }
         RoutingResponse(requestId, embodiedTrips)
       case None =>
@@ -270,7 +276,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
       case time: WindowTime => time
     }
     profileRequest.fromTime = time.fromTime
@@ -330,7 +336,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
       case time: WindowTime => time
     }
     profileRequest.fromTime = time.fromTime
@@ -388,7 +394,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
-      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5)
+      case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
       case time: WindowTime => time
     }
     profileRequest.fromTime = time.fromTime
