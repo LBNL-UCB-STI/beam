@@ -36,6 +36,7 @@ object TollCalculator {
                       sfxTokens(1),
                       if(sfxTokens.length == 3) Option(sfxTokens(2)) else None,
                       tts match {
+                        case 2 => Vector()
                         case 3 => Vector(ChargeDate.apply(tokens(0)))
                         case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
                         case 5 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)), ChargeDate.apply(tokens(2)))
@@ -97,8 +98,6 @@ object TollCalculator {
       ways = readTolls(osm)
       osm.close()
     }
-
-
 
     def readTolls(osm: OSM) = {
       val ways = osm.ways.asScala.filter(ns => ns._2.tags != null && ns._2.tags.asScala.exists(t => (t.key == "toll" && t.value != "no") || t.key.startsWith("toll:")) && ns._2.tags.asScala.exists(_.key == "charge"))
