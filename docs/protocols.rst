@@ -15,29 +15,40 @@ The RoutingRequest message contains:
 
 * Departure Window
 * Origin / Destination
-* Modes to Consider
-* Vehicles to consider (their Id, Location, Mode)
+* Transit Modes to Consider
+* Vehicles to Consider (their Id, Location, Mode)
+* The Id of the Person for whom the request is ultimately made
 
 The RoutingResponse message contains:
 
-* A vector of BeamTrips
+* A vector of EmbodiedBeamTrips
   
-BeamTrips contain:
+EmbodiedBeamTrips contain:
 
-* A trip classifer (i.e. the overall mode)
-* A map with BeamLegs as keys and BeamVehicleAssignments as values
+* A trip classifer (i.e. the overall mode for the trip which is restricted to WALK, BIKE, CAR, RIDE_HAIL, TRANSIT)
+* A vector of EmbodiedBeamLegs 
+
+EmbodiedBeamLegs contain:
+
+* A BeamLeg
+* A BeamVehicle Id
+* As Driver Boolean
+* Optional PassengerSchedule
+* Cost
+* UnbecomeDriveOnCompletion Boolean
 
 BeamLegs contain:
 
 * Start time
-* Mode
+* Mode (this is a more specific mode for Transit, e.g. SUBWAY or BUS)
 * Duration
-* Either a BeamStreetPath or BeamTransitSegment
+* BeamPath containing the path used through the network.
 
-BeamStreetPaths contain:
+BeamPaths contain:
 
 * Vector of link Ids
-* Optional Trajectory (as a vector of Spacetimes)
+* Optional transit stop info (for any Transit leg, the boarding and alighting stop)
+* A trajectory resolver which is resposible for translating the linkIds into coordinates
 
 BeamTransitSegments contain:
 
