@@ -244,9 +244,9 @@ public class OsmToMATSim {
 				l.setAllowedModes(flagStrings);
 				if (l instanceof Link) {
 					final String id1 = origId;
-					NetworkUtils.setOrigId( ((Link) l), id1 ) ;
+					NetworkUtils.setOrigId(l, id1 ) ;
 					final String type = highway;
-					NetworkUtils.setType( ((Link) l), type);
+					NetworkUtils.setType(l, type);
 				}
 				this.mNetwork.addLink(l);
 				newLinkIds.add(Long.valueOf(r5ID));
@@ -265,9 +265,9 @@ public class OsmToMATSim {
 				l.setAllowedModes(flagStrings);
 				if (l instanceof Link) {
 					final String id1 = origId;
-					NetworkUtils.setOrigId( ((Link) l), id1 ) ;
+					NetworkUtils.setOrigId(l, id1 ) ;
 					final String type = highway;
-					NetworkUtils.setType( ((Link) l), type);
+					NetworkUtils.setType(l, type);
 				}
 				this.mNetwork.addLink(l);
 				newLinkIds.add(Long.valueOf(r5ID));

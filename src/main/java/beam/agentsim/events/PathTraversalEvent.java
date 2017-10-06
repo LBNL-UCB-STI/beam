@@ -1,16 +1,14 @@
 package beam.agentsim.events;
 
 import beam.router.RoutingModel;
-import com.conveyal.r5.common.GeometryUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.geotools.graph.util.geom.GeometryUtil;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.VehicleType;
+import scala.collection.IndexedSeq;
 
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * BEAM
@@ -26,38 +24,58 @@ public class PathTraversalEvent extends Event {
     public final static String ATTRIBUTE_LINK_IDS = "links";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_DEPARTURE_TIME = "departure_time";
+    public final static String ATTRIBUTE_ARRIVAL_TIME = "arrival_time";
     public final static String ATTRIBUTE_VEHICLE_ID = "vehicle_id";
     public final static String ATTRIBUTE_VEHICLE_TYPE = "vehicle_type";
-
+    public final static String ATTRIBUTE_VEHICLE_CAPACITY = "capacity";
+//    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_X = "start.x";
+//    public final static String VERBOSE_ATTRIBUTE_START_COORDINATE_Y = "start.y";
+//    public final static String VERBOSE_ATTRIBUTE_END_COORDINATE_X = "end.x";
+//    public final static String VERBOSE_ATTRIBUTE_END_COORDINATE_Y = "end.y";
+    public final static String ATTRIBUTE_START_COORDINATE_X = "start.x";
+    public final static String ATTRIBUTE_START_COORDINATE_Y = "start.y";
+    public final static String ATTRIBUTE_END_COORDINATE_X = "end.x";
+    public final static String ATTRIBUTE_END_COORDINATE_Y = "end.y";
 
     private final VehicleType vehicleType;
     private final String linkIds;
     private final String vehicleId;
-    private final String departureTime;
+    private final String departureTime, arrivalTime;
     private final String mode;
     private final Double length;
     private final String fuel;
     private final Integer numPass;
+    private final Integer capacity;
+    private final Coord startCoord;
+    private final Coord endCoord;
 
     private final RoutingModel.BeamLeg beamLeg;
 
-    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg) {
+    public PathTraversalEvent(double time, Id<Vehicle> vehicleId, VehicleType vehicleType, Integer numPass, RoutingModel.BeamLeg beamLeg, Coord startCoord, Coord endCoord) {
         super(time);
         this.vehicleType = vehicleType;
-        if (vehicleType.getEngineInformation()!=null && vehicleType.getEngineInformation().getFuelType() != null) {
-            fuel=vehicleType.getEngineInformation().getFuelType().name();
-        } else{
-            fuel="NA";
-        }
 
-        this.linkIds = beamLeg.travelPath().linkIds().mkString(",");
+        this.linkIds = ((IndexedSeq)beamLeg.travelPath().linkIds()).mkString(",");
 
         this.vehicleId = vehicleId.toString();
         this.departureTime = (new Double(time)).toString();
+        this.arrivalTime = (new Double(time + beamLeg.duration())).toString();
         this.mode = beamLeg.mode().value();
         this.beamLeg = beamLeg;
         this.length = beamLeg.travelPath().distanceInM();
         this.numPass = numPass;
+        if (vehicleType.getCapacity()!=null) {
+            this.capacity = vehicleType.getCapacity().getSeats() + vehicleType.getCapacity().getStandingRoom();
+        }else{
+            this.capacity = 0;
+        }
+        this.startCoord=startCoord;
+        this.endCoord=endCoord;
+        if (vehicleType.getEngineInformation()!=null){
+            fuel=new Double(vehicleType.getEngineInformation().getGasConsumption() * this.length).toString();
+        } else{
+            fuel="NA";
+        }
     }
 
     @Override
@@ -70,9 +88,28 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_NUM_PASS, numPass.toString());
 
         attr.put(ATTRIBUTE_DEPARTURE_TIME, departureTime);
+        attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime);
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_LINK_IDS, linkIds);
         attr.put(ATTRIBUTE_FUEL,fuel);
+        attr.put(ATTRIBUTE_VEHICLE_CAPACITY,capacity.toString());
+
+        if (startCoord!=null){
+            attr.put(ATTRIBUTE_START_COORDINATE_X,Double.toString(startCoord.getX()));
+            attr.put(ATTRIBUTE_START_COORDINATE_Y,Double.toString(startCoord.getY()));
+        } else {
+            attr.put(ATTRIBUTE_START_COORDINATE_X,"");
+            attr.put(ATTRIBUTE_START_COORDINATE_Y,"");
+        }
+
+
+        if (endCoord!=null){
+            attr.put(ATTRIBUTE_END_COORDINATE_X,Double.toString(endCoord.getX()));
+            attr.put(ATTRIBUTE_END_COORDINATE_Y,Double.toString(endCoord.getY()));
+        } else {
+            attr.put(ATTRIBUTE_END_COORDINATE_X,"");
+            attr.put(ATTRIBUTE_END_COORDINATE_Y,"");
+        }
 
 //        attr.put(ATTRIBUTE_VIZ_DATA, beamLeg.asJson.noSpaces)
 

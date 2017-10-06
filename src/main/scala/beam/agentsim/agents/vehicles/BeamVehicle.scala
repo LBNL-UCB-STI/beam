@@ -73,8 +73,10 @@ object BeamVehicle {
       0.0
   }
 
+  def noSpecialChars(theString: String) = theString.replaceAll("[\\\\|\\\\^]+", ":")
+
   def buildActorName(matsimVehicle: Vehicle): String = {
-    s"$ActorPrefixName${matsimVehicle.getType.getDescription.replaceAll(" ", "_")}-${matsimVehicle.getId.toString}"
+    s"$ActorPrefixName${matsimVehicle.getType.getDescription.replaceAll(" ", "_")}-${noSpecialChars(matsimVehicle.getId.toString)}"
   }
 
   implicit def actorRef2Id(actorRef: ActorRef): Option[Id[Vehicle]] = {
@@ -167,15 +169,17 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      val errMsg = s"From state Idle: Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      val errMsg = s"From state Moving: Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   chainedWhen(Uninitialized){
@@ -269,9 +273,6 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id)))
       stay()
-    case Event(AppendToTrajectory(newSegments), info) =>
-      lastVisited = newSegments.getEndPoint()
-      stay()
   }
 
   chainedWhen(AnyState) {
@@ -283,6 +284,9 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       stay()
     case Event(ResetCarrier, _) =>
       carrier = None
+      stay()
+    case Event(AppendToTrajectory(newSegments), info) =>
+      lastVisited = newSegments.getEndPoint()
       stay()
     case Event(a: RemovePassengerFromTrip, _) => {
       driver.foreach { d =>

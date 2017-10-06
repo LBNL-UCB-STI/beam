@@ -13,7 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Random;
 
-public class MulitnomialLogit implements AbstractLogit{
+public class MulitnomialLogit implements AbstractLogit, Cloneable{
 	NestedLogit tree = null; // We use the more general NL to represent an MNL and with an assumed single top-level nest
 
 	public MulitnomialLogit(NestedLogit theTree) {
@@ -63,5 +63,21 @@ public class MulitnomialLogit implements AbstractLogit{
 	@Override
 	public String makeRandomChoice(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData, Random rand) {
 		return tree.makeRandomChoice(inputData,rand);
+	}
+
+	@Override
+	public Double getExpectedMaximumUtility() {
+		return tree.getExpectedMaximumUtility();
+	}
+
+	@Override
+	public MulitnomialLogit clone(){
+		MulitnomialLogit mnl = new MulitnomialLogit(this.tree);
+		mnl.tree = new NestedLogit(this.tree);
+		return mnl;
+    }
+	@Override
+	public void clear(){
+		tree.clear();
 	}
 }

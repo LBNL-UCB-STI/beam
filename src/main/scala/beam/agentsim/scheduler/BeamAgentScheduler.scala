@@ -175,7 +175,7 @@ class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val 
   }
 
   val monitorThread = if (debugEnabled || beamServices.beamConfig.beam.debug.skipOverBadActors ) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.SECONDS), new FiniteDuration(5, TimeUnit.SECONDS), new Runnable {
+    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), new Runnable {
       override def run(): Unit = {
         try {
           if (beamServices.beamConfig.beam.debug.skipOverBadActors) {

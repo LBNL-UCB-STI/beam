@@ -25,6 +25,13 @@ configurations.all {
     resolutionStrategy.cacheChangingModulesFor 86400, 'seconds'
 }
 
+configurations {
+    // Depending on which binding you want to use for slf4j, use these to exclude all others
+//    runtime.exclude group: "org.slf4j", module: "slf4j-log4j12"
+    runtime.exclude group: 'org.slf4j', module: 'slf4j-simple'
+    runtime.exclude group: 'ch.qos.logback', module: 'logback-classic'
+}
+
 //ext {
 //    env = "beamville"
 //}
@@ -129,10 +136,9 @@ dependencies {
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: false
-    compile group: 'com.github.colinsheppard', name: 'OpenTripPlanner', version: 'otp-1.0.0-beam-SNAPSHOT', changing: false
     compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: false
 //    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
-    compile group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'beam-SNAPSHOT', changing: true
+    compile group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'beam-3.0-SNAPSHOT', changing: true
 
 
     testCompile group: 'junit', name: 'junit', version: '4.4'
@@ -197,6 +203,7 @@ dependencies {
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.0'
 
 }
 
@@ -283,7 +290,7 @@ task generateConfig {
             }
         }
         javaexec {
-            main = "-jar";
+            main = "-jar"
             args = [
                     "build/tscfg-0.8.1.jar",
                     "--spec", "src/main/resources/beam-template.conf",
@@ -327,9 +334,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 // ./gradlew run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
 //
 mainClassName = "beam.sim.RunBeam"
+
+def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
+
 // Use following for remote debug mode
-//applicationDefaultJvmArgs = ["-Xmx128g","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx128g"]
+//applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}"]
 
 run {
     if (project.hasProperty("appArgs")) {

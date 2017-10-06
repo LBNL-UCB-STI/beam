@@ -11,6 +11,7 @@ import beam.sim.BeamServices
   */
 class ModeChoiceTransitOnly(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
+  override def clone(): ModeChoiceCalculator = new ModeChoiceTransitOnly(beamServices)
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     val transitAlts = alternatives.filter(alt => Modes.isR5TransitMode(alt.tripClassifier))
     transitAlts.isEmpty match {
