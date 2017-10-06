@@ -73,10 +73,17 @@ trait GeoUtils extends HasServices  {
     var radius = 100.0
     var theSplit: Split = null
     while(theSplit == null && radius <= maxRadius) {
-      theSplit = streetLayer.findSplit(coord.getY, coord.getX, 1000, streetMode);
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode);
       radius = radius * 10
     }
-    new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
+    if(theSplit == null) {
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode);
+    }
+    if(theSplit == null){
+      coord
+    }else{
+      new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
+    }
   }
 }
 

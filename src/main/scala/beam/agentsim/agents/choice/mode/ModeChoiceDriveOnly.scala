@@ -10,6 +10,7 @@ import beam.sim.BeamServices
   */
 class ModeChoiceDriveOnly(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
+  override def clone(): ModeChoiceCalculator = new ModeChoiceDriveOnly(beamServices)
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     val carAlts = alternatives.filter(_.tripClassifier == CAR)
     carAlts.isEmpty match {

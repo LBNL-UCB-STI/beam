@@ -98,6 +98,10 @@ public class NestedLogit implements AbstractLogit{
 		if(cdf==null)evaluateProbabilities(inputData);
 		return cdf.sample(rand);
     }
+	@Override
+	public void clear() {
+		cdf = null;
+	}
 	private LinkedHashMap<String, Double> marginalizeAlternativeProbabilities(LinkedHashMap<NestedLogit, Double> conditionalProbs) {
 		LinkedHashMap<String,Double> marginalProbs = new LinkedHashMap<String,Double>();
 		for(NestedLogit node : conditionalProbs.keySet()){
@@ -159,6 +163,10 @@ public class NestedLogit implements AbstractLogit{
 		}else{
 			return sumMarginalProbsOfNest(this,nestName,this.cdf.getProbabilityDensityMap());
 		}
+	}
+	@Override
+	public Double getExpectedMaximumUtility() {
+		return this.data.getExpectedMaxUtility();
 	}
 	public Double getExpectedMaximumUtility(String nestName) {
 		if(this.data.nestName.equals(nestName)){

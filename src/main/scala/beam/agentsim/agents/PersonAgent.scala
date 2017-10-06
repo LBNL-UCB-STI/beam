@@ -3,6 +3,7 @@ package beam.agentsim.agents
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.BeamAgent.Error
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.{CancelReservation, ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, LegWithPassengerVehicle}
@@ -107,7 +108,7 @@ class PersonAgent(val beamServices: BeamServices,
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var _household: Id[Household] = householdId
   var _numReschedules: Int = 0
-//  var _inError: Boolean =false
+  var _errorMessage: String = ""
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _activityChain.length) Left(msg) else Right(_activityChain(ind))
@@ -128,22 +129,19 @@ class PersonAgent(val beamServices: BeamServices,
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      errorFromPerson(s"Unrecognized message ${msg} from state ChoosingMode", -1L, None)
   }
   when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      errorFromPerson(s"Unrecognized message ${msg} from state Waiting", -1L, None)
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+      errorFromPerson(s"Unrecognized message ${msg} from state Moving", -1L, None)
   }
 
   chainedWhen(Uninitialized){
@@ -176,8 +174,7 @@ class PersonAgent(val beamServices: BeamServices,
 
     _numReschedules = _numReschedules + 1
     if(_numReschedules > 50){
-      logError(s"Too many reschedule attempts, erroring")
-      goto(Error) replying completed(triggerId)
+      errorFromPerson(s"Too many reschedule attempts.", triggerId, Some(tick))
     }else{
       val toSchedule = if(isStart) {
         schedule[NotifyLegStartTrigger](tick, self, beamLeg)
@@ -236,15 +233,12 @@ class PersonAgent(val beamServices: BeamServices,
                 goto(Moving) replying completed(triggerId)
               }
             case None =>
-
-              logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
-              goto(Error) replying completed(triggerId)
+              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}",triggerId, Some(tick))
           }
       }
 
     case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg),triggerId), _) =>
-      logError(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: ${beamLeg}")
-      goto(Error) replying completed(triggerId)
+      errorFromPerson(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: ${beamLeg}",triggerId, Some(tick))
   }
 
   chainedWhen(Moving) {
@@ -271,8 +265,7 @@ class PersonAgent(val beamServices: BeamServices,
               }
             case None =>
 //              stay() replying completed(triggerId)
-              logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
-              goto(Error) replying completed(triggerId)
+              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}",triggerId, Some(tick))
           }
         case _ =>
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
@@ -284,8 +277,7 @@ class PersonAgent(val beamServices: BeamServices,
           // Driver is still traveling to pickup point, reschedule this trigger
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
         case None =>
-          logError(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg defined, beamLeg: ${beamLeg}")
-          goto(Error) replying completed(triggerId)
+          errorFromPerson(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg defined, beamLeg: ${beamLeg}", triggerId, Some(tick))
       }
   }
 
@@ -303,6 +295,9 @@ class PersonAgent(val beamServices: BeamServices,
   def processNextLegOrStartActivity(triggerId: Long, tick: Double): PersonAgent.this.State = {
     _currentEmbodiedLeg match {
       case Some(embodiedBeamLeg) =>
+        if(id.toString.equals("5")){
+          val i = 0
+        }
         if(embodiedBeamLeg.unbecomeDriverOnCompletion){
           beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! UnbecomeDriver(tick,id)
           _currentVehicle = _currentVehicle.pop()
@@ -341,8 +336,7 @@ class PersonAgent(val beamServices: BeamServices,
             goto(Waiting) replying completed(triggerId)
           }
         case None =>
-          logError(s"Expected a non-empty BeamTrip but found ${_currentRoute}")
-          goto(Error) replying completed(triggerId)
+          errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}", triggerId, Some(tick))
       }
     }else{
       val savedLegMode = _currentRoute.tripClassifier
@@ -424,12 +418,19 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(BecomeDriverSuccessAck, _)  =>
       scheduleStartLegAndStay
     case Event(IllegalTriggerGoToError, _)  =>
-      goto(Error)
+      errorFromPerson("Illegal Trigger sent to Scheduler",-1L, None)
   }
   def scheduleStartLegAndStay() = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](_currentEmbodiedLeg.get.beamLeg.startTime,self,_currentEmbodiedLeg.get.beamLeg))
     stay
+  }
+  def errorFromPerson (reason: String, triggerId: Long, tick: Option[Double]): PersonAgent.this.State = {
+    _errorMessage = reason
+    _currentTick = tick
+    logError(s"Erroring: From PersonAgent ${id}, reason: ${_errorMessage}")
+    if(triggerId >=0)beamServices.schedulerRef ! completed(triggerId)
+    goto(Error) using stateData.copy(errorReason = Some(reason))
   }
 
   /*

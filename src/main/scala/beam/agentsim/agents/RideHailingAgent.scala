@@ -115,24 +115,27 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
 }

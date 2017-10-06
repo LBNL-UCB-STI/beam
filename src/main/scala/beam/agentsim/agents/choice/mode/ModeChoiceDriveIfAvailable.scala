@@ -10,6 +10,7 @@ import scalaz.Scalaz._
   */
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
+  override def clone(): ModeChoiceCalculator = new ModeChoiceDriveIfAvailable(beamServices)
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     var containsDriveAlt: Vector[Int] = Vector[Int]()
     alternatives.zipWithIndex.foreach { alt =>

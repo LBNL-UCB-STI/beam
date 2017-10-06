@@ -2,7 +2,7 @@ package beam.sim.config
 
 import java.nio.file.Paths
 
-import beam.utils.reflection.RefectionUtils
+import beam.utils.reflection.ReflectionUtils
 import com.typesafe.config.{Config, ConfigList, ConfigUtil}
 import org.matsim.core.api.internal.MatsimParameters
 import org.matsim.core.config.{ConfigGroup, ConfigUtils}
@@ -97,7 +97,7 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
   }
 }
 
-object MatSimBeamConfigBuilder extends RefectionUtils {
+object MatSimBeamConfigBuilder extends ReflectionUtils {
   /**
     *
     * @return package name to scan in
