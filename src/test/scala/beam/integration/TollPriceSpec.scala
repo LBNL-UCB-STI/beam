@@ -13,9 +13,9 @@ import scala.util.Try
   * 
   */
 
-class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon{
+class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
 
-  class StartWithModeChoiceAndTransitCapacity(modeChoice: String, transitCapacity: Double) extends EventsFileHandlingCommon{
+  class StartWithModeChoiceAndTollPrice(modeChoice: String, tollPrice: Double) extends EventsFileHandlingCommon{
     lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
 
     val beamConfig = {
@@ -30,7 +30,7 @@ class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with B
                 modeChoiceClass = modeChoice
               )
             ), tuning = ConfigModule.beamConfig.beam.agentsim.tuning.copy(
-              transitCapacity = transitCapacity
+              tollPrice = 0
             )
           ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
             eventsFileOutputFormats = "xml"
@@ -48,17 +48,27 @@ class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with B
       .map{case (k, v) => (k, v.size)}
   }
 
-  "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing transitCapacity value" must {
-    "create more entries for mode choice transit as value increases" in{
-      val inputTransitCapacity = 0.1 to 1.0 by 0.1
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTransitCapacity("ModeChoiceTransitIfAvailable", tc).groupedCount)
+  "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing tollCapacity value" must {
+    "create less entries for mode choice car as value increases" in{
+      val inputTransitCapacity = 0.1 to 2.0 by 0.2
+      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTollPrice("ModeChoiceDriveIfAvailable", tc).groupedCount)
 
       val tc = modeChoice
-        .map(_.get("transit"))
+        .map(_.get("car"))
         .filter(_.isDefined)
         .map(_.get)
 
-      isOrdered(tc)((a, b) => a <= b) shouldBe true
+      val z1 = tc.drop(1)
+      val z2 = tc.dropRight(1)
+      val zip = z2 zip z1
+
+      println("Transit")
+      println(tc)
+      println(z1)
+      println(z2)
+      println(zip)
+
+      isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
   }
 

@@ -13,9 +13,9 @@ import scala.util.Try
   * 
   */
 
-class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon{
+class TransitPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
 
-  class StartWithModeChoiceAndTransitCapacity(modeChoice: String, transitCapacity: Double) extends EventsFileHandlingCommon{
+  class StartWithModeChoiceAndTransitPrice(modeChoice: String, transitPrice: Double) extends EventsFileHandlingCommon{
     lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
 
     val beamConfig = {
@@ -30,7 +30,7 @@ class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with B
                 modeChoiceClass = modeChoice
               )
             ), tuning = ConfigModule.beamConfig.beam.agentsim.tuning.copy(
-              transitCapacity = transitCapacity
+              transitCapacity = 0.2, transitPrice = transitPrice
             )
           ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
             eventsFileOutputFormats = "xml"
@@ -48,10 +48,10 @@ class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with B
       .map{case (k, v) => (k, v.size)}
   }
 
-  "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing transitCapacity value" must {
+  "Running beam with modeChoice ModeChoiceDriveIfAvailable and increasing transitPrice value" must {
     "create more entries for mode choice transit as value increases" in{
-      val inputTransitCapacity = 0.1 to 1.0 by 0.1
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTransitCapacity("ModeChoiceTransitIfAvailable", tc).groupedCount)
+      val inputTransitCapacity = 0.1 to 3.0 by 0.1
+      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTransitPrice("ModeChoiceTransitIfAvailable", tc).groupedCount)
 
       val tc = modeChoice
         .map(_.get("transit"))
