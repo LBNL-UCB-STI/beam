@@ -1,17 +1,19 @@
 package beam.sim
 
-import beam.Log4jController
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.sim.config.{BeamLoggingSetup, ConfigModule}
 import beam.sim.config.ConfigModule
 import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.config.ConfigModule
-import beam.sim.modules.{AgentsimModule, BeamAgentModule}
-import beam.sim.controler.corelisteners.BeamControllerCoreListenersModule
+import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
 import beam.sim.controler.BeamControler
 import beam.utils.FileUtils
+import beam.utils.reflection.ReflectionUtils
+import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Scenario
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
+import org.matsim.core.events.EventsUtils
 import org.matsim.core.mobsim.qsim.QSim
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 import net.codingwell.scalaguice.InjectorExtensions._
@@ -29,8 +31,9 @@ trait RunBeam {
         // MATSim defaults
         install(new NewControlerModule)
         install(new ScenarioByInstanceModule(scenario))
-        install(new ControlerDefaultsModule)
+        install(new controler.ControlerDefaultsModule)
         install(new BeamControllerCoreListenersModule)
+
 
         // Beam Inject below:
         install(new ConfigModule)
@@ -40,6 +43,8 @@ trait RunBeam {
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
+        // Override MATSim Defaults
+        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
 
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
@@ -50,6 +55,8 @@ trait RunBeam {
     }))
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
+    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+
     //set config filename before Guice start init procedure
     ConfigModule.ConfigFileName = configFileName
 
@@ -57,18 +64,13 @@ trait RunBeam {
     // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
     FileUtils.setConfigOutputFile(ConfigModule.beamConfig.beam.outputs.outputDirectory, ConfigModule.beamConfig.beam.agentsim.simulationName, ConfigModule.matSimConfig)
 
-    //TODO this line can be safely deleted, just for exploring structure of config class
-    //  ConfigModule.beamConfig.beam.outputs.outputDirectory;
-
-    //Mute log
-    Log4jController.muteLog(ConfigModule.beamConfig.beam.levels.loggerLevels)
+    BeamLoggingSetup.configureLogs(ConfigModule.beamConfig)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
     val injector = beamInjector(scenario, ConfigModule.matSimConfig)
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 
     services.controler.run()
-
   }
 }
 

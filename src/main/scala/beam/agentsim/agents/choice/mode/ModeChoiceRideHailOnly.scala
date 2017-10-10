@@ -10,6 +10,7 @@ import beam.sim.BeamServices
   */
 class ModeChoiceRideHailOnly(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
+  override def clone(): ModeChoiceCalculator = new ModeChoiceRideHailOnly(beamServices)
   override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
     val rhAlts = alternatives.filter(_.tripClassifier == RIDEHAIL)
     rhAlts.isEmpty match {

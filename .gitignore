@@ -23,7 +23,8 @@ population-500.xml
 src/main/scala/beam/playground/zeeshan/
 orig/
 /production/application-sfbay/r5/osm.mapdb.p
-/production/application-sfbay/r5/network.dat
+/production/application-sfbay/r5/*network.dat
 /production/application-sfbay/r5/osm.mapdb
+/production/sfbay-*
 native/
 *.exe

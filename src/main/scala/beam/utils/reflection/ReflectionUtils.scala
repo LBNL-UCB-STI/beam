@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
   * Created by dserdiuk on 5/19/17.
   */
 
-trait RefectionUtils {
+trait ReflectionUtils {
 
   /**
     *
@@ -40,12 +40,12 @@ trait RefectionUtils {
   }
 
   def isExtends[T](clazz: Class[_], subType: Class[T]): Boolean = {
-    val allSuperTypes = ReflectionUtils.getAllSuperTypes(clazz)
+    val allSuperTypes = org.reflections.ReflectionUtils.getAllSuperTypes(clazz)
     allSuperTypes.contains(subType)
   }
 }
 
-object RefectionUtils {
+object ReflectionUtils {
 
   def setFinalField(clazz: Class[_], fieldName: String, value: Any) = {
     val field: Field = clazz.getField(fieldName)
