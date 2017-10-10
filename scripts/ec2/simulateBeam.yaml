@@ -1,0 +1,28 @@
+﻿AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: BEAM Sim
+Resources:
+  simulateBeam:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: BeamSimLambda.lambda_handler
+      Runtime: python2.7
+      CodeUri: .
+      Description: BEAM Sim
+      MemorySize: 128
+      Timeout: 59
+      Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /simulateBeam
+            Method: ANY
+      Environment:
+        Variables:
+          IAM_ROLE: BeamCodeDeployEC2
+          IMAGE_ID: ami-2a416c4f
+          SECURITY_GROUP: sg-bb469dd3
+          INSTANCE_TYPE: t2.micro
+          KEY_NAME: beam-box01
+          REGION: us-east-2

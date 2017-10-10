@@ -136,8 +136,8 @@ class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 			File fromFile = new File(controlerIO.getIterationFilename(controlerConfigGroup.getLastIteration(), "events.xml.gz"));
 			IOUtils.copyFile(fromFile, toFile);
 		} catch (Exception ee) {
-			Logger.getLogger(this.getClass()).error(
-					"writing output events did not work; probably parameters were such that no events were " + "generated in the final iteration");
+			//Logger.getLogger(this.getClass()).error(
+			//		"writing output events did not work; probably parameters were such that no events were " + "generated in the final iteration");
 		}
 	}
 
@@ -150,7 +150,7 @@ class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 				if (inputCRS == null) {
 					new CountsWriter(counts).write(controlerIO.getOutputFilename(Controler.FILENAME_COUNTS));
 				} else {
-					log.info("re-projecting counts from " + internalCRS + " back to " + inputCRS + " for export");
+			//		log.info("re-projecting counts from " + internalCRS + " back to " + inputCRS + " for export");
 
 					final CoordinateTransformation transformation = TransformationFactory.getCoordinateTransformation(internalCRS, inputCRS);
 
@@ -200,7 +200,7 @@ class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 				if (inputCRS == null) {
 					new TransitScheduleWriter(transitSchedule).writeFile(controlerIO.getOutputFilename("output_transitSchedule.xml.gz"));
 				} else {
-					log.info("re-projecting transit schedule from " + internalCRS + " back to " + inputCRS + " for export");
+				//	log.info("re-projecting transit schedule from " + internalCRS + " back to " + inputCRS + " for export");
 
 					final CoordinateTransformation transformation = TransformationFactory.getCoordinateTransformation(internalCRS, inputCRS);
 
@@ -228,7 +228,7 @@ class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 			if (inputCRS == null) {
 				new FacilitiesWriter(activityFacilities).write(controlerIO.getOutputFilename("output_facilities.xml.gz"));
 			} else {
-				log.info("re-projecting facilities from " + internalCRS + " back to " + inputCRS + " for export");
+			//	log.info("re-projecting facilities from " + internalCRS + " back to " + inputCRS + " for export");
 
 				final CoordinateTransformation transformation = TransformationFactory.getCoordinateTransformation(internalCRS, inputCRS);
 
@@ -248,8 +248,8 @@ class DumpDataAtEndImpl implements DumpDataAtEnd, ShutdownListener {
 		if (config.network().getInputCRS() == null) {
 			new NetworkWriter(network).write(controlerIO.getOutputFilename(Controler.FILENAME_NETWORK));
 		} else {
-			log.info("re-projecting network from " + config.global().getCoordinateSystem() + " back to " + config.network().getInputCRS()
-					+ " for export");
+			//log.info("re-projecting network from " + config.global().getCoordinateSystem() + " back to " + config.network().getInputCRS()
+			//		+ " for export");
 
 			final CoordinateTransformation transformation = TransformationFactory.getCoordinateTransformation(config.global().getCoordinateSystem(),
 					config.network().getInputCRS());

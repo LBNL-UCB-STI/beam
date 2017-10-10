@@ -1,12 +1,17 @@
+import com.amazonaws.services.lambda.model.InvocationType
+import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+
 buildscript {
     repositories {
         jcenter()
         mavenLocal()
         mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
 }
 
@@ -20,15 +25,23 @@ configurations.all {
     resolutionStrategy.cacheChangingModulesFor 86400, 'seconds'
 }
 
-ext {
-    env = "sf-bay"
+configurations {
+    // Depending on which binding you want to use for slf4j, use these to exclude all others
+//    runtime.exclude group: "org.slf4j", module: "slf4j-log4j12"
+    runtime.exclude group: 'org.slf4j', module: 'slf4j-simple'
+    runtime.exclude group: 'ch.qos.logback', module: 'logback-classic'
 }
+
+//ext {
+//    env = "beamville"
+//}
 
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: 'scala'
 apply plugin: 'idea'
 apply plugin: 'kr.motd.sphinx'
+apply plugin: 'application'
 
 group = 'beam'
 version = '0.2.0-SNAPSHOT'
@@ -53,7 +66,7 @@ if (project.hasProperty('env')) {
     sourceSets {
         main {
             resources {
-                srcDirs "src/main/resources", "test/input/beam/" + project.getProperty('env')
+                srcDirs "src/main/resources", "test/input/" + project.getProperty('env')
             }
         }
     }
@@ -106,6 +119,7 @@ dependencies {
     compile group: 'org.javassist', name: 'javassist', version: '3.19.0-GA'
     compile group: 'javax.inject', name: 'javax.inject', version: '1'
     compile group: 'jdom', name: 'jdom', version: '1.1'
+    compile group: 'org.jdom', name: 'jdom2', version: '2.0.5'
     compile group: 'log4j', name: 'log4j', version: '1.2.16'
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.8.0'
     compile group: 'org.objenesis', name: 'objenesis', version: '2.4'
@@ -122,9 +136,10 @@ dependencies {
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: false
-    compile group: 'com.github.colinsheppard', name: 'OpenTripPlanner', version: 'otp-1.0.0-beam-SNAPSHOT', changing: false
     compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: false
-    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
+//    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
+    compile group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'beam-3.0-SNAPSHOT', changing: true
+
 
     testCompile group: 'junit', name: 'junit', version: '4.4'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
@@ -155,9 +170,9 @@ dependencies {
     //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
     //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
     // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
-    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.10"
+    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
 // https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
-    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.12"
+    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
     // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
     compile group: 'io.circe', name: "circe-core_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-generic_2.12
@@ -188,6 +203,7 @@ dependencies {
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.0'
 
 }
 
@@ -198,6 +214,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 // test.dependsOn spec
+
 //////////////////////////////////////////////////////////////////////
 // BUNDLING FOR EXECUTION
 //
@@ -209,14 +226,56 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 jar {
     manifest {
-        attributes 'Main-Class': 'beam.EVSimTeleController'
+        attributes "Implementation-Title": project.name,
+                "Implementation-Version": version,
+                "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.sim.RunBeam'
     }
 }
 
 shadowJar {
     baseName = 'beam'
+    zip64 true
     classifier = null
     version = null
+}
+
+assemble.dependsOn shadowJar
+
+//////////////////////////////////////////////////////////////////////
+// Amazon WS task to run beam sim on Lambda
+//////////////////////////////////////////////////////////////////////
+
+apply plugin: "base"
+apply plugin: "jp.classmethod.aws.lambda"
+
+aws {
+    profileName = "gradle"
+    region = "us-east-2"
+}
+
+lambda {
+    region = "us-east-2"
+}
+
+def pload = """{
+  "branch": "$beamBranch",
+  "build": "$beamBuild",
+  "input": "$beamInput",
+  "configs": [ "${beamConfigs.split(',').join("\", \"")}" ],
+  "shutdown_wait": "$shutdownWait"
+}"""
+
+task runAwsSim(type: AWSLambdaInvokeTask) {
+    functionName = "testSim"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println "Lambda function result: " + new String(invokeResult.payload.array(), "UTF-8")
+    }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -231,7 +290,7 @@ task generateConfig {
             }
         }
         javaexec {
-            main = "-jar";
+            main = "-jar"
             args = [
                     "build/tscfg-0.8.1.jar",
                     "--spec", "src/main/resources/beam-template.conf",
@@ -249,4 +308,41 @@ task repl(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     standardInput System.in
     args '-usejavacp'
+}
+
+task deleteSf {
+    doLast {
+        if (project.file('production/application-sfbay/r5/network.dat').exists()) {
+            delete 'production/application-sfbay/r5/network.dat'
+        }
+        if (project.file('production/application-sfbay/r5/osm.mapdb').exists()) {
+            delete 'production/application-sfbay/r5/osm.mapdb'
+        }
+        if (project.file('production/application-sfbay/r5/osm.mapdb.p').exists()) {
+            delete 'production/application-sfbay/r5/osm.mapdb.p'
+        }
+    }
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+//
+// Run Via application plugin
+// ./gradlew run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
+//
+mainClassName = "beam.sim.RunBeam"
+
+def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
+
+// Use following for remote debug mode
+//applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}"]
+
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
 }
