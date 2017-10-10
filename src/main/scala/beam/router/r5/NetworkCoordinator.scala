@@ -6,7 +6,6 @@ import java.nio.file.Paths
 
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, UpdateTravelTime}
-import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator.{copiedNetwork, _}
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
@@ -38,7 +37,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 
   def init: Unit = {
     loadNetwork
-    FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
   }
 
   def loadNetwork = {

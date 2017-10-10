@@ -1,6 +1,6 @@
 package beam.router
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.{InitTransit, RoutingRequestTripInfo, _}
 import beam.sim.{BeamServices, HasServices}
@@ -42,15 +42,15 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
 object RoutingWorker {
 
   trait HasProps {
-    def props(beamServices: BeamServices, workerId: Int): Props
+    def props(beamServices: BeamServices, fareCalculator: ActorRef, workerId: Int): Props
   }
 
-  def getRouterProps(routerClass: String, services: BeamServices, workerId: Int): Props = {
+  def getRouterProps(routerClass: String, services: BeamServices, fareCalculator: ActorRef, workerId: Int): Props = {
     val runtimeMirror = scala.reflect.runtime.universe.runtimeMirror(getClass.getClassLoader)
     val module = runtimeMirror.staticModule(routerClass)
     val obj = runtimeMirror.reflectModule(module)
     val routerObject: HasProps = obj.instance.asInstanceOf[HasProps]
-    routerObject.props(services, workerId)
+    routerObject.props(services, fareCalculator, workerId)
   }
 }
 

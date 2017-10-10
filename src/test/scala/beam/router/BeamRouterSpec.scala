@@ -6,6 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{DefaultTimeout, EventFilter, ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, RouterNeedInitialization, RoutingRequest}
+import beam.router.gtfs.FareCalculator
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigFactory
@@ -45,7 +46,7 @@ class BeamRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLi
   var router: ActorRef = _
   override def beforeAll = {
 //    when(services.beamConfig).thenReturn(BeamConfig(null, BeamConfig.Beam(null, "beam", null, null, BeamConfig.Beam.Routing(ConfigFactory.parseString(TEST_CONFIG)), null, null), null, null))
-    router = system.actorOf(BeamRouter.props(services))
+    router = system.actorOf(BeamRouter.props(services, system.actorOf(FareCalculator.props("model-inputs/r5"))))
   }
 
   override def afterAll = {
