@@ -268,11 +268,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    profileRequest.maxWalkTime = Integer.MAX_VALUE
-    profileRequest.maxCarTime = Integer.MAX_VALUE
+        profileRequest.maxWalkTime = 2*60
+    profileRequest.maxCarTime = 3 * 60
     profileRequest.streetTime = Integer.MAX_VALUE
-    profileRequest.maxBikeTime = Integer.MAX_VALUE
-    profileRequest.maxTripDurationMinutes = Integer.MAX_VALUE
+    //    profileRequest.maxBikeTime = 3*60
+    profileRequest.maxTripDurationMinutes = 3 * 60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
@@ -328,11 +328,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-    profileRequest.maxWalkTime = Integer.MAX_VALUE
-    profileRequest.maxCarTime = Integer.MAX_VALUE
-    profileRequest.maxBikeTime = Integer.MAX_VALUE
+    profileRequest.maxWalkTime = 3 * 60
+    profileRequest.maxCarTime = 4 * 60
+    profileRequest.maxBikeTime = 4 * 60
     profileRequest.streetTime = Integer.MAX_VALUE
-    profileRequest.maxTripDurationMinutes = Integer.MAX_VALUE
+
+    profileRequest.maxTripDurationMinutes = 4 * 60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     val time = routingRequestTripInfo.departureTime match {
