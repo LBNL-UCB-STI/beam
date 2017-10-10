@@ -62,7 +62,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 11.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
-      beamAgentSchedulerRef ! StartSchedule
+      beamAgentSchedulerRef ! StartSchedule(0)
 
       personAgentRef.stateName should be(Finished)
     }
@@ -104,7 +104,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 1000000.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
-      beamAgentSchedulerRef ! StartSchedule
+      beamAgentSchedulerRef ! StartSchedule(0)
 
       EventFilter.info(message = "events-subscriber received actend event!", occurrences = 1)
 
@@ -137,7 +137,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(stopTick = 200.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
-      beamAgentSchedulerRef ! StartSchedule
+      beamAgentSchedulerRef ! StartSchedule(0)
     }
 
     //it("should demonstrate a simple complete daily activity pattern")(pending)
