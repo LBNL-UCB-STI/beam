@@ -2,7 +2,7 @@ package beam.sim.config
 
 import java.nio.file.Paths
 
-import beam.utils.RefectionUtils
+import beam.utils.reflection.ReflectionUtils
 import com.typesafe.config.{Config, ConfigList, ConfigUtil}
 import org.matsim.core.api.internal.MatsimParameters
 import org.matsim.core.config.{ConfigGroup, ConfigUtils}
@@ -34,10 +34,24 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
 
   def buildMatSamConf() = {
     val matSimConfig = ConfigUtils.createConfig(Paths.get(beamConf.origin().url().toURI).getParent.toUri.toURL)
-    val paramSetClassCache = RefectionUtils.concreteClassesOfType[MatsimParameters].
-      collect { case clazz if RefectionUtils.isExtends(clazz, classOf[ConfigGroup]) =>
-        Try(clazz.newInstance()).toOption
-      }.flatten.map(paramSet => {
+    val maybeParameterSets = MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].
+      collect { case clazz if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>
+        try {
+          Option(clazz.newInstance())
+        } catch {
+          case e: IllegalAccessException =>
+            logger.debug(s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'. It doesn't have default public constructor.Falling back to setAccessible(). Cause : " + e.getMessage)
+            Try {
+              val c = clazz.getDeclaredConstructor()
+              c.setAccessible(true)
+              c.newInstance()
+            }.toOption
+          case e: Throwable =>
+            logger.error(s"Couldn't instantiate MatsimParameters  '${clazz.getCanonicalName}'", e)
+            None
+        }
+      }
+    val paramSetClassCache = maybeParameterSets.flatten.map(paramSet => {
            val group = paramSet.asInstanceOf[ConfigGroup]
           (group.getName, group.getClass.asInstanceOf[Class[ConfigGroup]])
       }).filterNot(_._2.getName.contains("Old")) // there 2 version of ActivityParams class in different packages, remove old one
@@ -81,4 +95,12 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
     }
     matSimConfig
   }
+}
+
+object MatSimBeamConfigBuilder extends ReflectionUtils {
+  /**
+    *
+    * @return package name to scan in
+    */
+  override def packageName: String = "org.matsim"
 }

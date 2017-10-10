@@ -7,7 +7,7 @@ import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.events.resources.vehicle.ModifyPassengerScheduleAck
 import beam.agentsim.scheduler.TriggerWithId
@@ -26,7 +26,7 @@ object TransitDriverAgent {
   case class TransitDriverData() extends BeamAgentData
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]) = {
-    Id.create("TransitDriverAgent-" + transitVehicle.toString, classOf[TransitDriverAgent])
+    Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
   }
 }
 
@@ -47,37 +47,29 @@ class TransitDriverAgent(val beamServices: BeamServices,
       goto(PersonAgent.Waiting)
   }
 
-  chainedWhen(Waiting) {
-    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
-      goto(Finished) replying completed(triggerId)
-  }
-
   chainedWhen(AnyState) {
     case Event(BecomeDriverSuccessAck, _) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self,passengerSchedule.schedule.firstKey))
       stay
+    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
+      goto(Finished) replying completed(triggerId)
   }
 
   when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
   }
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      val errMsg = s"Unrecognized message ${msg}"
+      logError(errMsg)
+      goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 }

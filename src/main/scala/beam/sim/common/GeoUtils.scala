@@ -1,6 +1,9 @@
 package beam.sim.common
 
+import beam.sim.config.{BeamConfig, ConfigModule}
 import beam.sim.{BeamServices, BoundingBox, HasServices}
+import com.conveyal.r5.profile.StreetMode
+import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
@@ -10,6 +13,9 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 /**
   * Created by sfeygin on 4/2/17.
   */
+
+
+
 @ImplementedBy(classOf[GeoUtilsImpl])
 trait GeoUtils extends HasServices  {
   lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
@@ -62,8 +68,47 @@ trait GeoUtils extends HasServices  {
 //    if (posTransformed.getX > boundingBox.maxX) boundingBox.maxX = posTransformed.getX
 //    if (posTransformed.getY > boundingBox.maxY) boundingBox.maxY = posTransformed.getY
   }
+
+  def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
+    var radius = 100.0
+    var theSplit: Split = null
+    while(theSplit == null && radius <= maxRadius) {
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode);
+      radius = radius * 10
+    }
+    if(theSplit == null) {
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode);
+    }
+    if(theSplit == null){
+      coord
+    }else{
+      new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
+    }
+  }
 }
 
-class GeoUtilsImpl @Inject()(override val beamServices: BeamServices) extends GeoUtils{
+object GeoUtils {
+
+  implicit class CoordOps(val coord: Coord) extends AnyVal{
+
+    def toWgs: Coord= {
+      lazy val config = BeamConfig(ConfigModule.typesafeConfig)
+      lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(config.beam.spatial.localCRS, "epsg:4326")
+      //TODO fix this monstrosity
+      if (coord.getX > 1.0 | coord.getX < -0.0) {
+        utm2Wgs.transform(coord)
+      } else {
+        coord
+      }
+    }
+
+    def toUtm: Coord ={
+      lazy val config = BeamConfig(ConfigModule.typesafeConfig)
+      lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("epsg:4326",config.beam.spatial.localCRS)
+      wgs2Utm.transform(coord)
+    }
+  }
 }
+
+class GeoUtilsImpl @Inject()(override val beamServices: BeamServices) extends GeoUtils{}
 

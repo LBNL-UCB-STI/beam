@@ -1,5 +1,6 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.LoggerLevels;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import beam.utils.IntegerValueHashMap;
@@ -9,6 +10,10 @@ import org.matsim.core.utils.io.UncheckedIOException;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Map;
+
+import static beam.agentsim.events.LoggerLevels.OFF;
+import static beam.agentsim.events.LoggerLevels.SHORT;
+import static beam.agentsim.events.LoggerLevels.VERBOSE;
 
 /**
  * BEAM
@@ -62,9 +67,11 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
 
     @Override
     protected void writeEvent(Event event) {
+        if(beamEventLogger.getLoggingLevel(event) == OFF)return;
+
         String[] row = new String[attributeToColumnIndexMapping.getKeySet().size()];
 
-        Map<String, String> attributes = event.getAttributes();
+        Map<String, String> attributes = this.beamEventLogger.getAttributes(event);
         for (String attribute : attributes.keySet()) {
             if (!attributeToColumnIndexMapping.containsKey(attribute)){
                 if(this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)){
@@ -81,7 +88,11 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
             for (int i = 0; i < row.length; i++) {
                 String str = row[i];
                 if (str != null) {
-                    this.out.append(str);
+                    if (str.contains(",")) {
+                        this.out.append("\"" + str + "\"");
+                    }else{
+                        this.out.append(str);
+                    }
                 }
                 if (i < row.length - 1) {
                     this.out.append(",");
@@ -93,20 +104,26 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     private void registerClass(Class cla) {
+        LoggerLevels level = beamEventLogger.getLoggingLevel(cla);
         Field[] fields = cla.getFields();
 
-        for (Field field:fields){
-            if (field.getName().contains("ATTRIBUTE_") && (this.eventTypeToLog == null || !field.getName().equals("ATTRIBUTE_TYPE"))){
-                try {
-                    attributeToColumnIndexMapping.set(field.get(null).toString(), 0);
-                } catch (IllegalArgumentException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
+        if(level != OFF) {
+            for (Field field : fields) {
+                if(level != SHORT || !beamEventLogger.eventFieldsToDropWhenShort.get(cla).contains(field.getName())) {
+                    if ((field.getName().startsWith("ATTRIBUTE_") && (this.eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
+                            (level == VERBOSE && field.getName().startsWith("VERBOSE_") && (this.eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
+                            ) {
+                        try {
+                            attributeToColumnIndexMapping.set(field.get(null).toString(), 0);
+                        } catch (IllegalArgumentException e) {
+                            e.printStackTrace();
+                        } catch (IllegalAccessException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.LoggerLevels;
 import beam.sim.BeamServices;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.UncheckedIOException;
@@ -50,19 +51,22 @@ public class BeamEventsWriterXML extends BeamEventsWriterBase{
 
     @Override
     protected void writeEvent(final Event event) {
-        try {
-            this.out.append("\t<event ");
-            Map<String, String> attr = event.getAttributes();
-            for (Map.Entry<String, String> entry : attr.entrySet()) {
-                this.out.append(entry.getKey());
-                this.out.append("=\"");
-                this.out.append(encodeAttributeValue(entry.getValue()));
-                this.out.append("\" ");
-            }
-            this.out.append(" />\n");
+        if(! (beamEventLogger.getLoggingLevel(event) == LoggerLevels.OFF)){
+            try{
+                this.out.append("\t<event ");
+                Map<String, String> attr = beamEventLogger.getAttributes(event);
+                for (Map.Entry<String, String> entry : attr.entrySet()) {
+                    this.out.append(entry.getKey());
+                    this.out.append("=\"");
+                    this.out.append(encodeAttributeValue(entry.getValue()));
+                    this.out.append("\" ");
+                }
+
+             this.out.append(" />\n");
 //			this.out.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

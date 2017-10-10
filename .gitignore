@@ -10,7 +10,7 @@ test/output
 output/
 libs
 .idea/*
-!.idea/runConfigurations/RunBeam_BeamVille.xml
+!.idea/runConfigurations/Run*
 .cache*
 target/
 beam.iml
@@ -21,3 +21,9 @@ docs/_build
 population-500.xml
 /test/input/beam/sf-bay/model-inputs/otp/graphs
 src/main/scala/beam/playground/zeeshan/
+orig/
+/production/application-sfbay/r5/osm.mapdb.p
+/production/application-sfbay/r5/*network.dat
+/production/application-sfbay/r5/osm.mapdb
+/production/sfbay-*
+native/
