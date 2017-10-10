@@ -1,4 +1,4 @@
-package beam.sim.common
+package beam.utils
 
 import java.time.temporal.ChronoUnit
 import java.time.{LocalDate, LocalDateTime, ZonedDateTime}

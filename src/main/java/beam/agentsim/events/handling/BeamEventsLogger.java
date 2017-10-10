@@ -1,14 +1,18 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.LoggerLevels;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.BeamServices;
+import beam.utils.DebugLib;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
+
+import static beam.agentsim.events.LoggerLevels.OFF;
 
 /**
  * BEAM
@@ -18,12 +22,18 @@ public class BeamEventsLogger {
     private final EventsManager eventsManager;
     private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
 
-    HashMap<Class<?>, Integer> levels = new HashMap<>();
+    HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
+    LoggerLevels defaultLevel;
+
     private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog=new HashSet<>();
     private BeamServices beamServices;
     private String eventsFileFormats;
     private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
-    private String logfilePath;
+
+    // create multimap to store key and values
+    Multimap<Class, String> eventFieldsToDropWhenShort = ArrayListMultimap.create();
+    Multimap<Class, String> eventFieldsToAddWhenVerbose = ArrayListMultimap.create();
+    private List<String> eventFields = null;
 
     public BeamEventsLogger(BeamServices beamServices, EventsManager eventsManager) {
 
@@ -47,11 +57,18 @@ public class BeamEventsLogger {
         allLoggableEvents.add(PersonArrivalEvent.class);
         allLoggableEvents.add(ActivityStartEvent.class);
 
-        if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel() > 0) {
-            // All classes are logged by default
+        //filter according loggerLevel
+        if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals("")){
+            defaultLevel = OFF;
+        }else{
+            defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
             eventsToLog.addAll(getAllLoggableEvents());
         }
-//        filterLoggingLevels();
+        overrideDefaultLoggerSetup();
+        shortLoggerSetup();
+        verboseLoggerSetup();
+
+        //Write events for filter LoggingLevels();
         createEventsWriters();
     }
 
@@ -97,15 +114,19 @@ public class BeamEventsLogger {
         return null;
     }
 
-    private void setLoggingLevel(Class<?> eventType, int level) {
+    private void setLoggingLevel(Class<?> eventType, LoggerLevels level) {
         levels.put(eventType, level);
     }
 
-    public Integer getLoggingLevel(Event event) {
-        if (levels.containsKey(event.getClass())) {
-            return levels.get(event.getClass());
+    //Logging control code changed return type from int to String
+    public LoggerLevels getLoggingLevel(Event event) {
+        return getLoggingLevel(event.getClass());
+    }
+    public LoggerLevels getLoggingLevel(Class clazz) {
+        if (levels.containsKey(clazz)){
+            return levels.get(clazz);
         } else {
-            return this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel();
+            return defaultLevel;
         }
     }
 
@@ -117,6 +138,7 @@ public class BeamEventsLogger {
     public HashSet<Class<?>> getAllEventsToLog(){
         return eventsToLog;
     }
+
     public HashSet<Class<?>> getAllLoggableEvents(){
         return allLoggableEvents;
     }
@@ -140,26 +162,75 @@ public class BeamEventsLogger {
         }
     }
 
-
-    public void filterLoggingLevels() {
-        //TODO re-implement filter on logging level for individual event types
-//        Class<?> theClass = null;
-//        for (String key : params.keySet()) {
-//            if(key.contains(".level") && !key.equals("Default.level")) {
-//                Integer loggingLevel = Integer.parseInt(params.get(key));
-//                try {
-//                    theClass = Class.forName(key.replaceAll(".level", ""));
-//                } catch (ClassNotFoundException e) {
-//                    e.printStackTrace();
-//                    DebugLib.stopSystemAndReportInconsistency("Logging class name '"+theClass.getCanonicalName()+"' is not a valid class, use fully qualified class names (e.g. .");
-//                }
-//                setLoggingLevel(theClass, loggingLevel);
-//                if(beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel() <= 0 & loggingLevel > 0){
-//                    eventsToLog.add(theClass);
-//                }else if(beamServices.getBeamEventLoggerConfigGroup().getDefaultLevel() > 0 & loggingLevel <= 0){
-//                    eventsToLog.remove(theClass);
-//                }
-//            }
-//        }
+    public Map<String,String> getAttributes(Event event) {
+        Map<String,String> attributes = event.getAttributes();
+        //Remove attribute from each event class for SHORT logger level
+        if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToDropWhenShort.containsKey(event.getClass())){
+            eventFields = (List) eventFieldsToDropWhenShort.get(event.getClass());
+            // iterate through the key set
+            for (String key : eventFields) {
+                attributes.remove(key);
+            }
+        }
+        //Add attribute from each event class for VERBOSE logger level
+        else if(getLoggingLevel(event) == LoggerLevels.VERBOSE && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
+            eventFields = (List) eventFieldsToAddWhenVerbose.get(event.getClass());
+            // iterate through the key set
+            for (String key : eventFields) {
+//                attributes.putAll(event.getVer);
+            }
+        }
+        return attributes;
     }
+
+    public void overrideDefaultLoggerSetup() {
+        Class<?> theClass = null;
+
+        for(String classAndLevel : beamServices.beamConfig().beam().outputs().overrideLoggingLevels().split(",")){
+            String[] splitClassLevel = classAndLevel.split(":");
+            String classString = splitClassLevel[0].trim();
+            String levelString = splitClassLevel[1].trim();
+            LoggerLevels theLevel = LoggerLevels.valueOf(levelString);
+            try {
+                theClass = Class.forName(classString);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+                DebugLib.stopSystemAndReportInconsistency("Logging class name '" + theClass.getCanonicalName() + "' is not a valid class, use fully qualified class names (e.g. .");
+            }
+            setLoggingLevel(theClass, theLevel);
+            if (theLevel != OFF){
+                eventsToLog.add(theClass);
+            } else if (theLevel == OFF){
+                eventsToLog.remove(theClass);
+            }
+        }
+    }
+
+    public void shortLoggerSetup() {
+//        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_VIZ_DATA);
+//        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_LINK_IDS);
+//        eventFieldsToDropWhenShort.put(PathTraversalEvent.class, PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME);
+//        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(ActivityEndEvent.class,ActivityEndEvent.ATTRIBUTE_ACTTYPE);
+//        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(PersonDepartureEvent.class,PersonDepartureEvent.ATTRIBUTE_LEGMODE);
+//        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_NETWORKMODE);
+//        eventFieldsToDropWhenShort.put(VehicleEntersTrafficEvent.class,VehicleEntersTrafficEvent.ATTRIBUTE_POSITION);
+//        eventFieldsToDropWhenShort.put(LinkLeaveEvent.class,LinkLeaveEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(LinkEnterEvent.class,LinkEnterEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_NETWORKMODE);
+//        eventFieldsToDropWhenShort.put(VehicleLeavesTrafficEvent.class,VehicleLeavesTrafficEvent.ATTRIBUTE_POSITION);
+//        eventFieldsToDropWhenShort.put(PersonArrivalEvent.class,PersonArrivalEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_LINK);
+//        eventFieldsToDropWhenShort.put(ActivityStartEvent.class,ActivityStartEvent.ATTRIBUTE_ACTTYPE);
+    }
+
+    public void verboseLoggerSetup() {
+//        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY);
+//        eventFieldsToAddWhenVerbose.put(ModeChoiceEvent.class,ModeChoiceEvent.VERBOSE_ATTRIBUTE_LOCATION);
+    }
+
+
 }

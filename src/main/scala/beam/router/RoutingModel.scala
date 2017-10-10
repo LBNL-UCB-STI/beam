@@ -37,6 +37,7 @@ object RoutingModel {
 
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
+    lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
 
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
@@ -62,6 +63,13 @@ object RoutingModel {
       }
       theMode
     }
+
+    def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
+      legs.map(leg => leg.beamVehicleId).distinct
+    }
+    override def toString() = {
+      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+    }
   }
 
   object EmbodiedBeamTrip {
@@ -78,6 +86,7 @@ object RoutingModel {
           val beamLeg = tuple._1
           val currentMode: BeamMode = beamLeg.mode
           val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
+
           val cost = legFares.getOrElse(tuple._2, 0.0)
           if (Modes.isR5TransitMode(currentMode)) {
             if(services.transitVehiclesByBeamLeg.contains(beamLeg)) {
@@ -162,9 +171,11 @@ object RoutingModel {
 
     def isTransit = transitStops.isDefined
 
-    def toTrajectory = {
+    def toTrajectory: Trajectory = {
       resolver.resolve(this)
     }
+
+    lazy val distanceInM: Double = resolver.resolveLengthInM(this)
 
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
@@ -220,8 +231,8 @@ object RoutingModel {
   }
 
   object WindowTime {
-    def apply(atTime: Int, r5: BeamConfig.Beam.Routing.R5): WindowTime =
-      new WindowTime(atTime, r5.departureWindow * 60)
+    def apply(atTime: Int, departureWindow: Double): WindowTime =
+      new WindowTime(atTime, math.round(departureWindow * 60.0).toInt)
   }
 
 }
