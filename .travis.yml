@@ -18,6 +18,7 @@ cache:
 
 script:
 #  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
+  - gradle build
   - mkdir -p "dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}"
   - cp build/libs/beam.jar dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}/beam-${TRAVIS_BUILD_NUMBER}.jar || true
 
