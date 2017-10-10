@@ -35,6 +35,8 @@ trait ModeChoiceCalculator extends HasServices with Cloneable{
 object ModeChoiceCalculator {
   def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculator = {
     classname match {
+      case "ModeChoiceLCCM" =>
+        new ModeChoiceLCCM(beamServices)
       case "ModeChoiceTransitOnly" =>
         new ModeChoiceTransitOnly(beamServices)
       case "ModeChoiceDriveOnly" =>
