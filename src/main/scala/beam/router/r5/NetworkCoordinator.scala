@@ -83,7 +83,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       transportNetwork = TransportNetwork.read(prunedNetworkFile) // Needed because R5 closes DB on write
     }
     //
-    transportNetwork.rebuildTransientIndexes()
     beamPathBuilder = new BeamPathBuilder(transportNetwork = transportNetwork, beamServices)
     val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
     beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
