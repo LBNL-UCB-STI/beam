@@ -1,6 +1,6 @@
 package beam.router.gtfs
 
-import java.io.File
+import java.io._
 import java.nio.file.{Files, Path, Paths}
 import java.util.zip.ZipFile
 
@@ -10,10 +10,22 @@ import com.conveyal.gtfs.GTFSFeed
 
 class FareCalculator(val directory: String) extends Actor with ActorLogging {
 
+  private val dataDirectory: Path = Paths.get(directory)
+  private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
+
   /**
     * agencies is a Map of FareRule by agencyId
     */
-  val agencies: Map[String, Vector[BeamFareRule]] = fromDirectory(Paths.get(directory))
+  val agencies: Map[String, Vector[BeamFareRule]] = if (cacheFile.exists()) {
+    new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[Map[String, Vector[BeamFareRule]]]
+  } else {
+    val agencies = fromDirectory(dataDirectory)
+    val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
+    stream.writeObject(agencies)
+    stream.close()
+    agencies
+  }
+
   log.debug("Ready.")
 
   override def receive = {
