@@ -94,6 +94,15 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       assert(response.itineraries.nonEmpty)
     }
 
+    "respond with a car route to a reasonable RoutingRequest" in {
+      val origin = new BeamRouter.Location(551642.4729978561, 4180839.138663753)
+      val destination = new BeamRouter.Location(552065.6882372601, 4180855.582994787)
+      val time = RoutingModel.DiscreteTime(19740)
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false)), Id.createPersonId("81370-0")))
+      val response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.nonEmpty)
+    }
+
   }
 
 }
