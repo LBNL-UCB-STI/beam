@@ -41,6 +41,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("56658-0")))
     scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("66752-0")))
+    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("80672-0")))
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     val matsimServices = mock[MatsimServices]
@@ -53,7 +54,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     val fareCalculator = system.actorOf(FareCalculator.props(beamConfig.beam.routing.r5.directory))
     router = system.actorOf(BeamRouter.props(services, fareCalculator))
 
-    within(120 seconds) { // Router and fare calculator can take a while to initialize
+    within(1200000 seconds) { // Router and fare calculator can take a while to initialize
       fareCalculator ! Identify(0)
       expectMsgType[ActorIdentity]
       router ! InitializeRouter
@@ -83,6 +84,16 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.nonEmpty)
     }
+
+    "respond with a route to yet another reasonable RoutingRequest" in {
+      val origin = new BeamRouter.Location(583117.0300037456, 4168059.6668392466)
+      val destination = new BeamRouter.Location(579985.712067158, 4167298.6137483735)
+      val time = RoutingModel.DiscreteTime(20460)
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-80672-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("80672-0")))
+      val response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.nonEmpty)
+    }
+
   }
 
 }
