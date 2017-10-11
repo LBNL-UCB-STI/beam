@@ -10,7 +10,8 @@ import beam.router.r5.NetworkCoordinator.{copiedNetwork, _}
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
 import beam.utils.reflection.ReflectionUtils
-import com.conveyal.r5.streets.StreetLayer
+import com.conveyal.r5.profile.StreetMode
+import com.conveyal.r5.streets.{StreetLayer, TarjanIslandPruner}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
@@ -47,7 +48,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     }
 
     val unprunedNetworkFilePath = Paths.get(networkDir, UNPRUNED_GRAPH_FILE)  // The first R5 network, created w/out island pruning
-    val unprunedNetworkFile: File = unprunedNetworkFilePath.toFile
+    val partiallyPrunedNetworkFile: File = unprunedNetworkFilePath.toFile
     val prunedNetworkFilePath = Paths.get(networkDir, PRUNED_GRAPH_FILE)  // The final R5 network that matches the cleaned (pruned) MATSim network
     val prunedNetworkFile: File = prunedNetworkFilePath.toFile
     if (exists(prunedNetworkFilePath)) {
@@ -56,16 +57,20 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     } else {  // Need to create the unpruned and pruned networks from directory
       log.debug(s"Network file [${prunedNetworkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating unpruned network from: ${networkDirPath.toAbsolutePath}")
-      unprunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
-      unprunedTransportNetwork.write(unprunedNetworkFile)
+      val partiallyPrunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
+
+      // Prune the walk network. This seems to work without problems in R5.
+      new TarjanIslandPruner(partiallyPrunedTransportNetwork.streetLayer, StreetLayer.MIN_SUBGRAPH_SIZE, StreetMode.WALK).run()
+
+      partiallyPrunedTransportNetwork.write(partiallyPrunedNetworkFile)
 
       ////
-      // Run R5MnetBuilder to create the pruned R5 network and matching MATSim network
+      // Convert car network to MATSim network, prune it, compare links one-by-one, and if it was pruned by MATSim,
+      // remove the car flag in R5.
       ////
       log.debug(s"Create the cleaned MATSim network from unpuned R5 network")
       val osmFilePath = beamServices.beamConfig.beam.routing.r5.osmFile
-      // TODO - implement option to use EdgeFlags (AAC 17/09/19)
-      rmNetBuilder = new R5MnetBuilder(unprunedNetworkFile.toString, beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
+      val rmNetBuilder = new R5MnetBuilder(partiallyPrunedNetworkFile.toString, beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
       rmNetBuilder.buildMNet()
       rmNetBuilder.cleanMnet()
       log.debug(s"Pruned MATSim network created and written")
@@ -74,10 +79,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       rmNetBuilder.pruneR5()
       transportNetwork = rmNetBuilder.getR5Network
 
-      // Now network has been pruned
       transportNetwork.write(prunedNetworkFile)
-      //beamServices.beamConfig.matsim.modules.network.inputNetworkFile
-//      beamServices.reloadMATSimNetwork = true
       transportNetwork = TransportNetwork.read(prunedNetworkFile) // Needed because R5 closes DB on write
     }
     //
@@ -120,8 +122,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     })
   }
 
-//    val edgeStore=copiedNetwork.streetLayer.edgeStore;
-
   def getAverageTime(linkId: Id[Link], travelTimeCalculator: TravelTimeCalculator) = {
     val limit = 86400
     val step = 60
@@ -142,9 +142,7 @@ object NetworkCoordinator {
   val UNPRUNED_GRAPH_FILE = "/unpruned_network.dat"
 
   var transportNetwork: TransportNetwork = _
-  var unprunedTransportNetwork: TransportNetwork = _
   var copiedNetwork: TransportNetwork = _
-  var rmNetBuilder: R5MnetBuilder = _
   var linkMap: Map[Int, Long] = Map()
   var beamPathBuilder: BeamPathBuilder = _
 

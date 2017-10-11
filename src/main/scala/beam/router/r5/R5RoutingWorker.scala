@@ -280,7 +280,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
     profileRequest.toLat = toPosTransformed.getY
     profileRequest.maxWalkTime = 2 * 60
     profileRequest.maxCarTime = 3 * 60
-    profileRequest.streetTime = Integer.MAX_VALUE
+    profileRequest.streetTime = 0
     //    profileRequest.maxBikeTime = 3*60
     profileRequest.maxTripDurationMinutes = 3 * 60
     profileRequest.wheelchair = false
@@ -341,7 +341,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
     profileRequest.maxWalkTime = 3 * 60
     profileRequest.maxCarTime = 4 * 60
     profileRequest.maxBikeTime = 4 * 60
-    profileRequest.streetTime = Integer.MAX_VALUE
+    profileRequest.streetTime = 0
 
     profileRequest.maxTripDurationMinutes = 4 * 60
     profileRequest.wheelchair = false
