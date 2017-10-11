@@ -24,6 +24,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices) extends Mobsim {
   override def run() = {
     log.info("Running BEAM Mobsim")
 
-    Await.result(beamServices.schedulerRef ? StartSchedule, timeout.duration)
+    Await.result(beamServices.schedulerRef ? StartSchedule(0), timeout.duration)
   }
 }

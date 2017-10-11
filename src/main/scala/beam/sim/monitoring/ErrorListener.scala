@@ -38,7 +38,10 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
     case Transition(agentRef: ActorRef,_,_)=>
       //Do nothing
     case ErrorReasonResponse(reasonOpt,tick,errorData) =>
+      // Logging event-> State change data
       val theErrorData = errorData.zipWithIndex.map{case(le,idx)=>s"$idx) ${le.event}"}.mkString("\n\t")
+      log.error(theErrorData)
+
       var theMessage = reasonOpt match {
         case Some(msg) =>
           msg
