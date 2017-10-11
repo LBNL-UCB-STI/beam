@@ -27,7 +27,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),beamAgentRef)
       beamAgentRef.stateName should be(Uninitialized)
-      beamAgentSchedulerRef ! StartSchedule
+      beamAgentSchedulerRef ! StartSchedule(0)
       beamAgentRef.stateName should be(Initialized)
     }
     it("should fail to schedule events with negative tick value") {
@@ -65,7 +65,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       beamAgentSchedulerRef ! ScheduleTrigger(ReportState(5.0),beamAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(ReportState(15.0),beamAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(ReportState(9.0),beamAgentRef)
-      beamAgentSchedulerRef ! StartSchedule
+      beamAgentSchedulerRef ! StartSchedule(0)
       Thread.sleep(100)
       beamAgentRef.stateName should be(Reporting)
       val future = testReporter.ask(ReportBack)(1 second)

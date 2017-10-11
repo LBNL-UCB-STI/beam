@@ -62,7 +62,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyStartup(event: StartupEvent): Unit = {
     actorSystem.eventStream.setLogLevel(BeamLoggingSetup.log4jLogLevelToAkka(beamServices.beamConfig.beam.outputs.logging.beam.logLevel))
     eventsManager = beamServices.matsimServices.getEvents
-    eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
+    eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), EventsSubscriber.SUBSCRIBER_NAME)
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
     subscribe(ActivityStartEvent.EVENT_TYPE)
@@ -126,17 +126,14 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    eventsManager.finishProcessing()
-    cleanupWriter()
+
+
     cleanupVehicle()
     cleanupHouseHolder()
     agentSimToPhysSimPlanConverter.startPhysSim()
   }
 
-  private def cleanupWriter() = {
-    //    JsonUtils.processEventsFileVizData(beamServices.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"),
-    //      beamServices.matsimServices.getControlerIO.getOutputFilename("trips.json"))
-  }
+
 
   private def cleanupVehicle(): Unit = {
     logger.info(s"Stopping  BeamVehicle actors")
@@ -158,11 +155,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    if (writer != null && event.isUnexpected) {
-      cleanupWriter()
-    }
-    eventsManager.finishProcessing()
-    actorSystem.stop(eventSubscriber)
     actorSystem.stop(beamServices.schedulerRef)
     actorSystem.terminate()
   }
