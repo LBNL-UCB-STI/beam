@@ -16,22 +16,25 @@ public class ModeChoiceEvent extends Event {
 //    public final static String VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
 //    public final static String VERBOSE_ATTRIBUTE_LOCATION = "location";
     public final static String ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
+    public final static String ATTRIBUTE_AVAILABLE_ALTERNATIVES = "availableAlternatives";
     public final static String ATTRIBUTE_LOCATION = "location";
     private final String personId;
     private final String mode;
     private final String expectedMaxUtility;
     private final String location;
+    private final String availableAlternatives;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode) {
-        this(time, personId, chosenMode, Double.NaN, "");
+        this(time, personId, chosenMode, Double.NaN, "", "");
     }
-    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility, String linkId) {
+    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility, String linkId, String availableAlternatives) {
         super(time);
 
         this.personId = personId.toString();
         this.mode = chosenMode;
         this.expectedMaxUtility = expectedMaxUtility.toString();
         this.location = linkId;
+        this.availableAlternatives = availableAlternatives;
     }
 
     @Override
@@ -42,6 +45,7 @@ public class ModeChoiceEvent extends Event {
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_EXP_MAX_UTILITY, expectedMaxUtility);
         attr.put(ATTRIBUTE_LOCATION, location);
+        attr.put(ATTRIBUTE_AVAILABLE_ALTERNATIVES, availableAlternatives);
 
         return attr;
     }
@@ -52,7 +56,6 @@ public class ModeChoiceEvent extends Event {
         attr.put(ATTRIBUTE_LOCATION, location);
         return attr;
     }
-
 
     @Override
     public String getEventType() {
