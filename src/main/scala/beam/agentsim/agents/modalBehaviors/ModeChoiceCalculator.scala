@@ -36,7 +36,7 @@ object ModeChoiceCalculator {
   def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculator = {
     classname match {
       case "ModeChoiceLCCM" =>
-        new ModeChoiceLCCM(beamServices)
+        ModeChoiceLCCM(beamServices)
       case "ModeChoiceTransitOnly" =>
         new ModeChoiceTransitOnly(beamServices)
       case "ModeChoiceDriveOnly" =>

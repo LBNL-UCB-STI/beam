@@ -54,6 +54,31 @@ public class MulitnomialLogit implements AbstractLogit, Cloneable{
 		}
 		return new MulitnomialLogit(tree);
 	}
+	public static MulitnomialLogit MulitnomialLogitFactory(String modelName, LinkedList<String> variables, LinkedList<String> alternatives, LinkedList<Double> values) {
+		MulitnomialLogitFactory(modelName,1.0, variables, alternatives, values);
+    }
+	public static MulitnomialLogit MulitnomialLogitFactory(String modelName, Double elasticity, LinkedList<String> variables, LinkedList<String> alternatives, LinkedList<Double> values) {
+		NestedLogitData theData = new NestedLogitData();
+		theData.setNestName(modelName);
+		theData.setElasticity(elasticity;
+		NestedLogit tree = new NestedLogit(theData);
+		UtilityFunction utility;
+		if(variables.size() != alternatives.size() || variables.size() != values.size()){
+			throw new RuntimeException("MultinomialLogit model factory expects three lists of equal sizes, but was given unequal lists instead.");
+		}
+		for(int i=0; i < values.size(); i++){
+		    String alternative = alternatives.get(i);
+			String variable = variables.get(i);
+			Double value = values.get(i);
+            if(tree.children == null){
+                tree.children = new LinkedList<NestedLogit>();
+            }
+            NestedLogit child = NestedLogit.NestedLogitFactory(elem);
+            child.parent = tree;
+            tree.children.add(child);
+		}
+		return new MulitnomialLogit(tree);
+	}
 
 	@Override
 	public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData) {
