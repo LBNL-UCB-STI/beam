@@ -8,19 +8,23 @@ addons:
   apt:
     packages:
       - oracle-java8-installer
+
+install:
+  - ./gradlew build
+
+script:
+#  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
+  - mkdir -p "dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}"
+  - cp build/libs/beam.jar dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}/beam-${TRAVIS_BUILD_NUMBER}.jar || true
+
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
   - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+
 cache:
   directories:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
-
-script:
-#  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
-  - gradle build
-  - mkdir -p "dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}"
-  - cp build/libs/beam.jar dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}/beam-${TRAVIS_BUILD_NUMBER}.jar || true
 
 deploy:
   - provider: s3
@@ -45,9 +49,6 @@ deploy:
 #    on:
 #      repo: LBNL-UCB-STI/beam
 #      all_branches: true
-
-after_deploy:
-  - echo "Performing after deploy procedures..."
 
 notifications:
   webhooks:
