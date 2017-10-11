@@ -1,37 +1,40 @@
 package beam.agentsim.agents.choice.logit
 
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.sim.{BeamServices, HasServices}
 
-import scala.io.Source
 import scala.xml.XML
+import kantan.csv._
+import kantan.csv.ops._
 
 /**
   * BEAM
   */
-class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices {
+class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices with Cloneable {
 
   val lccmData = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
 
+  val classMembershipModel: MulitnomialLogit = extractClassMembershipParams(lccmData)
 
-  def parseModeChoiceParams(modeChoiceParamsFilePath: String): LccmData = {
+  def parseModeChoiceParams(modeChoiceParamsFilePath: String): Vector[LccmData] = {
     val params = XML.loadFile(modeChoiceParamsFilePath)
-    val paramsFile = params \\ "modeChoices" \\ "lccm" \\ "parameters"
+    val paramsFile = s"${beamServices.beamConfig.beam.sharedInputs}/${(params \\ "modeChoices" \\ "lccm" \\ "parameters").text}"
 
-    val content = Source.fromFile(s"${beamServices.beamConfig.beam.sharedInputs}/${paramsFile.text}").getLines.map(_.split(",").toVector)
+    val rawData: java.net.URL = getClass.getResource(paramsFile)
+    val reader = rawData.readCsv[List, LccmData](rfc.withHeader)
 
-    val headerData = content.next
-    val stringData = content.map(headerData.zip(_).toMap)
-
-    for {
-      line <- Source.fromFile(fileName).getLines().drop(1).toVector
-      values = line.split(",").map(_.trim)
-    } yield Sale(values(0), values(1), values(2).toInt, values(3), values(4))
+    reader.map(_.get).toVector
   }
 
-//    stringData.filter()
-    LccmData(headerData, Map(), Map())
+  def extractClassMembershipParams(lccmData: Vector[LccmData]): MulitnomialLogit = {
+
+  }
+
+  //TODO actually clone this
+  override def clone():LatentClassChoiceModel = {
+    new LatentClassChoiceModel(beamServices)
   }
 }
 
-case class LccmData(header: Vector[String], tableCategorical: Map[String,Vector[String]], tableNumeric: Map[String,Vector[Double]])
+case class LccmData(model: String, tourType: String, variable: String, alternative: String, units: String, latentClass: String, value: Either[Double, Option[String]])
 

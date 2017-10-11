@@ -128,7 +128,7 @@ object ModeChoiceMultinomialLogit {
     var theModelOpt: Option[MulitnomialLogit] = None
 
     document.getRootElement.getChildren.asScala.foreach{child =>
-      if(child.asInstanceOf[Element].getChild("className").getValue.toString.equals("ModeChoiceMultinomialLogit")) {
+      if(child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")){
         val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
         theModelOpt = Some(MulitnomialLogit.MulitnomialLogitFactory(rootNode))
       }
