@@ -13,9 +13,9 @@ import scala.util.Try
   * 
   */
 
-class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
+class RideHailCostPerMileSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
 
-  class StartWithModeChoiceAndTollPrice(modeChoice: String, tollPrice: Double) extends EventsFileHandlingCommon{
+  class StartWithModeChoiceAndCostPerMile(modeChoice: String, costPerMile: Double) extends EventsFileHandlingCommon{
     lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
 
     val beamConfig = {
@@ -28,9 +28,9 @@ class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeA
             agents = ConfigModule.beamConfig.beam.agentsim.agents.copy(
               modalBehaviors = ConfigModule.beamConfig.beam.agentsim.agents.modalBehaviors.copy(
                 modeChoiceClass = modeChoice
+              ), rideHailing = ConfigModule.beamConfig.beam.agentsim.agents.rideHailing.copy(
+                defaultCostPerMile = costPerMile
               )
-            ), tuning = ConfigModule.beamConfig.beam.agentsim.tuning.copy(
-              tollPrice = tollPrice
             )
           ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
             eventsFileOutputFormats = "xml"
@@ -48,13 +48,13 @@ class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeA
       .map{case (k, v) => (k, v.size)}
   }
 
-  "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing tollCapacity value" must {
-    "create less entries for mode choice car as value increases" in{
+  "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing defaultCostPerMinute value" must {
+    "create less entries for mode choice rideHail as value increases" in{
       val inputTransitCapacity = 0.1 to 2.0 by 0.2
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTollPrice("ModeChoiceDriveIfAvailable", tc).groupedCount)
+      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndCostPerMile("ModeChoiceRideHailIfAvailable", tc).groupedCount)
 
       val tc = modeChoice
-        .map(_.get("car"))
+        .map(_.get("ride_hailing"))
         .filter(_.isDefined)
         .map(_.get)
 
@@ -62,7 +62,6 @@ class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeA
       val z2 = tc.dropRight(1)
       val zip = z2 zip z1
 
-      println("Transit")
       println(tc)
       println(z1)
       println(z2)

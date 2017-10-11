@@ -13,9 +13,9 @@ import scala.util.Try
   * 
   */
 
-class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
+class RideHailPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
 
-  class StartWithModeChoiceAndTollPrice(modeChoice: String, tollPrice: Double) extends EventsFileHandlingCommon{
+  class StartWithModeChoiceAndRideHailPrice(modeChoice: String, rideHailPrice: Double) extends EventsFileHandlingCommon{
     lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
 
     val beamConfig = {
@@ -30,7 +30,7 @@ class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeA
                 modeChoiceClass = modeChoice
               )
             ), tuning = ConfigModule.beamConfig.beam.agentsim.tuning.copy(
-              tollPrice = tollPrice
+              rideHailPrice = rideHailPrice
             )
           ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
             eventsFileOutputFormats = "xml"
@@ -48,13 +48,13 @@ class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeA
       .map{case (k, v) => (k, v.size)}
   }
 
-  "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing tollCapacity value" must {
-    "create less entries for mode choice car as value increases" in{
+  "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing rideHailPrice value" must {
+    "create less entries for mode choice rideHail as value increases" in{
       val inputTransitCapacity = 0.1 to 2.0 by 0.2
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTollPrice("ModeChoiceDriveIfAvailable", tc).groupedCount)
+      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndRideHailPrice("ModeChoiceRideHailIfAvailable", tc).groupedCount)
 
       val tc = modeChoice
-        .map(_.get("car"))
+        .map(_.get("ride_hailing"))
         .filter(_.isDefined)
         .map(_.get)
 
