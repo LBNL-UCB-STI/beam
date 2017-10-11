@@ -234,7 +234,7 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with EventsFile
   val busStopTimesFile = new File(s"$route_input/r5/bus/stop_times.txt")
   val trainStopTimesFile = new File(s"$route_input/r5/train/stop_times.txt")
 
-  it should "Start without errors" in {
+  it should "BEAM running without errors" in {
     exc.isSuccess shouldBe true
   }
 

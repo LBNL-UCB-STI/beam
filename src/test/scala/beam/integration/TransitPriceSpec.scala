@@ -30,7 +30,7 @@ class TransitPriceSpec extends WordSpecLike with Matchers with RunBeam with Befo
                 modeChoiceClass = modeChoice
               )
             ), tuning = ConfigModule.beamConfig.beam.agentsim.tuning.copy(
-              transitCapacity = 0.2, transitPrice = transitPrice
+              transitCapacity = 1.0, transitPrice = transitPrice
             )
           ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
             eventsFileOutputFormats = "xml"
@@ -50,15 +50,25 @@ class TransitPriceSpec extends WordSpecLike with Matchers with RunBeam with Befo
 
   "Running beam with modeChoice ModeChoiceDriveIfAvailable and increasing transitPrice value" must {
     "create more entries for mode choice transit as value increases" in{
-      val inputTransitCapacity = 0.1 to 3.0 by 0.1
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTransitPrice("ModeChoiceTransitIfAvailable", tc).groupedCount)
+      val inputTransitPrice = Seq(0.1, 1.0)
+      val modeChoice = inputTransitPrice.map(tc => new StartWithModeChoiceAndTransitPrice("ModeChoiceMultinomialLogit", tc).groupedCount)
 
       val tc = modeChoice
         .map(_.get("transit"))
         .filter(_.isDefined)
         .map(_.get)
 
-      isOrdered(tc)((a, b) => a <= b) shouldBe true
+      val z1 = tc.drop(1)
+      val z2 = tc.dropRight(1)
+      val zip = z2 zip z1
+
+      println("Transit")
+      println(tc)
+      println(z1)
+      println(z2)
+      println(zip)
+
+      isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
   }
 

@@ -50,8 +50,8 @@ class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeA
 
   "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing tollCapacity value" must {
     "create less entries for mode choice car as value increases" in{
-      val inputTransitCapacity = 0.1 to 2.0 by 0.2
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndTollPrice("ModeChoiceDriveIfAvailable", tc).groupedCount)
+      val inputTollPrice = Seq(0.1, 1.0)
+      val modeChoice = inputTollPrice.map(tc => new StartWithModeChoiceAndTollPrice("ModeChoiceMultinomialLogit", tc).groupedCount)
 
       val tc = modeChoice
         .map(_.get("car"))

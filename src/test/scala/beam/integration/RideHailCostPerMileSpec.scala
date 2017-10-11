@@ -50,8 +50,8 @@ class RideHailCostPerMileSpec extends WordSpecLike with Matchers with RunBeam wi
 
   "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing defaultCostPerMinute value" must {
     "create less entries for mode choice rideHail as value increases" in{
-      val inputTransitCapacity = 0.1 to 2.0 by 0.2
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndCostPerMile("ModeChoiceRideHailIfAvailable", tc).groupedCount)
+      val inputCostPerMile = Seq(0.1, 1.0)
+      val modeChoice = inputCostPerMile.map(tc => new StartWithModeChoiceAndCostPerMile("ModeChoiceMultinomialLogit", tc).groupedCount)
 
       val tc = modeChoice
         .map(_.get("ride_hailing"))

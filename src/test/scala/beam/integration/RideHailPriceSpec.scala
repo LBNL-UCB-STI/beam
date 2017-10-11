@@ -50,8 +50,8 @@ class RideHailPriceSpec extends WordSpecLike with Matchers with RunBeam with Bef
 
   "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing rideHailPrice value" must {
     "create less entries for mode choice rideHail as value increases" in{
-      val inputTransitCapacity = 0.1 to 2.0 by 0.2
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithModeChoiceAndRideHailPrice("ModeChoiceRideHailIfAvailable", tc).groupedCount)
+      val inputRideHailPrice = Seq(0.1, 1.0)
+      val modeChoice = inputRideHailPrice.map(tc => new StartWithModeChoiceAndRideHailPrice("ModeChoiceMultinomialLogit", tc).groupedCount)
 
       val tc = modeChoice
         .map(_.get("ride_hailing"))
