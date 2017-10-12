@@ -13,9 +13,9 @@ import scala.util.Try
   * 
   */
 
-class RideHailCostPerMinuteSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
+class RideHailNumDriversSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
 
-  class StartWithModeChoiceAndCostPerMinute(modeChoice: String, costPerMinute: Double) extends EventsFileHandlingCommon{
+  class StartWithModeChoiceAndCostPerMinute(modeChoice: String, numDrivers: Double) extends EventsFileHandlingCommon{
     lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
 
     val beamConfig = {
@@ -29,7 +29,7 @@ class RideHailCostPerMinuteSpec extends WordSpecLike with Matchers with RunBeam 
               modalBehaviors = ConfigModule.beamConfig.beam.agentsim.agents.modalBehaviors.copy(
                 modeChoiceClass = modeChoice
               ), rideHailing = ConfigModule.beamConfig.beam.agentsim.agents.rideHailing.copy(
-                defaultCostPerMinute = costPerMinute
+                numDriversAsFractionOfPopulation = numDrivers
               )
             )
           ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
@@ -50,9 +50,8 @@ class RideHailCostPerMinuteSpec extends WordSpecLike with Matchers with RunBeam 
 
   "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing defaultCostPerMinute value" must {
     "create less entries for mode choice rideHail as value increases" in{
-      val inputCostPerMinute = Seq(0.1, 1.0)
-      val modeChoice = inputCostPerMinute.map(tc => new StartWithCustomConfig(
-        modeChoice = Some("ModeChoiceMultinomialLogit"), defaultCostPerMinute = Some(tc)).groupedCount)
+      val numDriversAsFractionOfPopulation = Seq(0.1, 1.0)
+      val modeChoice = numDriversAsFractionOfPopulation.map(tc => new StartWithModeChoiceAndCostPerMinute("ModeChoiceRideHailIfAvailable", tc).groupedCount)
 
       val tc = modeChoice
         .map(_.get("ride_hailing"))
@@ -68,7 +67,7 @@ class RideHailCostPerMinuteSpec extends WordSpecLike with Matchers with RunBeam 
       println(z2)
       println(zip)
 
-      isOrdered(tc)((a, b) => a >= b) shouldBe true
+      isOrdered(tc)((a, b) => a <= b) shouldBe true
     }
   }
 

@@ -58,20 +58,16 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
-    "prefer more mode choice car type than other modes" in new StartWithModeChoice("ModeChoiceDriveIfAvailable"){
+    "prefer mode choice car type than other modes" in new StartWithModeChoice("ModeChoiceDriveIfAvailable"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-
       val maxK = maxRepetition(listValueTagEventFile)
       maxK shouldBe "car"
-
-      //listValueTagEventFile.filter(s => s.equals("walk")).size shouldBe(2)
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
-    "prefer more mode choice transit type than other modes" in new StartWithModeChoice("ModeChoiceTransitIfAvailable"){
+    "prefer mode choice transit type than other modes" in new StartWithModeChoice("ModeChoiceTransitIfAvailable"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-
       val maxK = maxRepetition(listValueTagEventFile)
       maxK shouldBe "transit"
     }
@@ -95,14 +91,12 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
 
   "Running beam with modeChoiceClass ModeChoiceMultinomialLogit" must {
     "Generate events file with for ModeChoice" in new StartWithModeChoice("ModeChoiceMultinomialLogit"){
-      //val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
-      //listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
       fail("Unpredictable output to evaluate")
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceDriveOnly" must {
-    "Generate ModeChoice events file with only car types" in new StartWithModeChoice("ModeChoiceDriveOnly"){
+      "Generate ModeChoice events file with only car types" in new StartWithModeChoice("ModeChoiceDriveOnly"){
       val listValueTagEventFile = eventsReader.getListTagsFrom(new File(file.getPath),"type=\"ModeChoice\"","mode")
       listValueTagEventFile.filter(s => s.equals("car")).size shouldBe listValueTagEventFile.size
       
