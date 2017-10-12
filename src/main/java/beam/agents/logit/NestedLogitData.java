@@ -1,4 +1,4 @@
-package beam.agentsim.agents.choice.logit;
+package beam.agents.logit;
 
 public class NestedLogitData {
 	String nestName;
