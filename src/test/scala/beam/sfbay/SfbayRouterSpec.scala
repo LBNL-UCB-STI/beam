@@ -67,7 +67,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     shutdown()
   }
 
-  "A router must" must {
+  "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
       val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
       val destination = new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
