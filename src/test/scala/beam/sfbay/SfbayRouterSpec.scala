@@ -42,6 +42,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("56658-0")))
     scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("66752-0")))
     scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("80672-0")))
+    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("116378-0")))
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     val matsimServices = mock[MatsimServices]
@@ -101,6 +102,20 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false)), Id.createPersonId("81370-0")))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.nonEmpty)
+    }
+
+    "respond with a car route and a walk route to a reasonable RoutingRequest" in {
+      within(10 seconds) {
+        val origin = new BeamRouter.Location(545379.1120515711, 4196841.43220292)
+        val destination = new BeamRouter.Location(550620.1726742609, 4201484.428639883)
+        val time = RoutingModel.DiscreteTime(27840)
+        router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
+          StreetVehicle(Id.createVehicleId("116378-0"), new SpaceTime(new Coord(545639.565355, 4196945.53107), 0), Modes.BeamMode.CAR, asDriver = true),
+          StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
+        ), Id.createPersonId("116378-0")))
+        val response = expectMsgType[RoutingResponse]
+        assert(response.itineraries.nonEmpty)
+      }
     }
 
   }
