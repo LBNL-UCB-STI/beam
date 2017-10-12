@@ -1,4 +1,4 @@
-package beam.agentsim.agents.choice.logit;
+package beam.agents.logit;
 
 import junit.framework.TestCase;
 

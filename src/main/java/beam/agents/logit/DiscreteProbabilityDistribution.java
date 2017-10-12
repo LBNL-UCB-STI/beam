@@ -1,4 +1,4 @@
-package beam.agentsim.agents.choice.logit;
+package beam.agents.logit;
 
 import java.util.LinkedHashMap;
 import java.util.NavigableMap;
