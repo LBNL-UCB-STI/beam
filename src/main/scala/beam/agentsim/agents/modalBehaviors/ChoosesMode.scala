@@ -46,6 +46,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var availablePersonalStreetVehicles: Vector[Id[Vehicle]] = Vector()
   var modeChoiceCalculator: ModeChoiceCalculator = _
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
+  var availableAlternatives: Vector[String] = Vector()
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
@@ -136,7 +137,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     val location = if(chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty){ chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString }else{ "" }
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN), location)))
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN), location,availableAlternatives.mkString(":"),!availablePersonalStreetVehicles.isEmpty)))
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
     val personalVehicleUsed = availablePersonalStreetVehicles.intersect(chosenTrip.vehiclesInTrip)
     if (personalVehicleUsed.nonEmpty) {
@@ -155,6 +156,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId)
     }
     availablePersonalStreetVehicles = Vector()
+    availableAlternatives = Vector()
     _currentRoute = chosenTrip
     routingResponse = None
     rideHailingResult = None
@@ -230,9 +232,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         case None =>
           routingResponse = Some(theRouterResult)
       }
+      availableAlternatives = availableAlternatives ++ routingResponse.get.itineraries.map(_.tripClassifier.toString).distinct.toVector
       completeChoiceIfReady()
     case Event(theRideHailingResult: RideHailingInquiryResponse, info: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)
+      if(theRideHailingResult.error.isEmpty){
+        availableAlternatives = availableAlternatives :+ "RIDE_HAIL"
+      }
       completeChoiceIfReady()
     /*
      * Process ReservationReponses
