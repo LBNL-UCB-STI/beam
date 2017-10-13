@@ -1,12 +1,10 @@
 package beam.router
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import beam.agentsim.agents.PersonAgent
 import beam.router.BeamRouter.{InitTransit, RoutingRequestTripInfo, _}
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.ProfilingUtils
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
 
 trait RoutingWorker extends Actor with ActorLogging with HasServices {
 
@@ -18,8 +16,9 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
       context.parent ! RouterInitialized
       sender() ! RouterInitialized
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
-          //      log.info(s"Router received routing request from person $personId ($sender)")
-          sender() ! calcRoute(requestId, params, getPerson(params.personId))
+      val response = calcRoute(requestId, params)
+      sender() ! response
+      System.out.println(response)
     case InitTransit =>
       val timeTaken = ProfilingUtils.timeWork {
         initTransit
@@ -30,13 +29,10 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
       log.info(s"Unknown message received by Router $msg")
   }
 
-  def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo, person: Person): RoutingResponse
-
-  def init
+  def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo): RoutingResponse
 
   def initTransit
 
-  protected def getPerson(personId: Id[PersonAgent]): Person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(personId)
 }
 
 object RoutingWorker {
