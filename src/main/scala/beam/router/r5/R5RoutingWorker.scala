@@ -209,19 +209,22 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
 
     var embodiedTrips: Vector[EmbodiedBeamTrip] = Vector()
     tripsWithFares.trips.zipWithIndex.filter(_._1.accessMode == WALK).foreach { trip =>
-      embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, tripsWithFares.tripFares(trip._2), beamServices)
+      embodiedTrips :+= EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle, walkModeToVehicle, tripsWithFares.tripFares(trip._2), beamServices)
     }
 
     profileRequestWithVehicles.modeToVehicles.keys.foreach { mode =>
       val streetVehicles = profileRequestWithVehicles.modeToVehicles(mode)
       tripsWithFares.trips.zipWithIndex.filter(_._1.accessMode == mode).foreach { trip =>
         streetVehicles.foreach { veh: StreetVehicle =>
-          embodiedTrips = embodiedTrips :+ EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, tripsWithFares.tripFares(trip._2), beamServices)
+          embodiedTrips :+= EmbodiedBeamTrip.embodyWithStreetVehicles(trip._1, walkModeToVehicle ++ Map(mode -> veh), walkModeToVehicle, tripsWithFares.tripFares(trip._2), beamServices)
         }
       }
     }
-    if(embodiedTrips.isEmpty)
-      log.error("No route found. {}", JsonUtilities.objectMapper.writeValueAsString(profileRequestWithVehicles.profileRequest))
+    if(embodiedTrips.isEmpty) {
+      log.warning("No route found. {}", JsonUtilities.objectMapper.writeValueAsString(profileRequestWithVehicles.profileRequest))
+      embodiedTrips :+= EmbodiedBeamTrip(BeamTrip(Vector(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, profileRequestWithVehicles.profileRequest.streetTime * 60))))
+    }
+
     RoutingResponse(requestId, embodiedTrips)
   }
 
@@ -285,7 +288,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
 
     val streetVehiclesAtRequesterOrigin: Vector[StreetVehicle] = routingRequestTripInfo.streetVehicles.filter(veh => beamServices.geo.distInMeters(veh.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking)
     val uniqueBeamModes: Vector[BeamMode] = streetVehiclesAtRequesterOrigin.map(_.mode).distinct
-    val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(_.r5Mode.get match { case Left(leg) => leg }).distinct
     uniqueBeamModes.foreach(beamMode =>
       streetVehiclesAtRequesterOrigin.filter(_.mode == beamMode).foreach(veh =>
         originalProfileModeToVehicle.addBinding(beamMode, veh)
@@ -294,6 +296,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
     if (!uniqueBeamModes.contains(WALK))
       log.warning("R5RoutingWorker expects a HumanBodyVehicle to be included in StreetVehicle vector passed from RoutingRequest but none were found.")
 
+    val uniqueLegModes: Vector[LegMode] = uniqueBeamModes.map(_.r5Mode.get match { case Left(leg) => leg }).distinct
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
@@ -306,7 +309,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
     profileRequest.maxWalkTime = 3 * 60
     profileRequest.maxCarTime = 4 * 60
     profileRequest.maxBikeTime = 4 * 60
-    profileRequest.streetTime = 0
+    profileRequest.streetTime = 2 * 60
 
     profileRequest.maxTripDurationMinutes = 4 * 60
     profileRequest.wheelchair = false
@@ -323,7 +326,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
     if (isTransit) {
       val transitModes: Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
       profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
-      profileRequest.accessModes = profileRequest.directModes
+      profileRequest.accessModes = util.EnumSet.copyOf(uniqueLegModes.asJavaCollection)
       profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
     }
 

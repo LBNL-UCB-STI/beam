@@ -104,18 +104,16 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       assert(response.itineraries.nonEmpty)
     }
 
-    "respond with a car route and a walk route to a reasonable RoutingRequest" in {
-      within(10 seconds) {
-        val origin = new BeamRouter.Location(545379.1120515711, 4196841.43220292)
-        val destination = new BeamRouter.Location(550620.1726742609, 4201484.428639883)
-        val time = RoutingModel.DiscreteTime(27840)
-        router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
-          StreetVehicle(Id.createVehicleId("116378-0"), new SpaceTime(new Coord(545639.565355, 4196945.53107), 0), Modes.BeamMode.CAR, asDriver = true),
-          StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
-        ), Id.createPersonId("116378-0")))
-        val response = expectMsgType[RoutingResponse]
-        assert(response.itineraries.nonEmpty)
-      }
+    "respond with a fallback walk route to a RoutingRequest which actually doesn't have a walkable solution" in {
+      val origin = new BeamRouter.Location(545379.1120515711, 4196841.43220292)
+      val destination = new BeamRouter.Location(550620.1726742609, 4201484.428639883)
+      val time = RoutingModel.DiscreteTime(27840)
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
+        StreetVehicle(Id.createVehicleId("116378-0"), new SpaceTime(new Coord(545639.565355, 4196945.53107), 0), Modes.BeamMode.CAR, asDriver = true),
+        StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
+      ), Id.createPersonId("116378-0")))
+      val response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.nonEmpty)
     }
 
   }
