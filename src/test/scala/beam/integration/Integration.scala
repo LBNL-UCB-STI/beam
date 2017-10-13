@@ -1,14 +1,13 @@
 package beam.integration
 
-import beam.sim.RunBeam
-import beam.sim.config.ConfigModule
-import org.matsim.core.events.{EventsManagerImpl, EventsReaderXMLv1}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
 import java.util.zip.GZIPInputStream
 
-import scala.xml.XML
-import scala.collection.JavaConverters._
+import beam.integration.Integration._
+import beam.sim.RunBeam
+import beam.sim.config.ConfigModule
+import org.scalatest.{BeforeAndAfterAll, Ignore, Matchers, WordSpecLike}
+
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.Try
@@ -18,64 +17,70 @@ import scala.util.Try
   * 
   */
 
+object Integration {
 
-trait ReadEvents{
-  def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String]
-  def getLinesFrom(file: File): String
-}
+  trait ReadEvents {
+    def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String]
 
-class ReadEventsXml extends ReadEvents {
-
-
-  def getLinesFrom(file: File): String = {
-    Source.fromFile(file.getPath).getLines.mkString
+    def getLinesFrom(file: File): String
   }
 
-  def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
-    getListTagsFromLines(Source.fromFile(file.getPath).getLines.toList, stringContain, tagContain)
-  }
+  class ReadEventsXml extends ReadEvents {
 
-  def getListTagsFromLines(file_lines: List[String], stringContain: String, tagContain: String): scala.List[String] = {
-    var listResult = List[String]()
-    for (line <- file_lines) {
-      if (line.contains(stringContain)) {
-        val temp = scala.xml.XML.loadString(line)
-        val value = temp.attributes(tagContain).toString
-        listResult = value:: listResult
 
+    def getLinesFrom(file: File): String = {
+      Source.fromFile(file.getPath).getLines.mkString
+    }
+
+    def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
+      getListTagsFromLines(Source.fromFile(file.getPath).getLines.toList, stringContain, tagContain)
+    }
+
+    def getListTagsFromLines(file_lines: List[String], stringContain: String, tagContain: String): scala.List[String] = {
+      var listResult = List[String]()
+      for (line <- file_lines) {
+        if (line.contains(stringContain)) {
+          val temp = scala.xml.XML.loadString(line)
+          val value = temp.attributes(tagContain).toString
+          listResult = value :: listResult
+
+        }
       }
+      return listResult
     }
-    return  listResult
+
+
   }
 
+  class ReadEventsXMlGz extends ReadEventsXml {
+
+
+    def extractGzFile(file: File): scala.List[String] = {
+      val fin = new FileInputStream(new java.io.File(file.getPath))
+      val gzis = new GZIPInputStream(fin)
+      val reader = new BufferedReader(new InputStreamReader(gzis, "UTF-8"))
+
+      var lines = new ListBuffer[String]
+
+      while (reader.ready()) {
+        lines += reader.readLine()
+      }
+      return lines.toList
+
+    }
+
+    override def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
+      getListTagsFromLines(extractGzFile(file), stringContain, tagContain)
+    }
+
+    override def getLinesFrom(file: File): String = {
+      extractGzFile(file).mkString
+    }
+  }
 
 }
 
-class ReadEventsXMlGz extends ReadEventsXml {
-
-
-  def extractGzFile(file: File): scala.List[String] = {
-    val fin = new FileInputStream(new java.io.File(file.getPath))
-    val gzis = new GZIPInputStream(fin)
-    val reader =new BufferedReader(new InputStreamReader(gzis, "UTF-8"))
-
-    var lines = new ListBuffer[String]
-
-    while(reader.ready()){
-      lines += reader.readLine()
-    }
-    return  lines.toList
-
-  }
-  override def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
-    getListTagsFromLines(extractGzFile(file), stringContain, tagContain)
-  }
-
-  override def getLinesFrom(file: File): String = {
-    extractGzFile(file).mkString
-  }
-}
-
+@Ignore
 class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
 
 
@@ -136,7 +141,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       case "csv" => ???
       case "xml.gz" => new ReadEventsXMlGz
       case "csv.gz" => ???
-      case _ => throw new RuntimeException("Unsupported format")
+      case s: String => throw new RuntimeException("Unsupported format " + s)
     }
   }
 

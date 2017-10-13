@@ -13,7 +13,7 @@ import com.google.common.collect.TreeMultimap
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.events.EventsSubscriber._
-
+import beam.sim.config.BeamConfig
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -65,14 +65,12 @@ object BeamAgentScheduler {
     }
   }
 
-  def SchedulerProps(stopTick: Double = 3600.0 * 24.0, maxWindow: Double = 1.0): Props = {
-    Props(classOf[BeamAgentScheduler], stopTick, maxWindow)
+  def SchedulerProps(beamConfig: BeamConfig, stopTick: Double = 3600.0 * 24.0, maxWindow: Double = 1.0): Props = {
+    Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow)
   }
 }
 
-class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val maxWindow: Double) extends Actor with HasServices {
-  val debugEnabled = beamServices.beamConfig.beam.debug.debugEnabled
-
+class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxWindow: Double) extends Actor {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -109,7 +107,7 @@ class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
     if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow) {
-      if (debugEnabled) {
+      if (beamConfig.beam.debug.debugEnabled) {
         log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
         triggerToSchedule.agent ! IllegalTriggerGoToError
       } else {
@@ -138,7 +136,7 @@ class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val 
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick, triggerWithId.triggerId)
-          if (debugEnabled) {
+          if (beamConfig.beam.debug.debugEnabled) {
             awaitingResponseVerbose.put(triggerWithId.trigger.tick, scheduledTrigger)
             triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
           }
@@ -180,7 +178,7 @@ class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val 
         log.error(s"Received bad completion notice ${notice} from ${sender().path}")
       } else {
         awaitingResponse.remove(completionTickOpt.get, triggerId)
-        if (debugEnabled) {
+        if (beamConfig.beam.debug.debugEnabled) {
           awaitingResponseVerbose.remove(completionTickOpt.get, triggerIdToScheduledTrigger(triggerId))
           triggerIdToScheduledTrigger -= triggerId
         }
@@ -194,10 +192,10 @@ class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val 
       log.error(s"received unknown message: $msg")
   }
 
-  val monitorThread: Option[Cancellable] = if (debugEnabled || beamServices.beamConfig.beam.debug.skipOverBadActors ) {
+  val monitorThread: Option[Cancellable] = if (beamConfig.beam.debug.debugEnabled || beamConfig.beam.debug.skipOverBadActors ) {
     Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), () => {
       try {
-        if (beamServices.beamConfig.beam.debug.skipOverBadActors) {
+        if (beamConfig.beam.debug.skipOverBadActors) {
           var numReps = 0L
           currentTotalAwaitingResponse.set(awaitingResponseVerbose.values().stream().count())
           if (currentTotalAwaitingResponse.get() == previousTotalAwaitingRespone.get() && currentTotalAwaitingResponse.get() != 0) {
@@ -216,7 +214,7 @@ class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val 
           }
           previousTotalAwaitingRespone.set(currentTotalAwaitingResponse.get())
         }
-        if (debugEnabled) {
+        if (beamConfig.beam.debug.debugEnabled) {
           log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
         }
       } catch {
@@ -233,7 +231,7 @@ class BeamAgentScheduler(val beamServices: BeamServices,  stopTick: Double, val 
       if (awaitingResponse.keySet().isEmpty) {
         "empty"
       } else {
-        if (debugEnabled) {
+        if (beamConfig.beam.debug.debugEnabled) {
           awaitingResponse.synchronized(
             s"${awaitingResponseVerbose.get(awaitingResponseVerbose.keySet().first())}}"
           )
