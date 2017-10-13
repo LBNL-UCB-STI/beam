@@ -2,11 +2,9 @@ package beam.sfbay
 
 import java.io.File
 import java.time.ZonedDateTime
-import java.util.concurrent.TimeUnit
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -32,8 +30,6 @@ import scala.language.postfixOps
 
 class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
-
-  private implicit val timeout: Timeout = Timeout(600, TimeUnit.SECONDS)
 
   var router: ActorRef = _
 
