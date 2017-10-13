@@ -46,8 +46,10 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       }
       thrown.getClass should be(classOf[IllegalArgumentException])
     }
+
+    //FIXME Does this test anything? Because it contained an Akka system exception and still succeeded.
     it("should allow for addition of non-chronological triggers") {
-      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler]
+      val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config))
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
       val thrownTest = intercept[Exception] {
         val thrown = intercept[Exception] {
