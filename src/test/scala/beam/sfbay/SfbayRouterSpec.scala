@@ -34,7 +34,7 @@ import scala.language.postfixOps
 class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
-  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(600, TimeUnit.SECONDS)
 
   var router: ActorRef = _
 
@@ -56,7 +56,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     when(services.transitLegsByStopAndDeparture).thenReturn(tupleToNext)
 
     router = system.actorOf(BeamRouter.props(services))
-    Await.ready(router ? InitializeRouter, 60 seconds)
+    Await.ready(router ? InitializeRouter, timeout.duration)
   }
 
   override def afterAll: Unit = {
