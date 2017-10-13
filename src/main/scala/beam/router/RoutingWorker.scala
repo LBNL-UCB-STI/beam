@@ -1,9 +1,8 @@
 package beam.router
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import beam.router.BeamRouter.{InitTransit, RoutingRequestTripInfo, _}
+import beam.router.BeamRouter.{RoutingRequestTripInfo, _}
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.ProfilingUtils
 import org.matsim.api.core.v01.Id
 
 trait RoutingWorker extends Actor with ActorLogging with HasServices {
@@ -19,19 +18,11 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
       val response = calcRoute(requestId, params)
       sender() ! response
       System.out.println(response)
-    case InitTransit =>
-      val timeTaken = ProfilingUtils.timeWork {
-        initTransit
-      }
-      log.info(s"\n\nIt took $timeTaken to init transit\n\n")
-      sender() ! TransitInited(List(workerId))
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
 
   def calcRoute(requestId: Id[RoutingRequest], params: RoutingRequestTripInfo): RoutingResponse
-
-  def initTransit
 
 }
 

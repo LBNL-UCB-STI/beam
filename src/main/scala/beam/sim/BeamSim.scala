@@ -17,9 +17,9 @@ import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
+import beam.router.BeamRouter
+import beam.router.BeamRouter.{InitTransit, InitializeRouter}
 import beam.router.gtfs.FareCalculator
-import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.sim.config.BeamLoggingSetup
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
@@ -119,10 +119,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     currentIter = event.getIteration
     resetPop(event.getIteration)
     eventsManager.initProcessing()
-    // init transit and start movement
-    val coordinator = actorSystem.actorOf(Props(classOf[TransitInitCoordinator], beamServices.beamRouter, beamServices.beamConfig.beam.routing.workerNumber))
-    val response = Await.result( (coordinator ? InitTransit).mapTo[TransitInited], timeout.duration)
-    logger.info(s"Transit schedule has been initialized by workers: ${response.workerIds}")
+    Await.ready(beamServices.beamRouter ? InitTransit, timeout.duration)
+    logger.info(s"Transit schedule has been initialized")
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

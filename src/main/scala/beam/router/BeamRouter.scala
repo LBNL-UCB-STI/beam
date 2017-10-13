@@ -18,7 +18,7 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import scala.beans.BeanProperty
 
 
-class BeamRouter(services: BeamServices, fareCalculator: ActorRef) extends Actor with Stash with ActorLogging {
+class BeamRouter(services: BeamServices, fareCalculator: ActorRef) extends Actor with Stash with ActorLogging  {
   var router: Router = _
   var networkCoordinator: ActorRef = _
   private var routerWorkers: Vector[Routee] = _
@@ -70,7 +70,7 @@ class BeamRouter(services: BeamServices, fareCalculator: ActorRef) extends Actor
     case w: RoutingRequest =>
       router.route(w, sender())
     case InitTransit =>
-      router.route(Broadcast(InitTransit), sender())
+      networkCoordinator.forward(InitTransit)
     case InitializeRouter =>
       log.debug("Router already initialized.")
       sender() ! RouterInitialized
@@ -102,25 +102,6 @@ class BeamRouter(services: BeamServices, fareCalculator: ActorRef) extends Actor
   }
 }
 
-class TransitInitCoordinator(router: ActorRef, private var workerCount: Int) extends Actor with ActorLogging {
-  private var transitInitSender: ActorRef = _
-  private var finishedWorkers: Map[ActorRef, Int] =  Map[ActorRef, Int]()
-
-  override def receive: Receive = {
-    case InitTransit =>
-      transitInitSender = sender()
-      router ! InitTransit
-    case TransitInited(workerId :: Nil) =>
-      val workerRef = sender()
-      finishedWorkers = finishedWorkers + ((workerRef, workerId))
-      if (workerCount == finishedWorkers.size) {
-        log.info(s"Received TransitInited response from workers $finishedWorkers ")
-        transitInitSender ! TransitInited(finishedWorkers.values.toList)
-        context.stop(self)
-      }
-  }
-}
-
 object BeamRouter {
   type Location = Coord
 
@@ -130,7 +111,7 @@ object BeamRouter {
   case object RouterInitialized
   case object RouterNeedInitialization
   case object InitTransit
-  case class TransitInited(workerIds: List[Int])
+  case object TransitInited
   case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator)
 
   /**
