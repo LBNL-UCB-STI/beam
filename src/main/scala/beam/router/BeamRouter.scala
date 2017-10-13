@@ -2,7 +2,7 @@ package beam.router
 
 import java.util.UUID
 
-import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, Props, Stash, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
 import akka.routing._
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
@@ -18,7 +18,7 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import scala.beans.BeanProperty
 
 
-class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogging {
+class BeamRouter(services: BeamServices, fareCalculator: ActorRef) extends Actor with Stash with ActorLogging {
   var router: Router = _
   var networkCoordinator: ActorRef = _
   private var routerWorkers: Vector[Routee] = _
@@ -96,7 +96,7 @@ class BeamRouter(services: BeamServices) extends Actor with Stash with ActorLogg
   }
 
   private def createAndWatch(workerId: Int): ActorRef = {
-    val routerProps = RoutingWorker.getRouterProps(services.beamConfig.beam.routing.routerClass, services, workerId)
+    val routerProps = RoutingWorker.getRouterProps(services.beamConfig.beam.routing.routerClass, services, fareCalculator, workerId)
     val r = context.actorOf(routerProps, s"router-worker-$workerId")
     context watch r
   }
@@ -182,5 +182,5 @@ object BeamRouter {
     }
   }
 
-  def props(beamServices: BeamServices) = Props(classOf[BeamRouter], beamServices)
+  def props(beamServices: BeamServices, fareCalculator: ActorRef) = Props(classOf[BeamRouter], beamServices, fareCalculator)
 }

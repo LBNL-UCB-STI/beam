@@ -1,8 +1,12 @@
 package beam.router.r5
 
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import java.util
 
-import akka.actor.Props
+import akka.actor._
+import akka.pattern.ask
+import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
@@ -14,6 +18,7 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel._
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.FareCalculator._
 import beam.router.r5.NetworkCoordinator.{beamPathBuilder, _}
 import beam.router.r5.R5RoutingWorker.{ProfileRequestToVehicles, TripFareTuple}
 import beam.router.{Modes, RoutingWorker, TrajectoryByEdgeIdsResolver}
@@ -22,7 +27,7 @@ import beam.sim.common.GeoUtils._
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
-import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
+import com.conveyal.r5.profile.ProfileRequest
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -31,8 +36,11 @@ import org.matsim.vehicles._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends RoutingWorker {
+class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorRef, val workerId: Int) extends RoutingWorker {
   //TODO this needs to be inferred from the TransitNetwork or configured
   //  val localDateAsString: String = "2016-10-17"
   //  val baseTime: Long = ZonedDateTime.parse(localDateAsString + "T00:00:00-07:00[UTC-07:00]").toEpochSecond
@@ -40,7 +48,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   //  val graphPathOutputsNeeded = beamServices.beamConfig.beam.outputs.writeGraphPathTraversals
   val graphPathOutputsNeeded = false
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  var hasWarnedAboutLegPair = Set[Tuple2[Int,Int]]()
+  var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
+
+  implicit val timeout = Timeout(5 seconds)
 
   override def init: Unit = {
   }
@@ -268,7 +278,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
     profileRequest.fromLat = fromPosTransformed.getY
     profileRequest.toLon = toPosTransformed.getX
     profileRequest.toLat = toPosTransformed.getY
-        profileRequest.maxWalkTime = 2*60
+    profileRequest.maxWalkTime = 2 * 60
     profileRequest.maxCarTime = 3 * 60
     profileRequest.streetTime = Integer.MAX_VALUE
     //    profileRequest.maxBikeTime = 3*60
@@ -445,7 +455,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
            assuming that: For each transit in option there is a TransitJourneyID in connection
            */
           val segments = option.transit.asScala zip itinerary.connection.transit.asScala
-          val fares = FareCalculator.filterTransferFares(FareCalculator.getFareSegments(segments.toVector))
+          val fares = filterTransferFares(getFareSegments(segments.toVector))
 
           segments.foreach { case (transitSegment, transitJourneyID) =>
 
@@ -584,10 +594,75 @@ class R5RoutingWorker(val beamServices: BeamServices, val workerId: Int) extends
   private def transitVehicles = {
     beamServices.matsimServices.getScenario.getTransitVehicles
   }
+
+  /**
+    * Use to extract a collection of FareSegments for an itinerary.
+    *
+    * @param segments
+    * @return a collection of FareSegments for an itinerary.
+    */
+  def getFareSegments(segments: Vector[(TransitSegment, TransitJourneyID)]): Vector[BeamFareSegment] = {
+    segments.groupBy(s => getRoute(s._1, s._2).agency_id).flatMap(t => {
+      val pattern = getPattern(t._2.head._1, t._2.head._2)
+      val route = getRoute(pattern)
+      val agencyId = route.agency_id
+      val routeId = route.route_id
+
+      val fromId = getStopId(t._2.head._1.from)
+      val toId = getStopId(t._2.last._1.to)
+
+      val fromTime = pattern.fromDepartureTime.get(t._2.head._2.time)
+      val toTime = getPattern(t._2.last._1, t._2.last._2).toArrivalTime.get(t._2.last._2.time)
+      val duration = ChronoUnit.SECONDS.between(fromTime, toTime)
+
+
+      val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
+
+      var rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, t._2.head._2.pattern, duration))
+
+      if (rules.isEmpty)
+        rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
+
+      rules
+    }).toVector
+  }
+
+  def getFareSegments(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID, fromTime: ZonedDateTime): Vector[BeamFareSegment] = {
+    val pattern = getPattern(transitSegment, transitJourneyID)
+    val route = getRoute(pattern)
+    val routeId = route.route_id
+    val agencyId = route.agency_id
+
+    val fromStopId = getStopId(transitSegment.from)
+    val toStopId = getStopId(transitSegment.to)
+    val duration = ChronoUnit.SECONDS.between(fromTime, pattern.toArrivalTime.get(transitJourneyID.time))
+
+    var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(f => BeamFareSegment(f, transitJourneyID.pattern, duration))
+    if (fr.nonEmpty)
+      fr = Vector(fr.minBy(_.fare.price))
+    fr
+  }
+
+  def getFareSegments(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null): Vector[BeamFareSegment] = {
+    val response = Await.result(ask(fareCalculator, FareCalculator.GetFareSegmentsRequest(agencyId, routeId, fromId, toId, containsIds)), timeout.duration).asInstanceOf[FareCalculator.GetFareSegmentsResponse]
+    response.fareSegments
+  }
+
+  private def getRoute(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
+    transportNetwork.transitLayer.routes.get(getPattern(transitSegment, transitJourneyID).routeIndex)
+
+  private def getRoute(segmentPattern: SegmentPattern) =
+    transportNetwork.transitLayer.routes.get(segmentPattern.routeIndex)
+
+  private def getPattern(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
+    transitSegment.segmentPatterns.get(transitJourneyID.pattern)
+
+  private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
+
 }
 
 object R5RoutingWorker extends HasProps {
-  override def props(beamServices: BeamServices, workerId: Int) = Props(classOf[R5RoutingWorker], beamServices, workerId)
+  override def props(beamServices: BeamServices, fareCalculator: ActorRef, workerId: Int) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator, workerId)
 
   case class ProfileRequestToVehicles(originalProfile: ProfileRequest,
                                       originalProfileModeToVehicle: mutable.Map[BeamMode, mutable.Set[StreetVehicle]],

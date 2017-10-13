@@ -1,12 +1,10 @@
 package beam.router.r5
 
-import java.io.File
 import java.nio.file.Files.exists
 import java.nio.file.Paths
 
 import akka.actor.{Actor, ActorLogging, Props}
 import beam.router.BeamRouter.{InitializeRouter, RouterInitialized, UpdateTravelTime}
-import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator.{copiedNetwork, _}
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
@@ -38,52 +36,22 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 
   def init: Unit = {
     loadNetwork
-    FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
   }
 
   def loadNetwork = {
     val networkDir = beamServices.beamConfig.beam.routing.r5.directory
     val networkDirPath = Paths.get(networkDir)
-    if (!exists(networkDirPath)) {
-      Paths.get(networkDir).toFile.mkdir()
+    val networkPath = Paths.get(networkDir, "network.dat")
+    if (exists(networkPath)) {
+      log.debug(s"Initializing router by reading network from: ${networkPath.toAbsolutePath}")
+      transportNetwork = TransportNetwork.read(networkPath.toFile)
+    } else {
+      log.debug(s"Network file [${networkPath.toAbsolutePath}] not found. ")
+      log.debug(s"Initializing router by creating network from: ${networkDirPath.toAbsolutePath}")
+      transportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile)
+      transportNetwork.write(networkPath.toFile)
+      transportNetwork = TransportNetwork.read(networkPath.toFile)
     }
-
-    val unprunedNetworkFilePath = Paths.get(networkDir, UNPRUNED_GRAPH_FILE)  // The first R5 network, created w/out island pruning
-    val unprunedNetworkFile: File = unprunedNetworkFilePath.toFile
-    val prunedNetworkFilePath = Paths.get(networkDir, PRUNED_GRAPH_FILE)  // The final R5 network that matches the cleaned (pruned) MATSim network
-    val prunedNetworkFile: File = prunedNetworkFilePath.toFile
-    if (exists(prunedNetworkFilePath)) {
-      log.debug(s"Initializing router by reading network from: ${prunedNetworkFilePath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.read(prunedNetworkFile)
-    } else {  // Need to create the unpruned and pruned networks from directory
-      log.debug(s"Network file [${prunedNetworkFilePath.toAbsolutePath}] not found. ")
-      log.debug(s"Initializing router by creating unpruned network from: ${networkDirPath.toAbsolutePath}")
-      unprunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
-      unprunedTransportNetwork.write(unprunedNetworkFile)
-
-      ////
-      // Run R5MnetBuilder to create the pruned R5 network and matching MATSim network
-      ////
-      log.debug(s"Create the cleaned MATSim network from unpuned R5 network")
-      val osmFilePath = beamServices.beamConfig.beam.routing.r5.osmFile
-      // TODO - implement option to use EdgeFlags (AAC 17/09/19)
-      rmNetBuilder = new R5MnetBuilder(unprunedNetworkFile.toString, beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
-      rmNetBuilder.buildMNet()
-      rmNetBuilder.cleanMnet()
-      log.debug(s"Pruned MATSim network created and written")
-      rmNetBuilder.writeMNet(beamServices.beamConfig.matsim.modules.network.inputNetworkFile)
-      log.debug(s"Prune the R5 network")
-      rmNetBuilder.pruneR5()
-      transportNetwork = rmNetBuilder.getR5Network
-
-      // Now network has been pruned
-      transportNetwork.write(prunedNetworkFile)
-      //beamServices.beamConfig.matsim.modules.network.inputNetworkFile
-//      beamServices.reloadMATSimNetwork = true
-      transportNetwork = TransportNetwork.read(prunedNetworkFile) // Needed because R5 closes DB on write
-    }
-    //
-    transportNetwork.rebuildTransientIndexes()
     beamPathBuilder = new BeamPathBuilder(transportNetwork = transportNetwork, beamServices)
     val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
     beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
@@ -141,13 +109,8 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 }
 
 object NetworkCoordinator {
-  val PRUNED_GRAPH_FILE = "/pruned_network.dat"
-  val UNPRUNED_GRAPH_FILE = "/unpruned_network.dat"
-
   var transportNetwork: TransportNetwork = _
-  var unprunedTransportNetwork: TransportNetwork = _
   var copiedNetwork: TransportNetwork = _
-  var rmNetBuilder: R5MnetBuilder = _
   var linkMap: Map[Int, Long] = Map()
   var beamPathBuilder: BeamPathBuilder = _
 

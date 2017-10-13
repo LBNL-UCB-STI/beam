@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource.AssignManager
@@ -18,12 +17,11 @@ import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.physsim.{DummyPhysSim, InitializePhysSim}
-import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
+import beam.router.gtfs.FareCalculator
+import beam.router.{BeamRouter, TransitInitCoordinator}
 import beam.sim.config.BeamLoggingSetup
 import beam.sim.monitoring.ErrorListener
-import ch.qos.logback.classic.Level
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
@@ -33,7 +31,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
-import org.matsim.core.events.EventsUtils
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleCapacity, VehicleType, VehicleUtils}
 import org.slf4j.{Logger, LoggerFactory}
@@ -41,7 +38,6 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.reflect.io.File
 import scala.util.Random
 
 /**
@@ -98,7 +94,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       }
     }
 
-    val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices))
+    val fareCalculator = actorSystem.actorOf(FareCalculator.props(beamServices.beamConfig.beam.routing.r5.directory))
+
+    val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices, fareCalculator))
     beamServices.beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamServices.beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
