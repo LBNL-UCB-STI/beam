@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Traje
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
+import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.{Coord, Id}
@@ -17,15 +18,7 @@ object RoutingModel {
 
   type LegCostEstimator = BeamLeg => Option[Double]
 
-  case class BeamTrip(legs: Vector[BeamLeg],
-                      accessMode: BeamMode) {
-    lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
-      CAR
-    } else {
-      TRANSIT
-    }
-    val totalTravelTime: Long = legs.map(_.duration).sum
-  }
+  case class BeamTrip(legs: Vector[BeamLeg], accessMode: BeamMode)
 
   object BeamTrip {
     def apply(legs: Vector[BeamLeg]): BeamTrip = BeamTrip(legs, legs.head.mode)
@@ -77,7 +70,9 @@ object RoutingModel {
 
     //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
     //TODO this needs unit testing
-    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode, StreetVehicle], egressVehiclesByMode: Map[BeamMode, StreetVehicle], legFares: Map[Int, Double], services: BeamServices): EmbodiedBeamTrip = {
+    def embodyWithStreetVehicles(tripWithFares: TripWithFares, accessVehicle: StreetVehicle, egressVehicle: StreetVehicle, services: BeamServices): EmbodiedBeamTrip = {
+      val trip = tripWithFares.trip
+      val legFares = tripWithFares.legFares
       if(trip.legs.isEmpty){
         EmbodiedBeamTrip.empty
       } else {
@@ -95,9 +90,9 @@ object RoutingModel {
               EmbodiedBeamLeg.empty
             }
           } else if (inAccessPhase) {
-            EmbodiedBeamLeg(beamLeg, accessVehiclesByMode(currentMode).id, accessVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg, accessVehicle.id, accessVehicle.asDriver, None, 0.0, unbecomeDriverAtComplete)
           } else {
-            EmbodiedBeamLeg(beamLeg, egressVehiclesByMode(currentMode).id, egressVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
+            EmbodiedBeamLeg(beamLeg, egressVehicle.id, egressVehicle.asDriver, None, 0.0, unbecomeDriverAtComplete)
           }
         }
         EmbodiedBeamTrip(embodiedLegs)
