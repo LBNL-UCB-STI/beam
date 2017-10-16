@@ -37,13 +37,6 @@ class EventsSubscriber (private val eventsManager: EventsManager) extends Actor 
           log.error(s"$e")
       }
 
-    case EndIteration(it) =>
-      eventsManager.finishProcessing()
-      //XXXX: Not sure if resetting the handlers here is a good idea
-//      eventsManager.resetHandlers(it)
-      cleanupWriter()
-      sender() ! ProcessingFinished(it)
-
     case _ => log.info("received unknown message")
   }
 

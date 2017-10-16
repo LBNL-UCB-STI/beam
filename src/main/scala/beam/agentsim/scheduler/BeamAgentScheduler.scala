@@ -75,7 +75,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   val log = Logging(context.system, this)
-  var triggerQueue = new mutable.PriorityQueue[ScheduledTrigger]()
+  var triggerQueue: mutable.PriorityQueue[ScheduledTrigger] = new mutable.PriorityQueue[ScheduledTrigger]()
   var awaitingResponse: TreeMultimap[java.lang.Double, java.lang.Long] = TreeMultimap.create[java.lang.Double, java.lang.Long]()
   var awaitingResponseVerbose: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap.create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
   val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long, java.lang.Double]()
@@ -101,7 +101,6 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
   override def postStop(): Unit = {
     monitorThread.foreach(_.cancel())
-    Await.result(eventSubscriberRef ? EndIteration(currentIter) , timeout.duration).asInstanceOf[ProcessingFinished].iteration
   }
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
@@ -158,10 +157,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
     case DoSimStep(newNow: Double) if newNow > stopTick =>
       nowInSeconds = newNow
-      if (awaitingResponse.isEmpty) {
+      if (awaitingResponse.isEmpty && triggerQueue.headOption.fold(true)(_.triggerWithId.trigger.tick <= newNow)) {
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
-
-        Await.result(eventSubscriberRef ? EndIteration(currentIter) , timeout.duration).asInstanceOf[ProcessingFinished].iteration
         startSender ! CompletionNotice(0L)
       } else {
         Thread.sleep(10)
