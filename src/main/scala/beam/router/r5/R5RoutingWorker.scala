@@ -73,7 +73,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
     }
     if(embodiedTrips.isEmpty) {
       log.warning("No route found. {}", JsonUtilities.objectMapper.writeValueAsString(profileRequestWithVehicles.profileRequest))
-      embodiedTrips :+= EmbodiedBeamTrip(BeamTrip(Vector(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, profileRequestWithVehicles.profileRequest.streetTime * 60))))
+      embodiedTrips :+= EmbodiedBeamTrip(
+        BeamTrip(
+          Vector(
+            BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, profileRequestWithVehicles.profileRequest.streetTime * 60)
+          )
+        )
+      )
     }
 
     RoutingResponse(requestId, embodiedTrips)

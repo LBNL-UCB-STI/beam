@@ -114,9 +114,7 @@ object RoutingModel {
       }
     }
 
-    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty)
-
-    def apply(beamTrip: BeamTrip) = new EmbodiedBeamTrip(beamTrip.legs.map(leg => EmbodiedBeamLeg(leg)))
+    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty.legs.map(leg=>EmbodiedBeamLeg(leg)))
   }
 
   /**
