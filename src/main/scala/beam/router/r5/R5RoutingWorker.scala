@@ -50,7 +50,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
     // TODO: Route from origin to street vehicle.
     val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => {
       if (beamServices.geo.distInMeters(vehicle.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking)
-        log.warning("Vehicle {} out of range, and multi-stage routing not implemented yet. Agent is effectively teleporting.", vehicle.id)
+        log.warning("Vehicle {} for agent {} out of range, and multi-stage routing not implemented yet. Agent is effectively teleporting.", vehicle.id, routingRequestTripInfo.personId)
       val profileRequest = new ProfileRequest()
       val fromPosTransformed =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(vehicle.location.loc),10E3)
       val toPosTransformed = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination),10E3)
