@@ -17,7 +17,6 @@ trait RoutingWorker extends Actor with ActorLogging with HasServices {
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
       val response = calcRoute(requestId, params)
       sender() ! response
-      System.out.println(response)
     case msg =>
       log.info(s"Unknown message received by Router $msg")
   }
