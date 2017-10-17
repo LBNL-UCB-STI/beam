@@ -106,13 +106,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
 
-    if(beamConfig.beam.debug.debugEnabled && triggerToSchedule.trigger.tick>=stopTick){
-      log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} because" +
-        s"this would exceed the configured end time of $stopTick. Sending target agent to Error")
-      triggerToSchedule.agent ! IllegalTriggerGoToError
-    }
-
-    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow) {
+    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow || triggerToSchedule.trigger.tick>=stopTick) {
       if (beamConfig.beam.debug.debugEnabled) {
         log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
         triggerToSchedule.agent ! IllegalTriggerGoToError
