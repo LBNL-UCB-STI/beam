@@ -3,7 +3,7 @@ package beam.agentsim.events
 import akka.actor.Actor
 import akka.event.Logging
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.EventsSubscriber.{EndIteration, FinishProcessing, ProcessingFinished}
+import beam.agentsim.events.EventsSubscriber.{AfterSimStep, EndIteration, FinishProcessing, ProcessingFinished}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.IterationEndsEvent
 
@@ -14,6 +14,7 @@ object EventsSubscriber{
   case object StartProcessing extends SubscriberEvent
   case class StartIteration(iteration: Int) extends SubscriberEvent
   case class EndIteration(iteration: Int) extends SubscriberEvent
+  case class AfterSimStep(when: Int) extends SubscriberEvent
   case class FinishProcessing(iteration: Int) extends SubscriberEvent
   case class ProcessingFinished(iteration: Int) extends SubscriberEvent
   case object FileWritten extends SubscriberEvent
@@ -32,10 +33,13 @@ class EventsSubscriber (private val eventsManager: EventsManager) extends Actor 
     case event: Event =>
       try {
         eventsManager.processEvent(event.wrappedEvent)
+
       }catch {
         case e:IllegalArgumentException =>
           log.error(s"$e")
       }
+
+
 
     case _ => log.info("received unknown message")
   }
