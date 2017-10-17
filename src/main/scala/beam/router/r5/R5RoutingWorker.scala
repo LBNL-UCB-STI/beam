@@ -12,7 +12,7 @@ import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
-import beam.router.RoutingWorker
+import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
@@ -83,7 +83,29 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
       val profileResponse = pointToPointQuery.getPlan(profileRequest)
       val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
       val tripsWithFares = extractTripsAndCalculateFares(profileResponse, isRouteForPerson)
-      tripsWithFares.map(tripWithFares => EmbodiedBeamTrip.embodyWithStreetVehicles(tripWithFares, vehicle, routingRequestTripInfo.streetVehicles.find(_.mode == WALK).orNull, beamServices))
+      tripsWithFares.map(tripWithFares => {
+        val embodiedLegs: Vector[EmbodiedBeamLeg] = for((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
+          val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
+          if (Modes.isR5TransitMode(beamLeg.mode)) {
+            if(beamServices.transitVehiclesByBeamLeg.contains(beamLeg)) {
+              EmbodiedBeamLeg(beamLeg, beamServices.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
+            }else{
+              //FIXME
+              log.error("Router swallowed a transit leg because it couldn't find something.")
+              EmbodiedBeamLeg.empty
+            }
+          } else {
+            val unbecomeDriverAtComplete = Modes.isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || beamLeg == tripWithFares.trip.legs.last)
+            if (beamLeg.mode == WALK) {
+              val body = routingRequestTripInfo.streetVehicles.find(_.mode == WALK).get
+              EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, None, 0.0, unbecomeDriverAtComplete)
+            } else {
+              EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, None, 0.0, unbecomeDriverAtComplete)
+            }
+          }
+        }
+        EmbodiedBeamTrip(embodiedLegs)
+      })
     })
 
     if(!embodiedTrips.exists(_.tripClassifier == WALK)) {
@@ -92,11 +114,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
       val maybeBody = routingRequestTripInfo.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
         log.warning("Adding dummy walk route with maximum street time.")
-        val dummyTrip = EmbodiedBeamTrip.embodyWithStreetVehicles(
-          TripWithFares(BeamTrip(Vector(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, maxStreetTime * 60))), Map()),
-          maybeBody.get,
-          maybeBody.get,
-          beamServices)
+        val dummyTrip = EmbodiedBeamTrip(
+          Vector(
+              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, maxStreetTime * 60))
+          )
+        )
         RoutingResponse(requestId, embodiedTrips :+ dummyTrip)
       } else {
         log.warning("Not adding a dummy walk route since agent has no body.")
