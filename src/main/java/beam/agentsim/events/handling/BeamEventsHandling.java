@@ -42,7 +42,7 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
 
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
-        eventsLogger.interationEnds();
+        eventsLogger.iterationEnds();
     }
 
     @Override

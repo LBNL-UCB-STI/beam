@@ -72,12 +72,12 @@ public class BeamEventsLogger {
         createEventsWriters();
     }
 
-    public void interationEnds() {
-//        for (BeamEventsWriterBase writer : this.writers) {
-//            writer.closeFile();
-//            this.eventsManager.removeHandler(writer);
-//        }
-//        this.writers.clear();
+    public void iterationEnds() {
+        for (BeamEventsWriterBase writer : this.writers) {
+            writer.closeFile();
+            this.eventsManager.removeHandler(writer);
+        }
+        this.writers.clear();
     }
 
     public void createEventsWriters() {
