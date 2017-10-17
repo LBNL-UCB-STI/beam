@@ -158,7 +158,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
     case DoSimStep(newNow: Double) if newNow > stopTick =>
       nowInSeconds = newNow
-      if (awaitingResponse.isEmpty && (triggerQueue.nonEmpty && triggerQueue.headOption.fold(true)(_.triggerWithId.trigger.tick <= newNow))) {
+      if (awaitingResponse.isEmpty && (triggerQueue.isEmpty || (triggerQueue.nonEmpty  && triggerQueue.headOption.fold(true)(_.triggerWithId.trigger.tick <= newNow)))) {
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
         startSender ! CompletionNotice(0L)
       } else {
