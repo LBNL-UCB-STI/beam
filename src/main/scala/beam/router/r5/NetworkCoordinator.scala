@@ -73,10 +73,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     } else {  // Need to create the unpruned and pruned networks from directory
       log.debug(s"Network file [${prunedNetworkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating unpruned network from: ${networkDirPath.toAbsolutePath}")
-<<<<<<< HEAD
-      unprunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
-      unprunedTransportNetwork.write(unprunedNetworkFile)
-=======
       val partiallyPrunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
 
       // Prune the walk network. This seems to work without problems in R5.
@@ -84,7 +80,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
 
       partiallyPrunedTransportNetwork.write(partiallyPrunedNetworkFile)
 
->>>>>>> application-sfbay
       ////
       // Convert car network to MATSim network, prune it, compare links one-by-one, and if it was pruned by MATSim,
       // remove the car flag in R5.
@@ -141,13 +136,8 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
         edge.setSpeed(avgTimeShort)
       }
     })
-    }
+  }
 
-<<<<<<< HEAD
-    //    val edgeStore=copiedNetwork.streetLayer.edgeStore;
-
-=======
->>>>>>> application-sfbay
   def getAverageTime(linkId: Id[Link], travelTimeCalculator: TravelTimeCalculator) = {
     val limit = 86400
     val step = 60
