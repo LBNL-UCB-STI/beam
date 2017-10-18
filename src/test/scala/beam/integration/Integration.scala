@@ -81,7 +81,7 @@ object Integration {
 
 }
 
-@Ignore
+
 class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
 
 
@@ -149,12 +149,12 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       eventXmlFile.exists() shouldBe true
     }
 
-    "Events  file  is correct" in {
+    "Events  file  is correct" ignore {
       val fileContents = eventsReader.getLinesFrom(eventXmlFile)
       (fileContents.contains("<events version") && fileContents.contains("</events>")) shouldBe true
     }
 
-    "Events file contains all bus routes" in {
+    "Events file contains all bus routes" ignore {
       val route = s"$route_input/r5/bus/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
@@ -164,7 +164,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
 
     }
-    "Events file contains all train routes" in {
+    "Events file contains all train routes" ignore {
       val route = s"$route_input/r5/train/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
 
@@ -173,7 +173,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       listTrips.size shouldBe(listValueTagEventFile.size)
     }
 
-    "Events file contains exactly the same bus trips entries" in {
+    "Events file contains exactly the same bus trips entries" ignore {
 
       val route = s"$route_input/r5/bus/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
@@ -185,7 +185,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
     }
 
-    "Events file contains exactly the same train trips entries" in {
+    "Events file contains exactly the same train trips entries" ignore {
 
       val route = s"$route_input/r5/train/trips.txt"
       val listTrips = getListIDsWithTag(new File(route), "route_id", 2).sorted
@@ -196,7 +196,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
       listTrips shouldBe(listTripsEventFile)
 
     }
-    "Events file contain same pathTraversal defined at stop times file for train input file" in {
+    "Events file contain same pathTraversal defined at stop times file for train input file" ignore {
       val route = s"$route_input/r5/train/stop_times.txt"
       val listTrips = getListIDsWithTag(new File(route), "trip_id", 0).sorted
 
@@ -212,7 +212,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
 
     }
 
-    "Events file contain same pathTraversal defined at stop times file for bus input file" in {
+    "Events file contain same pathTraversal defined at stop times file for bus input file" ignore {
       val route = s"$route_input/r5/bus/stop_times.txt"
       val listTrips = getListIDsWithTag(new File(route), "trip_id", 0).sorted
       val grouped = listTrips.groupBy(identity)
