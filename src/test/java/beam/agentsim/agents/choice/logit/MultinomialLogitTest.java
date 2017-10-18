@@ -1,5 +1,7 @@
 package beam.agentsim.agents.choice.logit;
 
+import beam.agents.logit.DiscreteProbabilityDistribution;
+import beam.agents.logit.MulitnomialLogit;
 import junit.framework.TestCase;
 
 import java.util.LinkedHashMap;
