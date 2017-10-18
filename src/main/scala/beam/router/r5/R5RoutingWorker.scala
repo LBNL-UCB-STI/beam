@@ -24,7 +24,7 @@ import com.conveyal.r5.api.util._
 import com.conveyal.r5.common.JsonUtilities
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.ProfileRequest
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -44,20 +44,15 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
   implicit val timeout = Timeout(5 seconds)
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
-    val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val maxStreetTime = 2 * 60
-    // Route from all street vehicles (including body, if available) to destination.
-    // TODO: Route from origin to street vehicle.
-    val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => {
-      if (beamServices.geo.distInMeters(vehicle.location.loc, routingRequestTripInfo.origin) <= distanceThresholdToIgnoreWalking)
-        log.warning("Vehicle {} for agent {} out of range, and multi-stage routing not implemented yet. Agent is effectively teleporting.", vehicle.id, routingRequestTripInfo.personId)
+
+    def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Vector[TransitModes], egressMode: LegMode) = {
+      val pointToPointQuery = new PointToPointQuery(transportNetwork)
       val profileRequest = new ProfileRequest()
-      val fromPosTransformed =  beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(vehicle.location.loc),10E3)
-      val toPosTransformed = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination),10E3)
-      profileRequest.fromLon = fromPosTransformed.getX
-      profileRequest.fromLat = fromPosTransformed.getY
-      profileRequest.toLon = toPosTransformed.getX
-      profileRequest.toLat = toPosTransformed.getY
+      profileRequest.fromLon = from.getX
+      profileRequest.fromLat = from.getY
+      profileRequest.toLon = to.getX
+      profileRequest.toLat = to.getY
       profileRequest.maxWalkTime = 3 * 60
       profileRequest.maxCarTime = 4 * 60
       profileRequest.maxBikeTime = 4 * 60
@@ -66,21 +61,36 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
       profileRequest.wheelchair = false
       profileRequest.bikeTrafficStress = 4
       profileRequest.zoneId = transportNetwork.getTimeZone
+      profileRequest.fromTime = time.fromTime
+      profileRequest.toTime = time.toTime
+      profileRequest.date = beamServices.dates.localBaseDate
+      profileRequest.directModes = util.EnumSet.of(directMode)
+      if (transitModes.nonEmpty) {
+        profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
+        profileRequest.accessModes = util.EnumSet.of(accessMode)
+        profileRequest.egressModes = util.EnumSet.of(egressMode)
+      }
+      pointToPointQuery.getPlan(profileRequest)
+    }
+
+    // Route from all street vehicles (including body, if available) to destination.
+    // TODO: Route from origin to street vehicle.
+    val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => {
+      if (beamServices.geo.distInMeters(vehicle.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking) {
+        log.warning("Vehicle {} for agent {} out of range, and multi-stage routing not implemented yet. Agent is effectively teleporting.", vehicle.id, routingRequestTripInfo.personId)
+      }
+
+      val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(vehicle.location.loc),10E3)
+      val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination),10E3)
+      val directMode = vehicle.mode.r5Mode.get.left.get
+      val accessMode = vehicle.mode.r5Mode.get.left.get
+      val egressMode = LegMode.WALK
       val time = routingRequestTripInfo.departureTime match {
         case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
         case time: WindowTime => time
       }
-      profileRequest.fromTime = time.fromTime
-      profileRequest.toTime = time.toTime
-      profileRequest.date = beamServices.dates.localBaseDate
-      profileRequest.directModes = util.EnumSet.of(vehicle.mode.r5Mode.get.left.get)
-      if (routingRequestTripInfo.transitModes.nonEmpty) {
-        val transitModes: Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
-        profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
-        profileRequest.accessModes = util.EnumSet.of(vehicle.mode.r5Mode.get.left.get)
-        profileRequest.egressModes = util.EnumSet.of(LegMode.WALK)
-      }
-      val profileResponse = pointToPointQuery.getPlan(profileRequest)
+      val transitModes: Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
+      val profileResponse: ProfileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
       val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
       val tripsWithFares = extractTripsAndCalculateFares(profileResponse, isRouteForPerson)
       tripsWithFares.map(tripWithFares => {
