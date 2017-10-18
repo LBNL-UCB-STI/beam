@@ -19,17 +19,20 @@ public class ModeChoiceEvent extends Event {
     public final static String ATTRIBUTE_AVAILABLE_ALTERNATIVES = "availableAlternatives";
     public final static String ATTRIBUTE_LOCATION = "location";
     public final static String ATTRIBUTE_PERSONAL_VEH_AVAILABLE = "personalVehicleAvailable";
+    public final static String ATTRIBUTE_TRIP_LENGTH= "length";
     private final String personId;
     private final String mode;
     private final String expectedMaxUtility;
     private final String location;
     private final String availableAlternatives;
     private final String vehAvailable;
+    private final Double length;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode) {
-        this(time, personId, chosenMode, Double.NaN, "", "", null);
+        this(time, personId, chosenMode, Double.NaN, "", "", null, 0.0);
     }
-    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility, String linkId, String availableAlternatives, Boolean vehAvailable) {
+    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility,
+                           String linkId, String availableAlternatives, Boolean vehAvailable, Double length) {
         super(time);
 
         this.personId = personId.toString();
@@ -38,6 +41,7 @@ public class ModeChoiceEvent extends Event {
         this.location = linkId;
         this.availableAlternatives = availableAlternatives;
         this.vehAvailable = vehAvailable == null ? "" : vehAvailable.toString();
+        this.length = length;
     }
 
     @Override
@@ -50,6 +54,7 @@ public class ModeChoiceEvent extends Event {
         attr.put(ATTRIBUTE_LOCATION, location);
         attr.put(ATTRIBUTE_AVAILABLE_ALTERNATIVES, availableAlternatives);
         attr.put(ATTRIBUTE_PERSONAL_VEH_AVAILABLE, vehAvailable);
+        attr.put(ATTRIBUTE_TRIP_LENGTH, length.toString());
 
         return attr;
     }
