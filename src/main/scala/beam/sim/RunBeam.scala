@@ -23,6 +23,9 @@ import scala.collection.mutable.ListBuffer
 
 trait RunBeam {
 
+  /**
+    * mBeamConfig optional parameter is used to add custom BeamConfig instance to application injector
+    */
   def beamInjector(scenario: Scenario,  matSimConfig: Config,mBeamConfig: Option[BeamConfig] = None): com.google.inject.Injector =
     org.matsim.core.controler.Injector.createInjector(matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
@@ -49,7 +52,7 @@ trait RunBeam {
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
-        mBeamConfig.foreach(beamConfig => bind(classOf[BeamConfig]).toInstance(beamConfig))
+        mBeamConfig.foreach(beamConfig => bind(classOf[BeamConfig]).toInstance(beamConfig)) //Used for testing - if none passed, app will use factory BeamConfig
       }
     }))
 
@@ -72,6 +75,9 @@ trait RunBeam {
     services.controler.run()
   }
 
+  /*
+  Used for testing - runs BEAM with custom BeamConfig object instead of default BeamConfig factory
+  * */
   def runBeamWithConfig(beamConfig: BeamConfig, matsimConfig: Config) = {
     // Inject and use tsConfig instead here
     // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
@@ -90,7 +96,7 @@ trait RunBeam {
 }
 
 object RunBeam extends RunBeam with App{
-  print("""
+    print("""
   ________
   ___  __ )__________ _______ ___
   __  __  |  _ \  __ `/_  __ `__ \
@@ -100,16 +106,16 @@ object RunBeam extends RunBeam with App{
  _____________________________________
 
  """)
-  def parseArgs() = {
+    def parseArgs() = {
 
-    args.sliding(2, 1).toList.collect {
-      case Array("--config", configName: String) if configName.trim.nonEmpty => ("config", configName)
-      //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
-      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
-  }
+      args.sliding(2, 1).toList.collect {
+        case Array("--config", configName: String) if configName.trim.nonEmpty => ("config", configName)
+        //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
+        case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
+      }.toMap
+    }
 
-  val argsMap = parseArgs()
+    val argsMap = parseArgs()
 
   rumBeamWithConfigFile(argsMap.get("config"))
 }

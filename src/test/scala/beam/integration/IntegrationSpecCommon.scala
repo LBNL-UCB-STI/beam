@@ -52,7 +52,12 @@ class StartWithCustomConfig(
             rideHailPrice = rideHailPrice.getOrElse(ConfigModule.beamConfig.beam.agentsim.tuning.rideHailPrice)
           )
         ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
-          eventsFileOutputFormats = "xml"
+          eventsFileOutputFormats = "xml",
+          logging = ConfigModule.beamConfig.beam.outputs.logging.copy(
+            beam = ConfigModule.beamConfig.beam.outputs.logging.beam.copy(
+              logLevel = "OFF"
+            )
+          )
         )
       )
     )
