@@ -141,7 +141,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
   }
 
   "Run Beam" must {
-    "Start without errors" in {
+    "Execute without errors" in {
       exc.isSuccess shouldBe true
     }
 
