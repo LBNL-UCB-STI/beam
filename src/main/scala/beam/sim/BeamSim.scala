@@ -124,7 +124,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    eventsManager.finishProcessing()
     cleanupVehicle()
     cleanupHouseHolder()
     agentSimToPhysSimPlanConverter.startPhysSim()
