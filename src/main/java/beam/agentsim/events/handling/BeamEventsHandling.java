@@ -37,7 +37,6 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
 
     @Override
     public void notifyAfterMobsim(AfterMobsimEvent event) {
-        beamServices.matsimServices().getEvents().finishProcessing();
     }
 
     @Override

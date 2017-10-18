@@ -151,7 +151,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    eventsManager.finishProcessing()
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(beamServices.schedulerRef)
     actorSystem.terminate()
