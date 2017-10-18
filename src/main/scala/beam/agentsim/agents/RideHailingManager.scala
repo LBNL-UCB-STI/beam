@@ -191,13 +191,8 @@ class RideHailingManager(info: RideHailingManagerData,
           * 2. rideHailingAgentSpatialIndex ! PickupCustomer
           */
         val nearbyRideHailingAgents = rideHailingAgentSpatialIndex.getDisk(customerPickUp.getX, customerPickUp.getY, radius).asScala.toVector
-        val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
-          val distance = CoordUtils.calcProjectedEuclideanDistance(customerPickUp, rideHailingAgentLocation.currentLocation.loc)
-          rideHailingAgentLocation
-        })
-        val closestRHA: Option[RideHailingAgentLocation] = distances2RideHailingAgents.filter(x =>
-          lockedVehicles(x.vehicleId)).find(x =>
-          x.vehicleId.equals(travelPlanOpt.get._1.responseRideHailing2Pickup.itineraries.head.vehiclesInTrip.head))
+        val closestRHA: Option[RideHailingAgentLocation] = nearbyRideHailingAgents.filter(x =>
+          lockedVehicles(x.vehicleId)).find(_.vehicleId.equals(travelPlanOpt.get._1.responseRideHailing2Pickup.itineraries.head.vehiclesInTrip.head))
 
         closestRHA match {
           case Some((closestRideHailingAgent)) =>
