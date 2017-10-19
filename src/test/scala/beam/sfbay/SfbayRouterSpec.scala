@@ -22,15 +22,15 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.Mockito._
+import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Ignore, WordSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 @Ignore
-class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike
+class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
@@ -117,8 +117,13 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
         StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
       ), Id.createPersonId("116378-0")))
       val response = expectMsgType[RoutingResponse]
+
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == CAR))
+      val actualModesOfCarOption = response.itineraries.find(_.tripClassifier == CAR).get.toBeamTrip().legs.map(_.mode)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
+      val actualModesOfWalkOption = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip().legs.map(_.mode)
+      actualModesOfWalkOption should contain theSameElementsInOrderAs List(WALK)
     }
 
   }

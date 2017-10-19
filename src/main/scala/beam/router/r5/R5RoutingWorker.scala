@@ -62,25 +62,29 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       pointToPointQuery.getPlan(profileRequest)
     }
 
-    // Route from all street vehicles (including body, if available) to destination.
-    // TODO: Route from origin to street vehicle.
+    // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
+    val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
     val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => {
-      val maybeWalkToVehicle = if (beamServices.geo.distInMeters(vehicle.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking) {
-        log.warning("Vehicle {} for agent {} out of range, and multi-stage routing not implemented yet. Agent is effectively teleporting.", vehicle.id, routingRequestTripInfo.personId)
-        val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin),10E3)
-        val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(vehicle.location.loc),10E3)
+
+      val maybeWalkToVehicle = if (isRouteForPerson && vehicle.mode != WALK) {
         val time = routingRequestTripInfo.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
           case time: WindowTime => time
         }
-        val directMode = LegMode.WALK
-        val accessMode = LegMode.WALK
-        val egressMode = LegMode.WALK
-        val transitModes = Nil
-        val profileResponse: ProfileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
-        val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
-        val streetSegment = profileResponse.options.get(0).access.get(0)
-        Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = beamPathBuilder.buildStreetPath(streetSegment, time.atTime)))
+        if (beamServices.geo.distInMeters(vehicle.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking) {
+          val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin),10E3)
+          val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(vehicle.location.loc),10E3)
+          val directMode = LegMode.WALK
+          val accessMode = LegMode.WALK
+          val egressMode = LegMode.WALK
+          val transitModes = Nil
+          val profileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
+          val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
+          val streetSegment = profileResponse.options.get(0).access.get(0)
+          Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = beamPathBuilder.buildStreetPath(streetSegment, time.atTime)))
+        } else {
+          Some(dummyWalk(time.atTime))
+        }
       } else {
         None
       }
@@ -96,7 +100,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       }
       val transitModes: Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
       val profileResponse: ProfileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
-      val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
           * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
@@ -118,9 +121,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
           legsWithFares :+= (BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = beamPathBuilder.buildStreetPath(access, tripStartTime)), 0.0)
 
-          //add a Dummy BeamLeg to the beginning and end of that trip BeamTrip using the dummyWalk
+          //add a Dummy walk BeamLeg to the end of that trip
           if (isRouteForPerson && access.mode != LegMode.WALK) {
-            legsWithFares = (dummyWalk(tripStartTime), 0.0) +: legsWithFares
             if (!isTransit) legsWithFares = legsWithFares :+ (dummyWalk(tripStartTime + access.duration), 0.0)
           }
 
@@ -154,8 +156,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
                 transitSegment,
                 transitJourneyID)
 
-              val tuples: immutable.Seq[(BeamLeg, Double)] = segmentLegs.map(beamLeg => (beamLeg, 0.0))
-              legsWithFares ++= tuples
+              legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {
                 isMiddle = true
@@ -172,8 +173,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               if (isRouteForPerson && egress.mode != LegMode.WALK) legsWithFares :+= (dummyWalk(arrivalTime + egress.duration), 0.0)
             }
           }
+          maybeWalkToVehicle.foreach(legsWithFares +:= (_, 0.0))
           TripWithFares(BeamTrip(legsWithFares.map(_._1), mapLegMode(access.mode)), legsWithFares.map(_._2).zipWithIndex.map(_.swap).toMap)
-
         })
       })
 
