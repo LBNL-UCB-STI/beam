@@ -54,12 +54,10 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
     when(services.transitLegsByStopAndDeparture).thenReturn(tupleToNext)
 
-    val fareCalculator = system.actorOf(FareCalculator.props(beamConfig.beam.routing.r5.directory))
+    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     router = system.actorOf(BeamRouter.props(services, fareCalculator))
 
-    within(1200000 seconds) { // Router and fare calculator can take a while to initialize
-      fareCalculator ! Identify(0)
-      expectMsgType[ActorIdentity]
+    within(60 seconds) { // Router can take a while to initialize
       router ! InitializeRouter
       expectMsg(RouterInitialized)
     }

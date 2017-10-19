@@ -5,19 +5,17 @@ import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor._
-import akka.pattern.ask
-import akka.util.Timeout
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
-import beam.router.{Modes, RoutingWorker}
 import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.r5.NetworkCoordinator.{beamPathBuilder, _}
 import beam.router.r5.R5RoutingWorker.TripWithFares
+import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -28,15 +26,11 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable
-import scala.concurrent.Await
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorRef, val workerId: Int) extends RoutingWorker {
+class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator, val workerId: Int) extends RoutingWorker {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
-
-  implicit val timeout = Timeout(5 seconds)
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
@@ -312,8 +306,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
   }
 
   def getFareSegments(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null): Vector[BeamFareSegment] = {
-    val response = Await.result(ask(fareCalculator, FareCalculator.GetFareSegmentsRequest(agencyId, routeId, fromId, toId, containsIds)), timeout.duration).asInstanceOf[FareCalculator.GetFareSegmentsResponse]
-    response.fareSegments
+    fareCalculator.getFareSegments(agencyId, routeId, fromId, toId, containsIds)
   }
 
   private def getRoute(transitSegment: TransitSegment, transitJourneyID: TransitJourneyID) =
@@ -330,7 +323,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: ActorR
 }
 
 object R5RoutingWorker extends HasProps {
-  override def props(beamServices: BeamServices, fareCalculator: ActorRef, workerId: Int) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator, workerId)
+  override def props(beamServices: BeamServices, fareCalculator: FareCalculator, workerId: Int) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator, workerId)
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 

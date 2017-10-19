@@ -94,7 +94,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       }
     }
 
-    val fareCalculator = actorSystem.actorOf(FareCalculator.props(beamServices.beamConfig.beam.routing.r5.directory))
+    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
 
     val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices, fareCalculator))
     beamServices.beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
