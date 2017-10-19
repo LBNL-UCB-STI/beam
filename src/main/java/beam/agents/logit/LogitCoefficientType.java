@@ -1,4 +1,4 @@
-package beam.agentsim.agents.choice.logit;
+package beam.agents.logit;
 
 public enum LogitCoefficientType {
 	INTERCEPT, MULTIPLIER, CATEGORICAL;

@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.logit;
 
+import beam.agents.logit.NestedLogit;
 import junit.framework.TestCase;
 
 import java.util.LinkedHashMap;

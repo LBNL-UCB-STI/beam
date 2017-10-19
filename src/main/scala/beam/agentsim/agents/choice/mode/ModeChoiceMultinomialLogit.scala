@@ -5,7 +5,7 @@ import java.util
 import java.util.{LinkedHashMap, Random}
 
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.choice.logit.MulitnomialLogit
+import beam.agents.logit.MulitnomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, TRANSIT}
