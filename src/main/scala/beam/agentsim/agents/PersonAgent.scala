@@ -209,13 +209,13 @@ class PersonAgent(val beamServices: BeamServices,
          * finished previous leg.
          * Solution for now is to re-send this to self, but this could get expensive...
          */
-        case Some(currentLeg) =>
+        case Some(_) =>
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
         case None =>
           val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
           processedDataOpt match {
             case Some(processedData) =>
-              if(processedData.nextLeg.beamLeg != beamLeg || processedData.nextLeg.asDriver==true){
+              if(processedData.nextLeg.beamLeg != beamLeg || processedData.nextLeg.asDriver){
                 // We've recevied this leg out of order from 2 different drivers or we haven't our personDepartureTrigger
                 warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
               }else if(processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
