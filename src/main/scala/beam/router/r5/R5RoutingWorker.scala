@@ -5,6 +5,7 @@ import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor._
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes.{BeamMode, _}
@@ -64,33 +65,35 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
-    val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => {
 
-      val maybeWalkToVehicle = if (isRouteForPerson && vehicle.mode != WALK) {
+    def tripsForVehicle(vehicle: BeamVehicle.StreetVehicle): Seq[EmbodiedBeamTrip] = {
+      var maybeWalkToVehicle: Option[BeamLeg] = None
+      if (isRouteForPerson && vehicle.mode != WALK) {
         val time = routingRequestTripInfo.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
           case time: WindowTime => time
         }
         if (beamServices.geo.distInMeters(vehicle.location.loc, routingRequestTripInfo.origin) > distanceThresholdToIgnoreWalking) {
-          val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.origin),10E3)
-          val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(vehicle.location.loc),10E3)
+          val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(routingRequestTripInfo.origin), 10E3)
+          val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(vehicle.location.loc), 10E3)
           val directMode = LegMode.WALK
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
           val transitModes = Nil
           val profileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
+          if (profileResponse.options.isEmpty) {
+            return Nil // Cannot walk to vehicle, so no options from this vehicle.
+          }
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
-          Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = beamPathBuilder.buildStreetPath(streetSegment, time.atTime)))
+          maybeWalkToVehicle = Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = beamPathBuilder.buildStreetPath(streetSegment, time.atTime)))
         } else {
-          Some(dummyWalk(time.atTime))
+          maybeWalkToVehicle = Some(dummyWalk(time.atTime))
         }
-      } else {
-        None
       }
 
-      val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(vehicle.location.loc),10E3)
-      val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer,beamServices.geo.utm2Wgs(routingRequestTripInfo.destination),10E3)
+      val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(vehicle.location.loc), 10E3)
+      val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(routingRequestTripInfo.destination), 10E3)
       val directMode = vehicle.mode.r5Mode.get.left.get
       val accessMode = vehicle.mode.r5Mode.get.left.get
       val egressMode = LegMode.WALK
@@ -169,7 +172,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
             if (itinerary.connection.egress != null) {
               val egress = option.egress.get(itinerary.connection.egress)
               //start time would be the arrival time of last stop and 5 second alighting
-              legsWithFares :+= (BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, beamPathBuilder.buildStreetPath(egress, arrivalTime)),0.0)
+              legsWithFares :+= (BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, beamPathBuilder.buildStreetPath(egress, arrivalTime)), 0.0)
               if (isRouteForPerson && egress.mode != LegMode.WALK) legsWithFares :+= (dummyWalk(arrivalTime + egress.duration), 0.0)
             }
           }
@@ -179,12 +182,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       })
 
       tripsWithFares.map(tripWithFares => {
-        val embodiedLegs: Vector[EmbodiedBeamLeg] = for((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
+        val embodiedLegs: Vector[EmbodiedBeamLeg] = for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
           val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
           if (Modes.isR5TransitMode(beamLeg.mode)) {
-            if(beamServices.transitVehiclesByBeamLeg.contains(beamLeg)) {
+            if (beamServices.transitVehiclesByBeamLeg.contains(beamLeg)) {
               EmbodiedBeamLeg(beamLeg, beamServices.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
-            }else{
+            } else {
               //FIXME
               log.error("Router swallowed a transit leg because it couldn't find something.")
               EmbodiedBeamLeg.empty
@@ -201,7 +204,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
         }
         EmbodiedBeamTrip(embodiedLegs)
       })
-    })
+
+    }
+
+    val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => tripsForVehicle(vehicle))
 
     if(!embodiedTrips.exists(_.tripClassifier == WALK)) {
       log.warning("No walk route found. {}",
