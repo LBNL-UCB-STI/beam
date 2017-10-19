@@ -17,6 +17,7 @@ public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
     protected BeamServices beamServices;
     protected Class<?> eventTypeToLog;
 
+
     public BeamEventsWriterBase(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         this.beamEventLogger = beamEventLogger;
         this.beamServices = beamServices;

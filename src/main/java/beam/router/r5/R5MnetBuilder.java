@@ -17,7 +17,6 @@ import org.matsim.core.network.algorithms.NetworkCleaner;
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.*;
 
 /**
@@ -274,8 +273,6 @@ public class R5MnetBuilder {
 					log.info("R5 link not in post-cleaning MATSim network: " + String.valueOf(edgeIndex));
 					// This R5 link has been removed. Need to set permissions to "remove" from network
 					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_CAR);
-					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_BIKE);
-					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_PEDESTRIAN);
 				} else { // R5 link in the pre and post-cleaning MATSim network
 					kept++;
 				}
@@ -303,85 +300,6 @@ public class R5MnetBuilder {
 	public TransportNetwork getR5Network() {
 		return r5Network;
 	}
-
-	/**
-	 * Input args:
-	 * 0 - path to network.dat file
-	 * 1 - path to OSM mapdb file
-	 * 2 - output path for MATSim network
-	 * 3 - path to new r5 network.dat file
-	 * 4 - [OPTIONAL] comma-separated list of EdgeFlag enum names. See com.conveyal.r5.streets.EdgeStore.EdgeFlag for
-	 * EdgeFlag definitions.
-	 * @param args
-	 */
-	public static void main(String[] args) throws IOException {
-		String inFolder = args[0];
-		String osmPath = args[1];
-		String mNetPath = args[2];
-		// If mode flags passed, use the constructor with the modeFlags parameter
-		R5MnetBuilder mn = null;
-		if (args.length > 3){
-			String[] flagStrings = args[4].trim().split(",");
-			EnumSet<EdgeStore.EdgeFlag> modeFlags = EnumSet.noneOf(EdgeStore.EdgeFlag.class);
-			for (String f: flagStrings){
-				modeFlags.add(EdgeStore.EdgeFlag.valueOf(f));
-			}
-			System.out.println("USING MODE FLAGS HURRAY!!!!!!!!!");
-			mn = new R5MnetBuilder(inFolder, osmPath, modeFlags);
-		}
-		// otherwise use the default constructor
-		else {
-			mn = new R5MnetBuilder(inFolder, osmPath);
-		}
-
-		mn.buildMNet();
-		log.info("Finished building network.");
-//		NetworkCleaner nC = new NetworkCleaner();
-//		log.info("Running NetowrkCleaner");
-//		nC.run(mn.mNetowrk);
-		mn.cleanMnet();
-		log.info("Number of links:" + mn.mNetowrk.getLinks().size());
-		log.info("Number of nodes: " + mn.mNetowrk.getNodes().size());
-		mn.writeMNet(mNetPath);
-
-		// Prune R5 links removed by NetworkCleaner
-		EdgeStore.Edge cursor = mn.r5Network.streetLayer.edgeStore.getCursor();
-		Integer removed = 0;
-		Integer kept = 0;
-		while (cursor.advance()){
-			Integer edgeIndex = cursor.getEdgeIndex();
-			if (mn.r5ToMNetMap.containsKey(edgeIndex)) { // This R5 link is in the pre-cleaning MATSim network.
-				Long mNetIDLong = mn.r5ToMNetMap.get(edgeIndex);
-				Id<Link> mNetID = Id.create(mNetIDLong, Link.class);
-				if (!mn.mNetowrk.getLinks().containsKey(mNetID)) {
-					removed++;
-					log.info("R5 link not in post-cleaning MATSim network: " + String.valueOf(edgeIndex));
-					// This R5 link has been removed. Need to set permissions to "remove" from network
-					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_CAR);
-					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_BIKE);
-					cursor.clearFlag(EdgeStore.EdgeFlag.ALLOWS_PEDESTRIAN);
-				} else { // R5 link in the pre and post-cleaning MATSim network
-					kept++;
-				}
-			} else { // not in the pre-cleaning MATSim network
-				log.info("R5 Link not in the pre-cleaning MATSim network: "  +String.valueOf(edgeIndex));
-			}
-		}
-		System.out.println("No. R5 Links Remvoed: " + String.valueOf(removed));
-		System.out.println("No. R5 Links kept: " + String.valueOf(kept));
-		System.out.println("No. of post-cleaning MATSim links: " + String.valueOf(mn.mNetowrk.getLinks().size()));
-		Integer n = 0;
-		for (Integer k: mn.r5ToMNetMap.keySet()){
-			Long lK = new Long(k);
-			Long v = mn.r5ToMNetMap.get(k);
-			if (! lK.equals(v)){
-				n++;
-			}
-		}
-		System.out.println("No. non-matching link IDs: " + String.valueOf(n));
-		mn.r5Network.write(new File(args[3]));
-	}
-
 
 }
 

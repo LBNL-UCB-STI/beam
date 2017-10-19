@@ -48,7 +48,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   protected var _errorMessageFromDrivesVehicle: String = ""
 
   chainedWhen(Moving) {
-    case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
+    case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _ ) =>
       //we have just completed a leg
       logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
       passengerSchedule.schedule.get(completedLeg) match {
