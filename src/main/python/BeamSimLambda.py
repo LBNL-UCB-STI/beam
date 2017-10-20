@@ -61,11 +61,11 @@ def deploy(script, instance_type):
                             InstanceInitiatedShutdownBehavior='terminate')
     return res['Instances'][0]['InstanceId']
 
-def get_dns(id):
+def get_dns(instance_id):
     host = None
     while host is None:
         time.sleep(2)
-        instances = ec2.describe_instances(InstanceIds=[id])
+        instances = ec2.describe_instances(InstanceIds=[instance_id])
         for r in instances['Reservations']:
             for i in r['Instances']:
                 dns = i['PublicDnsName']
@@ -76,7 +76,7 @@ def get_dns(id):
 def lambda_handler(event, context):
     branch = event.get('branch', 'master')
     build_id = event.get('build', 'latest')
-    input = event.get('input', 'beamville')
+    beam_input = event.get('input', 'beamville')
     configs = event.get('configs', ['beam.conf'])
     instance_type = event.get('instance_type')
     shutdown_wait = event.get('shutdown_wait', '30')
@@ -89,18 +89,18 @@ def lambda_handler(event, context):
 
     txt = ''
     jar = branch + '/beam-' + build_id + '.jar'
-    zip = input + '.zip'
+    archive = beam_input + '.zip'
 
     if check_resource('beam-builds', jar):
-        if check_resource('beam-inputs', zip):
+        if check_resource('beam-inputs', archive):
             for cfg in configs:
                 uid = str(uuid.uuid4())[:8]
-                script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$BUILD_ID', build_id).replace('$INPUTS', input).replace('$CONFIG', cfg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
+                script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$BUILD_ID', build_id).replace('$INPUTS', beam_input).replace('$CONFIG', cfg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
                 instance_id = deploy(script, instance_type)
                 host = get_dns(instance_id)
                 txt = txt + 'Started build: {build} with config: {config} at host {dns}. Please locate outputs with prefix code [{prefix}], '.format(build=build_id, config=cfg, dns=host, prefix=uid)
         else:
-            txt = 'Unable to find input with provided name: ' + input + '.'
+            txt = 'Unable to find input with provided name: ' + beam_input + '.'
     else:
         txt = 'Travis build on branch: [' + branch + '] and build# [' + build_id + '] not found.'
     return txt
