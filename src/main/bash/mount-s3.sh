@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 sudo apt install s3fs
 echo $1 > ~/.passwd-s3fs
 chmod 600 ~/.passwd-s3fs
