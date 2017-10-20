@@ -238,9 +238,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),
       _currentLeg.get,getStartCoord,getEndCoord)))
-    if(id.toString.equals("SM:43|10748241:T1|15:00")){
-      val i =0
-    }
 
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)

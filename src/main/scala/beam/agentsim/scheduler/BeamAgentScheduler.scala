@@ -102,16 +102,11 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
     monitorThread.foreach(_.cancel())
   }
 
-  def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
+  def scheduleTrigger(triggerToSchedule: ScheduleTrigger, originalTrigger: Option[Trigger] = None): Unit = {
     this.idCount += 1
 
     if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow || triggerToSchedule.trigger.tick>=stopTick) {
-      if (beamConfig.beam.debug.debugEnabled) {
-        log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
-        triggerToSchedule.agent ! IllegalTriggerGoToError
-      } else {
-        throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
-      }
+      throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}, originalTrigger=$originalTrigger")
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
       triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
@@ -136,10 +131,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
           awaitingResponse.put(triggerWithId.trigger.tick, triggerWithId.triggerId)
-          if (beamConfig.beam.debug.debugEnabled) {
-            awaitingResponseVerbose.put(triggerWithId.trigger.tick, scheduledTrigger)
-            triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
-          }
+          awaitingResponseVerbose.put(triggerWithId.trigger.tick, scheduledTrigger)
+          triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
           scheduledTrigger.agent ! triggerWithId
         }
         if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
@@ -172,9 +165,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Vector[ScheduleTrigger]) =>
       //      log.info(s"recieved notice that trigger triggerId: $triggerId is complete")
-      newTriggers.foreach {
-        scheduleTrigger
-      }
+      newTriggers.foreach(scheduleTrigger(_, Some(triggerIdToScheduledTrigger(triggerId).triggerWithId.trigger)))
       val completionTickOpt = triggerIdToTick.get(triggerId)
       if (completionTickOpt.isEmpty || !triggerIdToTick.contains(triggerId) || !awaitingResponse.containsKey(completionTickOpt.get)) {
         log.error(s"Received bad completion notice ${notice} from ${sender().path}")

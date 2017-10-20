@@ -305,10 +305,11 @@ class PersonAgent(val beamServices: BeamServices,
       case None =>
     }
     if(_currentRoute.legs.nonEmpty){
-      val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
-      processedDataOpt match {
+      breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick) match {
         case Some(processedData) =>
-          if(processedData.nextLeg.asDriver){
+          if (processedData.nextLeg.beamLeg.startTime < tick) {
+            errorFromPerson("I am going to start a leg which is in the past.", triggerId, Some(tick))
+          } else if(processedData.nextLeg.asDriver) {
             val passengerSchedule = PassengerSchedule()
             val vehiclePersonId = if(HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)){
               VehiclePersonId(_humanBodyVehicle,id)
@@ -422,7 +423,11 @@ class PersonAgent(val beamServices: BeamServices,
   }
   def scheduleStartLegAndStay() = {
     val (tick, triggerId) = releaseTickAndTriggerId()
-    beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](_currentEmbodiedLeg.get.beamLeg.startTime,self,_currentEmbodiedLeg.get.beamLeg))
+    val newTriggerTime = _currentEmbodiedLeg.get.beamLeg.startTime
+    if (newTriggerTime < tick) {
+      throw new RuntimeException(s"I am in state $stateName, it is $tick and I am trying to schedule the start of my leg for $newTriggerTime. I can't do that.")
+    }
+    beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](newTriggerTime,self,_currentEmbodiedLeg.get.beamLeg))
     stay
   }
   def errorFromPerson (reason: String, triggerId: Long, tick: Option[Double]): PersonAgent.this.State = {
