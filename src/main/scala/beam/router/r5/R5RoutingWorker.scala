@@ -26,7 +26,6 @@ import com.conveyal.r5.profile.ProfileRequest
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable
 import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator, val workerId: Int) extends RoutingWorker {
@@ -97,9 +96,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       val directMode = vehicle.mode.r5Mode.get.left.get
       val accessMode = vehicle.mode.r5Mode.get.left.get
       val egressMode = LegMode.WALK
+      val walkToVehicleDuration = maybeWalkToVehicle.map(leg => leg.duration).getOrElse(0l).toInt
       val time = routingRequestTripInfo.departureTime match {
-        case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
-        case time: WindowTime => time
+        case time: DiscreteTime => WindowTime(time.atTime + walkToVehicleDuration, beamServices.beamConfig.beam.routing.r5.departureWindow)
+        case time: WindowTime => WindowTime(time.atTime + walkToVehicleDuration, 0)
       }
       val transitModes: Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
       val profileResponse: ProfileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
@@ -116,6 +116,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           */
         option.itinerary.asScala.map(itinerary => {
           var legsWithFares = Vector[(BeamLeg, Double)]()
+          maybeWalkToVehicle.foreach(legsWithFares +:= (_, 0.0))
 
           val access = option.access.get(itinerary.connection.access)
 
@@ -131,7 +132,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 
           if (isTransit) {
             var arrivalTime: Long = Long.MinValue
-            var isMiddle: Boolean = false
             /*
              Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
              assuming that: For each transit in option there is a TransitJourneyID in connection
@@ -162,7 +162,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {
-                isMiddle = true
                 legsWithFares :+= (BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, travelPath = beamPathBuilder.buildStreetPath(transitSegment.middle, arrivalTime)), 0.0)
                 arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
               }
@@ -176,7 +175,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               if (isRouteForPerson && egress.mode != LegMode.WALK) legsWithFares :+= (dummyWalk(arrivalTime + egress.duration), 0.0)
             }
           }
-          maybeWalkToVehicle.foreach(legsWithFares +:= (_, 0.0))
           TripWithFares(BeamTrip(legsWithFares.map(_._1), mapLegMode(access.mode)), legsWithFares.map(_._2).zipWithIndex.map(_.swap).toMap)
         })
       })

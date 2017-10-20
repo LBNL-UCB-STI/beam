@@ -308,7 +308,7 @@ class PersonAgent(val beamServices: BeamServices,
       breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick) match {
         case Some(processedData) =>
           if (processedData.nextLeg.beamLeg.startTime < tick) {
-            errorFromPerson("I am going to start a leg which is in the past.", triggerId, Some(tick))
+            errorFromPerson(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is $tick.", triggerId, Some(tick))
           } else if(processedData.nextLeg.asDriver) {
             val passengerSchedule = PassengerSchedule()
             val vehiclePersonId = if(HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)){
