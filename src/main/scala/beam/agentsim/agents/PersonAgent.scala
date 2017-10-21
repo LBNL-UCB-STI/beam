@@ -364,7 +364,8 @@ class PersonAgent(val beamServices: BeamServices,
           }else if(activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
             tick
           }else{
-            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+//            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+            //TODO consider ending the day here to match MATSim convention for start/end activity
             tick + 60*10
           }
           beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value)))
