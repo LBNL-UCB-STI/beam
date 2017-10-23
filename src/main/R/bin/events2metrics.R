@@ -18,7 +18,7 @@ exp[,key:=pp(experiment,'_',factor)]
 
 outs.dir.base <- '/Users/critter/Documents/beam/beam-output/experiments/'
 #outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price','vot_vot')
-outs.exps <- c('toll_price')
+outs.exps <- c('base')
 
 outs.exp <- outs.exps[1]
 for(outs.exp in outs.exps){
@@ -284,3 +284,43 @@ do.or.load(pp(outs.dir.base,'bayAreaR5NetworkLinks.Rdata'),function(){
   links[,county:=over(SpatialPoints(links[,list(x,y)],proj4string=CRS(proj4string(counties))),counties)$NAME]
   list(links=links)
 })
+
+# Just Base Scenario Analysis
+xy.to.latlon <- function(str,print=T){
+  if(length(grep("\\[",str))>0){
+    tmp <- strsplit(strsplit(str,'\\[x=')[[1]][2],'\\]\\[y=')[[1]]
+    x <- as.numeric(tmp[1])
+    y <- as.numeric(strsplit(tmp[2],'\\]')[[1]][1])
+  }else if(length(grep('"',str))>0){
+    x <- as.numeric(strsplit(str,'"')[[1]][2])
+    y <- as.numeric(strsplit(str,'"')[[1]][4])
+  }else if(length(grep(',',str))>0){
+    x <- as.numeric(strsplit(str,',')[[1]][1])
+    y <- as.numeric(strsplit(str,',')[[1]][2])
+  }else if(length(grep(' ',str))>0){
+    x <- as.numeric(strsplit(str,' ')[[1]][1])
+    y <- as.numeric(strsplit(str,' ')[[1]][2])
+  }else{
+    return('Parse Error')
+  }
+  xy <- data.frame(x=x,y=y)
+  xy <- SpatialPoints(xy,proj4string=CRS("+init=epsg:26910"))
+  xy <- data.frame(coordinates(spTransform(xy,CRS("+init=epsg:4326"))))
+  if(print){
+    my.cat(pp(xy$y,',',xy$x))
+  }else{
+    return(pp(xy$y,',',xy$x))
+  }
+}
+dist.from.latlon <- function(lat1,lon1,lat2,lon2){
+  xy1 <- data.frame(x=lon1,y=lat1)
+  xy1 <- SpatialPoints(xy1,proj4string=CRS("+init=epsg:4326"))
+  xy1 <- data.frame(coordinates(spTransform(xy1,CRS("+init=epsg:26910"))))
+  xy2 <- data.frame(x=lon2,y=lat2)
+  xy2 <- SpatialPoints(xy2,proj4string=CRS("+init=epsg:4326"))
+  xy2 <- data.frame(coordinates(spTransform(xy2,CRS("+init=epsg:26910"))))
+  sqrt((xy1$x-xy2$x)^2 + (xy1$y-xy2$y)^2)
+}
+
+ev[vehicle_type%in%c('BART','Ferry','Muni','Rail') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
+ev[,.(x=as.numeric(sum(num_passengers*length/1609))),by='vehicle_type']
