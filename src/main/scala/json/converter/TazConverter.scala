@@ -7,14 +7,13 @@ import play.api.libs.json._
 
 import scala.util.Try
 
+//Input structure
 case class Properties(id: Long, taz: String)
-
 case class Coordinates(lat: Double, lon: Double)
-
 case class Geometry(`type`: String, coordinates: Seq[Coordinates])
-
 case class Features(properties: Properties, geometry: Geometry)
 
+//Output structure
 case class TazGeometry(`type`: String, coordinates: Array[Array[Array[Array[Double]]]])
 case class TazViz(gid: Long, taz: Long, nhood: String, sq_mile: Double, geometry: TazGeometry)
 
@@ -31,10 +30,12 @@ object TazConverter extends App{
           val properties = (featureJson \ "properties").validate[Properties].get
           val geometryJson = (featureJson \ "geometry")
           val _type = (geometryJson \ "type").as[String]
-          val coordinatesArray = (geometryJson \ "coordinates").as[JsArray]
+          val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray].apply(0).as[JsArray]
+
+          println(s"-----------Size ${coordinatesArray.value.size}")
 
           val coordinates = coordinatesArray.value.map{coordinatesItem =>
-            val coordinatesJson = coordinatesItem.as[JsArray].apply(0).as[JsArray].apply(0).as[JsArray]
+            val coordinatesJson = coordinatesItem.as[JsArray]
             val lat = coordinatesJson.apply(0).as[Double]
             val lon = coordinatesJson.apply(1).as[Double]
             Coordinates(lat, lon)
