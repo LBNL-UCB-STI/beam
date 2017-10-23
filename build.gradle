@@ -181,6 +181,8 @@ dependencies {
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
     compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
+    compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
+
     /////////////
     // Akka Dependencies
     ////////////
