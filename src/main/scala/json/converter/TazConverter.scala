@@ -15,7 +15,7 @@ case class Features(properties: Properties, geometry: Geometry)
 
 //Output structure
 case class TazGeometry(`type`: String, coordinates: Array[Array[Array[Array[Double]]]])
-case class TazViz(gid: Long, taz: Long, nhood: String, sq_mile: Double, geometry: TazGeometry)
+case class TazViz(gid: Long, taz: Long, nhood: String, sq_mile: Double, geometry: String)
 
 object TazConverter extends App{
 
@@ -89,7 +89,8 @@ object TazConverter extends App{
         Array(coordinates.lat, coordinates.lon)
       }.toArray))
       val geometry = new TazGeometry("MultiPoligon", coordinates)
-      TazViz(gid, taz, nhood, sq_mile, geometry)
+      val geoJsonString = Json.toJson(geometry).toString()
+      TazViz(gid, taz, nhood, sq_mile, geoJsonString)
     }
 
     println(s"Res:")
