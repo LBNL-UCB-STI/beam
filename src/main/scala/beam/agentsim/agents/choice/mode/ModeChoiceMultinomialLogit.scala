@@ -57,7 +57,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
             case _ =>
               altAndIdx._1.costEstimate
           }
-          ModeCostTime(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTime)
+          ModeCostTime(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTime, altAndIdx._2)
         }
         val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
 
@@ -76,13 +76,15 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
         val chosenMode = model.makeRandomChoice(inputData, new Random())
         expectedMaximumUtility = model.getExpectedMaximumUtility
         model.clear()
-        val chosenAlts = alternatives.filter(_.tripClassifier.value.equalsIgnoreCase(chosenMode))
+        val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
-        chosenAlts.isEmpty match {
+        chosenModeCostTime.isEmpty match {
           case true =>
             None
+          case false if chosenModeCostTime.head.index == -1 || chosenModeCostTime.head.index >= alternatives.size =>
+            None
           case false =>
-            Some(chosenAlts.head)
+            Some(alternatives(chosenModeCostTime.head.index))
         }
     }
   }
@@ -107,7 +109,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
 }
 
 object ModeChoiceMultinomialLogit {
-  case class ModeCostTime(mode: BeamMode, cost: BigDecimal, time: Double)
+  case class ModeCostTime(mode: BeamMode, cost: BigDecimal, time: Double, index: Int = -1)
 
   val defaultAlternatives = Vector(
     ModeCostTime(BeamMode.WALK,BigDecimal(Double.MaxValue),Double.PositiveInfinity),

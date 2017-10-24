@@ -17,13 +17,14 @@ object TransitFareDefaults {
       alt.tripClassifier match {
         case TRANSIT if alt.costEstimate == 0.0 =>
           var vehId = Id.createVehicleId("dummy")
-          BigDecimal(alt.legs.map{ leg =>
+          var theFare = BigDecimal(0.0)
+          alt.legs.foreach{ leg =>
             if(leg.beamVehicleId != vehId && faresByMode.contains(leg.beamLeg.mode) ){
-              faresByMode.get(leg.beamLeg.mode).get
-            }else{
-              0
+              theFare = theFare + BigDecimal(faresByMode.get(leg.beamLeg.mode).get)
+              vehId = leg.beamVehicleId
             }
-          }.sum)
+          }
+          theFare
         case _ =>
           BigDecimal(0)
       }
