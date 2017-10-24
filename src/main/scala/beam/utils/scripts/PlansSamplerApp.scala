@@ -126,7 +126,13 @@ object QuadTreeBuilder {
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
     val qt: QuadTree[T] = new QuadTree[T](qte.minx, qte.miny, qte.maxx, qte.maxy)
     for (p <- els) {
-      qt.put(ev.getX(p), ev.getY(p), p)
+      // Check if point is within the the QT's bounds
+      if (ev.getX(p) >= qte.minx &&
+          ev.getX(p) <= qte.maxx &&
+          ev.getY(p) >= qte.miny &&
+          ev.getY(p) <= qte.maxy){
+        qt.put(ev.getX(p), ev.getY(p), p)
+      }
     }
     qt
   }
