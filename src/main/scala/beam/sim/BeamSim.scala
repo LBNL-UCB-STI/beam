@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.event.Logging
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource.AssignManager
@@ -18,12 +17,11 @@ import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.physsim.{DummyPhysSim, InitializePhysSim}
-import beam.router.{BeamRouter, TransitInitCoordinator}
-import beam.router.BeamRouter.{InitTransit, InitializeRouter, TransitInited}
+import beam.router.BeamRouter
+import beam.router.BeamRouter.{InitTransit, InitializeRouter}
+import beam.router.gtfs.FareCalculator
 import beam.sim.config.BeamLoggingSetup
 import beam.sim.monitoring.ErrorListener
-import ch.qos.logback.classic.Level
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
@@ -33,7 +31,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{AgentWaitingForPtEvent, EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
-import org.matsim.core.events.EventsUtils
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleCapacity, VehicleType, VehicleUtils}
 import org.slf4j.{Logger, LoggerFactory}
@@ -41,7 +38,6 @@ import org.slf4j.{Logger, LoggerFactory}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.reflect.io.File
 import scala.util.Random
 
 /**
@@ -66,7 +62,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyStartup(event: StartupEvent): Unit = {
     actorSystem.eventStream.setLogLevel(BeamLoggingSetup.log4jLogLevelToAkka(beamServices.beamConfig.beam.outputs.logging.beam.logLevel))
     eventsManager = beamServices.matsimServices.getEvents
-    eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), "MATSimEventsManagerService")
+    eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), EventsSubscriber.SUBSCRIBER_NAME)
 
     subscribe(ActivityEndEvent.EVENT_TYPE)
     subscribe(ActivityStartEvent.EVENT_TYPE)
@@ -84,7 +80,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
-    val schedulerFuture = beamServices.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], beamServices, 3600 * 30.0, 300.0))
+    val schedulerFuture = beamServices.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0))
     beamServices.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
 
     // Before we initialize router we need to scale the transit vehicle capacities
@@ -98,7 +94,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       }
     }
 
-    val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices))
+    val fareCalculator = actorSystem.actorOf(FareCalculator.props(beamServices.beamConfig.beam.routing.r5.directory))
+
+    val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices, fareCalculator))
     beamServices.beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
     val routerInitFuture = beamServices.beamRouter ? InitializeRouter
     Await.result(routerInitFuture, timeout.duration)
@@ -120,25 +118,18 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     currentIter = event.getIteration
     resetPop(event.getIteration)
-    eventsManager.initProcessing()
-    // init transit and start movement
-    val coordinator = actorSystem.actorOf(Props(classOf[TransitInitCoordinator], beamServices.beamRouter, beamServices.beamConfig.beam.routing.workerNumber))
-    val response = Await.result( (coordinator ? InitTransit).mapTo[TransitInited], timeout.duration)
-    logger.info(s"Transit schedule has been initialized by workers: ${response.workerIds}")
+//    eventsManager.initProcessing()
+    Await.ready(beamServices.beamRouter ? InitTransit, timeout.duration)
+    logger.info(s"Transit schedule has been initialized")
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    eventsManager.finishProcessing()
-    cleanupWriter()
     cleanupVehicle()
     cleanupHouseHolder()
     agentSimToPhysSimPlanConverter.startPhysSim()
   }
 
-  private def cleanupWriter() = {
-    //    JsonUtils.processEventsFileVizData(beamServices.matsimServices.getControlerIO.getIterationFilename(currentIter, s"events.xml${gzExtension}"),
-    //      beamServices.matsimServices.getControlerIO.getOutputFilename("trips.json"))
-  }
+
 
   private def cleanupVehicle(): Unit = {
     logger.info(s"Stopping  BeamVehicle actors")
@@ -160,10 +151,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    if (writer != null && event.isUnexpected) {
-      cleanupWriter()
-    }
-    eventsManager.finishProcessing()
     actorSystem.stop(eventSubscriber)
     actorSystem.stop(beamServices.schedulerRef)
     actorSystem.terminate()
