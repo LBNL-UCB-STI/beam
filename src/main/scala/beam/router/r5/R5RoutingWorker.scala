@@ -31,6 +31,7 @@ import scala.language.postfixOps
 class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator, val workerId: Int) extends RoutingWorker {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
+  val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
@@ -213,9 +214,18 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       val maybeBody = routingRequestTripInfo.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
         log.warning("Adding dummy walk route with maximum street time.")
+        val originX=routingRequestTripInfo.origin.getX();
+        val originY=routingRequestTripInfo.origin.getY();
+
+        val destX=routingRequestTripInfo.destination.getX();
+        val destY=routingRequestTripInfo.destination.getY();
+
+        val distanceInMeters=beamServices.geo.distInMeters(new Coord(originX,originY),new Coord(destX,destY))
+        val bushWalkingTime=Math.round(distanceInMeters/BUSHWALKING_SPEED_IN_METERS_PER_SECOND);
+
         val dummyTrip = EmbodiedBeamTrip(
           Vector(
-              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, maxStreetTime * 60))
+              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushWalkingTime))
           )
         )
         RoutingResponse(requestId, embodiedTrips :+ dummyTrip)
