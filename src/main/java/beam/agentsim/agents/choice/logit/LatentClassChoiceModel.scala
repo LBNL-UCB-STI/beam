@@ -13,6 +13,7 @@ import kantan.csv.ops._
 class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices with Cloneable {
 
   val lccmData = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
+  implicit val lccmDecoder: HeaderDecoder[LccmData] = HeaderDecoder.decoder("model", "tourType", "variable", "alternative", "units","latentClass","value")(LccmData.apply _)
 
   val classMembershipModel: MulitnomialLogit = extractClassMembershipParams(lccmData)
 
@@ -27,7 +28,7 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
   }
 
   def extractClassMembershipParams(lccmData: Vector[LccmData]): MulitnomialLogit = {
-
+    MulitnomialLogit.MulitnomialLogitFactory("")
   }
 
   //TODO actually clone this
