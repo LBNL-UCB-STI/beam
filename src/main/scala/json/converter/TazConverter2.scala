@@ -30,8 +30,6 @@ object TazConverter2 extends App{
           val _type = (geometryJson \ "type").as[String]
           val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray]
 
-          println(s"-----------Size ${coordinatesArray.value.size}")
-
           val coordinates = coordinatesArray.value.map{coordinatesItem =>
             val coordinatesJson = coordinatesItem.as[JsArray]
             val lat = coordinatesJson.apply(0).as[Double]
@@ -82,7 +80,13 @@ object TazConverter2 extends App{
     val tazVizArray = featuresRes.map { f =>
       val gid: Long = i
       i = i + 1
-      val taz: Long = Try(f.properties.taz.toLong).getOrElse(0l)
+      val taz: Long = try{
+        f.properties.taz.toLong
+      } catch {
+        case e: Exception =>
+          println(s"--------Wrong taz ${f.properties.taz}")
+          0l
+      }
       val nhood = "East Bay"
       val sq_mile = Try(f.properties.area.toDouble).getOrElse(1d)
       val coordinates = Array(Array(f.geometry.coordinates.map { coordinates =>
@@ -93,8 +97,8 @@ object TazConverter2 extends App{
       TazViz(gid, taz, nhood, sq_mile, geoJsonString)
     }
 
-    println(s"Res:")
-    println(s"${featuresRes}")
+//    println(s"Res:")
+//    println(s"${featuresRes}")
 
     val tazVizJson = Json.toJson(tazVizArray.filter(i => i.taz > 0l && i.gid > 0l))
     println(s"Converted: ${tazVizJson.toString()}")
