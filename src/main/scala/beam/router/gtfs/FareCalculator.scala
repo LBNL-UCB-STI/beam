@@ -4,11 +4,10 @@ import java.io._
 import java.nio.file.{Files, Path, Paths}
 import java.util.zip.ZipFile
 
-import akka.actor.{Actor, ActorLogging, Props}
 import beam.router.gtfs.FareCalculator._
 import com.conveyal.gtfs.GTFSFeed
 
-class FareCalculator(val directory: String) extends Actor with ActorLogging {
+class FareCalculator(val directory: String) {
 
   private val dataDirectory: Path = Paths.get(directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
@@ -24,25 +23,6 @@ class FareCalculator(val directory: String) extends Actor with ActorLogging {
     stream.writeObject(agencies)
     stream.close()
     agencies
-  }
-
-  log.debug("Ready.")
-
-  override def receive = {
-    // Only the first case is actually used in production, the others are just for testing.
-    case GetFareSegmentsRequest(agencyId, routeId, fromId, toId, containsIds) =>
-      sender() ! GetFareSegmentsResponse(getFareSegments(agencyId, routeId, fromId, toId, containsIds))
-
-    case CalcFareRequest(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String]) =>
-      sender() ! CalcFareResponse(calcFare(agencyId, routeId, fromId, toId, containsIds))
-    case CalcFareRequest(agencyId: String, routeId: String, fromId: String, toId: String, null) =>
-      sender() ! CalcFareResponse(calcFare(agencyId, routeId, fromId, toId))
-    case CalcFareRequest(agencyId: String, null, fromId: String, toId: String, null) =>
-      sender() ! CalcFareResponse(calcFare(agencyId, null, fromId, toId))
-    case CalcFareRequest(null, null, fromId: String, toId: String, null) =>
-      sender() ! CalcFareResponse(calcFare(null, null, fromId, toId))
-    case CalcFareRequest(agencyId: String, routeId: String, null, null, containsIds: Set[String]) =>
-      sender() ! CalcFareResponse(calcFare(agencyId, routeId, null, null, containsIds))
   }
 
   /**
@@ -144,14 +124,6 @@ class FareCalculator(val directory: String) extends Actor with ActorLogging {
 }
 
 object FareCalculator {
-
-  def props(directory: String): Props = Props(new FareCalculator(directory))
-
-  case class GetFareSegmentsRequest(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null)
-  case class GetFareSegmentsResponse(fareSegments: Vector[BeamFareSegment])
-
-  case class CalcFareRequest(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null)
-  case class CalcFareResponse(fare: Double)
 
   /**
     * A FareAttribute (defined in fare_attributes.txt) defines a fare class. A FareAttribute has a price,

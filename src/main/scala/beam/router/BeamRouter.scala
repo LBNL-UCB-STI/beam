@@ -9,6 +9,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, EmbodiedBeamTrip}
+import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
@@ -18,7 +19,7 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import scala.beans.BeanProperty
 
 
-class BeamRouter(services: BeamServices, fareCalculator: ActorRef) extends Actor with Stash with ActorLogging  {
+class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging  {
   var router: Router = _
   var networkCoordinator: ActorRef = _
   private var routerWorkers: Vector[Routee] = _
@@ -163,5 +164,5 @@ object BeamRouter {
     }
   }
 
-  def props(beamServices: BeamServices, fareCalculator: ActorRef) = Props(classOf[BeamRouter], beamServices, fareCalculator)
+  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(classOf[BeamRouter], beamServices, fareCalculator)
 }
