@@ -1,11 +1,11 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
+import java.io.File
+
 import beam.sim.{BeamServices, HasServices}
 
 import scala.xml.XML
-import kantan.csv._
-import kantan.csv.ops._
+import purecsv.unsafe._
 
 /**
   * BEAM
@@ -13,18 +13,13 @@ import kantan.csv.ops._
 class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices with Cloneable {
 
   val lccmData = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
-  implicit val lccmDecoder: HeaderDecoder[LccmData] = HeaderDecoder.decoder("model", "tourType", "variable", "alternative", "units","latentClass","value")(LccmData.apply _)
 
   val classMembershipModel: MulitnomialLogit = extractClassMembershipParams(lccmData)
 
   def parseModeChoiceParams(modeChoiceParamsFilePath: String): Vector[LccmData] = {
     val params = XML.loadFile(modeChoiceParamsFilePath)
     val paramsFile = s"${beamServices.beamConfig.beam.sharedInputs}/${(params \\ "modeChoices" \\ "lccm" \\ "parameters").text}"
-
-    val rawData: java.net.URL = getClass.getResource(paramsFile)
-    val reader = rawData.readCsv[List, LccmData](rfc.withHeader)
-
-    reader.map(_.get).toVector
+    CSVReader[LccmData].readCSVFromFile(new File(paramsFile),skipHeader=true).toVector
   }
 
   def extractClassMembershipParams(lccmData: Vector[LccmData]): MulitnomialLogit = {
@@ -37,5 +32,5 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
   }
 }
 
-case class LccmData(model: String, tourType: String, variable: String, alternative: String, units: String, latentClass: String, value: Either[Double, Option[String]])
+case class LccmData(model: String, tourType: String, variable: String, alternative: String, units: String, latentClass: String, value: Double)
 
