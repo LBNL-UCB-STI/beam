@@ -1,7 +1,7 @@
 package beam.playground.r5;
 
 import com.conveyal.r5.transit.TransportNetwork;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

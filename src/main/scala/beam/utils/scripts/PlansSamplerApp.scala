@@ -21,7 +21,6 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
-import org.matsim.pt2matsim.tools.{CoordTools, NetworkTools}
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature

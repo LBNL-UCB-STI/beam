@@ -305,10 +305,11 @@ class PersonAgent(val beamServices: BeamServices,
       case None =>
     }
     if(_currentRoute.legs.nonEmpty){
-      val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
-      processedDataOpt match {
+      breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick) match {
         case Some(processedData) =>
-          if(processedData.nextLeg.asDriver){
+          if (processedData.nextLeg.beamLeg.startTime < tick) {
+            errorFromPerson(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is $tick.", triggerId, Some(tick))
+          } else if(processedData.nextLeg.asDriver) {
             val passengerSchedule = PassengerSchedule()
             val vehiclePersonId = if(HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)){
               VehiclePersonId(_humanBodyVehicle,id)
@@ -363,7 +364,8 @@ class PersonAgent(val beamServices: BeamServices,
           }else if(activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
             tick
           }else{
-            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+//            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+            //TODO consider ending the day here to match MATSim convention for start/end activity
             tick + 60*10
           }
           beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value)))
@@ -422,7 +424,11 @@ class PersonAgent(val beamServices: BeamServices,
   }
   def scheduleStartLegAndStay() = {
     val (tick, triggerId) = releaseTickAndTriggerId()
-    beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](_currentEmbodiedLeg.get.beamLeg.startTime,self,_currentEmbodiedLeg.get.beamLeg))
+    val newTriggerTime = _currentEmbodiedLeg.get.beamLeg.startTime
+    if (newTriggerTime < tick) {
+      throw new RuntimeException(s"I am in state $stateName, it is $tick and I am trying to schedule the start of my leg for $newTriggerTime. I can't do that.")
+    }
+    beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](newTriggerTime,self,_currentEmbodiedLeg.get.beamLeg))
     stay
   }
   def errorFromPerson (reason: String, triggerId: Long, tick: Option[Double]): PersonAgent.this.State = {
