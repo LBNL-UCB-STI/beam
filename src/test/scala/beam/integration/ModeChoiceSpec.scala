@@ -15,7 +15,7 @@ import scala.util.Try
 
 class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
 
-  def maxRepetition(listValueTag: List[String]): String = {
+  def maxRepetition(listValueTag: Seq[String]): String = {
     val grouped = listValueTag.groupBy(s => s)
     val groupedCount = grouped.map{case (k, v) => (k, v.size)}
     val (maxK, _) = groupedCount.max
