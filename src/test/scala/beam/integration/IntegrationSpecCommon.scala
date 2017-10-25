@@ -41,35 +41,10 @@ trait EventsFileHandlingCommon {
 
   }
 
-  //  def getListTagsFromXml(file: File, stringContain: String, tagContain: String): List[String] = {
-  //    var listResult = List[String]()
-  //    for (line <- Source.fromFile(file.getPath).getLines) {
-  //      if (line.contains(stringContain)) {
-  //        val temp = scala.xml.XML.loadString(line)
-  //        val value = temp.attributes(tagContain).toString
-  //        listResult = value:: listResult
-  //
-  //      }
-  //    }
-  //
-  //    return  listResult
-  //  }
-
   def getRouteFile(route_output: String, extension: String): File = {
     val route = s"$route_output/${getListOfSubDirectories(new File(route_output))}/ITERS/it.0/0.events.$extension"
     new File(route)
   }
-
-  //  def getEventsReader(beamConfig: BeamConfig): ReadEvents = {
-  //    beamConfig.beam.outputs.eventsFileOutputFormats match{
-  //      case "xml" => new ReadEventsXml
-  //      case "csv" => ???
-  //      case "xml.gz" => new ReadEventsXMlGz
-  //      case "csv.gz" => ???
-  //      case _ => throw new RuntimeException("Unsupported format")
-  //    }
-  //  }
-
 }
 
 trait ReadEvents{
@@ -126,47 +101,6 @@ class ReadEventsBeam extends ReadEvents{
     Source.fromFile(file.getPath).getLines.mkString
   }
 }
-
-//class ReadEventsXml extends ReadEvents {
-//
-//  val basicEventHandler = new BasicEventHandler{
-//    def handleEvent(event: Event): Unit = {
-//      println(s"----------Event--------: $event")
-//      println(s"${event.getEventType}")
-//      println(s"${event.getAttributes}")
-//    }
-//
-//    def reset(iteration: Int): Unit = {
-//    }
-//  }
-//
-//  def getLinesFrom(file: File): String = {
-//    Source.fromFile(file.getPath).getLines.mkString
-//  }
-//
-//  def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
-//
-//    val events = EventsUtils.createEventsManager()
-//    events.addHandler(basicEventHandler)
-//    val reader = new MatsimEventsReader(events)
-//    reader.readFile(file.getAbsolutePath)
-//
-//
-//    getListTagsFromLines(Source.fromFile(file.getPath).getLines.toList, stringContain, tagContain)
-//  }
-//
-//  def getListTagsFromLines(file_lines: List[String], stringContain: String, tagContain: String): scala.List[String] = {
-//    var listResult = List[String]()
-//    for (line <- file_lines) {
-//      if (line.contains(stringContain)) {
-//        val temp = scala.xml.XML.loadString(line)
-//        val value = temp.attributes(tagContain).toString
-//        listResult = value:: listResult
-//      }
-//    }
-//    return  listResult
-//  }
-//}
 
 //class ReadEventsXMlGz extends ReadEventsXml {
 //  def extractGzFile(file: File): scala.List[String] = {
