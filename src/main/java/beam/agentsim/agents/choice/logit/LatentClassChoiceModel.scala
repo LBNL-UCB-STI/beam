@@ -3,9 +3,11 @@ package beam.agentsim.agents.choice.logit
 import java.io.File
 
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.core.utils.io.IOUtils
 
 import scala.xml.XML
-import purecsv.unsafe._
+import org.supercsv.io.CsvMapReader
+import org.supercsv.prefs.CsvPreference;
 
 /**
   * BEAM
@@ -19,7 +21,8 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
   def parseModeChoiceParams(modeChoiceParamsFilePath: String): Vector[LccmData] = {
     val params = XML.loadFile(modeChoiceParamsFilePath)
     val paramsFile = s"${beamServices.beamConfig.beam.sharedInputs}/${(params \\ "modeChoices" \\ "lccm" \\ "parameters").text}"
-    CSVReader[LccmData].readCSVFromFile(new File(paramsFile),skipHeader=true).toVector
+    val csvData = (new CsvMapReader(IOUtils.getBufferedReader(paramsFile), CsvPreference.STANDARD_PREFERENCE)).read("???")
+    Vector()
   }
 
   def extractClassMembershipParams(lccmData: Vector[LccmData]): MulitnomialLogit = {

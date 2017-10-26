@@ -138,7 +138,7 @@ dependencies {
 //    compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: false
 //    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
     compile group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'beam-3.0-SNAPSHOT', changing: true
-    compile group: 'com.github.melrief', name: 'purecsv_2.12', version: '0.1.0'
+//    compile group: 'com.github.melrief', name: 'purecsv_2.12', version: '0.1.0'
     compile 'net.sf.supercsv:super-csv:2.4.0'
 
 
