@@ -8,7 +8,7 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.Modes
+import beam.router.{Modes, TrajectoryByEdgeIdsResolver}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
@@ -260,21 +260,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
     } else {
       var workingDepature = departureTime
       stopsInTrip.sliding(2).foreach { stopPair =>
-        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDepature))
-        legPair match {
-          case Some(lp) =>
-            legs = legs :+ lp.leg
-            lp.nextLeg match {
-              case Some(theNextLeg) =>
-                workingDepature = theNextLeg.startTime
-              case None =>
-                if(!hasWarnedAboutLegPair.contains(Tuple2(stopPair(0),stopPair(1)))){
-                  log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
-                  hasWarnedAboutLegPair = hasWarnedAboutLegPair + Tuple2(stopPair(0),stopPair(1))
-                }
-            }
-          case None =>
-        }
+        val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(stopPair(0)))
+        val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(stopPair(1)))
+        val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
+        val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
+        legs = legs :+ BeamLeg(departureTime, mode, totalDuration, BeamPath(Vector(fromEdge.getEdgeIndex.toString, toEdge.getEdgeIndex.toString), Option(TransitStopsInfo(stopsInTrip.head, beamVehicleId, stopsInTrip.last)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, totalDuration)))
       }
       legs
     }
