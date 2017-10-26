@@ -155,7 +155,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
             val fares = filterTransferFares(getFareSegments(segments.toVector))
 
             segments.foreach { case (transitSegment, transitJourneyID) =>
-
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
               val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
