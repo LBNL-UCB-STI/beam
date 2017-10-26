@@ -35,12 +35,9 @@ import scala.collection.mutable
   */
 class NetworkCoordinator(val beamServices: BeamServices) extends Actor with ActorLogging {
 
+  loadNetwork
+
   override def receive: Receive = {
-    case InitializeRouter =>
-      log.info("Initializing Router")
-      init
-      context.parent ! RouterInitialized
-      sender() ! RouterInitialized
     case InitTransit =>
       initTransit()
       sender ! TransitInited

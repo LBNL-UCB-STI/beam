@@ -7,16 +7,15 @@ import java.util
 import akka.actor._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
+import beam.router.Modes
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes.{BeamMode, _}
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
-import beam.router.RoutingWorker.HasProps
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.r5.NetworkCoordinator.{beamPathBuilder, _}
 import beam.router.r5.R5RoutingWorker.TripWithFares
-import beam.router.{Modes, RoutingWorker}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -28,12 +27,18 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator, val workerId: Int) extends RoutingWorker {
+class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
-  override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
+  override final def receive: Receive = {
+    case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
+      val response = calcRoute(requestId, params)
+      sender() ! response
+  }
+
+  def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
 
     def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode) = {
@@ -337,8 +342,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 
 }
 
-object R5RoutingWorker extends HasProps {
-  override def props(beamServices: BeamServices, fareCalculator: FareCalculator, workerId: Int) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator, workerId)
+object R5RoutingWorker {
+  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator)
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 

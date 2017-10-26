@@ -3,7 +3,7 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.FSM.SubscribeTransitionCallBack
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Identify, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource.AssignManager
@@ -18,7 +18,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
-import beam.router.BeamRouter.{InitTransit, InitializeRouter}
+import beam.router.BeamRouter.InitTransit
 import beam.router.gtfs.FareCalculator
 import beam.sim.config.BeamLoggingSetup
 import beam.sim.monitoring.ErrorListener
@@ -96,10 +96,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
 
-    val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices, fareCalculator))
-    beamServices.beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
-    val routerInitFuture = beamServices.beamRouter ? InitializeRouter
-    Await.result(routerInitFuture, timeout.duration)
+    val router = actorSystem.actorOf(BeamRouter.props(beamServices, fareCalculator), "router")
+    beamServices.beamRouter = router
+    Await.ready(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     /*
     val physSimFuture = beamServices.registry ? Registry.Register("physSim", DummyPhysSim.props(beamServices))
@@ -118,7 +117,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     currentIter = event.getIteration
     resetPop(event.getIteration)
-//    eventsManager.initProcessing()
     Await.ready(beamServices.beamRouter ? InitTransit, timeout.duration)
     logger.info(s"Transit schedule has been initialized")
   }
