@@ -198,13 +198,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
         val embodiedLegs: Vector[EmbodiedBeamLeg] = for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
           val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
           if (Modes.isR5TransitMode(beamLeg.mode)) {
-            if (beamServices.transitVehiclesByBeamLeg.contains(beamLeg)) {
-              EmbodiedBeamLeg(beamLeg, beamServices.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
-            } else {
-              //FIXME
-              log.error("Router swallowed a transit leg because it couldn't find something.")
-              EmbodiedBeamLeg.empty
-            }
+            EmbodiedBeamLeg(beamLeg, beamLeg.travelPath.transitStops.get.vehicleId, false, None, 0.0, false)
           } else {
             val unbecomeDriverAtComplete = Modes.isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || beamLeg == tripWithFares.trip.legs.last)
             if (beamLeg.mode == WALK) {

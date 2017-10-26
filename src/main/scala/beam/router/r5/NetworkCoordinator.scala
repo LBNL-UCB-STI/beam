@@ -184,11 +184,11 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             val toStopIdx = tripPattern.stops(to)
             val fromStopId = tripPattern.stops(from)
             val toStopId = tripPattern.stops(to)
-            val stopsInfo = TransitStopsInfo(fromStopId, toStopId)
+            val stopsInfo = TransitStopsInfo(fromStopId, tripVehId, toStopId)
             if(tripVehId.toString.equals("SM:43|10748241:T1|15:00") && departureTimeFrom.toLong == 1500L){
               val i =0
             }
-            val transitPath = if (isOnStreetTransit(mode)) {
+            val transitPath = if (false) {
               transitCache.get((fromStopIdx,toStopIdx)).fold{
                 val bp = beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
                 transitCache += ((fromStopIdx,toStopIdx)->bp)
@@ -202,7 +202,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             }
             val theLeg = BeamLeg(departureTimeFrom.toLong, mode, duration, transitPath)
             passengerSchedule.addLegs(Seq(theLeg))
-            beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
 
             previousBeamLeg.foreach { prevLeg =>
               beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(prevLeg, Some(theLeg)))
@@ -212,7 +211,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
               case Some(stops) =>
                 stops
               case None =>
-                TransitStopsInfo(-1, -1)
+                TransitStopsInfo(-1, tripVehId, -1)
             }
             stopStopDepartTuple = (previousTransitStops.fromStopId, previousTransitStops.toStopId, previousBeamLeg.get.startTime)
           }
@@ -225,12 +224,11 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
           //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
           val duration = 1L
           val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx)
-          val stopsInfo = TransitStopsInfo(fromStopIdx, fromStopIdx)
+          val stopsInfo = TransitStopsInfo(fromStopIdx, tripVehId, fromStopIdx)
           val transitPath = BeamPath(edgeIds, Option(stopsInfo),
             new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration))
           val theLeg = BeamLeg(departureStart.toLong, mode, duration, transitPath)
           passengerSchedule.addLegs(Seq(theLeg))
-          beamServices.transitVehiclesByBeamLeg += (theLeg -> tripVehId)
         }
 
         (tripVehId, route, passengerSchedule)
