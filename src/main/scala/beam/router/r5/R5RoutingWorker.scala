@@ -5,11 +5,12 @@ import java.time.temporal.ChronoUnit
 import java.util
 
 import akka.actor._
+import akka.pattern._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode.WALK
-import beam.router.Modes.{BeamMode, _}
+import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
@@ -25,6 +26,7 @@ import com.conveyal.r5.profile.ProfileRequest
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
+import scala.concurrent.Future
 import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
@@ -32,10 +34,17 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
   var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
+  // Let the dispatcher on which the Future in receive will be running
+  // be the dispatcher on which this actor is running.
+  import context.dispatcher
+
   override final def receive: Receive = {
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
-      val response = calcRoute(requestId, params)
-      sender() ! response
+      val eventualResponse = Future {
+        calcRoute(requestId, params)
+      }
+      eventualResponse.failed.foreach(e => e.printStackTrace())
+      eventualResponse pipeTo sender
   }
 
   def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
