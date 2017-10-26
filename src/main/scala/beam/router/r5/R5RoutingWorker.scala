@@ -3,9 +3,12 @@ package beam.router.r5
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
+import java.util.concurrent.TimeUnit
 
 import akka.actor._
 import akka.pattern._
+import akka.util.Timeout
+import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.{Modes, TrajectoryByEdgeIdsResolver}
@@ -26,13 +29,14 @@ import com.conveyal.r5.profile.ProfileRequest
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
+  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
@@ -162,23 +166,24 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
 
-              val segmentLegs = (segmentPattern.fromIndex to segmentPattern.toIndex).sliding(2).map { case Seq(fromIndex, toIndex) =>
+              val segmentLegs = (segmentPattern.fromIndex to segmentPattern.toIndex).sliding(2).flatMap { case Seq(fromIndex, toIndex) =>
 //                val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(fromIndex)))
 //                val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(toIndex)))
 //                val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
 //                val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
 //                val fromEdgeId = fromEdge.getEdgeIndex.toString
 //                val toEdgeId = toEdge.getEdgeIndex.toString
-                val strings = beamPathBuilder.resolveFirstLastTransitEdges(tripPattern.stops(fromIndex), tripPattern.stops(toIndex))
-                val fromEdgeId = strings(0)
-                val toEdgeId = strings(1)
-
-                val departureTime = trip.departures(fromIndex)
-                val arrivalTime = trip.arrivals(toIndex)
-                BeamLeg(departureTime, mapTransitMode(transitSegment.mode), arrivalTime - departureTime,
-                  BeamPath(Vector(fromEdgeId, toEdgeId),
-                    Option(TransitStopsInfo(tripPattern.stops(fromIndex), Id.createVehicleId(tripId), tripPattern.stops(toIndex))),
-                    TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, arrivalTime - departureTime)))
+//                val strings = beamPathBuilder.resolveFirstLastTransitEdges(tripPattern.stops(fromIndex), tripPattern.stops(toIndex))
+//                val fromEdgeId = strings(0)
+//                val toEdgeId = strings(1)
+//                val departureTime = trip.departures(fromIndex)
+//                val arrivalTime = trip.arrivals(toIndex)
+//                val leg = BeamLeg(departureTime, mapTransitMode(transitSegment.mode), arrivalTime - departureTime,
+//                  BeamPath(Vector(fromEdgeId, toEdgeId),
+//                    Option(TransitStopsInfo(tripPattern.stops(fromIndex), Id.createVehicleId(tripId), tripPattern.stops(toIndex))),
+//                    TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, arrivalTime - departureTime)))
+                Await.result(TransitDriverAgent.lookupActorFromVehicleId(context, Id.createVehicleId(tripId)) ? (fromIndex, toIndex), timeout.duration)
+                    .asInstanceOf[Seq[BeamLeg]]
               }
 
               legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))

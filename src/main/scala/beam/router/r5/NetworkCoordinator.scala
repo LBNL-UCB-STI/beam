@@ -159,7 +159,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
  *
  */
   def initTransit(): Unit = {
-    val transitCache = mutable.Map[(Int, Int), BeamPath]()
     val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
@@ -185,13 +184,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             val toStopId = tripPattern.stops(to)
             val stopsInfo = TransitStopsInfo(fromStopId, tripVehId, toStopId)
             val transitPath = if (isOnStreetTransit(mode)) {
-              transitCache.get((fromStopIdx,toStopIdx)).fold{
-                val bp = beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
-                transitCache += ((fromStopIdx,toStopIdx)->bp)
-                bp}
-              {x =>
-                beamPathBuilder.createFromExistingWithUpdatedTimes(x,departureTimeFrom,duration)
-              }
+              beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
               BeamPath(edgeIds, Option(stopsInfo), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTimeFrom.toLong, duration))

@@ -4,14 +4,12 @@ import akka.actor.{ActorContext, Props}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Finished, Uninitialized}
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
+import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.events.resources.vehicle.ModifyPassengerScheduleAck
 import beam.agentsim.scheduler.TriggerWithId
-import beam.router.RoutingModel.EmbodiedBeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -58,6 +56,9 @@ class TransitDriverAgent(val beamServices: BeamServices,
       stay
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
       goto(Finished) replying completed(triggerId)
+    case Event((from: Int, to: Int), _) =>
+      val legs = passengerSchedule.schedule.slice(from, to).keys.toSeq
+      stay replying legs
   }
 
   when(Waiting) {
