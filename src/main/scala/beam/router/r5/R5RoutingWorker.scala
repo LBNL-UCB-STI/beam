@@ -158,32 +158,23 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
               val tripPattern = transportNetwork.transitLayer.tripPatterns.get(segmentPattern.patternIdx)
               val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
-
+              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
               val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
 
-              // when this is the last SegmentPattern, we should use the toArrivalTime instead of the toDepartureTime
-              val duration = (if (option.transit.indexOf(transitSegment) < option.transit.size() - 1)
-                segmentPattern.toDepartureTime
-              else
-                segmentPattern.toArrivalTime).get(transitJourneyID.time).toEpochSecond -
-                segmentPattern.fromDepartureTime.get(transitJourneyID.time).toEpochSecond
-
-              val allStopInds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
-              val stopsInTrip = tripPattern.stops.toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId) + 1)
-
               var segmentLegs: Vector[BeamLeg] = Vector()
-              if (stopsInTrip.size == 1) {
-                log.debug("Access and egress point the same on trip. No transit needed.")
-              } else {
-                var workingDepature = beamServices.dates.toBaseMidnightSeconds(segmentPattern.fromDepartureTime.get(transitJourneyID.time), isTransit)
-                stopsInTrip.sliding(2).foreach { stopPair =>
-                  val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(stopPair(0)))
-                  val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(stopPair(1)))
-                  val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
-                  val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
-                  segmentLegs = segmentLegs :+ BeamLeg(workingDepature, mapTransitMode(transitSegment.mode), duration, BeamPath(Vector(fromEdge.getEdgeIndex.toString, toEdge.getEdgeIndex.toString), Option(TransitStopsInfo(stopsInTrip.head, Id.createVehicleId(tripId), stopsInTrip.last)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, workingDepature, duration)))
-                }
+              (segmentPattern.fromIndex to segmentPattern.toIndex).sliding(2).foreach { case Seq(fromIndex, toIndex) =>
+                val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(fromIndex)))
+                val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(toIndex)))
+                val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
+                val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
+                val departureTime = trip.departures(fromIndex)
+                val arrivalTime = trip.arrivals(toIndex)
+                segmentLegs = segmentLegs :+
+                  BeamLeg(departureTime, mapTransitMode(transitSegment.mode), arrivalTime - departureTime,
+                    BeamPath(Vector(fromEdge.getEdgeIndex.toString, toEdge.getEdgeIndex.toString),
+                      Option(TransitStopsInfo(tripPattern.stops(fromIndex), Id.createVehicleId(tripId), tripPattern.stops(toIndex))),
+                      TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, arrivalTime - departureTime)))
               }
 
               legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))
