@@ -29,7 +29,6 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-@Ignore
 class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
@@ -58,8 +57,8 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     router = system.actorOf(BeamRouter.props(services, fareCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
-      router ! InitializeRouter
-      expectMsg(RouterInitialized)
+      router ! Identify(0)
+      expectMsgType[ActorIdentity]
     }
   }
 
