@@ -272,7 +272,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
         val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, vehicleIdAndRef, passengerSchedule)
         val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         beamServices.agentRefs += (transitDriverId.toString -> transitDriver)
-        beamServices.transitDriversByVehicle += (transitVehId -> transitDriverId)
         beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
 
       case _ =>

@@ -122,9 +122,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         groupedLegs.foreach { legSegment =>
           val legs = legSegment.sortBy(_.leg.beamLeg.startTime)
           val vehId = legSegment.head.leg.beamVehicleId
-          val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(vehId).toString)
           val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg.beamLeg, VehiclePersonId(legs.head.passengerVehicle, id)), vehId)
-          driverRef ! resRequest
+          TransitDriverAgent.lookupActorFromVehicleId(context, vehId) ! resRequest
           awaitingReservationConfirmation = awaitingReservationConfirmation + (resRequest.request.requestId -> None)
         }
       }

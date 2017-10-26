@@ -26,7 +26,7 @@ import akka.pattern._
 class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var networkCoordinator = context.actorOf(NetworkCoordinator.props(services))
+  private var networkCoordinator = context.actorOf(NetworkCoordinator.props(services), "network-coordinator")
 
   // FIXME Wait for networkCoordinator because it initializes global variables.
   Await.ready(networkCoordinator ? Identify(0), timeout.duration)

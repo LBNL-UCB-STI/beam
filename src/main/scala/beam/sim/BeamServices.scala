@@ -51,7 +51,6 @@ trait BeamServices extends ActorInject {
   val householdRefs: TrieMap[Id[Household], ActorRef]
   val agentRefs: TrieMap[String, ActorRef]
   val transitVehiclesByBeamLeg: TrieMap[BeamLeg, Id[Vehicle]]
-  val transitDriversByVehicle: TrieMap[Id[Vehicle], Id[TransitDriverAgent]]
   //TODO refactor this into named case clases
   val transitLegsByStopAndDeparture: TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
   //val transitCache = TrieMap[(Int, Int), BeamPath]()

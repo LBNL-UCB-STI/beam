@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.Props
+import akka.actor.{ActorContext, Props}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Finished, Uninitialized}
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
@@ -27,6 +27,10 @@ object TransitDriverAgent {
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]) = {
     Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
+  }
+
+  def lookupActorFromVehicleId(context: ActorContext, transitVehicle: Id[Vehicle]) = {
+    context.actorSelection("/user/router/network-coordinator/" + createAgentIdFromVehicleId(transitVehicle))
   }
 }
 
