@@ -126,7 +126,7 @@ class Integration extends WordSpecLike with Matchers with RunBeam with BeforeAnd
     return  listResult
   }
 
-  lazy val exc = Try(rumBeamWithConfigFile(Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")))
+  lazy val exc = Try(rumBeamWithConfigFile(Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")))
   lazy val eventXmlFile: File = new File(ConfigModule.beamConfig.beam.outputs.outputDirectory).toPath.resolve("ITERS/it.0/0.events.xml").toFile
 
   lazy val route_input = ConfigModule.beamConfig.beam.sharedInputs
