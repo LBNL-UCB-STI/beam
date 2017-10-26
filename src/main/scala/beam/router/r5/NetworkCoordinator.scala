@@ -162,7 +162,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     val transitCache = mutable.Map[(Int, Int), BeamPath]()
     val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
-      //      log.debug(tripPattern.toString)
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitRouteTrips = tripPattern.tripSchedules.asScala
@@ -185,9 +184,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             val fromStopId = tripPattern.stops(from)
             val toStopId = tripPattern.stops(to)
             val stopsInfo = TransitStopsInfo(fromStopId, tripVehId, toStopId)
-            if(tripVehId.toString.equals("SM:43|10748241:T1|15:00") && departureTimeFrom.toLong == 1500L){
-              val i =0
-            }
             val transitPath = if (isOnStreetTransit(mode)) {
               transitCache.get((fromStopIdx,toStopIdx)).fold{
                 val bp = beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)

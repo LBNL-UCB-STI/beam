@@ -163,14 +163,20 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               val fare = if (fs.nonEmpty) fs.min else 0.0
 
               val segmentLegs = (segmentPattern.fromIndex to segmentPattern.toIndex).sliding(2).map { case Seq(fromIndex, toIndex) =>
-                val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(fromIndex)))
-                val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(toIndex)))
-                val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
-                val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
+//                val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(fromIndex)))
+//                val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(toIndex)))
+//                val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
+//                val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
+//                val fromEdgeId = fromEdge.getEdgeIndex.toString
+//                val toEdgeId = toEdge.getEdgeIndex.toString
+                val strings = beamPathBuilder.resolveFirstLastTransitEdges(tripPattern.stops(fromIndex), tripPattern.stops(toIndex))
+                val fromEdgeId = strings(0)
+                val toEdgeId = strings(1)
+
                 val departureTime = trip.departures(fromIndex)
                 val arrivalTime = trip.arrivals(toIndex)
                 BeamLeg(departureTime, mapTransitMode(transitSegment.mode), arrivalTime - departureTime,
-                  BeamPath(Vector(fromEdge.getEdgeIndex.toString, toEdge.getEdgeIndex.toString),
+                  BeamPath(Vector(fromEdgeId, toEdgeId),
                     Option(TransitStopsInfo(tripPattern.stops(fromIndex), Id.createVehicleId(tripId), tripPattern.stops(toIndex))),
                     TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, arrivalTime - departureTime)))
               }
