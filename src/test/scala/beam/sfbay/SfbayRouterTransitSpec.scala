@@ -20,7 +20,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.scenario.ScenarioUtils
-import org.mockito.Mockito._
+import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -75,6 +75,7 @@ class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with Wo
       assert(response.itineraries.exists(_.tripClassifier == TRANSIT))
       val transitOption = response.itineraries.find(_.tripClassifier == TRANSIT).get
       assertMakesSense(transitOption)
+      assert(transitOption.legs.head.beamLeg.startTime == 27254)
     }
 
     "respond with a route to yet another reasonable RoutingRequest" in {
@@ -87,6 +88,7 @@ class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with Wo
       assert(response.itineraries.exists(_.tripClassifier == TRANSIT))
       val transitOption = response.itineraries.find(_.tripClassifier == TRANSIT).get
       assertMakesSense(transitOption)
+      assert(transitOption.legs.head.beamLeg.startTime == 21131)
     }
   }
 
