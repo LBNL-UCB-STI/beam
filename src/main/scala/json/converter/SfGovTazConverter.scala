@@ -1,24 +1,33 @@
 package json.converter
 
-
 import java.io.PrintWriter
 
 import play.api.libs.json._
 
 import scala.util.Try
 
-//Input structure
-case class Properties(id: Long, taz: String)
-case class Coordinates(lat: Double, lon: Double)
-case class Geometry(`type`: String, coordinates: Seq[Coordinates])
-case class Features(properties: Properties, geometry: Geometry)
+object TazOutput {
 
-//Output structure
-case class TazGeometry(`type`: String, coordinates: Array[Array[Array[Array[Double]]]])
-case class TazViz(gid: Long, taz: Long, nhood: String, sq_mile: Double, geometry: String)
+  //Output structure
+  case class TazGeometry(`type`: String, coordinates: Array[Array[Array[Array[Double]]]])
 
-object TazConverter extends App{
+  case class TazViz(gid: Long, taz: Long, nhood: String, sq_mile: Double, geometry: String)
 
+  implicit val tazGeometryWrites = Json.format[TazGeometry]
+  implicit val tazVizWrites = Json.format[TazViz]
+}
+
+//Converter from https://data.sfgov.org/Geographic-Locations-and-Boundaries/Traffic-Analysis-Zones/j4sj-j2nf/data#revert
+// to expected format for https://github.com/sfcta/tncstoday
+object SfGovTazConverter extends App{
+
+import TazOutput._
+
+  //Input structure
+  case class Properties(area: String, name: String, taz: String)
+  case class Coordinates(lat: Double, lon: Double)
+  case class Geometry(`type`: String, coordinates: Seq[Coordinates])
+  case class Features(properties: Properties, geometry: Geometry)
 
   //Reads
   implicit val propertiesReads = Json.reads[Properties]
@@ -30,9 +39,7 @@ object TazConverter extends App{
           val properties = (featureJson \ "properties").validate[Properties].get
           val geometryJson = (featureJson \ "geometry")
           val _type = (geometryJson \ "type").as[String]
-          val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray].apply(0).as[JsArray]
-
-          println(s"-----------Size ${coordinatesArray.value.size}")
+          val coordinatesArray = (geometryJson \ "coordinates").as[JsArray].apply(0).as[JsArray]
 
           val coordinates = coordinatesArray.value.map{coordinatesItem =>
             val coordinatesJson = coordinatesItem.as[JsArray]
@@ -53,9 +60,6 @@ object TazConverter extends App{
       }
     }
   }
-
-  implicit val tazGeometryWrites = Json.writes[TazGeometry]
-  implicit val tazVizWrites = Json.writes[TazViz]
 
   println(s"Taz Converter")
 
@@ -80,11 +84,21 @@ object TazConverter extends App{
     val res = Json.parse(s)
     val featuresRes = res.validate[Seq[Features]].get
 
+    var i = 1
     val tazVizArray = featuresRes.map { f =>
-      val gid = f.properties.id
-      val taz: Long = Try(f.properties.taz.toLong).getOrElse(0l)
+      val gid: Long = i
+      val taz: Long = i
+      i = i + 1
+
+//        try{
+//        f.properties.taz.toLong
+//      } catch {
+//        case e: Exception =>
+//          println(s"--------Wrong taz ${f.properties.taz}")
+//          0l
+//      }
       val nhood = "East Bay"
-      val sq_mile = 1
+      val sq_mile = Try(f.properties.area.toDouble).getOrElse(1d)
       val coordinates = Array(Array(f.geometry.coordinates.map { coordinates =>
         Array(coordinates.lat, coordinates.lon)
       }.toArray))
@@ -93,11 +107,7 @@ object TazConverter extends App{
       TazViz(gid, taz, nhood, sq_mile, geoJsonString)
     }
 
-    println(s"Res:")
-    println(s"${featuresRes}")
-
-    val tazVizJson = Json.toJson(tazVizArray.filter(_.taz > 0l))
-    println(s"Converted: ${tazVizJson.toString()}")
+    val tazVizJson = Json.toJson(tazVizArray.filter(i => i.taz > 0l))
 
     new PrintWriter("d:\\output.json") { write(tazVizJson.toString()); close }
 
