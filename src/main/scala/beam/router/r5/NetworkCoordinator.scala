@@ -188,7 +188,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             if(tripVehId.toString.equals("SM:43|10748241:T1|15:00") && departureTimeFrom.toLong == 1500L){
               val i =0
             }
-            val transitPath = if (false) {
+            val transitPath = if (isOnStreetTransit(mode)) {
               transitCache.get((fromStopIdx,toStopIdx)).fold{
                 val bp = beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
                 transitCache += ((fromStopIdx,toStopIdx)->bp)
@@ -202,10 +202,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             }
             val theLeg = BeamLeg(departureTimeFrom.toLong, mode, duration, transitPath)
             passengerSchedule.addLegs(Seq(theLeg))
-
-            previousBeamLeg.foreach { prevLeg =>
-              beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(prevLeg, Some(theLeg)))
-            }
             previousBeamLeg = Some(theLeg)
             val previousTransitStops: TransitStopsInfo = previousBeamLeg.get.travelPath.transitStops match {
               case Some(stops) =>
@@ -215,7 +211,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             }
             stopStopDepartTuple = (previousTransitStops.fromStopId, previousTransitStops.toStopId, previousBeamLeg.get.startTime)
           }
-          beamServices.transitLegsByStopAndDeparture += (stopStopDepartTuple -> BeamLegWithNext(previousBeamLeg.get, None))
         } else {
           log.warning(s"Transit trip  ${transitTrip.tripId} has only one stop ")
           val departureStart = transitTrip.departures(0)

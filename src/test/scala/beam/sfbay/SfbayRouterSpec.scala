@@ -51,7 +51,6 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     when(services.matsimServices).thenReturn(matsimServices)
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
-    when(services.transitLegsByStopAndDeparture).thenReturn(tupleToNext)
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     router = system.actorOf(BeamRouter.props(services, fareCalculator))
