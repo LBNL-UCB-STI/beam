@@ -6,7 +6,7 @@ import java.util.{LinkedHashMap, Random}
 
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.choice.logit.MulitnomialLogit
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTime
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
@@ -14,6 +14,8 @@ import beam.sim.BeamServices
 import org.jdom.Document
 import org.jdom.Element
 import org.jdom.input.SAXBuilder
+import org.matsim.api.core.v01.Id
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 
@@ -46,7 +48,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
           val i = 0
         }
 
-        val modeCostTimes = alternatives.zipWithIndex.map { altAndIdx =>
+        val modeCostTimeTransfers = alternatives.zipWithIndex.map { altAndIdx =>
           val totalCost = altAndIdx._1.tripClassifier match {
             case TRANSIT =>
               (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2))*beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2)
@@ -57,9 +59,24 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
             case _ =>
               altAndIdx._1.costEstimate
           }
-          ModeCostTime(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTime, altAndIdx._2)
+          val numTransfers = altAndIdx._1.tripClassifier match {
+            case TRANSIT =>
+              var nVeh = -1
+              var vehId = Id.create("dummy",classOf[Vehicle])
+              altAndIdx._1.legs.foreach{ leg =>
+                if(leg.beamLeg.mode.isTransit() && leg.beamVehicleId != vehId){
+                  vehId = leg.beamVehicleId
+                  nVeh = nVeh + 1
+                }
+              }
+              nVeh
+            case _ =>
+              0
+          }
+          assert(numTransfers>=0)
+          ModeCostTimeTransfer(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTime, numTransfers, altAndIdx._2)
         }
-        val groupedByMode = (modeCostTimes ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
+        val groupedByMode = (modeCostTimeTransfers ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
 
         val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
           // Which dominates at $18/hr
@@ -70,6 +87,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
           val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
           altData.put("cost", mct.cost.toDouble)
           altData.put("time", mct.time)
+          if(mct.mode == TRANSIT){
+            altData.put("transfer",mct.numTransfers.toDouble)
+          }
           inputData.put(mct.mode.value, altData)
         }
 
@@ -109,14 +129,14 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
 }
 
 object ModeChoiceMultinomialLogit {
-  case class ModeCostTime(mode: BeamMode, cost: BigDecimal, time: Double, index: Int = -1)
+  case class ModeCostTimeTransfer(mode: BeamMode, cost: BigDecimal, time: Double, numTransfers: Int, index: Int = -1)
 
   val defaultAlternatives = Vector(
-    ModeCostTime(BeamMode.WALK,BigDecimal(Double.MaxValue),Double.PositiveInfinity),
-    ModeCostTime(BeamMode.CAR,BigDecimal(Double.MaxValue),Double.PositiveInfinity),
-    ModeCostTime(BeamMode.RIDEHAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity),
-    ModeCostTime(BeamMode.BIKE,BigDecimal(Double.MaxValue),Double.PositiveInfinity),
-    ModeCostTime(BeamMode.TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity)
+    ModeCostTimeTransfer(BeamMode.WALK,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.CAR,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.RIDEHAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.BIKE,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue)
   )
 
   def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
