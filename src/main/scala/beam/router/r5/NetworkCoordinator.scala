@@ -18,7 +18,7 @@ import beam.router.{Modes, StreetSegmentTrajectoryResolver, TrajectoryByEdgeIdsR
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
 import beam.utils.reflection.ReflectionUtils
-import com.conveyal.r5.api.util.StreetEdgeInfo
+import com.conveyal.r5.api.util.{StreetEdgeInfo, StreetSegment}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{StreetLayer, TarjanIslandPruner}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
@@ -26,7 +26,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.utils.objectattributes.attributable.Attributes
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -34,7 +34,7 @@ import scala.collection.mutable
 /**
   * Created by salma_000 on 8/25/2017.
   */
-class NetworkCoordinator(val beamServices: BeamServices) extends Actor with ActorLogging {
+class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamServices) extends Actor with ActorLogging {
 
   loadNetwork
 
@@ -48,10 +48,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       replaceNetwork
 
     case msg => log.info(s"Unknown message[$msg] received by NetworkCoordinator Actor.")
-  }
-
-  def init: Unit = {
-    loadNetwork
   }
 
   def loadNetwork = {
@@ -160,26 +156,27 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
  *
  */
   def initTransit(): Unit = {
+    val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetSegment]]()
     val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toArray
     val transitData = transitTrips.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths = tripPattern.stops.sliding(2).map { case Array(fromStopIdx, toStopIdx) =>
-        (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => if (isOnStreetTransit(mode)) {
-          beamPathBuilder.routeTransitPathThroughStreets(fromStopIdx, toStopIdx) match {
+        if (isOnStreetTransit(mode)) {
+          stopToStopStreetSegmentCache.getOrElseUpdate((fromStopIdx, toStopIdx), beamPathBuilder.routeTransitPathThroughStreets(fromStopIdx, toStopIdx)) match {
             case Some(streetSeg) =>
               var activeLinkIds = Vector[String]()
               for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
                 activeLinkIds = activeLinkIds :+ edge.edgeId.toString
               }
-              BeamPath(activeLinkIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), StreetSegmentTrajectoryResolver(streetSeg, departureTime))
+              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(activeLinkIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), StreetSegmentTrajectoryResolver(streetSeg, departureTime))
             case None =>
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-              BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
+              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
           }
         } else {
           val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-          BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
+          (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
         }
       }.toSeq
       val transitRouteTrips = tripPattern.tripSchedules.asScala
@@ -269,11 +266,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     }
   }
 
-  private def transitVehicles = {
-    beamServices.matsimServices.getScenario.getTransitVehicles
-  }
-
-
 }
 
 object NetworkCoordinator {
@@ -293,5 +285,5 @@ object NetworkCoordinator {
     })
   }
 
-  def props(beamServices: BeamServices) = Props(classOf[NetworkCoordinator], beamServices)
+  def props(transitVehicles: Vehicles, beamServices: BeamServices) = Props(classOf[NetworkCoordinator], transitVehicles, beamServices)
 }

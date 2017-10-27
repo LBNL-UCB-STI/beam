@@ -182,8 +182,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 //                  BeamPath(Vector(fromEdgeId, toEdgeId),
 //                    Option(TransitStopsInfo(tripPattern.stops(fromIndex), Id.createVehicleId(tripId), tripPattern.stops(toIndex))),
 //                    TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, arrivalTime - departureTime)))
-                Await.result(TransitDriverAgent.lookupActorFromVehicleId(context, Id.createVehicleId(tripId)) ? (fromIndex, toIndex), timeout.duration)
-                    .asInstanceOf[Seq[BeamLeg]]
+                val legs = Await.result(TransitDriverAgent.lookupActorFromVehicleId(context, Id.createVehicleId(tripId)) ? (fromIndex, toIndex), timeout.duration).asInstanceOf[Seq[BeamLeg]]
+                legs
               }
 
               legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))

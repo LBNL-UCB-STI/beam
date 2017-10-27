@@ -4,7 +4,7 @@ import java.io.File
 import java.time.ZonedDateTime
 
 import akka.actor._
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -18,15 +18,17 @@ import beam.utils.DateUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.vehicles.{Vehicle, VehicleReaderV1}
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+@Ignore
 class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
@@ -37,20 +39,18 @@ class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with Wo
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices]
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("56658-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("66752-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("80672-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("116378-0")))
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    val matsimServices = mock[MatsimServices]
-    when(matsimServices.getScenario).thenReturn(scenario)
-    when(services.matsimServices).thenReturn(matsimServices)
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], Vehicle])
+    when(services.vehicleRefs).thenReturn(new TrieMap[Id[Vehicle], ActorRef])
+    when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
+    when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    router = system.actorOf(BeamRouter.props(services, fareCalculator), "router")
+    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+    new VehicleReaderV1(scenario.getTransitVehicles).readFile("production/application-sfbay/transitVehicles.xml")
+    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator), "router")
 
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)

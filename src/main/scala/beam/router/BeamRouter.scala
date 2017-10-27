@@ -21,12 +21,13 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import scala.beans.BeanProperty
 import scala.concurrent.Await
 import akka.pattern._
+import org.matsim.vehicles.Vehicles
 
 
-class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
+class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var networkCoordinator = context.actorOf(NetworkCoordinator.props(services), "network-coordinator")
+  private var networkCoordinator = context.actorOf(NetworkCoordinator.props(transitVehicles, services), "network-coordinator")
 
   // FIXME Wait for networkCoordinator because it initializes global variables.
   Await.ready(networkCoordinator ? Identify(0), timeout.duration)
@@ -104,5 +105,5 @@ object BeamRouter {
     }
   }
 
-  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(classOf[BeamRouter], beamServices, fareCalculator)
+  def props(beamServices: BeamServices, transitVehicles: Vehicles, fareCalculator: FareCalculator) = Props(classOf[BeamRouter], beamServices, transitVehicles, fareCalculator)
 }

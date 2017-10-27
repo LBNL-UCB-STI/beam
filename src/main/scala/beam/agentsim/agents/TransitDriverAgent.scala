@@ -57,7 +57,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
       goto(Finished) replying completed(triggerId)
     case Event((from: Int, to: Int), _) =>
-      val legs = passengerSchedule.schedule.slice(from, to).keys.toSeq
+      val legs = initialPassengerSchedule.schedule.slice(from, to).keys.toSeq
       stay replying legs
   }
 
