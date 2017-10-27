@@ -169,9 +169,9 @@ for(outs.exp in outs.exps){
 # Exploratory Plots 
 ###########################
 # From / to arrows
-ggplot(ev[type=='PathTraversal'],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_type))+geom_curve(arrow= arrow(length = unit(0.03, "npc")),curvature=0.1)
+#ggplot(ev[type=='PathTraversal'],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_type))+geom_curve(arrow= arrow(length = unit(0.03, "npc")),curvature=0.1)
 # BART tracks
-ggplot(ev[J('PathTraversal')][vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
+#ggplot(ev[J('PathTraversal')][vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
 
 # Beam leg by time and mode
 ggplot(ev[J('PathTraversal')],aes(x=time/3600))+geom_histogram()+facet_wrap(name~vehicle_type)+labs(x="Hour",y="# Vehicle Movements")
@@ -187,7 +187,7 @@ ev[,.(fuel=sum(fuel,na.rm=T)),by='vehicle_type']
 ###########################
 # Energy Consumption
 ###########################
- <- c('Alameda','Contra Costa','Marin','Napa','San Francisco','San Mateo','Santa Clara','Sonoma','Solano')
+the.counties <- c('Alameda','Contra Costa','Marin','Napa','San Francisco','San Mateo','Santa Clara','Sonoma','Solano')
 counties <- readShapePoly('~/Dropbox/ucb/vto/beam-core/spatial-data/ca-counties/ca-counties.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
 sf.county.inds <- counties$NAME %in% the.counties
 sf.counties <- spTransform(counties[sf.county.inds,],CRS("+proj=longlat +datum=WGS84"))
@@ -323,4 +323,4 @@ dist.from.latlon <- function(lat1,lon1,lat2,lon2){
 }
 
 ev[vehicle_type%in%c('BART','Ferry','Muni','Rail') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
-ev[,.(x=as.numeric(sum(num_passengers*length/1609))),by='vehicle_type']
+ev[,.(pmt=as.numeric(sum(num_passengers*length/1609))),by='vehicle_type']
