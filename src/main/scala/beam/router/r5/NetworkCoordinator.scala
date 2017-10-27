@@ -14,10 +14,11 @@ import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
 import beam.router.RoutingModel.{BeamLeg, BeamLegWithNext, BeamPath, TransitStopsInfo}
 import beam.router.r5.NetworkCoordinator.{copiedNetwork, _}
-import beam.router.{Modes, TrajectoryByEdgeIdsResolver}
+import beam.router.{Modes, StreetSegmentTrajectoryResolver, TrajectoryByEdgeIdsResolver}
 import beam.sim.BeamServices
 import beam.utils.Objects.deepCopy
 import beam.utils.reflection.ReflectionUtils
+import com.conveyal.r5.api.util.StreetEdgeInfo
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{StreetLayer, TarjanIslandPruner}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
@@ -163,6 +164,24 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     val transitData = transitTrips.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      val transitPaths = tripPattern.stops.sliding(2).map { case Array(fromStopIdx, toStopIdx) =>
+        (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => if (isOnStreetTransit(mode)) {
+          beamPathBuilder.routeTransitPathThroughStreets(fromStopIdx, toStopIdx) match {
+            case Some(streetSeg) =>
+              var activeLinkIds = Vector[String]()
+              for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
+                activeLinkIds = activeLinkIds :+ edge.edgeId.toString
+              }
+              BeamPath(activeLinkIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), StreetSegmentTrajectoryResolver(streetSeg, departureTime))
+            case None =>
+              val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
+              BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
+          }
+        } else {
+          val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
+          BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
+        }
+      }.toSeq
       val transitRouteTrips = tripPattern.tripSchedules.asScala
       transitRouteTrips.filter(_.getNStops > 0).map { transitTrip =>
         // First create a unique for this trip which will become the transit agent and vehicle ids
@@ -178,18 +197,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             val duration = transitTrip.arrivals(to) - departureTimeFrom
             //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
             //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
-            val fromStopIdx = tripPattern.stops(from)
-            val toStopIdx = tripPattern.stops(to)
-            val fromStopId = tripPattern.stops(from)
-            val toStopId = tripPattern.stops(to)
-            val stopsInfo = TransitStopsInfo(fromStopId, tripVehId, toStopId)
-            val transitPath = if (isOnStreetTransit(mode)) {
-              beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
-            } else {
-              val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-              BeamPath(edgeIds, Option(stopsInfo), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTimeFrom.toLong, duration))
-            }
-            val theLeg = BeamLeg(departureTimeFrom.toLong, mode, duration, transitPath)
+            val theLeg = BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
             passengerSchedule.addLegs(Seq(theLeg))
             previousBeamLeg = Some(theLeg)
             val previousTransitStops: TransitStopsInfo = previousBeamLeg.get.travelPath.transitStops match {
@@ -210,7 +218,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
           val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx)
           val stopsInfo = TransitStopsInfo(fromStopIdx, tripVehId, fromStopIdx)
           val transitPath = BeamPath(edgeIds, Option(stopsInfo),
-            new TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration))
+            TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration))
           val theLeg = BeamLeg(departureStart.toLong, mode, duration, transitPath)
           passengerSchedule.addLegs(Seq(theLeg))
         }

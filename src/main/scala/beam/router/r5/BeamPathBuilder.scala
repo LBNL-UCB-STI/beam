@@ -61,7 +61,7 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
     * @param transitStopsInfo stop details
     * @return
     */
-  def routeTransitPathThroughStreets(departure: Long, fromStopIdx: Int, toStopIdx: Int, transitStopsInfo: TransitStopsInfo, duration: Int): BeamPath = {
+  def routeTransitPathThroughStreets(fromStopIdx: Int, toStopIdx: Int) = {
 
     val pointToPointQuery = new PointToPointQuery(transportNetwork)
     val profileRequest = new ProfileRequest()
@@ -84,7 +84,7 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
     //    profileRequest.maxCarTime = 6*3600
     //    profileRequest.wheelchair = false
     //    profileRequest.bikeTrafficStress = 4
-    val time = WindowTime(departure.toInt, beamServices.beamConfig.beam.routing.r5.departureWindow)
+    val time = WindowTime(0, beamServices.beamConfig.beam.routing.r5.departureWindow)
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
     profileRequest.date = beamServices.dates.localBaseDate
@@ -103,14 +103,16 @@ class BeamPathBuilder(transportNetwork: TransportNetwork, beamServices: BeamServ
         for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
           activeLinkIds = activeLinkIds :+ edge.edgeId.toString
         }
-        BeamPath(activeLinkIds, Option(transitStopsInfo), StreetSegmentTrajectoryResolver(streetSeg, tripStartTime))
+//        BeamPath(activeLinkIds, Option(transitStopsInfo), StreetSegmentTrajectoryResolver(streetSeg, tripStartTime))
+        Some(streetSeg)
       case None =>
         val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
         val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
-        BeamPath(linkIds = Vector(fromEdge.getEdgeIndex.toString,toEdge.getEdgeIndex.toString),
-                  transitStops = Option(TransitStopsInfo(fromStopIdx, transitStopsInfo.vehicleId, toStopIdx)),
-                   resolver = TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer,departure.toLong, duration)
-        )
+//        BeamPath(linkIds = Vector(fromEdge.getEdgeIndex.toString,toEdge.getEdgeIndex.toString),
+//                  transitStops = Option(TransitStopsInfo(fromStopIdx, transitStopsInfo.vehicleId, toStopIdx)),
+//                   resolver = TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer,0, 0)
+//        )
+        None
     }
     legsBetweenStops
   }
