@@ -157,7 +157,7 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
  */
   def initTransit(): Unit = {
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetSegment]]()
-    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toArray
+    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
     val transitData = transitTrips.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
@@ -223,7 +223,7 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
         (tripVehId, route, passengerSchedule)
       }
     }
-    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg().startTime)
+    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty)
     transitScheduleToCreate.foreach { case (tripVehId, route, passengerSchedule) =>
       createTransitVehicle(tripVehId, route, passengerSchedule)
     }
