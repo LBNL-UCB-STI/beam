@@ -14,6 +14,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
+import org.matsim.core.router.util.TravelTime
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
 import scala.beans.BeanProperty
@@ -23,6 +24,8 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
   var router: Router = _
   var networkCoordinator: ActorRef = _
   private var routerWorkers: Vector[Routee] = _
+
+  private var travelTime: TravelTime = _
 
   override def preStart(): Unit = {
     routerWorkers = (0 until services.beamConfig.beam.routing.workerNumber).map { workerId =>
@@ -43,7 +46,7 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
     case RoutingRequest =>
       sender() ! RouterNeedInitialization
     case Terminated(r) =>
-      handelTermination(r)
+      handleTermination(r)
     case msg =>
       log.info(s"Unknown message[$msg] received by Router.")
   }
@@ -61,7 +64,7 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
       unstashAll()
       context.become(initialized)
     case Terminated(r) =>
-      handelTermination(r)
+      handleTermination(r)
     case msg =>
       log.info(s"Unknown message[$msg] received by Router.")
   }
@@ -76,16 +79,15 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
       log.debug("Router already initialized.")
       sender() ! RouterInitialized
     case Terminated(r) =>
-      handelTermination(r)
-    case updateRequest: UpdateTravelTime =>
-      log.info("Received TravelTimeCalculator")
-      networkCoordinator ! updateRequest
+      handleTermination(r)
+    case UpdateTravelTime(travelTimeCalculator) =>
+      travelTime = travelTimeCalculator.getLinkTravelTimes
     case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
     }
   }
 
-  private def handelTermination(r: ActorRef): Unit = {
+  private def handleTermination(r: ActorRef): Unit = {
     if (r.path.name.startsWith("router-worker-")) {
       val workerId = r.path.name.substring("router-worker-".length).toInt
       router = router.removeRoutee(r)
