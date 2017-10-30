@@ -17,8 +17,8 @@ exp <- data.table(read.csv(exp.file))
 exp[,key:=pp(experiment,'_',factor)]
 
 outs.dir.base <- '/Users/critter/Documents/beam/beam-output/experiments/'
-#outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price','vot_vot')
-outs.exps <- c('base')
+outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price','vot_vot')
+outs.exps <- c('base','ridehail_num','ridehail_price','transit_capacity','transit_price','vot_vot')
 
 outs.exp <- outs.exps[1]
 for(outs.exp in outs.exps){
@@ -27,7 +27,7 @@ for(outs.exp in outs.exps){
     evs <- list()
     out.dir <-  list.dirs(outs.dir,recursive=F)[1]
     for(out.dir in list.dirs(outs.dir,recursive=F)){
-      file.path <- pp(out.dir,'/ITERS/it.0/0.events.csv.gz')
+      file.path <- pp(out.dir,'/ITERS/it.0/0.events.')
       path <- str_split(file.path,"/")[[1]]
       if(length(path)>1){
         the.file <- tail(path,1)
@@ -36,13 +36,15 @@ for(outs.exp in outs.exps){
         the.file <- path
         the.dir <- './'
       }
-      the.file.rdata <- pp(head(str_split(the.file,'csv')[[1]],-1),'Rdata')
+      the.file.rdata <- pp(the.file,'Rdata')
+      the.file.csv <- pp(the.file,'csv')
+      the.file.csv.gz <- pp(the.file,'csv.gz')
       if(file.exists(the.file.rdata)){
         load(the.file.rdata)
       }else{
-        if(!file.exists(file.path) & file.exists(pp(file.path,'.gz'))){
+        if(!file.exists(the.file.csv) & file.exists(the.file.csv.gz)){
           ev <- data.table(read.csv(gzfile(pp(file.path,'.gz'))))
-        }else if(file.exists(pp(the.dir,the.file))){
+        }else if(file.exists(the.file.csv)){
           ev <- data.table(read.csv(file.path))
         }
         save(ev,file=pp(the.dir,the.file.rdata))
@@ -169,9 +171,9 @@ for(outs.exp in outs.exps){
 # Exploratory Plots 
 ###########################
 # From / to arrows
-ggplot(ev[type=='PathTraversal'],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_type))+geom_curve(arrow= arrow(length = unit(0.03, "npc")),curvature=0.1)
+#ggplot(ev[type=='PathTraversal'],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_type))+geom_curve(arrow= arrow(length = unit(0.03, "npc")),curvature=0.1)
 # BART tracks
-ggplot(ev[J('PathTraversal')][vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
+#ggplot(ev[J('PathTraversal')][vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
 
 # Beam leg by time and mode
 ggplot(ev[J('PathTraversal')],aes(x=time/3600))+geom_histogram()+facet_wrap(name~vehicle_type)+labs(x="Hour",y="# Vehicle Movements")
@@ -187,7 +189,7 @@ ev[,.(fuel=sum(fuel,na.rm=T)),by='vehicle_type']
 ###########################
 # Energy Consumption
 ###########################
- <- c('Alameda','Contra Costa','Marin','Napa','San Francisco','San Mateo','Santa Clara','Sonoma','Solano')
+the.counties <- c('Alameda','Contra Costa','Marin','Napa','San Francisco','San Mateo','Santa Clara','Sonoma','Solano')
 counties <- readShapePoly('~/Dropbox/ucb/vto/beam-core/spatial-data/ca-counties/ca-counties.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
 sf.county.inds <- counties$NAME %in% the.counties
 sf.counties <- spTransform(counties[sf.county.inds,],CRS("+proj=longlat +datum=WGS84"))
@@ -196,7 +198,7 @@ sf.county.pts[,id:=as.numeric(id)]
 sf.county.pts <- join.on(sf.county.pts,data.table(sf.counties@data),'id','OBJECTID')
 
 do.or.load('/Users/critter/Documents/beam/beam-output/experiments/energy/pathTraversalSpatialTemporalAnalysisTable.Rdata',function(){
-  en <- data.table(read.table('/Users/critter/Documents/beam/beam-output/experiments/energy/pathTraversalSpatialTemporalAnalysisTable_base_2017-09-27_05-05-07_withTransitIntermediateLinks_hourly_2.txt',header=T))
+  en <- data.table(read.table('/Users/critter/Documents/beam/beam-output/experiments/energy/pathTraversalSpatialTemporalAnalysisTable_base_2017-10-26_10-21-06_hourly.txt',header=T))
   en[,hour:=timeBin]
   en[,energy:=fuelConsumption.MJ.]
   en[,fuelConsumption.MJ.:=NULL]
@@ -250,7 +252,7 @@ passmile <- en[,.(energy=sum(energy)/sum(numTravelers*lengthInMeters/1609),ghg=s
 passmile <- rbindlist(list(passmile,en[J('Bus')][hour==7,.(mode="Bus @ Rush",energy=sum(energy)/sum(numTravelers*lengthInMeters/1609),ghg=sum(ghg.kton)/sum(numTravelers*lengthInMeters/1609)),by=c('fuelType')]),use.names=T)
 passmile.agg <- passmile[,.(energy=sum(energy),ghg=sum(ghg)),by='mode']
 passmile[,mode:=factor(mode,passmile.agg$mode[rev(order(passmile.agg$energy))])]
-p <- ggplot(passmile,aes(x=mode,y=energy,fill=fuelType))+geom_bar(stat='identity')+labs(x='Mode',y='Energy (MJ per Passenger-Mile)',fill='Fuel Type')
+p <- ggplot(passmile,aes(x=mode,y=energy,fill=fuelType))+geom_bar(stat='identity',position='dodge')+labs(x='Mode',y='Energy (MJ per Passenger-Mile)',fill='Fuel Type')
 pdf.scale <- .6
 ggsave(pp(outs.dir.base,'energy/energy-per-passenger-mile.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 passmile[,mode:=factor(mode,passmile.agg$mode[rev(order(passmile.agg$ghg))])]
@@ -323,4 +325,4 @@ dist.from.latlon <- function(lat1,lon1,lat2,lon2){
 }
 
 ev[vehicle_type%in%c('BART','Ferry','Muni','Rail') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
-ev[,.(x=as.numeric(sum(num_passengers*length/1609))),by='vehicle_type']
+ev[,.(pmt=as.numeric(sum(num_passengers*length/1609))),by='vehicle_type']
