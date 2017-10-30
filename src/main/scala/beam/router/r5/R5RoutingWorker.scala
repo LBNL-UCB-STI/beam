@@ -22,8 +22,10 @@ import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.common.JsonUtilities
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
-import com.conveyal.r5.profile.ProfileRequest
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
+import com.conveyal.r5.streets.{EdgeStore, TravelTimeCalculator}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
@@ -33,11 +35,18 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
   var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
+  var maybeTravelTime: Option[TravelTime] = None
+
   override def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
 
     def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode) = {
-      val pointToPointQuery = new PointToPointQuery(transportNetwork)
+      val pointToPointQuery = maybeTravelTime match {
+        case Some(travelTime) => new PointToPointQuery(transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+          travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+        })
+        case None => new PointToPointQuery(transportNetwork)
+      }
       val profileRequest = new ProfileRequest()
       profileRequest.fromLon = from.getX
       profileRequest.fromLat = from.getY

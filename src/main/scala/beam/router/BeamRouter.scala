@@ -81,7 +81,7 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
     case Terminated(r) =>
       handleTermination(r)
     case UpdateTravelTime(travelTimeCalculator) =>
-      travelTime = travelTimeCalculator.getLinkTravelTimes
+      router.route(Broadcast(UpdateTravelTime(travelTimeCalculator)), sender)
     case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
     }
