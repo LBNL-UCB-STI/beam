@@ -168,9 +168,9 @@ trait IntegrationSpecCommon {
           eventsFileOutputFormats =  eventsFileOutputFormats.getOrElse("xml"),
           logging = ConfigModule.beamConfig.beam.outputs.logging.copy(
             beam = ConfigModule.beamConfig.beam.outputs.logging.beam.copy(
-              logLevel = "OFF"
+              logLevel = "ERROR"
             ), dependencies = ConfigModule.beamConfig.beam.outputs.logging.dependencies.copy(
-              logLevel = "OFF"
+              logLevel = "ERROR"
             )
           )
         )
