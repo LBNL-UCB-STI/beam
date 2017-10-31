@@ -64,18 +64,61 @@ public class SpatialTemporalTAZVizDataWriter {
 
     public void addDataPoint(Double x, Double y, Long seconds, Double dataValue){
         Long tazId = getTaz(x, y);
-        Integer hourOfDay = getHourDayFromSeconds(seconds);
+        if (tazId==null)
+            return;
+        int hourOfDay = getHourDayFromSeconds(seconds);
         addToMap(tazId, hourOfDay, dataValue);
     }
 
     //TODO
     private Long getTaz(Double x, Double y){
+        TazOutput.Coordinates point = new TazOutput.Coordinates(x,y);
+        for (TazOutput.TazStructure tazObject: jsonStructure){
+            TazOutput.Coordinates[] coordinatesTaz = tazObject.geometry().coordinates();
+            if (coordinateInRegion(point, coordinatesTaz)){
+                return  tazObject.taz();
+            }
+        }
         return null;
     }
 
-    //TODO
-    private Integer getHourDayFromSeconds(Long seconds){
-        return 0;
+
+
+
+
+    boolean coordinateInRegion(TazOutput.Coordinates coord, TazOutput.Coordinates[] region) {
+        int i, j;
+        boolean isInside = false;
+        //create an array of coordinates from the region boundary list
+        TazOutput.Coordinates[] verts = region;
+        int sides = verts.length;
+        for (i = 0, j = sides - 1; i < sides; j = i++) {
+            //verifying if your coordinate is inside your region
+            if (
+                    (
+                            (
+                                    (verts[i].lon() <= coord.lon()) && (coord.lon() < verts[j].lon())
+                            ) || (
+                                    (verts[j].lon() <= coord.lon()) && (coord.lon() < verts[i].lon())
+                            )
+                    ) &&
+                            (coord.lat() < (verts[j].lat() - verts[i].lat()) * (coord.lon() - verts[i].lon()) / (verts[j].lon() - verts[i].lon()) + verts[i].lat())
+                    ) {
+                isInside = !isInside;
+            }
+        }
+        return isInside;
+    }
+
+
+    private int getHourDayFromSeconds(Long seconds){
+        Long hours = seconds % 86400 / 3600;
+        return hours.intValue();
+    }
+
+    private int getDayFromSeconds(Long seconds){
+        Long days = seconds % 604800 / 86400;
+        return  days.intValue();
     }
 
     private void addToMap(Long tazId, Integer hourOfDay, Double dataValue){
