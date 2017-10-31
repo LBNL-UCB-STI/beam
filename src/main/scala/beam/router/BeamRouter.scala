@@ -15,7 +15,6 @@ import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
 import org.matsim.core.router.util.TravelTime
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 
 import scala.beans.BeanProperty
 
@@ -24,8 +23,6 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
   var router: Router = _
   var networkCoordinator: ActorRef = _
   private var routerWorkers: Vector[Routee] = _
-
-  private var travelTime: TravelTime = _
 
   override def preStart(): Unit = {
     routerWorkers = (0 until services.beamConfig.beam.routing.workerNumber).map { workerId =>
@@ -80,8 +77,8 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
       sender() ! RouterInitialized
     case Terminated(r) =>
       handleTermination(r)
-    case UpdateTravelTime(travelTimeCalculator) =>
-      router.route(Broadcast(UpdateTravelTime(travelTimeCalculator)), sender)
+    case UpdateTravelTime(travelTime) =>
+      router.route(Broadcast(UpdateTravelTime(travelTime)), sender)
     case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
     }
@@ -115,7 +112,7 @@ object BeamRouter {
   case object RouterNeedInitialization
   case object InitTransit
   case object TransitInited
-  case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator)
+  case class UpdateTravelTime(travelTime: TravelTime)
 
   /**
     * It is use to represent a request object
