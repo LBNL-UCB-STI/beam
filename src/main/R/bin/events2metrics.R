@@ -9,6 +9,41 @@ list_obj_sizes <- function(list_obj=ls(envir=.GlobalEnv)){
   sizes <- sapply(list_obj, function(n) object.size(get(n)), simplify = FALSE) 
   print(sapply(sizes[order(-as.numeric(sizes))], function(s) format(s, unit = 'auto'))) 
 }
+xy.to.latlon <- function(str,print=T){
+  if(length(grep("\\[",str))>0){
+    tmp <- strsplit(strsplit(str,'\\[x=')[[1]][2],'\\]\\[y=')[[1]]
+    x <- as.numeric(tmp[1])
+    y <- as.numeric(strsplit(tmp[2],'\\]')[[1]][1])
+  }else if(length(grep('"',str))>0){
+    x <- as.numeric(strsplit(str,'"')[[1]][2])
+    y <- as.numeric(strsplit(str,'"')[[1]][4])
+  }else if(length(grep(',',str))>0){
+    x <- as.numeric(strsplit(str,',')[[1]][1])
+    y <- as.numeric(strsplit(str,',')[[1]][2])
+  }else if(length(grep(' ',str))>0){
+    x <- as.numeric(strsplit(str,' ')[[1]][1])
+    y <- as.numeric(strsplit(str,' ')[[1]][2])
+  }else{
+    return('Parse Error')
+  }
+  xy <- data.frame(x=x,y=y)
+  xy <- SpatialPoints(xy,proj4string=CRS("+init=epsg:26910"))
+  xy <- data.frame(coordinates(spTransform(xy,CRS("+init=epsg:4326"))))
+  if(print){
+    my.cat(pp(xy$y,',',xy$x))
+  }else{
+    return(pp(xy$y,',',xy$x))
+  }
+}
+dist.from.latlon <- function(lat1,lon1,lat2,lon2){
+  xy1 <- data.frame(x=lon1,y=lat1)
+  xy1 <- SpatialPoints(xy1,proj4string=CRS("+init=epsg:4326"))
+  xy1 <- data.frame(coordinates(spTransform(xy1,CRS("+init=epsg:26910"))))
+  xy2 <- data.frame(x=lon2,y=lat2)
+  xy2 <- SpatialPoints(xy2,proj4string=CRS("+init=epsg:4326"))
+  xy2 <- data.frame(coordinates(spTransform(xy2,CRS("+init=epsg:26910"))))
+  sqrt((xy1$x-xy2$x)^2 + (xy1$y-xy2$y)^2)
+}
 
 ######################################################################################################
 # Load the exp config
@@ -17,8 +52,9 @@ exp <- data.table(read.csv(exp.file))
 exp[,key:=pp(experiment,'_',factor)]
 
 outs.dir.base <- '/Users/critter/Documents/beam/beam-output/experiments/'
-#outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price','vot_vot')
-outs.exps <- c('base')
+outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price','vot_vot')
+outs.exps <- c('base','ridehail_num','ridehail_price','transit_capacity','transit_price','vot_vot')
+outs.exps <- c('base','transit_capacity')
 
 outs.exp <- outs.exps[1]
 for(outs.exp in outs.exps){
@@ -27,7 +63,7 @@ for(outs.exp in outs.exps){
     evs <- list()
     out.dir <-  list.dirs(outs.dir,recursive=F)[1]
     for(out.dir in list.dirs(outs.dir,recursive=F)){
-      file.path <- pp(out.dir,'/ITERS/it.0/0.events.csv.gz')
+      file.path <- pp(out.dir,'/ITERS/it.0/0.events.')
       path <- str_split(file.path,"/")[[1]]
       if(length(path)>1){
         the.file <- tail(path,1)
@@ -36,16 +72,18 @@ for(outs.exp in outs.exps){
         the.file <- path
         the.dir <- './'
       }
-      the.file.rdata <- pp(head(str_split(the.file,'csv')[[1]],-1),'Rdata')
+      the.file.rdata <- pp(file.path,'Rdata')
+      the.file.csv <- pp(file.path,'csv')
+      the.file.csv.gz <- pp(file.path,'csv.gz')
       if(file.exists(the.file.rdata)){
         load(the.file.rdata)
       }else{
-        if(!file.exists(file.path) & file.exists(pp(file.path,'.gz'))){
-          ev <- data.table(read.csv(gzfile(pp(file.path,'.gz'))))
-        }else if(file.exists(pp(the.dir,the.file))){
-          ev <- data.table(read.csv(file.path))
+        if(file.exists(the.file.csv)){
+          ev <- data.table(read.csv(the.file.csv))
+        }else if(file.exists(the.file.csv.gz)){
+          ev <- data.table(read.csv(gzfile(the.file.csv.gz)))
         }
-        save(ev,file=pp(the.dir,the.file.rdata))
+        save(ev,file=pp(the.file.rdata))
       }
 
       exp.to.add <- exp[which(sapply(as.character(exp$name),function(str){grepl(str,file.path)}))[1]]
@@ -76,6 +114,9 @@ for(outs.exp in outs.exps){
     ev[,hour:=time/3600]
     ev[,hr:=round(hour)]
     setkey(ev,vehicle_type)
+    ev[vehicle_type%in%c('BART','Ferry','Muni','Rail') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
+    ev[,pmt:=num_passengers*length/1609]
+    ev[is.na(pmt),pmt:=0]
 
     if(outs.exp=='base'){
       base <- ev
@@ -98,7 +139,7 @@ to.title <- function(outs.exp){ names(pretty.titles[which(pretty.titles==outs.ex
 # Decide which to analyze
 # ridehail_num ridehail_price toll_price transit_capacity transit_price vot_vot
 #################################################################################
-outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price','vot_vot')
+outs.exps <- c('ridehail_num','ridehail_price','transit_capacity','transit_price','vot_vot')
 outs.exp <- 'transit_capacity'
 for(outs.exp in outs.exps){
   my.cat(outs.exp)
@@ -169,9 +210,9 @@ for(outs.exp in outs.exps){
 # Exploratory Plots 
 ###########################
 # From / to arrows
-ggplot(ev[type=='PathTraversal'],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_type))+geom_curve(arrow= arrow(length = unit(0.03, "npc")),curvature=0.1)
+#ggplot(ev[type=='PathTraversal'],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_type))+geom_curve(arrow= arrow(length = unit(0.03, "npc")),curvature=0.1)
 # BART tracks
-ggplot(ev[J('PathTraversal')][vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
+#ggplot(ev[J('PathTraversal')][vehicle_type=='Bus' & substr(vehicle_id,1,2)=='BA'][1:2000],aes(x=start.x,y=start.y,xend=end.x,yend=end.y,colour=vehicle_id))+geom_curve(arrow= arrow(length = unit(0.01, "npc")),curvature=0.1)
 
 # Beam leg by time and mode
 ggplot(ev[J('PathTraversal')],aes(x=time/3600))+geom_histogram()+facet_wrap(name~vehicle_type)+labs(x="Hour",y="# Vehicle Movements")
@@ -187,7 +228,7 @@ ev[,.(fuel=sum(fuel,na.rm=T)),by='vehicle_type']
 ###########################
 # Energy Consumption
 ###########################
- <- c('Alameda','Contra Costa','Marin','Napa','San Francisco','San Mateo','Santa Clara','Sonoma','Solano')
+the.counties <- c('Alameda','Contra Costa','Marin','Napa','San Francisco','San Mateo','Santa Clara','Sonoma','Solano')
 counties <- readShapePoly('~/Dropbox/ucb/vto/beam-core/spatial-data/ca-counties/ca-counties.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
 sf.county.inds <- counties$NAME %in% the.counties
 sf.counties <- spTransform(counties[sf.county.inds,],CRS("+proj=longlat +datum=WGS84"))
@@ -196,7 +237,7 @@ sf.county.pts[,id:=as.numeric(id)]
 sf.county.pts <- join.on(sf.county.pts,data.table(sf.counties@data),'id','OBJECTID')
 
 do.or.load('/Users/critter/Documents/beam/beam-output/experiments/energy/pathTraversalSpatialTemporalAnalysisTable.Rdata',function(){
-  en <- data.table(read.table('/Users/critter/Documents/beam/beam-output/experiments/energy/pathTraversalSpatialTemporalAnalysisTable_base_2017-09-27_05-05-07_withTransitIntermediateLinks_hourly_2.txt',header=T))
+  en <- data.table(read.table('/Users/critter/Documents/beam/beam-output/experiments/energy/pathTraversalSpatialTemporalAnalysisTable_base_2017-10-26_10-21-06_hourly.txt',header=T))
   en[,hour:=timeBin]
   en[,energy:=fuelConsumption.MJ.]
   en[,fuelConsumption.MJ.:=NULL]
@@ -215,6 +256,7 @@ do.or.load('/Users/critter/Documents/beam/beam-output/experiments/energy/pathTra
   
   en <- join.on(en,intensity,'fuelType','fuelType')
   en[,ghg.kton:=energy*g.per.mj/1e9]
+  en <- en[!(mode=='Car' & fuelType=='food')] # don't know where this came from but messing with plots
   list(en=en)
 })
 #en <- join.on(en,links,'linkId','linkId')
@@ -223,9 +265,11 @@ setkey(en,mode)
 p <- ggplot(en[,.(energy=sum(energy)),by=c('hour','mode','county')],aes(x=hour,y=energy/1e6,fill=mode))+geom_bar(stat='identity')+facet_wrap(~county)+labs(x='Hour',y='Energy Consumed (PJ)',fill='Mode')
 pdf.scale <- .6
 ggsave(pp(outs.dir.base,'energy/energy-by-hour.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
 p <- ggplot(en[,.(ghg=sum(ghg.kton)),by=c('hour','mode','county')],aes(x=hour,y=ghg,fill=mode))+geom_bar(stat='identity')+facet_wrap(~county)+labs(x='Hour',y='Greenhouse Gas Emissions (kton)',fill='Mode')
 pdf.scale <- .6
 ggsave(pp(outs.dir.base,'energy/emissions-by-hour.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
 emiss <- en[,.(ghg=sum(ghg.kton)),by=c('mode','fuelType')]
 emiss.agg <- en[,.(ghg=sum(ghg.kton)),by=c('mode')]
 emiss[,mode:=factor(mode,levels=emiss.agg$mode[rev(order(emiss.agg$ghg))])]
@@ -233,39 +277,50 @@ p <- ggplot(emiss,aes(x=mode,y=ghg,fill=fuelType))+geom_bar(stat='identity')+lab
 pdf.scale <- .6
 ggsave(pp(outs.dir.base,'energy/emissions-by-mode.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
-# Transit Passenger Miles
-en[mode=='Cable_Car',mode:='Muni']
-passmile <- en[!mode%in%c('Human','Car','TNC'),.(pass.mile=sum(numberOfPassengers*lengthInMeters)/1609),by=c('hour','mode')]
-setkey(passmile,hour,mode)
-p <- ggplot(passmile,aes(x=hour,y=pass.mile/1e6,fill=mode))+geom_bar(stat='identity')+labs(x='Hour',y='Passenger Miles (million)',fill='Transit Mode')
-pdf.scale <- .6
-ggsave(pp(outs.dir.base,'energy/transit-passenger-miles.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 # reality check, CA emits 116 million tonnes per year in light duty transportation
 # 116e6 / 1.1 / 365 * (7/39) # 1.1 ton per tonne, 7M bay area peeps / 39M CA peeps
 # = 51,000 tons per day
 # vs. 37,000 tons per day from our baseline scenario
 
 setkey(en,mode)
-passmile <- en[,.(energy=sum(energy)/sum(numTravelers*lengthInMeters/1609),ghg=sum(ghg.kton)/sum(numTravelers*lengthInMeters/1609)),by=c('mode','fuelType')]
-passmile <- rbindlist(list(passmile,en[J('Bus')][hour==7,.(mode="Bus @ Rush",energy=sum(energy)/sum(numTravelers*lengthInMeters/1609),ghg=sum(ghg.kton)/sum(numTravelers*lengthInMeters/1609)),by=c('fuelType')]),use.names=T)
+passmile <- en[fuelType!='food',.(energy=sum(energy)/sum(numTravelers*lengthInMeters/1609),ghg=sum(ghg.kton)/sum(numTravelers*lengthInMeters/1609)),by=c('mode','fuelType')]
+#passmile <- rbindlist(list(passmile,en[J('Bus')][hour==7,.(mode="Bus @ Rush",energy=sum(energy)/sum(numTravelers*lengthInMeters/1609),ghg=sum(ghg.kton)/sum(numTravelers*lengthInMeters/1609)),by=c('fuelType')]),use.names=T)
 passmile.agg <- passmile[,.(energy=sum(energy),ghg=sum(ghg)),by='mode']
 passmile[,mode:=factor(mode,passmile.agg$mode[rev(order(passmile.agg$energy))])]
-p <- ggplot(passmile,aes(x=mode,y=energy,fill=fuelType))+geom_bar(stat='identity')+labs(x='Mode',y='Energy (MJ per Passenger-Mile)',fill='Fuel Type')
+p <- ggplot(passmile,aes(x=mode,y=energy,fill=fuelType))+geom_bar(stat='identity',position='dodge')+labs(x='Mode',y='Energy (MJ per Passenger-Mile)',fill='Fuel Type')
 pdf.scale <- .6
 ggsave(pp(outs.dir.base,'energy/energy-per-passenger-mile.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+p <- ggplot(passmile,aes(x=mode,y=ghg*1e6,fill=fuelType))+geom_bar(stat='identity',position='dodge')+labs(x='Mode',y='Emissions (kg per Passenger-Mile)',fill='Fuel Type')
+pdf.scale <- .6
+ggsave(pp(outs.dir.base,'energy/emissions-per-passenger-mile.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+
 passmile[,mode:=factor(mode,passmile.agg$mode[rev(order(passmile.agg$ghg))])]
 en.tot.agg <- en[,.(energy=sum(energy)),by=c('mode')]
 en.tot <- en[,.(energy=sum(energy)),by=c('mode','fuelType')]
 en.tot[,mode:=factor(mode,en.tot.agg$mode[rev(order(en.tot.agg$energy))])]
+
 p <- ggplot(en.tot,aes(x=mode,y=energy/1e6,fill=fuelType))+geom_bar(stat='identity')+labs(x='Mode',y='Energy (PJ)',fill='Fuel Type')
 pdf.scale <- .6
 ggsave(pp(outs.dir.base,'energy/energy-by-mode.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+
+en.tot[,energy.perc:=energy/sum(energy)*100]
+setkey(en.tot,mode)
+p <- ggplot(en.tot,aes(x="",y=energy.perc,fill=mode))+geom_bar(stat='identity')+coord_polar("y",start=0)+labs(y='Energy (% of Total)',fill='Mode')
+pdf.scale <- .6
+ggsave(pp(outs.dir.base,'energy/energy-by-mode-pie-chart.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
 centroids <- en[,.(x=mean(xCoord),y=mean(yCoord)),by='county']
 en.by.hr <- join.on(en[,.(energy=sum(energy)),by=c('county','hour')],centroids,'county','county')
 p <- ggplot(en.by.hr,aes(x=x,y=y,size=energy/1e6,fill=county))+geom_polygon(data=sf.county.pts,aes(x=long,y=lat,group=group,fill=NAME),size=1)+geom_point()+facet_wrap(~hour)+labs(x="Lon",y="Lat",fill="County",size="Energy(PJ)")
 pdf.scale <- 1
 ggsave(pp(outs.dir.base,'energy/energy-by-county-by-hour.pdf'),p,width=10*pdf.scale,height=10*pdf.scale,units='in')
+
+  # Transit Passenger Miles
+  passmile <- en[!mode%in%c('Human','Car','TNC'),.(pass.mile=sum(numberOfPassengers*lengthInMeters)/1609),by=c('hour','mode')]
+  setkey(passmile,hour,mode)
+  p <- ggplot(passmile,aes(x=hour,y=pass.mile/1e3,fill=mode))+geom_bar(stat='identity')+labs(x='Hour',y='Passenger Miles Traveled (thousand)',fill='Transit Mode')
+  pdf.scale <- .6
+  ggsave(pp(outs.dir.base,'energy/transit-passenger-miles.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
 # we filter to street modes b/c the BART and Rail tend to concentrate whole trips into a single point making spikey results that aren't realistic
 # but they can be added once the correct geoms are being used for non-street transit
@@ -286,41 +341,3 @@ do.or.load(pp(outs.dir.base,'bayAreaR5NetworkLinks.Rdata'),function(){
 })
 
 # Just Base Scenario Analysis
-xy.to.latlon <- function(str,print=T){
-  if(length(grep("\\[",str))>0){
-    tmp <- strsplit(strsplit(str,'\\[x=')[[1]][2],'\\]\\[y=')[[1]]
-    x <- as.numeric(tmp[1])
-    y <- as.numeric(strsplit(tmp[2],'\\]')[[1]][1])
-  }else if(length(grep('"',str))>0){
-    x <- as.numeric(strsplit(str,'"')[[1]][2])
-    y <- as.numeric(strsplit(str,'"')[[1]][4])
-  }else if(length(grep(',',str))>0){
-    x <- as.numeric(strsplit(str,',')[[1]][1])
-    y <- as.numeric(strsplit(str,',')[[1]][2])
-  }else if(length(grep(' ',str))>0){
-    x <- as.numeric(strsplit(str,' ')[[1]][1])
-    y <- as.numeric(strsplit(str,' ')[[1]][2])
-  }else{
-    return('Parse Error')
-  }
-  xy <- data.frame(x=x,y=y)
-  xy <- SpatialPoints(xy,proj4string=CRS("+init=epsg:26910"))
-  xy <- data.frame(coordinates(spTransform(xy,CRS("+init=epsg:4326"))))
-  if(print){
-    my.cat(pp(xy$y,',',xy$x))
-  }else{
-    return(pp(xy$y,',',xy$x))
-  }
-}
-dist.from.latlon <- function(lat1,lon1,lat2,lon2){
-  xy1 <- data.frame(x=lon1,y=lat1)
-  xy1 <- SpatialPoints(xy1,proj4string=CRS("+init=epsg:4326"))
-  xy1 <- data.frame(coordinates(spTransform(xy1,CRS("+init=epsg:26910"))))
-  xy2 <- data.frame(x=lon2,y=lat2)
-  xy2 <- SpatialPoints(xy2,proj4string=CRS("+init=epsg:4326"))
-  xy2 <- data.frame(coordinates(spTransform(xy2,CRS("+init=epsg:26910"))))
-  sqrt((xy1$x-xy2$x)^2 + (xy1$y-xy2$y)^2)
-}
-
-ev[vehicle_type%in%c('BART','Ferry','Muni','Rail') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
-ev[,.(x=as.numeric(sum(num_passengers*length/1609))),by='vehicle_type']
