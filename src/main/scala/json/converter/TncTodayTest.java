@@ -12,7 +12,7 @@ public class TncTodayTest {
 
     public static void main(String[] args) throws Exception {
         System.out.println("Reading input file");
-        List<List<String>> lines = readCsv("D:\\beam_test\\input2.txt");
+        List<List<String>> lines = readCsv("D:\\beam_test\\input1.txt");
 
         SpatialTemporalTAZVizDataWriter writer = new SpatialTemporalTAZVizDataWriter("D:\\beam_test\\taz_boudaries.json", "Car");
         System.out.println("Adding points");

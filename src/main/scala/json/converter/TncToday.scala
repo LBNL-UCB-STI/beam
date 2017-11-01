@@ -26,16 +26,38 @@ object TncToday {
 
 
   def saveJsonStructure(data: java.util.List[TazStats], statsOut: String, statsTotalsOut: String) = {
+
+    val groupedByTaz = data.asScala.groupBy(_.taz)
+    val allData = groupedByTaz.map{case (tazId, statsByTaz) =>
+      val byDay = statsByTaz.map(e => (e.day_of_week, e)).toMap
+      val allDays = (0 to 6).map(i => byDay.get(i).getOrElse(TazStats(tazId, i, "00:00:00", 0d, 0d)))
+
+      val groupedByDay = allDays.groupBy(_.day_of_week)
+      val res = groupedByDay.map{case (day, statsByDay) =>
+          val byHours = statsByDay.map(e => (e.time, e)).toMap
+          val allHours = (0 to 23).map { h =>
+            val hs = "%02d:00:00".format(h)
+            byHours.get(hs).getOrElse(TazStats(tazId, day, hs, 0d, 0d))
+          }
+          (day, allHours)
+      }
+
+      (tazId, res.values.flatten)
+    }.values.flatten
+
     val outData = Json
-      .toJson(data.asScala)
+      .toJson(allData)
       .toString()
 
-    val outDataTotals = data.asScala.groupBy(s => s.taz)
-      .map{case (k, l) =>
-      val totalDropoffs = l.foldLeft(0d){case (a, b) => a + b.dropoffs}
-      val totalPickups = l.foldLeft(0d){case (a, b) => a + b.pickups}
-      TazStatsTotals(k, l.head.day_of_week, totalDropoffs, totalPickups)
-    }
+    val outDataTotals = allData.groupBy(s => s.taz)
+      .map{case (taz, statsByTaz) =>
+        val byDay = statsByTaz.groupBy(_.day_of_week)
+        byDay.map{case (day, statsByDay) =>
+          val totalDropoffs = statsByDay.foldLeft(0d){case (a, b) => a + b.dropoffs}
+          val totalPickups = statsByDay.foldLeft(0d){case (a, b) => a + b.pickups}
+          TazStatsTotals(taz, day, totalDropoffs, totalPickups)
+        }
+    }.flatten
 
     val outDataTotalsJson = Json
       .toJson(outDataTotals)

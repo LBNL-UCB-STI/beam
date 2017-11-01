@@ -10,18 +10,18 @@ import java.util.List;
 public class JavaTest {
 
     public static void main(String[] args) throws Exception {
-        String ruta = "d:/output.json";
-        String content = readTextContentFile(ruta);
-        List<TazOutput.TazStructure> jsonStructure = TncToday.processJsonJava(content);
-
-        for(TazOutput.TazStructure item : jsonStructure){
-            System.out.println("Taz: " + item.taz());
-            System.out.println("Geometry: " + item.geometry());
-            for(TazOutput.Coordinates coordinate: item.geometry().coordinates()){
-                System.out.println("Lat: " + coordinate.lat());
-                System.out.println("Lon: " + coordinate.lon());
-            }
-        }
+//        String ruta = "d:/output.json";
+//        String content = readTextContentFile(ruta);
+//        List<TazOutput.TazStructure> jsonStructure = TncToday.processJsonJava(content);
+//
+//        for(TazOutput.TazStructure item : jsonStructure){
+//            System.out.println("Taz: " + item.taz());
+//            System.out.println("Geometry: " + item.geometry());
+//            for(TazOutput.Coordinates coordinate: item.geometry().coordinates()){
+//                System.out.println("Lat: " + coordinate.lat());
+//                System.out.println("Lon: " + coordinate.lon());
+//            }
+//        }
 
         List<TazOutput.TazStats> stats = new LinkedList<>();
 
@@ -31,7 +31,7 @@ public class JavaTest {
         stats.add(new TazOutput.TazStats(1l,0,"03:00:00",0.4,0.6));
         stats.add(new TazOutput.TazStats(1l,0,"04:00:00",0.2,0.2));
 
-        TncToday.saveJsonStructure(stats, "d:/stats.json", "d:/statsTotals.jsobn");
+        TncToday.saveJsonStructure(stats, "d:/stats_test.json", "d:/statsTotals_test.json");
     }
 
     public static String readTextContentFile(String input) throws Exception{
