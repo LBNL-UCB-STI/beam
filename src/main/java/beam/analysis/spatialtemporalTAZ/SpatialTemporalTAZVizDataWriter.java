@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -29,27 +30,42 @@ public class SpatialTemporalTAZVizDataWriter {
 
             TazKey tazKey = (TazKey) o;
 
-            if (tazId != null ? !tazId.equals(tazKey.tazId) : tazKey.tazId != null) return false;
-            return hourOfDay != null ? hourOfDay.equals(tazKey.hourOfDay) : tazKey.hourOfDay == null;
+            if (!tazId.equals(tazKey.tazId)) return false;
+            return hourOfDay.equals(tazKey.hourOfDay);
         }
 
         @Override
         public int hashCode() {
-            int result = tazId != null ? tazId.hashCode() : 0;
-            result = 31 * result + (hourOfDay != null ? hourOfDay.hashCode() : 0);
+            int result = tazId.hashCode();
+            result = 31 * result + hourOfDay.hashCode();
             return result;
         }
     }
 
-    private List<TazOutput.TazStructure> jsonStructure;
-    private Map<TazKey, Double> dataMap = new HashMap<>();
+    class TazValue{
+        Double mainValue;
+        Double secValue;
+        Integer dayOfWeek;
 
-    public SpatialTemporalTAZVizDataWriter(String filePath) throws Exception {
+        public TazValue(Double mainValue, Double secValue, Integer dayOfWeek) {
+            this.mainValue = mainValue;
+            this.secValue = secValue;
+            this.dayOfWeek = dayOfWeek;
+        }
+    }
+
+    private List<TazOutput.TazStructure> jsonStructure;
+    private Map<TazKey, TazValue> dataMap = new HashMap<>();
+
+    private String mainCat;
+
+    public SpatialTemporalTAZVizDataWriter(String filePath, String mainCat) throws Exception {
+        this.mainCat = mainCat;
         String jsonContent = readTextContentFile(filePath);
         jsonStructure = TncToday.processJsonJava(jsonContent);
     }
 
-    public String readTextContentFile(String input) throws Exception{
+    private String readTextContentFile(String input) throws Exception{
         InputStream is = new FileInputStream(input);
         BufferedReader buf = new BufferedReader(new InputStreamReader(is));
         String line = buf.readLine();
@@ -62,15 +78,15 @@ public class SpatialTemporalTAZVizDataWriter {
         return sb.toString();
     }
 
-    public void addDataPoint(Double x, Double y, Long seconds, Double dataValue){
+    public void addDataPoint(String cat, Double x, Double y, Long seconds, Double dataValue){
         Long tazId = getTaz(x, y);
         if (tazId==null)
             return;
         int hourOfDay = getHourDayFromSeconds(seconds);
-        addToMap(tazId, hourOfDay, dataValue);
+        int dayOfWeek = getDayFromSeconds(seconds);
+        addToMap(cat, tazId, hourOfDay, dataValue, dayOfWeek);
     }
 
-    //TODO
     private Long getTaz(Double x, Double y){
         TazOutput.Coordinates point = new TazOutput.Coordinates(x,y);
         for (TazOutput.TazStructure tazObject: jsonStructure){
@@ -83,10 +99,22 @@ public class SpatialTemporalTAZVizDataWriter {
     }
 
 
+    public void saveToDisk(String statsPath, String totalsPath){
+        System.out.println("Map " + dataMap.size());
+        List<TazOutput.TazStats> values =new LinkedList<>();
+
+        for(TazKey k: dataMap.keySet()){
+            TazValue value = dataMap.get(k);
+            String time = String.format("%02d:00:00", k.hourOfDay);
+            TazOutput.TazStats item = new TazOutput.TazStats(k.tazId, value.dayOfWeek, time, value.mainValue, value.secValue);
+            values.add(item);
+        }
+
+        TncToday.saveJsonStructure(values, statsPath, totalsPath);
+    }
 
 
-
-    boolean coordinateInRegion(TazOutput.Coordinates coord, TazOutput.Coordinates[] region) {
+    private boolean coordinateInRegion(TazOutput.Coordinates coord, TazOutput.Coordinates[] region) {
         int i, j;
         boolean isInside = false;
         //create an array of coordinates from the region boundary list
@@ -110,7 +138,6 @@ public class SpatialTemporalTAZVizDataWriter {
         return isInside;
     }
 
-
     private int getHourDayFromSeconds(Long seconds){
         Long hours = seconds % 86400 / 3600;
         return hours.intValue();
@@ -121,12 +148,16 @@ public class SpatialTemporalTAZVizDataWriter {
         return  days.intValue();
     }
 
-    private void addToMap(Long tazId, Integer hourOfDay, Double dataValue){
+    private void addToMap(String cat, Long tazId, Integer hourOfDay, Double dataValue, Integer dayOfWeek){
         TazKey key = new TazKey(tazId, hourOfDay);
-        Double current = dataMap.get(key);
+        TazValue current = dataMap.get(key);
         if(null == current)
-            current = 0d;
-        current += dataValue;
+            current = new TazValue(0d, 0d, dayOfWeek);
+        if(cat.equals(mainCat)){
+            current.mainValue += dataValue;
+        }else{
+            current.secValue += dataValue;
+        }
 
         dataMap.put(key, current);
     }
