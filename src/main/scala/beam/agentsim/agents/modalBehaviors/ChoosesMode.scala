@@ -144,7 +144,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
 
-    val personalVehicleUsed = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
+    val personalVehicleUsed: Vector[Id[Vehicle]] = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
     if (personalVehicleUsed.nonEmpty) {
       if (personalVehicleUsed.size > 1) {
