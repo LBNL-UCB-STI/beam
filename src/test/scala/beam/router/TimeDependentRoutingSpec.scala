@@ -70,14 +70,12 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       val walkOption = response.itineraries.find(_.tripClassifier == WALK).get
       assert(walkOption.totalTravelTime == 860)
-      println(walkOption.legs.head.beamLeg.travelPath)
 
       router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
       router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
       val response2 = expectMsgType[RoutingResponse]
       assert(response2.itineraries.exists(_.tripClassifier == WALK))
       val walkOption2 = response2.itineraries.find(_.tripClassifier == WALK).get
-      println(walkOption2.legs.head.beamLeg.travelPath)
       assert(walkOption2.totalTravelTime < 10) // isn't exactly 0, probably rounding issues
 
       router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
@@ -85,7 +83,6 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
       val response3 = expectMsgType[RoutingResponse]
       assert(response3.itineraries.exists(_.tripClassifier == WALK))
       val walkOption3 = response3.itineraries.find(_.tripClassifier == WALK).get
-      println(walkOption3.legs.head.beamLeg.travelPath)
       assert(walkOption3.totalTravelTime < 2010) // isn't exactly 2000, probably rounding issues
     }
   }
