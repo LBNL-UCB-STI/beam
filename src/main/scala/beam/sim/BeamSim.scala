@@ -119,7 +119,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     currentIter = event.getIteration
     resetPop(event.getIteration)
 //    eventsManager.initProcessing()
-    Await.ready(beamServices.beamRouter ? InitTransit, timeout.duration)
+
+    // Await.result throws an Exception in case the Future fails.
+    Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     logger.info(s"Transit schedule has been initialized")
   }
 
