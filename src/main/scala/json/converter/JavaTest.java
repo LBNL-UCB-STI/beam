@@ -25,9 +25,9 @@ public class JavaTest {
 
         List<TazOutput.TazStats> stats = new LinkedList<>();
 
-        stats.add(new TazOutput.TazStats(1l,0,"00:00:00",0,0));
-        stats.add(new TazOutput.TazStats(1l,0,"01:00:00",0.2,0));
-        stats.add(new TazOutput.TazStats(1l,0,"02:00:00",0,0));
+        stats.add(new TazOutput.TazStats(1l,0,"00:00:00",0.5,0.9));
+        stats.add(new TazOutput.TazStats(1l,0,"01:00:00",0.2,0.3));
+        stats.add(new TazOutput.TazStats(1l,0,"02:00:00",0.3,0.7));
         stats.add(new TazOutput.TazStats(1l,0,"03:00:00",0.4,0.6));
         stats.add(new TazOutput.TazStats(1l,0,"04:00:00",0.2,0.2));
 
