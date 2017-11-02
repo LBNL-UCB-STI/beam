@@ -35,7 +35,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
   // Propagate exceptions to sender
   // Default Akka behavior on an Exception in any Actor does _not_ involve sending _any_ reply.
   // This appears to be by design: A lot goes on in that case (reconfigurable restart strategy, logging, etc.),
-  // but sending a reply to the sender of the message which _caused_ the exception a reply must be done like this:
+  // but sending a reply to the sender of the message which _caused_ the exception must be done explicitly, e.g. like this:
   override def preRestart(reason:Throwable, message:Option[Any]) {
     super.preRestart(reason, message)
     sender() ! Status.Failure(reason)
