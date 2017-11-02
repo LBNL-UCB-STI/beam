@@ -10,8 +10,8 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
-import beam.router.{Modes, TrajectoryByEdgeIdsResolver}
+import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse, UpdateTravelTime}
+import beam.router.Modes
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
@@ -25,8 +25,10 @@ import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.common.JsonUtilities
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
-import com.conveyal.r5.profile.ProfileRequest
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
+import com.conveyal.r5.streets.EdgeStore
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Future}
@@ -37,6 +39,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
   var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+
+  var maybeTravelTime: Option[TravelTime] = None
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
@@ -49,13 +53,22 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
+    case UpdateTravelTime(travelTime) =>
+      this.maybeTravelTime = Some(travelTime)
   }
 
   def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
 
     def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode) = {
-      val pointToPointQuery = new PointToPointQuery(transportNetwork)
+      // If we already have observed travel times, probably from the previous iteration,
+      // let R5 use those. Otherwise, let R5 use its own travel time estimates.
+      val pointToPointQuery = maybeTravelTime match {
+        case Some(travelTime) => new PointToPointQuery(transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+          travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+        })
+        case None => new PointToPointQuery(transportNetwork)
+      }
       val profileRequest = new ProfileRequest()
       profileRequest.fromLon = from.getX
       profileRequest.fromLat = from.getY

@@ -42,7 +42,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var awaitingReservationConfirmation: mutable.Map[Id[ReservationRequest], Option[ActorRef]] = mutable.Map()
   var pendingChosenTrip: Option[EmbodiedBeamTrip] = None
   var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
-  var availablePersonalStreetVehicles: Vector[Id[Vehicle]] = Vector()
+  var availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector()
   var modeChoiceCalculator: ModeChoiceCalculator = _
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
   var availableAlternatives: Vector[String] = Vector()
@@ -143,19 +143,19 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
 
-    val personalVehicleUsed = availablePersonalStreetVehicles.intersect(chosenTrip.vehiclesInTrip)
+    val personalVehicleUsed = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
     if (personalVehicleUsed.nonEmpty) {
       if (personalVehicleUsed.size > 1) {
         logWarn(s"Found multiple personal vehicle in use for chosenTrip: $chosenTrip but only expected one. Using only one for subequent planning.")
       }
       currentTourPersonalVehicle = Some(personalVehicleUsed(0))
-      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot personalVehicleUsed(0).==
+      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot(_.id == personalVehicleUsed(0))
     }
     val householdRef: ActorRef = beamServices.householdRefs(_household)
-    availablePersonalStreetVehicles.foreach { vehId =>
-      householdRef ! ReleaseVehicleReservation(id, vehId)
-      householdRef ! ResourceIsAvailableNotification(self, vehId, new SpaceTime(currentActivity.getCoord, tick.toLong))
+    availablePersonalStreetVehicles.foreach { veh =>
+      householdRef ! ReleaseVehicleReservation(id, veh.id)
+      householdRef ! ResourceIsAvailableNotification(self, veh.id, new SpaceTime(currentActivity.getCoord, tick.toLong))
     }
     if (chosenTrip.tripClassifier != RIDEHAIL && rideHailingResult.get.proposals.nonEmpty) {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId)
@@ -201,7 +201,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(MobilityStatusReponse(streetVehicles), _: BeamAgentInfo[PersonData]) =>
       val (tick, theTriggerId) = releaseTickAndTriggerId()
       val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle, SpaceTime(currentActivity.getCoord, tick.toLong), WALK, asDriver = true)
-      availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver).map(_.id)
+      availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
 
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(tick.toInt)

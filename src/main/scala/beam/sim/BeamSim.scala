@@ -98,7 +98,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     val router = actorSystem.actorOf(BeamRouter.props(beamServices, beamServices.matsimServices.getScenario.getTransitVehicles, fareCalculator), "router")
     beamServices.beamRouter = router
-    Await.ready(beamServices.beamRouter ? Identify(0), timeout.duration)
+    Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     /*
     val physSimFuture = beamServices.registry ? Registry.Register("physSim", DummyPhysSim.props(beamServices))
@@ -117,7 +117,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     currentIter = event.getIteration
     resetPop(event.getIteration)
-    Await.ready(beamServices.beamRouter ? InitTransit, timeout.duration)
+    Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     logger.info(s"Transit schedule has been initialized")
   }
 

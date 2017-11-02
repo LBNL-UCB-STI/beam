@@ -16,7 +16,7 @@ import beam.router.r5.{NetworkCoordinator, R5RoutingWorker}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator
+import org.matsim.core.router.util.TravelTime
 
 import scala.beans.BeanProperty
 import scala.concurrent.Await
@@ -38,7 +38,7 @@ class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculat
     case InitTransit =>
       networkCoordinator.forward(InitTransit)
     case updateRequest: UpdateTravelTime =>
-      networkCoordinator.forward(updateRequest)
+      routerWorker.forward(updateRequest)
     case w: RoutingRequest =>
       routerWorker.forward(w)
   }
@@ -54,7 +54,7 @@ object BeamRouter {
   case object RouterNeedInitialization
   case object InitTransit
   case object TransitInited
-  case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator)
+  case class UpdateTravelTime(travelTime: TravelTime)
 
   /**
     * It is use to represent a request object

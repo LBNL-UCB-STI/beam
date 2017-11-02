@@ -1,25 +1,19 @@
 package beam.router.r5
 
-import java.time.ZonedDateTime
 import java.util
 import java.util.Collections
 
-import beam.router.RoutingModel.{BeamPath, EmptyBeamPath, TransitStopsInfo, WindowTime}
+import beam.router.RoutingModel.{BeamPath, WindowTime}
 import beam.router.{StreetSegmentTrajectoryResolver, TrajectoryByEdgeIdsResolver}
 import beam.sim.BeamServices
-import com.conveyal.gtfs.model
-import com.conveyal.gtfs.model.Stop
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
-import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Coord
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scalaz.Memo
 
 
 
