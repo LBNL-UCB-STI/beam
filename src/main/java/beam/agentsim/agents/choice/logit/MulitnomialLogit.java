@@ -9,9 +9,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.Random;
+import java.util.*;
 
 public class MulitnomialLogit implements AbstractLogit, Cloneable{
 	NestedLogit tree = null; // We use the more general NL to represent an MNL and with an assumed single top-level nest
@@ -62,20 +60,31 @@ public class MulitnomialLogit implements AbstractLogit, Cloneable{
 		theData.setNestName(modelName);
 		theData.setElasticity(elasticity);
 		NestedLogit tree = new NestedLogit(theData);
-		UtilityFunction utility;
+		NestedLogit child;
 		if(variables.size() != alternatives.size() || variables.size() != values.size()){
 			throw new RuntimeException("MultinomialLogit model factory expects three lists of equal sizes, but was given unequal lists instead.");
 		}
-		for(int i=0; i < values.size(); i++){
-		    String alternative = alternatives.get(i);
+		HashMap<String,NestedLogit> alternativesProcessed = new HashMap<String,NestedLogit>();
+		for(int i=0; i < values.size(); i++) {
+			String alternative = alternatives.get(i);
 			String variable = variables.get(i);
 			Double value = values.get(i);
-            if(tree.children == null){
-                tree.children = new LinkedList<NestedLogit>();
-            }
-//            NestedLogit child = NestedLogit.NestedLogitFactory(elem);
-//            child.parent = tree;
-//            tree.children.add(child);
+			if (tree.children == null) {
+				tree.children = new LinkedList<NestedLogit>();
+			}
+			if(!alternativesProcessed.containsKey(alternative)) {
+				NestedLogitData childData = new NestedLogitData();
+				childData.setNestName(alternative);
+				childData.setElasticity(1.0);
+				childData.setUtility(new UtilityFunction());
+                child = new NestedLogit(childData);
+                child.parent = tree;
+                tree.children.add(child);
+				alternativesProcessed.put(alternative,child);
+			}else{
+				child = alternativesProcessed.get(alternative);
+			}
+			child.data.utility.addCoefficient(variable, value, variable.equalsIgnoreCase("ASC") ? LogitCoefficientType.INTERCEPT : LogitCoefficientType.MULTIPLIER);
 		}
 		return new MulitnomialLogit(tree);
 	}
