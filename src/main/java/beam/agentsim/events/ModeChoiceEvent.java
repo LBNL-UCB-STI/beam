@@ -28,9 +28,6 @@ public class ModeChoiceEvent extends Event {
     private final String vehAvailable;
     private final Double length;
 
-    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode) {
-        this(time, personId, chosenMode, Double.NaN, "", "", null, 0.0);
-    }
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length) {
         super(time);
