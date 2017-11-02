@@ -49,9 +49,6 @@ object BeamRouter {
 
   def nextId = Id.create(UUID.randomUUID().toString, classOf[RoutingRequest])
 
-  case object InitializeRouter
-  case object RouterInitialized
-  case object RouterNeedInitialization
   case object InitTransit
   case object TransitInited
   case class UpdateTravelTime(travelTime: TravelTime)
