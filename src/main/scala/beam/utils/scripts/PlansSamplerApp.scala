@@ -298,6 +298,7 @@ object PlansSampler {
 
 
     // Init vehicle type (easier to do here)
+    val vehTypes = sc.getVehicles.getVehicleTypes.values()
     val defaultVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
     newVehicles.addVehicleType(defaultVehicleType)
 
