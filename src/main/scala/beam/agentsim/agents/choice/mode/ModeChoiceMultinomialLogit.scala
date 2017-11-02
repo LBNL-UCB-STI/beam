@@ -4,7 +4,7 @@ import java.io.File
 import java.util
 import java.util.{LinkedHashMap, Random}
 
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalBehaviors.{ChoiceAttributes, ModeChoiceCalculator}
 import beam.agentsim.agents.choice.logit.MulitnomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.router.Modes.BeamMode
@@ -32,7 +32,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
     new ModeChoiceMultinomialLogit(beamServices,mnl)
   }
 
-  override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
+  override def apply(alternatives: Vector[EmbodiedBeamTrip], choiceAttributes: Option[ChoiceAttributes]) = {
     alternatives.isEmpty match {
       case true =>
         None

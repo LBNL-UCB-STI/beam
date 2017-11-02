@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalBehaviors.{ChoiceAttributes, ModeChoiceCalculator}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 
@@ -11,7 +11,7 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
 
   override def clone(): ModeChoiceCalculator = new ModeChoiceTransitIfAvailable(beamServices)
 
-  override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
+  override def apply(alternatives: Vector[EmbodiedBeamTrip], choiceAttributes: Option[ChoiceAttributes]) = {
     var containsTransitAlt: Vector[Int] = Vector[Int]()
     alternatives.zipWithIndex.foreach { alt =>
       if (alt._1.tripClassifier.isTransit) {

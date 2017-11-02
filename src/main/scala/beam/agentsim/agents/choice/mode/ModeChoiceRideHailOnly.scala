@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalBehaviors.{ChoiceAttributes, ModeChoiceCalculator}
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
@@ -11,7 +11,7 @@ import beam.sim.BeamServices
 class ModeChoiceRideHailOnly(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def clone(): ModeChoiceCalculator = new ModeChoiceRideHailOnly(beamServices)
-  override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
+  override def apply(alternatives: Vector[EmbodiedBeamTrip], choiceAttributes: Option[ChoiceAttributes]) = {
     val rhAlts = alternatives.filter(_.tripClassifier == RIDEHAIL)
     rhAlts.isEmpty match {
       case true =>
