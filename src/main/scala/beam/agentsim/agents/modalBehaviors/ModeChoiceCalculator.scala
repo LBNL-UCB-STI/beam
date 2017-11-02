@@ -3,6 +3,7 @@ package beam.agentsim.agents.modalBehaviors
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 import beam.agentsim.agents.choice.mode._
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 
 import scala.annotation.tailrec
 import scala.util.Random
@@ -11,8 +12,8 @@ import scala.util.Random
   * BEAM
   */
 trait ModeChoiceCalculator extends HasServices with Cloneable{
-  def apply(alternatives: Vector[EmbodiedBeamTrip],extraAttributes: Option[ChoiceAttributes]): Option[EmbodiedBeamTrip]
-  def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
+  def apply(alternatives: Vector[EmbodiedBeamTrip],extraAttributes: Option[AttributesOfIndividual]): Option[EmbodiedBeamTrip]
+  def apply(alternatives: Vector[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     this(alternatives,None)
   }
 
@@ -58,8 +59,6 @@ object ModeChoiceCalculator {
         ModeChoiceMultinomialLogit(beamServices)
     }
   }
+  case class AttributesOfIndividual(householdIncome: Double, householdSize: Int, isMale: Boolean, numCars: Int, numBikes: Int)
 }
 
-trait ChoiceAttributes {
-
-}

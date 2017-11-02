@@ -104,6 +104,14 @@ public class MulitnomialLogit implements AbstractLogit, Cloneable{
 		return tree.getExpectedMaximumUtility();
 	}
 
+	public LinkedList<String> getAlternativeNames(){
+		LinkedList<String> names = new LinkedList<>();
+		for(NestedLogit child : tree.children){
+			names.add(child.getName());
+		}
+		return names;
+	}
+
 	@Override
 	public MulitnomialLogit clone(){
 		MulitnomialLogit mnl = new MulitnomialLogit(this.tree);

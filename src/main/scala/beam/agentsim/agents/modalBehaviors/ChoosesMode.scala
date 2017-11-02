@@ -7,8 +7,10 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
+import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
@@ -46,6 +48,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var modeChoiceCalculator: ModeChoiceCalculator = _
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
   var availableAlternatives: Vector[String] = Vector()
+  //TODO source these attributes from pop input data
+  val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(0.0,2,true,1,1)
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
@@ -56,11 +60,16 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         routingResponse.get.itineraries
       }
 
-      val chosenTrip = modeChoiceCalculator(combinedItinerariesForChoice)
-      modeChoiceCalculator match {
+      val chosenTrip = modeChoiceCalculator match {
+        case logit: ModeChoiceLCCM =>
+          val tourType : TourType = Mandatory
+          logit(combinedItinerariesForChoice, Some(attributesOfIndividual), tourType)
         case logit: ModeChoiceMultinomialLogit =>
+          val trip = logit(combinedItinerariesForChoice)
           expectedMaxUtilityOfLatestChoice = Some(logit.expectedMaximumUtility)
+          trip
         case _ =>
+          modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
       chosenTrip match {
