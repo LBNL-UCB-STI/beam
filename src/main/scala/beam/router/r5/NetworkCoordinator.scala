@@ -44,9 +44,9 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
   // i.e. Await.result re-throws the Exception! In the case of this Actor here, this is a good thing,
   // see the place in BeamSim where the InitTransit message is sent: We want the failure to happen _there_, not _here_.
   //
-  // Something like this must be done in any place in the code where one Actor may wait forever for a specific answert.
+  // Something like this must be done in every place in the code where one Actor may wait forever for a specific answer.
   // Otherwise, the result is that the default failure mode of our software is to hang, not crash.
-  // If we want this particular behacior in several Actors, we can make a trait of it.
+  // If we want this particular behavior in several Actors, we can make a trait of it.
   //
   // https://stackoverflow.com/questions/29794454/resolving-akka-futures-from-ask-in-the-event-of-a-failure
 
