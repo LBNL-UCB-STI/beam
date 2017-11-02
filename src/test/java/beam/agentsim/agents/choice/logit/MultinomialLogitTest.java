@@ -41,7 +41,7 @@ public class MultinomialLogitTest extends TestCase {
 				+ "		</utility>"
 				+ "	</alternative>"
 				+ "</multinomialLogit>";
-		MulitnomialLogit model = MulitnomialLogit.MulitnomialLogitFactory(xmlTestString);
+		MultinomialLogit model = MultinomialLogit.multinomialLogitFactory(xmlTestString);
 
 		
 		LinkedHashMap<String, LinkedHashMap<String,Double>> inputData = new LinkedHashMap<>();

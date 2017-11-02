@@ -240,29 +240,27 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 
   private def buildPath(departureTime: Long, mode: BeamMode, totalDuration: Long, transitSegment: TransitSegment, transitJourneyID: TransitJourneyID): Vector[BeamLeg] = {
     var legs: Vector[BeamLeg] = Vector()
-    val segmentPattern: SegmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
-    val beamVehicleId = Id.createVehicleId(segmentPattern.tripIds.get(transitJourneyID.time))
-    val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(0).patternIdx)
-    val allStopInds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
-    val stopsInTrip = tripPattern.stops.toVector.slice(allStopInds.indexOf(transitSegment.from.stopId), allStopInds.indexOf(transitSegment.to.stopId) + 1)
+    val tripPattern = transportNetwork.transitLayer.tripPatterns.get(transitSegment.segmentPatterns.get(transitJourneyID.pattern).patternIdx)
+    val allStopIds = tripPattern.stops.map(transportNetwork.transitLayer.stopIdForIndex.get(_)).toVector
+    val stopsInTrip = tripPattern.stops.toVector.slice(allStopIds.indexOf(transitSegment.from.stopId), allStopIds.indexOf(transitSegment.to.stopId) + 1)
 
     if (stopsInTrip.size == 1) {
       log.debug("Access and egress point the same on trip. No transit needed.")
       legs
     } else {
-      var workingDepature = departureTime
+      var workingDeparture = departureTime
       stopsInTrip.sliding(2).foreach { stopPair =>
-        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDepature))
+        val legPair = beamServices.transitLegsByStopAndDeparture.get((stopPair(0), stopPair(1), workingDeparture))
         legPair match {
           case Some(lp) =>
             legs = legs :+ lp.leg
             lp.nextLeg match {
               case Some(theNextLeg) =>
-                workingDepature = theNextLeg.startTime
+                workingDeparture = theNextLeg.startTime
               case None =>
-                if(!hasWarnedAboutLegPair.contains(Tuple2(stopPair(0),stopPair(1)))){
-                  log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDepature} not found in beamServices.transitLegsByStopAndDeparture")
-                  hasWarnedAboutLegPair = hasWarnedAboutLegPair + Tuple2(stopPair(0),stopPair(1))
+                if (!hasWarnedAboutLegPair.contains(Tuple2(stopPair(0), stopPair(1)))) {
+                  log.warning(s"Leg pair ${stopPair(0)} to ${stopPair(1)} at ${workingDeparture} not found in beamServices.transitLegsByStopAndDeparture")
+                  hasWarnedAboutLegPair = hasWarnedAboutLegPair + Tuple2(stopPair(0), stopPair(1))
                 }
             }
           case None =>
