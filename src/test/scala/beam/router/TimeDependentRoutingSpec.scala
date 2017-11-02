@@ -21,7 +21,6 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
-import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito.when
@@ -29,8 +28,8 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.language.postfixOps
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
@@ -43,10 +42,6 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices]
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("56658-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("66752-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("80672-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("116378-0")))
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     val matsimServices = mock[MatsimServices]
@@ -65,8 +60,8 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
     }
   }
 
-  "A router" must {
-    "respond with a route to a first reasonable RoutingRequest" in {
+  "A time-dependent router" must {
+    "take given link traversal times into account" in {
       val origin = new BeamRouter.Location(166321.9, 1568.87)
       val destination = new BeamRouter.Location(167138.4, 1117)
       val time = RoutingModel.DiscreteTime(0)
@@ -85,15 +80,13 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
       println(walkOption2.legs.head.beamLeg.travelPath)
       assert(walkOption2.totalTravelTime < 10) // isn't exactly 0, probably rounding issues
 
-      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000)
+      router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
       val response3 = expectMsgType[RoutingResponse]
       assert(response3.itineraries.exists(_.tripClassifier == WALK))
       val walkOption3 = response3.itineraries.find(_.tripClassifier == WALK).get
       println(walkOption3.legs.head.beamLeg.travelPath)
       assert(walkOption3.totalTravelTime < 2010) // isn't exactly 2000, probably rounding issues
-
-
     }
   }
 
