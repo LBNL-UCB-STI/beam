@@ -4,7 +4,7 @@ import java.io.File
 import java.nio.file.Files.exists
 import java.nio.file.Paths
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, Props, Status}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
@@ -31,6 +31,24 @@ import scala.collection.mutable
   * Created by salma_000 on 8/25/2017.
   */
 class NetworkCoordinator(val beamServices: BeamServices) extends Actor with ActorLogging {
+
+  // Propagate exceptions to sender
+  // Default Akka behavior on an Exception in any Actor does _not_ involve sending _any_ reply.
+  // This appears to be by design: A lot goes on in that case (reconfigurable restart strategy, logging, etc.),
+  // but sending a reply to the sender of the message which _caused_ the exception must be done explicitly, e.g. like this:
+  override def preRestart(reason:Throwable, message:Option[Any]) {
+    super.preRestart(reason, message)
+    sender() ! Status.Failure(reason)
+  }
+  // Status.Failure is a special message which causes the Future on the side of the sender to fail,
+  // i.e. Await.result re-throws the Exception! In the case of this Actor here, this is a good thing,
+  // see the place in BeamSim where the InitTransit message is sent: We want the failure to happen _there_, not _here_.
+  //
+  // Something like this must be done in every place in the code where one Actor may wait forever for a specific answer.
+  // Otherwise, the result is that the default failure mode of our software is to hang, not crash.
+  // If we want this particular behavior in several Actors, we can make a trait of it.
+  //
+  // https://stackoverflow.com/questions/29794454/resolving-akka-futures-from-ask-in-the-event-of-a-failure
 
   override def receive: Receive = {
     case InitializeRouter =>
