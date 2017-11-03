@@ -140,11 +140,15 @@ dependencies {
 //    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
     compile group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'beam-3.0-SNAPSHOT', changing: true
 
+    compile group: 'net.freeutils', name: 'jlhttp', version: '2.3'
+
 
     testCompile group: 'junit', name: 'junit', version: '4.4'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
     testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
     testCompile group: "org.mockito", name: "mockito-all", version: "1.9.5"
+
+
 
 
     /////////////////////////////////
@@ -182,6 +186,10 @@ dependencies {
     compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
+
+
+
+
 
     /////////////
     // Akka Dependencies
