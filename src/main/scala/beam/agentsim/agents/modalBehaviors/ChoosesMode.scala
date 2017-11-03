@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
+import akka.actor.FSM.Failure
 import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo, Initialized, Uninitialized}
 import beam.agentsim.agents.PersonAgent._
@@ -73,7 +74,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           }
         case _ =>
           val (tick, theTriggerId) = releaseTickAndTriggerId()
-          errorFromChoosesMode("no alternatives found", theTriggerId, Some(tick))
+          stop(Failure("no alternatives found"))
       }
     } else {
       stay()
@@ -173,14 +174,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     goto(Waiting)
   }
 
-  def errorFromChoosesMode(reason: String, triggerId: Long, tick: Option[Double]): ChoosesMode.this.State = {
-    _errorMessage = reason
-    _currentTick = tick
-    logError(s"Erroring: From ChoosesMode $id, reason: ${_errorMessage}")
-    if (triggerId >= 0) beamServices.schedulerRef ! completed(triggerId)
-    goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
-  }
-
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(_), _), _) =>
       modeChoiceCalculator = beamServices.modeChoiceCalculator.clone()
@@ -264,15 +257,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if (routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined) {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
         // if more agents could be hailed.
-        val (tick, theTriggerId) = releaseTickAndTriggerId()
-        errorFromChoosesMode(error.errorCode.toString, theTriggerId, Some(tick))
+        stop(Failure(error.errorCode.toString))
       } else {
         pendingChosenTrip = None
         completeChoiceIfReady()
       }
     case Event(ReservationResponse(_, _), _) =>
-      val (tick, theTriggerId) = releaseTickAndTriggerId()
-      errorFromChoosesMode("unknown res response", theTriggerId, Some(tick))
+      stop(Failure("unknown res response"))
     /*
      * Finishing choice.
      */
