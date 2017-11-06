@@ -144,14 +144,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
 
-    val personalVehicleUsed = availablePersonalStreetVehicles.intersect(chosenTrip.vehiclesInTrip)
+    val personalVehicleUsed = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
     if (personalVehicleUsed.nonEmpty) {
       if (personalVehicleUsed.size > 1) {
         logWarn(s"Found multiple personal vehicle in use for chosenTrip: $chosenTrip but only expected one. Using only one for subequent planning.")
       }
-      currentTourPersonalVehicle = Some(personalVehicleUsed(0).id)
-      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot personalVehicleUsed(0).==
+      currentTourPersonalVehicle = Some(personalVehicleUsed(0))
+      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot(_.id == personalVehicleUsed(0))
     }
     val householdRef: ActorRef = beamServices.householdRefs(_household)
     availablePersonalStreetVehicles.foreach { veh =>

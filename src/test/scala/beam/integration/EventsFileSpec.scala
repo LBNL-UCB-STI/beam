@@ -1,9 +1,9 @@
 package beam.integration
 
-import java.io.{File}
+import java.io.File
 
 import beam.sim.RunBeam
-import beam.sim.config.{ConfigModule}
+import beam.sim.config.ConfigModule
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.util.Try
@@ -13,84 +13,8 @@ import scala.util.Try
   * 
   */
 
-trait EventsFileBehaviors { this: FlatSpec with Matchers with RunBeam with EventsFileHandlingCommon =>
-  def fileExists(file: File) = {
-    it should " exists in output directory" in {
-      file.exists() shouldBe true
-    }
-  }
-
-  def containsAllBusRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
-    it should " contain all bus routes" in {
-      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
-      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile,Some("vehicle_type", "bus"),"vehicle_id").groupBy(identity)
-      listValueTagEventFile.size shouldBe listTrips.size
-    }
-  }
-
-  def containsAllTrainRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
-    it should " contain all train routes" in {
-      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
-      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile,Some("vehicle_type", "subway"),"vehicle_id").groupBy(identity)
-      listValueTagEventFile.size shouldBe listTrips.size
-    }
-  }
-
-  def containsExactlyBusRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
-    it should "contain the same bus trips entries" in {
-      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
-      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "bus"), "vehicle_id").groupBy(identity).keys.toSeq
-      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-      listTripsEventFile shouldBe listTrips
-    }
-  }
-
-  def containsExactlyTrainRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
-    it should "contain the same train trips entries" in {
-      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
-      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile,Some("vehicle_type", "subway"),"vehicle_id").groupBy(identity).keys.toSeq
-      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-      listTripsEventFile shouldBe listTrips
-    }
-  }
-
-
-  def containsSameBusEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
-
-    it should "contain same pathTraversal defined at stop times file for bus input file" ignore {
-      val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
-      val grouped = listTrips.groupBy(identity)
-      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
-      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "bus"),"vehicle_id", Some("PathTraversal"))
-
-      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-      val groupedXml = listTripsEventFile.groupBy(identity)
-      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
-
-
-      groupedXmlWithCount should contain theSameElementsAs groupedWithCount
-    }
-  }
-
-  def containsSameTrainEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
-    it should "contain same pathTraversal defined at stop times file for train input file" ignore {
-      val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
-      val grouped = listTrips.groupBy(identity)
-      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
-      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "subway"),"vehicle_id", Some("PathTraversal"))
-
-      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
-      val groupedXml = listTripsEventFile.groupBy(identity)
-      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
-
-
-      groupedXmlWithCount should contain theSameElementsAs groupedWithCount
-    }
-  }
-}
-
 class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
-  EventsFileHandlingCommon with EventsFileBehaviors with IntegrationSpecCommon{
+  EventsFileHandlingCommon with IntegrationSpecCommon{
   lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
 
   lazy val beamConfig = customBeam(configFileName, eventsFileOutputFormats = Some("xml,csv"))
@@ -123,10 +47,85 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
 
   "Events file contains exactly the same bus trips entries" should behave like containsExactlyBusRoutes(busTripsFile, xmlFile, xmlEventsReader)
 
-  "Events file contains exactly the same train trips entries" should behave like containsExactlyTrainRoutes(trainTripsFile, xmlFile, xmlEventsReader)
+  "Events file contains exactly the same train trips entries" should behave like containsExactlyTrainRoutes(busTripsFile, xmlFile, xmlEventsReader)
 
   "Events file contains same pathTraversal defined at stop times file for bus input file" should behave like containsSameBusEntriesPathTraversal(busStopTimesFile,xmlFile,xmlEventsReader)
 
   "Events file contains same pathTraversal defined at stop times file for train input file" should behave like containsSameTrainEntriesPathTraversal(trainStopTimesFile,xmlFile,xmlEventsReader)
+
+  private def fileExists(file: File) = {
+    it should " exists in output directory" in {
+      file.exists() shouldBe true
+    }
+  }
+
+  private def containsAllBusRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
+    it should " contain all bus routes" in {
+      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
+      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile,Some("vehicle_type", "bus"),"vehicle_id").groupBy(identity)
+      listValueTagEventFile.size shouldBe listTrips.size
+    }
+  }
+
+  private def containsAllTrainRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
+    it should " contain all bus routes" in {
+      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
+      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile,Some("vehicle_type", "subway"),"vehicle_id").groupBy(identity)
+      listValueTagEventFile.size shouldBe listTrips.size
+    }
+  }
+
+  private def containsExactlyBusRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
+    it should "contain the same bus trips entries" in {
+      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
+      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "bus"), "vehicle_id").groupBy(identity).keys.toSeq
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      listTripsEventFile shouldBe listTrips
+    }
+  }
+
+  private def containsExactlyTrainRoutes(routesFile: File, eventsFile: File, eventsReader: ReadEvents) = {
+    it should "contain the same train trips entries" ignore {
+      val listTrips = getListIDsWithTag(routesFile, "route_id", 2).sorted
+      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile,Some("vehicle_type", "subway"),"vehicle_id").groupBy(identity).keys.toSeq
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      listTripsEventFile shouldBe listTrips
+    }
+  }
+
+
+  private def containsSameBusEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
+
+    it should "contain same pathTraversal defined at stop times file for bus input file" ignore {
+      val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
+      val grouped = listTrips.groupBy(identity)
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "bus"),"vehicle_id", Some("PathTraversal"))
+
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      val groupedXml = listTripsEventFile.groupBy(identity)
+      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
+
+
+      groupedXmlWithCount should contain theSameElementsAs groupedWithCount
+    }
+  }
+
+  private def containsSameTrainEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
+    it should "contain same pathTraversal defined at stop times file for train input file" ignore {
+      val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
+      val grouped = listTrips.groupBy(identity)
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+      val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "subway"),"vehicle_id", Some("PathTraversal"))
+
+      val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
+      val groupedXml = listTripsEventFile.groupBy(identity)
+      val groupedXmlWithCount = groupedXml.map{case (k,v) => (k, v.size)}
+
+
+      groupedXmlWithCount should contain theSameElementsAs groupedWithCount
+    }
+  }
+
 }
 

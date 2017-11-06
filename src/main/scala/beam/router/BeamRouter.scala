@@ -14,7 +14,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator
+import org.matsim.core.router.util.TravelTime
 
 import scala.beans.BeanProperty
 
@@ -43,7 +43,7 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
     case RoutingRequest =>
       sender() ! RouterNeedInitialization
     case Terminated(r) =>
-      handelTermination(r)
+      handleTermination(r)
     case msg =>
       log.info(s"Unknown message[$msg] received by Router.")
   }
@@ -61,7 +61,7 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
       unstashAll()
       context.become(initialized)
     case Terminated(r) =>
-      handelTermination(r)
+      handleTermination(r)
     case msg =>
       log.info(s"Unknown message[$msg] received by Router.")
   }
@@ -76,16 +76,15 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
       log.debug("Router already initialized.")
       sender() ! RouterInitialized
     case Terminated(r) =>
-      handelTermination(r)
-    case updateRequest: UpdateTravelTime =>
-      log.info("Received TravelTimeCalculator")
-      networkCoordinator ! updateRequest
+      handleTermination(r)
+    case UpdateTravelTime(travelTime) =>
+      router.route(Broadcast(UpdateTravelTime(travelTime)), sender)
     case msg => {
       log.info(s"Unknown message[$msg] received by Router.")
     }
   }
 
-  private def handelTermination(r: ActorRef): Unit = {
+  private def handleTermination(r: ActorRef): Unit = {
     if (r.path.name.startsWith("router-worker-")) {
       val workerId = r.path.name.substring("router-worker-".length).toInt
       router = router.removeRoutee(r)
@@ -113,7 +112,7 @@ object BeamRouter {
   case object RouterNeedInitialization
   case object InitTransit
   case object TransitInited
-  case class UpdateTravelTime(travelTimeCalculator: TravelTimeCalculator)
+  case class UpdateTravelTime(travelTime: TravelTime)
 
   /**
     * It is use to represent a request object

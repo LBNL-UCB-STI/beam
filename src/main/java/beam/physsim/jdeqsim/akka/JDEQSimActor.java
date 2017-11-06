@@ -40,7 +40,7 @@ public class JDEQSimActor extends UntypedActor {
                 jdeqSimulation.run();
                 events.finishProcessing();
             } else if (s.equalsIgnoreCase("eventsProcessingFinished")) {
-                beamRouterRef.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator), getSelf());
+                beamRouterRef.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), getSelf());
             }
         }
     }
