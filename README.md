@@ -23,7 +23,7 @@ java -Xmx2g -jar build/libs/beam.jar --config test/input/beamville/beam.conf
 > You need to set an environment variable named `PWD` to BEAM home.
 
 
-## Run Simulation on Amazon EC2 
+## Deploy
 To run BEAM simulation on amazon ec2, use following command with some optional parameters.
 ```
 gradle deploy
@@ -41,7 +41,7 @@ gradle deploy
  ```
  gradle deploy -PbeamConfigs=production/application-sfbay/base.conf,production/application-sfbay/beamB.conf,production/application-sfbay/beamC.conf,production/application-sfbay/beamD.conf
  ```
- It will start four ec2 instances, using provided configurations.
+ It will start an ec2 instance, using provided configurations and run all simulations in serial. At the end of each simulation it uploads the results to s3.
  
 > gradle.properties contains default values for all the parameters.
 

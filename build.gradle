@@ -260,7 +260,7 @@ def pload = """{
 }"""
 
 task deploy(type: AWSLambdaInvokeTask) {
-    functionName = "testSim"
+    functionName = "simulateBeam"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
