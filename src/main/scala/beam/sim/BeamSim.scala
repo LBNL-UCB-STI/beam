@@ -2,7 +2,6 @@ package beam.sim
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{ActorRef, ActorSystem, Identify, Props}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -23,7 +22,6 @@ import beam.router.BeamRouter.InitTransit
 import beam.router.gtfs.FareCalculator
 import beam.sim.config.BeamLoggingSetup
 import beam.sim.monitoring.ErrorListener
-import beam.sim.monitoring.ErrorListener.WatchAgent
 import com.google.inject.Inject
 import glokka.Registry
 import glokka.Registry.Created
@@ -212,7 +210,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
     beamServices.personRefs.foreach { case (id, person) =>
-      errorListener ! WatchAgent(person)  // Subscribes each person to the error listener
       beamServices.agentRefs.put(id.toString, person)
     }
   }
