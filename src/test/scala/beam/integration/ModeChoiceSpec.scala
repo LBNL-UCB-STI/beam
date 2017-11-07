@@ -1,12 +1,7 @@
 package beam.integration
 
-import java.io.File
-
 import beam.sim.RunBeam
-import beam.sim.config.ConfigModule
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
-import scala.util.Try
 
 /**
   * Created by fdariasm on 29/08/2017

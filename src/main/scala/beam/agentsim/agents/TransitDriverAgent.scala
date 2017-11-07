@@ -1,7 +1,8 @@
 package beam.agentsim.agents
 
+import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, Props}
-import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Finished, Uninitialized}
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
@@ -55,7 +56,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
       beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self,passengerSchedule.schedule.firstKey))
       stay
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
-      goto(Finished) replying completed(triggerId)
+      stop replying completed(triggerId)
     case Event((from: Int, to: Int), _) =>
       val legs = initialPassengerSchedule.schedule.slice(from, to).keys.toSeq
       stay replying legs
@@ -73,8 +74,6 @@ class TransitDriverAgent(val beamServices: BeamServices,
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      val errMsg = s"Unrecognized message ${msg}"
-      logError(errMsg)
-      goto(Error) using stateData.copy(errorReason = Some(errMsg))
+      stop(Failure(s"Unrecognized message ${msg}"))
   }
 }
