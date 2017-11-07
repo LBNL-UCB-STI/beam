@@ -26,14 +26,13 @@ java -Xmx2g -jar build/libs/beam.jar --config test/input/beamville/beam.conf
 ## Run Simulation on Amazon EC2 
 To run BEAM simulation on amazon ec2, use following command with some optional parameters.
 ```
-gradle runAwsSim
+gradle deploy
 ```
  It can take some parameters from command line, use `-P` to specify the parameter.
  
  - `beamBranch`: To specify the branch for simulation, master is default branch.
- - `beamBuild`: The TravisCI build number to run simulation. use `latest` if you want to run with latest build.
- - `beamInput`: To specify shared input package like beamville.
- - `beamConfigs`: A comma `,` separated list of `beam.conf` file names. It looks files under the input package specified in `beamInput`.
+ - `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit.
+ - `beamConfigs`: A comma `,` separated list of `beam.conf` file names. It should be relative path under the project home.
  - `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min. 
  
  To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can found in the output log of the command.
