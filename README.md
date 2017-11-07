@@ -39,7 +39,7 @@ gradle deploy
  
  To run batch simulation you can specify the conf files using parameter like:
  ```
- gradle runAwsSim -PbeamConfigs=beamA.conf,beamB.conf,beamC.conf,beamD.conf
+ gradle deploy -PbeamConfigs=production/application-sfbay/base.conf,production/application-sfbay/beamB.conf,production/application-sfbay/beamC.conf,production/application-sfbay/beamD.conf
  ```
  It will start four ec2 instances, using provided configurations.
  
