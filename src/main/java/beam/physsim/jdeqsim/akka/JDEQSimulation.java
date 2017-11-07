@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Population;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.groups.PlansConfigGroup;
 import org.matsim.core.mobsim.framework.Mobsim;
@@ -16,7 +17,6 @@ import javax.inject.Inject;
 import java.util.HashMap;
 
 /**
- * Created by asif on 8/20/2017.
  */
 /* *********************************************************************** *
  * project: org.matsim.*
@@ -49,26 +49,17 @@ public class JDEQSimulation implements Mobsim {
     private final static Logger log = Logger.getLogger(org.matsim.core.mobsim.jdeqsim.JDEQSimulation.class);
 
     private final JDEQSimConfigGroup config;
-    protected Scenario scenario;
     protected Network network;
-
     protected final PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
+    private Population population;
 
-    @Inject
-    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events) {
+    // reason why passing population and network separately and not part of scenario: they belong to two different sceanrios (network belongs to agentSim/beam, population belongs to physSim)
+    public JDEQSimulation(final JDEQSimConfigGroup config, final Population population, final EventsManager events, final Network network, PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation) {
+        this.population = population;
         Road.setConfig(config);
         Message.setEventsManager(events);
         this.config = config;
-        this.scenario = scenario;
-        this.activityDurationInterpretation = this.scenario.getConfig().plans().getActivityDurationInterpretation();
-    }
-
-    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Network network) {
-        Road.setConfig(config);
-        Message.setEventsManager(events);
-        this.config = config;
-        this.scenario = scenario;
-        this.activityDurationInterpretation = this.scenario.getConfig().plans().getActivityDurationInterpretation();
+        this.activityDurationInterpretation = activityDurationInterpretation;
         this.network = network;
     }
 
@@ -87,7 +78,7 @@ public class JDEQSimulation implements Mobsim {
             Road.getAllRoads().put(link.getId(), road);
         }
 
-        for (Person person : this.scenario.getPopulation().getPersons().values()) {
+        for (Person person : population.getPersons().values()) {
             new Vehicle(scheduler, person, activityDurationInterpretation); // the vehicle registers itself to the scheduler
         }
 
