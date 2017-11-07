@@ -10,8 +10,8 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
 
-  "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing tollCapacity value" must {
-    "create less entries for mode choice car as value increases" ignore {
+  "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing tollCapacity value" must {
+    "create less entries for mode choice car as value increases" in {
       val inputTollPrice = Seq(0.1, 1.0)
       val modeChoice = inputTollPrice.map(tc => new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"), tollPrice = Some(tc)).groupedCount)
 
