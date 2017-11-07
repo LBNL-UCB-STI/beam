@@ -33,7 +33,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
-    "prefer mode choice transit type than other modes" in {
+    "prefer mode choice transit type than other modes" ignore {
       val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
       val transitIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable"))
 
@@ -45,7 +45,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitOnly" must {
-    "Generate ModeChoice events file with only transit types" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitOnly")){
+    "Generate ModeChoice events file with only transit types" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitOnly")){
       listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe listValueTagEventFile.size
     }
   }
