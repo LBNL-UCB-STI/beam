@@ -1,9 +1,12 @@
 package beam.physsim.jdeqsim.akka;
 
 import akka.actor.ActorRef;
+import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.api.core.v01.population.Population;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.handler.EventHandler;
+import org.matsim.core.utils.collections.Tuple;
 
 public class AkkaEventHandlerAdapter implements EventsManager {
 
@@ -20,46 +23,33 @@ public class AkkaEventHandlerAdapter implements EventsManager {
 
 	@Override
 	public void addHandler(EventHandler handler) {
-		// TODO Auto-generated method stub
-		
+		//eventHandlerActorREF.tell(handler, ActorRef.noSender());
+		DebugLib.stopSystemAndReportMethodWhichShouldNeverHaveBeenCalled();
 	}
 
 	@Override
 	public void removeHandler(EventHandler handler) {
-		// TODO Auto-generated method stub
-		
+		DebugLib.stopSystemAndReportMethodWhichShouldNeverHaveBeenCalled();
 	}
 
 	@Override
 	public void resetHandlers(int iteration) {
-		// TODO Auto-generated method stub
-		
+		DebugLib.stopSystemAndReportMethodWhichShouldNeverHaveBeenCalled();
 	}
 
 	@Override
 	public void initProcessing() {
-		// TODO Auto-generated method stub
-		
+		DebugLib.stopSystemAndReportMethodWhichShouldNeverHaveBeenCalled();
 	}
 
 	@Override
 	public void afterSimStep(double time) {
-		// TODO Auto-generated method stub
-		
+		DebugLib.stopSystemAndReportMethodWhichShouldNeverHaveBeenCalled();
 	}
 
 	@Override
 	public void finishProcessing() {
-		eventHandlerActorREF.tell("lastMessage", ActorRef.noSender());
-//		Timeout timeout = new Timeout(FiniteDuration.create(10, java.util.concurrent.TimeUnit.SECONDS));
-//	    Future<Object> future = Patterns.ask(eventHandlerActorREF, "lastMessage", timeout);
-//	    try {
-//			String result = (String) Await.result(future, timeout.duration());
-//		} catch (Exception e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//		//eventHandlerActorREF.tell("lastMessage", ActorRef.noSender());
+		eventHandlerActorREF.tell(EventManagerActor.LAST_MESSAGE, ActorRef.noSender());
 	}
 
 }
