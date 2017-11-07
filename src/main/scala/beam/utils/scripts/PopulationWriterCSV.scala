@@ -25,10 +25,7 @@ class PopulationWriterCSV(val coordinateTransformation: CoordinateTransformation
     * If plans-streaming is on, the file will already be opened and the file-header be written.
     * If plans-streaming is off, the file will not be created until {@link #write(java.lang.String)} is called.
     *
-    * @param coordinateTransformation transformation from the internal CRS to the CRS in which the file should be written
-    * @param population               the population to write to file
-    * @param fraction                 of persons to write to the plans file
-    */
+    **/
 
     val handler = new PopulationWriterHandler {
       override def writeHeaderAndStartElement(out: BufferedWriter): Unit = out.write("id,type,x,y,end.time")

@@ -1,11 +1,11 @@
-package beam.agentsim.agents.vehicles.household
+package beam.agentsim.agents.household
 
 import akka.actor.FSM.Event
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.vehicles.BeamVehicle.{AppendToTrajectory, StreetVehicle}
-import beam.agentsim.agents.vehicles.household.HouseholdActor._
+import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.vehicles.{CarVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice

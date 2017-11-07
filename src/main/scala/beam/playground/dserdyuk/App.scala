@@ -2,7 +2,7 @@ package beam.playground.dserdyuk
 
 import akka.actor.{ActorSystem, Props}
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.vehicles.household.HouseholdActor
+import beam.agentsim.agents.household.HouseholdActor
 import beam.sim.config.ConfigModule
 import org.matsim.households.{HouseholdsImpl, HouseholdsReaderV10}
 import org.matsim.vehicles.{VehicleReaderV1, VehicleUtils}

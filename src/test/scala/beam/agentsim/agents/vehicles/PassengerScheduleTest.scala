@@ -30,7 +30,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
 
     it("should create a schedule for single passenger with one leg") {
 
-      val vehicleId: Id[Vehicle] = Id.create("dummyVehicle",classOf[Vehicle])
+      val vehicleId: Id[TempVehicle] = Id.create("dummyVehicle",classOf[TempVehicle])
       val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
 
       val leg = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
@@ -46,7 +46,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
     }
     it("should create a schedule for single passenger with many legs") {
 
-      val vehicleId: Id[Vehicle]  = Id.create("dummyVehicle",classOf[Vehicle])
+      val vehicleId: Id[TempVehicle]  = Id.create("dummyVehicle",classOf[TempVehicle])
       val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
 
       val leg1 = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
@@ -73,10 +73,10 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
     }
     it("should create a schedule for many passengers with many legs") {
 
-      val vehicleId1: Id[Vehicle]  = Id.create("dummyVehicle1",classOf[Vehicle])
+      val vehicleId1: Id[TempVehicle]  = Id.create("dummyVehicle1",classOf[TempVehicle])
       val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
 
-      val vehicleId2: Id[Vehicle]  = Id.create("dummyVehicle2",classOf[Vehicle])
+      val vehicleId2: Id[TempVehicle]  = Id.create("dummyVehicle2",classOf[TempVehicle])
       val passengerPersonId2: Id[Person] = Id.create("passengerPerson2",classOf[Person])
 
       val leg1 = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
