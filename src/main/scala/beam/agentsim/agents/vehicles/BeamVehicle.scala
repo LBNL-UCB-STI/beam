@@ -96,7 +96,7 @@ object BeamVehicle {
   case class BecomeDriver(tick: Double, driver: Id[_], passengerSchedule: Option[PassengerSchedule] = None)
   case class UnbecomeDriver(tick: Double, driver: Id[_])
   case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], inVehicleId: Id[Vehicle])
-  case object BecomeDriverSuccessAck
+  case class BecomeDriverSuccessAck(id: Id[Vehicle])
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
   case class EnterVehicle(tick: Double, passengerVehicle : VehiclePersonId)

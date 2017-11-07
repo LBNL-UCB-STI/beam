@@ -2,6 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriverSuccessAck, DriverAlreadyAssigned}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.{Vehicle, VehicleType}
@@ -14,14 +15,20 @@ trait TempVehicle extends Vehicle {
     */
   val id: Id[Vehicle]
   /**
-    * PersonAgent who is currently managing this vehicle
+    * The [[beam.agentsim.ResourceManager]] who is currently managing this vehicle. Must
+    * not ever be None ([[Vehicle]]s start out with a manager even if no driver is initially assigned.
     */
-  val manager: Option[(Id[PersonAgent], ActorRef)]
+  var manager: Option[ActorRef]
 
   /**
-    * MATSim vehicle delegate
+    * MATSim vehicle delegate container (should be instantiated with all properties at creation).
     */
   val matSimVehicle: Vehicle
+
+  /**
+    * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
+    */
+  var driver: Option[ActorRef] = None
 
   /**
     * Vehicle power train
@@ -34,16 +41,48 @@ trait TempVehicle extends Vehicle {
   override def getType: VehicleType = matSimVehicle.getType
 
   override def getId: Id[Vehicle] = id
-}
 
-object TempVehicle {
-  def energyPerUnitByType(vehicleTypeId: Id[VehicleType]): Double = {
-    //TODO: add energy type registry
-    0.0
+  def setManager(managerRef: ActorRef): Unit = {
+    manager = Option(managerRef)
   }
 
-  def noSpecialChars(theString: String): String = theString.replaceAll("[\\\\|\\\\^]+", ":")
+  /**
+    * Called by the driver.
+    */
+  def unsetDriver(): Unit = {
+    driver = None
+  }
 
+
+  /**
+    * Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
+    * a call of [[unsetDriver]] will remove the driver.
+    * Send back appropriate response to caller depending on protocol.
+    *
+    * @param newDriverRef incoming driver
+    */
+  def setDriver(newDriverRef: ActorRef): Either[DriverAlreadyAssigned, BecomeDriverSuccessAck] = {
+    if (driver.isEmpty) {
+      driver = Option(newDriverRef)
+      Right(BecomeDriverSuccessAck(id))
+    }
+    else {
+      Left(DriverAlreadyAssigned(id, driver.get))
+    }
+  }
+
+
+
+  object TempVehicle {
+    def energyPerUnitByType(vehicleTypeId: Id[VehicleType]): Double = {
+      //TODO: add energy type registry
+      0.0
+    }
+
+    def noSpecialChars(theString: String): String = theString.replaceAll("[\\\\|\\\\^]+", ":")
+
+
+  }
 
 }
 

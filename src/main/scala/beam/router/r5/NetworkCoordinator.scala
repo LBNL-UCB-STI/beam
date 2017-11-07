@@ -6,6 +6,7 @@ import java.nio.file.Paths
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -207,7 +208,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
         (tripVehId, route, passengerSchedule)
       }
     }
-    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg().startTime)
+    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg.startTime)
     transitScheduleToCreate.foreach { case (tripVehId, route, passengerSchedule) =>
       createTransitVehicle(tripVehId, route, passengerSchedule)
     }
@@ -274,5 +275,5 @@ object NetworkCoordinator {
     })
   }
 
-  def props(beamServices: BeamServices) = Props(classOf[NetworkCoordinator], beamServices)
+  def props(beamServices: BeamServices) = Props(new NetworkCoordinator(beamServices))
 }

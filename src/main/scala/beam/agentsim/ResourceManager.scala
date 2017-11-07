@@ -11,7 +11,9 @@ import org.matsim.vehicles.Vehicle
 import scala.concurrent.Future
 
 /**
-  * Created by dserdiuk on 6/15/17.
+  *
+  * @author dserdiuk
+  * @since 7/17/2017
   */
 
 trait Resource[R] {
@@ -34,7 +36,7 @@ object Resource {
 }
 
 trait ResourceManager[R] {
-  val resources: Map[Id[R],ActorRef]=Map.empty
+  val resources: Map[Id[R],ActorRef] = Map.empty
   def findResource(resourceId: Id[R]): Option[ActorRef]
 
 }

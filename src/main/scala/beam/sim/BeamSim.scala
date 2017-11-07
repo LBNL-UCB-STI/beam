@@ -12,6 +12,7 @@ import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.household.HouseholdActor
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.events._
 import beam.agentsim.events.handling.BeamEventsLogger
 import beam.agentsim.scheduler.BeamAgentScheduler
