@@ -32,6 +32,8 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
+import scala.util.Random
 
 /**
   * BEAM
@@ -50,7 +52,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
   var availableAlternatives: Vector[String] = Vector()
   //TODO source these attributes from pop input data
-  val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(0.0,2,true,1,1)
+  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households.get(_household).get.getIncome.getIncome,
+    beamServices.households.get(_household).get.getMemberIds.size(),
+    (new Random()).nextBoolean(),
+    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_.getType.getDescription.toLowerCase.contains("car")).size,
+    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_.getType.getDescription.toLowerCase.contains("bike")).size)
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
