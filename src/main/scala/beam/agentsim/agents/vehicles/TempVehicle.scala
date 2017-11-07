@@ -2,6 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.{Vehicle, VehicleType}
 

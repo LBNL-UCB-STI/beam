@@ -8,6 +8,7 @@ import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, 
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.{CancelReservation, CancelReservationWithVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, RemovePassengerFromTrip}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime

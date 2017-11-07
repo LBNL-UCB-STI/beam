@@ -1,8 +1,8 @@
 package beam.agentsim.agents.vehicles
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.Props
 import beam.agentsim.agents.BeamAgent.BeamAgentData
-import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -27,6 +27,7 @@ class CarVehicle(val beamServices: BeamServices,
 
   override def getId: Id[Vehicle] = id
 
+  // TODO: Don't hardcode
   private lazy val carVehicleType = initVehicleType()
   val dim: CarDimension = CarDimension(1800, 4.8, 2)
 
@@ -54,13 +55,12 @@ object CarVehicle extends BeamVehicleObject {
 
   // This props has it all
   def props(beamServices: BeamServices, vehicleId: Id[Vehicle], data: CarVehicleData, powerTrain: Powertrain,
-            initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes) = {
-    Props(classOf[CarVehicle], beamServices, vehicleId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes)
+            initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes): Props = {
+    Props(new CarVehicle(beamServices, vehicleId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes))
   }
 
   // This props follows spec of BeamVehicle
-  override def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
-    val personId = Id.create("EMPTY", classOf[PersonAgent])
+  def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
     props(beamServices, vehicleId, CarVehicleData(), powertrain, matSimVehicle, new Attributes())
   }
 
