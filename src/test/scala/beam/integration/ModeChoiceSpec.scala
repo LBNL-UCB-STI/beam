@@ -33,7 +33,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
-    "prefer mode choice transit type than other modes" ignore {
+    "prefer mode choice transit type than other modes" in {
       val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
       val transitIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable"))
 
@@ -45,7 +45,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitOnly" must {
-    "Generate ModeChoice events file with only transit types" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitOnly")){
+    "Generate ModeChoice events file with only transit types" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitOnly")){
       listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe listValueTagEventFile.size
     }
   }
@@ -83,10 +83,9 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
 
 
 //  Commented out for now as beam is hanging during run
-//  "Running beam with modeChoiceClass ModeChoiceUniformRandom" must {
-//    "Generate events file with exactly four ride_hailing type for ModeChoice" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceUniformRandom")){
-//      //listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
-//      fail("Beam doesn't work in this ModeChoice")
-//    }
-//  }
+  "Running beam with modeChoiceClass ModeChoiceUniformRandom" must {
+    "Generate events file with exactly four ride_hailing type for ModeChoice" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceUniformRandom")){
+      fail("Unpredictable output to evaluate")
+      }
+  }
 }
