@@ -3,7 +3,7 @@ package beam.utils.scripts
 import java.util
 
 import beam.utils.gis.Plans2Shapefile
-import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousholdIncome, HousingType}
+import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.scripts.PopulationAttrib.Rank
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.apache.log4j.Logger
@@ -47,8 +47,6 @@ object HouseholdAttrib extends Enum[HouseholdAttrib] {
   case object HomeCoordY extends HouseholdAttrib with LowerCamelcase
 
   case object HousingType extends HouseholdAttrib with LowerCamelcase
-
-  case object HousholdIncome extends HouseholdAttrib with LowerCamelcase
 }
 
 
@@ -260,7 +258,7 @@ object PlansSampler {
 
       val hhId = Id.create(counter.getCounter, classOf[Household])
       val spHH = newHHFactory.createHousehold(hhId)
-      spHH.setIncome(new IncomeImpl(synthHH.income,Income.IncomePeriod.year))
+      spHH.setIncome(newHHFactory.createIncome(synthHH.income,Income.IncomePeriod.year))
 
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
@@ -297,7 +295,6 @@ object PlansSampler {
             newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
             newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
             newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-            newHHAttributes.putAttribute(hhId.toString, HousholdIncome.entryName, synthHH.income)
             snapPlanActivityLocsToNearestLink(newPlan)
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
