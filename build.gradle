@@ -25,13 +25,6 @@ configurations.all {
     resolutionStrategy.cacheChangingModulesFor 86400, 'seconds'
 }
 
-configurations {
-    // Depending on which binding you want to use for slf4j, use these to exclude all others
-//    runtime.exclude group: "org.slf4j", module: "slf4j-log4j12"
-    runtime.exclude group: 'org.slf4j', module: 'slf4j-simple'
-    runtime.exclude group: 'ch.qos.logback', module: 'logback-classic'
-}
-
 //ext {
 //    env = "beamville"
 //}
@@ -132,13 +125,13 @@ dependencies {
     compile 'net.sf.supercsv:super-csv:2.4.0'
     compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
-    //compile 'com.github.shevek:graphviz4j:master-SNAPSHOT'
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.colinsheppard.matsim_all', name: 'matsim', version: 'master-SNAPSHOT', changing: false
-//    compile group: 'com.github.colinsheppard', name: 'pt2matsim', version: 'master-SNAPSHOT', changing: false
-//    compile group: 'com.conveyal', name: 'r5', version: '2.1.1'
-    compile group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'beam-3.0-SNAPSHOT', changing: true
+    compile(group: 'com.github.michaz', name: 'r5', version: 'traveltime-SNAPSHOT', changing: true) {
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+        exclude group: 'org.slf4j', module: 'slf4j-simple'
+    }
 
     compile group: 'net.freeutils', name: 'jlhttp', version: '2.3'
 
