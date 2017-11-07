@@ -10,7 +10,9 @@ import scala.collection.immutable
   * These enumerations are defined to simplify extensibility of VehicleData.
   *
   * XXXX: What does this mean? -SAF
+  *
   */
+  //TODO: How do we get fuel-level consideration in here?
   //TODO: Consider later specifying via json
 sealed abstract class EnergyEconomyAttributes extends EnumEntry
 

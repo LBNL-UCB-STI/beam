@@ -9,7 +9,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 /**
-  * BEAM
+  * Holds information about the numbers and identities of agents in the model
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
 
@@ -20,7 +20,7 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     schedule(beamLeg).riders.size
   }
 
-  def isEmpty = schedule.isEmpty
+  def isEmpty: Boolean = schedule.isEmpty
 
   def initialSpacetime(): SpaceTime = {
     schedule.firstKey.travelPath.getStartPoint()
@@ -31,11 +31,11 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     lastLeg.travelPath.getEndPoint()
   }
 
-  def getStartLeg() = {
+  def getStartLeg: BeamLeg = {
     schedule.head._1
   }
 
-  def addLegs(legs: Seq[BeamLeg]) = {
+  def addLegs(legs: Seq[BeamLeg]): Seq[Option[Manifest]] = {
     legs.withFilter(leg => !(schedule contains leg)).map(leg => schedule.put(leg, Manifest()))
   }
 
@@ -67,9 +67,9 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
       }
     )
     val firstLeg = legs.head
-    schedule.get(firstLeg).get.boarders += passenger.vehicleId
+    schedule(firstLeg).boarders += passenger.vehicleId
     val lastLeg = legs.last
-    schedule.get(lastLeg).get.alighters += passenger.vehicleId
+    schedule(lastLeg).alighters += passenger.vehicleId
   }
 
 
@@ -83,7 +83,7 @@ object PassengerSchedule {
 case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
 
 class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]]) {
-  def isEmpty: Boolean = riders.size == 0
+  def isEmpty: Boolean = riders.isEmpty
 }
 
 object Manifest {

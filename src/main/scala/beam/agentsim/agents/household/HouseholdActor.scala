@@ -127,9 +127,9 @@ class HouseholdActor(services: BeamServices,
         case _ =>
       }
 
-    case MobilityStatusInquiry(inquiryId, personId) =>
+    case MobilityStatusInquiry(_, personId) =>
       // Query reserved vehicles
-      var availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles
+      val availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles
 
       // Assign to requesting individual
       availableStreetVehicles.foreach{x=>

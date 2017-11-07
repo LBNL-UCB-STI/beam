@@ -42,8 +42,8 @@ case class TransitVehicleData() extends BeamAgentData
 object TransitVehicle extends BeamVehicleObject{
   // This props has it all
   def props(beamServices: BeamServices, vehicleId: Id[Vehicle], data: TransitVehicleData, powerTrain: Powertrain,
-            initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes) = {
-    Props(classOf[TransitVehicle], beamServices, vehicleId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes)
+            initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes): Props = {
+    Props(new TransitVehicle(beamServices, vehicleId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes))
   }
 
   // This props follows spec of BeamVehicle
@@ -56,7 +56,7 @@ object TransitVehicle extends BeamVehicleObject{
     props(beamServices, matSimVehicle.getId, TransitVehicleData(), powertrain, matSimVehicle,  new Attributes())
   }
 
-  def createId(tripSchedule: TripSchedule) = {
+  def createId(tripSchedule: TripSchedule): Id[Vehicle] = {
     Id.create(tripSchedule.tripId, classOf[Vehicle])
   }
 }
