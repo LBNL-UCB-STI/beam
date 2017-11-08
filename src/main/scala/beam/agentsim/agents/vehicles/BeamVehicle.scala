@@ -7,7 +7,7 @@ import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Uninitialized}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.{CancelReservation, CancelReservationWithVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, SetCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ClearCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, RemovePassengerFromTrip}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
@@ -107,8 +107,8 @@ object BeamVehicle {
 
   case class AppendToTrajectory(beamPath: BeamPath)
   case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
-  case class AssignedCarrier(carrierVehicleId: Id[Vehicle])
-  case object ResetCarrier
+  case class SetCarrier(carrierVehicleId: Id[Vehicle])
+  case object ClearCarrier
 
 }
 
@@ -203,7 +203,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
 
   chainedWhen(Idle) {
 
-    case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
+    case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), _) =>
       if (driver.isEmpty || driver.get == beamServices.agentRefs(newDriver.toString)) {
         if (driver.isEmpty) {
           driver = Some(beamServices.agentRefs(newDriver.toString))
@@ -254,7 +254,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         passengers += newPassengerVehicle.vehicleId
         driver.get ! BoardingConfirmation(newPassengerVehicle.vehicleId)
         beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach { vehiclePassengerRef =>
-          vehiclePassengerRef ! AssignedCarrier(vehicleId)
+          vehiclePassengerRef ! SetCarrier(vehicleId)
         }
         beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId, id)))
       } else {
@@ -267,7 +267,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       passengers -= passengerVehicleId.vehicleId
       driver.get ! AlightingConfirmation(passengerVehicleId.vehicleId)
       beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach { vehiclePassengerRef =>
-        vehiclePassengerRef ! ResetCarrier
+        vehiclePassengerRef ! ClearCarrier
       }
 
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
@@ -279,10 +279,10 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case Event(VehicleLocationRequest(time), _) =>
       sender() ! VehicleLocationResponse(id, location(time))
       stay()
-    case Event(AssignedCarrier(carrierVehicleId), _) =>
+    case Event(SetCarrier(carrierVehicleId), _) =>
       carrier = beamServices.vehicleRefs.get(carrierVehicleId)
       stay()
-    case Event(ResetCarrier, _) =>
+    case Event(ClearCarrier, _) =>
       carrier = None
       stay()
     case Event(AppendToTrajectory(newSegments), info) =>
@@ -313,31 +313,6 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case Event(any, _) =>
       logError(s"Unhandled event: $id $any $data")
       stay()
-  }
-}
-
-/**
-  * VehicleDataImpl contains Attributes. These enumerations are defined to simplify extensibility of VehicleData
-  */
-object VehicleAttributes extends Enumeration {
-
-  val capacity = Value("capacity")
-
-  object Electric extends Enumeration {
-    val electricEnergyConsumptionModelClassname = Value("electricEnergyConsumptionModelClassname")
-    val batteryCapacityInKWh = Value("batteryCapacityInKWh")
-    val maxDischargingPowerInKW = Value("maxDischargingPowerInKW")
-    val maxLevel2ChargingPowerInKW = Value("maxLevel2ChargingPowerInKW")
-    val maxLevel3ChargingPowerInKW = Value("maxLevel3ChargingPowerInKW")
-    val targetCoefA = Value("targetCoefA")
-    val targetCoefB = Value("targetCoefB")
-    val targetCoefC = Value("targetCoefC")
-  }
-
-  object Gasoline extends Enumeration {
-    val gasolineFuelConsumptionRateInJoulesPerMeter = Value("gasolineFuelConsumptionRateInJoulesPerMeter")
-    val fuelEconomyInKwhPerMile = Value("fuelEconomyInKwhPerMile")
-    val equivalentTestWeight = Value("equivalentTestWeight")
   }
 }
 
