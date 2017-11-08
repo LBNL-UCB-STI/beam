@@ -15,65 +15,55 @@ class FareCalculatorSpec extends TestKit(ActorSystem("farecalculator-test")) wit
 
   "calculate fare from 55448 to 55450" should {
     "return 5.5 fare" in {
-      val fareCalculator = system.actorOf(FareCalculator.props(path.toString))
-      fareCalculator ! CalcFareRequest("CE", "ACE", "55448", "55450")
-      expectMsg(CalcFareResponse(5.5))
+      val fareCalculator = new FareCalculator(path.toString)
+      assert(fareCalculator.calcFare("CE", "ACE", "55448", "55450") == 5.5)
     }
   }
 
   "calculate fare with null route id, it" should {
     "return proper fare" in {
-      val fareCalculator = system.actorOf(FareCalculator.props(path.toString))
-      fareCalculator ! CalcFareRequest("CE", null, "55448", "55643")
-      expectMsg(CalcFareResponse(9.5))
+      val fareCalculator = new FareCalculator(path.toString)
+      assert(fareCalculator.calcFare("CE", null, "55448", "55643") == 9.5)
+
     }
   }
 
   "calculate fare from 55448 to 55449 against contains_id" should {
     "return 4.5 fare" in {
-      val fareCalculator = system.actorOf(FareCalculator.props(path.toString))
-      fareCalculator ! CalcFareRequest("CE", "ACE", "55448", "55449")
-      expectMsg(CalcFareResponse(4.5))
+      val fareCalculator = new FareCalculator(path.toString)
+      assert(fareCalculator.calcFare("CE", "ACE", "55448", "55449") == 4.5)
+
     }
   }
 
   "calculate fare with null agency id, it" should {
     "return zero fare" in {
-      val fareCalculator = system.actorOf(FareCalculator.props(path.toString))
-      fareCalculator ! CalcFareRequest(null, null, "55448", "55643")
-      expectMsg(CalcFareResponse(0.0))
+      val fareCalculator = new FareCalculator(path.toString)
+      assert(fareCalculator.calcFare(null, null, "55448", "55643") == 0.0)
     }
   }
 
   "calculate fare with wrong route id, it" should {
     "return zero fare" in {
-      val fareCalculator = system.actorOf(FareCalculator.props(path.toString))
-      fareCalculator ! CalcFareRequest("CE", "1", "55448", "55449")
-      expectMsg(CalcFareResponse(0.0))
+      val fareCalculator = new FareCalculator(path.toString)
+      assert(fareCalculator.calcFare("CE", "1", "55448", "55449") == 0.0)
     }
   }
 
   "getFareSegments with null origin and destination and provided contains" should {
     "return a segment fare" in {
-      val fareCalculator = system.actorOf(FareCalculator.props(path.toString))
-      fareCalculator ! CalcFareRequest("CE", "ACE", null, null, Set("55448", "55449", "55643"))
-      expectMsg(CalcFareResponse(13.75))
+      val fareCalculator = new FareCalculator(path.toString)
+      assert(fareCalculator.calcFare("CE", "ACE", null, null, Set("55448", "55449", "55643")) == 13.75)
     }
   }
 
   "filterTransferFares with four segments" should {
     "return 3 segments within transfer duration" in {
-      val fareCalculator = system.actorOf(FareCalculator.props(path.toString))
-
-      def getFareSegments(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null): Vector[BeamFareSegment] = {
-        fareCalculator ! FareCalculator.GetFareSegmentsRequest(agencyId, routeId, fromId, toId, containsIds)
-        expectMsgType[FareCalculator.GetFareSegmentsResponse].fareSegments
-      }
-
-      val fr = getFareSegments("CE", "ACE", null, null, Set("55448", "55449", "55643")).map(BeamFareSegment(_, 0, 3200)) ++
-        getFareSegments("CE", "ACE", "55643", "55644").map(BeamFareSegment(_, 0, 3800)) ++
-        getFareSegments("CE", "ACE", "55644", "55645").map(BeamFareSegment(_, 0, 4300)) ++
-        getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
+      val fareCalculator = new FareCalculator(path.toString)
+      val fr = fareCalculator.getFareSegments("CE", "ACE", null, null, Set("55448", "55449", "55643")).map(BeamFareSegment(_, 0, 3200)) ++
+        fareCalculator.getFareSegments("CE", "ACE", "55643", "55644").map(BeamFareSegment(_, 0, 3800)) ++
+        fareCalculator.getFareSegments("CE", "ACE", "55644", "55645").map(BeamFareSegment(_, 0, 4300)) ++
+        fareCalculator.getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
       val fsf = filterTransferFares(fr)
       assert(fsf.nonEmpty)
       assert(fsf.size == 3)

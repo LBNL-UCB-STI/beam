@@ -9,6 +9,12 @@ addons:
     packages:
       - oracle-java8-installer
 
+git:
+  lfs_skip_smudge: true
+
+before_install:
+  - git lfs pull
+  
 script:
 #  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
   - ./gradlew check
