@@ -13,4 +13,6 @@ libs
 .cache*
 target/
 beam.iml
+beam.ipr
+beam.iws
 out

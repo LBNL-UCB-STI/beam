@@ -85,4 +85,9 @@ public class EnergyConsumptionModelMyGreenCar extends AbstractInterpolatedEnergy
 
         return getEnergyConsumptionInKwh(vehicle.getEnergyConsumptionParameters(),hmInputTrip)*3600000; // in Joule (1kWh = 3600000 Joules)
     }
+
+    @Override
+    public double getEnergyConsumptionForLinkInJoule(double distance, VehicleWithBattery vehicle, double averageSpeed) {
+        return 0;
+    }
 }

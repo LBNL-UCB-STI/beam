@@ -50,7 +50,7 @@ import beam.events.writers.EVEventWriterCSV;
 import beam.events.writers.EVEventWriterXML;
 
 @Singleton
-final class EventsHandlingImpl implements EventsHandling, BeforeMobsimListener, AfterMobsimListener, IterationEndsListener, ShutdownListener {
+public class EventsHandlingImpl implements EventsHandling, BeforeMobsimListener, AfterMobsimListener, IterationEndsListener, ShutdownListener {
 
 	final static private Logger log = Logger.getLogger(EventsHandlingImpl.class);
 

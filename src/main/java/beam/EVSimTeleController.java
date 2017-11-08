@@ -7,39 +7,42 @@ package beam;
  * ...\output
  */
 
+import beam.controller.corelisteners.EventsHandlingImpl;
+import beam.sim.BeamMobsim;
+import beam.sim.LinkAttributeLoader;
+import beam.sim.traveltime.*;
+import beam.transEnergySim.events.ChargingEventManager;
 import com.google.inject.Provider;
 
+import org.geotools.referencing.CRS;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.api.core.v01.network.Node;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PlanElement;
-import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigGroup;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
-import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.matsim.core.controler.corelisteners.EventsHandling;
 import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.controler.listener.ShutdownListener;
-import org.matsim.core.events.EventsReaderXMLv1;
-import org.matsim.core.events.EventsUtils;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.framework.Mobsim;
-import org.matsim.core.mobsim.qsim.QSim;
-import org.matsim.core.mobsim.qsim.interfaces.MobsimEngine;
+import org.matsim.core.mobsim.qsim.interfaces.NetsimNetwork;
 import org.matsim.core.network.LinkQuadTree;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.routes.LinkNetworkRouteImpl;
+import org.matsim.core.router.RoutingModule;
+import org.matsim.core.router.util.LeastCostPathCalculator;
+import org.matsim.core.router.util.LeastCostPathCalculatorFactory;
 import org.matsim.core.scenario.ScenarioUtils;
-import org.matsim.core.utils.geometry.transformations.TransformationFactory;
 
-import beam.charging.*;
+import beam.analysis.ChargingLoadProfile;
 import beam.charging.infrastructure.ChargingInfrastructureManagerImpl;
 import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.controller.EVController;
@@ -48,19 +51,12 @@ import beam.events.EventLogger;
 import beam.parking.lib.DebugLib;
 import beam.charging.vehicle.ParseVehicleTypes;
 import beam.replanning.ChargingStrategyManager;
-import beam.scoring.EVScoreAccumulator;
-import beam.scoring.EVScoreEventGenerator;
-import beam.scoring.rangeAnxiety.LogRangeAnxityScoringEventsAtEndOfDay;
-import beam.sim.AdaptedQSimUtils;
-import beam.sim.AdaptedTeleportationEngine;
-import beam.sim.BayPTRouter;
-import beam.sim.EvRouter;
-import beam.sim.traveltime.BeamRouterImpl;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
 import beam.transEnergySim.vehicles.api.Vehicle;
 import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 import beam.transEnergySim.vehicles.impl.BatteryElectricVehicleImpl;
 import beam.transEnergySim.vehicles.impl.PHEV;
+import org.opengis.referencing.FactoryException;
 
 import java.io.File;
 import java.lang.reflect.Field;
@@ -82,13 +78,13 @@ public class EVSimTeleController {
 		EVGlobalData.data.OUTPUT_DIRECTORY_BASE_PATH = args[2];
 
 		EVSimTeleController evSimTeleController = new EVSimTeleController();
-		evSimTeleController.init();
+		evSimTeleController.init(args);
 
 		evSimTeleController.startSimulation();
 	}
 
-	public void init() {
-		EVGlobalData.data.config = setupConfig();
+	public void init(String[] args) {
+		EVGlobalData.data.config = setupConfig(args);
 		MatsimRandom.reset(EVGlobalData.data.config.global().getRandomSeed());
 		EVGlobalData.data.rand = MatsimRandom.getLocalInstance();
 		initControler();
@@ -102,8 +98,13 @@ public class EVSimTeleController {
 	}
 
 	protected void initModeRouters() {
-		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterImpl.class);
-		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES, BeamRouterImpl.class);
+//		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE, BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES, BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("pt", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("car", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("ride", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("bike", BeamRouterR5.class);
+		EVGlobalData.data.modeRouterMapping.put("undefined", BeamRouterR5.class);
 	}
 
 	public void startSimulation() {
@@ -113,8 +114,6 @@ public class EVSimTeleController {
 	}
 
 	public void prepareSimulation(final EVController controler) {
-		controler.getConfig().controler().setOverwriteFileSetting(false ? OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
-				: OutputDirectoryHierarchy.OverwriteFileSetting.failIfDirectoryExists);
 
 		controler.addOverridingModule(new AbstractModule() {
 			@Override
@@ -122,42 +121,43 @@ public class EVSimTeleController {
 				bindMobsim().toProvider(new Provider<Mobsim>() {
 					@Override
 					public Mobsim get() {
-						EVGlobalData.data.qsim = (QSim) AdaptedQSimUtils.createDefaultQSim(controler.getScenario(), controler.getEvents());
-
-						Field f;
-						try {
-							f = EVGlobalData.data.qsim.getClass().getDeclaredField("mobsimEngines");
-							f.setAccessible(true);
-							Collection<MobsimEngine> mobsimEngines = (Collection<MobsimEngine>) f.get(EVGlobalData.data.qsim);
-
-							for (MobsimEngine mobilityEngine : mobsimEngines) {
-								if (mobilityEngine instanceof AdaptedTeleportationEngine) {
-									EVGlobalData.data.qsim.addDepartureHandler((AdaptedTeleportationEngine) mobilityEngine);
-									// the MobSimEngine and DepartureHandler are
-									// working together. Therefore we need to
-									// add the same
-									// handler at the end here.
-								}
-
-							}
-						} catch (NoSuchFieldException e) {
-							e.printStackTrace();
-						} catch (SecurityException e) {
-							e.printStackTrace();
-						} // NoSuchFieldException
-						catch (IllegalArgumentException e) {
-							e.printStackTrace();
-						} catch (IllegalAccessException e) {
-							e.printStackTrace();
-						}
-
-						// TODO: figure out, if this can be packed into
-						// listeners in abstract class and avoid static
-						// reference!
-						// e.g. use injection
-						EVGlobalData.data.chargingEventManagerImpl.addEngine(EVGlobalData.data.qsim);
-
-						return EVGlobalData.data.qsim;
+					   return new BeamMobsim();
+//						EVGlobalData.data.qsim = (QSim) AdaptedQSimUtils.createDefaultQSim(controler.getScenario(), controler.getEvents());
+//
+//						Field f;
+//						try {
+//							f = EVGlobalData.data.qsim.getClass().getDeclaredField("mobsimEngines");
+//							f.setAccessible(true);
+//							Collection<MobsimEngine> mobsimEngines = (Collection<MobsimEngine>) f.get(EVGlobalData.data.qsim);
+//
+//							for (MobsimEngine mobilityEngine : mobsimEngines) {
+//								if (mobilityEngine instanceof AdaptedTeleportationEngine) {
+//									EVGlobalData.data.qsim.addDepartureHandler((AdaptedTeleportationEngine) mobilityEngine);
+//									// the MobSimEngine and DepartureHandler are
+//									// working together. Therefore we need to
+//									// add the same
+//									// handler at the end here.
+//								}
+//
+//							}
+//						} catch (NoSuchFieldException e) {
+//							e.printStackTrace();
+//						} catch (SecurityException e) {
+//							e.printStackTrace();
+//						} // NoSuchFieldException
+//						catch (IllegalArgumentException e) {
+//							e.printStackTrace();
+//						} catch (IllegalAccessException e) {
+//							e.printStackTrace();
+//						}
+//
+//						// TODO: figure out, if this can be packed into
+//						// listeners in abstract class and avoid static
+//						// reference!
+//						// e.g. use injection
+////						EVGlobalData.data.chargingEventManagerImp.addEngine(EVGlobalData.data.beamMobsim);
+//
+//						return EVGlobalData.data.qsim;
 					}
 				});
 			}
@@ -166,7 +166,13 @@ public class EVSimTeleController {
 		controler.addOverridingModule(new AbstractModule() {
 			@Override
 			public void install() {
+				bind(EventsHandling.class).to(EventsHandlingImpl.class);
 				bind(BeamEventHandlers.class).asEagerSingleton();
+				bind(ChargingLoadProfile.class).asEagerSingleton();
+				bind(RoutingModule.class).toProvider(BeamRouterR5Provider.class);
+				bind(LeastCostPathCalculatorFactory.class).to(BeamLeastCostPathCalculatorFactory.class);
+				bind(LeastCostPathCalculator.class).to(BeamLeastCostPathCalculator.class);
+				bind(NetsimNetwork.class).to(BeamNetsimNetwork.class);
 				// addEventHandlerBinding().toInstance(observer);
 				// bind(MySimulationObserver.class).toInstance(observer);
 
@@ -177,7 +183,10 @@ public class EVSimTeleController {
 			}
 		});
 
+		loadRouter();
 		attachLinkTree();
+		loadLinkAttributes();
+		avoidRoutingDuringInitialization(controler);
 
 		ChargingStrategyManager.data.loadChargingStrategies();
 
@@ -185,9 +194,8 @@ public class EVSimTeleController {
 
 		initializeChargingInfrastructure(controler);
 
-		loadRouter();
 		initializeVehicleFleet(controler);
-		scheduleGlobalActions();
+		//scheduleGlobalActions();
 
 		controler.addControlerListener(new AddReplanning());
 		controler.addControlerListener(new BEAMSimTelecontrolerListener());
@@ -202,11 +210,10 @@ public class EVSimTeleController {
 			}
 		});
 
-		integrateChargingEventManagerIntoSimulation(controler);
-		new EVScoreEventGenerator(controler).setInternalRangeAnxityEventHandler(new LogRangeAnxityScoringEventsAtEndOfDay());
-		new EVScoreAccumulator(controler);
+//		integrateChargingEventManagerIntoSimulation(controler);
+//		new EVScoreEventGenerator(controler).setInternalRangeAnxityEventHandler(new LogRangeAnxityScoringEventsAtEndOfDay());
+//		new EVScoreAccumulator(controler);
 
-		avoidRoutingDuringInitialization(controler);
 		setLastActivityEndTimeToBeginActivityEndTime(controler);
 	}
 
@@ -258,8 +265,8 @@ public class EVSimTeleController {
 				PlanElement pe = planElements.get(i);
 				if (pe instanceof Activity) {
 					Activity act = (Activity) pe;
-					Link link = NetworkUtils.getNearestLink(network, ((Activity) pe).getCoord());
-					act.setLinkId(link.getId());
+                    Link link = NetworkUtils.getNearestLink(network, act.getCoord());
+                    if (link != null) act.setLinkId(link.getId());
 				}
 			}
 
@@ -297,21 +304,32 @@ public class EVSimTeleController {
 			e.printStackTrace();
 		}
 	}
+	public void loadLinkAttributes(){
+		EVGlobalData.data.linkAttributes = LinkAttributeLoader.loadLinkAttributes();
 
-	protected void loadRouter() {
-		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.RELAXED_TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
 	}
 
-	private static void scheduleGlobalActions() {
+	protected void loadRouter(){
+//		EVGlobalData.data.router = new BeamRouterImpl(EVGlobalData.data.TRAVEL_TIME_FILEPATH, EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH);
+		EVGlobalData.data.router = new BeamRouterR5();
+	}
+
+	public static void scheduleGlobalActions() {
+//		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.timeMarkingNewDay, EVGlobalData.data.globalActions, "handleDayTracking");
 		EVGlobalData.data.scheduler.addCallBackMethod(EVGlobalData.data.timeMarkingNewDay, EVGlobalData.data.globalActions, "handleDayTracking");
 //		EVGlobalData.data.scheduler.addCallBackMethod(0.0, EVGlobalData.data.globalActions, "printRand");
+//		EVGlobalData.data.scheduler.addCallBackMethod(100*3600.0, EVGlobalData.data.globalActions, "pauseForHour");
 	}
 
-	public Config setupConfig() {
+	public Config setupConfig(String[] args) {
 		String inputDirectory = EVGlobalData.data.INPUT_DIRECTORY_BASE_PATH + File.separator;
 		Config config = ConfigUtils.loadConfig(inputDirectory + EVGlobalData.data.CONFIG_RELATIVE_PATH);
 		config.setParam("network", "inputNetworkFile", inputDirectory + config.getModule("network").getParams().get("inputNetworkFile"));
-		config.setParam("plans", "inputPlansFile", inputDirectory + config.getModule("plans").getParams().get("inputPlansFile"));
+		if(args.length ==4){
+			config.setParam("plans", "inputPlansFile", inputDirectory + args[3]);
+		}else{
+			config.setParam("plans", "inputPlansFile", inputDirectory + config.getModule("plans").getParams().get("inputPlansFile"));
+		}
 		String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
 		ConfigGroup evModule = config.getModule(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLE_MODULE_NAME);
 		EVGlobalData.data.OUTPUT_DIRECTORY_NAME = evModule.getValue(EVGlobalData.data.SIMULATION_NAME) + "_" + timestamp;
@@ -323,15 +341,31 @@ public class EVSimTeleController {
 		EVGlobalData.data.CHARGING_PLUG_TYPES_FILEPATH = inputDirectory + evModule.getValue("chargingPlugTypesFile");
 		EVGlobalData.data.CHARGING_SITES_FILEPATH = inputDirectory + evModule.getValue("chargingSitesFile");
 		EVGlobalData.data.CHARGING_POINTS_FILEPATH = inputDirectory + evModule.getValue("chargingPointsFile");
-		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesFile");
+		EVGlobalData.data.CHARGING_STRATEGIES_FILEPATH = (evModule.getValue("chargingStrategiesFile").substring(0,1).equals("/")) ? evModule.getValue("chargingStrategiesFile") : inputDirectory + evModule.getValue("chargingStrategiesFile");
+		EVGlobalData.data.NETWORK_FILEPATH = (evModule.getValue("networkFilePath").substring(0,1).equals("/")) ? evModule.getValue("networkFilePath") : inputDirectory + evModule.getValue("networkFilePath");
+		if (evModule.getValue("numberOfThreads") != null)
+			EVGlobalData.data.NUM_THREADS = Integer.valueOf(evModule.getValue("numberOfThreads"));
+		if (evModule.getValue("chargingStrategiesValidationFile") != null)
+			EVGlobalData.data.CHARGING_LOAD_VALIDATION_FILEPATH = inputDirectory + evModule.getValue("chargingStrategiesValidationFile");
+		if (evModule.getValue("updatedChargingStrategiesFile") != null)
+			EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_FILEPATH = inputDirectory + evModule.getValue("updatedChargingStrategiesFile");
+		if (evModule.getValue("updatedChargingStrategiesBackupFile") != null)
+			EVGlobalData.data.UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH = inputDirectory + evModule.getValue("updatedChargingStrategiesBackupFile");
+		if (evModule.getValue("iterationSetLength") != null)
+			EVGlobalData.data.ITER_SET_LENGTH = Integer.valueOf(evModule.getValue("iterationSetLength"));
+		else EVGlobalData.data.ITER_SET_LENGTH = 4;
+		if (evModule.getValue("validationValueType") != null)
+			EVGlobalData.data.VALIDATION_VALUE_TYPE = evModule.getValue("validationValueType");
+		else EVGlobalData.data.VALIDATION_VALUE_TYPE = "chargingload";
 		EVGlobalData.data.VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("vehicleTypesFile");
 		EVGlobalData.data.PERSON_VEHICLE_TYPES_FILEPATH = inputDirectory + evModule.getValue("personVehicleTypesFile");
-		EVGlobalData.data.RELAXED_TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("relaxedTravelTimeFile");
+		EVGlobalData.data.TRAVEL_TIME_FILEPATH = inputDirectory + evModule.getValue("travelTimeFile");
+		EVGlobalData.data.LINK_ATTRIBUTE_FILEPATH = inputDirectory + evModule.getValue("linkAttributesFile");
 		EVGlobalData.data.ROUTER_CACHE_READ_FILEPATH = ((new File(evModule.getValue("routerCacheFileRead"))).isAbsolute())
 				? evModule.getValue("routerCacheFileRead") : inputDirectory + evModule.getValue("routerCacheFileRead");
-		if(!evModule.getValue("routerCacheFileWrite").trim().equals("")){
+		if (!evModule.getValue("routerCacheFileWrite").trim().equals("")) {
 			EVGlobalData.data.ROUTER_CACHE_WRITE_FILEPATH = ((new File(evModule.getValue("routerCacheFileWrite"))).isAbsolute())
-				? evModule.getValue("routerCacheFileWrite") : inputDirectory + evModule.getValue("routerCacheFileWrite");
+					? evModule.getValue("routerCacheFileWrite") : inputDirectory + evModule.getValue("routerCacheFileWrite");
 		}
 		EVGlobalData.data.INITIAL_SEARCH_RADIUS = Double.parseDouble(evModule.getValue("initialSearchRadius"));
 		EVGlobalData.data.SEARCH_RADIUS_INCREMENTATION_FACTOR = Double.parseDouble(evModule.getValue("searchRadiusIncrementationFactor"));
@@ -355,48 +389,59 @@ public class EVSimTeleController {
 		EVGlobalData.data.RANGE_ANXITY_SAMPLING_INTERVAL_IN_SECONDS = Double.parseDouble(evModule.getValue("rangeAnxitySamplingIntervalInSeconds"));
 
 		EVGlobalData.data.IS_DEBUG_MODE = Boolean.parseBoolean(evModule.getValue("isDebugMode"));
-		
-		
+
+		EVGlobalData.data.SHOULD_CALIBRATE_PARAMS = evModule.getValue("shouldCalibrateParams") != null && Boolean.parseBoolean(evModule.getValue("shouldCalibrateParams"));
+		EVGlobalData.data.SHOULD_CALIBRATE_SITES = evModule.getValue("shouldCalibrateSites") != null && Boolean.parseBoolean(evModule.getValue("shouldCalibrateSites"));
+		EVGlobalData.data.SHOULD_RESUME_CALIBRATION = evModule.getValue("shouldResumeCalibration") != null && Boolean.parseBoolean(evModule.getValue("shouldResumeCalibration"));
+
 		EVGlobalData.data.BETA_CHARGING_COST = Double.parseDouble(evModule.getValue("betaChargingCost"));
 		EVGlobalData.data.BETA_PARKING_COST = Double.parseDouble(evModule.getValue("betaParkingCost"));
 		EVGlobalData.data.BETA_PARKING_WALK_TIME = Double.parseDouble(evModule.getValue("betaParkingWalkTime"));
 		EVGlobalData.data.BETA_LEG_TRAVEL_TIME = Double.parseDouble(evModule.getValue("betaLegTravelTime"));
 		EVGlobalData.data.OVERHEAD_SCORE_PLUG_CHANGE = Double.parseDouble(evModule.getValue("overheadScorePlugChange"));
-		
+
 		// optional parameters
-		if (evModule.getValue("dumpPlansAtEndOfRun")!=null){
+		if (evModule.getValue("dumpPlansAtEndOfRun") != null) {
 			EVGlobalData.data.DUMP_PLANS_AT_END_OF_RUN = Boolean.parseBoolean(evModule.getValue("dumpPlansAtEndOfRun"));
 		}
-		
-		if (evModule.getValue("eventsFileOutputFormats")!=null){
+
+		if (evModule.getValue("eventsFileOutputFormats") != null) {
 			EVGlobalData.data.EVENTS_FILE_OUTPUT_FORMATS = evModule.getValue("eventsFileOutputFormats");
 		}
-		
-		if (evModule.getValue("chargingPointReferenceUtilizationDataFile")!=null){
+
+		if (evModule.getValue("chargingPointReferenceUtilizationDataFile") != null) {
 			EVGlobalData.data.CHARGING_POINT_REFERENCE_UTILIZATION_DATA_FILE = evModule.getValue("chargingPointReferenceUtilizationDataFile");
 		}
-		
-		if (evModule.getValue("dumpPlanCsv")!=null){
+
+		if (evModule.getValue("dumpPlanCsv") != null) {
 			EVGlobalData.data.DUMP_PLAN_CSV = Boolean.parseBoolean(evModule.getValue("dumpPlanCsv"));
 		}
-		
-		if (evModule.getValue("dumpPlanCsvInterval")!=null){
+
+		if (evModule.getValue("dumpPlanCsvInterval") != null) {
 			EVGlobalData.data.DUMP_PLAN_CSV_INTERVAL = Integer.parseInt(evModule.getValue("dumpPlanCsvInterval"));
 		}
-		
-		if (evModule.getValue("maxNumberOfEVDailyPlansInMemory")!=null){
+
+		if (evModule.getValue("maxNumberOfEVDailyPlansInMemory") != null) {
 			EVGlobalData.data.MAX_NUMBER_OF_EV_DAILY_PLANS_IN_MEMORY = Integer.parseInt(evModule.getValue("maxNumberOfEVDailyPlansInMemory"));
 		}
-		
-		if (evModule.getValue("selectedEVDailyPlansFileName")!=null){
+
+		if (evModule.getValue("selectedEVDailyPlansFileName") != null) {
 			EVGlobalData.data.SELECTED_EV_DAILY_PLANS_FILE_NAME = evModule.getValue("selectedEVDailyPlansFileName");
 		}
-		
-		
-		
+		if (evModule.getParams().get("routerCacheInMemoryTripLimit") != null) {
+			EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT = Integer.parseInt(evModule.getParams().get("routerCacheInMemoryTripLimit"));
+		} else {
+			EVGlobalData.data.ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT = 10000;
+		}
+
 		config.setParam("controler", "outputDirectory", EVGlobalData.data.OUTPUT_DIRECTORY.getAbsolutePath());
-		EVGlobalData.data.transformFromWGS84 = TransformationFactory.getCoordinateTransformation("WGS84",
-				config.getModule("global").getValue("coordinateSystem"));
+
+		try {
+			EVGlobalData.data.targetCoordinateSystem = CRS.decode(config.getModules().get("global").getParams().get("coordinateSystem"));
+			EVGlobalData.data.wgs84CoordinateSystem = CRS.decode("EPSG:4326");
+		} catch (FactoryException e) {
+			e.printStackTrace();
+		}
 
 		// TODO: the following statement is inserted just at the moment to avoid
 		// config consistency check problems -> this could be done properly
@@ -411,13 +456,21 @@ public class EVSimTeleController {
 
 	private static void initializeChargingInfrastructure(EVController controler) {
 		EVGlobalData.data.chargingInfrastructureManager = new ChargingInfrastructureManagerImpl();
+
+		/*
+		for(ChargingSite site : EVGlobalData.data.chargingInfrastructureManager.getAllChargingSites()) {
+			System.out.println(site.getAllChargingPlugs().iterator().next().useInCalibration());
+			System.out.println(site.getCoord().getX() + ", " + site.getCoord().getY());
+		}
+		System.exit(0);
+		*/
 	}
 
 	private static void integrateChargingEventManagerIntoSimulation(final EVController controler) {
 		HashMap<Id<Person>, Id<Vehicle>> personToVehicleMapping = null;
 		HashSet<String> travelModeFilter = new HashSet<>();
 		travelModeFilter.add(EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES);
-		EVGlobalData.data.chargingEventManagerImpl = new ChargingEventManagerImpl(personToVehicleMapping, controler, travelModeFilter);
+		EVGlobalData.data.chargingEventManagerImp = new ChargingEventManager(personToVehicleMapping, controler, travelModeFilter);
 	}
 
 	private void initializeVehicleFleet(final EVController controler) {

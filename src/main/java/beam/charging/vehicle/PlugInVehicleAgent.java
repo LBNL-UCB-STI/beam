@@ -1,10 +1,12 @@
 package beam.charging.vehicle;
 
+import beam.charging.spatialGroups.ChargingSiteSpatialGroupImpl;
+import beam.utils.MathUtil;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Identifiable;
-import org.matsim.api.core.v01.events.PersonStuckEvent;
+import org.matsim.api.core.v01.events.*;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Leg;
@@ -47,6 +49,8 @@ import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPoint;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 import beam.transEnergySim.vehicles.api.BatteryElectricVehicle;
 import beam.transEnergySim.vehicles.api.VehicleWithBattery;
+import org.matsim.facilities.ActivityFacility;
+import org.matsim.facilities.Facility;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -58,7 +62,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	private static InternalInterface internalInterface;
 
 	private Plan selectedPlan;
-	int currentPlanElementIndex;
+	int currentPlanElementIndex = 0;
 	private Person person;
 	private Id<PlugInVehicleAgent> agentId;
 	private MobsimAgent mobsimAgent;
@@ -112,8 +116,12 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 					.getChargingSitePolicyById(homeProperties.get("homeChargingPolicyId"));
 			ChargingNetworkOperator homeNetworkOperator = EVGlobalData.data.chargingInfrastructureManager
 					.getChargingNetworkOperatorById(homeProperties.get("homeChargingNetworkOperatorId"));
+			if(!EVGlobalData.data.chargingSiteSpatialGroupMap.containsKey(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup"))){
+				EVGlobalData.data.chargingSiteSpatialGroupMap.put(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup"),
+						new ChargingSiteSpatialGroupImpl(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup")));
+			}
 			this.homeSite = new ChargingSiteImpl(Id.create("-" + this.getPersonId(), ChargingSite.class), this.homeLinkCoord, homeChargingPolicy,
-					homeNetworkOperator, true);
+					homeNetworkOperator, EVGlobalData.data.chargingSiteSpatialGroupMap.get(EVGlobalData.data.personHomeProperties.get(this.person.getId().toString()).get("homeChargingSpatialGroup")),"Residential",true);
 			this.homeSite.setNearestLink(homeLink);
 			EVGlobalData.data.chargingInfrastructureManager.addChargingSite(this.homeSite.getId().toString(), this.homeSite);
 			this.homePoint = new ChargingPointImpl(Id.create("-" + this.getPersonId(), ChargingPoint.class), this.homeSite, 1);
@@ -133,13 +141,10 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			} else {
 				homePlugType = EVGlobalData.data.chargingInfrastructureManager.getChargingPlugTypeById(homeProperties.get("homeChargingPlugTypeId"));
 			}
-			this.homePlug = new ChargingPlugImpl(Id.create("-" + this.getPersonId(), ChargingPlug.class), this.homePoint, homePlugType);
+			Boolean useInCalibration = Boolean.parseBoolean(homeProperties.get("useInCalibration"));
+			this.homePlug = new ChargingPlugImpl(Id.create("-" + this.getPersonId(), ChargingPlug.class), this.homePoint, homePlugType, useInCalibration);
 			this.homePoint.createSlowChargingQueue(1);
 		}
-	}
-
-	public PersonDriverAgentImpl getPersonDriverAgentImpl() {
-		return (PersonDriverAgentImpl) getMobsimAgent();
 	}
 
 	public AgentChargingState getChargingState() {
@@ -192,7 +197,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	public void performChargingDecisionAlgorithmOnArrival() {
 		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		try {
 			//TODO we need more robust way of tracking where we are in the plan and pulling the appropriate strategy
@@ -240,7 +245,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			ArrivalChargingDecisionEvent decisionEvent = new ArrivalChargingDecisionEvent(EVGlobalData.data.now, this, chargingStrategyForThisLeg);
 			EVGlobalData.data.eventLogger.processEvent(decisionEvent);
 			if(chargingStrategyForThisLeg instanceof ChargingStrategyNestedLogit){
-				EVGlobalData.data.eventLogger.processEvent(new NestedLogitDecisionEvent(EVGlobalData.data.now, decisionEvent.getDecisionEventId(), (ChargingStrategyNestedLogit) chargingStrategyForThisLeg));
+//				EVGlobalData.data.eventLogger.processEvent(new NestedLogitDecisionEvent(EVGlobalData.data.now, decisionEvent.getDecisionEventId(), (ChargingStrategyNestedLogit) chargingStrategyForThisLeg));
 			} 
 
 			if(getSelectedChargingPlug() != null && this.currentActivity !=null){
@@ -262,7 +267,10 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void performChargingDecisionAlgorithmOnDeparture() {
-		DebugLib.traceAgent(this.getId(), "6825504");
+		if(getId().toString().equals("1702340")){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
+		//DebugLib.traceAgent(this.getId(), "65263");
 
 		ChargingStrategy chargingStrategyForThisLeg = ChargingStrategyManager.data.getReplanable(person.getId()).getSelectedEvDailyPlan().getChargingStrategyForLeg(getCurrentLegIndex());
 		ChargingPlug chosenPlug;
@@ -317,16 +325,17 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	private void adjustTravelDistanceInDayForEnRoute() {
-		double origDist, subtrip1Dist, subtrip2Dist; 
+		//DebugLib.traceAgent(this.getPersonId(),"1702340");
+		double origDist, subtrip1Dist, subtrip2Dist;
 		origDist = getTripInfoAsOfDeparture().getTripDistance();
 		
 		TripInformation subtrip1, subtrip2;
 		Id<Link> chargingLinkId = getSelectedChargingSite().getNearestLink().getId();
-		subtrip1 = getTripInformation(EVGlobalData.data.now, getTripInfoAsOfDeparture().getRouteInfoElements().getFirst().getLinkId(), chargingLinkId);
+		subtrip1 = getTripInformation(EVGlobalData.data.now, getCurrentLink(), chargingLinkId);
 		subtrip1Dist = subtrip1.getTripDistance();
 		
 		double timeOfSecondDeparture = EVGlobalData.data.now + subtrip1.getTripTravelTime() + getSelectedChargingSite().estimateChargingSessionDuration(getSelectedChargingPlug().getChargingPlugType(),this.getVehicleWithBattery());
-		subtrip2 = getTripInformation(timeOfSecondDeparture, chargingLinkId, getTripInfoAsOfDeparture().getRouteInfoElements().getLast().getLinkId());
+		subtrip2 = getTripInformation(timeOfSecondDeparture, chargingLinkId, getNextActivity().getLinkId());
 		subtrip2Dist = subtrip2.getTripDistance();
 		this.remainingTravelDistanceInDayInMeters += -origDist + subtrip1Dist + subtrip2Dist;
 	}
@@ -345,7 +354,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	public void performReassessDecision() {
 		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		updateEnergyUse();
 		this.currentLinkId = getSelectedChargingSite().getNearestLink().getId();
@@ -463,6 +472,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	private void decrementRemainingTravelInDay(double distance) {
+		//DebugLib.traceAgent(this.getPersonId(),"1702340");
 		if (this.remainingTravelDistanceInDayInMeters == null) {
 			setEstimatedTravelDistanceInDay();
 		}
@@ -535,10 +545,13 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public Double getRemainingTravelDistanceInDayInMiles() {
-		return getRemainingTravelDistanceInDayInMeters() / 1609.34;
+		return (getRemainingTravelDistanceInDayInMeters()<0.0 ? 0.0 : getRemainingTravelDistanceInDayInMeters()) / 1609.34;
 	}
 
 	public void setEstimatedTravelDistanceInDay() {
+		if(getId().toString().equals("6153008")){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
 		if (this.chargingState != AgentChargingState.TRAVELING) {
 			this.remainingTravelDistanceInDayInMeters = 0.0;
 		}
@@ -546,15 +559,24 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 		Activity lastActivity = null, nextActivity = null;
 		int i = 0;
 		while (true) {
-			if (getCurrentLegIndex() + i + 1 > planElements.size())
-				break;
+			if (getCurrentLegIndex() + i + 1 > planElements.size()) break;
 			PlanElement elem = planElements.get(getCurrentLegIndex() + i);
 			if ((elem instanceof Activity)) {
 				lastActivity = (Activity) elem;
+				if(lastActivity.getLinkId().toString().substring(0,2).equals("sf")){
+					if(EVGlobalData.data.matsimLinksToR5Links.containsKey(lastActivity.getLinkId())) {
+						lastActivity.setLinkId(EVGlobalData.data.matsimLinksToR5Links.get(lastActivity.getLinkId()));
+					}
+				}
 			} else if (elem instanceof Leg && lastActivity != null) {
 				int departDay = (new Double(Math.ceil((lastActivity.getEndTime() - EVGlobalData.data.timeMarkingNewDay) / 86400.0))).intValue();
 				if (departDay == EVGlobalData.data.currentDay) {
 					nextActivity = (Activity) planElements.get(getCurrentLegIndex() + i + 1);
+					if(nextActivity.getLinkId().toString().substring(0,2).equals("sf")){
+						if(EVGlobalData.data.matsimLinksToR5Links.containsKey(nextActivity.getLinkId())) {
+							nextActivity.setLinkId(EVGlobalData.data.matsimLinksToR5Links.get(nextActivity.getLinkId()));
+						}
+					}
 					this.remainingTravelDistanceInDayInMeters += getTripInformation(lastActivity.getEndTime(), lastActivity.getLinkId(),
 							nextActivity.getLinkId()).getTripDistance();
 				} else if (departDay > EVGlobalData.data.currentDay) {
@@ -563,6 +585,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 				lastActivity = null;
 			}
 			i++;
+//			if(i % 10 == 0){
+//				log.info("person " + this.getPersonId() + " plan element " + i);
+//			}
 		}
 	}
 
@@ -588,7 +613,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 
 	public double getOnTheWayChargingSessionDuration() {
 		if (selectedChargingPlug == null) {
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		Link originLink = this.selectedChargingPlug.getChargingSite().getNearestLink();
 		Link destinationLink = EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(this.nextActivity.getLinkId());
@@ -647,9 +672,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void handleDeparture() {
-		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
-		}
+		DebugLib.traceAgent(this.getPersonId(),"5886076");
 		if(this.chargingState == AgentChargingState.STRANDED)return;
 		if (this.chargingState == AgentChargingState.PRE_CHARGE || this.chargingState == AgentChargingState.CHARGING
 				|| this.chargingState == AgentChargingState.POST_CHARGE_PLUGGED || this.chargingState == AgentChargingState.POST_CHARGE_UNPLUGGED) {
@@ -663,6 +686,9 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			}
 			selectedChargingPlug = null;
 		}
+		if((!this.shouldDepartAfterChargingSession && this.currentPlanElementIndex % 2 != 0) || (this.shouldDepartAfterChargingSession && this.currentPlanElementIndex % 2 == 0)){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
 		if (!this.shouldDepartAfterChargingSession) {
 			updateActivityTrackingOnEnd();
 			updateTravelInformationOnDeparture();
@@ -670,13 +696,20 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			this.tripInfoAsOfDeparture = getTripInformation(EVGlobalData.data.now, this.getCurrentLink(), this.nextActivity.getLinkId());
 			this.shouldDepartAfterChargingSession = false;
 		}
+		EVGlobalData.data.eventLogger.processEvent(new ActivityEndEvent(EVGlobalData.data.now,getPersonId(),this.getCurrentLink(),Id.create("NA", ActivityFacility.class), this.previousActivity.getType()));
 		performChargingDecisionAlgorithmOnDeparture();
+		EVGlobalData.data.eventLogger.processEvent(new PersonDepartureEvent(EVGlobalData.data.now,getPersonId(),getCurrentLink(),EVGlobalData.data.TELEPORTED_TRANSPORATION_MODE));
 	}
 
 	public void handleArrival() {
-		if(getId().toString().equals("1171641") && EVGlobalData.data.controler.getIterationNumber() == 3){
+		DebugLib.traceAgent(this.getPersonId(),"5886076");
+		if(EVGlobalData.data.now / 3600.0 > 7.0){
 			DebugLib.emptyFunctionForSettingBreakPoint();
 		}
+		if(this.currentPlanElementIndex % 2 == 0){
+			DebugLib.emptyFunctionForSettingBreakPoint();
+		}
+		EVGlobalData.data.eventLogger.processEvent(new PersonArrivalEvent(EVGlobalData.data.now,getPersonId(),this.getCurrentLink(),EVGlobalData.data.PLUGIN_ELECTRIC_VEHICLES));
 		this.currentLinkId = this.nextActivity.getLinkId();
 		updateEnergyUse();
 		decrementRemainingTravelInDay(this.tripInfoAsOfDeparture.getTripDistance());
@@ -688,20 +721,36 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			if (this.currentActivity != null)
 				return; // Skip if driver already engaged in an activity
 			setCurrentCoord(getLinkCoordOfNextActivity());
-			getMobsimAgent().notifyArrivalOnLinkByNonNetworkMode(getMobsimAgent().getDestinationLinkId());
-			EVGlobalData.data.controler.getEvents().processEvent(
-					new TeleportationArrivalEvent(EVGlobalData.data.now, getMobsimAgent().getId(), this.tripInfoAsOfDeparture.getTripDistance()));
-			getMobsimAgent().endLegAndComputeNextState(EVGlobalData.data.now);
-			PlugInVehicleAgent.internalInterface.arrangeNextAgentState(getMobsimAgent());
+//			getMobsimAgent().notifyArrivalOnLinkByNonNetworkMode(getMobsimAgent().getDestinationLinkId());
+			EVGlobalData.data.eventLogger.processEvent(
+					new TeleportationArrivalEvent(EVGlobalData.data.now, getPersonId(), this.tripInfoAsOfDeparture.getTripDistance()));
+
+//			getMobsimAgent().endLegAndComputeNextState(EVGlobalData.data.now);
+//			PlugInVehicleAgent.internalInterface.arrangeNextAgentState(getMobsimAgent());
 			updateActivityTrackingOnStart();
+			EVGlobalData.data.eventLogger.processEvent(new ActivityStartEvent(EVGlobalData.data.now,getPersonId(),this.getCurrentLink(),Id.create("NA", ActivityFacility.class), this.currentActivity.getType()));
+
+			// Either schedule Activity End (if this is last activity) or Handle Departure
+			if(this.nextActivity == null){
+				EVGlobalData.data.scheduler.addCallBackMethod(this.currentActivity.getEndTime(), this,"endActivity", 0.0);
+			}else {
+				if (this.currentActivity.getEndTime() <= EVGlobalData.data.now) {
+					handleDeparture();
+				} else {
+					EVGlobalData.data.scheduler.addCallBackMethod(this.currentActivity.getEndTime(), this, "handleDeparture", 0.0);
+				}
+			}
 		} catch (Exception e) {
 			EVGlobalData.data.testingHooks.errorDuringExecution = true;
 			DebugLib.stopSystemAndReportInconsistency(e.getMessage());
 		}
 	}
+	public void endActivity() {
+		EVGlobalData.data.eventLogger.processEvent(new ActivityEndEvent(EVGlobalData.data.now, getPersonId(), this.getCurrentLink(), Id.create("NA", ActivityFacility.class), this.currentActivity.getType()));
+	}
 
 	public void updateActivityTrackingOnStart() {
-		updateCurrentPlanElementIndex();
+		this.currentPlanElementIndex++;
 		if (this.nextActivity == null)
 			this.nextActivity = getActivityFollowingCurrentPlanElement(0);
 		this.currentActivity = this.nextActivity;
@@ -714,7 +763,7 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 	}
 
 	public void updateActivityTrackingOnEnd() {
-		updateCurrentPlanElementIndex();
+		this.currentPlanElementIndex++;
 		this.previousActivity = getActivityPreviousToCurrentPlanElement(-1);
 		this.currentActivity = null;
 		this.currentLinkId = this.previousActivity.getLinkId();
@@ -751,26 +800,6 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 			}
 		}
 		return null;
-	}
-
-	private void updateCurrentPlanElementIndex() {
-		Field f;
-		try {
-			f = getPersonDriverAgentImpl().getClass().getDeclaredField("basicAgentDelegate");
-			f.setAccessible(true);
-			BasicPlanAgentImpl basicPlanAgent = (BasicPlanAgentImpl) f.get(getPersonDriverAgentImpl());
-			f = basicPlanAgent.getClass().getDeclaredField("currentPlanElementIndex");
-			f.setAccessible(true);
-			this.currentPlanElementIndex = (Integer) f.get(basicPlanAgent);
-		} catch (NoSuchFieldException e) {
-			e.printStackTrace();
-		} catch (SecurityException e) {
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			e.printStackTrace();
-		}
 	}
 
 	private void updateTravelInformationOnDeparture() {
@@ -917,10 +946,6 @@ public class PlugInVehicleAgent implements VehicleAgent, Identifiable<PlugInVehi
 				chargingStrategyForLeg.resetInternalTracking();
 			}
 		}
-	}
-
-	public MobsimAgent getMobsimAgent() {
-		return mobsimAgent;
 	}
 
 	// information cached on agent

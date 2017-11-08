@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Random;
 
+import beam.calibration.LogitParamCalibration;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -63,6 +64,7 @@ public class ChargingStrategyManager {
 					newStrategy = new ChargingStrategyUniformRandom();
 				}else if(elem.getChild("className").getValue().equals("ChargingStrategyNestedLogit")){
 					newStrategy = new ChargingStrategyNestedLogit();
+					LogitParamCalibration.setInitialLogitParams(elem.getChild("parameters"));
 				}else if(elem.getChild("className").getValue().equals("ChargingStrategyAlwaysChargeOnArrival")){
 					newStrategy = new ChargingStrategyAlwaysChargeOnArrival();
 				}else if(elem.getChild("className").getValue().equals("ChargingStrategyChargeOnFirstDeparture")){

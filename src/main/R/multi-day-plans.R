@@ -85,12 +85,16 @@ legs[,element.i:=1:length(dist),by='id']
 legs <- join.on(legs,plans,c('id','element.i'),c('id','element.i'),c('end.dt','link.id','link.x','link.y'))
 legs[,dep.delay:=dep.dt - end.dt]
 
-
 # Now just deal with subset of plans data we're intersted in
 load('/Users/critter/Documents/beam/input/sf-bay-sampled-plans.Rdata')
 
 plans <- plans[id%in%sampled.reg$smart.id]
 legs <- legs[id%in%sampled.reg$smart.id]
+
+# Deal with NA's in end.dt which come from timestamp with hour value > 24
+plans [,end.hour:=unlist(lapply(str_split(end,":"),function(ll){ as.numeric(ll[1]) }))]
+plans [,end.minute:=unlist(lapply(str_split(end,":"),function(ll){ as.numeric(ll[2]) }))]
+plans[is.na(end.dt),end.dt:=to.posix(pp('1970-01-02 ',end.hour-24,':',end.minute),'%Y-%m-%d %H:%M')]
 
 # Group into cases to make it easy to deal with the carry-over from last plan to the next
 #
@@ -100,29 +104,35 @@ legs <- legs[id%in%sampled.reg$smart.id]
 home.to.home <- u(plans[,head(type,1)=='Home' & tail(type,1)=='Home',by='id'][V1==T]$id)
 other.types <- u(plans[,head(type,1)=='Home' & tail(type,1)=='Home',by='id'][V1==F]$id)
 
+n.more.days <- 9
+
 new.plans <- list()
 for(person in home.to.home){
   n.acts <- nrow(plans[id==person])
   plans[id==person,end.dt:=c(head(end.dt,-1),end.dt[1]+24*3600)]
-  new.plans[[length(new.plans)+1]] <- rbindlist(list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)],
-                                                     plans[id==person][2:n.acts,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*3600)],
-                                                     plans[id==person][2:n.acts,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+48*3600)]))
+  tmp <- list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)])
+  for(i in 1:n.more.days){
+    tmp[[length(tmp)+1]] <- plans[id==person][2:n.acts,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*i*3600)]
+  }
+  new.plans[[length(new.plans)+1]] <- rbindlist(tmp)
 }
 for(person in other.types){
   n.acts <- nrow(plans[id==person])
   plans[id==person,end.dt:=c(head(end.dt,-1),to.posix('1970-01-02'))]
-  new.plans[[length(new.plans)+1]] <- rbindlist(list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)],
-                                                     plans[id==person][,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*3600)],
-                                                     plans[id==person][,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+48*3600)]))
+  tmp <- list(plans[id==person,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt)])
+  for(i in 1:n.more.days){
+    tmp[[length(tmp)+1]] <- plans[id==person][,list(type=type,link=link.id,id=id,x=x,y=y,end_time=end.dt+24*i*3600)]
+  }
+  new.plans[[length(new.plans)+1]] <- rbindlist(tmp)
 }
 new.plans <- rbindlist(new.plans)
 new.plans[,link:=pp('sfpt',link)]
 new.legs <- new.plans[,list(start_link=head(link,-1),end_link=tail(link,-1),trav_time=1,distance=1),by='id']
-save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.Rdata')
-load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.Rdata')
+save(new.plans,new.legs,file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-10.Rdata')
+load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-10.Rdata')
 
-outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day.xml'
-outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-500.xml'
+outfile <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-10day.xml'
+outfile.500 <- '/Users/critter/Documents/beam/input/sf-bay-sampled-plans-10day-500.xml'
 
 the.str <- '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">\n\n<population>\n'
 cat(the.str,file=outfile,append=F)
@@ -145,3 +155,43 @@ the.str <- '\n<!-- =============================================================
 cat(the.str,file=outfile,append=T)
 cat(the.str,file=outfile.500,append=T)
 
+
+# Same process but now do k-fold subsamples of the plans
+load(file='/Users/critter/Documents/beam/input/sf-bay-sampled-plans-multi-day-10.Rdata')
+
+new.plans[,orig.i:=1:nrow(new.plans)]
+setkey(new.plans,id)
+peeps <- unique(new.plans[,.(id)])
+
+pop.n <- nrow(peeps)
+k <- 5e3
+for(k in 1000*c(2.5,5,10,20)){
+  ns <- seq(k,pop.n,by=k)
+  peeps[,ord:=sample(1:pop.n)]
+  
+  plans <- copy(join.on(new.plans,peeps,'id','id'))
+  setkey(plans,ord,orig.i)
+
+  for(n in ns){
+    my.cat(pp('writing ',n,' of ',k,'-fold'))
+    if(n < tail(ns,1))next
+
+    to.write <- plans[id%in%peeps[(n-k+1):n]$id]
+
+    outfile <- pp('/Users/critter/Documents/beam/input/kfold/sf-bay-sampled-plans-10day-kfold',k/1e3,'-samp',n/1e3,'.xml')
+
+    the.str <- '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE population SYSTEM "http://www.matsim.org/files/dtd/population_v5.dtd">\n\n<population>\n'
+    cat(the.str,file=outfile,append=F)
+    for(person in u(to.write$id)){
+      the.str <- pp('\t<person id="',person,'" employed="yes">\n\t\t<plan selected="yes">\n')
+      the.hr <- as.numeric(strftime(to.write[id==person]$end_time,'%H')) + 24*(as.numeric(strftime(to.write[id==person]$end_time,'%j'))-1)
+      the.min <- as.numeric(strftime(to.write[id==person]$end_time,'%M'))
+      the.acts <- pp('\t\t\t<act end_time="',the.hr,':',formatC(the.min,width = 2, format = "d", flag = "0"),':00" link="',to.write[id==person]$link,'" type="',to.write[id==person]$type,'" x="',to.write[id==person]$x,'" y="',to.write[id==person]$y,'"/>')
+      the.legs <- pp('\t\t\t<leg mode="PEV"><route type="links" start_link="',new.legs[id==person]$start_link,'" end_link="',new.legs[id==person]$end_link,'" trav_time="',new.legs[id==person]$trav_time,'" distance="',new.legs[id==person]$distance,'">',new.legs[id==person]$start_link,' ',new.legs[id==person]$end_link,'</route></leg>')
+      the.str <- pp(the.str,pp(rbind(the.acts,c(the.legs,'')),collapse='\n'),'\t\t</plan>\n\t</person>\n')
+      cat(the.str,file=outfile,append=T)
+    }
+    the.str <- '\n<!-- ====================================================================== -->\n\n</population>'
+    cat(the.str,file=outfile,append=T)
+  }
+}

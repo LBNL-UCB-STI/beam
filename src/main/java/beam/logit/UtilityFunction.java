@@ -29,6 +29,9 @@ public class UtilityFunction {
 		}
 		return(utility);
 	}
+	public Double getCoefficientValue(String variableName){
+		return this.coefficients.get(variableName);
+	}
 	public String toString(){
 		String result = "";
 		for(String key : this.coefficients.keySet()){

@@ -2,6 +2,7 @@ package beam.transEnergySim.chargingInfrastructure.stationary;
 
 import java.util.Collection;
 
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Identifiable;
 import org.matsim.api.core.v01.network.Link;
@@ -75,4 +76,7 @@ public interface ChargingSite extends Identifiable<ChargingSite> {
 
 	int getNumInChargingQueue(ChargingPlug plug);
 
+	ChargingSiteSpatialGroup getChargingSiteSpatialGroup();
+	String getSiteType();
+	String getSpatialGroupName();
 }

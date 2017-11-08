@@ -3,22 +3,19 @@ package beam.events;
 import java.util.Map;
 
 import beam.charging.vehicle.AgentChargingState;
-import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugStatus;
-import javassist.expr.Instanceof;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
-import org.matsim.core.api.internal.HasPersonId;
 
 import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlug;
-import beam.transEnergySim.chargingInfrastructure.stationary.ChargingSite;
 
 public class EndChargingSessionEvent extends Event implements IdentifiableDecisionEvent {
 
 	private PlugInVehicleAgent agent;
 	private ChargingPlug plug;
-	private double soc;
+	private double soc, chargingPowerInKw;
 	private int decisionEventId;
 	private int numInChargingQueue;
 	
@@ -26,12 +23,13 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 	public static final String ATTRIBUTE_PERSON = DepartureChargingDecisionEvent.ATTRIBUTE_PERSON;
 	public static final String ATTRIBUTE_SOC=DepartureChargingDecisionEvent.ATTRIBUTE_SOC;	
 
-	public EndChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug) {
+	public EndChargingSessionEvent(double time, PlugInVehicleAgent agent, ChargingPlug plug, double chargingPowerInW) {
 		super(time);
 		this.agent = agent;
 		this.soc = agent.getSoC()/agent.getBatteryCapacity();
 		this.setDecisionEventId(agent.getCurrentDecisionEventId());
 		this.plug = plug;
+		this.chargingPowerInKw = chargingPowerInW / 1000.0;
 	}
 
 	@Override
@@ -81,8 +79,30 @@ public class EndChargingSessionEvent extends Event implements IdentifiableDecisi
 		else return this.plug.getChargingPoint().getNumInChargingQueue(this.plug);
 	}
 
+	public double getChargingPowerInKw(){
+		return this.chargingPowerInKw;
+	}
+
 //	public int getNumInChargingQueue(){
 //		return new Instanceof() this.agent.getSelectedChargingSite().qu;
 //	}
 
+	public ChargingSiteSpatialGroup getChargingSiteSpatialGroup(){
+		return this.plug.getChargingSite().getChargingSiteSpatialGroup();
+	}
+	public String getSpatialGroup(){
+		return this.plug.getChargingSite().getSpatialGroupName();
+	}
+
+	public String getSiteType(){
+		return this.plug.getChargingSite().getSiteType();
+	}
+
+	public String getPlugType(){
+		return this.plug.getChargingPlugType().getPlugTypeName();
+	}
+
+	public ChargingPlug getPlug() {
+		return plug;
+	}
 }

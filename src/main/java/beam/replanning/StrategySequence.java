@@ -39,5 +39,9 @@ public class StrategySequence {
 	public double getScore() {
 		return score;
 	}
-	
+
+	public int getSequenceLength(){
+		return strategies.size();
+	}
+
 }

@@ -11,9 +11,7 @@ import beam.transEnergySim.vehicles.energyConsumption.EnergyConsumptionModel;
 public class TripInformation implements Serializable {
 	LinkedList<RouteInformationElement> routeInformationElements = new LinkedList<>();
 	double departureTime, tripTravelTime = 0.0, tripTravelDistance = 0.0, tripAverageSpeed;
-	HashMap<EnergyConsumptionModel,HashMap<VehicleWithBattery,Double>> tripEnergyConsumptionByModel = new HashMap<>();
-	String routeAsString = "";
-	
+
 	// Zero-arg constructor necessary to use kyro for serailization
 	public TripInformation(){
 	}
@@ -23,7 +21,6 @@ public class TripInformation implements Serializable {
 		for(RouteInformationElement elem : routeInformationElements){
 			tripTravelTime += elem.getLinkTravelTime();
 			tripTravelDistance += elem.getLinkTravelDistance();
-			routeAsString += elem.getLinkId() + " ";
 		}
 		tripAverageSpeed = tripTravelDistance / tripTravelTime;
 	}
@@ -48,12 +45,10 @@ public class TripInformation implements Serializable {
 		//TODO this used to have a cache, add it back
 		double energyConsumed = 0.0;
 		for(RouteInformationElement elem : routeInformationElements){
-			energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()), vehicle, elem.getAverageSpeed());
+//			energyConsumed += model.getEnergyConsumptionForLinkInJoule(EVGlobalData.data.controler.getScenario().getNetwork().getLinks().get(elem.getLinkId()), vehicle, elem.getAverageSpeed());
+			energyConsumed += model.getEnergyConsumptionForLinkInJoule(elem.getLinkTravelDistance(), vehicle, elem.getAverageSpeed());
 		}
 		return energyConsumed;
 	}
 
-	public String routeAsString() {
-		return this.routeAsString;
-	}
 }

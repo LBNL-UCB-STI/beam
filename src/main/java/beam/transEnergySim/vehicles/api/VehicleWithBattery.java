@@ -178,6 +178,9 @@ public abstract class VehicleWithBattery extends AbstractVehicle {
 		return getRemainingRangeInMeters() >= nextLegTravelDistanceInMeters;
 	}
 
+	public double getRequiredEnergyInkWhToDriveDistance(double routeDistanceInMeters) {
+		return getRequiredEnergyInJoulesToDriveDistance(routeDistanceInMeters) * 0.00000027777778;
+	}
 	public double getRequiredEnergyInJoulesToDriveDistance(double routeDistanceInMeters) {
 		return routeDistanceInMeters * this.avgElectricFuelEconomyInJoulesPerMeter;
 	}

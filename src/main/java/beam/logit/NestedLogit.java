@@ -188,6 +188,23 @@ public class NestedLogit {
 	public String toString(){
 		return this.data.getNestName();
 	}
+	public String toStringRecursive(int depth){
+		String result = "";
+		String tabs = "", tabsPlusOne = "  ";
+		for(int i=0; i<depth; i++){
+			tabs += "  ";
+			tabsPlusOne += "  ";
+		}
+		result += tabs + this.data.getNestName() + "\n";
+		if((this.children==null || this.children.isEmpty()) && this.data.getUtility()!=null){
+			result += tabsPlusOne + this.data.getUtility().toString() + "\n";
+		}else{
+			for (NestedLogit subnest : this.children) {
+				result += subnest.toStringRecursive(depth+1);
+			}
+		}
+		return result;
+	}
 	public void setName(String name) {
 		this.data.setNestName(name);
 	}

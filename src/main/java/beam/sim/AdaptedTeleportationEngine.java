@@ -34,9 +34,6 @@ public final class AdaptedTeleportationEngine implements DepartureHandler, Mobsi
 		// 
 		
 		if(pevAgent!=null){
-			if (pevAgent.getMobsimAgent()==null){
-				pevAgent.setMobsimAgent(agent);
-			}
 			pevAgent.handleDeparture();
 			return true;
 		}else{

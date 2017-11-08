@@ -31,13 +31,15 @@ public class ChargingPlugImpl implements ChargingPlug{
 	private VehicleWithBattery vehicle;
 	private Double beginningOfChargingSession;
 	private CallBack nextScheduledCallback;
-	
-	public ChargingPlugImpl(Id<ChargingPlug> chargingPlugId, ChargingPoint chargingPoint, ChargingPlugType chargingPlugType){
+	private boolean useInCalibration;
+
+	public ChargingPlugImpl(Id<ChargingPlug> chargingPlugId, ChargingPoint chargingPoint, ChargingPlugType chargingPlugType, boolean useInCalibration){
 		this.chargingPlugId = chargingPlugId;
 		this.chargingPoint=chargingPoint;
 		this.chargingPlugType = chargingPlugType;
 		chargingPoint.addChargingPlug(this);
 		chargingPlugStatus=ChargingPlugStatus.AVAILABLE;
+		this.useInCalibration = useInCalibration;
 	}
 	
 	@Override
@@ -123,7 +125,7 @@ public class ChargingPlugImpl implements ChargingPlug{
 	@Override
 	public double estimateChargingSessionDuration() {
 		if(this.chargingPlugType.getNominalLevel()==3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		return this.chargingPoint.getChargingSite().estimateChargingSessionDuration(this.getChargingPlugType(),this.getVehicle());
 	}
@@ -135,7 +137,7 @@ public class ChargingPlugImpl implements ChargingPlug{
 	public void handleEndChargingSession(){
 //		log.info(EVGlobalData.data.now + " Plug "+this.toString()+" executing handleEndChargingSession");
 		if(this.chargingPlugType.getNominalLevel()==3){
-			DebugLib.emptyFunctionForSettingBreakPoint();
+			//DebugLib.emptyFunctionForSettingBreakPoint();
 		}
 		this.vehicle.addEnergyToVehicleBattery(this.getEnergyDeliveredByTime(EVGlobalData.data.now));
 		double sessionDuration = this.estimateChargingSessionDuration();
@@ -199,5 +201,10 @@ public class ChargingPlugImpl implements ChargingPlug{
 		vehicle = null;
 		beginningOfChargingSession = null;
 		nextScheduledCallback = null;
+	}
+
+	@Override
+	public boolean useInCalibration() {
+		return this.useInCalibration;
 	}
 }

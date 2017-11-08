@@ -6,17 +6,21 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 
 public class RouteInformationElement implements Serializable {
-	private double travelTime, averageSpeed, travelDistance;
+	private double travelTime, travelDistance;
 	private String linkId;
 
 	// Zero-arg constructor necessary to use kyro for serailization
 	public RouteInformationElement(){
 	}
+	public RouteInformationElement(String linkId, double linkTravelTime, double linkTravelDistance) {
+		this.linkId = linkId;
+		this.travelTime = linkTravelTime;
+		this.travelDistance = linkTravelDistance;
+    }
 	public RouteInformationElement(Link link, double linkTravelTime) {
 		this.linkId = link.getId().toString();
 		this.travelTime = linkTravelTime;
 		this.travelDistance = link.getLength();
-		this.averageSpeed = linkTravelTime==0.0 ? 1.0 : link.getLength() / linkTravelTime;
 	}
 
 	public Id<Link> getLinkId() {
@@ -24,7 +28,7 @@ public class RouteInformationElement implements Serializable {
 	}
 
 	public double getAverageSpeed() {
-		return this.averageSpeed;
+		return travelTime==0.0 ? 1.0 : travelDistance / travelTime;
 	}
 
 	public double getLinkTravelTime() {

@@ -1,41 +1,36 @@
 package beam;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Random;
 
-import beam.charging.infrastructure.ChargingSiteImpl;
 import beam.charging.management.ChargingQueueImpl;
-import beam.transEnergySim.chargingInfrastructure.management.ChargingQueue;
+import beam.sim.traveltime.*;
+import beam.transEnergySim.chargingInfrastructure.management.ChargingSiteSpatialGroup;
+import beam.transEnergySim.chargingInfrastructure.stationary.ChargingPlugType;
+import beam.transEnergySim.events.ChargingEventManager;
+import com.conveyal.r5.transit.TransportNetwork;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.config.Config;
-import org.matsim.core.controler.Controler;
-import org.matsim.core.controler.MatsimServices;
+import org.matsim.core.mobsim.framework.Mobsim;
 import org.matsim.core.mobsim.qsim.QSim;
 import org.matsim.core.network.LinkQuadTree;
-import org.matsim.core.router.RoutingModule;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.geometry.CoordinateTransformation;
 
-import beam.charging.ChargingEventManagerImpl;
 import beam.charging.infrastructure.ChargingInfrastructureManagerImpl;
 import beam.charging.vehicle.PlugInVehicleAgent;
 import beam.controller.EVController;
 import beam.events.EventLogger;
 import beam.parking.lib.obj.DoubleValueHashMap;
-import beam.replanning.ChargingStrategy;
 import beam.replanning.ChargingStrategyManager;
-import beam.replanning.StrategySequence;
 import beam.sim.GlobalActions;
 import beam.sim.scheduler.Scheduler;
-import beam.sim.traveltime.BeamRouter;
-import beam.sim.traveltime.BeamRouterImpl;
-import beam.sim.traveltime.RelaxedTravelTime;
-import beam.sim.traveltime.TripInformation;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 //TODO: load all parameters from config in the end
 public class EVGlobalData {
@@ -44,6 +39,10 @@ public class EVGlobalData {
 	private static final Logger log = Logger.getLogger(EVGlobalData.class);
 
 	public static EVGlobalData data = null;
+	public CoordinateReferenceSystem targetCoordinateSystem;
+	public CoordinateReferenceSystem wgs84CoordinateSystem;
+
+
 
 	public static void simulationStaticVariableInitializer() {
 		data = new EVGlobalData();
@@ -105,33 +104,47 @@ public class EVGlobalData {
 	public double OVERHEAD_SCORE_PLUG_CHANGE;
 
 	public String CHARGING_SITE_POLICIES_FILEPATH;
+	public String CHARGING_LOAD_VALIDATION_FILEPATH;
 	public String CHARGING_NETWORK_OPERATORS_FILEPATH;
 	public String CHARGING_SITES_FILEPATH;
 	public String CHARGING_PLUG_TYPES_FILEPATH;
 	public String CHARGING_POINTS_FILEPATH;
 	public String CHARGING_STRATEGIES_FILEPATH;
+	public String UPDATED_CHARGING_STRATEGIES_FILEPATH;
+	public String UPDATED_CHARGING_STRATEGIES_BACKUP_FILEPATH;
 	public String VEHICLE_TYPES_FILEPATH;
 	public String PERSON_VEHICLE_TYPES_FILEPATH;
-	public String RELAXED_TRAVEL_TIME_FILEPATH;
+	public String TRAVEL_TIME_FILEPATH;
 	public String ROUTER_CACHE_READ_FILEPATH;
 	public String ROUTER_CACHE_WRITE_FILEPATH;
+	public int ROUTER_CACHE_IN_MEMORY_TRIP_LIMIT;
+	public String NETWORK_FILEPATH;
+	public String LINK_ATTRIBUTE_FILEPATH;
 	public Boolean IS_DEBUG_MODE;
+	public boolean SHOULD_CALIBRATE_PARAMS;
+	public boolean SHOULD_CALIBRATE_SITES;
+	public boolean SHOULD_RESUME_CALIBRATION;
+	public int ITER_SET_LENGTH;
+	public String VALIDATION_VALUE_TYPE;
 
 	public ChargingInfrastructureManagerImpl chargingInfrastructureManager;
 	public ChargingQueueImpl fastChargingQueue;
 	public ChargingQueueImpl slowChargingQueue;
+	public ArrayList<ChargingPlugType> fastChargingPlugTypes;
 	public Double EN_ROUTE_SEARCH_DISTANCE; // meters
 	public Double EQUALITY_EPSILON;
 	public Double TIME_TO_ENGAGE_NEXT_FAST_CHARGING_SESSION;
 
-	public ChargingEventManagerImpl chargingEventManagerImpl;
+	public ChargingEventManager chargingEventManagerImp;
 	public EVController controler;
 
 	public Config config;
 	public CoordinateTransformation transformFromWGS84;
 	public LinkedHashMap<String, LinkedHashMap> vehiclePropertiesMap;
 	public LinkedHashMap<String, String> personToVehicleTypeMap;
+	public LinkedHashMap<String, ChargingSiteSpatialGroup> chargingSiteSpatialGroupMap;
 	public LinkedHashMap<String, LinkedHashMap<String, String>> personHomeProperties;
+	public LinkedHashMap<String, LinkedHashMap<String, String>> linkAttributes;
 	public DoubleValueHashMap<Id<Person>> simulationStartSocFraction = new DoubleValueHashMap<>();
 	public int currentDay = 0;
 	public double timeMarkingNewDay = 14400.0; // the number of seconds
@@ -142,15 +155,19 @@ public class EVGlobalData {
 
 	public final double NUMBER_OF_SECONDS_IN_ONE_DAY = 3600 * 24;
 
+	@Deprecated
 	public QSim qsim;
+	public Mobsim beamMobsim;
 	public Scheduler scheduler = new Scheduler();
 	public GlobalActions globalActions = new GlobalActions();
 	public EventLogger eventLogger;
 	public double now;
 	public BeamRouter router;
-	public RelaxedTravelTime travelTimeFunction;
-	public LinkedHashMap<String, TripInformation> tripInformationCache;
+	public ExogenousTravelTime travelTimeFunction;
+	public TripInfoCacheMapDB newTripInformationCache;
 	public LinkQuadTree linkQuadTree;
+	public TransportNetwork networkR5;
+	public LinkedHashMap<Id<Link>,Id<Link>> matsimLinksToR5Links = new LinkedHashMap<>();
 	public HashMap<String, Class> modeRouterMapping = new HashMap<>();
 	public double averageWalkingTimeFromParkToActivity = 120;
 
@@ -165,6 +182,7 @@ public class EVGlobalData {
 	public int DUMP_PLAN_CSV_INTERVAL = 1;
 	public int MAX_NUMBER_OF_EV_DAILY_PLANS_IN_MEMORY = 5;
 	public String SELECTED_EV_DAILY_PLANS_FILE_NAME = "selectedEVDailyPlans.csv.gz";
+	public int NUM_THREADS = 1;
 
 	public String toString() {
 		return (new Double(data.now)).toString();

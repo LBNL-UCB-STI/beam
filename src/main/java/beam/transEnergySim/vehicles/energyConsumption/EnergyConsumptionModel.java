@@ -40,4 +40,6 @@ public interface EnergyConsumptionModel extends Serializable{
 
 	public abstract double getEnergyConsumptionForLinkInJoule(Link link, VehicleWithBattery vehicle, double averageSpeed);
 
+	public abstract double getEnergyConsumptionForLinkInJoule(double distance, VehicleWithBattery vehicle, double averageSpeed);
+
 }

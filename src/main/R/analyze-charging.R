@@ -38,6 +38,9 @@ out.dirs <- list(
                  'Iteration Final'='/Users/critter/Documents/beam/pev/old-calibration/sf-bay-nl10_2016-09-20_23-56-48/ITERS/it.0/'
                  )
 
+out.dirs <- list(
+                 'test'='/Users/critter/Documents/beam/beam-output/calibration_2017-02-08_16-09-34/ITERS/it.0/'
+                 )
 #nl4 intercept 1.8, cost -2.75
 #nl5 intercept 2.0, cost -2.9
 #nl6 intercept 2.75, cost -3.1
@@ -74,13 +77,13 @@ ev[,hour:=floor(hr)]
 #config <- parse.config(out.dir,pp(out.dir,'../../run0.output_config.xml'))
 #module.names <- xpathSApply(config,'/config/module', xmlGetAttr,'name')
 
-person.attr <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/sf-bay/person-attributes.csv'))
-veh.types <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/sf-bay/vehicle-types.csv'))
+person.attr <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/development/person-attributes-from-reg.csv'))
+veh.types <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/development/vehicle-types.csv'))
 ch.types <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/sf-bay/charging-plug-types.csv'))
-sites <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/sf-bay/charging-sites.csv'))
+sites <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/calibration-v2/charging-sites.csv'))
 pols <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/sf-bay/charging-policies.csv'))
 ch.types[,plugTypeName:=tolower(plugTypeName)]
-points <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/sf-bay/charging-points.csv'))
+points <- data.table(read.csv('~/Dropbox/ucb/vto/beam-developers/model-inputs/calibration-v2/charging-points.csv'))
 points <- join.on(points,ch.types,'plugTypeID','id',c('plugTypeName','chargingPowerInKW'))
 points[,dc.fast:=chargingPowerInKW>20]
 counties <- readShapePoly('~/Dropbox/ucb/vto/beam-developers/spatial-data/ca-counties/ca-counties.shp',proj4string=CRS("+proj=longlat +datum=WGS84"))
@@ -92,8 +95,94 @@ sf.counties <- spTransform(counties[sf.county.inds,],CRS("+proj=longlat +datum=W
 sites[,zip:=over(SpatialPoints(sites[,list(longitude,latitude)],proj4string=CRS(proj4string(sf.zips))),sf.zips)$ZCTA5CE10]
 sites[,county:=over(SpatialPoints(sites[,list(longitude,latitude)],proj4string=CRS(proj4string(sf.counties))),sf.counties)$NAME]
 
-persons <- join.on(person.attr,veh.types,'vehicleTypeId','id',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
+persons <- join.on(person.attr,veh.types,'vehicleTypeId','id',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','fuelEconomyInKwhPerMile','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
 
+
+end.event.type <- 'EndChargingSessionEvent'
+end.event.type <- 'UnplugEvent' 
+ch.1 <- rbindlist(list(ev[choice%in%c('charge')],ev[choice%in%c('engageWithOriginalPlug','engageWithAlternatePlug')]))
+ch.2 <- ev[decisionEventId %in% ch.1$decisionEventId & type %in% c('BeginChargingSessionEvent',end.event.type)]
+
+ch <- join.on(ch.2,ch.1,c('scenario','decisionEventId'),c('scenario','decisionEventId'),c('plugType','soc','site'),'dec.')[,list(person=as.numeric(person[1]),begin.time=as.numeric(time[1])/3600,end.time=as.numeric(time[2])/3600,plugType=dec.plugType[1],site=as.numeric(dec.site[1]),begin.soc=as.numeric(dec.soc[1]),end.soc=as.numeric(soc[2]),plug=as.numeric(plug[1])),by=c('scenario','decisionEventId')]
+ch[,charger.sector:=ifelse(plug<0,'Residential','Non-Residential')]
+ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','fuelEconomyInKwhPerMile','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
+ch[,veh.class:=ifelse(vehicleClassName=='PHEV','PHEV','BEV')]
+ch <- join.on(ch,ch.types,'plugType','plugTypeName','chargingPowerInKW')
+ch <- na.omit(ch)
+ch[,kw:=ifelse(chargingPowerInKW>20,apply(cbind(chargingPowerInKW,maxLevel3ChargingPowerInKW),1,min),apply(cbind(chargingPowerInKW,maxLevel2ChargingPowerInKW),1,min)),by=c('scenario','decisionEventId')]
+round.to <- function(num,nearest){
+  floor(num) + round(round((num-floor(num))*100)/(nearest*100))* nearest
+}
+ch[,begin.hour:=floor(begin.time)]
+ch[,dc.fast:=chargingPowerInKW>20]
+ch <- join.on(ch,sites,'site','id',c('latitude','longitude','zip','county'))
+
+if(F){
+  ## SUBSET TO SF BAY AREA
+  pts.per.site <- points[,list(pts.per.site=length(id)),by='siteID']
+  if(!'pts.per.site'%in%names(sites)){
+    sites <- join.on(sites,pts.per.site,'id','siteID')
+    sites <- sites[!is.na(pts.per.site)]
+  }
+  dist.mat <- rdist.earth(sites[,list(longitude,latitude)],station[,list(longitude,latitude)],miles=F)
+  # Now order by distance and reduce the sites we use in our actual comparative analysis to same number as the stations
+  sites.to.ignore <- sites$id[!sites$id %in% u(ch$site[ch$site>0])]
+  points[,level:=ifelse(chargingPowerInKW>20,'DCFAST',ifelse(chargingPowerInKW>2,'LEVEL2','LEVEL1'))]
+  points[,allocated:=F]
+  setkey(points,siteID)
+  for(station.i in 1:nrow(station)){
+    if(station.i%%100==0)cat(station.i)
+    cand.ind <- which.min(dist.mat[,station.i])
+    cand.id <- sites$id[cand.ind]
+    past.cands <- cand.ind
+    while(nrow(points[!siteID%in%sites.to.ignore & siteID==cand.id & level==station[station.i]$level & allocated==F])==0){
+      the.dists <- dist.mat[,station.i]
+      the.dists[past.cands] <- NA
+      cand.ind <- which.min(the.dists)
+      cand.id <- sites$id[cand.ind]
+      past.cands <- c(past.cands,cand.ind)
+    }
+    points[siteID==cand.id & level==station[station.i]$level & allocated==F,allocated:=c(T,rep(F,length(id)-1))]
+  }
+  sites.to.keep <- u(points[allocated==T]$siteID)
+
+  # Verify distribution of L2/L3 is right
+  # points[allocated==T,list(length(id)),by='level']
+  # station[,list(length(id)),by='level']
+  fin.plugs <- points[allocated==T]$id
+}
+
+# WARNING, overriding subset for testing
+fin.plugs <- u(ch$plug)
+
+# Finally, assign home chargers to counties
+load('/Users/critter/Documents/beam/input/run0-201-plans-all.Rdata')
+setkey(plans,id,type)
+homes <- unique(plans[type=='Home' & id%in%u(ch$person)])
+homes[,home.id:=-id]
+homes.wgs <- copy(homes)
+coordinates(homes.wgs) <- c("x", "y")
+proj4string(homes.wgs) <- CRS("+init=epsg:26910") 
+homes.wgs <- data.table(coordinates(spTransform(homes.wgs,CRS("+init=epsg:4326"))))
+homes[,':='(longitude=homes.wgs$x,latitude=homes.wgs$y)]
+fin.ch <- copy(ch)
+fin.ch <- join.on(fin.ch,homes,'site','home.id',c('longitude','latitude'),'home.')
+fin.ch[,':='(latitude=ifelse(is.na(latitude),home.latitude,latitude),longitude=ifelse(is.na(longitude),home.longitude,longitude))]
+fin.ch <- fin.ch[plug%in%u(fin.plugs) | site<0]
+fin.ch[,county:=over(SpatialPoints(fin.ch[,list(longitude,latitude)],proj4string=CRS(proj4string(sf.counties))),sf.counties)$NAME]
+ch.load <- fin.ch[,list(t=seq(round.to(begin.time,.25),round.to(end.time,.25),by=.25),kw=kw,dc.fast=kw>20,site=site,zip=zip,county=county,charger.sector=charger.sector),by=c('scenario','decisionEventId')]
+ch.load[dc.fast==T,charger.sector:='DC Fast']
+ch.load[dc.fast==F & charger.sector=='Non-Residential',charger.sector:='Level 2']
+ch.load[,hour:=floor(t)]
+
+#setkey(ch.load,scenario,charger.sector,t)
+#ggplot(ch.load[,list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','county','charger.sector')][,list(num.in.use=mean(num.in.use)),by=c('scenario','hour','county','charger.sector')],aes(x=hour,y=num.in.use,fill=charger.sector))+geom_bar(stat='identity')+facet_wrap(~county)+labs(x="Hour",y="# Plugs in Use",fill="Level")
+
+#ggplot(ch.load[scenario%in%c('uniform-random','always-real','nested-logit-full'),list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','county','charger.sector')][,list(num.in.use=mean(num.in.use)),by=c('scenario','hour','county','charger.sector')],aes(x=hour,y=num.in.use,fill=charger.sector))+geom_bar(stat='identity')+facet_grid(scenario~county)+labs(x="Hour",y="# Plugs in Use",fill="Type")
+
+ggplot(ch.load[,list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','charger.sector')],aes(x=t,y=num.in.use,fill=charger.sector))+geom_bar(stat='identity')+labs(x="Hour",y="# Plugs in Use",fill="Type")
+dev.new();ggplot(ch.load[,list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','charger.sector')],aes(x=t,y=kw,fill=charger.sector))+geom_bar(stat='identity')+labs(x="Hour",y="# Plugs in Use",fill="Type")
+write.csv(ch.load[,list(kw=sum(kw),num.in.use=length(kw)),by=c('scenario','t')],file='~/Downloads/load.csv')
 
 #########################################
 # Directly compare scraped to modeled
@@ -131,83 +220,6 @@ do.or.load(pp('~/Documents/beam/scraper/',dump.code,'/charging.Rdata'),function(
 
 setkey(status.sum,level,hour)
 #ggplot(status.sum[,list(num.in.use=sum(in.use)),by=c('level','county','hour')],aes(x=hour,y=num.in.use,fill=level))+geom_bar(stat='identity')+facet_wrap(~county)+labs(x="Hour",y="# Plugs in Use",fill="Level")
-
-end.event.type <- 'EndChargingSessionEvent'
-end.event.type <- 'UnplugEvent' 
-ch.1 <- ev[choice=='charge']
-ch.2 <- ev[decisionEventId %in% ch.1$decisionEventId & type %in% c('BeginChargingSessionEvent',end.event.type)]
-
-ch <- join.on(ch.2,ch.1,c('scenario','decisionEventId'),c('scenario','decisionEventId'),c('plugType','soc','site'),'dec.')[,list(person=as.numeric(person[1]),begin.time=as.numeric(time[1])/3600,end.time=as.numeric(time[2])/3600,plugType=dec.plugType[1],site=as.numeric(dec.site[1]),begin.soc=as.numeric(dec.soc[1]),end.soc=as.numeric(soc[2]),plug=as.numeric(plug[1])),by=c('scenario','decisionEventId')]
-ch[,charger.sector:=ifelse(plug<0,'Residential','Non-Residential')]
-ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
-ch[,veh.class:=ifelse(vehicleClassName=='PHEV','PHEV','BEV')]
-ch <- join.on(ch,ch.types,'plugType','plugTypeName','chargingPowerInKW')
-ch <- na.omit(ch)
-ch[,kw:=ifelse(chargingPowerInKW>20,min(chargingPowerInKW,maxLevel3ChargingPowerInKW),min(chargingPowerInKW,maxLevel2ChargingPowerInKW)),by=c('scenario','decisionEventId')]
-round.to <- function(num,nearest){
-  floor(num) + round(round((num-floor(num))*100)/(nearest*100))* nearest
-}
-ch[,begin.hour:=floor(begin.time)]
-ch[,dc.fast:=chargingPowerInKW>20]
-ch <- join.on(ch,sites,'site','id',c('latitude','longitude','zip','county'))
-
-## SUBSET TO SF BAY AREA
-pts.per.site <- points[,list(pts.per.site=length(id)),by='siteID']
-if(!'pts.per.site'%in%names(sites)){
-  sites <- join.on(sites,pts.per.site,'id','siteID')
-  sites <- sites[!is.na(pts.per.site)]
-}
-dist.mat <- rdist.earth(sites[,list(longitude,latitude)],station[,list(longitude,latitude)],miles=F)
-# Now order by distance and reduce the sites we use in our actual comparative analysis to same number as the stations
-sites.to.ignore <- sites$id[!sites$id %in% u(ch$site[ch$site>0])]
-points[,level:=ifelse(chargingPowerInKW>20,'DCFAST',ifelse(chargingPowerInKW>2,'LEVEL2','LEVEL1'))]
-points[,allocated:=F]
-setkey(points,siteID)
-for(station.i in 1:nrow(station)){
-  if(station.i%%100==0)cat(station.i)
-  cand.ind <- which.min(dist.mat[,station.i])
-  cand.id <- sites$id[cand.ind]
-  past.cands <- cand.ind
-  while(nrow(points[!siteID%in%sites.to.ignore & siteID==cand.id & level==station[station.i]$level & allocated==F])==0){
-    the.dists <- dist.mat[,station.i]
-    the.dists[past.cands] <- NA
-    cand.ind <- which.min(the.dists)
-    cand.id <- sites$id[cand.ind]
-    past.cands <- c(past.cands,cand.ind)
-  }
-  points[siteID==cand.id & level==station[station.i]$level & allocated==F,allocated:=c(T,rep(F,length(id)-1))]
-}
-sites.to.keep <- u(points[allocated==T]$siteID)
-
-# Verify distribution of L2/L3 is right
-# points[allocated==T,list(length(id)),by='level']
-# station[,list(length(id)),by='level']
-
-fin.plugs <- points[allocated==T]$id
-# Finally, assign home chargers to counties
-load('/Users/critter/Documents/beam/input/run0-201-plans-all.Rdata')
-setkey(plans,id,type)
-homes <- unique(plans[type=='Home' & id%in%u(ch$person)])
-homes[,home.id:=-id]
-homes.wgs <- copy(homes)
-coordinates(homes.wgs) <- c("x", "y")
-proj4string(homes.wgs) <- CRS("+init=epsg:26910") 
-homes.wgs <- data.table(coordinates(spTransform(homes.wgs,CRS("+init=epsg:4326"))))
-homes[,':='(longitude=homes.wgs$x,latitude=homes.wgs$y)]
-fin.ch <- copy(ch)
-fin.ch <- join.on(fin.ch,homes,'site','home.id',c('longitude','latitude'),'home.')
-fin.ch[,':='(latitude=ifelse(is.na(latitude),home.latitude,latitude),longitude=ifelse(is.na(longitude),home.longitude,longitude))]
-fin.ch <- fin.ch[plug%in%u(fin.plugs) | site<0]
-fin.ch[,county:=over(SpatialPoints(fin.ch[,list(longitude,latitude)],proj4string=CRS(proj4string(sf.counties))),sf.counties)$NAME]
-ch.load <- fin.ch[,list(t=seq(round.to(begin.time,.25),round.to(end.time,.25),by=.25),kw=kw,dc.fast=kw>20,site=site,zip=zip,county=county,charger.sector=charger.sector),by=c('scenario','decisionEventId')]
-ch.load[dc.fast==T,charger.sector:='DC Fast']
-ch.load[dc.fast==F & charger.sector=='Non-Residential',charger.sector:='Level 2']
-ch.load[,hour:=floor(t)]
-
-#setkey(ch.load,scenario,charger.sector,t)
-#ggplot(ch.load[,list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','county','charger.sector')][,list(num.in.use=mean(num.in.use)),by=c('scenario','hour','county','charger.sector')],aes(x=hour,y=num.in.use,fill=charger.sector))+geom_bar(stat='identity')+facet_wrap(~county)+labs(x="Hour",y="# Plugs in Use",fill="Level")
-
-#ggplot(ch.load[scenario%in%c('uniform-random','always-real','nested-logit-full'),list(kw=sum(kw),num.in.use=length(kw),hour=hour[1]),by=c('scenario','t','county','charger.sector')][,list(num.in.use=mean(num.in.use)),by=c('scenario','hour','county','charger.sector')],aes(x=hour,y=num.in.use,fill=charger.sector))+geom_bar(stat='identity')+facet_grid(scenario~county)+labs(x="Hour",y="# Plugs in Use",fill="Type")
 
 status.sum[,scenario:='observed']
 status.sum[,charger.sector:=ifelse(level=='LEVEL1','Level 1',ifelse(level=='LEVEL2','Level 2','DC Fast'))]
@@ -261,7 +273,7 @@ if(F){
 
     ch <- join.on(ch.2,ch.1,c('scenario','decisionEventId'),c('scenario','decisionEventId'),c('plugType','soc','site'),'dec.')[,list(person=as.numeric(person[1]),begin.time=as.numeric(time[1])/3600,end.time=as.numeric(time[2])/3600,plugType=dec.plugType[1],site=as.numeric(dec.site[1]),begin.soc=as.numeric(dec.soc[1]),end.soc=as.numeric(soc[2]),plug=as.numeric(plug[1])),by=c('scenario','decisionEventId')]
     ch[,charger.sector:=ifelse(plug<0,'Residential','Non-Residential')]
-    ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
+    ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassName','batteryCapacityInKWh','fuelEconomyInKwhPerMile','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
     ch[,veh.class:=ifelse(vehicleClassName=='PHEV','PHEV','BEV')]
     ch <- join.on(ch,ch.types,'plugType','plugTypeName','chargingPowerInKW')
     ch <- na.omit(ch)
@@ -350,7 +362,7 @@ ch[charger.sector=='Non-Residential',length(plug),by=c('scenario','dc.fast')]
 #1: always-on-arrival 1230 / 19522 = 6.3% (6% L2 and 0.3% DC Fast)
 #2:      nested-logit  192 / 4441 = 4.3%
 
-ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassname','batteryCapacityInKWh','epaRange','epaFuelEcon','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
+ch <- join.on(ch,persons,'person','personId',c('vehicleTypeName','vehicleClassname','batteryCapacityInKWh','fuelEconomyInKwhPerMile','maxLevel2ChargingPowerInKW','maxLevel3ChargingPowerInKW'))
 ch[,veh.class:=ifelse(vehicleClassname=='PHEV','PHEV','BEV')]
 ch <- na.omit(ch)
 ch[,kw:=ifelse(chargingPowerInKW>20,min(chargingPowerInKW,maxLevel3ChargingPowerInKW),min(chargingPowerInKW,maxLevel2ChargingPowerInKW)),by=c('scenario','decisionEventId')]

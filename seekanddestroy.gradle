@@ -1,0 +1,32 @@
+// To use:
+// gradle -b seekanddestroy.gradle  -q
+
+defaultTasks 'seekAndDestroy'
+
+repositories {
+    maven { url "http://download.osgeo.org/webdav/geotools" }
+    maven { url "http://repo.boundlessgeo.com/main/" }
+    maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
+    maven { url "http://central.maven.org/maven2"}
+    maven { url "http://repo.maven.apache.org/maven2" }
+    maven { url "http://dl.bintray.com/matsim/matsim" }
+    maven { url "http://oss.jfrog.org/libs-snapshot" }
+    jcenter()
+    maven { url "https://jitpack.io" }
+}
+
+configurations{
+    findanddelete
+}
+
+dependencies{
+    //add any dependencies that  you need refreshed
+    findanddelete 'com.github.colinsheppard.matsim_all:matsim:master-SNAPSHOT'
+}
+
+task seekAndDestroy()<<{
+    configurations.findanddelete.each{ 
+        println 'Deleting: '+ it
+        delete it.parent
+    }
+}

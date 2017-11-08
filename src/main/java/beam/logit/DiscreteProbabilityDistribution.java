@@ -37,7 +37,7 @@ public class DiscreteProbabilityDistribution {
 		// First ensure the distribution is scaled to 1
 		double scalingFactor = 0.0;
 	    for (Double value : this.pdf.values()){
-	    	if(!Double.isNaN(value))scalingFactor += value;
+	    	if(!Double.isNaN(value) && value >1e-6)scalingFactor += value;
 	    }
 		if(scalingFactor==0.0){
 			throw new RuntimeException("Cannot create a CDF based on a PDF without any non-zero probability density");
@@ -48,7 +48,7 @@ public class DiscreteProbabilityDistribution {
 		String lastKey = null;
 	    for (String key : this.pdf.keySet()){
 	    	double theProb = Double.isInfinite(this.pdf.get(key)) ? 1.0 : this.pdf.get(key) / scalingFactor;
-	    	if(theProb>0.0){
+	    	if(theProb>1e-6){
 				cumulProb += theProb;
 				this.cdf.put(cumulProb, key);
 				lastKey = key;

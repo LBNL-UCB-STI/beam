@@ -1,0 +1,27 @@
+// See README.txt for information and build instructions.
+//
+// Note: START and END tags are used in comments to define sections used in
+// tutorials.  They are not part of the syntax for Protocol Buffers.
+//
+// To get an in-depth walkthrough of this file and the related examples, see:
+// https://developers.google.com/protocol-buffers/docs/tutorials
+
+syntax = "proto2";
+package beam_pevs;
+
+option java_package = "beam.sim.traveltime";
+option java_outer_classname = "TripInformationProto";
+
+message RouteInformationElement{
+  optional double travelTime = 1;
+  optional double travelDistance = 2;
+  optional string linkId = 3;
+}
+
+message TripInformation{
+	repeated RouteInformationElement routeInformationElements = 1;
+	optional double departureTime = 2;
+	optional double tripTravelTime = 3;
+	optional double tripTravelDistance = 4;
+	optional double tripAverageSpeed = 5;
+}

@@ -98,6 +98,7 @@ public final class EVController implements ControlerI, MatsimServices {
 
 	private com.google.inject.Injector injector;
 	private boolean injectorCreated = false;
+	private static EventsManager eventsManager = null;
 
 	@Override
 	public IterationStopWatch getStopwatch() {
@@ -251,67 +252,28 @@ public final class EVController implements ControlerI, MatsimServices {
 
     @Override
 	public final Scenario getScenario() {
-		if (this.injectorCreated) {
-			return this.injector.getInstance(Scenario.class);
-		} else {
-			if ( scenario == null ) {
-				log.error( "Trying to get Scenario before it was instanciated.");
-				log.error( "When passing a config file or a config file path to the Controler constructor," );
-				log.error( "Scenario will be loaded first when the run() method is invoked." );
-				throw new IllegalStateException( "Trying to get Scenario before is was instanciated." );
-			}
+		if (this.scenario!=null) {
+		    return this.scenario;
+		}else if(this.injectorCreated){
+			this.scenario = this.injector.getInstance(Scenario.class);
 			return this.scenario;
+		} else {
+            log.error( "Trying to get Scenario before it was instanciated.");
+            log.error( "When passing a config file or a config file path to the Controler constructor," );
+            log.error( "Scenario will be loaded first when the run() method is invoked." );
+            throw new IllegalStateException( "Trying to get Scenario before is was instanciated." );
 		}
     }
 
 	
 	@Override
 	public final EventsManager getEvents() {
-		if (this.injector != null) {
-			return this.injector.getInstance(EventsManager.class);
-		} else {
-			return new EventsManager() {
-				@Override
-				public void processEvent(Event event) {
-					EVController.this.injector.getInstance(EventsManager.class).processEvent(event);
-				}
-
-				@Override
-				public void addHandler(final EventHandler handler) {
-					addOverridingModule(new AbstractModule() {
-						@Override
-						public void install() {
-							addEventHandlerBinding().toInstance(handler);
-						}
-					});
-				}
-
-				@Override
-				public void removeHandler(EventHandler handler) {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void resetHandlers(int iteration) {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void initProcessing() {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void afterSimStep(double time) {
-					throw new UnsupportedOperationException();
-				}
-
-				@Override
-				public void finishProcessing() {
-					throw new UnsupportedOperationException();
-				}
-			};
+    	if(EVController.eventsManager == null) {
+			if (this.injector != null) {
+				EVController.eventsManager = this.injector.getInstance(EventsManager.class);
+			}
 		}
+		return EVController.eventsManager;
 	}
 
 	@Override

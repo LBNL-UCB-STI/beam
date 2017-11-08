@@ -1,1 +1,8 @@
-personId,vehicleTypeId,homeChargingPlugTypeId,homeChargingPolicyId,homeChargingNetworkOperatorId,simulationStartSocFraction,1,1,2,5,1,1,2,1,2,5,1,1,3,1,2,5,1,1,4,2,2,5,1,1,5,3,,,,1,16,4,,,,1,7,2,,,,1,
+personId,vehicleTypeId,homeChargingPlugTypeId,homeChargingPolicyId,homeChargingNetworkOperatorId,simulationStartSocFraction,spatialGroup,useInCalibration
+1,1,2,5,1,1,none,TRUE
+2,1,2,5,1,1,none,TRUE
+3,1,2,5,1,1,none,TRUE
+4,2,2,5,1,1,none,TRUE
+5,3,,,,1,none,TRUE
+6,4,,,,1,none,TRUE
+7,2,,,,1,none,TRUE
