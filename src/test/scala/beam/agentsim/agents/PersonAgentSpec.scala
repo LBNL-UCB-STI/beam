@@ -47,7 +47,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
     when(theServices.agentSimEventsBus).thenReturn(agentSimEventsBus)
     when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
     when(theServices.beamConfig).thenReturn(config)
-    when(theServices.modeChoiceCalculator).thenReturn(ModeChoiceCalculator(config.beam.agentsim.agents.modalBehaviors.modeChoiceClass, theServices));
+//    when(theServices.modeChoiceCalculator).thenReturn(ModeChoiceCalculator(config.beam.agentsim.agents.modalBehaviors.modeChoiceClass, theServices));
     theServices
   }
 

@@ -10,6 +10,6 @@ runcmd:
   - java -jar beam.jar --config test/input/$INPUTS/$CONFIG
   - sleep 10s
   - echo "---- BEAM Simulation completed. ----"
-  - for file in test/output/*; do sudo zip "${file%.*}_$UID.zip" "$file"; done
+  - for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   - sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
   - sudo shutdown -h +$SHUTDOWN_WAIT
