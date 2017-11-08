@@ -46,7 +46,7 @@ public class MultinomialLogit implements AbstractLogit, Cloneable {
                 if (tree.children == null) {
                     tree.children = new LinkedList<NestedLogit>();
                 }
-                NestedLogit child = NestedLogit.nestedLogitFactory(elem);
+                NestedLogit child = NestedLogit.NestedLogitFactory(elem);
                 child.parent = tree;
                 tree.children.add(child);
             } else {
