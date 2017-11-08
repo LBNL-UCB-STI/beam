@@ -4,19 +4,14 @@ import java.lang.Double
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props}
-import akka.event.Logging
-import beam.agentsim.events.EventsSubscriber.FinishProcessing
-import beam.agentsim.scheduler.BeamAgentScheduler._
-import beam.sim.{BeamServices, HasServices}
-import com.google.common.collect.TreeMultimap
-import akka.pattern.ask
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.events.EventsSubscriber._
+import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.sim.config.BeamConfig
+import com.google.common.collect.TreeMultimap
 
 import scala.collection.mutable
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 
@@ -35,7 +30,7 @@ object BeamAgentScheduler {
 
   case class DoSimStep(tick: Double) extends SchedulerMessage
 
-  case class CompletionNotice(id: Long, newTriggers: Vector[ScheduleTrigger] = Vector[ScheduleTrigger]()) extends SchedulerMessage
+  case class CompletionNotice(id: Long, newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()) extends SchedulerMessage
 
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage {
     def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
@@ -70,14 +65,12 @@ object BeamAgentScheduler {
   }
 }
 
-class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxWindow: Double) extends Actor {
+class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxWindow: Double) extends Actor with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val log = Logging(context.system, this)
   var triggerQueue: mutable.PriorityQueue[ScheduledTrigger] = new mutable.PriorityQueue[ScheduledTrigger]()
-  var awaitingResponse: TreeMultimap[java.lang.Double, java.lang.Long] = TreeMultimap.create[java.lang.Double, java.lang.Long]()
-  var awaitingResponseVerbose: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap.create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
+  var awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap.create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
   val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long, java.lang.Double]()
   val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] = scala.collection.mutable.Map[Long, ScheduledTrigger]()
 
@@ -136,11 +129,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           val scheduledTrigger = this.triggerQueue.dequeue
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
-          awaitingResponse.put(triggerWithId.trigger.tick, triggerWithId.triggerId)
-          if (beamConfig.beam.debug.debugEnabled) {
-            awaitingResponseVerbose.put(triggerWithId.trigger.tick, scheduledTrigger)
-            triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
-          }
+          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
+          triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
           scheduledTrigger.agent ! triggerWithId
         }
         if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
@@ -171,7 +161,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         self ! DoSimStep(nowInSeconds)
       }
 
-    case notice@CompletionNotice(triggerId: Long, newTriggers: Vector[ScheduleTrigger]) =>
+    case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
       //      log.info(s"recieved notice that trigger triggerId: $triggerId is complete")
       newTriggers.foreach {
         scheduleTrigger
@@ -180,16 +170,22 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       if (completionTickOpt.isEmpty || !triggerIdToTick.contains(triggerId) || !awaitingResponse.containsKey(completionTickOpt.get)) {
         log.error(s"Received bad completion notice ${notice} from ${sender().path}")
       } else {
-        awaitingResponse.remove(completionTickOpt.get, triggerId)
-        if (beamConfig.beam.debug.debugEnabled) {
-          awaitingResponseVerbose.remove(completionTickOpt.get, triggerIdToScheduledTrigger(triggerId))
-          triggerIdToScheduledTrigger -= triggerId
-        }
+        awaitingResponse.remove(completionTickOpt.get, triggerIdToScheduledTrigger(triggerId))
+        triggerIdToScheduledTrigger -= triggerId
       }
       triggerIdToTick -= triggerId
 
     case triggerToSchedule: ScheduleTrigger =>
+      context.watch(triggerToSchedule.agent)
       scheduleTrigger(triggerToSchedule)
+
+    case Terminated(actor) =>
+      awaitingResponse.values().stream()
+        .filter(trigger => trigger.agent == actor)
+        .forEach(trigger => {
+          self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
+          log.warning("Clearing trigger because agent died: " + trigger)
+        })
 
     case msg =>
       log.error(s"received unknown message: $msg")
@@ -200,7 +196,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       try {
         if (beamConfig.beam.debug.skipOverBadActors) {
           var numReps = 0L
-          currentTotalAwaitingResponse.set(awaitingResponseVerbose.values().stream().count())
+          currentTotalAwaitingResponse.set(awaitingResponse.values().stream().count())
           if (currentTotalAwaitingResponse.get() == previousTotalAwaitingRespone.get() && currentTotalAwaitingResponse.get() != 0) {
             numReps = numberRepeats.incrementAndGet()
             log.error(s"DEBUG: $numReps repeats.")
@@ -209,7 +205,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           }
           if (numReps > 2) {
             log.error(s"DEBUG: $numReps > 2 repeats!!! Clearing out stuck agents and proceeding with schedule")
-            awaitingResponseVerbose.values().stream().forEach({ x =>
+            awaitingResponse.values().stream().forEach({ x =>
               x.agent ! IllegalTriggerGoToError
               currentTotalAwaitingResponse.set(0)
               self ! CompletionNotice(x.triggerWithId.triggerId)
@@ -236,11 +232,11 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       } else {
         if (beamConfig.beam.debug.debugEnabled) {
           awaitingResponse.synchronized(
-            s"${awaitingResponseVerbose.get(awaitingResponseVerbose.keySet().first())}}"
+            s"${awaitingResponse.get(awaitingResponse.keySet().first())}}"
           )
         } else {
           awaitingResponse.synchronized(
-            awaitingResponseVerbose.synchronized(
+            awaitingResponse.synchronized(
               s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
             )
           )

@@ -97,158 +97,137 @@ public class NestedLogit implements AbstractLogit {
         cdf.setPDF(marginalProbs);
         return cdf;
     }
-
-    @Override
-    public String makeRandomChoice(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData, Random rand) {
-        if (cdf == null) evaluateProbabilities(inputData);
-        return cdf.sample(rand);
-    }
-
-    @Override
-    public void clear() {
-        cdf = null;
-    }
-
-    private LinkedHashMap<String, Double> marginalizeAlternativeProbabilities(LinkedHashMap<NestedLogit, Double> conditionalProbs) {
-        LinkedHashMap<String, Double> marginalProbs = new LinkedHashMap<String, Double>();
-        for (NestedLogit node : conditionalProbs.keySet()) {
-            if (node.isAlternative()) {
-                double marginal = propagateNestProbs(node, conditionalProbs);
-                marginalProbs.put(node.data.getNestName(), marginal);
-            }
-        }
-        return marginalProbs;
-    }
-
-    private double propagateNestProbs(NestedLogit node, LinkedHashMap<NestedLogit, Double> conditionalProbs) {
-        if (node.parent == null) {
-            return 1.0; // Top level
-        } else {
-            return conditionalProbs.get(node) * propagateNestProbs(node.parent, conditionalProbs);
-        }
-    }
-
-    public double getExpOfExpectedMaximumUtility(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData, LinkedHashMap<NestedLogit, Double> conditionalProbs) {
-        if (this.isAlternative()) {
-            double utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName()));
-            this.data.setExpectedMaxUtility(utilOfAlternative);
-            return Math.exp(utilOfAlternative / this.data.getElasticity());
-        } else {
-            double sumOfExpOfExpMaxUtil = 0.0;
-            for (NestedLogit child : this.children) {
-                double expOfExpMaxUtil = child.getExpOfExpectedMaximumUtility(inputData, conditionalProbs);
-                conditionalProbs.put(child, expOfExpMaxUtil);
-                sumOfExpOfExpMaxUtil += expOfExpMaxUtil;
-            }
-            if (sumOfExpOfExpMaxUtil > 0.0) {
-                if (sumOfExpOfExpMaxUtil < Double.POSITIVE_INFINITY) {
-                    for (NestedLogit child : this.children) {
-                        conditionalProbs.put(child, conditionalProbs.get(child) / sumOfExpOfExpMaxUtil);
-                    }
-                } else {
-                    int numInf = 0;
-                    for (NestedLogit child : this.children) {
-                        if (conditionalProbs.get(child) == Double.POSITIVE_INFINITY) {
-                            numInf++;
-                        }
-                    }
-                    for (NestedLogit child : this.children) {
-                        if (conditionalProbs.get(child) == Double.POSITIVE_INFINITY) {
-                            conditionalProbs.put(child, 1.0 / numInf);
-                        } else {
-                            conditionalProbs.put(child, 0.0);
-                        }
-                    }
-
-                }
-            }
-            this.data.setExpectedMaxUtility(Math.log(sumOfExpOfExpMaxUtil) * this.data.getElasticity());
-            return Math.pow(sumOfExpOfExpMaxUtil, this.data.getElasticity());
-        }
-    }
-
-    public Double getMarginalProbability(String nestName) {
-        if (this.cdf == null) {
-            return null;
-        } else {
-            return sumMarginalProbsOfNest(this, nestName, this.cdf.getProbabilityDensityMap());
-        }
-    }
-
-    @Override
-    public Double getExpectedMaximumUtility() {
-        return this.data.getExpectedMaxUtility();
-    }
-
-    public Double getExpectedMaximumUtility(String nestName) {
-        if (this.data.nestName.equals(nestName)) {
-            return this.data.getExpectedMaxUtility();
-        } else if (!this.isAlternative()) {
-            for (NestedLogit child : this.children) {
-                Double expMax = child.getExpectedMaximumUtility(nestName);
-                if (expMax != null) return expMax;
-            }
-        }
-        return null;
-    }
-
-    private Double sumMarginalProbsOfNest(NestedLogit node, String nestName, LinkedHashMap<String, Double> pdf) {
-        return sumMarginalProbsOfNest(this, nestName, pdf, false);
-    }
-
-    private Double sumMarginalProbsOfNest(NestedLogit node, String nestName, LinkedHashMap<String, Double> pdf, Boolean startSumming) {
-        if (!startSumming && node.data.nestName.equals(nestName)) {
-            return sumMarginalProbsOfNest(node, nestName, pdf, true);
-        }
-        if (node.isAlternative()) {
-            return startSumming ? pdf.get(node.data.getNestName()) : 0.0;
-        }
-        Double sumChildren = 0.0;
-        for (NestedLogit child : node.children) {
-            sumChildren += sumMarginalProbsOfNest(child, nestName, pdf, startSumming);
-        }
-        return sumChildren;
-    }
-
-    private boolean isAlternative() {
-        return this.children == null;
-    }
-
-    public String toString() {
-        return this.data.getNestName();
-    }
-
-    public String toStringRecursive(int depth) {
-        String result = "";
-        String tabs = "", tabsPlusOne = "  ";
-        for (int i = 0; i < depth; i++) {
-            tabs += "  ";
-            tabsPlusOne += "  ";
-        }
-        result += tabs + this.data.getNestName() + "\n";
-        if ((this.children == null || this.children.isEmpty()) && this.data.getUtility() != null) {
-            result += tabsPlusOne + this.data.getUtility().toString() + "\n";
-        } else {
-            for (NestedLogit subnest : this.children) {
-                result += subnest.toStringRecursive(depth + 1);
-            }
-        }
-        return result;
-    }
-
-    public void setName(String name) {
-        this.data.setNestName(name);
-    }
-
-    public void addChild(NestedLogit child) {
-        this.children.add(child);
-    }
-
-    public void removeChild(NestedLogit child) {
-        this.children.remove(child);
-    }
-
-    public void removeChildren() {
-        this.children.clear();
-    }
+	@Override
+	public void clear() {
+		cdf = null;
+	}
+	private LinkedHashMap<String, Double> marginalizeAlternativeProbabilities(LinkedHashMap<NestedLogit, Double> conditionalProbs) {
+		LinkedHashMap<String,Double> marginalProbs = new LinkedHashMap<String,Double>();
+		for(NestedLogit node : conditionalProbs.keySet()){
+			if(node.isAlternative()){
+				double marginal = propogateNestProbs(node,conditionalProbs);
+				marginalProbs.put(node.data.getNestName(),marginal);
+			}
+		}
+		return marginalProbs;
+	}
+	private double propogateNestProbs(NestedLogit node, LinkedHashMap<NestedLogit,Double> conditionalProbs) {
+		if(node.parent==null){
+			return 1.0; // Top level 
+		}else{
+			return conditionalProbs.get(node) * propogateNestProbs(node.parent, conditionalProbs);
+		}
+	}
+	public double getExpOfExpectedMaximumUtility(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, LinkedHashMap<NestedLogit,Double> conditionalProbs){
+		if(this.isAlternative()){
+			double utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName())); 
+			this.data.setExpectedMaxUtility(utilOfAlternative);
+			return Math.exp(utilOfAlternative/this.data.getElasticity());
+		}else{
+			double sumOfExpOfExpMaxUtil = 0.0;
+			for(NestedLogit child : this.children){
+				double expOfExpMaxUtil = child.getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
+				conditionalProbs.put(child, expOfExpMaxUtil);
+				sumOfExpOfExpMaxUtil += expOfExpMaxUtil;
+			}
+			if(sumOfExpOfExpMaxUtil>0.0){
+				if(sumOfExpOfExpMaxUtil<Double.POSITIVE_INFINITY){
+					for(NestedLogit child : this.children){
+						conditionalProbs.put(child,conditionalProbs.get(child) / sumOfExpOfExpMaxUtil);
+					}
+				}else{
+					int numInf = 0;
+					for(NestedLogit child : this.children){
+						if(conditionalProbs.get(child) == Double.POSITIVE_INFINITY){
+							numInf++;
+						}
+					}
+					for(NestedLogit child : this.children){
+						if(conditionalProbs.get(child) == Double.POSITIVE_INFINITY){
+							conditionalProbs.put(child,1.0 / numInf);
+						}else{
+							conditionalProbs.put(child,0.0);
+						}
+					}
+					
+				}
+			}
+			this.data.setExpectedMaxUtility(Math.log(sumOfExpOfExpMaxUtil) * this.data.getElasticity());
+			return Math.pow(sumOfExpOfExpMaxUtil,this.data.getElasticity());
+		}
+	}
+	public Double getMarginalProbability(String nestName) {
+		if(this.cdf==null){
+			return null;
+		}else{
+			return sumMarginalProbsOfNest(this,nestName,this.cdf.getProbabilityDensityMap());
+		}
+	}
+	@Override
+	public Double getExpectedMaximumUtility() {
+		return this.data.getExpectedMaxUtility();
+	}
+	public Double getExpectedMaximumUtility(String nestName) {
+		if(this.data.nestName.equals(nestName)){
+			return this.data.getExpectedMaxUtility();
+		}else if(!this.isAlternative()){
+			for(NestedLogit child : this.children){
+				Double expMax = child.getExpectedMaximumUtility(nestName);
+				if(expMax != null)return expMax;
+			}
+		}
+		return null;
+	}
+	private Double sumMarginalProbsOfNest(NestedLogit node, String nestName, LinkedHashMap<String,Double> pdf) {
+		return sumMarginalProbsOfNest(this,nestName,pdf,false);
+	}
+	private Double sumMarginalProbsOfNest(NestedLogit node, String nestName, LinkedHashMap<String,Double> pdf, Boolean startSumming) {
+		if(!startSumming && node.data.nestName.equals(nestName)){
+			return sumMarginalProbsOfNest(node,nestName,pdf,true);
+		}
+		if(node.isAlternative()){
+			return startSumming ? pdf.get(node.data.getNestName()) : 0.0; 
+		}
+		Double sumChildren = 0.0;
+		for(NestedLogit child : node.children){
+			sumChildren += sumMarginalProbsOfNest(child,nestName,pdf,startSumming);
+		}
+		return sumChildren;
+	}
+	private boolean isAlternative() {
+		return this.children==null;
+	}
+	public String toString(){
+		return this.data.getNestName();
+	}
+	public String toStringRecursive(int depth){
+		String result = "";
+		String tabs = "", tabsPlusOne = "  ";
+		for(int i=0; i<depth; i++){
+			tabs += "  ";
+			tabsPlusOne += "  ";
+		}
+		result += tabs + this.data.getNestName() + "\n";
+		if((this.children==null || this.children.isEmpty()) && this.data.getUtility()!=null){
+			result += tabsPlusOne + this.data.getUtility().toString() + "\n";
+		}else{
+			for (NestedLogit subnest : this.children) {
+				result += subnest.toStringRecursive(depth+1);
+			}
+		}
+		return result;
+	}
+	public void setName(String name) {
+		this.data.setNestName(name);
+	}
+	public String getName() { return this.data.getNestName(); }
+	public void addChild(NestedLogit child) {
+		this.children.add(child);
+	}
+	public void removeChild(NestedLogit child) {
+		this.children.remove(child);
+	}
+	public void removeChildren() {
+		this.children.clear();
+	}
 }

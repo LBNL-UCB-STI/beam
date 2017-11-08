@@ -1,14 +1,15 @@
 package beam.agentsim.agents.vehicles
 
+import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import akka.pattern._
 import beam.agentsim.Resource
 import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
-import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Uninitialized}
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.modalBehaviors.{CancelReservation, CancelReservationWithVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ResetCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, RemovePassengerFromTrip}
+import beam.agentsim.agents.modalBehaviors.CancelReservationWithVehicle
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, RemovePassengerFromTrip, ResetCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
@@ -24,7 +25,6 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
-import scala.collection.generic.FilterMonadic
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -33,19 +33,6 @@ import scala.concurrent.Future
   */
 
 abstract class Dimension
-
-//object VehicleData {
-//  case class VehicleDataImpl(vehicleTypeName: String, vehicleClassName: String,
-//                             matSimVehicle: Vehicle, attributes: Attributes) extends VehicleData {
-//    override def getType: VehicleType = matSimVehicle.getType
-//
-//    override def getId: Id[Vehicle] = matSimVehicle.getId
-//  }
-//
-//}
-//trait VehicleData extends BeamAgentData with Vehicle {
-//
-//}
 
 trait BeamVehicleObject {
   def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props
@@ -110,6 +97,8 @@ object BeamVehicle {
   case class AssignedCarrier(carrierVehicleId: Id[Vehicle])
   case object ResetCarrier
 
+  case class RemovePassengerFromTrip(passId: VehiclePersonId)
+
 }
 
 
@@ -169,17 +158,13 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      val errMsg = s"From state Idle: Unrecognized message ${msg}"
-      logError(errMsg)
-      goto(Error) using stateData.copy(errorReason = Some(errMsg))
+      stop(Failure(s"From state Idle: Unrecognized message $msg"))
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      val errMsg = s"From state Moving: Unrecognized message ${msg}"
-      logError(errMsg)
-      goto(Error) using stateData.copy(errorReason = Some(errMsg))
+      stop(Failure(s"From state Moving: Unrecognized message $msg"))
   }
 
   chainedWhen(Uninitialized){
@@ -220,10 +205,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         sendPendingReservations(driverActor)
         driverActor ! BecomeDriverSuccess(newPassengerSchedule, id)
       } else {
-        //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are drivers, but futur versions of BEAM may seek to be robust to this condition
-        throw new RuntimeException(s"BeamAgent $newDriver attempted to become driver of vehicle $id but driver ${driver.get} already assigned.")
-        //        val beamAgent = sender()
-        //        beamAgent ! DriverAlreadyAssigned(id, driver.get)
+        stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id but driver ${driver.get} already assigned."))
       }
       stay()
     case Event(ModifyPassengerSchedule(newPassengerSchedule, requestId), info) =>
@@ -238,8 +220,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
       if (driver.isEmpty) {
-        //TODO throwing an excpetion is the simplest approach b/c agents need not wait for confirmation before assuming they are no longer drivers, but futur versions of BEAM may seek to be robust to this condition
-        throw new RuntimeException(s"BeamAgent $theDriver attempted to Unbecome driver of vehicle $id but no driver in currently assigned.")
+        stop(Failure(s"BeamAgent $theDriver attempted to Unbecome driver of vehicle $id but no driver in currently assigned."))
       } else {
         driver = None
         theDriver match {
@@ -273,6 +254,8 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
       beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id)))
       stay()
+    case Event(Finish, _) =>
+      stop
   }
 
   chainedWhen(AnyState) {

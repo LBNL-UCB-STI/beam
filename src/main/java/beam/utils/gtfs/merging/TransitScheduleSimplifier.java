@@ -11,7 +11,6 @@ import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.pt.transitSchedule.TransitScheduleFactoryImpl;
 import org.matsim.pt.transitSchedule.api.*;
-import org.matsim.pt2matsim.tools.ScheduleTools;
 
 import java.util.*;
 
@@ -38,7 +37,6 @@ public class TransitScheduleSimplifier{
 	 * Simplifies a transit schedule by merging transit routes within a transit line with equal route profiles.
 	 * The simplified schedule is also written into a new file.
 	 * 
-	 * @param scenario the scenario containing the transit schedule to simplify
 	 * @param outputDirectory the destination folder for the simplified transit schedule file
 	 * @return the simplified transit schedule
 	 */
@@ -756,7 +754,6 @@ public class TransitScheduleSimplifier{
 	/**
 	 * Merges the departures of all transit routes that are to be merged.
 	 * 
-	 * @param startTransitRouteStop the first stop of the new transit route
 	 * @param mergedTransitRoute the new transit route
 	 */
 	private void mergeDepartures(TransitScheduleFactoryImpl factory, Map<Id<TransitRoute>,TransitRoute> transitRoutes,
@@ -818,8 +815,6 @@ public class TransitScheduleSimplifier{
 	/**
 	 * Compares the route profiles of two given transit routes for equality.
 	 * 
-	 * @param transitRoute
-	 * @param transitRoute2
 	 * @return true if the route profiles are equal, false if not
 	 */
 	private boolean routeProfilesEqual(List<TransitRouteStop> routeProfile1,
@@ -891,7 +886,7 @@ public class TransitScheduleSimplifier{
 	}
 
 	public static void main(String[] args) {
-		TransitScheduleSimplifier.mergeEqualProfilesOfAllRoutes(ScheduleTools.readTransitSchedule("/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/schedule/sf_bay_schedule_all_clean.xml.gz"), "/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/schedule");
+//		TransitScheduleSimplifier.mergeEqualProfilesOfAllRoutes(ScheduleTools.readTransitSchedule("/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/schedule/sf_bay_schedule_all_clean.xml.gz"), "/Users/sfeygin/current_code/java/research/ucb_smartcities_all/input/sf_bay/schedule");
 
 	}
 	
