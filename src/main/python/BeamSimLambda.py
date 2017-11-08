@@ -83,20 +83,26 @@ def lambda_handler(event, context):
     commit_id = event.get('commit', 'HEAD')
     configs = event.get('configs', 'production/application-sfbay/base.conf')
     instance_type = event.get('instance_type')
+    batch = event.get('batch', 'true')
     shutdown_wait = event.get('shutdown_wait', '30')
 
     if instance_type is None or instance_type not in instance_types:
         instance_type = os.environ['INSTANCE_TYPE']
 
+    if batch == 'true':
+        configs = [ configs ]
+    else:
+        configs = configs.split(' ')
+
     txt = ''
 
-
     if validate(branch) and validate(commit_id):
-        uid = str(uuid.uuid4())[:8]
-        script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', configs).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
-        instance_id = deploy(script, instance_type)
-        host = get_dns(instance_id)
-        txt = 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}.'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
+        for cfg in configs:
+            uid = str(uuid.uuid4())[:8]
+            script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', cfg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
+            instance_id = deploy(script, instance_type)
+            host = get_dns(instance_id)
+            txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}.'.format(branch=branch, commit=commit_id)
 

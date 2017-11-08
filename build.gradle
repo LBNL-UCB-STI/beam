@@ -255,7 +255,8 @@ lambda {
 def pload = """{
   "branch": "$beamBranch",
   "commit": "$beamCommit",
-  "configs": "${beamConfigs.split(',').join(" ")}",
+  "configs": "'${beamConfigs.split(',').join("' '")}'",
+  "batch": $beamBatch,
   "shutdown_wait": "$shutdownWait"
 }"""
 
