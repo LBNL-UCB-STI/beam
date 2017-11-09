@@ -11,6 +11,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.TriggerWithId
+import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -19,8 +20,8 @@ import org.matsim.vehicles.Vehicle
   * BEAM
   */
 object TransitDriverAgent {
-  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, passengerSchedule: PassengerSchedule) = {
-    Props(classOf[TransitDriverAgent], services, transitDriverId, vehicleIdAndRef, passengerSchedule)
+  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, legs: Seq[BeamLeg]) = {
+    Props(classOf[TransitDriverAgent], services, transitDriverId, vehicleIdAndRef, legs)
   }
   case class TransitDriverData() extends BeamAgentData
 
@@ -29,18 +30,21 @@ object TransitDriverAgent {
   }
 
   def lookupActorFromVehicleId(context: ActorContext, transitVehicle: Id[Vehicle]) = {
-    context.actorSelection("/user/router/network-coordinator/" + createAgentIdFromVehicleId(transitVehicle))
+    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
   }
 }
 
 class TransitDriverAgent(val beamServices: BeamServices,
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicleIdAndRef: BeamVehicleIdAndRef,
-                         val initialPassengerSchedule: PassengerSchedule) extends
+                         val legs: Seq[BeamLeg]) extends
   BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
   override val id: Id[TransitDriverAgent] = transitDriverId
   override val data: TransitDriverData = TransitDriverData()
   override def logPrefix(): String = s"TransitDriverAgent:$id "
+
+  val initialPassengerSchedule = PassengerSchedule()
+  initialPassengerSchedule.addLegs(legs)
 
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick),triggerId), info: BeamAgentInfo[TransitDriverData]) =>
@@ -57,9 +61,6 @@ class TransitDriverAgent(val beamServices: BeamServices,
       stay
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
       stop replying completed(triggerId)
-    case Event((from: Int, to: Int), _) =>
-      val legs = initialPassengerSchedule.schedule.slice(from, to).keys.toSeq
-      stay replying legs
   }
 
   when(Waiting) {

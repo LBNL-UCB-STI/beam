@@ -5,28 +5,13 @@ import java.nio.file.Files.exists
 import java.nio.file.Paths
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
-import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM}
-import beam.router.Modes.isOnStreetTransit
-import beam.router.RoutingModel.{BeamLeg, BeamPath, TransitStopsInfo}
 import beam.router.r5.NetworkCoordinator._
-import beam.router.{Modes, StreetSegmentTrajectoryResolver, TrajectoryByEdgeIdsResolver}
 import beam.sim.BeamServices
 import beam.utils.reflection.ReflectionUtils
-import com.conveyal.r5.api.util.{StreetEdgeInfo, StreetSegment}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{StreetLayer, TarjanIslandPruner}
-import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
-import org.matsim.api.core.v01.Id
-import org.matsim.utils.objectattributes.attributable.Attributes
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import com.conveyal.r5.transit.TransportNetwork
+import org.matsim.vehicles.Vehicles
 
 /**
   * Created by salma_000 on 8/25/2017.
@@ -54,9 +39,6 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
   // https://stackoverflow.com/questions/29794454/resolving-akka-futures-from-ask-in-the-event-of-a-failure
 
   override def receive: Receive = {
-    case InitTransit =>
-      initTransit()
-      sender ! TransitInited
     case msg => log.info(s"Unknown message[$msg] received by NetworkCoordinator Actor.")
   }
 
@@ -113,126 +95,6 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
 
   private def overrideR5EdgeSearchRadius(newRadius: Double): Unit =
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", newRadius)
-
-  /*
- * Plan of action:
- * Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and a vehicle
- * The arrivals/departures within the TripSchedules are vectors of the same length as the "stops" field in the TripPattern
- * The stop IDs will be used to extract the Coordinate of the stop from the transitLayer (don't see exactly how yet)
- * Also should hold onto the route and trip IDs and use route to lookup the transit agency which ultimately should
- * be used to decide what type of vehicle to assign
- *
- */
-  def initTransit(): Unit = {
-    val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetSegment]]()
-    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
-    val transitData = transitTrips.flatMap { tripPattern =>
-      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
-      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      val transitPaths = tripPattern.stops.sliding(2).map { case Array(fromStopIdx, toStopIdx) =>
-        if (isOnStreetTransit(mode)) {
-          stopToStopStreetSegmentCache.getOrElseUpdate((fromStopIdx, toStopIdx), beamPathBuilder.routeTransitPathThroughStreets(fromStopIdx, toStopIdx)) match {
-            case Some(streetSeg) =>
-              var activeLinkIds = Vector[String]()
-              for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
-                activeLinkIds = activeLinkIds :+ edge.edgeId.toString
-              }
-              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(activeLinkIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), StreetSegmentTrajectoryResolver(streetSeg, departureTime))
-            case None =>
-              val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
-          }
-        } else {
-          val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
-          (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(edgeIds, Option(TransitStopsInfo(fromStopIdx, vehicleId, toStopIdx)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
-        }
-      }.toSeq
-      val transitRouteTrips = tripPattern.tripSchedules.asScala
-      transitRouteTrips.filter(_.getNStops > 0).map { transitTrip =>
-        // First create a unique for this trip which will become the transit agent and vehicle ids
-        val tripVehId = Id.create(transitTrip.tripId, classOf[Vehicle])
-        val numStops = transitTrip.departures.length
-        val passengerSchedule = PassengerSchedule()
-
-        if (numStops > 1) {
-          var stopStopDepartTuple = (-1, -1, 0L)
-          var previousBeamLeg: Option[BeamLeg] = None
-          val travelStops = transitTrip.departures.zipWithIndex.sliding(2)
-          travelStops.foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
-            val duration = transitTrip.arrivals(to) - departureTimeFrom
-            //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
-            //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
-            val theLeg = BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
-            passengerSchedule.addLegs(Seq(theLeg))
-            previousBeamLeg = Some(theLeg)
-            val previousTransitStops: TransitStopsInfo = previousBeamLeg.get.travelPath.transitStops match {
-              case Some(stops) =>
-                stops
-              case None =>
-                TransitStopsInfo(-1, tripVehId, -1)
-            }
-            stopStopDepartTuple = (previousTransitStops.fromStopId, previousTransitStops.toStopId, previousBeamLeg.get.startTime)
-          }
-        } else {
-          log.warning(s"Transit trip  ${transitTrip.tripId} has only one stop ")
-          val departureStart = transitTrip.departures(0)
-          val fromStopIdx = tripPattern.stops(0)
-          //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
-          //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
-          val duration = 1L
-          val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx)
-          val stopsInfo = TransitStopsInfo(fromStopIdx, tripVehId, fromStopIdx)
-          val transitPath = BeamPath(edgeIds, Option(stopsInfo),
-            TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration))
-          val theLeg = BeamLeg(departureStart.toLong, mode, duration, transitPath)
-          passengerSchedule.addLegs(Seq(theLeg))
-        }
-
-        (tripVehId, route, passengerSchedule)
-      }
-    }
-    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty)
-    transitScheduleToCreate.foreach { case (tripVehId, route, passengerSchedule) =>
-      createTransitVehicle(tripVehId, route, passengerSchedule)
-    }
-
-    log.info(s"Finished Transit initialization trips, ${transitData.length}")
-  }
-
-  def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, passengerSchedule: PassengerSchedule) = {
-
-    val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-    val vehicleTypeId = Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
-
-    val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)){
-      transitVehicles.getVehicleTypes.get(vehicleTypeId);
-    } else {
-      log.info(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
-      transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]));
-    }
-
-    mode match {
-      case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY) if vehicleType != null =>
-        val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
-        matSimTransitVehicle.getType.setDescription(mode.value)
-        val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
-        val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
-        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
-        beamServices.vehicles += (transitVehId -> matSimTransitVehicle)
-        beamServices.vehicleRefs += (transitVehId -> transitVehRef)
-        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitVehRef)
-
-        val vehicleIdAndRef = BeamVehicleIdAndRef(transitVehId, transitVehRef)
-        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, vehicleIdAndRef, passengerSchedule)
-        val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-        beamServices.agentRefs += (transitDriverId.toString -> transitDriver)
-        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
-
-      case _ =>
-        log.error(mode + " is not supported yet")
-    }
-  }
 
 }
 

@@ -3,14 +3,11 @@ package beam.router.r5
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
-import java.util.concurrent.TimeUnit
 
 import akka.actor._
 import akka.pattern._
-import akka.util.Timeout
-import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.BeamRouter.{RoutingRequest, RoutingRequestTripInfo, RoutingResponse, UpdateTravelTime}
+import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
@@ -27,26 +24,29 @@ import com.conveyal.r5.common.JsonUtilities
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.EdgeStore
+import com.conveyal.r5.transit.RouteInfo
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  var hasWarnedAboutLegPair = Set[Tuple2[Int, Int]]()
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
-  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var maybeTravelTime: Option[TravelTime] = None
+  var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
   import context.dispatcher
 
   override final def receive: Receive = {
+    case TransitInited(newTransitSchedule) =>
+      transitSchedule = newTransitSchedule
     case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
       val eventualResponse = Future {
         calcRoute(requestId, params)
@@ -178,7 +178,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
               val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
-              val segmentLegs = Await.result(TransitDriverAgent.lookupActorFromVehicleId(context, Id.createVehicleId(tripId)) ? (segmentPattern.fromIndex, segmentPattern.toIndex), timeout.duration).asInstanceOf[Seq[BeamLeg]]
+              val segmentLegs = transitSchedule(Id.createVehicleId(tripId))._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {

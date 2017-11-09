@@ -124,7 +124,7 @@ object RoutingModel {
     def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
   }
 
-  case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
+  case class TransitStopsInfo(fromStopIdx: Int, fromStopId: Int, vehicleId: Id[Vehicle], toStopIdx: Int, toStopId: Int)
 
   /**
     *
