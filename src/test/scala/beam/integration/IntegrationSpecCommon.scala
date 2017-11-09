@@ -42,17 +42,19 @@ trait IntegrationSpecCommon {
             rideHailPrice = rideHailPrice.getOrElse(ConfigModule.beamConfig.beam.agentsim.tuning.rideHailPrice)
           )
         ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
-          eventsFileOutputFormats =  eventsFileOutputFormats.getOrElse("xml"),
+          events =  ConfigModule.beamConfig.beam.outputs.events.copy(
+            fileOutputFormats = eventsFileOutputFormats.getOrElse("xml")
+          ),
           logging = ConfigModule.beamConfig.beam.outputs.logging.copy(
-            beam = ConfigModule.beamConfig.beam.outputs.logging.beam.copy(
-              logLevel = "ERROR"
-            ), dependencies = ConfigModule.beamConfig.beam.outputs.logging.dependencies.copy(
-              logLevel = "ERROR"
+              beam = ConfigModule.beamConfig.beam.outputs.logging.beam.copy(
+                logLevel = "ERROR"
+              ), dependencies = ConfigModule.beamConfig.beam.outputs.logging.dependencies.copy(
+                logLevel = "ERROR"
+              )
             )
           )
         )
       )
-    )
   }
 }
 

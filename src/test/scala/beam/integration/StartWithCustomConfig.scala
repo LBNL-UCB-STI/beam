@@ -24,7 +24,7 @@ class StartWithCustomConfig(
 
   val exec = Try(runBeamWithConfig(beamConfig, ConfigModule.matSimConfig))
 
-  val file: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , beamConfig.beam.outputs.eventsFileOutputFormats)
+  val file: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , beamConfig.beam.outputs.events.fileOutputFormats)
 
   val eventsReader: ReadEvents = new ReadEventsBeam
 

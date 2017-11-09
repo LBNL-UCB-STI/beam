@@ -31,7 +31,7 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
 
   def parseModeChoiceParams(modeChoiceParamsFilePath: String): Vector[LccmData] = {
     val params = XML.loadFile(modeChoiceParamsFilePath)
-    val paramsFile = s"${beamServices.beamConfig.beam.sharedInputs}/${(params \\ "modeChoices" \\ "lccm" \\ "parameters").text}"
+    val paramsFile = s"${beamServices.beamConfig.beam.inputDirectory}/${(params \\ "modeChoices" \\ "lccm" \\ "parameters").text}"
 
     val beanReader = new CsvBeanReader(IOUtils.getBufferedReader(paramsFile), CsvPreference.STANDARD_PREFERENCE)
     val header = beanReader.getHeader(true)
