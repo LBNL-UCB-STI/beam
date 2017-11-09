@@ -1,0 +1,7 @@
+@startuml
+Scheduler -> PersonAgent: PersonDepartureTrigger
+PersonAgent -> PersonAgent: BecomeDriver|ModifyPassengerSchedule
+PersonAgent <-> Driver:SeeDriverProtocol
+Scheduler -> PersonAgent: PassengerScheduleEmptyTrigger
+PersonAgent -> Scheduler: ActivityEndTrigger
+@enduml

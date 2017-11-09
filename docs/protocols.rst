@@ -11,6 +11,8 @@ RoutingRequests
 
 One of the more familiar protocols, any Actor can consult the router service for routing information by sending a RoutingRequest and receiving a RoutingResponse. 
 
+.. image:: _static/uml/ProtocolRoutingRequest.png
+
 The RoutingRequest message contains:
 
 * Departure Window
@@ -63,12 +65,14 @@ When a PersonAgent travels, she may transition from being a driver of a vehicle 
 Driver
 ~~~~~~
 
+.. image:: _static/uml/ProtocolDriving.png
+
 *Starting Leg*
 
 1. The Driver receives a StartLegTrigger from the Waiting state.
 2. The Driver schedules NotifyLegStartTriggers for each rider in the PassengerSchedule associated with the current BeamLeg.
 3. The Driver creates a list of borders from the PassengerSchedule associated with the BeamLeg to track which agents have yet to board the vehicle.
-4. When all expected BoardingConfirmation messages are recieved from the vehicle, the Driver schedules an EndLegTrigger and transitions to the Moving state.
+4. When all expected BoardVehicle messages are recieved by the Driver, the Driver schedules an EndLegTrigger and transitions to the Moving state.
 
 *Ending Leg*
 
@@ -82,6 +86,7 @@ Driver
 
 Traveler
 ~~~~~~~~
+.. image:: _static/uml/ProtocolTraveling.png
 
 *Starting Trip*
 
@@ -106,7 +111,7 @@ The following protocol is used more than once by the traveler so it is defined h
 
 1. The PersonAgent receives a NotifyLegStartTrigger.
 2. If the private field _currentEmbodiedLeg is non-empty or if the leg referred to in the trigger does not match the Person's next leg or if the Person's next leg has asDriver set to TRUE, this Person has received the NotifyLegStartTrigger too early, so she reschedules the NotifyLegStartTrigger to occur in the current tick, allowing other messages in her Actor mailbox to be processed first.
-3. Otherwise, the PersonAgent sends an EnterVehicle message to the vehicle contained in the EmbodiedBeamLeg unless she is already a passenger in that vehicle.
+3. Otherwise, the PersonAgent sends an BoardVehicle message to the driver contained in the EmbodiedBeamLeg unless she is already a passenger in that vehicle.
 4. The PersonAgent transitions to the Moving state.
 
 *Notify End Leg* 
@@ -114,7 +119,7 @@ The following protocol is used more than once by the traveler so it is defined h
 1. The PersonAgent receives a NotifyLegEndTrigger.
 2. If the private field _currentEmbodiedLeg is empty or the currentBeamLeg does not match the leg associated with the Trigger, this Person has received the NotifyLegEndTrigger too early, so she reschedules the NotifyLegEndTrigger to occur in the current tick, allowing other messages in her Actor mailbox to be processed first.
 3. If another EmbodiedBeamLeg exists in her EmbodiedBeamTrip AND the BeamVehicle associated with the next EmbodiedBeamTrip is identical to the curren BeamVehicle, then she does nothing other than update her internal state to note the end of the leg and transition to Waiting.
-4. Else she sends the current vehicle an ExitVehicle message and executes the ProcessNextLegModule method.
+4. Else she sends the current driver an AlightVehicle message and executes the ProcessNextLegModule method.
 
 Household
 ---------
@@ -141,6 +146,8 @@ RideHailing
 
 The process of hailing a ride from a TNC is modeled after the real-world experience:
 
+.. image:: _static/uml/ProtocolRideHailing.png
+
 1. The PersonAgent inquires about the availability and pricing of the service using a RideHailingInquiry message. 
 2. The RideHailingManager responds with a RideHailingInquiryResponse. 
 3. The PersonAgent may choose to use the ride hailing service in the mode choice process. 
@@ -165,15 +172,15 @@ Transit
 
 Transit itineraries are returned by the router in the Trip Planning Protocol. In order to follow one of these itineraries, the PersonAgent must reserve a spot on the transit vehicle according to the following protocol:
 
+.. image:: _static/uml/ProtocolVehicleReservation.png
+
 1. PersonAgent sends ReservationRequest to the BeamVehicle.
 2. The BeamVehicle forwards the reservation request to the Driver of the vehicle. The driver is responsible for managing the schedule and accepting/rejecting reservations from customers.
 3. The Driver sends a ReservationConfirmation directly to the PersonAgent.
 4. When the BeamVehicle makes it to the confirmed stop for boarding, the Driver sends a BoardingNotice to the PersonAgent.
-5. The PersonAgent sends an EnterVehicle message to the BeamVehicle.
-6. The BeamVehicle sends a BoardingConfirmation message to the Driver.
+5. The PersonAgent sends an BoardVehicle message to the Driver.
 7. Also, concurrently, when the BeamVehicle is at the stop, the Driver sends an AlightingNotice to all passengers registered to alight at that stop.
-8. Notified passengers send an ExitVehicle message to the BeamVehicle.
-9. The BeamVehicle sends an AlightingConfirmation message to the Driver analogous to the boarding process.
+8. Notified passengers send an AlightVehicle message to the Driver.
 
 Because the reservation process ensures that vehicles will not exceed capacity, the Driver need not send an acknowledgement to the PersonAgent.
 
