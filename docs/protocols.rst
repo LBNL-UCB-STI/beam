@@ -57,6 +57,13 @@ BeamTransitSegments contain:
 * Origin stop 
 * Destination stop
 
+ChoosesMode
+~~~~~~~~~~~~~~~
+The mode choice protocol involves gathering information, making a choice, confirming reservations if necessary, and then adapting if the chosen trip cannot be executed.
+
+
+
+
 Traveling
 ---------
 
