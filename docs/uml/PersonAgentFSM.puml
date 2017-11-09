@@ -10,7 +10,7 @@ state Uninitialized #grey
 Uninitialized: InitializeTrigger
 
 state Initialized #grey
-Initialized: ActivityBeginTrigger
+Initialized: ActivityStartTrigger
 
 'BeamAgent Transitions'
 [*] --> Uninitialized
@@ -27,39 +27,24 @@ ChoosingMode: BeginModeChoiceTrigger
 ChoosingMode: FinalizeModeChoiceTrigger
 
 state Traveling #eb1921{
-    Traveling: OnEnter: EnterBodyVehicle
-    Traveling: OnExit: ExitBodyVehicle
 
-    state Walking #eb1921{
-        Walking: Triggers:
-        Walking: -PersonEntersVehicleTrigger [1]
-        Walking: -PersonArrivesTransitStopTrigger [2]
-        Walking: -PersonArrivalTrigger [3]
-    }
-    state Driving #eb1921{
-        Driving: PersonExitsVehicleTrigger
-    }
     state Waiting #eb1921{
-        Waiting: PersonEntersBoardingQueueTrigger
-    }
-    state Boarding #eb1921{
-        Boarding: PersonEntersVehicleTrigger
-    }
-    state OnTransit #eb1921{
-        OnTransit: PersonEntersAlightingQueueTrigger
-    }
-    state Alighting #eb1921{
-        Alighting: PersonExitsVehicleTrigger
+        Waiting: PersonDepartureTrigger
+        Waiting: PassengerScheduleEmptyTrigger
+        Waiting: NotifyLegStartTrigger
     }
 
-    [*] --> Walking
-    Walking --> Driving: 1
-    Walking --> Waiting: 2
-    Waiting --> Boarding
-    Boarding --> OnTransit
-    OnTransit --> Alighting
-    Alighting --> Walking
-    Driving --> Walking
+    state Moving #eb1921{
+        Moving: NotifyLegEndTrigger
+    }
+
+    [*] --> Waiting
+    Waiting --> PerformingActivity
+    Waiting --> Waiting
+    Waiting --> Moving
+    Moving --> Moving
+    Moving --> Waiting
+    Moving --> PerformingActivity
 }
 
 ''''''''''''''''''''''''''
@@ -70,6 +55,5 @@ PerformingActivity --> ChoosingMode
 Traveling --> PerformingActivity
 ChoosingMode --> ChoosingMode
 ChoosingMode --> Waiting
-Walking --> Traveling: 3
 
 @enduml

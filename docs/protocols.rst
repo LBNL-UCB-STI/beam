@@ -61,7 +61,24 @@ ChoosesMode
 ~~~~~~~~~~~~~~~
 The mode choice protocol involves gathering information, making a choice, confirming reservations if necessary, and then adapting if the chosen trip cannot be executed.
 
+.. image:: _static/uml/ProtocolChoosesMode.png
 
+*Gathering Information*
+
+1. The Person receives the BeginModeChoiceTrigger from the scheduler.
+2. Person sends a MobilityStatusInquiry to thier Household.
+3. Household returns a MobilityStatusResponse. Based on this response, the person optionally includes vehicles in the ReservationRequest sent to the Router.
+4. Person sends a ReservationRequest to the Router.
+5. Person sends a RideHailInquiry to the RideHailManager.
+6. Person schedules a FinalizeModeChoiceTrigger to occur in the future (respresenting non-zero time to make a choice).
+7. Person stays in ChoosingMode state until all results are recieved: RoutingResponse, RideHailingInquiryResponse, FinalizeModeChoiceTrigger. With each response, the data is stored locally for use in the mode choice.
+
+*Choosing and Reserving*
+
+1. The Person evaluates the ModeChoiceCalculator which returns a chosen itinerary (in the form of an EmboidedBeamTrip) from the list of possible alternatives.
+2. If a reservation is required to accomplish the chosen itinerary, the person sends ReservationRequest to all drivers in the itinerary (in the case of a transit trip) or a ReserveRide message to the RideHailManager in the case of a ride hail trip).
+3. If reservation requests were sent, the Person waits (still in ChoosingMode state) for all responses to be returned. If any response is negative, the Person removes the chosen itinerary from their choice set, sends RemovePassengerFromTrip messagse to all drivers in the trip (if transit) and begins the mode choice process anew.
+4. If all reservation responses are received and positive or if the trip does not require reservations at all, the person releases any reserved personal vehicles by sending ReleaseVehicleReservation messags to the Household and a ResourceIsAvailableNotification to themself, the Person throws a PersonDepartureEvent and finally schedules a PersonDepartureTrigger to occur at the departure time of the trip.
 
 
 Traveling
@@ -72,6 +89,8 @@ When a PersonAgent travels, she may transition from being a driver of a vehicle 
 Driver
 ~~~~~~
 
+.. image:: _static/uml/DrivesVehicleFSM.png
+   :width: 300 px
 .. image:: _static/uml/ProtocolDriving.png
 
 *Starting Leg*
@@ -93,6 +112,7 @@ Driver
 
 Traveler
 ~~~~~~~~
+.. image:: _static/uml/PersonAgentFSM.png
 .. image:: _static/uml/ProtocolTraveling.png
 
 *Starting Trip*
@@ -105,9 +125,9 @@ The following protocol is used more than once by the traveler so it is defined h
 
 1. The Person checks the value of _currentEmbodiedLeg to see if unbecomeDriverOnCompletion is set to TRUE, if so, then the Person sends an UnbecomeDriver message to her vehicle and updates her _currentVehicle accordingly.
 2. If there are no more legs in the EbmodiedBeamTrip, the PersonAgent either schedules the ActivityEndTrigger and transitions to the PerformingActivity state or, if there are no remaining activities in the person's plan, she transitions to the Finished state and schedules no further triggers. 
-2. If there are more legs in the EmbodiedBeamTrip, the PersonAgent processes the next leg in the trip. If asDriver for the next leg is FALSE, then the Person transitions to Waiting state and does nothing further.
-3. If asDriver is true for the next leg, the Person creates a temporary passenger schedule for the next leg and sends it along with a BecomeDriver or a ModifyPassnegerSchedule message, depending on whether this person is already the driver of the vehicle or if becoming the driver for the first time.
-4. The person stays in the current state (which could be Waiting or Moving depending on the circumstances).
+3. If there are more legs in the EmbodiedBeamTrip, the PersonAgent processes the next leg in the trip. If asDriver for the next leg is FALSE, then the Person transitions to Waiting state and does nothing further.
+4. If asDriver is true for the next leg, the Person creates a temporary passenger schedule for the next leg and sends it along with a BecomeDriver or a ModifyPassnegerSchedule message, depending on whether this person is already the driver of the vehicle or if becoming the driver for the first time.
+5. The person stays in the current state (which could be Waiting or Moving depending on the circumstances).
 
 *Driving Mission Completed*
 
@@ -139,12 +159,6 @@ During initialization, we execute the rank and escort heuristc. Escorts and hous
 4. Else the PersonAgent goes through the mode choice process. After choosing a BeamTrip, she sends an appropriate BeamTrip to her escortees using the AssignTrip message.
 5. The PersonAgent sends a VehicleConfirmationNotice to the Household, confirming whether or not she is using the Car or Bike. The Household will use this information to offer unused vehicles as options to subsequent household members.
 
-Reserve
-~~~~~~~
-
-Enter/Exit
-~~~~~~~~~~
-
 Escort
 ~~~~~~
 
@@ -158,21 +172,52 @@ The process of hailing a ride from a TNC is modeled after the real-world experie
 1. The PersonAgent inquires about the availability and pricing of the service using a RideHailingInquiry message. 
 2. The RideHailingManager responds with a RideHailingInquiryResponse. 
 3. The PersonAgent may choose to use the ride hailing service in the mode choice process. 
-4. The PersonAgent sends a ReserveHailedRide message attempting to book the service.
-5. The RideHailingManager responds with a ReserveHailedRideResponse which either confirms the reservation or notifies that the resource is unavailable.
+4. The PersonAgent sends a ReserveRide message attempting to book the service.
+5. The RideHailingManager responds with a ReservationResponse which either confirms the reservation or notifies that the resource is unavailable.
+
 
 Inquiry
 ~~~~~~~
 
 The RideHailingInquiry message contains:
 
+* inquiryId
+* customerId
+* pickUpLocation
+* departAt time 
+* destinationLocation
+
 The RideHailingInquiryResponse message contains:
+
+* inquiryId
+* a Vector of TravelProposals
+* an optional ReservationError
+
+Each TravelProposal contains:
+
+* RideHailingAgentLocation
+* Time to Customer
+* estimatedPrice
+* estimatedTravelTime
+* Route to customer
+* Route from origin to destination
 
 Reserve
 ~~~~~~~
-The ReserveHailedRide message contains:
+The ReserveRide message contains:
 
-The RideHailingInquiry message contains:
+* inquiryId
+* customerId in the form of a VehiclePersonId
+* pickUpLocation
+* departAt time
+* destinationLocation)
+
+The ReservationResponse message contains the request Id and either a ReservationError or f the reservation is successfull, a ReserveConfirmInfo object with the following:
+
+* DepartFrom BeamLeg.
+* ArriveTo BeamLeg.
+* PassengerVehicleId object containin the passenger and vehicle Ids.
+* Vector of triggers to schedule.
 
 Transit
 -------
@@ -181,7 +226,7 @@ Transit itineraries are returned by the router in the Trip Planning Protocol. In
 
 .. image:: _static/uml/ProtocolVehicleReservation.png
 
-1. PersonAgent sends ReservationRequest to the BeamVehicle.
+1. PersonAgent sends ReservationRequest to the Driver.
 2. The BeamVehicle forwards the reservation request to the Driver of the vehicle. The driver is responsible for managing the schedule and accepting/rejecting reservations from customers.
 3. The Driver sends a ReservationConfirmation directly to the PersonAgent.
 4. When the BeamVehicle makes it to the confirmed stop for boarding, the Driver sends a BoardingNotice to the PersonAgent.
@@ -191,24 +236,8 @@ Transit itineraries are returned by the router in the Trip Planning Protocol. In
 
 Because the reservation process ensures that vehicles will not exceed capacity, the Driver need not send an acknowledgement to the PersonAgent.
 
-Reserve
-~~~~~~~
+Refueling
+---------
 
-Boarding
-~~~~~~~~
-
-Alighting
-~~~~~~~~~
-
-
-Vehicles
---------
-
-Enter/Exit
-~~~~~~~~~~
-
-Location 
-~~~~~~~~
-(course setting and querying)
-
+???
 
