@@ -178,27 +178,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
               val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
-
-              val segmentLegs = (segmentPattern.fromIndex to segmentPattern.toIndex).sliding(2).flatMap { case Seq(fromIndex, toIndex) =>
-//                val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(fromIndex)))
-//                val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(tripPattern.stops(toIndex)))
-//                val fromEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(fromVertex.index).get(0))
-//                val toEdge = transportNetwork.streetLayer.edgeStore.getCursor(transportNetwork.streetLayer.outgoingEdges.get(toVertex.index).get(0))
-//                val fromEdgeId = fromEdge.getEdgeIndex.toString
-//                val toEdgeId = toEdge.getEdgeIndex.toString
-//                val strings = beamPathBuilder.resolveFirstLastTransitEdges(tripPattern.stops(fromIndex), tripPattern.stops(toIndex))
-//                val fromEdgeId = strings(0)
-//                val toEdgeId = strings(1)
-//                val departureTime = trip.departures(fromIndex)
-//                val arrivalTime = trip.arrivals(toIndex)
-//                val leg = BeamLeg(departureTime, mapTransitMode(transitSegment.mode), arrivalTime - departureTime,
-//                  BeamPath(Vector(fromEdgeId, toEdgeId),
-//                    Option(TransitStopsInfo(tripPattern.stops(fromIndex), Id.createVehicleId(tripId), tripPattern.stops(toIndex))),
-//                    TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, arrivalTime - departureTime)))
-                val legs = Await.result(TransitDriverAgent.lookupActorFromVehicleId(context, Id.createVehicleId(tripId)) ? (fromIndex, toIndex), timeout.duration).asInstanceOf[Seq[BeamLeg]]
-                legs
-              }
-
+              val segmentLegs = Await.result(TransitDriverAgent.lookupActorFromVehicleId(context, Id.createVehicleId(tripId)) ? (segmentPattern.fromIndex, segmentPattern.toIndex), timeout.duration).asInstanceOf[Seq[BeamLeg]]
               legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {
