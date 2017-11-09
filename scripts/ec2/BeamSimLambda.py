@@ -17,10 +17,13 @@ runcmd:
   - java -jar beam.jar --config test/input/$INPUTS/$CONFIG
   - sleep 10s
   - echo "---- BEAM Simulation completed. ----"
-  - for file in test/output/*; do sudo zip "${file%.*}_$UID.zip" "$file"; done
+  - for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   - sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''
+instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
+                  'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
+                  'm3.medium', 'm3.large', 'm3.xlarge', 'm3.2xlarge']
 
 s3 = boto3.client('s3')
 ec2 = boto3.client('ec2',region_name=os.environ['REGION'])
@@ -46,9 +49,9 @@ def get_latest_build(branch):
     last_added = [obj['Key'] for obj in sorted(objs, key=get_last_modified, reverse=True)][0]
     return last_added[last_added.rfind('-')+1:-4]
 
-def deploy(script):
+def deploy(script, instance_type):
     res = ec2.run_instances(ImageId=os.environ['IMAGE_ID'],
-                            InstanceType=os.environ['INSTANCE_TYPE'],
+                            InstanceType=instance_type,
                             UserData=script,
                             KeyName=os.environ['KEY_NAME'],
                             MinCount=1,
@@ -71,14 +74,18 @@ def get_dns(id):
     return host
 
 def lambda_handler(event, context):
-    branch = event['branch']
-    build_id = event['build']
-    input = event['input']
-    configs = event['configs']
-    shutdown_wait = event['shutdown_wait']
+    branch = event.get('branch', 'master')
+    build_id = event.get('build', 'latest')
+    input = event.get('input', 'beamville')
+    configs = event.get('configs', ['beam.conf'])
+    instance_type = event.get('instance_type')
+    shutdown_wait = event.get('shutdown_wait', '30')
 
     if build_id == 'latest' and check_branch(branch):
         build_id = get_latest_build(branch)
+
+    if instance_type is None or instance_type not in instance_types:
+        instance_type = os.environ['INSTANCE_TYPE']
 
     txt = ''
     jar = branch + '/beam-' + build_id + '.jar'
@@ -89,7 +96,7 @@ def lambda_handler(event, context):
             for cfg in configs:
                 uid = str(uuid.uuid4())[:8]
                 script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$BUILD_ID', build_id).replace('$INPUTS', input).replace('$CONFIG', cfg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
-                instance_id = deploy(script)
+                instance_id = deploy(script, instance_type)
                 host = get_dns(instance_id)
                 txt = txt + 'Started build: {build} with config: {config} at host {dns}. Please locate outputs with prefix code [{prefix}], '.format(build=build_id, config=cfg, dns=host, prefix=uid)
         else:
