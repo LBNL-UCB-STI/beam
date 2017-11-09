@@ -236,8 +236,6 @@ class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculat
 object BeamRouter {
   type Location = Coord
 
-  def nextId = Id.create(UUID.randomUUID().toString, classOf[RoutingRequest])
-
   case object InitTransit
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
   case class UpdateTravelTime(travelTime: TravelTime)
@@ -260,27 +258,22 @@ object BeamRouter {
 
   /**
     * Message to request a route plan
-    * @param id used to represent a request uniquely
     * @param params route information that is needs a plan
     */
-  case class RoutingRequest(@BeanProperty id: Id[RoutingRequest],
-                            params: RoutingRequestTripInfo) extends Identifiable[RoutingRequest]
+  case class RoutingRequest(params: RoutingRequestTripInfo)
 
   /**
     * Message to respond a plan against a particular router request
-    * @param id same id that was send with request
     * @param itineraries a vector of planned routes
     */
-  case class RoutingResponse(@BeanProperty id: Id[RoutingRequest],
-                             itineraries: Vector[EmbodiedBeamTrip]) extends Identifiable[RoutingRequest]
+  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
 
   object RoutingRequest {
     def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent]): RoutingRequest = {
-      new RoutingRequest(BeamRouter.nextId,
-        RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, personId))
+      new RoutingRequest(RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, personId))
     }
     def apply(params : RoutingRequestTripInfo): RoutingRequest = {
-      new RoutingRequest(BeamRouter.nextId, params)
+      new RoutingRequest(params)
     }
   }
 

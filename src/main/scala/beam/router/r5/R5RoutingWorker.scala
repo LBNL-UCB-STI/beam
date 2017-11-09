@@ -8,15 +8,15 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter._
-import beam.router.{Modes, StreetSegmentTrajectoryResolver}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
-import beam.router.r5.NetworkCoordinator.{beamPathBuilder, _}
+import beam.router.r5.NetworkCoordinator._
 import beam.router.r5.R5RoutingWorker.TripWithFares
+import beam.router.{Modes, StreetSegmentTrajectoryResolver}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -47,9 +47,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
   override final def receive: Receive = {
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
-    case RoutingRequest(requestId, params: RoutingRequestTripInfo) =>
+    case RoutingRequest(params: RoutingRequestTripInfo) =>
       val eventualResponse = Future {
-        calcRoute(requestId, params)
+        calcRoute(params)
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
@@ -57,7 +57,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       this.maybeTravelTime = Some(travelTime)
   }
 
-  def calcRoute(requestId: Id[RoutingRequest], routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
+  def calcRoute(routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
 
     def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode) = {
@@ -241,13 +241,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushWalkingTime))
           )
         )
-        RoutingResponse(requestId, embodiedTrips :+ dummyTrip)
+        RoutingResponse(embodiedTrips :+ dummyTrip)
       } else {
         log.warning("Not adding a dummy walk route since agent has no body.")
-        RoutingResponse(requestId, embodiedTrips)
+        RoutingResponse(embodiedTrips)
       }
     } else {
-      RoutingResponse(requestId, embodiedTrips)
+      RoutingResponse(embodiedTrips)
     }
   }
 
