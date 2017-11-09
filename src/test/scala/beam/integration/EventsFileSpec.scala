@@ -15,7 +15,7 @@ import scala.util.Try
 
 class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
   EventsFileHandlingCommon with IntegrationSpecCommon{
-  lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
+  lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")
 
   lazy val beamConfig = customBeam(configFileName, eventsFileOutputFormats = Some("xml,csv"))
 

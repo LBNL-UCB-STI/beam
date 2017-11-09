@@ -221,6 +221,7 @@ public class NestedLogit implements AbstractLogit{
 	public void setName(String name) {
 		this.data.setNestName(name);
 	}
+	public String getName() { return this.data.getNestName(); }
 	public void addChild(NestedLogit child) {
 		this.children.add(child);
 	}

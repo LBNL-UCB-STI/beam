@@ -91,7 +91,7 @@ object PersonAgent {
 
 class PersonAgent(val beamServices: BeamServices,
                   override val id: Id[PersonAgent],
-                  householdId: Id[Household],
+                  val householdId: Id[Household],
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
