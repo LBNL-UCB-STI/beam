@@ -8,7 +8,7 @@ import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter._
-import beam.router.Modes
+import beam.router.{Modes, StreetSegmentTrajectoryResolver}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
@@ -117,7 +117,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           }
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
-          maybeWalkToVehicle = Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = beamPathBuilder.buildStreetPath(streetSegment, time.atTime)))
+          maybeWalkToVehicle = Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
         } else {
           maybeWalkToVehicle = Some(dummyWalk(time.atTime))
         }
@@ -155,7 +155,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           // Using itinerary start as access leg's startTime
           val tripStartTime = beamServices.dates.toBaseMidnightSeconds(itinerary.startTime, transportNetwork.transitLayer.routes.size() == 0)
           val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-          legsWithFares :+= (BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = beamPathBuilder.buildStreetPath(access, tripStartTime)), 0.0)
+          legsWithFares :+= (BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access, tripStartTime)), 0.0)
 
           //add a Dummy walk BeamLeg to the end of that trip
           if (isRouteForPerson && access.mode != LegMode.WALK) {
@@ -182,7 +182,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               legsWithFares ++= segmentLegs.map(beamLeg => (beamLeg, 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {
-                legsWithFares :+= (BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, travelPath = beamPathBuilder.buildStreetPath(transitSegment.middle, arrivalTime)), 0.0)
+                legsWithFares :+= (BeamLeg(arrivalTime, mapLegMode(transitSegment.middle.mode), transitSegment.middle.duration, travelPath = buildStreetPath(transitSegment.middle, arrivalTime)), 0.0)
                 arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
               }
             }
@@ -191,7 +191,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
             if (itinerary.connection.egress != null) {
               val egress = option.egress.get(itinerary.connection.egress)
               //start time would be the arrival time of last stop and 5 second alighting
-              legsWithFares :+= (BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, beamPathBuilder.buildStreetPath(egress, arrivalTime)), 0.0)
+              legsWithFares :+= (BeamLeg(arrivalTime, mapLegMode(egress.mode), egress.duration, buildStreetPath(egress, arrivalTime)), 0.0)
               if (isRouteForPerson && egress.mode != LegMode.WALK) legsWithFares :+= (dummyWalk(arrivalTime + egress.duration), 0.0)
             }
           }
@@ -249,6 +249,14 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
     } else {
       RoutingResponse(requestId, embodiedTrips)
     }
+  }
+
+  def buildStreetPath(segment: StreetSegment, tripStartTime: Long): BeamPath = {
+    var activeLinkIds = Vector[String]()
+    for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
+      activeLinkIds = activeLinkIds :+ edge.edgeId.toString
+    }
+    BeamPath(activeLinkIds, None, new StreetSegmentTrajectoryResolver(segment, tripStartTime))
   }
 
   /**
