@@ -1,13 +1,8 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Trajectory}
-import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
-import beam.router.r5.R5RoutingWorker.TripWithFares
-import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -41,7 +36,9 @@ object RoutingModel {
 
     def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode = {
       var theMode: BeamMode = WALK
+      var hasUsedCar: Boolean = false
       legs.foreach { leg =>
+        if(leg.beamLeg.mode == CAR)hasUsedCar = true
         // Any presence of transit makes it transit
         if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
@@ -56,7 +53,13 @@ object RoutingModel {
           theMode = BIKE
         }
       }
-      theMode
+      if(theMode == TRANSIT && hasUsedCar){
+        DRIVE_TRANSIT
+      }else if(theMode == TRANSIT && !hasUsedCar){
+        WALK_TRANSIT
+      }else{
+        theMode
+      }
     }
 
 

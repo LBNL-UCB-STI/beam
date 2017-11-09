@@ -12,10 +12,17 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
-import org.matsim.vehicles.*;
+import org.matsim.vehicles.VehicleReaderV1;
+import org.matsim.vehicles.VehicleType;
+import org.matsim.vehicles.VehicleUtils;
+import org.matsim.vehicles.Vehicles;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Random;
 
 /**
  * @author rwaraich
@@ -88,21 +95,21 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     private static Vehicles vehicles;
 
-    Table<String, String, Double>[] linkVehicleTypeTuples = new Table[NUMBER_OF_BINS];
+    private Table<String, String, Double>[] linkVehicleTypeTuples = new Table[NUMBER_OF_BINS];
 
-    Table<String, String, Double>[] energyConsumption = new Table[NUMBER_OF_BINS];
+    private Table<String, String, Double>[] energyConsumption = new Table[NUMBER_OF_BINS];
 
-    Table<String, String, Double>[] numberOfVehicles = new Table[NUMBER_OF_BINS];
+    private Table<String, String, Double>[] numberOfVehicles = new Table[NUMBER_OF_BINS];
 
-    Table<String, String, Double>[] numberOfPassengers = new Table[NUMBER_OF_BINS];
+    private Table<String, String, Double>[] numberOfPassengers = new Table[NUMBER_OF_BINS];
 
-    HashMap<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap();
+    private HashMap<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap();
 
 
     public static void main(String[] args) {
-       // String pathToEventsFile = "C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events_part.xml";
+        // String pathToEventsFile = "C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events_part.xml";
 
-               String pathToEventsFile="C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
+        String pathToEventsFile = "C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
 
 
         // String pathToEventsFile = "C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
@@ -484,14 +491,14 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
 
-    double getFuelShareOfLink(String linkIdPartOfPath, LinkedList<String> pathLinkIds, double pathFuelConsumption) {
+    private double getFuelShareOfLink(String linkIdPartOfPath, LinkedList<String> pathLinkIds, double pathFuelConsumption) {
         double pathLength = CONST_NUM_ZERO;
 
         for (String linkId : pathLinkIds) {
-            pathLength += r5NetworkLinks.get(linkId.toString()).lengthInMeters;
+            pathLength += r5NetworkLinks.get(linkId).lengthInMeters;
         }
 
-        return r5NetworkLinks.get(linkIdPartOfPath.toString()).lengthInMeters / pathLength * pathFuelConsumption;
+        return r5NetworkLinks.get(linkIdPartOfPath).lengthInMeters / pathLength * pathFuelConsumption;
     }
 
 

@@ -37,7 +37,7 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
   var router: ActorRef = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam_50.conf")).resolve())
+    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices]
