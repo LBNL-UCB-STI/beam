@@ -17,6 +17,5 @@ PersonAgent --> Drivers: ReservationRequests if Chosen
 Drivers --> PersonAgent: ReservationResponses(Success|Fail)
 PersonAgent --> Drivers: RemovePassengerFromTrips if AnyFailed
 PersonAgent --> Household: ReleaseVehicleReservation if Unused
-PersonAgent --> PersonAgent: ResourceIsAvailableNotification if Unused
 PersonAgent -> Scheduler: SchedulePersonDepartureTrigger
 @enduml
