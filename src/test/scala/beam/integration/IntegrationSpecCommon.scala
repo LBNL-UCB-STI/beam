@@ -1,129 +1,6 @@
 package beam.integration
 
-import java.io.File
-
-import beam.sim.RunBeam
-import beam.sim.config.{BeamConfig, ConfigModule}
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.events.handler.BasicEventHandler
-
-import scala.io.Source
-import scala.util.Try
-
-import scala.collection.JavaConverters._
-
-trait EventsFileHandlingCommon {
-  def beamConfig: BeamConfig
-  //Obtains name of latest created folder
-  //Assumes that dir is a directory known to exist
-  def getListOfSubDirectories(dir: File): String = {
-    val simName = beamConfig.beam.agentsim.simulationName
-    val prefix = s"${simName}_"
-    dir.listFiles
-      .filter(s => s.isDirectory && s.getName.startsWith(prefix))
-      .map(_.getName)
-      .toList
-      .sorted
-      .reverse
-      .head
-  }
-
-  def getListIDsWithTag(file: File, tagIgnore: String, positionID: Int): List[String] = {
-    var listResult = List[String]()
-    for (line <- Source.fromFile(file.getPath).getLines) {
-      if (!line.startsWith(tagIgnore)) {
-        listResult = line.split(",")(positionID) :: listResult
-      }
-    }
-
-    return listResult
-
-  }
-
-  def getRouteFile(route_output: String, extension: String): File = {
-    val route = s"$route_output/${getListOfSubDirectories(new File(route_output))}/ITERS/it.0/0.events.$extension"
-    new File(route)
-  }
-}
-
-trait ReadEvents{
-  def getListTagsFromFile(file: File, mkeyValue: Option[(String, String)] = None,
-                          tagToReturn: String,
-                          eventType: Option[String] = None): Seq[String]
-
-  def getListTagsFrom(filePath: String, mkeyValue: Option[(String, String)] = None,
-                      tagToReturn: String,
-                      eventType: Option[String] = None): Seq[String]
-
-  def getLinesFrom(file: File): String
-}
-
-
-class ReadEventsBeam extends ReadEvents{
-  val basicEventHandler = new BasicEventHandler{
-    var events: Seq[Event] = Seq()
-    def handleEvent(event: Event): Unit = {
-      events = events :+ event
-    }
-    def reset(iteration: Int): Unit = {
-    }
-  }
-
-  def getListTagsFromFile(file: File, mkeyValue: Option[(String, String)] = None,
-                          tagToReturn: String,
-                          eventType: Option[String] = None): Seq[String] = {
-    getListTagsFrom(file.getAbsolutePath, mkeyValue, tagToReturn, eventType)
-  }
-
-  def getListTagsFrom(filePath: String, mkeyValue: Option[(String, String)] = None,
-                      tagToReturn: String,
-                      eventType: Option[String] = None): Seq[String] = {
-    val eventsMan = EventsUtils.createEventsManager()
-    eventsMan.addHandler(basicEventHandler)
-    val reader = new MatsimEventsReader(eventsMan)
-    reader.readFile(filePath)
-    val events = basicEventHandler.events
-    val filteredEvents = events.filter{ event =>
-      val attributes = event.getAttributes.asScala
-      eventType.map(_.equals(event.getEventType)).getOrElse(true) &&
-        mkeyValue.map{case (key, value) => attributes.get(key).filter(_.contains(value)).isDefined}.getOrElse(true)
-
-    }
-    filteredEvents
-      .map(_.getAttributes.asScala.get(tagToReturn))
-      .filter(_.isDefined)
-      .map(_.get)
-
-  }
-
-  def getLinesFrom(file: File): String = {
-    Source.fromFile(file.getPath).getLines.mkString
-  }
-}
-
-//class ReadEventsXMlGz extends ReadEventsXml {
-//  def extractGzFile(file: File): scala.List[String] = {
-//    val fin = new FileInputStream(new java.io.File(file.getPath))
-//    val gzis = new GZIPInputStream(fin)
-//    val reader =new BufferedReader(new InputStreamReader(gzis, "UTF-8"))
-//
-//    var lines = new ListBuffer[String]
-//
-//    while(reader.ready()){
-//      lines += reader.readLine()
-//    }
-//    return  lines.toList
-//
-//  }
-//  override def getListTagsFrom(file: File, stringContain: String, tagContain: String): scala.List[String] = {
-//    getListTagsFromLines(extractGzFile(file), stringContain, tagContain)
-//  }
-//
-//  override def getLinesFrom(file: File): String = {
-//    extractGzFile(file).mkString
-//  }
-//}
+import beam.sim.config.ConfigModule
 
 trait IntegrationSpecCommon {
 
@@ -165,44 +42,19 @@ trait IntegrationSpecCommon {
             rideHailPrice = rideHailPrice.getOrElse(ConfigModule.beamConfig.beam.agentsim.tuning.rideHailPrice)
           )
         ), outputs = ConfigModule.beamConfig.beam.outputs.copy(
-          eventsFileOutputFormats =  eventsFileOutputFormats.getOrElse("xml"),
+          events =  ConfigModule.beamConfig.beam.outputs.events.copy(
+            fileOutputFormats = eventsFileOutputFormats.getOrElse("xml")
+          ),
           logging = ConfigModule.beamConfig.beam.outputs.logging.copy(
-            beam = ConfigModule.beamConfig.beam.outputs.logging.beam.copy(
-              logLevel = "ERROR"
-            ), dependencies = ConfigModule.beamConfig.beam.outputs.logging.dependencies.copy(
-              logLevel = "ERROR"
+              beam = ConfigModule.beamConfig.beam.outputs.logging.beam.copy(
+                logLevel = "ERROR"
+              ), dependencies = ConfigModule.beamConfig.beam.outputs.logging.dependencies.copy(
+                logLevel = "ERROR"
+              )
             )
           )
         )
       )
-    )
   }
 }
 
-class StartWithCustomConfig(
-                             modeChoice: Option[String] = None,
-                             numDriversAsFractionOfPopulation: Option[Double] = None,
-                             defaultCostPerMile: Option[Double] = None,
-                             defaultCostPerMinute: Option[Double] = None,
-                             transitCapacity: Option[Double] = None,
-                             transitPrice: Option[Double] = None,
-                             tollPrice: Option[Double] = None,
-                             rideHailPrice: Option[Double] = None) extends
-  EventsFileHandlingCommon with IntegrationSpecCommon with RunBeam {
-  lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
-
-  val beamConfig = customBeam(configFileName, modeChoice, numDriversAsFractionOfPopulation,
-  defaultCostPerMile,defaultCostPerMinute,transitCapacity,transitPrice,tollPrice,rideHailPrice)
-
-  val exec = Try(runBeamWithConfig(beamConfig, ConfigModule.matSimConfig))
-
-  val file: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , beamConfig.beam.outputs.eventsFileOutputFormats)
-
-  val eventsReader: ReadEvents = new ReadEventsBeam
-
-  val listValueTagEventFile = eventsReader.getListTagsFrom(file.getPath, tagToReturn = "mode", eventType = Some("ModeChoice"))
-
-  val groupedCount = listValueTagEventFile
-    .groupBy(s => s)
-    .map{case (k, v) => (k, v.size)}
-}

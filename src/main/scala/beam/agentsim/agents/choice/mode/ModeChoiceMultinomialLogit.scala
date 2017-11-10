@@ -4,11 +4,13 @@ import java.io.File
 import java.util
 import java.util.{LinkedHashMap, Random}
 
+import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.choice.logit.MulitnomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.jdom.Document
@@ -23,16 +25,16 @@ import scala.collection.JavaConverters._
 /**
   * BEAM
   */
-class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MulitnomialLogit ) extends ModeChoiceCalculator {
+class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit ) extends ModeChoiceCalculator {
 
   var expectedMaximumUtility: Double = 0.0
 
   override def clone(): ModeChoiceCalculator = {
-    val  mnl: MulitnomialLogit = this.model.clone()
+    val  mnl: MultinomialLogit = this.model.clone()
     new ModeChoiceMultinomialLogit(beamServices,mnl)
   }
 
-  override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
+  override def apply(alternatives: Vector[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]) = {
     alternatives.isEmpty match {
       case true =>
         None
@@ -50,7 +52,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
 
         val modeCostTimeTransfers = alternatives.zipWithIndex.map { altAndIdx =>
           val totalCost = altAndIdx._1.tripClassifier match {
-            case TRANSIT =>
+            case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
               (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2))*beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2)
             case RIDEHAIL =>
               altAndIdx._1.costEstimate*beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(altAndIdx._2)*beamServices.beamConfig.beam.agentsim.tuning.tollPrice
@@ -143,16 +145,16 @@ object ModeChoiceMultinomialLogit {
     new ModeChoiceMultinomialLogit(beamServices,ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
   }
 
-  def parseInputForMNL(beamServices: BeamServices): MulitnomialLogit = {
+  def parseInputForMNL(beamServices: BeamServices): MultinomialLogit = {
     val modeChoiceParametersFile = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
     val builder: SAXBuilder = new SAXBuilder()
     val document: Document = builder.build(new File(modeChoiceParametersFile)).asInstanceOf[Document]
-    var theModelOpt: Option[MulitnomialLogit] = None
+    var theModelOpt: Option[MultinomialLogit] = None
 
     document.getRootElement.getChildren.asScala.foreach{child =>
-      if(child.asInstanceOf[Element].getChild("className").getValue.toString.equals("ModeChoiceMultinomialLogit")) {
+      if(child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")){
         val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
-        theModelOpt = Some(MulitnomialLogit.MulitnomialLogitFactory(rootNode))
+        theModelOpt = Some(MultinomialLogit.multinomialLogitFactory(rootNode))
       }
     }
     theModelOpt match {

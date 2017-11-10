@@ -62,7 +62,10 @@ object Modes {
     // Transit-specific non-motorized
     case object LEG_SWITCH extends BeamMode(value = "leg_switch", None, TransportMode.other) // This is kind-of like a transit walk, but not really... best to make leg_switch its own type
 
-    case object TRANSIT_WALK extends BeamMode(value = "transit_walk", Some(Left(LegMode.WALK)), TransportMode.transit_walk)
+    case object WALK_TRANSIT extends BeamMode(value = "walk_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.transit_walk)
+
+    case object DRIVE_TRANSIT extends BeamMode(value = "drive_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.pt)
+
 
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
 
