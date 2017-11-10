@@ -52,6 +52,7 @@ object ReservationErrorCode extends Enumeration {
   val UnknownInquiryId: _root_.beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode = Value("UnknownInquiryIdReceivec")
   val RideHailVehicleTaken: ReservationErrorCode = Value("RideHailVehicleTaken")
   val UnknownRideHailReservationError = Value("UnknownRideHailReservationError")
+  val RideHailNotRequested = Value("RideHailNotRequested")
   val ResourceUnAvailable = Value("VehicleLeft")
   val ResourceCapacityExhausted = Value("ResourceCapacityExhausted")
   val RideHailRouteNotFound = Value("RouteNotFound")
