@@ -139,12 +139,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
           self ! DoSimStep(nowInSeconds + 1.0)
         } else {
-          Thread.sleep(10)
-          self ! DoSimStep(nowInSeconds)
+          context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
         }
       } else {
-        Thread.sleep(10)
-        self ! DoSimStep(nowInSeconds)
+        context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
     case ProcessingFinished(it) =>
@@ -157,8 +155,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
         eventSubscriberRef ! EndIteration(currentIter)
       } else {
-        Thread.sleep(10)
-        self ! DoSimStep(nowInSeconds)
+        context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
