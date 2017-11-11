@@ -30,7 +30,6 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.{Vehicle, VehicleType}
 import org.slf4j.{Logger, LoggerFactory}
 
-import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /**
@@ -63,6 +62,8 @@ object RideHailingManager {
   case object RideAvailableAck
 
   case class RideHailingAgentLocation(rideHailAgent: ActorRef, vehicleId: Id[Vehicle], currentLocation: SpaceTime)
+
+  private case class RoutingResponses(customerAgent: ActorRef, inquiryId: Id[RideHailingInquiry], personId: Id[PersonAgent], rideHailingLocation: RideHailingAgentLocation, shortDistanceToRideHailingAgent: Double, rideHailingAgent2CustomerResponse: RoutingResponse, rideHailing2DestinationResponse: RoutingResponse)
 
   def props(name: String, fares: Map[Id[VehicleType], BigDecimal], fleet: Map[Id[Vehicle], Vehicle], services: BeamServices, managedVehicles: Map[Id[Vehicle], ActorRef]) = {
     Props(classOf[RideHailingManager], RideHailingManagerData(name, fares, fleet), services, managedVehicles: Map[Id[Vehicle], ActorRef])
@@ -116,7 +117,6 @@ class RideHailingManager(info: RideHailingManagerData,
       val customerAgent = sender()
       getClosestRideHailingAgent(customerPickUp, radius) match {
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
-          //          val params = RoutingRequestParams(departAt, Vector(RIDE_HAILING), vehiclePersonId)
           lockedVehicles += rideHailingLocation.vehicleId
           // This hbv represents a customer agent leg
           val customerAgentBody = StreetVehicle(Id.createVehicleId(s"body-$personId"), SpaceTime((customerPickUp, departAt.atTime)), WALK, asDriver = true)
@@ -124,10 +124,10 @@ class RideHailingManager(info: RideHailingManagerData,
           val rideHailingVehicleAtOrigin = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((rideHailingLocation.currentLocation.loc, departAt.atTime)), CAR, asDriver = false)
           val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp, departAt.atTime)), CAR, asDriver = false)
 
-          implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
           //TODO: Error handling. In the (unlikely) event of a timeout, this RideHailingManager will silently be
-          //TODO: restarted, an probably someone will wait forever for its reply.
-          import context._
+          //TODO: restarted, and probably someone will wait forever for its reply.
+          implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+          import context.dispatcher
           val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin), personId))
           //XXXX: customer trip request might be redundant... possibly pass in info
           val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup), personId))
@@ -136,55 +136,54 @@ class RideHailingManager(info: RideHailingManagerData,
             rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
             rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
           } {
-            // TODO: Future modifies actor state. (Perhaps not dangerous here (?), but defies purpose of the actor model.)
-            val futureRideHailingResponse = Future {
-              val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
-              // TODO: Find better way of doing this error checking than sentry value
-              val timeToCustomer = if (timesToCustomer.nonEmpty) {
-                timesToCustomer.min
-              } else Long.MaxValue
-              // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
-              val rideHailingFare = DefaultCostPerMinute / 60.0
-
-
-              val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
-              val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
-              val itins2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
-              if (timeToCustomer < Long.MaxValue && customerPlans2Costs.nonEmpty && itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
-                val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
-
-                //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
-                //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
-
-                val modRHA2Cust = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-                val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK,
-                  unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg,
-                  beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer),
-                  cost = if (c.beamLeg == l.legs(1).beamLeg) {
-                    cost
-                  } else {
-                    0.0
-                  }
-                ))))
-
-                val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
-                val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest)
-
-                val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod, rideHailing2DestinationResponseMod)
-                pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip()))
-                log.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
-                RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
-              } else {
-                log.debug(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
-                lockedVehicles -= rideHailingLocation.vehicleId
-                RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
-              }
-            }
-            pipe(futureRideHailingResponse).to(customerAgent)
+            self ! RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
           }
         case None =>
           // no rides to hail
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
+      }
+
+    case RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
+      val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
+      // TODO: Find better way of doing this error checking than sentry value
+      val timeToCustomer = if (timesToCustomer.nonEmpty) {
+        timesToCustomer.min
+      } else Long.MaxValue
+      // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
+      val rideHailingFare = DefaultCostPerMinute / 60.0
+
+
+      val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
+      val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
+      val itins2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
+      if (timeToCustomer < Long.MaxValue && customerPlans2Costs.nonEmpty && itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
+        val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
+
+        //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
+        //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
+
+        val modRHA2Cust = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
+        val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK,
+          unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg,
+          beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer),
+          cost = if (c.beamLeg == l.legs(1).beamLeg) {
+            cost
+          } else {
+            0.0
+          }
+        ))))
+
+        val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
+        val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest)
+
+        val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration(customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod, rideHailing2DestinationResponseMod)
+        pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip()))
+        log.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within $shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
+        customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
+      } else {
+        log.debug(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
+        lockedVehicles -= rideHailingLocation.vehicleId
+        customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
       }
 
     case ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
