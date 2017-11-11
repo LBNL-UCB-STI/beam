@@ -42,21 +42,20 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
   val config = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
 
   val services: BeamServices = {
-
     val theServices  = mock[BeamServices]
     when(theServices.agentSimEventsBus).thenReturn(agentSimEventsBus)
     when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
     when(theServices.beamConfig).thenReturn(config)
-//    when(theServices.modeChoiceCalculator).thenReturn(ModeChoiceCalculator(config.beam.agentsim.agents.modalBehaviors.modeChoiceClass, theServices));
+    when(theServices.modeChoiceCalculator).thenReturn(mock[ModeChoiceCalculator])
     theServices
   }
 
   describe("A PersonAgent FSM") {
 
     // FIXME
-    ignore("should allow scheduler to set the first activity") {
+    it("should allow scheduler to set the first activity") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
-        val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
@@ -65,10 +64,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
 
+      watch(personAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(0)
-
-//      personAgentRef.stateName should be(Finished)
+      expectTerminated(personAgentRef)
     }
 
     it("should be able to be registered in registry") {
@@ -86,9 +85,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       ok.name mustEqual name
     }
 
-    // FIXME
-    ignore("should publish events that can be received by a MATSim EventsManager") {
-
+    it("should publish events that can be received by a MATSim EventsManager") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber1")
@@ -102,7 +99,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
-//        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
       val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
@@ -111,11 +107,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       beamAgentSchedulerRef ! StartSchedule(0)
 
       EventFilter.info(message = "events-subscriber received actend event!", occurrences = 1)
-
     }
 
-    // FIXME
-    ignore("should be able to route legs"){
+    it("should be able to route legs"){
       val events: EventsManager = EventsUtils.createEventsManager()
       val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber2")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
@@ -136,7 +130,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       plan.addActivity(homeActivity)
       plan.addActivity(workActivity)
       plan.addActivity(backHomeActivity)
-//        choiceCalculator = { (trips: Vector[BeamTrip], weights: Vector[Double] ) => trips.head }, currentVehicle = None)
 
       val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 200.0, maxWindow = 10.0))
@@ -145,6 +138,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
       beamAgentSchedulerRef ! StartSchedule(0)
     }
 
+    // TODO
     //it("should demonstrate a simple complete daily activity pattern")(pending)
   }
 
