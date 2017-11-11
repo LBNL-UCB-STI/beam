@@ -125,16 +125,19 @@ class RideHailingManager(info: RideHailingManagerData,
           val rideHailingVehicleAtPickup = StreetVehicle(rideHailingLocation.vehicleId, SpaceTime((customerPickUp, departAt.atTime)), CAR, asDriver = false)
 
           implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+          //TODO: Error handling. In the (unlikely) event of a timeout, this RideHailingManager will silently be
+          //TODO: restarted, an probably someone will wait forever for its reply.
           import context._
           val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(rideHailingLocation.currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin), personId))
           //XXXX: customer trip request might be redundant... possibly pass in info
           val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup), personId))
 
-          val rideHailingResponse = for {
+          for {
             rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
             rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
-            // FIXME: Future closes over actor state. (Defies purpose of the actor model.)
-            rideHailingResponse <- Future {
+          } {
+            // TODO: Future modifies actor state. (Perhaps not dangerous here (?), but defies purpose of the actor model.)
+            val futureRideHailingResponse = Future {
               val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
               // TODO: Find better way of doing this error checking than sentry value
               val timeToCustomer = if (timesToCustomer.nonEmpty) {
@@ -177,8 +180,8 @@ class RideHailingManager(info: RideHailingManagerData,
                 RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
               }
             }
-          } yield rideHailingResponse
-          pipe(rideHailingResponse).to(customerAgent)
+            pipe(futureRideHailingResponse).to(customerAgent)
+          }
         case None =>
           // no rides to hail
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
