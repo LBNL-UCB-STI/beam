@@ -6,11 +6,12 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriverSuccessAck, Driver
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.SeatAssignmentRule.RandomSeatAssignmentRule
 import beam.agentsim.agents.vehicles.VehicleOccupancyAdministrator.DefaultVehicleOccupancyAdministrator
+import beam.agentsim.agents.vehicles.VehicleProtocol.ClearCarrier
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
   val logger: Logger = Logger.getLogger("BeamVehicle")
@@ -136,29 +137,59 @@ abstract case class VehicleOccupancyAdministrator(implicit vehicle: TempVehicle)
 
   def getTotalCrowdedness: Double = ((standingPassengers.size + seatedPassengers.size) / totalOccupancyLimit).toDouble
 
-  def addSeatedPassenger(id: Id[Vehicle]): Either[VehicleCapacityExceeded, SetCarrier] = {
+  def addSeatedPassenger(idToAdd: Id[Vehicle]): Either[VehicleCapacityExceeded, SetCarrier] = {
     if (seatedPassengers.size + 1 > seatedOccupancyLimit) {
-      Left(VehicleCapacityExceeded(id))
+      Left(VehicleCapacityExceeded(idToAdd))
     } else {
-      seatedPassengers += id
-      Right(SetCarrier(id))
+      seatedPassengers += idToAdd
+      Right(SetCarrier(idToAdd))
     }
   }
 
-  def addStandingPassenger(id: Id[Vehicle]): Either[VehicleCapacityExceeded, SetCarrier] = {
+  def addStandingPassenger(idToAdd: Id[Vehicle]): Either[VehicleCapacityExceeded, SetCarrier] = {
     if (standingPassengers.size + 1 > standingOccupancyLimit) {
-      Left(VehicleCapacityExceeded(id))
+      Left(VehicleCapacityExceeded(idToAdd))
     } else {
-      standingPassengers += id
-      Right(SetCarrier(id))
+      standingPassengers += idToAdd
+      Right(SetCarrier(idToAdd))
     }
   }
 
-  def addPassenger(id: Id[Vehicle]): Either[VehicleCapacityExceeded, SetCarrier] = {
-    if (seatAssignmentRule.assignSeat(id, standingPassengers, seatedPassengers)) {
-      addSeatedPassenger(id)
+  //TODO: Improve this API to have custom error messages
+  /**
+    * Try to add a passenger to the vehicle according to the [[SeatAssignmentRule]]
+    * @param idToAdd the passenger [[Vehicle]] to add
+    * @return [[Either]] a message to be sent from the driver to the passenger that the vehicle
+    *        capacity has been exceeded ([[Left]]) or a
+    */
+  def addPassenger(idToAdd: Id[Vehicle]): Either[VehicleCapacityExceeded, SetCarrier] = {
+    if (seatAssignmentRule.assignSeatOnEnter(idToAdd, standingPassengers, seatedPassengers)) {
+      addSeatedPassenger(idToAdd)
     } else {
-      addStandingPassenger(id)
+      addStandingPassenger(idToAdd)
+    }
+  }
+
+  /**
+    * Try to remove a passenger from the vehicle. If the passenger is seated, then perhaps a standing passenger
+    * will take the seat according to priorities defined through the [[SeatAssignmentRule.assignSeatOnLeave]].
+    * @param idToRemove the passenger [[Vehicle]] to remove.
+    * @return [[Try]] expression (maybe) holding a [[ClearCarrier]] message for the driver to pass on to the passenger.
+    */
+  def removePassenger(idToRemove: Id[Vehicle]): Try[ClearCarrier] = {
+    if (seatedPassengers.contains(idToRemove)) {
+      if (standingPassengers.nonEmpty) {
+        seatAssignmentRule.assignSeatOnLeave(idToRemove, standingPassengers.toList, seatedPassengers).map({ idToSit =>
+          standingPassengers -= idToSit
+          seatedPassengers += idToSit
+          ClearCarrier()
+        })
+      } else {
+        Failure(Exception)
+      }
+    } else {
+      standingPassengers -= idToRemove
+      Success(ClearCarrier())
     }
   }
 
@@ -173,13 +204,27 @@ object VehicleOccupancyAdministrator {
 }
 
 trait SeatAssignmentRule {
-  def assignSeat(id: Id[Vehicle], standingPassengers: Set[Id[Vehicle]], seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Boolean
+  def assignSeatOnEnter(id: Id[Vehicle],
+                        standingPassengers: Set[Id[Vehicle]],
+                        seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Boolean
+
+  def assignSeatOnLeave(id: Id[Vehicle],
+                        standingPassengers: List[Id[Vehicle]],
+                        seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Try[Id[Vehicle]]
 }
 
 object SeatAssignmentRule {
 
   class RandomSeatAssignmentRule extends SeatAssignmentRule {
-    override def assignSeat(id: Id[Vehicle], standingPassengers: Set[Id[Vehicle]], seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Boolean = Random.nextBoolean()
+    override def assignSeatOnEnter(id: Id[Vehicle],
+                                   standingPassengers: Set[Id[Vehicle]],
+                                   seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Boolean =
+      Random.nextBoolean()
+
+    override def assignSeatOnLeave(id: Id[Vehicle],
+                                   standingPassengers: List[Id[Vehicle]],
+                                   seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Try[Id[Vehicle]] =
+      Try(standingPassengers(Random.nextInt(standingPassengers.size)))
   }
 
 }

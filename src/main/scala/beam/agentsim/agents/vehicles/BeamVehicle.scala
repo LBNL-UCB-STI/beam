@@ -108,7 +108,7 @@ object BeamVehicle {
   case class AppendToTrajectory(beamPath: BeamPath)
   case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
   case class SetCarrier(carrierVehicleId: Id[Vehicle])
-  case object ClearCarrier
+  case class ClearCarrier()
 
 }
 

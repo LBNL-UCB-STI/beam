@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-class VehicleProtocol {
+object VehicleProtocol {
   //TODO: Uncomment when time to integrate this class and remove old vehicle class
   //  case class VehicleLocationRequest(time: Double)
   //  case class VehicleLocationResponse(vehicleId: Id[Vehicle], spaceTime: Future[SpaceTime])
@@ -24,4 +24,5 @@ class VehicleProtocol {
   //  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
   //  case class AssignedCarrier(carrierVehicleId: Id[Vehicle])
   //  case object ResetCarrier
+  case class ClearCarrier()
 }
