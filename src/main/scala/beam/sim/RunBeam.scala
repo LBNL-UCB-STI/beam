@@ -56,7 +56,8 @@ trait RunBeam {
       }
     }))
 
-  def rumBeamWithConfigFile(configFileName: Option[String]) = {
+  def rumBeamWithConfigFile(configFileName: Option[String]): Unit = {
+    //TODO: Don't hardcode
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
     //set config filename before Guice start init procedure
@@ -78,7 +79,7 @@ trait RunBeam {
   /*
   Used for testing - runs BEAM with custom BeamConfig object instead of default BeamConfig factory
   * */
-  def runBeamWithConfig(beamConfig: BeamConfig, matsimConfig: Config) = {
+  def runBeamWithConfig(beamConfig: BeamConfig, matsimConfig: Config): Unit = {
     // Inject and use tsConfig instead here
     // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
     FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)

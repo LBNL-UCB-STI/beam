@@ -82,7 +82,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   chainedWhen(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[RideHailingAgentData]) =>
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _: BeamAgentInfo[RideHailingAgentData]) =>
       val passengerSchedule = PassengerSchedule()
       data.vehicleIdAndRef.ref ! BecomeDriver(tick, id, Some(passengerSchedule))
       goto(PersonAgent.Waiting) replying completed(triggerId, schedule[PassengerScheduleEmptyTrigger](tick,self))
@@ -91,7 +91,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
       val rideAvailable = ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
-      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
+      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(_ =>
         RegisterRideAvailableWrapper(triggerId)
       )
       managerFuture pipeTo self

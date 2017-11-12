@@ -7,7 +7,7 @@ import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Uninitialized}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.{CancelReservation, CancelReservationWithVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, SetCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ClearCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, SetCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ClearCarrier, UnbecomeDriver, VehicleCapacityExceeded, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, RemovePassengerFromTrip}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
@@ -101,7 +101,7 @@ object BeamVehicle {
 
   case class EnterVehicle(tick: Double, passengerVehicle : VehiclePersonId)
   case class ExitVehicle(tick: Double, passengerVehicle : VehiclePersonId)
-  case class VehicleFull(vehicleId: Id[Vehicle]) extends ReservationError {
+  case class VehicleCapacityExceeded(vehicleId: Id[Vehicle]) extends ReservationError {
     override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceCapacityExhausted
   }
 
@@ -260,7 +260,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       } else {
         val leftSeats = fullCapacity - passengers.size
         val beamAgent = sender()
-        beamAgent ! VehicleFull(id)
+        beamAgent ! VehicleCapacityExceeded(id)
       }
       stay()
     case Event(ExitVehicle(tick, passengerVehicleId), info) =>
