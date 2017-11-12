@@ -13,8 +13,20 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 import scala.util.{Failure, Random, Success, Try}
 
+/**
+  * A [[TempVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
+  * implementing [[beam.agentsim.agents.modalBehaviors.DrivesVehicle]]). The passengers in the [[TempVehicle]]
+  * are also [[TempVehicle]]s (potentially [[HumanBodyVehicle]]s, however, others are possible). The
+  * reference to a parent [[TempVehicle]] is maintained in its carrier. All other information is
+  * managed either through the MATSim [[Vehicle]] interface or within several other classes.
+  *
+  * @param managerRef The [[beam.agentsim.ResourceManager]] managing this [[TempVehicle]]
+  * @author saf
+  * @since Beam 2.0.0
+  */
 abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
   val logger: Logger = Logger.getLogger("BeamVehicle")
+
   /**
     * Identifier for this vehicle
     */
@@ -30,13 +42,13 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
     *
     * @todo This information should be partially dependent on other variables contained in VehicleType
     */
-  val powertrain: Powertrain
+  protected val powertrain: Powertrain
 
   /**
     * Manages the functionality to add or remove passengers from the vehicle according
     * to standing or sitting seating occupancy information.
     */
-  val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator = DefaultVehicleOccupancyAdministrator()
+  protected val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator = DefaultVehicleOccupancyAdministrator()
 
   /**
     * The [[beam.agentsim.ResourceManager]] who is currently managing this vehicle. Must
@@ -46,7 +58,7 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
     * @todo consider adding owner as an attribute of the vehicle as well, since this is somewhat distinct
     *       from driving... (SAF 11/17)
     */
-  var manager: Option[ActorRef] = Option(managerRef)
+  protected var manager: Option[ActorRef] = Option(managerRef)
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -54,12 +66,12 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
     * whereas, the manager is ultimately responsible for assignment and (for now) ownership
     * of the vehicle as a physical property.
     */
-  var driver: Option[ActorRef] = None
+  protected var driver: Option[ActorRef] = None
 
   /**
     * The vehicle that is carrying this one. Like ferry or truck may carry a car and like a car carries a human body.
     */
-  var carrier: Option[ActorRef] = None
+  protected var carrier: Option[ActorRef] = None
 
   /**
     * The list of passenger vehicles (e.g., people, AVs, cars) currently occupying the vehicle.
