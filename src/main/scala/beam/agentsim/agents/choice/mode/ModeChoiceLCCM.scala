@@ -5,7 +5,6 @@ import java.util.Random
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Nonmandatory, TourType}
-import beam.agentsim.agents.choice.logit.MulitnomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
