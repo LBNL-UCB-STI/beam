@@ -8,7 +8,15 @@ from botocore.errorfactory import ClientError
 initscript = '''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
-  - cd home/ubuntu/git/beam
+  - echo $(date +%s) > /tmp/.starttime
+  - /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) started..." -b "An EC2 instance started to run the batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
+  - echo "notification sent..."
+  - echo '*/2 * * * * /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --inance-id) running..." -b "Batch [$UID] completed and instance still running since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
+  - echo "notification sved..."
+  - crontab /tmp/glip_notification
+  - crontab -l
+  - echo "notification scheduled..."
+  - cd /home/ubuntu/git/beam
   - git checkout $BRANCH
   - git fetch --all
   - git checkout -qf $COMMIT
@@ -23,9 +31,18 @@ runcmd:
   -  done
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''
+
 instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
                   'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
                   'm3.medium', 'm3.large', 'm3.xlarge', 'm3.2xlarge']
+
+# webhook_url = 'https://hooks.glip.com/webhook/c6624e26-846b-4146-8cf8-acde9c43240c'
+# msg_payload = '''{
+#   "icon": "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png",
+#   "activity": "EC2 Status",
+#   "title": "Batch started",
+#   "body": "Instance started to run the batch."
+# }'''
 
 s3 = boto3.client('s3')
 ec2 = boto3.client('ec2',region_name=os.environ['REGION'])
@@ -103,6 +120,15 @@ def lambda_handler(event, context):
             instance_id = deploy(script, instance_type)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
+            # response = requests.post(
+            #     webhook_url, data=msg_payload,
+            #     headers={'Content-Type': 'application/json'}
+            # )
+            # if response.status_code != 200:
+            #     raise ValueError(
+            #         'Request to slack returned an error %s, the response is:\n%s'
+            #         % (response.status_code, response.text)
+            #     )
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}.'.format(branch=branch, commit=commit_id)
 
