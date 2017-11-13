@@ -19,6 +19,7 @@ class Population(val beamServices: BeamServices) extends Actor with ActorLogging
   override val supervisorStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {
       case _: Exception      => Stop
+      case _: AssertionError => Stop
     }
 
   private var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
