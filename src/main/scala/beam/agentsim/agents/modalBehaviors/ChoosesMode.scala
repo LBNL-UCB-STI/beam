@@ -66,6 +66,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       } else {
         routingResponse.get.itineraries
       }
+      assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
 
       val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
         case logit: ModeChoiceLCCM =>
