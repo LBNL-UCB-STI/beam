@@ -50,7 +50,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector()
   var modeChoiceCalculator: ModeChoiceCalculator = _
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
-  var availableAlternatives: Vector[String] = Vector()
+
+  private def availableAlternatives = {
+    routingResponse.get.itineraries.map(_.tripClassifier).distinct :+ rideHailingResult.map(_ => RIDEHAIL)
+  }
+
   //TODO source these attributes from pop input data
   lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households(_household).getIncome.getIncome,
     beamServices.households(_household).getMemberIds.size(),
@@ -60,12 +64,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
-
-      val combinedItinerariesForChoice: Vector[EmbodiedBeamTrip] = if (rideHailingResult.get.proposals.nonEmpty) {
-        rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.get.itineraries
-      } else {
+      val combinedItinerariesForChoice =
+        rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
         routingResponse.get.itineraries
-      }
       assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
 
       val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
@@ -173,7 +174,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId)
     }
     availablePersonalStreetVehicles = Vector()
-    availableAlternatives = Vector()
     _currentRoute = chosenTrip
     routingResponse = None
     rideHailingResult = None
@@ -228,20 +228,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Receive and store data needed for choice.
      */
     case Event(theRouterResult: RoutingResponse, _: BeamAgentInfo[PersonData]) =>
-      currentTourPersonalVehicle match {
-        case Some(_) =>
-          // Here we remove all WALK-only trips from routing response if we are requiring Person to continue using their personal vehicle
-          routingResponse = Some(theRouterResult.copy(itineraries = theRouterResult.itineraries.filter(itin => itin.tripClassifier != WALK)))
-        case None =>
-          routingResponse = Some(theRouterResult)
-      }
-      availableAlternatives = availableAlternatives ++ routingResponse.get.itineraries.map(_.tripClassifier.toString).distinct
+      routingResponse = Some(theRouterResult)
       completeChoiceIfReady()
     case Event(theRideHailingResult: RideHailingInquiryResponse, _: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)
-      if(theRideHailingResult.error.isEmpty){
-        availableAlternatives = availableAlternatives :+ "RIDE_HAIL"
-      }
       completeChoiceIfReady()
     /*
      * Process ReservationReponses

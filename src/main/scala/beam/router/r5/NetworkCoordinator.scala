@@ -207,7 +207,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
         (tripVehId, route, passengerSchedule)
       }
     }
-    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg().startTime)
+    val transitScheduleToCreate = transitData.filter(_._3.schedule.nonEmpty).sortBy(_._3.getStartLeg.startTime)
     transitScheduleToCreate.foreach { case (tripVehId, route, passengerSchedule) =>
       createTransitVehicle(tripVehId, route, passengerSchedule)
     }

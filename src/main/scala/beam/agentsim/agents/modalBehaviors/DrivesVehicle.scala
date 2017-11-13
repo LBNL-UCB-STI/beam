@@ -51,7 +51,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           holdTickAndTriggerId(tick, triggerId)
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
-              logDebug(s"Scheduling NotifyLegEndTrigger for Person ${personRef}")
+              logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
               beamServices.schedulerRef ! scheduleOne[NotifyLegEndTrigger](tick, personRef,completedLeg)
             }
           }
@@ -65,7 +65,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         case None =>
           throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
       }
-    case Event(AlightingConfirmation(vehicleId), agentInfo) =>
+    case Event(AlightingConfirmation(vehicleId), _) =>
       _awaitingAlightConfirmation -= vehicleId
       if (_awaitingAlightConfirmation.isEmpty) {
         processNextLegOrCompleteMission()
@@ -74,7 +74,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
   }
   chainedWhen(Waiting) {
-    case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
+    case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
       holdTickAndTriggerId(tick,triggerId)
       logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
 
@@ -95,14 +95,14 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         case None =>
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
-    case Event(BoardingConfirmation(vehicleId), agentInfo) =>
+    case Event(BoardingConfirmation(vehicleId), _) =>
       _awaitingBoardConfirmation -= vehicleId
       if (_awaitingBoardConfirmation.isEmpty) {
         releaseAndScheduleEndLeg()
       } else {
         stay()
       }
-    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
+    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), _) =>
       _currentVehicleUnderControl = beamServices.vehicleRefs.get(assignedVehicle).map { vehicleRef =>
         BeamVehicleIdAndRef(assignedVehicle, vehicleRef)
       }
@@ -115,7 +115,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       self ! BecomeDriverSuccessAck
       stay()
 
-    case Event(req: CancelReservation,_) => {
+    case Event(req: CancelReservation,_) =>
       _currentVehicleUnderControl.foreach{vehicleIdAndRef=>
         val vehiclePersonId = VehiclePersonId(vehicleIdAndRef.id,req.passengerId)
         passengerSchedule.removePassenger(vehiclePersonId)
@@ -124,8 +124,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         vehicleIdAndRef.ref ! CancelReservationWithVehicle(vehiclePersonId)
       }
       stay()
-    }
   }
+
   chainedWhen(AnyState){
     // Problem, when this is received from PersonAgent, it is due to a NotifyEndLeg trigger which doesn't have an ack
     // So the schedule has moved ahead before this can schedule a new StartLegTrigger, so maybe Notify*Leg should be Triggers?
@@ -133,7 +133,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       var errorFlag = false
       if(!passengerSchedule.isEmpty){
         val endSpaceTime = passengerSchedule.terminalSpacetime()
-        if(updatedPassengerSchedule.initialSpacetime().time < endSpaceTime.time ||
+        if(updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
           beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc,endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
         ) {
           errorFlag = true
@@ -151,7 +151,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         val resultingState = _currentLeg match {
           case None =>
             goto(Waiting) replying ModifyPassengerScheduleAck(requestId)
-          case Some(beamLeg) =>
+          case Some(_) =>
             stay() replying ModifyPassengerScheduleAck(requestId)
         }
         resultingState
@@ -164,7 +164,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response
       stay()
 
-    case Event(RemovePassengerFromTrip(id),_)=>{
+    case Event(RemovePassengerFromTrip(id),_)=>
       if(passengerSchedule.removePassenger(id)){
         log.error(s"Passenger $id removed from trip")
       }
@@ -181,16 +181,15 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         }
       }
       stay()
-    }
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
-    val (theTick, theTriggerId) = releaseTickAndTriggerId()
+    val (_, theTriggerId) = releaseTickAndTriggerId()
     beamServices.schedulerRef ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime,self,_currentLeg.get))
     goto(Moving)
   }
 
-  private def getLinks():Vector[String] ={
+  private def getLinks: Vector[String] ={
     val pathLinks: Vector[String]=_currentLeg match{
       case Some(leg) =>
         leg.travelPath.linkIds
@@ -201,24 +200,24 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
 
 
-  private def getStartCoord(): Coord = {
+  private def getStartCoord: Coord = {
     val startCoord=  try {
-      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.asInstanceOf[String].toInt).getGeometry.getCoordinate
+      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.toInt).getGeometry.getCoordinate
       Some(new Coord(r5Coord.x,r5Coord.y))
     } catch {
-      case e: Exception => None
+      case _: Exception => None
     }
-    startCoord.getOrElse(null)
+    startCoord.orNull
   }
 
-  private def getEndCoord(): Coord = {
+  private def getEndCoord: Coord = {
     val endCoord:Option[Coord]=  try {
-      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks()(getLinks.size-1).asInstanceOf[String].toInt).getGeometry.getCoordinate
+      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks(getLinks.size-1).toInt).getGeometry.getCoordinate
       Some(new Coord(r5Coord.x,r5Coord.y))
     } catch {
-      case e: Exception => None
+      case _: Exception => None
     }
-    endCoord.getOrElse(null)
+    endCoord.orNull
   }
 
   private def processNextLegOrCompleteMission() = {
