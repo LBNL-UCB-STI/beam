@@ -52,11 +52,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
   var availableAlternatives: Vector[String] = Vector()
   //TODO source these attributes from pop input data
-  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households.get(_household).get.getIncome.getIncome,
-    beamServices.households.get(_household).get.getMemberIds.size(),
-    (new Random()).nextBoolean(),
-    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_.getType.getDescription.toLowerCase.contains("car")).size,
-    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_.getType.getDescription.toLowerCase.contains("bike")).size)
+  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households(_household).getIncome.getIncome,
+    beamServices.households(_household).getMemberIds.size(),
+    new Random().nextBoolean(),
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType.getDescription.toLowerCase.contains("car")),
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType.getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
@@ -67,7 +67,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         routingResponse.get.itineraries
       }
 
-      val chosenTrip = modeChoiceCalculator match {
+      val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
         case logit: ModeChoiceLCCM =>
           val tourType : TourType = Mandatory
           logit(combinedItinerariesForChoice, Some(attributesOfIndividual), tourType)
@@ -79,17 +79,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
-      chosenTrip match {
-        case Some(theChosenTrip) if theChosenTrip.legs.nonEmpty =>
-          if (theChosenTrip.requiresReservationConfirmation) {
-            pendingChosenTrip = chosenTrip
-            sendReservationRequests(theChosenTrip)
-          } else {
-            scheduleDepartureWithValidatedTrip(theChosenTrip)
-          }
-        case _ =>
-          stop(Failure("No choice was made"))
-      }
+        if (chosenTrip.requiresReservationConfirmation) {
+          pendingChosenTrip = Some(chosenTrip)
+          sendReservationRequests(chosenTrip)
+        } else {
+          scheduleDepartureWithValidatedTrip(chosenTrip)
+        }
     } else {
       stay()
     }
