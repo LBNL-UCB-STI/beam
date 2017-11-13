@@ -41,12 +41,6 @@ object ModeChoiceCalculator {
     classname match {
       case "ModeChoiceLCCM" =>
         ModeChoiceLCCM(beamServices)
-      case "ModeChoiceTransitOnly" =>
-        new ModeChoiceTransitOnly(beamServices)
-      case "ModeChoiceDriveOnly" =>
-        new ModeChoiceDriveOnly(beamServices)
-      case "ModeChoiceRideHailOnly" =>
-        new ModeChoiceRideHailOnly(beamServices)
       case "ModeChoiceTransitIfAvailable" =>
         new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
