@@ -2,7 +2,7 @@ package beam.sim
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Identify, Props}
+import akka.actor.{ActorRef, ActorSystem, Identify, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource.AssignManager
@@ -145,7 +145,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private def cleanupHouseHolder(): Unit = {
     for ((_, householdAgent) <- beamServices.householdRefs) {
       logger.debug(s"Stopping ${householdAgent.path.name} ")
-      householdAgent ! Finish
+      householdAgent ! PoisonPill
     }
   }
 
