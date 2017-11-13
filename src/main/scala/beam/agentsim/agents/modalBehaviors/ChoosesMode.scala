@@ -88,8 +88,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
             scheduleDepartureWithValidatedTrip(theChosenTrip)
           }
         case _ =>
-          val (tick, theTriggerId) = releaseTickAndTriggerId()
-          stop(Failure("no alternatives found"))
+          stop(Failure("No choice was made"))
       }
     } else {
       stay()
@@ -214,7 +213,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(tick.toInt)
-      //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
       currentTourPersonalVehicle match {
         case Some(personalVeh) =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
@@ -291,8 +289,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(res@ReservationResponse(_, _), _) =>
       logWarn(s"Reservation confirmation received from state $stateName: ${res.response}")
       stay()
-    //      logError(s"Going to error, reservation response received from state ${stateName}: ${res}")
-    //      goto(BeamAgent.Error)
   }
 
   def cancelReservations(): Unit = {
