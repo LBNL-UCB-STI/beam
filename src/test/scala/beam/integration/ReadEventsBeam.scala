@@ -30,8 +30,10 @@ class ReadEventsBeam extends ReadEvents{
                       eventType: Option[String] = None): Seq[String] = {
     val eventsMan = EventsUtils.createEventsManager()
     eventsMan.addHandler(basicEventHandler)
+
     val reader = new MatsimEventsReader(eventsMan)
     reader.readFile(filePath)
+
     val events = basicEventHandler.events
     val filteredEvents = events.filter{ event =>
       val attributes = event.getAttributes.asScala

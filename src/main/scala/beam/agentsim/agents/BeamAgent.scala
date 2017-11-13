@@ -43,7 +43,7 @@ object BeamAgent {
 
   case object Finish
 
-  case class TerminatedPrematurelyEvent(actorRef: ActorRef)
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Double])
 
 }
 
@@ -150,15 +150,14 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   }
 
   onTermination {
-    case StopEvent(FSM.Failure(cause), state, data) =>
-      val lastEvents = getLog.mkString("\n\t")
-      log.error("Events leading up to this point:\n\t" + lastEvents)
-      context.system.eventStream.publish(TerminatedPrematurelyEvent(self))
-    case StopEvent(FSM.Shutdown, state, data) =>
-      val lastEvents = getLog.mkString("\n\t")
-      log.error("Shutdown (external, e.g. because of exception)\n" +
-        "Events leading up to this point:\n\t" + lastEvents)
-      context.system.eventStream.publish(TerminatedPrematurelyEvent(self))
+    case StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
+      reason match {
+        case FSM.Shutdown =>
+          log.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
+        case _ =>
+      }
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, stateData.tick))
   }
 
   /*
