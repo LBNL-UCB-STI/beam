@@ -1,6 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
+import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriverSuccessAck, DriverAlreadyAssigned, SetCarrier, VehicleCapacityExceeded}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -24,7 +25,7 @@ import scala.util.{Failure, Random, Success, Try}
   * @author saf
   * @since Beam 2.0.0
   */
-abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
+abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resource[Vehicle] {
   val logger: Logger = Logger.getLogger("BeamVehicle")
 
   /**
@@ -48,7 +49,8 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
     * Manages the functionality to add or remove passengers from the vehicle according
     * to standing or sitting seating occupancy information.
     */
-  protected val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator = DefaultVehicleOccupancyAdministrator()
+  protected val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator =
+    DefaultVehicleOccupancyAdministrator(this)
 
   /**
     * The [[beam.agentsim.ResourceManager]] who is currently managing this vehicle. Must
@@ -58,7 +60,7 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
     * @todo consider adding owner as an attribute of the vehicle as well, since this is somewhat distinct
     *       from driving... (SAF 11/17)
     */
-  protected var manager: Option[ActorRef] = Option(managerRef)
+  var manager: Option[ActorRef] = Option(managerRef)
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -82,8 +84,13 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle {
 
   override def getId: Id[Vehicle] = id
 
-  def setManager(managerRef: ActorRef): Unit = {
-    manager = Option(managerRef)
+  /**
+    * The resource manager for this [[TempVehicle]] resource
+    *
+    * @param resourceManagerRef the [[beam.agentsim.ResourceManager]]
+    */
+  def setResourceManager(resourceManagerRef: ActorRef): Unit = {
+    manager = Option(resourceManagerRef)
   }
 
   /**
@@ -126,7 +133,7 @@ object TempVehicle {
 }
 
 
-abstract case class VehicleOccupancyAdministrator(implicit vehicle: TempVehicle) {
+abstract class VehicleOccupancyAdministrator(val vehicle: TempVehicle) {
 
   val seatedOccupancyLimit: Int = vehicle.getType.getCapacity.getSeats
   val standingOccupancyLimit: Int = vehicle.getType.getCapacity.getStandingRoom
@@ -175,7 +182,7 @@ abstract case class VehicleOccupancyAdministrator(implicit vehicle: TempVehicle)
     *        capacity has been exceeded ([[Left]]) or a
     */
   def addPassenger(idToAdd: Id[Vehicle]): Either[VehicleCapacityExceeded, SetCarrier] = {
-    if (seatAssignmentRule.assignSeatOnEnter(idToAdd, standingPassengers, seatedPassengers)) {
+    if (seatAssignmentRule.assignSeatOnEnter(idToAdd, standingPassengers, seatedPassengers,vehicle)) {
       addSeatedPassenger(idToAdd)
     } else {
       addStandingPassenger(idToAdd)
@@ -191,13 +198,13 @@ abstract case class VehicleOccupancyAdministrator(implicit vehicle: TempVehicle)
   def removePassenger(idToRemove: Id[Vehicle]): Try[ClearCarrier] = {
     if (seatedPassengers.contains(idToRemove)) {
       if (standingPassengers.nonEmpty) {
-        seatAssignmentRule.assignSeatOnLeave(idToRemove, standingPassengers.toList, seatedPassengers).map({ idToSit =>
+        seatAssignmentRule.assignSeatOnLeave(idToRemove, standingPassengers.toList, seatedPassengers, vehicle).map({ idToSit =>
           standingPassengers -= idToSit
           seatedPassengers += idToSit
           ClearCarrier()
         })
       } else {
-        Failure(Exception)
+        Failure(new Exception("Error"))
       }
     } else {
       standingPassengers -= idToRemove
@@ -209,8 +216,8 @@ abstract case class VehicleOccupancyAdministrator(implicit vehicle: TempVehicle)
 
 object VehicleOccupancyAdministrator {
 
-  case class DefaultVehicleOccupancyAdministrator() extends VehicleOccupancyAdministrator {
-    override val seatAssignmentRule: SeatAssignmentRule = implicitly[RandomSeatAssignmentRule]
+  case class DefaultVehicleOccupancyAdministrator(override val vehicle: TempVehicle) extends VehicleOccupancyAdministrator(vehicle) {
+    override val seatAssignmentRule: SeatAssignmentRule = new RandomSeatAssignmentRule()
   }
 
 }
@@ -218,11 +225,11 @@ object VehicleOccupancyAdministrator {
 trait SeatAssignmentRule {
   def assignSeatOnEnter(id: Id[Vehicle],
                         standingPassengers: Set[Id[Vehicle]],
-                        seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Boolean
+                        seatedPassengers: Set[Id[Vehicle]], vehicle: Vehicle): Boolean
 
   def assignSeatOnLeave(id: Id[Vehicle],
                         standingPassengers: List[Id[Vehicle]],
-                        seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Try[Id[Vehicle]]
+                        seatedPassengers: Set[Id[Vehicle]],vehicle: Vehicle): Try[Id[Vehicle]]
 }
 
 object SeatAssignmentRule {
@@ -230,12 +237,12 @@ object SeatAssignmentRule {
   class RandomSeatAssignmentRule extends SeatAssignmentRule {
     override def assignSeatOnEnter(id: Id[Vehicle],
                                    standingPassengers: Set[Id[Vehicle]],
-                                   seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Boolean =
+                                   seatedPassengers: Set[Id[Vehicle]], vehicle: Vehicle): Boolean =
       Random.nextBoolean()
 
     override def assignSeatOnLeave(id: Id[Vehicle],
                                    standingPassengers: List[Id[Vehicle]],
-                                   seatedPassengers: Set[Id[Vehicle]])(implicit vehicle: Vehicle): Try[Id[Vehicle]] =
+                                   seatedPassengers: Set[Id[Vehicle]], vehicle: Vehicle): Try[Id[Vehicle]] =
       Try(standingPassengers(Random.nextInt(standingPassengers.size)))
   }
 

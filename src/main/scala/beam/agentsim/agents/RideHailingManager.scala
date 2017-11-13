@@ -101,8 +101,8 @@ class RideHailingManager(info: RideHailingManagerData,
 
   override def receive: Receive = {
 
-    case ResourceIsAvailableNotification(vehicleAgentRef: ActorRef, vehicleId: Id[Vehicle], availableIn: SpaceTime) =>
-
+    case ResourceIsAvailableNotification(vehicleId: Id[Vehicle], availableIn: SpaceTime) =>
+      val vehicleAgentRef = resources(vehicleId)
       val rideHailingAgentLocation = RideHailingAgentLocation(vehicleAgentRef, vehicleId, availableIn)
       rideHailingAgentSpatialIndex.put(availableIn.loc.getX, availableIn.loc.getY, rideHailingAgentLocation)
       availableRideHailVehicles.put(vehicleId, rideHailingAgentLocation)

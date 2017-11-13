@@ -57,19 +57,11 @@ object PersonAgent {
   }
 
   sealed trait InActivity extends BeamAgentState
-  case object PerformingActivity extends InActivity {
-    override def identifier = "Performing an Activity"
-  }
+  case object PerformingActivity extends InActivity
   sealed trait Traveling extends BeamAgentState
-  case object ChoosingMode extends Traveling {
-    override def identifier = "ChoosingMode"
-  }
-  case object Waiting extends Traveling {
-    override def identifier = "Waiting"
-  }
-  case object Moving extends Traveling {
-    override def identifier = "Moving"
-  }
+  case object ChoosingMode extends Traveling
+  case object Waiting extends Traveling
+  case object Moving extends Traveling
 
   case class ResetPersonAgent(tick: Double) extends Trigger
   case class ActivityStartTrigger(tick: Double) extends Trigger
@@ -129,23 +121,23 @@ class PersonAgent(val beamServices: BeamServices,
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message ${msg} from state ChoosingMode", -1L, None)
+      errorFromPerson(s"Unrecognized message $msg from state ChoosingMode", -1L, None)
   }
   when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message ${msg} from state Waiting", -1L, None)
+      errorFromPerson(s"Unrecognized message $msg from state Waiting", -1L, None)
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message ${msg} from state Moving", -1L, None)
+      errorFromPerson(s"Unrecognized message $msg from state Moving", -1L, None)
   }
 
   chainedWhen(Uninitialized){
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
+    case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
       goto(Initialized) replying completed(triggerId,schedule[ActivityStartTrigger](0.0,self))
   }
   chainedWhen(Initialized) {
@@ -163,7 +155,7 @@ class PersonAgent(val beamServices: BeamServices,
           goto(Finished) replying completed(triggerId)
         },
         nextAct => {
-          logInfo(s"going to ${nextAct.getType} @ ${tick}")
+          logInfo(s"going to ${nextAct.getType} @ $tick")
           beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)))
           goto(ChoosingMode) replying completed(triggerId,schedule[BeginModeChoiceTrigger](tick, self))
         }
@@ -181,7 +173,7 @@ class PersonAgent(val beamServices: BeamServices,
       }else{
         schedule[NotifyLegEndTrigger](tick, self, beamLeg)
       }
-      logWarn(s"Rescheduling: ${toSchedule}")
+      logWarn(s"Rescheduling: $toSchedule")
       stay() replying completed(triggerId, toSchedule)
     }
   }
@@ -277,7 +269,7 @@ class PersonAgent(val beamServices: BeamServices,
           // Driver is still traveling to pickup point, reschedule this trigger
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
         case None =>
-          errorFromPerson(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg defined, beamLeg: ${beamLeg}", triggerId, Some(tick))
+          errorFromPerson(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg defined, beamLeg: $beamLeg", triggerId, Some(tick))
       }
   }
 

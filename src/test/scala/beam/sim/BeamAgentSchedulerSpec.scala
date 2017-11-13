@@ -95,9 +95,7 @@ object BeamAgentSchedulerSpec {
 
   case class ReportState(val tick: Double) extends Trigger
 
-  case object Reporting extends BeamAgentState {
-    override def identifier = "Reporting"
-  }
+  case object Reporting extends BeamAgentState
 
   class TestBeamAgent(override val id: Id[Person]) extends BeamAgent[NoData] {
     override def data = NoData()

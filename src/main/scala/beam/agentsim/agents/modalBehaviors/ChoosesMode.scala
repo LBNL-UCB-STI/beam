@@ -156,7 +156,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val householdRef: ActorRef = beamServices.householdRefs(_household)
     availablePersonalStreetVehicles.foreach { veh =>
       householdRef ! ReleaseVehicleReservation(id, veh.id)
-      householdRef ! ResourceIsAvailableNotification(self, veh.id, new SpaceTime(currentActivity.getCoord, tick.toLong))
+      householdRef ! ResourceIsAvailableNotification(veh.id, new SpaceTime(currentActivity.getCoord, tick.toLong))
     }
     if (chosenTrip.tripClassifier != RIDEHAIL && rideHailingResult.get.proposals.nonEmpty) {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId)

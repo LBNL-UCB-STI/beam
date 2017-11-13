@@ -97,14 +97,14 @@ class HouseholdActor(services: BeamServices,
 
   initializeHouseholdVehicles()
 
-  override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = ???
+  override def findResource(vehicleId: Id[Vehicle]): Option[ActorRef] = resources.get(vehicleId)
 
   override def receive: Receive = {
 
     case NotifyNewVehicleLocation(vehId,whenWhere) =>
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
-    case ResourceIsAvailableNotification(ref,resourceId,when) =>
+    case ResourceIsAvailableNotification(resourceId,when) =>
       val vehicleId = Id.createVehicleId(resourceId)
       val personIDOpt = _checkedOutVehicles.remove(vehicleId)
       personIDOpt match {

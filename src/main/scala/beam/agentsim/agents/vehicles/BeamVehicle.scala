@@ -61,12 +61,9 @@ object BeamVehicle {
     def apply(tup: (Id[Vehicle], ActorRef)): BeamVehicleIdAndRef = new BeamVehicleIdAndRef(tup._1, tup._2)
   }
 
-  case object Moving extends BeamAgentState {
-    override def identifier = "Moving"
-  }
-  case object Idle extends BeamAgentState {
-    override def identifier = "Idle"
-  }
+  case object Moving extends BeamAgentState
+  case object Idle extends BeamAgentState
+
 
   def energyPerUnitByType(vehicleTypeId: Id[VehicleType]): Double = {
     //TODO: add energy type registry
@@ -155,13 +152,13 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         }
       case None =>
         if (time > lastVisited.time) {
-          logWarn(s"Requested time ${time} is in future. return lastVisited")
+          logWarn(s"Requested time $time is in future. return lastVisited")
         }
         Future.successful(lastVisited)
     }
   }
 
-  def setDriver(newDriver: ActorRef) = {
+  def setDriver(newDriver: ActorRef): Unit = {
     driver = Some(newDriver)
   }
 
