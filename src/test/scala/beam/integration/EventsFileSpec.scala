@@ -3,10 +3,9 @@ package beam.integration
 import java.io.File
 
 import beam.sim.RunBeam
-import beam.sim.config.ConfigModule
+import beam.sim.config.{BeamConfig, ConfigModule}
+import com.typesafe.config.{Config, ConfigValueFactory}
 import org.scalatest.{FlatSpec, Matchers}
-
-import scala.util.Try
 
 /**
   * Created by fdariasm on 29/08/2017
@@ -15,27 +14,23 @@ import scala.util.Try
 
 class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
   EventsFileHandlingCommon with IntegrationSpecCommon{
-  lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")
 
-  lazy val beamConfig = customBeam(configFileName, eventsFileOutputFormats = Some("xml,csv"))
+  private val config: Config = baseConfig
+    .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+    .resolve()
 
-  val exc = Try(runBeamWithConfig(beamConfig, ConfigModule.matSimConfig))
+  val beamConfig = BeamConfig(config)
+
+  runBeamWithConfig(config, ConfigModule.matSimConfig(config))
   val xmlFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "xml")
   val csvFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "csv")
   lazy val route_input = beamConfig.beam.inputDirectory
-
-//  val xmlEventsReader: ReadEvents = new ReadEventsBeam
-//  val csvEventsReader: ReadEvents = ???
 
   val busTripsFile = new File(s"$route_input/r5/bus/trips.txt")
   val trainTripsFile = new File(s"$route_input/r5/train/trips.txt")
 
   val busStopTimesFile = new File(s"$route_input/r5/bus/stop_times.txt")
   val trainStopTimesFile = new File(s"$route_input/r5/train/stop_times.txt")
-
-  it should "BEAM running without errors" in {
-    exc.isSuccess shouldBe true
-  }
 
   "Create xml events file in output directory" should behave like fileExists(xmlFile)
 

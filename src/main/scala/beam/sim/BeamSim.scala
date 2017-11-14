@@ -20,7 +20,6 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
 import beam.router.gtfs.FareCalculator
-import beam.sim.config.{BeamLoggingSetup, ConfigModule}
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
 import glokka.Registry
@@ -60,7 +59,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    actorSystem.eventStream.setLogLevel(BeamLoggingSetup.log4jLogLevelToAkka(beamServices.beamConfig.beam.outputs.logging.beam.logLevel))
     eventsManager = beamServices.matsimServices.getEvents
     eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), EventsSubscriber.SUBSCRIBER_NAME)
 

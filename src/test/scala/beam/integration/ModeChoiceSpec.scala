@@ -1,6 +1,9 @@
 package beam.integration
 
+import java.io.File
+
 import beam.sim.RunBeam
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -8,12 +11,16 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
   * 
   */
 
-class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
+class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
 
   "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
     "prefer mode choice car type than other modes" in {
-      val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
-      val driveIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceDriveIfAvailable"))
+      val multinomialRun = new StartWithCustomConfig(
+        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+      )
+      val driveIfAvailableRun = new StartWithCustomConfig(
+        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceDriveIfAvailable"))
+      )
 
       val multinomialCount = multinomialRun.groupedCount.getOrElse("car", 0)
       val driveIfAvailableCount = driveIfAvailableRun.groupedCount.getOrElse("car", 0)
@@ -24,9 +31,13 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
     "prefer mode choice transit type than other modes" ignore {
-      val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
-      val transitIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable"))
-
+      val config = ConfigFactory.parseFile(new File(configFileName))
+      val multinomialRun = new StartWithCustomConfig(
+        config.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+      )
+      val transitIfAvailableRun = new StartWithCustomConfig(
+        config.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceTransitIfAvailable"))
+      )
       val multinomialCount = multinomialRun.groupedCount.getOrElse("transit", 0)
       val transitIfAvailableCount = transitIfAvailableRun.groupedCount.getOrElse("transit", 0)
 
@@ -36,9 +47,12 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
 
   "Running beam with modeChoiceClass ModeChoiceRideHailIfAvailable" must {
     "prefer more mode choice ride hail type than other modes" in {
-      val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
-      val rideHailIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceRideHailIfAvailable"))
-
+      val multinomialRun = new StartWithCustomConfig(
+        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+      )
+      val rideHailIfAvailableRun = new StartWithCustomConfig(
+        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable"))
+      )
       val multinomialCount = multinomialRun.groupedCount.getOrElse("ride_hailing", 0)
       val rideHailIfAvailableCount = rideHailIfAvailableRun.groupedCount.getOrElse("ride_hailing", 0)
 
@@ -46,16 +60,4 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
     }
   }
 
-  "Running beam with modeChoiceClass ModeChoiceMultinomialLogit" must {
-    "Generate events file with for ModeChoice" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit")){
-      fail("Unpredictable output to evaluate")
-    }
-  }
-
-  //  Commented out for now as beam is hanging during run
-  "Running beam with modeChoiceClass ModeChoiceUniformRandom" must {
-    "Generate events file with exactly four ride_hailing type for ModeChoice" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceUniformRandom")){
-      fail("Unpredictable output to evaluate")
-      }
-  }
 }

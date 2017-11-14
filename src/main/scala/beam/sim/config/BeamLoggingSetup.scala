@@ -1,25 +1,29 @@
 package beam.sim.config
 
+import javax.inject.Inject
+
 import akka.event.Logging
 import akka.event.Logging.LogLevel
-import beam.sim.config.BeamConfig.Beam.Outputs
-import org.apache.log4j._
 import org.apache.log4j
-import org.slf4j.LoggerFactory
+import org.apache.log4j._
+import org.matsim.core.config.Config
 
 // We convert a level in the slf4j heirarchy: ALL < DEBUG < INFO < WARN < ERROR < OFF
 // To a level in the log4j heirarchy: ALL < TRACE < DEBUG < INFO < WARN < ERROR < FATAL < OFF
 
-object BeamLoggingSetup{
+object BeamLoggingSetup {
+
+  @Inject //FIXME
+  var matSimConfig: Config = _
+
   val dependencies = Vector[String]("org.matsim","com.conveyal")
 
   def configureLogs(config: BeamConfig) = {
     val PATTERN = new PatternLayout("%d{dd MMM yyyy HH:mm:ss} %5p %c{1} - %m%n")
-    val console: ConsoleAppender = new ConsoleAppender(PATTERN)
-    val fileAppender: FileAppender = new FileAppender(PATTERN, s"${ConfigModule.matSimConfig.controler().getOutputDirectory}/console.log")
+    val fileAppender: FileAppender = new FileAppender(PATTERN, s"${matSimConfig.controler().getOutputDirectory}/console.log")
     val rootLogger = Logger.getRootLogger
     rootLogger.addAppender(fileAppender)
-    rootLogger.setLevel(log4j.Level.ALL)
+    rootLogger.setLevel(log4j.Level.OFF)
 
     val theLogger = Logger.getLogger("beam")
     theLogger.setLevel(Level.toLevel(config.beam.outputs.logging.beam.logLevel,Level.ERROR))
