@@ -1,10 +1,9 @@
 package beam.sim
 
-import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.{BeamConfig, BeamLoggingSetup, ConfigModule}
-import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
 import beam.sim.controler.BeamControler
+import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
+import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
 import beam.utils.FileUtils
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
@@ -12,11 +11,8 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
-import org.matsim.core.events.{EventsUtils, ParallelEventsManagerImpl}
-import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
-import net.codingwell.scalaguice.InjectorExtensions._
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.EventsUtils
+import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -26,7 +22,7 @@ trait RunBeam {
   /**
     * mBeamConfig optional parameter is used to add custom BeamConfig instance to application injector
     */
-  def beamInjector(scenario: Scenario,  matSimConfig: Config,mBeamConfig: Option[BeamConfig] = None): com.google.inject.Injector =
+  def beamInjector(scenario: Scenario,  matSimConfig: Config, beamConfig: BeamConfig): com.google.inject.Injector =
     org.matsim.core.controler.Injector.createInjector(matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
         // MATSim defaults
@@ -39,7 +35,7 @@ trait RunBeam {
         // Beam Inject below:
         install(new ConfigModule)
         install(new AgentsimModule)
-        install(new BeamAgentModule)
+        install(new BeamAgentModule(beamConfig))
         install(new UtilsModule)
       }
     }).asJava, new AbstractModule() {
@@ -52,7 +48,7 @@ trait RunBeam {
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
         bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
-        mBeamConfig.foreach(beamConfig => bind(classOf[BeamConfig]).toInstance(beamConfig)) //Used for testing - if none passed, app will use factory BeamConfig
+        bind(classOf[BeamConfig]).toInstance(beamConfig)
       }
     }))
 
@@ -69,7 +65,7 @@ trait RunBeam {
     BeamLoggingSetup.configureLogs(ConfigModule.beamConfig)
 
     lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
-    val injector = beamInjector(scenario, ConfigModule.matSimConfig)
+    val injector = beamInjector(scenario, ConfigModule.matSimConfig, ConfigModule.beamConfig)
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 
     services.controler.run()
@@ -86,7 +82,7 @@ trait RunBeam {
     BeamLoggingSetup.configureLogs(beamConfig)
 
     lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
-    val injector = beamInjector(scenario, matsimConfig, Some(beamConfig))
+    val injector = beamInjector(scenario, matsimConfig, beamConfig)
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 

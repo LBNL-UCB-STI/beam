@@ -20,7 +20,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.BeamRouter.{InitTransit, InitializeRouter}
 import beam.router.gtfs.FareCalculator
-import beam.sim.config.BeamLoggingSetup
+import beam.sim.config.{BeamLoggingSetup, ConfigModule}
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
 import glokka.Registry

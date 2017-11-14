@@ -22,7 +22,7 @@ class StartWithCustomConfig(
   val beamConfig = customBeam(configFileName, modeChoice, numDriversAsFractionOfPopulation,
   defaultCostPerMile,defaultCostPerMinute,transitCapacity,transitPrice,tollPrice,rideHailPrice)
 
-  val exec = Try(runBeamWithConfig(beamConfig, ConfigModule.matSimConfig))
+  runBeamWithConfig(beamConfig, ConfigModule.matSimConfig)
 
   val file: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , beamConfig.beam.outputs.events.fileOutputFormats)
 
