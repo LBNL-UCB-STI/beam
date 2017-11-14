@@ -1,8 +1,7 @@
 package beam.agentsim.events.resources.vehicle
 
-import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
-import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
+import beam.agentsim.events.resources.ReservationErrorCode._
 import beam.agentsim.events.resources._
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.RoutingModel.BeamLeg
@@ -31,26 +30,26 @@ case class ReservationResponse(requestId: Id[ReservationRequest], response: Eith
 
 case class ReserveConfirmInfo(departFrom: BeamLeg, arriveAt: BeamLeg, passengerVehiclePersonId: VehiclePersonId, triggersToSchedule: Vector[ScheduleTrigger] = Vector())
 
-case object RideHailVehicleTaken extends ReservationError {
-  override def errorCode: ReservationErrorCode = ReservationErrorCode.RideHailVehicleTaken
+case object RideHailVehicleTakenError extends ReservationError {
+  override def errorCode: ReservationErrorCode = RideHailVehicleTaken
 }
 
 case object UnknownRideHailReservationError extends ReservationError {
-  override def errorCode: ReservationErrorCode = ReservationErrorCode.UnknownRideHailReservationError
+  override def errorCode: ReservationErrorCode = UnknownRideHailReservation
 }
 
 
-case object UnknownInquiryId extends ReservationError {
-  override def errorCode: ReservationErrorCode = ReservationErrorCode.UnknownInquiryId
+case object UnknownInquiryIdError extends ReservationError {
+  override def errorCode: ReservationErrorCode = UnknownInquiryId
 }
 
 
 case object CouldNotFindRouteToCustomer extends ReservationError {
-  override def errorCode: ReservationErrorCode = ReservationErrorCode.RideHailRouteNotFound
+  override def errorCode: ReservationErrorCode = RideHailRouteNotFound
 }
 
 case object VehicleGone extends ReservationError {
-  override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
+  override def errorCode: ReservationErrorCode = ResourceUnavailable
 }
 
 

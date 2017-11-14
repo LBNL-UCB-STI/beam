@@ -2,9 +2,9 @@ package beam.agentsim
 
 import akka.actor.{Actor, ActorRef}
 import beam.agentsim.Resource.ResourceIsAvailableNotification
+import beam.agentsim.agents.vehicles.TempVehicle
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.{Id, Identifiable}
-import org.matsim.vehicles.Vehicle
 
 /**
   *
@@ -25,21 +25,25 @@ object Resource {
 
   case class TellManagerResourceIsAvailable(when: SpaceTime)
 
-  case class ResourceIsAvailableNotification[R](resourceId: Id[_<:R], when: SpaceTime)
+  case class ResourceIsAvailableNotification[R](resourceId: Id[_ <: R], when: SpaceTime)
 
   case class AssignManager(managerRef: ActorRef)
 
 }
 
-trait ResourceManager[R] {
-  val resources: Map[Id[R], ActorRef] = Map.empty
+trait ResourceManager[R <: Resource[R]] {
+  this: Actor =>
 
-  def findResource(resourceId: Id[R]): Option[ActorRef]
+  val resources: Map[Id[R], R] = Map.empty
+
+  def findResource(resourceId: Id[R]): Option[_<:R]
 
 }
 
 object ResourceManager {
 
-  trait VehicleManager extends Actor with ResourceManager[Vehicle]
+  trait VehicleManager extends Actor with ResourceManager[TempVehicle]{
+
+  }
 
 }

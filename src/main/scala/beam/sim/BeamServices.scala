@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.TempVehicle
 import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
 import beam.router.RoutingModel.{BeamLeg, BeamLegWithNext, BeamPath}
@@ -45,8 +46,7 @@ trait BeamServices extends ActorInject {
   var rideHailingManager: ActorRef
   val persons: TrieMap[Id[Person], Person]
   val personRefs: TrieMap[Id[Person], ActorRef]
-  val vehicles: TrieMap[Id[Vehicle], Vehicle]
-  val vehicleRefs: TrieMap[Id[Vehicle], ActorRef]
+  val vehicles: TrieMap[Id[Vehicle], TempVehicle]
   val households: TrieMap[Id[Household], Household]
   val householdRefs: TrieMap[Id[Household], ActorRef]
   val agentRefs: TrieMap[String, ActorRef]

@@ -8,15 +8,14 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.RideHailingManager._
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.util.{AggregatorFactory, SingleActorAggregationResult}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
-import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{PassengerSchedule, TempVehicle, VehiclePersonId}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
+import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events.resources.vehicle._
-import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
@@ -159,7 +158,11 @@ class RideHailingManager(info: RideHailingManagerData,
               val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK,
                 unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg,
                 beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer),
-                cost = if(c.beamLeg == l.legs(1).beamLeg){ cost }else{ 0.0 }
+                cost = if (c.beamLeg == l.legs(1).beamLeg) {
+                  cost
+                } else {
+                  0.0
+                }
               ))))
 
               val rideHailingAgent2CustomerResponseMod = RoutingResponse(rideHailingAgent2CustomerResponse.id, modRHA2Cust)
@@ -177,7 +180,7 @@ class RideHailingManager(info: RideHailingManagerData,
           }
         case None =>
           // no rides to hail
-//          log.debug(s"Router could not find vehicle for customer person=$personId for inquiryId=$inquiryId")
+          //          log.debug(s"Router could not find vehicle for customer person=$personId for inquiryId=$inquiryId")
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
       }
 
@@ -199,17 +202,17 @@ class RideHailingManager(info: RideHailingManagerData,
             val travelProposal = travelPlanOpt.get._1
             val tripPlan = travelPlanOpt.map(_._2)
             handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent, closestRideHailingAgent, travelProposal, tripPlan)
-            // We have an agent nearby, but it's not the one we originally wanted
+          // We have an agent nearby, but it's not the one we originally wanted
           case _ =>
             customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(UnknownRideHailReservationError))
         }
       } else {
-        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(UnknownInquiryId))
+        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(UnknownInquiryIdError))
       }
     case ModifyPassengerScheduleAck(inquiryIDOption) =>
       completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]))
 
-    case ReleaseVehicleReservation(personId,vehId)=>
+    case ReleaseVehicleReservation(personId, vehId) =>
       lockedVehicles -= vehId
 
     case msg =>
@@ -217,7 +220,6 @@ class RideHailingManager(info: RideHailingManagerData,
 
 
   }
-
 
 
   //  private def handleReservation(inquiryId: Id[RideHailingInquiry], closestRideHailingAgentLocation: RideHailingAgentLocation, vehiclePersonId: Id[PersonAgent], customerPickUp: Location, departAt: BeamTime, destination: Location, customerAgent: ActorRef) = {
@@ -271,7 +273,7 @@ class RideHailingManager(info: RideHailingManagerData,
         customerRef ! response
       case None =>
         log.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
-        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(RideHailVehicleTaken))
+        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left(RideHailVehicleTakenError))
     }
 
   }
@@ -295,9 +297,7 @@ class RideHailingManager(info: RideHailingManagerData,
     distances2RideHailingAgents.sortBy(_._2).filterNot(x => lockedVehicles(x._1.vehicleId)).headOption
   }
 
-  override def findResource(resourceId: Id[Vehicle]): Option[ActorRef] = ???
-
-
+  override def findResource(resourceId: Id[TempVehicle]) = ???
 }
 
 

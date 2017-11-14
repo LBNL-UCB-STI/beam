@@ -92,7 +92,7 @@ object BeamVehicle {
 
   case class BecomeDriver(tick: Double, driver: Id[_], passengerSchedule: Option[PassengerSchedule] = None)
   case class UnbecomeDriver(tick: Double, driver: Id[_])
-  case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], inVehicleId: Id[Vehicle])
+  case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], vehicle: TempVehicle)
   case class BecomeDriverSuccessAck(id: Id[Vehicle])
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
@@ -230,7 +230,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       driver.get ! ModifyPassengerScheduleAck(requestId)
       stay()
 
-    case Event(TellManagerResourceIsAvailable(whenWhere:SpaceTime),_)=>
+    case Event(TellManagerResourceIsAvailable(whenWhere: SpaceTime), _) =>
       notifyManagerResourceIsAvailable(whenWhere)
       stay()
     case Event(UnbecomeDriver(tick, theDriver), info) =>
@@ -244,31 +244,6 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
           case _ =>
         }
       }
-      stay()
-    case Event(EnterVehicle(tick, newPassengerVehicle), info) =>
-      val fullCapacity = getType.getCapacity.getSeats + getType.getCapacity.getStandingRoom
-      if (passengers.size < fullCapacity) {
-        passengers += newPassengerVehicle.vehicleId
-        driver.get ! BoardingConfirmation(newPassengerVehicle.vehicleId)
-        beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach { vehiclePassengerRef =>
-          vehiclePassengerRef ! SetCarrier(vehicleId)
-        }
-        beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId, id)))
-      } else {
-        val leftSeats = fullCapacity - passengers.size
-        val beamAgent = sender()
-        beamAgent ! VehicleCapacityExceeded(id)
-      }
-      stay()
-    case Event(ExitVehicle(tick, passengerVehicleId), info) =>
-      passengers -= passengerVehicleId.vehicleId
-      driver.get ! AlightingConfirmation(passengerVehicleId.vehicleId)
-      beamServices.vehicleRefs.get(passengerVehicleId.vehicleId).foreach { vehiclePassengerRef =>
-        vehiclePassengerRef ! ClearCarrier
-      }
-
-      logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id)))
       stay()
   }
 
@@ -317,7 +292,7 @@ case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
   def isEmpty = nestedVehicles.isEmpty
 
   def pushIfNew(vehicle: Id[Vehicle]) = {
-    if (!nestedVehicles.isEmpty && nestedVehicles.head == vehicle) {
+    if (nestedVehicles.nonEmpty && nestedVehicles.head == vehicle) {
       VehicleStack(nestedVehicles)
     } else {
       VehicleStack(vehicle +: nestedVehicles)

@@ -3,9 +3,12 @@ package beam.agentsim.events.resources
 import java.time.Period
 
 import akka.actor.ActorRef
-import beam.agentsim.events.resources.ReservationErrorCode.Value
 import beam.router.RoutingModel.BeamLeg
+import enumeratum._
 import org.matsim.api.core.v01.Id
+
+import scala.collection.immutable
+
 
 /**
   * @author dserdiuk
@@ -13,7 +16,9 @@ import org.matsim.api.core.v01.Id
 
 trait AccessInfo {
   def resource: Option[ActorRef]
+
   def pointOfAccess: BeamLeg
+
   def releasePoint: BeamLeg
 }
 
@@ -26,12 +31,13 @@ trait AccessRequest {
 
 trait AccessResponse {
 
- def accessInformation: Vector[AccessInfo]
+  def accessInformation: Vector[AccessInfo]
 
 }
 
 trait ReservationRequest extends AccessRequest {
   def resource: ActorRef
+
   def requestId: Id[ReservationRequest]
 }
 
@@ -41,21 +47,29 @@ trait ReservationResponse {
 
 }
 
-
-
 trait ReservationError {
-  def errorCode : ReservationErrorCode.ReservationErrorCode
+  def errorCode: ReservationErrorCode
 }
 
-object ReservationErrorCode extends Enumeration {
-  type ReservationErrorCode = ReservationErrorCode.Value
-  val UnknownInquiryId: _root_.beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode = Value("UnknownInquiryIdReceivec")
-  val RideHailVehicleTaken: ReservationErrorCode = Value("RideHailVehicleTaken")
-  val UnknownRideHailReservationError = Value("UnknownRideHailReservationError")
-  val ResourceUnAvailable = Value("VehicleLeft")
-  val ResourceCapacityExhausted = Value("ResourceCapacityExhausted")
-  val RideHailRouteNotFound = Value("RouteNotFound")
+sealed abstract class ReservationErrorCode extends EnumEntry 
+
+  case object ReservationErrorCode extends Enum[ReservationErrorCode] {
+    
+    val values: immutable.IndexedSeq[ReservationErrorCode] = findValues
+
+    case object UnknownInquiryId extends ReservationErrorCode
+
+    case object RideHailVehicleTaken extends ReservationErrorCode
+
+    case object UnknownRideHailReservation extends ReservationErrorCode
+
+    case object RideHailRouteNotFound extends ReservationErrorCode
+
+    case object ResourceUnavailable extends ReservationErrorCode
+
+    case object ResourceCapacityExhausted extends ReservationErrorCode
+
+  }
 
 
-}
 

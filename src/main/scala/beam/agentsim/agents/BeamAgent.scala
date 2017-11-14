@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.FSM.{CurrentState, State, SubscribeTransitionCallBack}
+import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice

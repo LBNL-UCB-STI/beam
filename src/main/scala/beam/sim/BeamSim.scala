@@ -185,7 +185,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       val bodyVehicleIdFromPerson = HumanBodyVehicle.createId(personId)
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, matsimHumanBodyVehicleType)
       val bodyVehicleRef = actorSystem.actorOf(HumanBodyVehicle.props(beamServices, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()), BeamVehicle.buildActorName(matsimBodyVehicle))
-      beamServices.vehicleRefs += ((bodyVehicleIdFromPerson, bodyVehicleRef))
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
       beamServices.vehicles += ((bodyVehicleIdFromPerson, matsimBodyVehicle))
@@ -273,25 +272,19 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         }
         val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homecoordx").asInstanceOf[Double],
           householdAttrs.getAttribute(householdId.toString, "homecoordy").asInstanceOf[Double])
-        val houseHoldVehicles = matSimHousehold.getVehicleIds.asScala.map {
-          vehicleId =>
-            val vehicleActRef = beamServices.vehicleRefs.get(vehicleId)
-            (vehicleId, vehicleActRef)
-        }.collect {
-          case (vehicleId, Some(vehicleAgent)) =>
-            (vehicleId, vehicleAgent)
-        }.toMap
+
         val membersActors = matSimHousehold.getMemberIds.asScala.map {
           personId => (personId, beamServices.personRefs.get(personId))
         }.collect {
           case (personId, Some(personAgent)) => (personId, personAgent)
         }.toMap
+
+
         val props = HouseholdActor.props(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
         houseHoldVehicles.values.foreach {
           vehicle =>
             vehicle ! AssignManager(householdActor)
-            beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), vehicle)
         }
         beamServices.householdRefs.put(householdId, householdActor)
     }

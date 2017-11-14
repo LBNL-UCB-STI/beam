@@ -25,7 +25,7 @@ import scala.util.{Failure, Random, Success, Try}
   * @author saf
   * @since Beam 2.0.0
   */
-abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resource[Vehicle] {
+abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resource[TempVehicle] {
   val logger: Logger = Logger.getLogger("BeamVehicle")
 
   /**
@@ -43,13 +43,13 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resou
     *
     * @todo This information should be partially dependent on other variables contained in VehicleType
     */
-  protected val powertrain: Powertrain
+  val powertrain: Powertrain
 
   /**
     * Manages the functionality to add or remove passengers from the vehicle according
     * to standing or sitting seating occupancy information.
     */
-  protected val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator =
+  val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator =
     DefaultVehicleOccupancyAdministrator(this)
 
   /**
@@ -68,12 +68,12 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resou
     * whereas, the manager is ultimately responsible for assignment and (for now) ownership
     * of the vehicle as a physical property.
     */
-  protected var driver: Option[ActorRef] = None
+  var driver: Option[ActorRef] = None
 
   /**
     * The vehicle that is carrying this one. Like ferry or truck may carry a car and like a car carries a human body.
     */
-  protected var carrier: Option[ActorRef] = None
+  var carrier: Option[ActorRef] = None
 
   /**
     * The list of passenger vehicles (e.g., people, AVs, cars) currently occupying the vehicle.
@@ -96,18 +96,18 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resou
   /**
     * Called by the driver.
     */
-  def unsetDriver(): Unit = {
+  def relinquishControlOfVehicle(): Unit = {
     driver = None
   }
 
   /**
     * Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
-    * a call of [[unsetDriver]] will remove the driver.
+    * a call of [[relinquishControlOfVehicle]] will remove the driver.
     * Send back appropriate response to caller depending on protocol.
     *
     * @param newDriverRef incoming driver
     */
-  def setDriver(newDriverRef: ActorRef): Either[DriverAlreadyAssigned, BecomeDriverSuccessAck] = {
+  def assumeControlOfVehicle(newDriverRef: ActorRef): Either[DriverAlreadyAssigned, BecomeDriverSuccessAck] = {
 
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
