@@ -1,5 +1,6 @@
 package beam.agentsim.agents
 
+import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent.{Error, _}
@@ -112,7 +113,7 @@ object PersonAgent {
 
 class PersonAgent(val beamServices: BeamServices,
                   override val id: Id[PersonAgent],
-                  householdId: Id[Household],
+                  val householdId: Id[Household],
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
@@ -120,14 +121,12 @@ class PersonAgent(val beamServices: BeamServices,
 
   var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
   var _currentActivityIndex: Int = 0
-  var _currentAlternatives: Vector[BeamTrip] = Vector[BeamTrip]()
   var _currentVehicle: VehicleStack = VehicleStack()
   var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
   var _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var _household: Id[Household] = householdId
   var _numReschedules: Int = 0
-  var _errorMessage: String = ""
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _activityChain.length) Left(msg) else Right(_activityChain(ind))
@@ -151,19 +150,19 @@ class PersonAgent(val beamServices: BeamServices,
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message $msg from state ChoosingMode", -1L, None)
+      stop(Failure(s"Unrecognized message $msg from state ChoosingMode"))
   }
   when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message $msg from state Waiting", -1L, None)
+      stop(Failure(s"Unrecognized message $msg from state Waiting"))
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      errorFromPerson(s"Unrecognized message $msg from state Moving", -1L, None)
+      stop(Failure(s"Unrecognized message $msg from state Moving"))
   }
 
   chainedWhen(Uninitialized) {
@@ -183,7 +182,7 @@ class PersonAgent(val beamServices: BeamServices,
       nextActivity.fold(
         msg => {
           logInfo(s"didn't get nextActivity because $msg")
-          goto(Finished) replying completed(triggerId)
+          stop replying completed(triggerId)
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ $tick")
@@ -198,7 +197,7 @@ class PersonAgent(val beamServices: BeamServices,
 
     _numReschedules = _numReschedules + 1
     if (_numReschedules > 50) {
-      errorFromPerson(s"Too many reschedule attempts.", triggerId, Some(tick))
+      stop(Failure(s"Too many reschedule attempts."))
     } else {
       val toSchedule = if (isStart) {
         schedule[NotifyLegStartTrigger](tick, self, beamLeg)
@@ -267,13 +266,12 @@ class PersonAgent(val beamServices: BeamServices,
                 goto(Moving) replying completed(triggerId)
               }
             case None =>
-              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}", triggerId, Some(tick))
+              stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
           }
       }
 
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) =>
-      errorFromPerson(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: $beamLeg",
-        triggerId, Some(tick))
+    case Event(TriggerWithId(NotifyLegEndTrigger(_,beamLeg),_), _) =>
+      stop(Failure(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: $beamLeg"))
   }
 
   chainedWhen(Moving) {
@@ -305,8 +303,7 @@ class PersonAgent(val beamServices: BeamServices,
                 processNextLegOrStartActivity(triggerId, tick)
               }
             case None =>
-              //              stay() replying completed(triggerId)
-              errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}", triggerId, Some(tick))
+stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
           }
         case _ =>
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
@@ -318,8 +315,8 @@ class PersonAgent(val beamServices: BeamServices,
           // Driver is still traveling to pickup point, reschedule this trigger
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
         case None =>
-          errorFromPerson(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg " +
-            s"defined, beamLeg: $beamLeg", triggerId, Some(tick))
+          stop(Failure(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg " +
+            s"defined, beamLeg: $beamLeg"))
       }
   }
 
@@ -350,8 +347,8 @@ class PersonAgent(val beamServices: BeamServices,
       breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick) match {
         case Some(processedData) =>
           if (processedData.nextLeg.beamLeg.startTime < tick) {
-            errorFromPerson(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is " +
-              s"$tick.", triggerId, Some(tick))
+            stop(Failure(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is " +
+              s"$tick."))
           } else if (processedData.nextLeg.asDriver) {
             val passengerSchedule = PassengerSchedule()
             val vehiclePersonId = if (HumanBodyVehicle.testId(processedData.nextLeg.beamVehicleId)) {
@@ -384,7 +381,7 @@ class PersonAgent(val beamServices: BeamServices,
             goto(Waiting) replying completed(triggerId)
           }
         case None =>
-          errorFromPerson(s"Expected a non-empty BeamTrip but found ${_currentRoute}", triggerId, Some(tick))
+          stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
       }
     } else {
       val savedLegMode = _currentRoute.tripClassifier
@@ -392,7 +389,7 @@ class PersonAgent(val beamServices: BeamServices,
       nextActivity match {
         case Left(msg) =>
           logDebug(msg)
-          goto(Finished) replying completed(triggerId)
+          stop replying completed(triggerId)
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
@@ -453,47 +450,31 @@ class PersonAgent(val beamServices: BeamServices,
     }
   }
 
-  chainedWhen(Error) {
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
-      logWarn(s"Agent $id received NotifyLegStartTrigger while in Error. Sending RemovePassengerFromTrip request.")
+  override def postStop(): Unit ={
+      logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
       cancelTrip(_currentEmbodiedLeg ++: _currentRoute.legs, _currentVehicle)
-      stay() replying completed(triggerId)
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) =>
-      logWarn(s"Agent $id received NotifyLegEndTrigger while in Error. Sending RemovePassengerFromTrip request.")
-      cancelTrip(_currentEmbodiedLeg ++: _currentRoute.legs, _currentVehicle)
-      stay() replying completed(triggerId)
-    case Event(TriggerWithId(x, triggerId), _) =>
-      logWarn(s"Agent $id received $x while in Error. Ignoring.")
-      stay() replying completed(triggerId)
+      super.postStop()
   }
 
   chainedWhen(AnyState) {
     case Event(ModifyPassengerScheduleAck(_), _) =>
       scheduleStartLegAndStay()
-    case Event(BecomeDriverSuccessAck, _) =>
+    case Event(BecomeDriverSuccessAck, _)  =>
       scheduleStartLegAndStay()
-    case Event(IllegalTriggerGoToError, _) =>
-      errorFromPerson("Illegal Trigger sent to Scheduler", -1L, None)
+    case Event(IllegalTriggerGoToError, _)  =>
+      stop(Failure("Illegal Trigger sent to Scheduler"))
   }
 
   def scheduleStartLegAndStay(): State = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     val newTriggerTime = _currentEmbodiedLeg.get.beamLeg.startTime
     if (newTriggerTime < tick) {
-      throw new RuntimeException(s"I am in state $stateName, it is $tick and I am trying to schedule the start of my " +
-        s"leg for $newTriggerTime. I can't do that.")
+      stop(Failure(s"It is $tick and I am trying to schedule the start of my " +
+        s"leg for $newTriggerTime. I can't do that."))
     }
     beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self,
       _currentEmbodiedLeg.get.beamLeg))
     stay
-  }
-
-  def errorFromPerson(reason: String, triggerId: Long, tick: Option[Double]): PersonAgent.this.State = {
-    _errorMessage = reason
-    _currentTick = tick
-    logError(s"Erroring: From PersonAgent ${id}, reason: ${_errorMessage}")
-    if (triggerId >= 0) beamServices.schedulerRef ! completed(triggerId)
-    goto(Error) using stateData.copy(errorReason = Some(reason))
   }
 
   override def logPrefix(): String = s"PersonAgent:$id "
@@ -518,7 +499,6 @@ class PersonAgent(val beamServices: BeamServices,
 
 }
 
-case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
 
 

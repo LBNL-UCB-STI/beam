@@ -2,12 +2,11 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack}
+import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.sim.monitoring.ErrorListener.{ErrorReasonResponse, RequestErrorReason}
 import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
@@ -42,6 +41,10 @@ object BeamAgent {
 
   case class NoData() extends BeamAgentData
 
+  case object Finish
+
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Double])
+
 }
 
 case class InitializeTrigger(tick: Double) extends Trigger
@@ -62,7 +65,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
-  protected var listener: Option[ActorRef] = None
 
   private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState, StateFunction]
 
@@ -82,35 +84,40 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
 
 
     if (chainedStateFunctions.contains(state)) {
-      var resultingBeamStates = List[BeamAgentState]()
+      var resultingBeamStates = List[State]()
       var resultingReplies = List[Any]()
       chainedStateFunctions(state).foreach { stateFunction =>
         if (stateFunction isDefinedAt theEvent) {
           val fsmState: State = stateFunction(theEvent)
           theStateData = fsmState.stateData.copy(triggerId = theStateData.triggerId, tick = theStateData.tick)
           theEvent = Event(event.event, theStateData)
-          resultingBeamStates = resultingBeamStates :+ fsmState.stateName
+          resultingBeamStates = resultingBeamStates :+ fsmState
           resultingReplies = resultingReplies ::: fsmState.replies
         }
       }
-      val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
-      if (!allStatesSame(newStates)) {
-        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
-          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
+      val newStates = for (result <- resultingBeamStates if result.stateName != Abstain) yield result
+      if (!allStatesSame(newStates.map(_.stateName))) {
+        stop(Failure(s"Chained when blocks did not achieve consensus on state to transition " +
+          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,"))
       } else if (newStates.isEmpty && state == AnyState) {
-        val errMsg = s"Did not handle the event=${event.event.getClass}"
-        logError(errMsg)
-        FSM.State(Error, event.stateData.copy(errorReason = Some(errMsg)))
+        stop(Failure(s"Did not handle the event=$event"))
       } else if (newStates.isEmpty) {
         handleEvent(AnyState, event)
       } else {
         val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
         if (numCompletionNotices > 1) {
-          throw new RuntimeException(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}")
+          stop(Failure(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}"))
         } else if (numCompletionNotices == 1) {
           theStateData = theStateData.copy(triggerId = None)
         }
-        FSM.State(newStates.head, theStateData, None, None, resultingReplies)
+
+        FSM.State(
+          stateName = newStates.head.stateName,
+          stateData = theStateData,
+          timeout = None,
+          stopReason = newStates.flatMap(s => s.stopReason).headOption, // Stop iff anyone wants to. TODO: Maybe do a consensus check here, too.
+          replies = resultingReplies
+        )
       }
     } else {
       FSM.State(state, event.stateData)
@@ -127,30 +134,11 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
 
   startWith(Uninitialized, BeamAgentInfo[T](id, data))
 
-  when(Uninitialized) {
-    case ev@Event(SubscribeTransitionCallBack(actorRef), _) =>
-      listener = Some(actorRef)
-      // send current state back as reference point
-      actorRef ! CurrentState(self, this.stateName)
-      stay()
-
-    case ev@Event(_, _) =>
+  when(Uninitialized){
+    case ev @  Event(_,_) =>
       handleEvent(stateName, ev)
   }
   when(Initialized) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-  }
-
-  when(Finished) {
-    case Event(StopEvent, _) =>
-      goto(Uninitialized)
-  }
-
-  when(Error) {
-    case Event(RequestErrorReason, info) =>
-      sender() ! ErrorReasonResponse(info.errorReason, _currentTick, getLog)
-      stay()
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
   }
@@ -164,10 +152,17 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       } else {
         result
       }
-    case msg@_ =>
-      val errMsg = s"Unrecognized message ${msg}"
-      logError(errMsg)
-      goto(Error) using stateData.copy(errorReason = Some(errMsg))
+  }
+
+  onTermination {
+    case StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
+      reason match {
+        case FSM.Shutdown =>
+          log.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
+        case _ =>
+      }
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, stateData.tick))
   }
 
   /*

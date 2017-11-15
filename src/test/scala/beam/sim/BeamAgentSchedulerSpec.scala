@@ -36,8 +36,9 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
     it("should fail to schedule events with negative tick value") {
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
+      watch(beamAgentRef)
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(-1),beamAgentRef)
-      beamAgentRef.stateName should be(Error)
+      expectTerminated(beamAgentRef)
     }
 
     it("should dispatch triggers in chronological order") {
@@ -108,12 +109,11 @@ object BeamAgentSchedulerSpec {
     }
     chainedWhen(Initialized) {
       case msg@Event(TriggerWithId(_, triggerId), _) =>
-        println(msg)
         stay() replying completed(triggerId, Vector())
     }
     chainedWhen(AnyState) {
       case Event(IllegalTriggerGoToError, _) =>
-        goto(Error)
+        stop
     }
   }
 

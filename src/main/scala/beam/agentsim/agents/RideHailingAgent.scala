@@ -1,5 +1,6 @@
 package beam.agentsim.agents
 
+import akka.actor.FSM.Failure
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.ResourceIsAvailableNotification
@@ -24,8 +25,6 @@ import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-/**
-  */
 object RideHailingAgent {
 
 
@@ -90,6 +89,8 @@ beamServices: BeamServices)
     case Event(RegisterRideAvailableWrapper(triggerId), _) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       stay()
+    case Event(Finish, _) =>
+      stop
   }
 
   chainedWhen(AnyState) {
@@ -106,27 +107,21 @@ beamServices: BeamServices)
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      val errMsg = s"Unrecognized message $msg"
-      logError(errMsg)
-      goto(Error) using stateData.copy(errorReason = Some(errMsg))
+      stop(Failure(s"Unrecognized message $msg"))
   }
 
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      val errMsg = s"Unrecognized message $msg"
-      logError(errMsg)
-      goto(Error) using stateData.copy(errorReason = Some(errMsg))
+      stop(Failure(s"Unrecognized message $msg"))
   }
 
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      val errMsg = s"Unrecognized message $msg"
-      logError(errMsg)
-      goto(Error) using stateData.copy(errorReason = Some(errMsg))
+      stop(Failure(s"Unrecognized message $msg"))
   }
 
 }

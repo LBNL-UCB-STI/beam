@@ -36,7 +36,9 @@ object RoutingModel {
 
     def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode = {
       var theMode: BeamMode = WALK
+      var hasUsedCar: Boolean = false
       legs.foreach { leg =>
+        if(leg.beamLeg.mode == CAR)hasUsedCar = true
         // Any presence of transit makes it transit
         if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
@@ -51,7 +53,13 @@ object RoutingModel {
           theMode = BIKE
         }
       }
-      theMode
+      if(theMode == TRANSIT && hasUsedCar){
+        DRIVE_TRANSIT
+      }else if(theMode == TRANSIT && !hasUsedCar){
+        WALK_TRANSIT
+      }else{
+        theMode
+      }
     }
 
 

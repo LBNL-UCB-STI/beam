@@ -2,6 +2,8 @@ package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.FSM
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
+import akka.actor.FSM.Failure
+import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
@@ -9,7 +11,9 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleGoneError, VehicleNotUnderControlError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.{BeamAgent, RemovePassengerFromTrip}
+import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
+import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -48,7 +52,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
   protected var _awaitingBoardConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _awaitingAlightConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
-  protected var _errorMessageFromDrivesVehicle: String = ""
 
 
   protected var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
@@ -77,7 +80,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
-          errorFromDrivesVehicle(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}", triggerId)
+          throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
       }
     case Event(AlightingConfirmation(vehicleId), _) =>
       _awaitingAlightConfirmation -= vehicleId
@@ -89,12 +92,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
 
   chainedWhen(Waiting) {
-    case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
-      holdTickAndTriggerId(tick, triggerId)
-      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${
-        _currentVehicleUnderControl.get
-          .id
-      } ")
+    case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
+      holdTickAndTriggerId(tick,triggerId)
+      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
 
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
@@ -113,7 +113,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
-          errorFromDrivesVehicle(s"Driver $id did not find a manifest for BeamLeg $newLeg", triggerId)
+          stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
 
     case Event(EnterVehicle(tick, newPassengerVehicle), _) =>
@@ -183,10 +183,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         }
       }
       if (errorFlag) {
-        _errorMessageFromDrivesVehicle = "Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule " +
-          "incompatible with new"
-        logError(_errorMessageFromDrivesVehicle)
-        goto(BeamAgent.Error) using stateData.copy(errorReason = Some(_errorMessageFromDrivesVehicle))
+        stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule " +
+          "incompatible with new"))
       } else {
         passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
         updatedPassengerSchedule.schedule.foreach { legAndManifest =>
@@ -298,7 +296,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
 
   def errorFromDrivesVehicle(reason: String, triggerId: Long): DrivesVehicle.this.State = {
-    _errorMessageFromDrivesVehicle = reason
     logError(s"Erroring: From DrivesVehicle $id, reason: ${_errorMessageFromDrivesVehicle}")
     if (triggerId >= 0) beamServices.schedulerRef ! completed(triggerId)
     goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
