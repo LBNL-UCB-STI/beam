@@ -31,13 +31,13 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
+class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
+    val beamConfig = BeamConfig(system.settings.config)
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices]

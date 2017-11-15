@@ -34,13 +34,12 @@ import scala.concurrent.Await
 /**
   * Created by sfeygin on 2/7/17.
   */
-class PersonAgentSpec extends TestKit(ActorSystem("testsystem"))
+class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve()))
   with MustMatchers with FunSpecLike with ImplicitSender with MockitoSugar {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  val config = BeamConfig(system.settings.config)
   private val agentSimEventsBus = new AgentsimEventsBus
-  val config = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
-
   val services: BeamServices = {
 
     val theServices  = mock[BeamServices]

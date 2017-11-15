@@ -17,9 +17,9 @@ import org.matsim.api.core.v01.population.Person
 import org.scalatest.Matchers._
 import org.scalatest.{FunSpecLike, MustMatchers}
 
-class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) with MustMatchers with FunSpecLike with ImplicitSender {
+class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with MustMatchers with FunSpecLike with ImplicitSender {
 
-  val config = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
+  val config = BeamConfig(system.settings.config)
 
   describe("A BEAM Agent Scheduler") {
 
