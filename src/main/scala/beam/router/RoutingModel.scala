@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Trajectory}
+import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
 import org.matsim.api.core.v01.{Coord, Id}

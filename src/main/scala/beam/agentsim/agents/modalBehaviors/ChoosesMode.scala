@@ -8,13 +8,13 @@ import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry,
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger,
+  LegWithPassengerVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -25,7 +25,6 @@ import beam.router.RoutingModel._
 import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
-import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
@@ -51,7 +50,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
 
       val combinedItinerariesForChoice: Vector[EmbodiedBeamTrip] = if (rideHailingResult.get.proposals.nonEmpty) {
-        rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.get.itineraries
+        rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.get
+          .itineraries
       } else {
         routingResponse.get.itineraries
       }
@@ -90,15 +90,18 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     if (rideHailingLeg.nonEmpty) {
       val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
       val rideHailingId = Id.create(rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
-      beamServices.rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId, VehiclePersonId(_humanBodyVehicle, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
+      beamServices.rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId, VehiclePersonId
+      (_humanBodyVehicle, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
       awaitingReservationConfirmation = awaitingReservationConfirmation + (rideHailingId -> None)
     } else {
       var prevLeg = chosenTrip.legs.head
       for (leg <- chosenTrip.legs) {
-        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
+        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle =
+          inferredVehicle.pop()
 
         if (inferredVehicle.nestedVehicles.nonEmpty) {
-          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
+          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle
+            .outermostVehicle())
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
         exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
@@ -123,7 +126,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           val legs = legSegment.sortBy(_.leg.beamLeg.startTime)
           val vehId = legSegment.head.leg.beamVehicleId
           val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(vehId).toString)
-          val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg.beamLeg, VehiclePersonId(legs.head.passengerVehicle, id)), vehId)
+          val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg
+            .beamLeg, VehiclePersonId(legs.head.passengerVehicle, id)), vehId)
           driverRef ! resRequest
           awaitingReservationConfirmation = awaitingReservationConfirmation + (resRequest.request.requestId -> None)
         }
@@ -133,25 +137,34 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
 
-  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] = Vector()): State = {
+  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, triggersToSchedule: Vector[ScheduleTrigger] =
+  Vector()): State = {
 
     val (tick, theTriggerId) = releaseTickAndTriggerId()
 
-    val location = if(chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty){ chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString }else{ "" }
+    val location = if (chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty) {
+      chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString
+    } else {
+      ""
+    }
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum)))
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value,
+      expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+      location, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_
+        .beamLeg.travelPath.distanceInM).sum)))
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,
+      chosenTrip.tripClassifier.matsimMode)))
 
     val personalVehicleUsed = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
     if (personalVehicleUsed.nonEmpty) {
       if (personalVehicleUsed.size > 1) {
-        logWarn(s"Found multiple personal vehicle in use for chosenTrip: $chosenTrip but only expected one. Using only one for subequent planning.")
+        logWarn(s"Found multiple personal vehicle in use for chosenTrip: $chosenTrip but only expected one. Using " +
+          s"only one for subequent planning.")
       }
       currentTourPersonalVehicle = Some(personalVehicleUsed(0))
-      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot(_.id == personalVehicleUsed(0))
+      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed(0))
     }
     val householdRef: ActorRef = beamServices.householdRefs(_household)
     availablePersonalStreetVehicles.foreach { veh =>
@@ -159,7 +172,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       householdRef ! ResourceIsAvailableNotification(veh.id, new SpaceTime(currentActivity.getCoord, tick.toLong))
     }
     if (chosenTrip.tripClassifier != RIDEHAIL && rideHailingResult.get.proposals.nonEmpty) {
-      beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId)
+      beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head
+        .rideHailingAgentLocation.vehicleId)
     }
     availablePersonalStreetVehicles = Vector()
     availableAlternatives = Vector()
@@ -169,7 +183,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     awaitingReservationConfirmation.clear()
     hasReceivedCompleteChoiceTrigger = false
     pendingChosenTrip = None
-    beamServices.schedulerRef ! completed(triggerId = theTriggerId, triggersToSchedule ++ schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
+    beamServices.schedulerRef ! completed(triggerId = theTriggerId, triggersToSchedule ++
+      schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
     goto(Waiting)
   }
 
@@ -181,7 +196,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
   }
 
-  chainedWhen(Uninitialized){
+  chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(_), _), _) =>
       modeChoiceCalculator = beamServices.modeChoiceCalculator.clone()
       goto(Initialized)
@@ -201,7 +216,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       stay()
     case Event(MobilityStatusReponse(streetVehicles), _: BeamAgentInfo[PersonData]) =>
       val (tick, theTriggerId) = releaseTickAndTriggerId()
-      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle, SpaceTime(currentActivity.getCoord, tick.toLong), WALK, asDriver = true)
+      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle, SpaceTime(currentActivity.getCoord, tick.toLong),
+        WALK, asDriver = true)
       availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
 
       val nextAct = nextActivity.right.get
@@ -209,16 +225,21 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
       currentTourPersonalVehicle match {
         case Some(personalVeh) =>
-          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
-          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id).toString)
+          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles
+            .filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
+          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id ==
+            personalVeh) :+ bodyStreetVehicle, id).toString)
         case None =>
-          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
-          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id).toString)
+          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT),
+            streetVehicles :+ bodyStreetVehicle, id)
+          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+
+            bodyStreetVehicle, id).toString)
       }
 
       //TODO parameterize search distance
       val pickUpLocation = currentActivity.getCoord
-      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, nextAct.getCoord)
+      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id,
+        pickUpLocation, departTime, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()
@@ -228,16 +249,19 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(theRouterResult: RoutingResponse, _: BeamAgentInfo[PersonData]) =>
       currentTourPersonalVehicle match {
         case Some(_) =>
-          // Here we remove all WALK-only trips from routing response if we are requiring Person to continue using their personal vehicle
-          routingResponse = Some(theRouterResult.copy(itineraries = theRouterResult.itineraries.filter(itin => itin.tripClassifier != WALK)))
+          // Here we remove all WALK-only trips from routing response if we are requiring Person to continue using
+          // their personal vehicle
+          routingResponse = Some(theRouterResult.copy(itineraries = theRouterResult.itineraries.filter(itin => itin
+            .tripClassifier != WALK)))
         case None =>
           routingResponse = Some(theRouterResult)
       }
-      availableAlternatives = availableAlternatives ++ routingResponse.get.itineraries.map(_.tripClassifier.toString).distinct
+      availableAlternatives = availableAlternatives ++ routingResponse.get.itineraries.map(_.tripClassifier.toString)
+        .distinct
       completeChoiceIfReady()
     case Event(theRideHailingResult: RideHailingInquiryResponse, _: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)
-      if(theRideHailingResult.error.isEmpty){
+      if (theRideHailingResult.error.isEmpty) {
         availableAlternatives = availableAlternatives :+ "RIDE_HAIL"
       }
       completeChoiceIfReady()
@@ -258,7 +282,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
           rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(), error = Some(error)))
         case _ =>
-          routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq(pendingChosenTrip.get))))
+          routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq
+          (pendingChosenTrip.get))))
       }
       cancelReservations()
       if (routingResponse.get.itineraries.isEmpty & rideHailingResult.get.error.isDefined) {
@@ -306,7 +331,3 @@ object ChoosesMode {
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
 }
-
-case class CancelReservation(reservationId: Id[ReservationRequest], passengerId: Id[Person])
-
-case class CancelReservationWithVehicle(vehiclePersonId: VehiclePersonId)

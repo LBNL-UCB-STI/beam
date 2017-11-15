@@ -4,8 +4,8 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.household.HouseholdActor._
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.{TempVehicle, Trajectory}
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.DefinedTrajectoryHolder
 import beam.router.Modes.BeamMode.CAR
@@ -31,7 +31,9 @@ object HouseholdActor {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
 
-  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], TempVehicle], membersActors: Map[Id[Person], ActorRef], homeCoord: Coord): Props = {
+  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household,
+            houseHoldVehicles: Map[Id[_<:BeamVehicle], BeamVehicle], membersActors: Map[Id[Person], ActorRef],
+            homeCoord: Coord): Props = {
     Props(new HouseholdActor(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
   }
 
@@ -40,7 +42,8 @@ object HouseholdActor {
   object MobilityStatusInquiry {
     // Smart constructor for MSI
     def mobilityStatusInquiry(personId: Id[Person]) =
-      MobilityStatusInquiry(Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[MobilityStatusInquiry]), personId)
+      MobilityStatusInquiry(Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[MobilityStatusInquiry])
+        , personId)
   }
 
   case class ReleaseVehicleReservation(personId: Id[Person], vehId: Id[Vehicle])
@@ -56,24 +59,25 @@ object HouseholdActor {
 class HouseholdActor(services: BeamServices,
                      id: Id[households.Household],
                      matSimHouseHold: org.matsim.households.Household,
-                     vehicles: Map[Id[Vehicle], TempVehicle],
+                     vehicles: Map[Id[_ <: BeamVehicle], BeamVehicle],
                      memberActors: Map[Id[Person], ActorRef],
                      homeCoord: Coord
                     )
   extends VehicleManager with ActorLogging with HasServices {
 
   override val beamServices: BeamServices = services
-  override val resources: Map[Id[Vehicle], TempVehicle] = vehicles
+  override val resources: Map[Id[_ <: BeamVehicle], BeamVehicle] = vehicles
 
   /**
     * Available [[Vehicle]]s in [[Household]]
     */
-  val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector
+  val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x=>Id.createVehicleId(x))
 
   /**
     * Household members sorted by rank
     */
-  val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(memb => MemberWithRank(memb, lookupMemberRank(memb)))
+  val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(memb => MemberWithRank(memb, lookupMemberRank
+  (memb)))
 
   /**
     * Concurrent inquiries
@@ -94,12 +98,13 @@ class HouseholdActor(services: BeamServices,
 
   initializeHouseholdVehicles()
 
-  override def findResource(vehicleId: Id[TempVehicle]): Option[TempVehicle] = resources.get(vehicleId)
+  override def findResource(vehicleId: Id[BeamVehicle]): Option[BeamVehicle] = resources.get(vehicleId)
 
   override def receive: Receive = {
 
     case NotifyNewVehicleLocation(vehId, whenWhere) =>
-      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver =
+        true))
 
     case ResourceIsAvailableNotification(resourceId, when) =>
       val vehicleId = Id.createVehicleId(resourceId)
@@ -142,7 +147,8 @@ class HouseholdActor(services: BeamServices,
 
   def lookupMemberRank(member: Id[Person]): Option[Int] = {
 
-    beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank") match {
+    beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank")
+    match {
       case rank: Integer =>
         Some(rank)
       case _ =>
@@ -150,7 +156,8 @@ class HouseholdActor(services: BeamServices,
     }
   }
 
-  // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last in list
+  // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last
+  // in list
   def sortByRank(r2: MemberWithRank, r1: MemberWithRank): Boolean = {
     r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
   }
@@ -171,7 +178,8 @@ class HouseholdActor(services: BeamServices,
       //XXXX (VR): What goes here?
       //      services.vehicleRefs(veh) ! AppendToTrajectory(initialBeamPath)
       //TODO following mode should come from the vehicle
-      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver =
+        true))
     }
   }
 

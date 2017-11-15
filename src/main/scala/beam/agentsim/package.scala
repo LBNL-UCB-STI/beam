@@ -1,7 +1,7 @@
 package beam
 
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.TempVehicle
+import beam.agentsim.agents.vehicles.BeamVehicle
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
@@ -15,8 +15,8 @@ package object agentsim {
 
   implicit def personAgentId2PersonId(id: Id[PersonAgent]): Id[Person] = Id.createPersonId(id)
 
-  implicit def vehicleId2BeamVehicleId(id: Id[Vehicle]):Id[TempVehicle]=Id.create(id,classOf[TempVehicle])
+  implicit def vehicleId2BeamVehicleId(id: Id[Vehicle]):Id[BeamVehicle] = Id.create(id,classOf[BeamVehicle])
 
-  implicit def beamVehicleId2VehicleId(id: Id[TempVehicle]):Id[Vehicle] = Id.createVehicleId(id)
+  implicit def beamVehicleId2VehicleId(id: Id[BeamVehicle]):Id[Vehicle] = Id.createVehicleId(id)
 
 }

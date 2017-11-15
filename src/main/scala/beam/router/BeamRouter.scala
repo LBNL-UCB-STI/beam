@@ -5,7 +5,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, Terminated}
 import akka.routing._
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamTime, EmbodiedBeamTrip}
@@ -19,7 +19,7 @@ import org.matsim.core.router.util.TravelTime
 import scala.beans.BeanProperty
 
 
-class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging  {
+class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
   var router: Router = _
   var networkCoordinator: ActorRef = _
   private var routerWorkers: Vector[Routee] = _
@@ -96,7 +96,8 @@ class BeamRouter(services: BeamServices, fareCalculator: FareCalculator) extends
   }
 
   private def createAndWatch(workerId: Int): ActorRef = {
-    val routerProps = RoutingWorker.getRouterProps(services.beamConfig.beam.routing.routerClass, services, fareCalculator, workerId)
+    val routerProps = RoutingWorker.getRouterProps(services.beamConfig.beam.routing.routerClass, services,
+      fareCalculator, workerId)
     val r = context.actorOf(routerProps, s"router-worker-$workerId")
     context watch r
   }
@@ -108,18 +109,24 @@ object BeamRouter {
   def nextId = Id.create(UUID.randomUUID().toString, classOf[RoutingRequest])
 
   case object InitializeRouter
+
   case object RouterInitialized
+
   case object RouterNeedInitialization
+
   case object InitTransit
+
   case object TransitInited
+
   case class UpdateTravelTime(travelTime: TravelTime)
 
   /**
     * It is use to represent a request object
-    * @param origin start/from location of the route
-    * @param destination end/to location of the route
-    * @param departureTime time in seconds from base midnight
-    * @param transitModes what transit modes should be considered
+    *
+    * @param origin         start/from location of the route
+    * @param destination    end/to location of the route
+    * @param departureTime  time in seconds from base midnight
+    * @param transitModes   what transit modes should be considered
     * @param streetVehicles what vehicles should be considered in route calc
     * @param personId
     */
@@ -132,7 +139,8 @@ object BeamRouter {
 
   /**
     * Message to request a route plan
-    * @param id used to represent a request uniquely
+    *
+    * @param id     used to represent a request uniquely
     * @param params route information that is needs a plan
     */
   case class RoutingRequest(@BeanProperty id: Id[RoutingRequest],
@@ -140,7 +148,8 @@ object BeamRouter {
 
   /**
     * Message to respond a plan against a particular router request
-    * @param id same id that was send with request
+    *
+    * @param id          same id that was send with request
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(@BeanProperty id: Id[RoutingRequest],
@@ -154,14 +163,18 @@ object BeamRouter {
   case class BatchRoutingRequest(fromLocation: Location, toOptions: Vector[Location])
 
   object RoutingRequest {
-    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent]): RoutingRequest = {
+    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode],
+              streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent]): RoutingRequest = {
       new RoutingRequest(BeamRouter.nextId,
-        RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, personId))
+        RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime, Modes.filterForTransit
+        (transitModes), streetVehicles, personId))
     }
-    def apply(params : RoutingRequestTripInfo) = {
+
+    def apply(params: RoutingRequestTripInfo) = {
       new RoutingRequest(BeamRouter.nextId, params)
     }
   }
 
-  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(classOf[BeamRouter], beamServices, fareCalculator)
+  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(new BeamRouter(beamServices,
+    fareCalculator))
 }

@@ -2,7 +2,7 @@ package beam.agentsim
 
 import akka.actor.{Actor, ActorRef}
 import beam.agentsim.Resource.ResourceIsAvailableNotification
-import beam.agentsim.agents.vehicles.TempVehicle
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.{Id, Identifiable}
 
@@ -14,11 +14,10 @@ import org.matsim.api.core.v01.{Id, Identifiable}
 
 trait Resource[R] extends Identifiable[R] {
 
-
   var manager: Option[ActorRef]
 
-  def notifyManagerResourceIsAvailable(whenWhere: SpaceTime): Unit = {
-    manager.foreach(_ ! ResourceIsAvailableNotification(getId, whenWhere))
+  def informManagerResourceIsAvailable(whenWhere: SpaceTime): Unit = {
+    manager.foreach(_!ResourceIsAvailableNotification(getId, whenWhere))
   }
 }
 
@@ -40,7 +39,7 @@ object Resource {
 trait ResourceManager[R <: Resource[R]] {
   this: Actor =>
 
-  val resources: Map[Id[R], R] = Map.empty
+  val resources: Map[Id[_<:R], R] = Map.empty
 
   def findResource(resourceId: Id[R]): Option[_ <: R]
 
@@ -49,8 +48,8 @@ trait ResourceManager[R <: Resource[R]] {
 object ResourceManager {
 
   /**
-    * Concrete implementation that manages Resources of type [[TempVehicle]]
+    * Concrete implementation that manages Resources of type [[BeamVehicle]]
     */
-  trait VehicleManager extends Actor with ResourceManager[TempVehicle]
+  trait VehicleManager extends Actor with ResourceManager[BeamVehicle]
 
 }

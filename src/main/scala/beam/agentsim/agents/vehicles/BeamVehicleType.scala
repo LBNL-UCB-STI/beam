@@ -5,7 +5,7 @@ import enumeratum.EnumEntry.LowerCamelcase
 import enumeratum._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.immutable
 
@@ -24,25 +24,32 @@ case object BeamVehicleType extends Enum[BeamVehicleType] {
   case object CarVehicle extends BeamVehicleType("car") with LowerCamelcase
 
   case object TransitVehicle
-      extends BeamVehicleType("transit")
+    extends BeamVehicleType("transit")
       with LowerCamelcase
 
   case object HumanBodyVehicle
-      extends BeamVehicleType("body")
+    extends BeamVehicleType("body")
       with LowerCamelcase {
 
+
+    lazy val MatsimHumanBodyVehicleType: VehicleType =
+      VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle",
+        classOf[VehicleType]))
+    MatsimHumanBodyVehicleType.setDescription("Human")
+
     /**
-      *Is the given [[Id]] a [[HumanBodyVehicle]]?
+      * Is the given [[Id]] a [[HumanBodyVehicle]]?
       *
-      * @param id: The [[Id]] to test
+      * @param id : The [[Id]] to test
       */
     def testId(id: Id[_ <: Vehicle]): Boolean = {
       id.toString.startsWith(idString)
     }
 
     /**
-      *  Assign a new id based on the personAgent
-      * @param personId: [[beam.agentsim.agents.PersonAgent]]
+      * Assign a new id based on the personAgent
+      *
+      * @param personId : [[beam.agentsim.agents.PersonAgent]]
       * @return the id
       */
     def createId(personId: Id[Person]): Id[Vehicle] = {

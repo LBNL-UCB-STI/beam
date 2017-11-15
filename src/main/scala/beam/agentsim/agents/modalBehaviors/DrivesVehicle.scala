@@ -1,16 +1,17 @@
 package beam.agentsim.agents.modalBehaviors
 
-import akka.actor.{ActorRef, FSM}
+import akka.actor.FSM
+import beam.agentsim.Resource.TellManagerResourceIsAvailable
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, EnterVehicle, ExitVehicle, VehicleCapacityExceeded}
-import beam.agentsim.agents.vehicles.{PassengerSchedule, TempVehicle, VehiclePersonId}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleGoneError, VehicleNotUnderControlError}
+import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, RemovePassengerFromTrip}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.events.PathTraversalEvent
-import beam.agentsim.events.resources.vehicle._
+import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
 import beam.router.r5.NetworkCoordinator
@@ -44,7 +45,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   protected var _currentLeg: Option[BeamLeg] = None
   //TODO: send some message to set _currentVehicle
-  protected var _currentVehicleUnderControl: Option[TempVehicle] = None
+  protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
   protected var _awaitingBoardConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _awaitingAlightConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _errorMessageFromDrivesVehicle: String = ""
@@ -55,7 +56,10 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _) =>
       //we have just completed a leg
-      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
+      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for beamVehicleId=${
+        _currentVehicleUnderControl.get
+          .id
+      }, started Boarding/Alighting   ")
       passengerSchedule.schedule.get(completedLeg) match {
         case Some(manifest) =>
           holdTickAndTriggerId(tick, triggerId)
@@ -87,7 +91,10 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   chainedWhen(Waiting) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
       holdTickAndTriggerId(tick, triggerId)
-      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
+      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${
+        _currentVehicleUnderControl.get
+          .id
+      } ")
 
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
@@ -96,7 +103,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           //          _currentVehicleUnderControl.get.ref ! AppendToTrajectory(newLeg.travelPath)
           manifest.riders.foreach { personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
-            beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs(personVehicle.personId), newLeg)
+            beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs
+            (personVehicle.personId), newLeg)
           }
           if (manifest.boarders.isEmpty) {
             releaseAndScheduleEndLeg()
@@ -157,32 +165,26 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       self ! BecomeDriverSuccessAck
       stay()
 
-    case Event(req: CancelReservation, _) =>
-      _currentVehicleUnderControl.foreach { vehicleIdAndRef =>
-        val vehiclePersonId = VehiclePersonId(vehicleIdAndRef.id, req.passengerId)
-        passengerSchedule.removePassenger(vehiclePersonId)
-        _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
-        _awaitingBoardConfirmation -= vehiclePersonId.vehicleId
-        self ! CancelReservationWithVehicle(vehiclePersonId)
-      }
-      stay()
   }
 
   chainedWhen(AnyState) {
     // Problem, when this is received from PersonAgent, it is due to a NotifyEndLeg trigger which doesn't have an ack
-    // So the schedule has moved ahead before this can schedule a new StartLegTrigger, so maybe Notify*Leg should be Triggers?
+    // So the schedule has moved ahead before this can schedule a new StartLegTrigger, so maybe Notify*Leg should be
+    // Triggers?
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), _) =>
       var errorFlag = false
       if (!passengerSchedule.isEmpty) {
         val endSpaceTime = passengerSchedule.terminalSpacetime()
         if (updatedPassengerSchedule.initialSpacetime().time < endSpaceTime.time ||
-          beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc, endSpaceTime.loc) > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+          beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime().loc, endSpaceTime.loc) >
+            beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
         ) {
           errorFlag = true
         }
       }
       if (errorFlag) {
-        _errorMessageFromDrivesVehicle = "Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"
+        _errorMessageFromDrivesVehicle = "Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule " +
+          "incompatible with new"
         logError(_errorMessageFromDrivesVehicle)
         goto(BeamAgent.Error) using stateData.copy(errorReason = Some(_errorMessageFromDrivesVehicle))
       } else {
@@ -195,19 +197,21 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         val resultingState = _currentLeg match {
           case None =>
             goto(Waiting) replying ModifyPassengerScheduleAck(requestId)
-          case Some(beamLeg) =>
+          case Some(_) =>
             stay() replying ModifyPassengerScheduleAck(requestId)
         }
         resultingState
       }
     case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
       require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
-      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
+      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, " +
+        s"alighting=${req.arriveAt.startTime}) ")
 
       val response = handleVehicleReservation(req, vehicleIdToReserve)
       beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response
       stay()
 
+    // XXXX (VR): from vehicle's CancelReservation
     case Event(RemovePassengerFromTrip(id), _) => {
       if (passengerSchedule.removePassenger(id)) {
         log.error(s"Passenger $id removed from trip")
@@ -226,15 +230,20 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
       stay()
     }
+
+    case Event(TellManagerResourceIsAvailable(whenWhere: SpaceTime), _) =>
+      _currentVehicleUnderControl.foreach(veh => veh.informManagerResourceIsAvailable(whenWhere))
+      stay()
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
-    val (theTick, theTriggerId) = releaseTickAndTriggerId()
-    beamServices.schedulerRef ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self, _currentLeg.get))
+    val (_, theTriggerId) = releaseTickAndTriggerId()
+    beamServices.schedulerRef ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self,
+      _currentLeg.get))
     goto(Moving)
   }
 
-  private def getLinks(): Vector[String] = {
+  private def getLinks: Vector[String] = {
     val pathLinks: Vector[String] = _currentLeg match {
       case Some(leg) =>
         leg.travelPath.linkIds
@@ -245,9 +254,10 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
 
 
-  private def getStartCoord(): Coord = {
+  private def getStartCoord: Coord = {
     val startCoord = try {
-      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks().head.toInt).getGeometry.getCoordinate
+      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.toInt)
+        .getGeometry.getCoordinate
       Some(new Coord(r5Coord.x, r5Coord.y))
     } catch {
       case e: Exception => None
@@ -257,7 +267,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   private def getEndCoord(): Coord = {
     val endCoord: Option[Coord] = try {
-      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks()(getLinks().size - 1).toInt).getGeometry.getCoordinate
+      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks(getLinks.size -
+        1).toInt).getGeometry.getCoordinate
       Some(new Coord(r5Coord.x, r5Coord.y))
     } catch {
       case e: Exception => None
@@ -268,10 +279,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick, _currentVehicleUnderControl.get.id,
+    beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick, _currentVehicleUnderControl
+      .get.id,
       beamServices.beamVehicles(_currentVehicleUnderControl.get.id).getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),
-      _currentLeg.get, getStartCoord, getEndCoord)))
+      _currentLeg.get, getStartCoord, getEndCoord())))
 
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
@@ -287,42 +299,45 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   def errorFromDrivesVehicle(reason: String, triggerId: Long): DrivesVehicle.this.State = {
     _errorMessageFromDrivesVehicle = reason
-    logError(s"Erroring: From DrivesVehicle ${id}, reason: ${_errorMessageFromDrivesVehicle}")
+    logError(s"Erroring: From DrivesVehicle $id, reason: ${_errorMessageFromDrivesVehicle}")
     if (triggerId >= 0) beamServices.schedulerRef ! completed(triggerId)
     goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
   }
 
 
-  private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
-    val response = _currentLeg match {
+  private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]): ReservationResponse
+  = {
+    // XXXX This is really quite beautiful functional code!
+    _currentLeg match {
       case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
-        ReservationResponse(req.requestId, Left(VehicleGone))
-      case _ =>
+        ReservationResponse(req.requestId, Left(VehicleGoneError))
+      case None =>
         val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
-        val vehicleCap = beamServices.beamVehicles(vehicleIdToReserve).getType.getCapacity
-        val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
-        val hasRoom = tripReservations.forall { entry =>
-          entry._2.riders.size < fullCap
-        }
-        if (hasRoom) {
-          val legs = tripReservations.map(_._1)
-          passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
-          ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
-        } else {
-          ReservationResponse(req.requestId, Left(VehicleCapacityExceeded(vehicleIdToReserve)))
-        }
+        ReservationResponse(req.requestId,
+          _currentVehicleUnderControl.map(_.vehicleOccupancyAdministrator
+            .addPassenger(req
+              .passengerVehiclePersonId.vehicleId).flatMap({ _ =>
+            val legs = tripReservations.map(_._1)
+            passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
+            Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId))
+          })).getOrElse(
+            // In case vehicle not currently under your control!
+            Left(VehicleNotUnderControlError))
+        )
     }
-    response
   }
 
-  private def sendPendingReservations() = {
+  private def sendPendingReservations(): Unit = {
     if (pendingReservations.nonEmpty) {
-      pendingReservations.foreach { reservation =>
+      pendingReservations.foreach { _ =>
         //FIXME: process reservations directly here... happens upon becoming the driver
-//        driverActor ! ReservationRequestWithVehicle(reservation, id)
+
+        //        driverActor ! ReservationRequestWithVehicle(reservation, id)
       }
       pendingReservations = List()
     }
   }
 
 }
+
+
