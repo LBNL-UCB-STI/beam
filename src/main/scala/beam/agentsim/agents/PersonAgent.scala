@@ -9,8 +9,9 @@ import beam.agentsim.agents.household.HouseholdActor.{NotifyNewVehicleLocation, 
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle}
-import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriverSuccessAck, EnterVehicle, ExitVehicle}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule, VehiclePersonId, VehicleStack}
+import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
@@ -248,7 +249,7 @@ class PersonAgent(val beamServices: BeamServices,
 
                 // TODO: Instead of maintaining references to the vehicle, we should maintain the ref
                 //       to the driver (associated with vehicleID)
-                beamServices.vehicles(nextBeamVehicleId).driver.foreach(
+                beamServices.beamVehicles(nextBeamVehicleId).driver.foreach(
                   driver =>
                     driver ! EnterVehicle(tick, VehiclePersonId(previousVehicleId, id))
                 )
@@ -286,7 +287,7 @@ class PersonAgent(val beamServices: BeamServices,
                 val passengerVehicleId = _currentVehicle.penultimateVehicle()
 
                 // Send message to driver we're entering vehicle
-                beamServices.vehicles(_currentVehicle.outermostVehicle()).driver.foreach(
+                beamServices.beamVehicles(_currentVehicle.outermostVehicle()).driver.foreach(
                   driver =>
                     driver ! ExitVehicle(tick, VehiclePersonId(passengerVehicleId, id))
                 )
@@ -327,7 +328,7 @@ class PersonAgent(val beamServices: BeamServices,
     _currentEmbodiedLeg match {
       case Some(embodiedBeamLeg) =>
         if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
-          beamServices.vehicles(_currentVehicle.outermostVehicle()).assumeControlOfVehicle(self)
+          beamServices.beamVehicles(_currentVehicle.outermostVehicle()).becomeDriver(self)
           _currentVehicle = _currentVehicle.pop()
         }
       case None =>
@@ -339,7 +340,7 @@ class PersonAgent(val beamServices: BeamServices,
             errorFromPerson(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is $tick.", triggerId, Some(tick))
           } else if (processedData.nextLeg.asDriver) {
             val passengerSchedule = PassengerSchedule()
-            val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)) {
+            val vehiclePersonId = if (HumanBodyVehicle.testId(processedData.nextLeg.beamVehicleId)) {
               VehiclePersonId(_humanBodyVehicle, id)
             } else {
               VehiclePersonId(processedData.nextLeg.beamVehicleId, id)
@@ -351,10 +352,10 @@ class PersonAgent(val beamServices: BeamServices,
             if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehiclePersonId.vehicleId) {
               // We are already in vehicle from before, so update schedule
               //XXXX (VR): Easy refactor => send directly to driver
-              beamServices.vehicles(vehiclePersonId.vehicleId).driver.foreach(_!ModifyPassengerSchedule(passengerSchedule))
+              beamServices.beamVehicles(vehiclePersonId.vehicleId).driver.foreach(_ ! ModifyPassengerSchedule(passengerSchedule))
             } else {
               //XXXX (VR): Our first time entering this vehicle, so become driver directly
-              beamServices.vehicles(vehiclePersonId.vehicleId).assumeControlOfVehicle(self)
+              beamServices.beamVehicles(vehiclePersonId.vehicleId).becomeDriver(self)
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _currentRoute = processedData.restTrip
@@ -382,7 +383,7 @@ class PersonAgent(val beamServices: BeamServices,
               if (currentActivity.getType.equals("Home")) {
                 beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id, personalVeh)
                 //XXXX (VR): use resource method on vehicle
-                beamServices.vehicles(personalVeh).manager.foreach(_ ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong)))
+                beamServices.beamVehicles(personalVeh).manager.foreach(_ ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong)))
                 currentTourPersonalVehicle = None
               } else {
                 beamServices.householdRefs(_household) ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity.getCoord, tick.toLong))

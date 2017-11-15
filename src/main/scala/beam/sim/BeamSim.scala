@@ -109,7 +109,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 */
 
     val rideHailingManagerFuture = beamServices.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
-      Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
+      Map[Id[VehicleType], BigDecimal](), beamServices.beamVehicles.toMap, beamServices, Map.empty))
     beamServices.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
 
 
@@ -126,23 +126,25 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    cleanupVehicle()
+    //XXXX (VR): Do we need this?
+    //    cleanupVehicle()
     cleanupHouseHolder()
     agentSimToPhysSimPlanConverter.startPhysSim()
   }
 
-
-  private def cleanupVehicle(): Unit = {
-    logger.info(s"Stopping  BeamVehicle actors")
-    for ((_, actorRef) <- beamServices.vehicleRefs) {
-      actorSystem.stop(actorRef)
-
-    }
-    for (personId <- beamServices.persons.keys) {
-      val bodyVehicleId = HumanBodyVehicle.createId(personId)
-      beamServices.vehicles -= bodyVehicleId
-    }
-  }
+  //XXXX (VR): Do we need this?
+//
+//  private def cleanupVehicle(): Unit = {
+//    logger.info(s"Stopping  BeamVehicle actors")
+//    for ((_, actorRef) <- beamServices.vehicleRefs) {
+//      actorSystem.stop(actorRef)
+//
+//    }
+//    for (personId <- beamServices.persons.keys) {
+//      val bodyVehicleId = HumanBodyVehicle.createId(personId)
+//      beamServices.vehicles -= bodyVehicleId
+//    }
+//  }
 
   private def cleanupHouseHolder(): Unit = {
     for ((_, householdActor) <- beamServices.householdRefs) {
@@ -164,9 +166,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val errorListener = createErrorListener(iter)
 
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(beamServices.matsimServices.getScenario.getPopulation.getPersons)
-    beamServices.vehicles ++= beamServices.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
+//    beamServices.vehicles ++= beamServices.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
     beamServices.households ++= beamServices.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
-    logger.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.vehicles.size} vehicles")
+    logger.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.beamVehicles.size} vehicles")
     var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
     beamServices.households.foreach {
       case (householdId, matSimHousehold) =>
@@ -187,7 +189,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       val bodyVehicleRef = actorSystem.actorOf(HumanBodyVehicle.props(beamServices, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()), BeamVehicle.buildActorName(matsimBodyVehicle))
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-      beamServices.vehicles += ((bodyVehicleIdFromPerson, matsimBodyVehicle))
+      beamServices.beamVehicles += ((bodyVehicleIdFromPerson, matsimBodyVehicle))
       beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), bodyVehicleRef)
       val ref: ActorRef = actorSystem.actorOf(PersonAgent.props(beamServices, personId, personToHouseholdId(personId), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
       beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
@@ -291,7 +293,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   private def initVehicleActors(iterId: Option[String] = None): mutable.Map[Id[Vehicle], ActorRef] =
-    beamServices.vehicles.map {
+    beamServices.beamVehicles.map {
       case (vehicleId, matSimVehicle) => initCarVehicle(vehicleId, matSimVehicle)
     }
 

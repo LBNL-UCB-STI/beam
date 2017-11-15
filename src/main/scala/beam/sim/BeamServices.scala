@@ -46,7 +46,7 @@ trait BeamServices extends ActorInject {
   var rideHailingManager: ActorRef
   val persons: TrieMap[Id[Person], Person]
   val personRefs: TrieMap[Id[Person], ActorRef]
-  val vehicles: TrieMap[Id[Vehicle], TempVehicle]
+  val beamVehicles: TrieMap[Id[Vehicle], TempVehicle]
   val households: TrieMap[Id[Household], Household]
   val householdRefs: TrieMap[Id[Household], ActorRef]
   val agentRefs: TrieMap[String, ActorRef]
@@ -75,7 +75,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   var rideHailingManager: ActorRef = _
   val persons: TrieMap[Id[Person], Person] = TrieMap[Id[Person], Person]()
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
-  val vehicles: TrieMap[Id[Vehicle], Vehicle] = TrieMap[Id[Vehicle], Vehicle]()
+  val beamVehicles: TrieMap[Id[Vehicle], Vehicle] = TrieMap[Id[Vehicle], Vehicle]()
   val vehicleRefs: TrieMap[Id[Vehicle], ActorRef] = TrieMap[Id[Vehicle], ActorRef]()
   val households: TrieMap[Id[Household], Household] = TrieMap[Id[Household], Household]()
   val householdRefs: TrieMap[Id[Household], ActorRef] = TrieMap[Id[Household], ActorRef]()

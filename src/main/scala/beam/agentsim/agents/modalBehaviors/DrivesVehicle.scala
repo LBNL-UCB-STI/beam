@@ -127,7 +127,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           case Failure(ex) =>
             goto(BeamAgent.Error) using stateData.copy(errorReason = Some(ex.getMessage))
           case Success(_) =>
-            beamServices.vehicles(passengerVehicleId.vehicleId).carrier = None
+            beamServices.beamVehicles(passengerVehicleId.vehicleId).carrier = None
             logDebug(s"Passenger $passengerVehicleId alighted from vehicleId=$id")
             beamServices.agentSimEventsBus.publish(MatsimEvent(
               new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, passengerVehicleId.vehicleId)))
@@ -269,7 +269,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
     beamServices.agentSimEventsBus.publish(MatsimEvent(new PathTraversalEvent(theTick, _currentVehicleUnderControl.get.id,
-      beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,
+      beamServices.beamVehicles(_currentVehicleUnderControl.get.id).getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),
       _currentLeg.get, getStartCoord, getEndCoord)))
 
@@ -299,7 +299,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         ReservationResponse(req.requestId, Left(VehicleGone))
       case _ =>
         val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
-        val vehicleCap = beamServices.vehicles(vehicleIdToReserve).getType.getCapacity
+        val vehicleCap = beamServices.beamVehicles(vehicleIdToReserve).getType.getCapacity
         val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
         val hasRoom = tripReservations.forall { entry =>
           entry._2.riders.size < fullCap

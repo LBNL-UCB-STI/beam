@@ -110,7 +110,6 @@ object RoutingModel {
                              cost: BigDecimal,
                              unbecomeDriverOnCompletion: Boolean
                             ) {
-    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
   }
 
   object EmbodiedBeamLeg {

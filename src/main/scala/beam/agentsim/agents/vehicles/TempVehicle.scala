@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleOccupancyAdministrator.DefaultVehicl
 import beam.agentsim.agents.vehicles.VehicleProtocol.ClearCarrier
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
+import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
 import scala.util.{Failure, Random, Success, Try}
@@ -21,29 +22,35 @@ import scala.util.{Failure, Random, Success, Try}
   * reference to a parent [[TempVehicle]] is maintained in its carrier. All other information is
   * managed either through the MATSim [[Vehicle]] interface or within several other classes.
   *
-  * @param managerRef The [[beam.agentsim.ResourceManager]] managing this [[TempVehicle]]
+  * @param manager The [[beam.agentsim.ResourceManager]] managing this [[TempVehicle]]
   * @author saf
   * @since Beam 2.0.0
   */
-abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resource[TempVehicle] {
+case class TempVehicle(override var manager: Option[ActorRef],
+                       var powerTrain: Powertrain,
+                      initialMatsimVehicle: Vehicle,
+                      initialMatsimAttributes: Option[Attributes],
+                       beamVehicleType: BeamVehicleType,
+                               ) extends Vehicle with Resource[TempVehicle] {
   val logger: Logger = Logger.getLogger("BeamVehicle")
 
-  /**
-    * Identifier for this vehicle
-    */
-  val id: Id[Vehicle]
 
   /**
     * MATSim vehicle delegate container (should be instantiated with all properties at creation).
     */
-  implicit val matSimVehicle: Vehicle
+  val matSimVehicle: Vehicle = initialMatsimVehicle
+
+  /**
+    * Identifier for this vehicle
+    */
+  val id: Id[Vehicle] = matSimVehicle.getId
 
   /**
     * Vehicle power train data
     *
     * @todo This information should be partially dependent on other variables contained in VehicleType
     */
-  val powertrain: Powertrain
+  val powertrain: Powertrain = powertrain
 
   /**
     * Manages the functionality to add or remove passengers from the vehicle according
@@ -99,7 +106,7 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resou
     *
     * @param newDriverRef incoming driver
     */
-  def assumeControlOfVehicle(newDriverRef: ActorRef): Either[DriverAlreadyAssigned, BecomeDriverSuccessAck] = {
+  def becomeDriver(newDriverRef: ActorRef): Either[DriverAlreadyAssigned, BecomeDriverSuccessAck] = {
 
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
@@ -110,7 +117,14 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resou
     }
   }
 
-
+  /**
+    * The [[beam.agentsim.ResourceManager]] who is currently managing this vehicle. Must
+    * not ever be None ([[TempVehicle]]s start out with a manager even if no driver is initially assigned.
+    * There is usually only ever one manager for a vehicle.
+    *
+    * @todo consider adding owner as an attribute of the vehicle as well, since this is somewhat distinct
+    *       from driving... (SAF 11/17)
+    */
 }
 
 object TempVehicle {

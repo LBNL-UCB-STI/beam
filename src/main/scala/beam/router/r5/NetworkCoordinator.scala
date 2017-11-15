@@ -233,14 +233,13 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
         val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
         matSimTransitVehicle.getType.setDescription(mode.value)
         val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
-        val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
-        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
-        beamServices.vehicles += (transitVehId -> matSimTransitVehicle)
-        beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitVehRef)
 
-        val vehicleIdAndRef = BeamVehicleIdAndRef(transitVehId, transitVehRef)
+        val transitVehicle = TempVehicle(None, Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, None, BeamVehicleType.TransitVehicle)
+
+        beamServices.beamVehicles += (transitVehId -> transitVehicle)
+
         val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, vehicleIdAndRef, passengerSchedule)
+        val transitDriverAgentProps = TransitDriverAgent.props(beamServices, transitDriverId, transitVehicle, passengerSchedule)
         val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         beamServices.agentRefs += (transitDriverId.toString -> transitDriver)
         beamServices.transitDriversByVehicle += (transitVehId -> transitDriverId)
