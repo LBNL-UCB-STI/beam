@@ -6,8 +6,8 @@ import beam.agentsim.Resource
 import beam.agentsim.Resource.{AssignManager, TellManagerResourceIsAvailable}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentState, Error, Uninitialized}
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.modalBehaviors.{CancelReservation, CancelReservationWithVehicle}
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, SetCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, ClearCarrier, UnbecomeDriver, VehicleCapacityExceeded, VehicleLocationRequest, VehicleLocationResponse}
+import beam.agentsim.agents.modalBehaviors.CancelReservationWithVehicle
+import beam.agentsim.agents.vehicles.BeamVehicle._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, RemovePassengerFromTrip}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
@@ -27,6 +27,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
 /**
   * @author dserdiuk
   */
@@ -61,12 +62,13 @@ object BeamVehicle {
   }
 
   case object Moving extends BeamAgentState
+
   case object Idle extends BeamAgentState
 
 
   def energyPerUnitByType(vehicleTypeId: Id[VehicleType]): Double = {
     //TODO: add energy type registry
-      0.0
+    0.0
   }
 
   def noSpecialChars(theString: String) = theString.replaceAll("[\\\\|\\\\^]+", ":")
@@ -75,39 +77,42 @@ object BeamVehicle {
     s"$ActorPrefixName${matsimVehicle.getType.getDescription.replaceAll(" ", "_")}-${noSpecialChars(matsimVehicle.getId.toString)}"
   }
 
-  implicit def actorRef2Id(actorRef: ActorRef): Option[Id[Vehicle]] = {
-    if (actorRef.path.name.startsWith(ActorPrefixName)) {
-      Some(Id.create(actorRef.path.name.substring(ActorPrefixName.length), classOf[Vehicle]))
-    } else {
-      None
-    }
-  }
 
   case class VehicleLocationRequest(time: Double)
+
   case class VehicleLocationResponse(vehicleId: Id[Vehicle], spaceTime: Future[SpaceTime])
 
   case class AlightingConfirmation(vehicleId: Id[Vehicle])
+
   case class BoardingConfirmation(vehicleId: Id[Vehicle])
 
   case class BecomeDriver(tick: Double, driver: Id[_], passengerSchedule: Option[PassengerSchedule] = None)
+
   case class UnbecomeDriver(tick: Double, driver: Id[_])
+
   case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], vehicle: TempVehicle)
+
   case class BecomeDriverSuccessAck(id: Id[Vehicle])
+
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
-  case class EnterVehicle(tick: Double, passengerVehicle : VehiclePersonId)
-  case class ExitVehicle(tick: Double, passengerVehicle : VehiclePersonId)
+  case class EnterVehicle(tick: Double, passengerVehicle: VehiclePersonId)
+
+  case class ExitVehicle(tick: Double, passengerVehicle: VehiclePersonId)
+
   case class VehicleCapacityExceeded(vehicleId: Id[Vehicle]) extends ReservationError {
     override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceCapacityExhausted
   }
 
   case class AppendToTrajectory(beamPath: BeamPath)
+
   case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
+
   case class SetCarrier(carrierVehicleId: Id[Vehicle])
+
   case class ClearCarrier()
 
 }
-
 
 
 /**
@@ -117,11 +122,15 @@ object BeamVehicle {
   */
 trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with HasServices with Vehicle {
   override val id: Id[Vehicle]
+
   override def logPrefix(): String = s"BeamVehicle:$id "
 
   def matSimVehicle: Vehicle
+
   def attributes: Attributes
+
   def vehicleTypeName: String
+
   def vehicleClassName: String
 
   val vehicleId: Id[Vehicle]
@@ -138,7 +147,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
     */
   override var manager: Option[ActorRef] = None
   var passengers: ListBuffer[Id[Vehicle]] = ListBuffer()
-  var lastVisited:  SpaceTime = SpaceTime.zero
+  var lastVisited: SpaceTime = SpaceTime.zero
   var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
 
   def location(time: Double): Future[SpaceTime] = {
@@ -178,8 +187,8 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       goto(Error) using stateData.copy(errorReason = Some(errMsg))
   }
 
-  chainedWhen(Uninitialized){
-    case Event(AssignManager(managerRef),_)=>
+  chainedWhen(Uninitialized) {
+    case Event(AssignManager(managerRef), _) =>
       manager = Some(managerRef)
       stay()
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
@@ -265,9 +274,9 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       }
       stay()
     }
-    case Event(req: CancelReservationWithVehicle,_) => {
-      pendingReservations = pendingReservations.filterNot(x=>x.passengerVehiclePersonId.equals(req.vehiclePersonId))
-      driver.foreach{ d=>
+    case Event(req: CancelReservationWithVehicle, _) => {
+      pendingReservations = pendingReservations.filterNot(x => x.passengerVehiclePersonId.equals(req.vehiclePersonId))
+      driver.foreach { d =>
         d ! RemovePassengerFromTrip(req.vehiclePersonId)
       }
       stay()
@@ -287,7 +296,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
   }
 }
 
-case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
+case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()) {
   def isEmpty = nestedVehicles.isEmpty
 
   def pushIfNew(vehicle: Id[Vehicle]) = {
@@ -299,13 +308,14 @@ case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
   }
 
   def penultimateVehicle(): Id[Vehicle] = {
-    if (nestedVehicles.size < 2) throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")
+    if (nestedVehicles.size < 2) throw new RuntimeException("Attempted to access penultimate vehicle when 1 or 0 are in the vehicle stack.")
     nestedVehicles(1)
   }
 
   def outermostVehicle(): Id[Vehicle] = {
     nestedVehicles(0)
   }
+
   def pop(): VehicleStack = {
     VehicleStack(nestedVehicles.tail)
   }

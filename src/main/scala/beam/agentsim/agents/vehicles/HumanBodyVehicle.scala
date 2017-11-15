@@ -73,14 +73,6 @@ object HumanBodyVehicle extends BeamVehicleObject {
     props(beamServices, matSimVehicle.getId, personId, HumanBodyVehicleData(), powertrain, matSimVehicle, new Attributes())
   }
 
-  // TODO: Don't hardcode
-  def PowertrainForHumanBody(): Powertrain = Powertrain.PowertrainFromMilesPerGallon(360) // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Walking
-
-  def createId(personId: Id[Person]): Id[Vehicle] = {
-    Id.create("body-" + personId.toString, classOf[Vehicle])
-  }
-
-
 
   val placeHolderBodyVehicleId: Id[Vehicle] = Id.create("body", classOf[Vehicle])
 }

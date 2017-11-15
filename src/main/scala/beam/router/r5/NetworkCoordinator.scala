@@ -5,7 +5,6 @@ import java.nio.file.Files.exists
 import java.nio.file.Paths
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
@@ -22,7 +21,6 @@ import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{StreetLayer, TarjanIslandPruner}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.Id
-import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
@@ -37,10 +35,11 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
   // Default Akka behavior on an Exception in any Actor does _not_ involve sending _any_ reply.
   // This appears to be by design: A lot goes on in that case (reconfigurable restart strategy, logging, etc.),
   // but sending a reply to the sender of the message which _caused_ the exception must be done explicitly, e.g. like this:
-  override def preRestart(reason:Throwable, message:Option[Any]) {
+  override def preRestart(reason: Throwable, message: Option[Any]) {
     super.preRestart(reason, message)
     sender() ! Status.Failure(reason)
   }
+
   // Status.Failure is a special message which causes the Future on the side of the sender to fail,
   // i.e. Await.result re-throws the Exception! In the case of this Actor here, this is a good thing,
   // see the place in BeamSim where the InitTransit message is sent: We want the failure to happen _there_, not _here_.
@@ -74,14 +73,14 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
       Paths.get(networkDir).toFile.mkdir()
     }
 
-    val unprunedNetworkFilePath = Paths.get(networkDir, UNPRUNED_GRAPH_FILE)  // The first R5 network, created w/out island pruning
+    val unprunedNetworkFilePath = Paths.get(networkDir, UNPRUNED_GRAPH_FILE) // The first R5 network, created w/out island pruning
     val partiallyPrunedNetworkFile: File = unprunedNetworkFilePath.toFile
-    val prunedNetworkFilePath = Paths.get(networkDir, PRUNED_GRAPH_FILE)  // The final R5 network that matches the cleaned (pruned) MATSim network
+    val prunedNetworkFilePath = Paths.get(networkDir, PRUNED_GRAPH_FILE) // The final R5 network that matches the cleaned (pruned) MATSim network
     val prunedNetworkFile: File = prunedNetworkFilePath.toFile
     if (exists(prunedNetworkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${prunedNetworkFilePath.toAbsolutePath}")
       transportNetwork = TransportNetwork.read(prunedNetworkFile)
-    } else {  // Need to create the unpruned and pruned networks from directory
+    } else { // Need to create the unpruned and pruned networks from directory
       log.debug(s"Network file [${prunedNetworkFilePath.toAbsolutePath}] not found. ")
       log.debug(s"Initializing router by creating unpruned network from: ${networkDirPath.toAbsolutePath}")
       val partiallyPrunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
@@ -157,16 +156,16 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
             val fromStopId = tripPattern.stops(from)
             val toStopId = tripPattern.stops(to)
             val stopsInfo = TransitStopsInfo(fromStopId, toStopId)
-            if(tripVehId.toString.equals("SM:43|10748241:T1|15:00") && departureTimeFrom.toLong == 1500L){
-              val i =0
+            if (tripVehId.toString.equals("SM:43|10748241:T1|15:00") && departureTimeFrom.toLong == 1500L) {
+              val i = 0
             }
             val transitPath = if (isOnStreetTransit(mode)) {
-              transitCache.get((fromStopIdx,toStopIdx)).fold{
+              transitCache.get((fromStopIdx, toStopIdx)).fold {
                 val bp = beamPathBuilder.routeTransitPathThroughStreets(departureTimeFrom.toLong, fromStopIdx, toStopIdx, stopsInfo, duration)
-                transitCache += ((fromStopIdx,toStopIdx)->bp)
-                bp}
-              {x =>
-                beamPathBuilder.createFromExistingWithUpdatedTimes(x,departureTimeFrom,duration)
+                transitCache += ((fromStopIdx, toStopIdx) -> bp)
+                bp
+              } { x =>
+                beamPathBuilder.createFromExistingWithUpdatedTimes(x, departureTimeFrom, duration)
               }
             } else {
               val edgeIds = beamPathBuilder.resolveFirstLastTransitEdges(fromStopIdx, toStopIdx)
@@ -221,7 +220,7 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleTypeId = Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
 
-    val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)){
+    val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
       transitVehicles.getVehicleTypes.get(vehicleTypeId);
     } else {
       log.info(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")

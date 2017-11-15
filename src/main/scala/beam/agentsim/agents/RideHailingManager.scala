@@ -40,6 +40,10 @@ object RideHailingManager {
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailingInquiry])
 
+  def props(name: String, fares: Map[Id[VehicleType], BigDecimal], fleet: Map[Id[Vehicle], Vehicle], services: BeamServices, managedVehicles: Map[Id[Vehicle], ActorRef]) = {
+    Props(classOf[RideHailingManager], RideHailingManagerData(name, fares, fleet), services, managedVehicles: Map[Id[Vehicle], ActorRef])
+  }
+
   case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent], pickUpLocation: Location, departAt: BeamTime, destination: Location)
 
   case class TravelProposal(rideHailingAgentLocation: RideHailingAgentLocation, timesToCustomer: Long, estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration], responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
@@ -56,15 +60,11 @@ object RideHailingManager {
 
   case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
 
+  case class RideHailingAgentLocation(rideHailAgent: ActorRef, vehicleId: Id[Vehicle], currentLocation: SpaceTime)
+
   case object RideUnavailableAck
 
   case object RideAvailableAck
-
-  case class RideHailingAgentLocation(rideHailAgent: ActorRef, vehicleId: Id[Vehicle], currentLocation: SpaceTime)
-
-  def props(name: String, fares: Map[Id[VehicleType], BigDecimal], fleet: Map[Id[Vehicle], Vehicle], services: BeamServices, managedVehicles: Map[Id[Vehicle], ActorRef]) = {
-    Props(classOf[RideHailingManager], RideHailingManagerData(name, fares, fleet), services, managedVehicles: Map[Id[Vehicle], ActorRef])
-  }
 }
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
@@ -92,11 +92,11 @@ class RideHailingManager(info: RideHailingManagerData,
       beamServices.geo.utmbbox.maxY)
   }
   private val availableRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
-  private var lockedVehicles = Set[Id[Vehicle]]()
   private val inServiceRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
   //TODO: let's make sorted-map to be get latest and oldest orders to expire some of the
   private val pendingInquiries = collection.concurrent.TrieMap[Id[RideHailingInquiry], (TravelProposal, BeamTrip)]()
   private val pendingModifyPassengerScheduleAcks = collection.concurrent.TrieMap[Id[RideHailingInquiry], ReservationResponse]()
+  private var lockedVehicles = Set[Id[Vehicle]]()
 
   override def receive: Receive = {
 
@@ -278,15 +278,6 @@ class RideHailingManager(info: RideHailingManagerData,
 
   }
 
-  //  triggerCustomerPickUp(customerPickUp, destination, closestRideHailingAgentLocation, trip2DestPlan, travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip(), confirmation, vehiclePersonId)
-  private def triggerCustomerPickUp(customerPickUp: Location, destination: Location, closestRideHailingAgentLocation: RideHailingAgentLocation, trip2DestPlan: Option[BeamTrip], trip2CustPlan: BeamTrip, confirmation: ReservationResponse, personId: Id[Person]) = {
-  }
-
-  private def findVehicle(resourceId: Id[Vehicle]): Option[Vehicle] = {
-    info.fleet.get(resourceId)
-  }
-
-
   private def getClosestRideHailingAgent(pickupLocation: Coord, radius: Double): Option[(RideHailingAgentLocation, Double)] = {
     val nearbyRideHailingAgents = rideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala.toVector
     val distances2RideHailingAgents = nearbyRideHailingAgents.map(rideHailingAgentLocation => {
@@ -298,6 +289,14 @@ class RideHailingManager(info: RideHailingManagerData,
   }
 
   override def findResource(resourceId: Id[TempVehicle]) = ???
+
+  //  triggerCustomerPickUp(customerPickUp, destination, closestRideHailingAgentLocation, trip2DestPlan, travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip(), confirmation, vehiclePersonId)
+  private def triggerCustomerPickUp(customerPickUp: Location, destination: Location, closestRideHailingAgentLocation: RideHailingAgentLocation, trip2DestPlan: Option[BeamTrip], trip2CustPlan: BeamTrip, confirmation: ReservationResponse, personId: Id[Person]) = {
+  }
+
+  private def findVehicle(resourceId: Id[Vehicle]): Option[Vehicle] = {
+    info.fleet.get(resourceId)
+  }
 }
 
 
