@@ -21,16 +21,26 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
-    "prefer mode choice car type than other modes" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceDriveIfAvailable")){
-      val maxK = maxRepetition(listValueTagEventFile)
-      maxK shouldBe "car"
+    "prefer mode choice car type than other modes" in {
+      val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
+      val driveIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceDriveIfAvailable"))
+
+      val multinomialCount = multinomialRun.groupedCount.get("car").getOrElse(0)
+      val driveIfAvailableCount = driveIfAvailableRun.groupedCount.get("car").getOrElse(0)
+
+      driveIfAvailableCount should be >= multinomialCount
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
-    "prefer mode choice transit type than other modes" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable")){
-      val maxK = maxRepetition(listValueTagEventFile)
-      maxK shouldBe "transit"
+    "prefer mode choice transit type than other modes" ignore {
+      val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
+      val transitIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable"))
+
+      val multinomialCount = multinomialRun.groupedCount.get("transit").getOrElse(0)
+      val transitIfAvailableCount = transitIfAvailableRun.groupedCount.get("transit").getOrElse(0)
+
+      transitIfAvailableCount should be >= multinomialCount
     }
   }
 
@@ -41,9 +51,14 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceRideHailIfAvailable" must {
-    "prefer more mode choice ride hail type than other modes" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceRideHailIfAvailable")){
-      val maxK = maxRepetition(listValueTagEventFile)
-      maxK shouldBe "ride_hailing"
+    "prefer more mode choice ride hail type than other modes" in {
+      val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
+      val rideHailIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceRideHailIfAvailable"))
+
+      val multinomialCount = multinomialRun.groupedCount.get("ride_hailing").getOrElse(0)
+      val rideHailIfAvailableCount = rideHailIfAvailableRun.groupedCount.get("ride_hailing").getOrElse(0)
+
+      rideHailIfAvailableCount should be >= multinomialCount
     }
   }
 
@@ -54,7 +69,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceDriveOnly" must {
-      "Generate ModeChoice events file with only car types" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceDriveOnly")){
+      "Generate ModeChoice events file with only car types" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceDriveOnly")){
       listValueTagEventFile.filter(s => s.equals("car")).size shouldBe listValueTagEventFile.size
       
     }
@@ -67,11 +82,10 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
 
-  //Commented out for now as beam is hanging during run
-//  "Running beam with modeChoiceClass ModeChoiceUniformRandom" must {
-//    "Generate events file with exactly four ride_hailing type for ModeChoice" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceUniformRandom")){
-//      //listValueTagEventFile.filter(s => s.equals("ride_hailing")).size shouldBe(4)
-//      fail("Beam doesn't work in this ModeChoice")
-//    }
-//  }
+//  Commented out for now as beam is hanging during run
+  "Running beam with modeChoiceClass ModeChoiceUniformRandom" must {
+    "Generate events file with exactly four ride_hailing type for ModeChoice" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceUniformRandom")){
+      fail("Unpredictable output to evaluate")
+      }
+  }
 }
