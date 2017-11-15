@@ -207,7 +207,7 @@ class PersonAgent(val beamServices: BeamServices,
     /*
      * Starting Trip
      */
-    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), _: BeamAgentInfo[PersonData]) =>
 
       processNextLegOrStartActivity(triggerId, tick)
     /*
@@ -350,9 +350,10 @@ class PersonAgent(val beamServices: BeamServices,
             holdTickAndTriggerId(tick, triggerId)
             if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehiclePersonId.vehicleId) {
               // We are already in vehicle from before, so update schedule
-              beamServices.vehicleRefs(vehiclePersonId.vehicleId) ! ModifyPassengerSchedule(passengerSchedule)
+              //XXXX (VR): Easy refactor => send directly to driver
+              beamServices.vehicles(vehiclePersonId.vehicleId).driver.foreach(_!ModifyPassengerSchedule(passengerSchedule))
             } else {
-              // Our first time entering this vehicle, so BecomeDriver
+              //XXXX (VR): Our first time entering this vehicle, so become driver directly
               beamServices.vehicles(vehiclePersonId.vehicleId).assumeControlOfVehicle(self)
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
@@ -380,7 +381,8 @@ class PersonAgent(val beamServices: BeamServices,
             case Some(personalVeh) =>
               if (currentActivity.getType.equals("Home")) {
                 beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id, personalVeh)
-                beamServices.vehicleRefs(personalVeh) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
+                //XXXX (VR): use resource method on vehicle
+                beamServices.vehicles(personalVeh).manager.foreach(_ ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong)))
                 currentTourPersonalVehicle = None
               } else {
                 beamServices.householdRefs(_household) ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity.getCoord, tick.toLong))

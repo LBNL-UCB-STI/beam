@@ -1,6 +1,6 @@
 package beam.agentsim.agents.modalBehaviors
 
-import akka.actor.FSM
+import akka.actor.{ActorRef, FSM}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
@@ -48,6 +48,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   protected var _awaitingBoardConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _awaitingAlightConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _errorMessageFromDrivesVehicle: String = ""
+
+
+  protected var pendingReservations: List[ReservationRequest] = List[ReservationRequest]()
 
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _) =>
@@ -289,6 +292,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
   }
 
+
   private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
     val response = _currentLeg match {
       case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
@@ -309,6 +313,16 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         }
     }
     response
+  }
+
+  private def sendPendingReservations() = {
+    if (pendingReservations.nonEmpty) {
+      pendingReservations.foreach { reservation =>
+        //FIXME: process reservations directly here... happens upon becoming the driver
+//        driverActor ! ReservationRequestWithVehicle(reservation, id)
+      }
+      pendingReservations = List()
+    }
   }
 
 }

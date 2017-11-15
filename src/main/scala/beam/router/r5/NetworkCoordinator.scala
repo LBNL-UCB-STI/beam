@@ -236,7 +236,6 @@ class NetworkCoordinator(val beamServices: BeamServices) extends Actor with Acto
         val transitVehProps = TransitVehicle.props(beamServices, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
         val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
         beamServices.vehicles += (transitVehId -> matSimTransitVehicle)
-        beamServices.vehicleRefs += (transitVehId -> transitVehRef)
         beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitVehRef)
 
         val vehicleIdAndRef = BeamVehicleIdAndRef(transitVehId, transitVehRef)

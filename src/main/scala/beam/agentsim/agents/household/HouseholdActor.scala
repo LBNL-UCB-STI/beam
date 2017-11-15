@@ -1,15 +1,12 @@
 package beam.agentsim.agents.household
 
-import akka.actor.FSM.Event
 import akka.actor.{ActorLogging, ActorRef, Props}
-import beam.agentsim.Resource.{AssignManager, ResourceIsAvailableNotification}
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.ResourceManager.VehicleManager
-import beam.agentsim.agents.vehicles.BeamVehicle.{AppendToTrajectory, StreetVehicle}
 import beam.agentsim.agents.household.HouseholdActor._
-import beam.agentsim.agents.vehicles.{CarVehicle, TempVehicle, Trajectory}
+import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.vehicles.{TempVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
-import beam.agentsim.scheduler.TriggerWithId
 import beam.router.DefinedTrajectoryHolder
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamPath
@@ -66,7 +63,7 @@ class HouseholdActor(services: BeamServices,
   extends VehicleManager with ActorLogging with HasServices {
 
   override val beamServices: BeamServices = services
-  override val resources:Map[Id[Vehicle],TempVehicle]= vehicles
+  override val resources: Map[Id[Vehicle], TempVehicle] = vehicles
 
   /**
     * Available [[Vehicle]]s in [[Household]]
@@ -87,8 +84,8 @@ class HouseholdActor(services: BeamServices,
     * Current [[Vehicle]] assignments
     */
   var _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
-  var _reservedForPerson: mutable.Map[Id[Person],Id[Vehicle]]= mutable.Map[Id[Person], Id[Vehicle]]()
-  var _checkedOutVehicles: mutable.Map[Id[Vehicle],Id[Person]]= mutable.Map[Id[Vehicle], Id[Person]]()
+  var _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map[Id[Person], Id[Vehicle]]()
+  var _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map[Id[Vehicle], Id[Person]]()
 
   /**
     * Mapping of [[Vehicle]] to [[StreetVehicle]]
@@ -101,10 +98,10 @@ class HouseholdActor(services: BeamServices,
 
   override def receive: Receive = {
 
-    case NotifyNewVehicleLocation(vehId,whenWhere) =>
+    case NotifyNewVehicleLocation(vehId, whenWhere) =>
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
-    case ResourceIsAvailableNotification(resourceId,when) =>
+    case ResourceIsAvailableNotification(resourceId, when) =>
       val vehicleId = Id.createVehicleId(resourceId)
       val personIDOpt = _checkedOutVehicles.remove(vehicleId)
       personIDOpt match {
@@ -132,9 +129,9 @@ class HouseholdActor(services: BeamServices,
       val availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles
 
       // Assign to requesting individual
-      availableStreetVehicles.foreach{x=>
+      availableStreetVehicles.foreach { x =>
         _availableVehicles.remove(x.id)
-        _checkedOutVehicles.put(x.id,personId)
+        _checkedOutVehicles.put(x.id, personId)
       }
       sender() ! MobilityStatusReponse(availableStreetVehicles)
 
@@ -171,12 +168,13 @@ class HouseholdActor(services: BeamServices,
     val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
     val initialBeamPath = BeamPath(Vector(), None, DefinedTrajectoryHolder(Trajectory(Vector(initialLocation))))
     _vehicles.foreach { veh =>
-//      services.vehicleRefs(veh) ! AppendToTrajectory(initialBeamPath)
-
+      //XXXX (VR): What goes here?
+      //      services.vehicleRefs(veh) ! AppendToTrajectory(initialBeamPath)
       //TODO following mode should come from the vehicle
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
     }
   }
+
   def lookupAvailableVehicles(): Vector[StreetVehicle] = Vector(
     for {
       availableVehicle <- _availableVehicles

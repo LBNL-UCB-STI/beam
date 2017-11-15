@@ -80,7 +80,7 @@ object HumanBodyVehicle extends BeamVehicleObject {
     Id.create("body-" + personId.toString, classOf[Vehicle])
   }
 
-  def isHumanBodyVehicle(beamVehicleId: Id[Vehicle]): Boolean = beamVehicleId.toString.toLowerCase.contains("body")
+
 
   val placeHolderBodyVehicleId: Id[Vehicle] = Id.create("body", classOf[Vehicle])
 }

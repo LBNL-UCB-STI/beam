@@ -52,15 +52,7 @@ abstract case class TempVehicle(managerRef: ActorRef) extends Vehicle with Resou
   val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator =
     DefaultVehicleOccupancyAdministrator(this)
 
-  /**
-    * The [[beam.agentsim.ResourceManager]] who is currently managing this vehicle. Must
-    * not ever be None ([[Vehicle]]s start out with a manager even if no driver is initially assigned.
-    * There is usually only ever one manager for a vehicle.
-    *
-    * @todo consider adding owner as an attribute of the vehicle as well, since this is somewhat distinct
-    *       from driving... (SAF 11/17)
-    */
-  var manager: Option[ActorRef] = Option(managerRef)
+
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
