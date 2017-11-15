@@ -8,8 +8,6 @@ trait IntegrationSpecCommon {
 
   val configFileName = s"${System.getenv("PWD")}/test/input/beamville/beam.conf"
   val baseConfig: Config = ConfigFactory.parseFile(new File(configFileName))
-    .withValue("beam.outputs.logging.beam.logLevel", ConfigValueFactory.fromAnyRef("ERROR"))
-    .withValue("beam.outputs.logging.dependencies.logLevel", ConfigValueFactory.fromAnyRef("ERROR"))
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
     .resolve
 

@@ -2,7 +2,7 @@ package beam.sim.modules
 
 import akka.actor.ActorSystem
 import beam.sim.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
-import beam.sim.config.{BeamConfig, BeamLoggingSetup}
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, BeamServicesImpl}
 import com.google.inject._
 import com.typesafe.config.Config
@@ -18,7 +18,6 @@ class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with Ak
   @Provides @Singleton
   def provideActorSystem(injector: Injector, config: Config): ActorSystem = {
     val system = ActorSystem("beam-actor-system", config)
-    system.eventStream.setLogLevel(BeamLoggingSetup.log4jLogLevelToAkka(beamConfig.beam.outputs.logging.beam.logLevel))
     // add the GuiceAkkaExtension to the system, and initialize it with the Guice injector
     GuiceAkkaExtension(system).initialize(injector)
     system
