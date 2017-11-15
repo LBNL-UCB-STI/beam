@@ -5,14 +5,14 @@ import java.io.File
 import beam.sim.RunBeam
 import beam.sim.config.{BeamConfig, ConfigModule}
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 /**
   * Created by fdariasm on 29/08/2017
   * 
   */
 
-class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
+class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with RunBeam with
   EventsFileHandlingCommon with IntegrationSpecCommon{
 
   private val config: Config = baseConfig
@@ -21,16 +21,20 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
 
   val beamConfig = BeamConfig(config)
 
-  runBeamWithConfig(config)
   val xmlFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "xml")
   val csvFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "csv")
-  lazy val route_input = beamConfig.beam.inputDirectory
+  val route_input = beamConfig.beam.inputDirectory
 
   val busTripsFile = new File(s"$route_input/r5/bus/trips.txt")
   val trainTripsFile = new File(s"$route_input/r5/train/trips.txt")
 
   val busStopTimesFile = new File(s"$route_input/r5/bus/stop_times.txt")
   val trainStopTimesFile = new File(s"$route_input/r5/train/stop_times.txt")
+
+  override protected def beforeAll(): Unit = {
+    runBeamWithConfig(config)
+    super.beforeAll()
+  }
 
   "Create xml events file in output directory" should behave like fileExists(xmlFile)
 
