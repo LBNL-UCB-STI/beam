@@ -11,7 +11,7 @@ class StartWithCustomConfig(val config: Config) extends
 
   val beamConfig = BeamConfig(config)
 
-  runBeamWithConfig(config, ConfigModule.matSimConfig(config))
+  runBeamWithConfig(config)
 
   val file: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , beamConfig.beam.outputs.events.fileOutputFormats)
 

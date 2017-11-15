@@ -1,16 +1,16 @@
 package beam.sim
 
-import beam.sim.config.{BeamConfig, BeamLoggingSetup, ConfigModule}
-import beam.sim.controler.BeamControler
-import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
-import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
+import beam.agentsim.events.handling.BeamEventsHandling
+import beam.sim.config.{BeamConfig, ConfigModule}
+import beam.sim.controler.corelisteners.BeamPrepareForSimImpl
+import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.FileUtils
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.Config
 import org.matsim.core.controler._
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
@@ -28,13 +28,12 @@ trait RunBeam {
         // MATSim defaults
         install(new NewControlerModule)
         install(new ScenarioByInstanceModule(scenario))
-        install(new controler.ControlerDefaultsModule)
-        install(new BeamControllerCoreListenersModule)
+        install(new ControlerDefaultsModule)
+        install(new ControlerDefaultCoreListenersModule)
 
 
         // Beam Inject below:
         install(new ConfigModule(typesafeConfig))
-        install(new AgentsimModule)
         install(new BeamAgentModule(BeamConfig(typesafeConfig)))
         install(new UtilsModule)
       }
@@ -46,28 +45,30 @@ trait RunBeam {
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[BeamSim])
+        bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
-        bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
       }
     }))
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val config = ConfigModule.loadConfig(configFileName)
-    val matsimConfig = ConfigModule.matSimConfig(config)
-    runBeamWithConfig(config, matsimConfig)
+    runBeamWithConfig(config)
   }
 
-  def runBeamWithConfig(typesafeConfig: com.typesafe.config.Config, matsimConfig: Config) = {
+  def runBeamWithConfig(config: com.typesafe.config.Config) = {
+    val matsimConfig = ConfigModule.matSimConfig(config)
+
+    val beamConfig = BeamConfig(config)
+
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-    val beamConfig = BeamConfig(typesafeConfig)
-    BeamLoggingSetup.configureLogs(beamConfig)
+
 
     FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)
 
 
     lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
-    val injector = beamInjector(scenario, typesafeConfig)
+    val injector = beamInjector(scenario, config)
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 

@@ -21,7 +21,7 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
 
   val beamConfig = BeamConfig(config)
 
-  runBeamWithConfig(config, ConfigModule.matSimConfig(config))
+  runBeamWithConfig(config)
   val xmlFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "xml")
   val csvFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "csv")
   lazy val route_input = beamConfig.beam.inputDirectory

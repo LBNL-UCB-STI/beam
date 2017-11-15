@@ -26,7 +26,6 @@ class ConfigModule(val typesafeConfig: TypesafeConfig) extends AbstractModule wi
   }
 
   override def configure(): Unit = {
-    requestInjection(BeamLoggingSetup)
     requestInjection(GeoUtils)
     requestInjection(Trajectory)
   }
