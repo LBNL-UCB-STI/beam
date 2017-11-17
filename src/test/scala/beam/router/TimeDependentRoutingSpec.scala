@@ -3,7 +3,7 @@ package beam.router
 import java.io.File
 import java.time.ZonedDateTime
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -49,14 +49,13 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
     when(services.matsimServices).thenReturn(matsimServices)
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
-    when(services.transitLegsByStopAndDeparture).thenReturn(tupleToNext)
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    router = system.actorOf(BeamRouter.props(services, fareCalculator))
+    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
-      router ! InitializeRouter
-      expectMsg(RouterInitialized)
+      router ! Identify(0)
+      expectMsgType[ActorIdentity]
     }
   }
 

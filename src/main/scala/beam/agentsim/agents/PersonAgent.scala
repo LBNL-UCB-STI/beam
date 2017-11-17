@@ -166,7 +166,7 @@ class PersonAgent(val beamServices: BeamServices,
       )
   }
 
-  def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
+  private def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
 
     _numReschedules = _numReschedules + 1
     if(_numReschedules > 50){
@@ -382,8 +382,7 @@ class PersonAgent(val beamServices: BeamServices,
         if (inferredVehicle.isEmpty || inferredVehicle.outermostVehicle() != leg.beamVehicleId) {
           inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
           if (inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver && leg.beamLeg.mode.isTransit) {
-            val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(inferredVehicle.outermostVehicle()).toString)
-            driverRef ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
+            TransitDriverAgent.selectByVehicleId(inferredVehicle.outermostVehicle()) ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
           }
         }
         exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
