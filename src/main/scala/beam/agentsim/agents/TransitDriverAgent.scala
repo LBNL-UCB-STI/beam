@@ -29,7 +29,7 @@ object TransitDriverAgent {
     Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
   }
 
-  def lookupActorFromVehicleId(context: ActorContext, transitVehicle: Id[Vehicle]) = {
+  def selectByVehicleId(transitVehicle: Id[Vehicle])(implicit context: ActorContext) = {
     context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
   }
 }
