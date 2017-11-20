@@ -1,28 +1,26 @@
 package beam.sim
 
 import java.time.ZonedDateTime
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentMap, TimeUnit}
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
-import beam.agentsim.agents.TransitDriverAgent
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.sim.config.BeamConfig
 import beam.agentsim.events.AgentsimEventsBus
-import beam.router.RoutingModel.{BeamLeg, BeamLegWithNext, BeamPath}
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
-import com.google.inject.{ImplementedBy, Inject, Injector, Singleton}
+import com.google.inject.{ImplementedBy, Inject, Injector}
 import glokka.Registry
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
-import scala.concurrent.duration.FiniteDuration
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.duration.FiniteDuration
 
 /**
   */
@@ -50,11 +48,6 @@ trait BeamServices extends ActorInject {
   val households: TrieMap[Id[Household], Household]
   val householdRefs: TrieMap[Id[Household], ActorRef]
   val agentRefs: TrieMap[String, ActorRef]
-  val transitVehiclesByBeamLeg: TrieMap[BeamLeg, Id[Vehicle]]
-  val transitDriversByVehicle: TrieMap[Id[Vehicle], Id[TransitDriverAgent]]
-  //TODO refactor this into named case clases
-  val transitLegsByStopAndDeparture: TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
-  //val transitCache = TrieMap[(Int, Int), BeamPath]()
 
 }
 
@@ -80,9 +73,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val households: TrieMap[Id[Household], Household] = TrieMap[Id[Household], Household]()
   val householdRefs: TrieMap[Id[Household], ActorRef] = TrieMap[Id[Household], ActorRef]()
   val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
-  val transitVehiclesByBeamLeg: TrieMap[BeamLeg, Id[Vehicle]] = TrieMap[BeamLeg, Id[Vehicle]]()
-  val transitDriversByVehicle: TrieMap[Id[Vehicle], Id[TransitDriverAgent]] = TrieMap[Id[Vehicle], Id[TransitDriverAgent]]()
-  val transitLegsByStopAndDeparture: TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext] = TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]()
 }
 
 object BeamServices {
