@@ -8,7 +8,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, RemovePassengerFromTrip, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverSuccessAck, EnterVehicle, ExitVehicle}

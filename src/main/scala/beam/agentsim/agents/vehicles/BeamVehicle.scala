@@ -30,6 +30,8 @@ import scala.util.{Failure, Random, Success, Try}
   */
 // XXXX: This is a class and MUST NOT be a case class because it contains mutable state.
 // If we need immutable state, we will need to operate on this through lenses.
+
+// TODO: safety for
 class BeamVehicle(override var manager: Option[ActorRef],
                   powerTrain: Powertrain,
                   initialMatsimVehicle: Vehicle,

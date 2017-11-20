@@ -2,7 +2,8 @@ package beam.agentsim.agents
 
 import akka.actor.SupervisorStrategy.{Resume, Stop}
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
-import beam.agentsim.agents.vehicles.{BeamVehicle, HumanBodyVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
@@ -31,19 +32,25 @@ class Population(val beamServices: BeamServices) extends Actor with ActorLogging
   private val matsimHumanBodyVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create("HumanBodyVehicle", classOf[VehicleType]))
   matsimHumanBodyVehicleType.setDescription("Human")
 
-  for ((personId, matsimPerson) <- beamServices.persons.take(beamServices.beamConfig.beam.agentsim.numAgents)){ // if personId.toString.startsWith("9607-") ){
+  for ((personId, matsimPerson) <- beamServices.persons.take(beamServices.beamConfig.beam.agentsim.numAgents)) {
     val bodyVehicleIdFromPerson = HumanBodyVehicle.createId(personId)
-    val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, matsimHumanBodyVehicleType)
-    val bodyVehicleRef = context.actorOf(HumanBodyVehicle.props(beamServices, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()), BeamVehicle.buildActorName(matsimBodyVehicle))
-    beamServices.vehicleRefs += ((bodyVehicleIdFromPerson, bodyVehicleRef))
+    val ref: ActorRef = context.system.actorOf(PersonAgent.props(beamServices, personId, personToHouseholdId(personId)
+      , matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
+
+    // Human body vehicle initialization
+    val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson,
+      HumanBodyVehicle.MatsimHumanBodyVehicleType)
+    val bodyVehicle = new BeamVehicle(Option(ref), HumanBodyVehicle.powerTrainForHumanBody(),
+      matsimBodyVehicle, None, HumanBodyVehicle)
+
     // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
     //let's put here human body vehicle too, it should be clean up on each iteration
-    beamServices.vehicles += ((bodyVehicleIdFromPerson, matsimBodyVehicle))
-    beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), bodyVehicleRef)
-    val ref: ActorRef = context.actorOf(PersonAgent.props(beamServices, personId, personToHouseholdId(personId), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
+    beamServices.beamVehicles += ((bodyVehicleIdFromPerson, bodyVehicle))
+
     beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
     beamServices.personRefs += ((personId, ref))
   }
+
 
   override def receive = PartialFunction.empty
 

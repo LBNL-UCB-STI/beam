@@ -51,14 +51,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
   var availableAlternatives: Vector[String] = Vector()
   //TODO source these attributes from pop input data
-  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households.get
-  (_household).get.getIncome.getIncome,
-    beamServices.households.get(_household).get.getMemberIds.size(),
-    (new Random()).nextBoolean(),
-    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_
-      .getType.getDescription.toLowerCase.contains("car")).size,
-    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_
-      .getType.getDescription.toLowerCase.contains("bike")).size)
+  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households
+  (_household).getIncome.getIncome,
+    beamServices.households(_household).getMemberIds.size(),
+    new Random().nextBoolean(),
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.beamVehicles(_)).count(_
+      .getType.getDescription.toLowerCase.contains("car")),
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.beamVehicles(_)).count(_
+      .getType.getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
@@ -91,7 +91,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
             scheduleDepartureWithValidatedTrip(theChosenTrip)
           }
         case _ =>
-          val (tick, theTriggerId) = releaseTickAndTriggerId()
+          val (_, _) = releaseTickAndTriggerId()
           stop(Failure("no alternatives found"))
       }
     } else {
@@ -325,7 +325,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   def cancelReservations(): Unit = {
-//    cancelTrip(pendingChosenTrip.get.legs, _currentVehicle)
+    //    cancelTrip(pendingChosenTrip.get.legs, _currentVehicle)
     awaitingReservationConfirmation.clear()
   }
 

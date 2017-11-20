@@ -2,7 +2,7 @@ package beam.router
 
 import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -38,9 +38,9 @@ object RoutingModel {
       var theMode: BeamMode = WALK
       var hasUsedCar: Boolean = false
       legs.foreach { leg =>
-        if(leg.beamLeg.mode == CAR)hasUsedCar = true
+        if (leg.beamLeg.mode == CAR) hasUsedCar = true
         // Any presence of transit makes it transit
-        if (leg.beamLeg.mode.isTransit) {
+        if (leg.beamLeg.mode.isTransit()) {
           theMode = TRANSIT
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
           if ((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
@@ -53,11 +53,11 @@ object RoutingModel {
           theMode = BIKE
         }
       }
-      if(theMode == TRANSIT && hasUsedCar){
+      if (theMode == TRANSIT && hasUsedCar) {
         DRIVE_TRANSIT
-      }else if(theMode == TRANSIT && !hasUsedCar){
+      } else if (theMode == TRANSIT && !hasUsedCar) {
         WALK_TRANSIT
-      }else{
+      } else {
         theMode
       }
     }
@@ -68,7 +68,8 @@ object RoutingModel {
     }
 
     override def toString() = {
-      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode)
+        .mkString(",")})"
     }
   }
 
@@ -121,9 +122,11 @@ object RoutingModel {
   }
 
   object EmbodiedBeamLeg {
-    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("", classOf[Vehicle]), false, None, 0.0, false)
+    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("", classOf[Vehicle]), false, None,
+      0.0, false)
 
-    def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
+    def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None,
+      0.0, false)
   }
 
   case class TransitStopsInfo(fromStopId: Int, toStopId: Int)
@@ -134,7 +137,8 @@ object RoutingModel {
     * @param transitStops start and end stop if this path is transit (partial) route
     *
     */
-  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], protected[router] val resolver: TrajectoryResolver) {
+  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], protected[router] val
+  resolver: TrajectoryResolver) {
 
     def isTransit = transitStops.isDefined
 
@@ -179,7 +183,9 @@ object RoutingModel {
     }
   }
 
-  //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
+  //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity,
+  // Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity,
+  // Long.MinValue))
   object EmptyBeamPath {
     val path = BeamPath(Vector[String](), None, EmptyTrajectoryResolver)
   }
