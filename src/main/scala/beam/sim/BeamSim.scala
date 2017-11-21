@@ -305,7 +305,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
           case (personId, Some(personAgent)) => (personId, personAgent)
         }.toMap
 
-        var houseHoldVehicles: Map[Id[_ <: BeamVehicle], BeamVehicle] = Map.empty
+        var houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = Map.empty
 
         val props = HouseholdActor.props(beamServices, householdId, matSimHousehold, houseHoldVehicles,
           membersActors, homeCoord)

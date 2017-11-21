@@ -32,7 +32,7 @@ object HouseholdActor {
   }
 
   def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household,
-            houseHoldVehicles: Map[Id[_<:BeamVehicle], BeamVehicle], membersActors: Map[Id[Person], ActorRef],
+            houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], membersActors: Map[Id[Person], ActorRef],
             homeCoord: Coord): Props = {
     Props(new HouseholdActor(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
   }
@@ -59,14 +59,14 @@ object HouseholdActor {
 class HouseholdActor(services: BeamServices,
                      id: Id[households.Household],
                      matSimHouseHold: org.matsim.households.Household,
-                     vehicles: Map[Id[_ <: BeamVehicle], BeamVehicle],
+                     vehicles: Map[Id[BeamVehicle], BeamVehicle],
                      memberActors: Map[Id[Person], ActorRef],
                      homeCoord: Coord
                     )
   extends VehicleManager with ActorLogging with HasServices {
 
   override val beamServices: BeamServices = services
-  override val resources: Map[Id[_ <: BeamVehicle], BeamVehicle] = vehicles
+  override val resources: Map[Id[BeamVehicle], BeamVehicle] = vehicles
 
   /**
     * Available [[Vehicle]]s in [[Household]]

@@ -6,6 +6,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.{Id, Identifiable}
 
+import scala.reflect.ClassTag
+
 /**
   *
   * @author dserdiuk, saf
@@ -16,16 +18,26 @@ trait Resource[R] extends Identifiable[R] {
 
   var manager: Option[ActorRef]
 
-  def informManagerResourceIsAvailable(whenWhere: SpaceTime): Unit = {
-    manager.foreach(_!ResourceIsAvailableNotification(getId, whenWhere))
+
+  /**
+    * Ensures that outgoing messages from resource use the correct ID type.
+    * @param whenWhere when and where the resource is.
+    * @param e implicit conversion to the [[Resource]]'s type for the [[Id]]
+    * @tparam T Any ID type
+    */
+  def informManagerResourceIsAvailable[T](whenWhere: SpaceTime)(implicit e: Id[T]=>Id[R]):  Unit = {
+    val x = ResourceIsAvailableNotification(getId, whenWhere)
+    manager.foreach(_ ! x)
   }
+
 }
+
 
 object Resource {
 
   case class TellManagerResourceIsAvailable(when: SpaceTime)
 
-  case class ResourceIsAvailableNotification[R](resourceId: Id[_ <: R], when: SpaceTime)
+  case class ResourceIsAvailableNotification(resourceId: Id[_], when: SpaceTime)
 
   case class AssignManager(managerRef: ActorRef)
 
@@ -37,11 +49,15 @@ object Resource {
   * @tparam R The type of resource being managed
   */
 trait ResourceManager[R <: Resource[R]] {
+
   this: Actor =>
 
-  val resources: Map[Id[_<:R], R] = Map.empty
+  val resources: Map[Id[R], R] = Map.empty
 
-  def findResource(resourceId: Id[R]): Option[_ <: R]
+  def findResource(resourceId: Id[R]): Option[R] = {
+    resources.get(resourceId)
+  }
+
 
 }
 

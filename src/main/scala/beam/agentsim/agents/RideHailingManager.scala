@@ -2,9 +2,8 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import beam.agentsim.Resource.ResourceIsAvailableNotification
-import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.RideHailingManager._
 import beam.agentsim.agents.TriggerUtils._
@@ -83,12 +82,11 @@ case class RideHailingManagerData(name: String, fares: Map[Id[VehicleType], BigD
 
 class RideHailingManager(info: RideHailingManagerData,
                          val beamServices: BeamServices,
-                         val managedVehicles: Map[Id[_<:BeamVehicle], BeamVehicle]) extends VehicleManager with HasServices
+                         val managedVehicles: Map[Id[_ <: BeamVehicle], BeamVehicle]) extends Actor with HasServices
   with AggregatorFactory {
 
   import scala.collection.JavaConverters._
 
-  override val resources: Map[Id[_ <: BeamVehicle], BeamVehicle] = managedVehicles
 
   val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
@@ -113,7 +111,7 @@ class RideHailingManager(info: RideHailingManagerData,
   override def receive: Receive = {
 
     case ResourceIsAvailableNotification(vehicleId: Id[Vehicle], availableIn: SpaceTime) =>
-      resources(vehicleId).driver.foreach(driver => {
+      managedVehicles(vehicleId).driver.foreach(driver => {
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, availableIn)
         rideHailingAgentSpatialIndex.put(availableIn.loc.getX, availableIn.loc.getY, rideHailingAgentLocation)
         availableRideHailVehicles.put(vehicleId, rideHailingAgentLocation)
@@ -343,7 +341,6 @@ class RideHailingManager(info: RideHailingManagerData,
     distances2RideHailingAgents.sortBy(_._2).filterNot(x => lockedVehicles(x._1.vehicleId)).headOption
   }
 
-  override def findResource(resourceId: Id[BeamVehicle]) = ???
 
   //  triggerCustomerPickUp(customerPickUp, destination, closestRideHailingAgentLocation, trip2DestPlan,
   // travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip(), confirmation, vehiclePersonId)

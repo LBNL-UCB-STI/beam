@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, LoggingFSM}
+import beam.agentsim.Resource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -54,7 +55,7 @@ case class InitializeTrigger(tick: Double) extends Trigger
   * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
   */
-trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] {
+trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
 
   override def logDepth = 12
 

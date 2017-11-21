@@ -4,12 +4,14 @@ import java.lang.NullPointerException
 
 import akka.actor.ActorRef
 import beam.agentsim.Resource
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.SeatAssignmentRule.RandomSeatAssignmentRule
 import beam.agentsim.agents.vehicles.VehicleOccupancyAdministrator.DefaultVehicleOccupancyAdministrator
 import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.events.SpaceTime
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -52,13 +54,6 @@ class BeamVehicle(override var manager: Option[ActorRef],
   val id: Id[Vehicle] = matSimVehicle.getId
 
   /**
-    * Vehicle power train data
-    *
-    * @todo This information should be partially dependent on other variables contained in VehicleType
-    */
-  val powertrain: Powertrain = powertrain
-
-  /**
     * Manages the functionality to add or remove passengers from the vehicle according
     * to standing or sitting seating occupancy information.
     */
@@ -99,13 +94,13 @@ class BeamVehicle(override var manager: Option[ActorRef],
   /**
     * Called by the driver.
     */
-  def relinquishControlOfVehicle(): Unit = {
+  def unsetDriver(): Unit = {
     driver = None
   }
 
   /**
     * Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
-    * a call of [[relinquishControlOfVehicle]] will remove the driver.
+    * a call of [[unsetDriver]] will remove the driver.
     * Send back appropriate response to caller depending on protocol.
     *
     * @param newDriverRef incoming driver
@@ -120,7 +115,6 @@ class BeamVehicle(override var manager: Option[ActorRef],
       Left(DriverAlreadyAssigned(id, driver.get))
     }
   }
-
 }
 
 object BeamVehicle {

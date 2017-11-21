@@ -20,6 +20,7 @@ import beam.sim.HasServices
 import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
+import beam.agentsim
 
 import scala.collection.immutable.HashSet
 import scala.util.Success

@@ -3,12 +3,13 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource.TellManagerResourceIsAvailable
-import beam.agentsim.agents.BeamAgent.{Error, _}
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, RemovePassengerFromTrip, StartLegTrigger}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger,
+  RemovePassengerFromTrip, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverSuccessAck, EnterVehicle, ExitVehicle}
@@ -270,7 +271,7 @@ class PersonAgent(val beamServices: BeamServices,
           }
       }
 
-    case Event(TriggerWithId(NotifyLegEndTrigger(_,beamLeg),_), _) =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(_, beamLeg), _), _) =>
       stop(Failure(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: $beamLeg"))
   }
 
@@ -303,7 +304,7 @@ class PersonAgent(val beamServices: BeamServices,
                 processNextLegOrStartActivity(triggerId, tick)
               }
             case None =>
-stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
+              stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
           }
         case _ =>
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
@@ -450,18 +451,18 @@ stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
     }
   }
 
-  override def postStop(): Unit ={
-      logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
-      cancelTrip(_currentEmbodiedLeg ++: _currentRoute.legs, _currentVehicle)
-      super.postStop()
+  override def postStop(): Unit = {
+    logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
+    cancelTrip(_currentEmbodiedLeg ++: _currentRoute.legs, _currentVehicle)
+    super.postStop()
   }
 
   chainedWhen(AnyState) {
     case Event(ModifyPassengerScheduleAck(_), _) =>
       scheduleStartLegAndStay()
-    case Event(BecomeDriverSuccessAck, _)  =>
+    case Event(BecomeDriverSuccessAck, _) =>
       scheduleStartLegAndStay()
-    case Event(IllegalTriggerGoToError, _)  =>
+    case Event(IllegalTriggerGoToError, _) =>
       stop(Failure("Illegal Trigger sent to Scheduler"))
   }
 
@@ -496,6 +497,7 @@ stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
   }
 
   case class ProcessedData(nextLeg: EmbodiedBeamLeg, restTrip: EmbodiedBeamTrip, nextStart: Double)
+
 
 }
 

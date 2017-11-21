@@ -1,8 +1,9 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import akka.pattern.{ask, pipe}
+import beam.agentsim.Resource
 import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
@@ -26,7 +27,6 @@ import org.matsim.vehicles.Vehicle
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object RideHailingAgent {
-
 
   // syntactic sugar for props creation
   def props(services: BeamServices, rideHailingAgentId: Id[RideHailingAgent], vehicleId: Id[Vehicle], location: Coord) =
@@ -65,9 +65,7 @@ object RideHailingAgent {
 
 class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val
 beamServices: BeamServices)
-  extends BeamAgent[RideHailingAgentData]
-    with HasServices
-    with DrivesVehicle[RideHailingAgentData] {
+    extends DrivesVehicle[RideHailingAgentData] with Resource[RideHailingAgent] {
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   chainedWhen(Uninitialized) {
@@ -79,7 +77,8 @@ beamServices: BeamServices)
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = ResourceIsAvailableNotification(info.data.vehicleId, SpaceTime(info.data.location, tick
+      val rideAvailable = new ResourceIsAvailableNotification(id, SpaceTime(info.data.location,
+        tick
         .toLong))
       val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(_ =>
         RegisterRideAvailableWrapper(triggerId)
@@ -123,6 +122,10 @@ beamServices: BeamServices)
     case msg@_ =>
       stop(Failure(s"Unrecognized message $msg"))
   }
+  override var manager: Option[ActorRef] = None
+
+  override def getId: Id[RideHailingAgent] = id
+
 
 }
 
