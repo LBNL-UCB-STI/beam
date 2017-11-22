@@ -127,8 +127,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     }
   }
   chainedWhen(AnyState){
-    // Problem, when this is received from PersonAgent, it is due to a NotifyEndLeg trigger which doesn't have an ack
-    // So the schedule has moved ahead before this can schedule a new StartLegTrigger, so maybe Notify*Leg should be Triggers?
+    // Note, when this is received from PersonAgent, it is due to a NotifyLegEndTrigger. The reason that NotifyLeg*Trigger
+    // are triggers and not direct messages is that otherwise, the schedule would move on before the logic in the following
+    // block has time to execute and send the Ack which ultimately results in the next Trigger (e.g. StartLegTrigger) to be scheduled
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule,requestId), _) =>
       var errorFlag = false
       if(!passengerSchedule.isEmpty){
