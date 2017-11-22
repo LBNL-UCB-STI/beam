@@ -102,6 +102,9 @@ class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculat
           val travelStops = transitTrip.departures.zipWithIndex.sliding(2)
           travelStops.foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
             val duration = transitTrip.arrivals(to) - departureTimeFrom
+            if(duration==0){
+              val i = 0
+            }
             //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
             //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
             legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))

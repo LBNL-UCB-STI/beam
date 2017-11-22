@@ -169,7 +169,7 @@ class PersonAgent(val beamServices: BeamServices,
   private def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
 
     _numReschedules = _numReschedules + 1
-    if(_numReschedules > 50){
+    if(_numReschedules > 500){
       stop(Failure(s"Too many reschedule attempts."))
     }else{
       val toSchedule = if(isStart) {
