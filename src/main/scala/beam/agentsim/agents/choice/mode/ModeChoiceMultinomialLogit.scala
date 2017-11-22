@@ -138,7 +138,8 @@ object ModeChoiceMultinomialLogit {
     ModeCostTimeTransfer(BeamMode.CAR,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.RIDEHAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.BIKE,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue)
+    ModeCostTimeTransfer(BeamMode.DRIVE_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.WALK_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue)
   )
 
   def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
