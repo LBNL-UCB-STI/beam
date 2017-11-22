@@ -15,7 +15,7 @@ import scala.util.Try
 
 class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
   EventsFileHandlingCommon with IntegrationSpecCommon{
-  lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam_50.conf")
+  lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")
 
   lazy val beamConfig = customBeam(configFileName, eventsFileOutputFormats = Some("xml,csv"))
 
@@ -95,10 +95,10 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
 
 
   private def containsSameBusEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
-    it should "contain same pathTraversal defined at stop times file for bus input file" ignore {
+    it should "contain same pathTraversal defined at stop times file for bus input file" in {
       val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
       val grouped = listTrips.groupBy(identity)
-      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size - 1)}
       val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "bus"),"vehicle_id", Some("PathTraversal"))
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1))
       val groupedXml = listTripsEventFile.groupBy(identity)
@@ -109,10 +109,10 @@ class EventsFileSpec extends FlatSpec with Matchers with RunBeam with
   }
 
   private def containsSameTrainEntriesPathTraversal(routesFile: File, eventsFile: File, eventsReader: ReadEvents) ={
-    it should "contain same pathTraversal defined at stop times file for train input file" ignore {
+    it should "contain same pathTraversal defined at stop times file for train input file" in {
       val listTrips = getListIDsWithTag(routesFile, "trip_id", 0).sorted
       val grouped = listTrips.groupBy(identity)
-      val groupedWithCount = grouped.map{case (k, v) => (k, v.size)}
+      val groupedWithCount = grouped.map{case (k, v) => (k, v.size - 1)}
       val listValueTagEventFile = eventsReader.getListTagsFromFile(eventsFile, Some("vehicle_type", "subway"),"vehicle_id", Some("PathTraversal"))
 
       val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted

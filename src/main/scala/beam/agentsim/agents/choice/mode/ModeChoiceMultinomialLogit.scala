@@ -7,8 +7,9 @@ import java.util.{LinkedHashMap, Random}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.choice.logit.MulitnomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.jdom.Document
@@ -32,7 +33,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
     new ModeChoiceMultinomialLogit(beamServices,mnl)
   }
 
-  override def apply(alternatives: Vector[EmbodiedBeamTrip]) = {
+  override def apply(alternatives: Vector[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]) = {
     alternatives.isEmpty match {
       case true =>
         None
@@ -50,7 +51,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Muli
 
         val modeCostTimeTransfers = alternatives.zipWithIndex.map { altAndIdx =>
           val totalCost = altAndIdx._1.tripClassifier match {
-            case TRANSIT =>
+            case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
               (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2))*beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2)
             case RIDEHAIL =>
               altAndIdx._1.costEstimate*beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(altAndIdx._2)*beamServices.beamConfig.beam.agentsim.tuning.tollPrice
@@ -150,7 +151,7 @@ object ModeChoiceMultinomialLogit {
     var theModelOpt: Option[MulitnomialLogit] = None
 
     document.getRootElement.getChildren.asScala.foreach{child =>
-      if(child.asInstanceOf[Element].getChild("className").getValue.toString.equals("ModeChoiceMultinomialLogit")) {
+      if(child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")){
         val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
         theModelOpt = Some(MulitnomialLogit.MulitnomialLogitFactory(rootNode))
       }
