@@ -99,13 +99,16 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
 
-    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow || triggerToSchedule.trigger.tick>=stopTick) {
+    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow){
       if (beamConfig.beam.debug.debugEnabled) {
-        log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
+        log.error(s"Cannot schedule trigger $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
         triggerToSchedule.agent ! IllegalTriggerGoToError
       } else {
-        throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
+        throw new RuntimeException(s"Cannot schedule trigger $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
       }
+    }else if(triggerToSchedule.trigger.tick>=stopTick) {
+      // Ignore triggers scheduled off the end but warn
+      log.warning(s"Trigger $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} is greater than the stopTick, so this trigger is ignored")
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
       triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
@@ -189,7 +192,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   }
 
   val monitorThread: Option[Cancellable] = if (beamConfig.beam.debug.debugEnabled || beamConfig.beam.debug.skipOverBadActors ) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), () => {
+    Option(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), () => {
       try {
         if (beamConfig.beam.debug.skipOverBadActors) {
           var numReps = 0L

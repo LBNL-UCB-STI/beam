@@ -194,7 +194,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
 
     public void startPhysSim() {
-        createLastActivityOfDayForPopulation();
+//        createLastActivityOfDayForPopulation();
 
         log.warn("numberOfLinksRemovedFromRouteAsNonCarModeLinks (for physsim):" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         initializeActorsAndRunPhysSim();

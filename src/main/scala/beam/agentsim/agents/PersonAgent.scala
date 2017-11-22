@@ -198,6 +198,7 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is starting
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick,beamLeg), triggerId), _) =>
+      logDebug(s"NotifyLegStartTrigger received: ${beamLeg}")
       _currentEmbodiedLeg match {
         /*
          * If we already have a leg then we're not ready to start a new one,
@@ -215,12 +216,15 @@ class PersonAgent(val beamServices: BeamServices,
                 // We've recevied this leg out of order from 2 different drivers or we haven't our personDepartureTrigger
                 warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
               }else if(processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
+                logDebug(s"Already on vehicle: ${_currentVehicle.outermostVehicle()}")
                 _currentRoute = processedData.restTrip
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
                 goto(Moving) replying completed(triggerId)
               }else{
                 val previousVehicleId = _currentVehicle.nestedVehicles.head
                 val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
+                logDebug(s"Entering vehicle: ${nextBeamVehicleId}")
+                _currentRoute = processedData.restTrip
                 val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
                 nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
                 _currentRoute = processedData.restTrip

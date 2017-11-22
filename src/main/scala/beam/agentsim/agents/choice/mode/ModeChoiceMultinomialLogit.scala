@@ -62,7 +62,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
               altAndIdx._1.costEstimate
           }
           val numTransfers = altAndIdx._1.tripClassifier match {
-            case TRANSIT =>
+            case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
               var nVeh = -1
               var vehId = Id.create("dummy",classOf[Vehicle])
               altAndIdx._1.legs.foreach{ leg =>
@@ -89,7 +89,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
           altData.put("cost", mct.cost.toDouble)
           altData.put("time", mct.time)
-          if(mct.mode == TRANSIT){
+          if(mct.mode == TRANSIT || mct.mode == WALK_TRANSIT || mct.mode == DRIVE_TRANSIT){
             altData.put("transfer",mct.numTransfers.toDouble)
           }
           inputData.put(mct.mode.value, altData)
