@@ -56,6 +56,9 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     }
   }
 
+  /*
+   * IMPORTANT NOTE: This test will fail if there is no GTFS data included in the R5 data directory. Try that first.
+   */
   "A multi-modal router" must {
     "return a route with a starting time consistent with profile request" in {
       val origin = new BeamRouter.Location(552788,4179300) // -122.4007,37.7595
