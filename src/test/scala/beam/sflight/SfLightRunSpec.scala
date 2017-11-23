@@ -10,7 +10,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class SfLightRunSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
 
-  "SF Light" must {
+  "SF Light" ignore  {
     "run without error and at least one person chooses car mode" in {
       val sfLightRun = new StartWithCustomConfig(configFileToLoad = "test/input/sf-light/sf-light.conf")
       val carModeCount = sfLightRun.groupedCount.get("car").getOrElse(0)
