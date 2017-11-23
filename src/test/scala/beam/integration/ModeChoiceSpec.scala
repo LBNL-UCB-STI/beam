@@ -33,7 +33,7 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
-    "prefer mode choice transit type than other modes" ignore {
+    "prefer mode choice transit type than other modes" in {
       val multinomialRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"))
       val transitIfAvailableRun = new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable"))
 
@@ -44,11 +44,11 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
     }
   }
 
-  "Running beam with modeChoiceClass ModeChoiceTransitOnly" must {
-    "Generate ModeChoice events file with only transit types" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitOnly")){
-      listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe listValueTagEventFile.size
-    }
-  }
+//  "Running beam with modeChoiceClass ModeChoiceTransitOnly" must {
+//    "Generate ModeChoice events file with only transit types" ignore new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitOnly")){
+//      listValueTagEventFile.filter(s => s.equals("transit")).size shouldBe listValueTagEventFile.size
+//    }
+//  }
 
   "Running beam with modeChoiceClass ModeChoiceRideHailIfAvailable" must {
     "prefer more mode choice ride hail type than other modes" in {
@@ -68,18 +68,18 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
     }
   }
 
-  "Running beam with modeChoiceClass ModeChoiceDriveOnly" must {
-      "Generate ModeChoice events file with only car types" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceDriveOnly")){
-      listValueTagEventFile.filter(s => s.equals("car")).size shouldBe listValueTagEventFile.size
-      
-    }
-  }
-
-  "Running beam with modeChoiceClass ModeChoiceRideHailOnly" must {
-    "Generate ModeChoice events file with only ride hail types" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceRideHailOnly")){
-      listValueTagEventFile.filter(_.equals("ride_hailing")).size shouldBe listValueTagEventFile.size
-    }
-  }
+//  "Running beam with modeChoiceClass ModeChoiceDriveOnly" must {
+//      "Generate ModeChoice events file with only car types" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceDriveOnly")){
+//      listValueTagEventFile.filter(s => s.equals("car")).size shouldBe listValueTagEventFile.size
+//
+//    }
+//  }
+//
+//  "Running beam with modeChoiceClass ModeChoiceRideHailOnly" must {
+//    "Generate ModeChoice events file with only ride hail types" in new StartWithCustomConfig(modeChoice = Some("ModeChoiceRideHailOnly")){
+//      listValueTagEventFile.filter(_.equals("ride_hailing")).size shouldBe listValueTagEventFile.size
+//    }
+//  }
 
 
 //  Commented out for now as beam is hanging during run
