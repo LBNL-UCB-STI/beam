@@ -221,7 +221,7 @@ class PersonAgent(val beamServices: BeamServices,
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
                 goto(Moving) replying completed(triggerId)
               }else{
-                val previousVehicleId = _currentVehicle.nestedVehicles.head
+                val previousVehicleId = _currentVehicle.outermostVehicle()
                 val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
                 logDebug(s"Entering vehicle: ${nextBeamVehicleId}")
                 _currentRoute = processedData.restTrip

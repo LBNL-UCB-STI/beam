@@ -111,11 +111,17 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     } else {
       var prevLeg = chosenTrip.legs.head
       for (leg <- chosenTrip.legs) {
-//        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
-        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
+//        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
 
         if (inferredVehicle.nestedVehicles.nonEmpty) {
-          val passengerVeh = if(inferredVehicle.outermostVehicle() == leg.beamVehicleId){ inferredVehicle.penultimateVehicle() }else{ inferredVehicle.outermostVehicle() }
+          val passengerVeh: Id[Vehicle] = if(inferredVehicle.outermostVehicle() == leg.beamVehicleId){
+            if(inferredVehicle.nestedVehicles.size<2){
+              // In this case, we are changing into a WALK leg
+              Id.create("dummy",classOf[Vehicle])
+            }else{
+              inferredVehicle.penultimateVehicle() }
+          }else{ inferredVehicle.outermostVehicle() }
           legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
@@ -140,9 +146,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         groupedLegs.foreach { legSegment =>
           val legs = legSegment.sortBy(_.leg.beamLeg.startTime)
           val vehId = legSegment.head.leg.beamVehicleId
-          if(legs.head.leg.beamLeg.duration==0L){
-            val i = 0
-          }
           val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg.beamLeg, VehiclePersonId(legs.head.passengerVehicle, id)), vehId)
           TransitDriverAgent.selectByVehicleId(vehId) ! resRequest
           awaitingReservationConfirmation = awaitingReservationConfirmation + (resRequest.request.requestId -> None)

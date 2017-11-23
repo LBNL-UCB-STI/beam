@@ -77,9 +77,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
       holdTickAndTriggerId(tick,triggerId)
 //      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
-      if(id.equals("TransitDriverAgent-SF:7590192") || id.equals("TransitDriverAgent-SF:7590201")){
-        val i = 0
-      }
 
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
