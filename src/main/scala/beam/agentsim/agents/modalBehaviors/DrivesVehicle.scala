@@ -45,13 +45,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _ ) =>
       //we have just completed a leg
-      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
+//      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
       passengerSchedule.schedule.get(completedLeg) match {
         case Some(manifest) =>
           holdTickAndTriggerId(tick, triggerId)
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
-              logDebug(s"Scheduling NotifyLegEndTrigger for Person ${personRef}")
+              logDebug(s"Scheduling NotifyLegEndTrigger for Person ${pv.personId}")
               beamServices.schedulerRef ! scheduleOne[NotifyLegEndTrigger](tick, personRef,completedLeg)
             }
           }
@@ -76,7 +76,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   chainedWhen(Waiting) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
       holdTickAndTriggerId(tick,triggerId)
-      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
+//      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
 
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
@@ -89,6 +89,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           if(manifest.boarders.isEmpty){
             releaseAndScheduleEndLeg()
           }else {
+            logDebug(s" will wait for ${manifest.boarders.size} boarders: ${manifest.boarders}")
             _awaitingBoardConfirmation ++= manifest.boarders
             stay()
           }
@@ -127,8 +128,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     }
   }
   chainedWhen(AnyState){
-    // Problem, when this is received from PersonAgent, it is due to a NotifyEndLeg trigger which doesn't have an ack
-    // So the schedule has moved ahead before this can schedule a new StartLegTrigger, so maybe Notify*Leg should be Triggers?
+    // Note, when this is received from PersonAgent, it is due to a NotifyLegEndTrigger. The reason that NotifyLeg*Trigger
+    // are triggers and not direct messages is that otherwise, the schedule would move on before the logic in the following
+    // block has time to execute and send the Ack which ultimately results in the next Trigger (e.g. StartLegTrigger) to be scheduled
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule,requestId), _) =>
       var errorFlag = false
       if(!passengerSchedule.isEmpty){
@@ -158,7 +160,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
     case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
       require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
-      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
+//      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime}, alighting=${req.arriveAt.startTime}) ")
 
       val response = handleVehicleReservation(req, vehicleIdToReserve)
       beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response

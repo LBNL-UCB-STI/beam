@@ -1,0 +1,39 @@
+@startuml
+
+scale 1000 width
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+''''''''''''''''''''''''''
+' DrivesVehicle States'
+''''''''''''''''''''''''''
+state Traveling #eb1921{
+
+    state Waiting #eb1921{
+        Waiting: StartLegTrigger
+        Waiting: BoardVehicle
+        Waiting: BecomeDriverSuccess
+        Waiting: CancelReservation
+        Waiting: ModifyPassengerSchedule
+        Waiting: ReservationRequestWithVehicle
+        Waiting: RemovePassengerFromTrip
+    }
+
+    state Moving #eb1921{
+        Moving: EndLegTrigger
+        Moving: AlightVehicle
+        Moving: ModifyPassengerSchedule
+        Moving: ReservationRequestWithVehicle
+        Moving: RemovePassengerFromTrip
+    }
+
+    [*] --> Waiting
+    Waiting --> Waiting
+    Waiting --> Moving
+    Moving --> Moving
+    Moving --> Waiting
+}
+
+
+@enduml

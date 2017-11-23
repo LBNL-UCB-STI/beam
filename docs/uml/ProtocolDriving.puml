@@ -1,0 +1,12 @@
+@startuml
+Scheduler -> Driver: StartLegTrigger
+Driver --> Scheduler: ScheduleNotifyStartLegTrigger if Passengers
+Scheduler --> Passengers: NotifyStartLegTrigger
+Passengers --> Driver: BoardVehicle
+Driver -> Scheduler: ScheduleEndLegTrigger
+Scheduler -> Driver: EndLegTrigger
+Driver --> Scheduler: ScheduleNotifyEndLegTrigger if Passengers
+Scheduler --> Passengers: NotifyEndLegTrigger
+Passengers --> Driver: AlightVehicle
+Driver -> Scheduler: ScheduleStartLegTrigger|PassengerScheduleEmptyTrigger
+@enduml
