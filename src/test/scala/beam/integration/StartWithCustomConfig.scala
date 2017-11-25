@@ -8,6 +8,7 @@ import beam.sim.config.ConfigModule
 import scala.util.Try
 
 class StartWithCustomConfig(
+                             configFileToLoad: String = "test/input/beamville/beam.conf",
                              modeChoice: Option[String] = None,
                              numDriversAsFractionOfPopulation: Option[Double] = None,
                              defaultCostPerMile: Option[Double] = None,
@@ -17,7 +18,7 @@ class StartWithCustomConfig(
                              tollPrice: Option[Double] = None,
                              rideHailPrice: Option[Double] = None) extends
   EventsFileHandlingCommon with IntegrationSpecCommon with RunBeam {
-  lazy val configFileName = Some(s"${System.getenv("PWD")}/test/input/beamville/beam.conf")
+  lazy val configFileName = Some(s"${System.getenv("PWD")}/${configFileToLoad}")
 
   val beamConfig = customBeam(configFileName, modeChoice, numDriversAsFractionOfPopulation,
   defaultCostPerMile,defaultCostPerMinute,transitCapacity,transitPrice,tollPrice,rideHailPrice)

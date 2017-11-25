@@ -91,7 +91,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
         profileRequest.accessModes = util.EnumSet.of(accessMode)
         profileRequest.egressModes = util.EnumSet.of(egressMode)
       }
-      pointToPointQuery.getPlan(profileRequest)
+      val response = pointToPointQuery.getPlan(profileRequest)
+      response
     }
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
