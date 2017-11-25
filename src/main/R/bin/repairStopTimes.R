@@ -19,7 +19,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Dropbox/ucb/vto/beam-colin/debugging/SF.zip'
+  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/r5/MA.zip'
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T)
@@ -37,28 +37,50 @@ repair.arrival <- function(arrs,durs){
   as.POSIXct(sapply(cumsum(c(0,rev(na.omit(rdur)))),function(x){ x + as.numeric(arrs[1]) }),origin = "1970-01-01")
 }
 
+working.dir <- getwd()
+
 ######################################################################################################
 file.path <- args$args[1]
 for(file.path in args$args){
+  my.cat(pp('Starting: ',file.path))
+
+  setwd(working.dir)
+  file.path <- normalizePath(file.path)
+
   tmp.dir <- tempdir()
   unzip(file.path,"stop_times.txt", exdir=tmp.dir)
   stops <- data.table(read.csv(pp(tmp.dir,'/stop_times.txt')))
+  stops[,orig.order:=1:nrow(stops)]
+  stops.orig <- copy(stops)
+  if('timepoint' %in% names(stops)){
+    stops <- stops[timepoint==1]
+  }
 
-  stops[,arrival_str:=pp(ifelse(as.numeric(substr(arrival_time,0,2))>23,'1970-01-02 ','1970-01-01 '),as.numeric(substr(arrival_time,0,2))%%24,substr(arrival_time,3,9))]
+  stops[,arrival_str:=''] 
+  stops[,arrival_str:=pp(ifelse(as.numeric(substr(arrival_time,0,str_locate(arrival_time,':')[,'start']-1))>23,'1970-01-02 ','1970-01-01 '),as.numeric(substr(arrival_time,0,str_locate(arrival_time,':')[,'start']-1))%%24,substr(arrival_time,str_locate(arrival_time,':')[,'start'],str_length(arrival_time)))]
   stops[,arrival:=to.posix(arrival_str,'%Y-%m-%d %H:%M:%S')]
   stops[,duration:=as.numeric(c(NA,diff(arrival))),by='trip_id']
 
   bad.trips <- u(stops[duration==0]$trip_id)
-  stops[trip_id %in% bad.trips,arrival.fixed:=repair.arrival(arrival,duration),by='trip_id']
-  stops[,arrival.fixed.str:=pp(ifelse(yday(arrival.fixed)>1,hour(arrival.fixed)+24,str_pad(hour(arrival.fixed),2,pad='0')),":",strftime(arrival.fixed,"%M:%S"))]
+  if(length(bad.trips)>0){
+    my.cat(pp('Repairing ',length(bad.trips),' trips'))
+    stops[trip_id %in% bad.trips,arrival.fixed:=repair.arrival(arrival,duration),by='trip_id']
+    stops[,arrival.fixed.str:=pp(ifelse(yday(arrival.fixed)>1,hour(arrival.fixed)+24,str_pad(hour(arrival.fixed),2,pad='0')),":",strftime(arrival.fixed,"%M:%S"))]
 
-  stops[!is.na(arrival.fixed),departure_time:=arrival.fixed.str]
-  stops[!is.na(arrival.fixed),arrival_time:=arrival.fixed.str]
-  stops[,':='(arrival_str=NULL,arrival=NULL,duration=NULL,arrival.fixed=NULL,arrival.fixed.str=NULL)]
+    stops[!is.na(arrival.fixed),departure_time:=arrival.fixed.str]
+    stops[!is.na(arrival.fixed),arrival_time:=arrival.fixed.str]
 
-  write.csv(stops,file=pp(tmp.dir,'/stop_times.txt'),na = " ",row.names =F,quote=F)
-  setwd(tmp.dir)
-  zip(file.path,'stop_times.txt')
+    stops.final <- join.on(stops.orig,stops,'orig.order','orig.order',c('arrival_time','departure_time'),'fix.')
+    stops.final[,':='(arrival_time=fix.arrival_time,departure_time=fix.departure_time)]
+    setkey(stops.final,orig.order)
+    stops.final[,':='(fix.arrival_time=NULL,fix.departure_time=NULL,orig.order=NULL)]
+
+    write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = " ",row.names =F,quote=F)
+    setwd(tmp.dir)
+    zip(file.path,'stop_times.txt')
+  }else{
+    my.cat('No repairs needed')
+  }
 
   my.cat(pp('Completed: ',file.path))
 }
