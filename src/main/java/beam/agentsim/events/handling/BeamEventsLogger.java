@@ -22,17 +22,17 @@ public class BeamEventsLogger {
     private final EventsManager eventsManager;
     private ArrayList<BeamEventsWriterBase> writers = new ArrayList<>();
 
-    HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
-    LoggerLevels defaultLevel;
+    private HashMap<Class<?>, LoggerLevels> levels = new HashMap<>();
+    private LoggerLevels defaultLevel;
 
-    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog=new HashSet<>();
+    private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
     private BeamServices beamServices;
     private String eventsFileFormats;
     private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
 
     // create multimap to store key and values
     Multimap<Class, String> eventFieldsToDropWhenShort = ArrayListMultimap.create();
-    Multimap<Class, String> eventFieldsToAddWhenVerbose = ArrayListMultimap.create();
+    private Multimap<Class, String> eventFieldsToAddWhenVerbose = ArrayListMultimap.create();
     private List<String> eventFields = null;
 
     public BeamEventsLogger(BeamServices beamServices, EventsManager eventsManager) {
@@ -58,10 +58,10 @@ public class BeamEventsLogger {
         allLoggableEvents.add(ActivityStartEvent.class);
 
         //filter according loggerLevel
-        if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals("")){
+        if (this.beamServices.beamConfig().beam().outputs().events().defaultWritingLevel().equals("")) {
             defaultLevel = OFF;
-        }else{
-            defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
+        } else {
+            defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().events().defaultWritingLevel());
             eventsToLog.addAll(getAllLoggableEvents());
         }
         overrideDefaultLoggerSetup();
@@ -89,7 +89,7 @@ public class BeamEventsLogger {
 
             for (BeamEventsFileFormats fmt : this.eventsFileFormatsArray) {
                 BeamEventsWriterBase newWriter = null;
-                if (this.beamServices.beamConfig().beam().outputs().explodeEventsIntoFiles()) {
+                if (this.beamServices.beamConfig().beam().outputs().events().explodeIntoFiles()) {
                     for (Class<?> eventTypeToLog : getAllEventsToLog()) {
                         newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, eventTypeToLog, fmt);
                         writers.add(newWriter);
@@ -103,11 +103,12 @@ public class BeamEventsLogger {
             }
         }
     }
-    public BeamEventsWriterBase createEventWriterForClassAndFormat(String eventsFilePathBase, Class<?> theClass, BeamEventsFileFormats fmt){
+
+    public BeamEventsWriterBase createEventWriterForClassAndFormat(String eventsFilePathBase, Class<?> theClass, BeamEventsFileFormats fmt) {
         if (fmt == BeamEventsFileFormats.xml || fmt == BeamEventsFileFormats.xmlgz) {
             String path = eventsFilePathBase + ((fmt == BeamEventsFileFormats.xml) ? ".xml" : ".xml.gz");
             return new BeamEventsWriterXML(path, this, this.beamServices, theClass);
-        }else if (fmt == BeamEventsFileFormats.csv || fmt == BeamEventsFileFormats.csvgz){
+        } else if (fmt == BeamEventsFileFormats.csv || fmt == BeamEventsFileFormats.csvgz) {
             String path = eventsFilePathBase + ((fmt == BeamEventsFileFormats.csv) ? ".csv" : ".csv.gz");
             return new BeamEventsWriterCSV(path, this, this.beamServices, theClass);
         }
@@ -122,8 +123,9 @@ public class BeamEventsLogger {
     public LoggerLevels getLoggingLevel(Event event) {
         return getLoggingLevel(event.getClass());
     }
+
     public LoggerLevels getLoggingLevel(Class clazz) {
-        if (levels.containsKey(clazz)){
+        if (levels.containsKey(clazz)) {
             return levels.get(clazz);
         } else {
             return defaultLevel;
@@ -135,37 +137,37 @@ public class BeamEventsLogger {
         return eventsToLog.contains(aClass);
     }
 
-    public HashSet<Class<?>> getAllEventsToLog(){
+    public HashSet<Class<?>> getAllEventsToLog() {
         return eventsToLog;
     }
 
-    public HashSet<Class<?>> getAllLoggableEvents(){
+    public HashSet<Class<?>> getAllLoggableEvents() {
         return allLoggableEvents;
     }
 
     public void setEventsFileFormats() {
         String eventsFilePath = "";
         BeamEventsFileFormats fmt = null;
-        this.eventsFileFormats = this.beamServices.beamConfig().beam().outputs().eventsFileOutputFormats();
+        this.eventsFileFormats = this.beamServices.beamConfig().beam().outputs().events().fileOutputFormats();
         this.eventsFileFormatsArray.clear();
-        for(String format : eventsFileFormats.split(",")){
-            if(format.toLowerCase().equals("xml")){
+        for (String format : eventsFileFormats.split(",")) {
+            if (format.equalsIgnoreCase("xml")) {
                 fmt = BeamEventsFileFormats.xml;
-            }else if(format.toLowerCase().equals("xml.gz")){
+            } else if (format.equalsIgnoreCase("xml.gz")) {
                 fmt = BeamEventsFileFormats.xmlgz;
-            }else if(format.toLowerCase().equals("csv")){
+            } else if (format.equalsIgnoreCase("csv")) {
                 fmt = BeamEventsFileFormats.csv;
-            }else if(format.toLowerCase().equals("csv.gz")){
+            } else if (format.equalsIgnoreCase("csv.gz")) {
                 fmt = BeamEventsFileFormats.csvgz;
             }
             this.eventsFileFormatsArray.add(fmt);
         }
     }
 
-    public Map<String,String> getAttributes(Event event) {
-        Map<String,String> attributes = event.getAttributes();
+    public Map<String, String> getAttributes(Event event) {
+        Map<String, String> attributes = event.getAttributes();
         //Remove attribute from each event class for SHORT logger level
-        if(getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToDropWhenShort.containsKey(event.getClass())){
+        if (getLoggingLevel(event) == LoggerLevels.SHORT && eventFieldsToDropWhenShort.containsKey(event.getClass())) {
             eventFields = (List) eventFieldsToDropWhenShort.get(event.getClass());
             // iterate through the key set
             for (String key : eventFields) {
@@ -173,12 +175,12 @@ public class BeamEventsLogger {
             }
         }
         //Add attribute from each event class for VERBOSE logger level
-        else if(getLoggingLevel(event) == LoggerLevels.VERBOSE && eventFieldsToAddWhenVerbose.containsKey(event.getClass())){
+        else if (getLoggingLevel(event) == LoggerLevels.VERBOSE && eventFieldsToAddWhenVerbose.containsKey(event.getClass())) {
             eventFields = (List) eventFieldsToAddWhenVerbose.get(event.getClass());
             // iterate through the key set
-            for (String key : eventFields) {
+//            for (String key : eventFields) {
 //                attributes.putAll(event.getVer);
-            }
+//            }
         }
         return attributes;
     }
@@ -186,7 +188,7 @@ public class BeamEventsLogger {
     public void overrideDefaultLoggerSetup() {
         Class<?> theClass = null;
 
-        for(String classAndLevel : beamServices.beamConfig().beam().outputs().overrideLoggingLevels().split(",")){
+        for (String classAndLevel : beamServices.beamConfig().beam().outputs().events().overrideWritingLevels().split(",")) {
             String[] splitClassLevel = classAndLevel.split(":");
             String classString = splitClassLevel[0].trim();
             String levelString = splitClassLevel[1].trim();
@@ -198,9 +200,9 @@ public class BeamEventsLogger {
                 DebugLib.stopSystemAndReportInconsistency("Logging class name '" + theClass.getCanonicalName() + "' is not a valid class, use fully qualified class names (e.g. .");
             }
             setLoggingLevel(theClass, theLevel);
-            if (theLevel != OFF){
+            if (theLevel != OFF) {
                 eventsToLog.add(theClass);
-            } else if (theLevel == OFF){
+            } else if (theLevel == OFF) {
                 eventsToLog.remove(theClass);
             }
         }

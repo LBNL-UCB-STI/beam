@@ -336,7 +336,9 @@ case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()){
   }
 
   def penultimateVehicle(): Id[Vehicle] = {
-    if (nestedVehicles.size < 2) throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")
+    if (nestedVehicles.size < 2){
+      throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are in the vehicle stack.")
+    }
     nestedVehicles(1)
   }
 

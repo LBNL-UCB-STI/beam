@@ -112,9 +112,17 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       var prevLeg = chosenTrip.legs.head
       for (leg <- chosenTrip.legs) {
         if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
+//        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
 
         if (inferredVehicle.nestedVehicles.nonEmpty) {
-          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
+          val passengerVeh: Id[Vehicle] = if(inferredVehicle.outermostVehicle() == leg.beamVehicleId){
+            if(inferredVehicle.nestedVehicles.size<2){
+              // In this case, we are changing into a WALK leg
+              Id.create("dummy",classOf[Vehicle])
+            }else{
+              inferredVehicle.penultimateVehicle() }
+          }else{ inferredVehicle.outermostVehicle() }
+          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
         exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
@@ -138,9 +146,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         groupedLegs.foreach { legSegment =>
           val legs = legSegment.sortBy(_.leg.beamLeg.startTime)
           val vehId = legSegment.head.leg.beamVehicleId
-          val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(vehId).toString)
           val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg.beamLeg, VehiclePersonId(legs.head.passengerVehicle, id)), vehId)
-          driverRef ! resRequest
+          TransitDriverAgent.selectByVehicleId(vehId) ! resRequest
           awaitingReservationConfirmation = awaitingReservationConfirmation + (resRequest.request.requestId -> None)
         }
       }

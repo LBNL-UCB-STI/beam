@@ -14,22 +14,22 @@ import java.util.LinkedList;
 import java.util.Random;
 
 public class NestedLogit implements AbstractLogit{
-    public NestedLogitData data;
-    public NestedLogit parent;
-    public LinkedList<NestedLogit> children;
-    public LinkedList<NestedLogit> ancestorNests;
-    private DiscreteProbabilityDistribution cdf;
+	public NestedLogitData data;
+	public NestedLogit parent;
+	public LinkedList<NestedLogit> children;
+	public LinkedList<NestedLogit> ancestorNests;
+	private DiscreteProbabilityDistribution cdf;
 
-    public NestedLogit(NestedLogit tree) {
-    	this.data = new NestedLogitData();
-    	this.data.setElasticity(tree.data.getElasticity().doubleValue());
-    	this.data.setNestName(tree.data.nestName);
-    	this.data.setUtility(tree.data.getUtility());
-    	this.parent = tree.parent;
-    	this.children = tree.children;
-    	this.ancestorNests = tree.ancestorNests;
-    }
-    public static NestedLogit NestedLogitFactory(String nestedLogitTreeAsXML){
+	public NestedLogit(NestedLogit tree) {
+		this.data = new NestedLogitData();
+		this.data.setElasticity(tree.data.getElasticity().doubleValue());
+		this.data.setNestName(tree.data.nestName);
+		this.data.setUtility(tree.data.getUtility());
+		this.parent = tree.parent;
+		this.children = tree.children;
+		this.ancestorNests = tree.ancestorNests;
+	}
+	public static NestedLogit NestedLogitFactory(String nestedLogitTreeAsXML){
 		SAXBuilder saxBuilder = new SAXBuilder();
 		InputStream stream = new ByteArrayInputStream(nestedLogitTreeAsXML.getBytes(StandardCharsets.UTF_8));
 		Document document;
@@ -41,11 +41,11 @@ public class NestedLogit implements AbstractLogit{
 		}
 		return null;
 	}
-    public static NestedLogit NestedLogitFactory(Element rootElem) {
-    	NestedLogitData theData = new NestedLogitData();
-    	theData.setNestName(rootElem.getAttributeValue("name"));
-    	NestedLogit tree = new NestedLogit(theData);
-    	UtilityFunction utility;
+	public static NestedLogit NestedLogitFactory(Element rootElem) {
+		NestedLogitData theData = new NestedLogitData();
+		theData.setNestName(rootElem.getAttributeValue("name"));
+		NestedLogit tree = new NestedLogit(theData);
+		UtilityFunction utility;
 		for(int i=0; i < rootElem.getChildren().size(); i++){
 			Element elem = (Element) rootElem.getChildren().get(i);
 			if(elem.getName().toLowerCase().equals("elasticity")){
@@ -72,8 +72,8 @@ public class NestedLogit implements AbstractLogit{
 				tree.children.add(child);
 			}
 		}
-    	return tree;
-    }
+		return tree;
+	}
 	private static void establishAncestry(NestedLogit tree, NestedLogit ancestor) {
 		if(ancestor!=null){
 			tree.ancestorNests.add(ancestor);
@@ -81,10 +81,10 @@ public class NestedLogit implements AbstractLogit{
 		}
 	}
 	public NestedLogit(NestedLogitData data) {
-        this.data = data;
-    }
+		this.data = data;
+	}
 
-    @Override
+	@Override
 	public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData){
 		LinkedHashMap<NestedLogit,Double> conditionalProbs = new LinkedHashMap<NestedLogit,Double>();
 		double totalExpMaxUtil = getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
@@ -97,7 +97,7 @@ public class NestedLogit implements AbstractLogit{
 	public String makeRandomChoice(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, Random rand){
 		if(cdf==null)evaluateProbabilities(inputData);
 		return cdf.sample(rand);
-    }
+	}
 	@Override
 	public void clear() {
 		cdf = null;
@@ -114,14 +114,14 @@ public class NestedLogit implements AbstractLogit{
 	}
 	private double propogateNestProbs(NestedLogit node, LinkedHashMap<NestedLogit,Double> conditionalProbs) {
 		if(node.parent==null){
-			return 1.0; // Top level 
+			return 1.0; // Top level
 		}else{
 			return conditionalProbs.get(node) * propogateNestProbs(node.parent, conditionalProbs);
 		}
 	}
 	public double getExpOfExpectedMaximumUtility(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, LinkedHashMap<NestedLogit,Double> conditionalProbs){
 		if(this.isAlternative()){
-			double utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName())); 
+			double utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName()));
 			this.data.setExpectedMaxUtility(utilOfAlternative);
 			return Math.exp(utilOfAlternative/this.data.getElasticity());
 		}else{
@@ -150,7 +150,7 @@ public class NestedLogit implements AbstractLogit{
 							conditionalProbs.put(child,0.0);
 						}
 					}
-					
+
 				}
 			}
 			this.data.setExpectedMaxUtility(Math.log(sumOfExpOfExpMaxUtil) * this.data.getElasticity());
@@ -187,7 +187,7 @@ public class NestedLogit implements AbstractLogit{
 			return sumMarginalProbsOfNest(node,nestName,pdf,true);
 		}
 		if(node.isAlternative()){
-			return startSumming ? pdf.get(node.data.getNestName()) : 0.0; 
+			return startSumming ? pdf.get(node.data.getNestName()) : 0.0;
 		}
 		Double sumChildren = 0.0;
 		for(NestedLogit child : node.children){

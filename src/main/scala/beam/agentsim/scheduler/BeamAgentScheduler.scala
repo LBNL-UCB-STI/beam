@@ -99,13 +99,16 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
 
-    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow || triggerToSchedule.trigger.tick>=stopTick) {
+    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow){
       if (beamConfig.beam.debug.debugEnabled) {
-        log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
+        log.error(s"Cannot schedule trigger $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
         triggerToSchedule.agent ! IllegalTriggerGoToError
       } else {
-        throw new RuntimeException(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
+        throw new RuntimeException(s"Cannot schedule trigger $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()}")
       }
+    }else if(triggerToSchedule.trigger.tick>=stopTick) {
+      // Ignore triggers scheduled off the end but warn
+      log.warning(s"Trigger $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} is greater than the stopTick, so this trigger is ignored")
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
       triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
@@ -139,12 +142,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
           self ! DoSimStep(nowInSeconds + 1.0)
         } else {
-          Thread.sleep(10)
-          self ! DoSimStep(nowInSeconds)
+          context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
         }
       } else {
-        Thread.sleep(10)
-        self ! DoSimStep(nowInSeconds)
+        context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
     case ProcessingFinished(it) =>
@@ -157,8 +158,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
         eventSubscriberRef ! EndIteration(currentIter)
       } else {
-        Thread.sleep(10)
-        self ! DoSimStep(nowInSeconds)
+        context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
@@ -192,7 +192,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   }
 
   val monitorThread: Option[Cancellable] = if (beamConfig.beam.debug.debugEnabled || beamConfig.beam.debug.skipOverBadActors ) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(5, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), () => {
+    Option(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), () => {
       try {
         if (beamConfig.beam.debug.skipOverBadActors) {
           var numReps = 0L

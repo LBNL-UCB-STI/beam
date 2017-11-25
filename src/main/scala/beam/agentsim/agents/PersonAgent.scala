@@ -166,10 +166,10 @@ class PersonAgent(val beamServices: BeamServices,
       )
   }
 
-  def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
+  private def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
 
     _numReschedules = _numReschedules + 1
-    if(_numReschedules > 50){
+    if(_numReschedules > 500){
       stop(Failure(s"Too many reschedule attempts."))
     }else{
       val toSchedule = if(isStart) {
@@ -198,6 +198,7 @@ class PersonAgent(val beamServices: BeamServices,
      * Learn as passenger that leg is starting
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick,beamLeg), triggerId), _) =>
+      logDebug(s"NotifyLegStartTrigger received: ${beamLeg}")
       _currentEmbodiedLeg match {
         /*
          * If we already have a leg then we're not ready to start a new one,
@@ -215,12 +216,15 @@ class PersonAgent(val beamServices: BeamServices,
                 // We've recevied this leg out of order from 2 different drivers or we haven't our personDepartureTrigger
                 warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, true)
               }else if(processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
+                logDebug(s"Already on vehicle: ${_currentVehicle.outermostVehicle()}")
                 _currentRoute = processedData.restTrip
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
                 goto(Moving) replying completed(triggerId)
               }else{
-                val previousVehicleId = _currentVehicle.nestedVehicles.head
+                val previousVehicleId = _currentVehicle.outermostVehicle()
                 val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
+                logDebug(s"Entering vehicle: ${nextBeamVehicleId}")
+                _currentRoute = processedData.restTrip
                 val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
                 nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
                 _currentRoute = processedData.restTrip
@@ -382,8 +386,7 @@ class PersonAgent(val beamServices: BeamServices,
         if (inferredVehicle.isEmpty || inferredVehicle.outermostVehicle() != leg.beamVehicleId) {
           inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
           if (inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver && leg.beamLeg.mode.isTransit) {
-            val driverRef = beamServices.agentRefs(beamServices.transitDriversByVehicle(inferredVehicle.outermostVehicle()).toString)
-            driverRef ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
+            TransitDriverAgent.selectByVehicleId(inferredVehicle.outermostVehicle()) ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
           }
         }
         exitNextVehicle = (leg.asDriver && leg.unbecomeDriverOnCompletion)
@@ -393,8 +396,11 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   override def postStop(): Unit = {
-    logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
-    cancelTrip(_currentEmbodiedLeg ++: _currentRoute.legs, _currentVehicle)
+    val legs = _currentEmbodiedLeg ++: _currentRoute.legs
+    if (legs.nonEmpty) {
+      logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
+      cancelTrip(legs, _currentVehicle)
+    }
     super.postStop()
   }
 
