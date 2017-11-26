@@ -19,7 +19,6 @@ pushd ${BEAM_ROOT}
 #        git checkout ${BUILD_SHA}
 #    fi
     mkdir -p ${BEAM_OUTPUT}
-    git rev-parse --verify HEAD > ${BEAM_OUTPUT}/version.txt
 
     echo "Running experiment using config ${CONFIG_PATH} , output_dir:  ${BEAM_OUTPUT} "
     ./gradlew --stacktrace run -PappArgs="['--config', '${CONFIG_PATH}']"
@@ -30,7 +29,8 @@ pushd ${BEAM_ROOT}
 
     echo "Simulation has been finished, statusCode=$exit_status"
 
-    MODE_CHOICE_COUNT=$(find ${BEAM_OUTPUT} -name '0.events.csv.gz' -exec zgrep -- 'ModeChoice' {} \; | grep -Eo "ModeChoice,,\w*"	| sort | uniq -c)
+    git rev-parse --verify HEAD > ${BEAM_OUTPUT}/version.txt
+    MODE_CHOICE_COUNT=$(find ${BEAM_OUTPUT} -name '0.events.csv*' -exec zgrep -- 'ModeChoice' {} \; | grep -Eo "ModeChoice,,\w*"	| sort | uniq -c)
     echo "$MODE_CHOICE_COUNT" > ${BEAM_OUTPUT}/ITERS/it.0/modeChoiceStat.txt
 
     RUN_NAME=$(basename "$(dirname  ${BEAM_OUTPUT} )")

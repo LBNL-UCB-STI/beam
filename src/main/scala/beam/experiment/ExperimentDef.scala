@@ -18,7 +18,9 @@ case class ExperimentDef(@BeanProperty var title: String,
 
     val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor))).toArray
     val runs = cartesian(values).toList
-    runs.map(levels => ExperimentRun(baseScenario, levels))
+    runs.map { levels =>
+      ExperimentRun(baseScenario, levels)
+    }
   }
 
   private def cartesian[A](list: Seq[Seq[A]]): Iterator[Seq[A]] = {
@@ -27,6 +29,14 @@ case class ExperimentDef(@BeanProperty var title: String,
     } else {
       list.head.iterator.flatMap { i => cartesian(list.tail).map(i +: _) }
     }
+  }
+
+  /**
+    *
+    * @return list of distinct (factor_title, param_name)
+    */
+  def getDynamicParamNamesPerFactor() = {
+    factors.asScala.flatMap(f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))).distinct.toList
   }
 }
 
@@ -44,6 +54,8 @@ case class ExperimentRun(baseScenario: BaseScenario, combinations: Seq[(Level, F
       combinations.map(lf => s"${lf._2.title}__${lf._1.name}").mkString("___")
     }
   }
+
+  def getParam(name: String) = params(name)
 
   override def toString: String = {
     s"experiment-run: $name"

@@ -64,9 +64,9 @@ factors:
 
   - title: car
     levels:
-#    - name: LowCost
-#      params:
-#        mnl_car_cost: -1.0
+    - name: LowCost
+      params:
+        mnl_car_cost: -1.0
     - name: HighCost
       params:
        mnl_car_cost: 1.0

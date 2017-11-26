@@ -7,6 +7,7 @@ import com.google.common.base.Charsets
 import com.google.common.io.Resources
 import com.hubspot.jinjava.Jinjava
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions, ConfigValueFactory}
+import org.apache.commons.io.IOUtils
 import org.yaml.snakeyaml.constructor.Constructor
 
 import scala.collection.JavaConverters._
@@ -23,6 +24,30 @@ import scala.collection.JavaConverters._
 object ExperimentGenerator extends App {
 
   val ExperimentsParamName = "experiments"
+
+  private def validateExperimentConfig(experiment: ExperimentDef) = {
+    if (!Files.exists(Paths.get(experiment.beamTemplateConfPath))) {
+      throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.beamTemplateConfPath}")
+    }
+    val runScriptTemplateFile = Paths.get(experiment.runExperimentScript).toAbsolutePath
+    if (!Files.exists(runScriptTemplateFile)) {
+      throw new IllegalArgumentException("No runs script template found " + runScriptTemplateFile.toString)
+    }
+
+    val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
+    if (!Files.exists(modeChoiceTemplateFile)) {
+      throw new IllegalArgumentException("No mode choice template found " + modeChoiceTemplateFile.toString)
+    }
+  }
+
+  def parseArgs(args: Array[String]) = {
+
+    args.sliding(2, 1).toList.collect {
+      case Array("--experiments", filePath: String) if filePath.trim.nonEmpty => (ExperimentsParamName, filePath)
+      case arg@_ =>
+        throw new IllegalArgumentException(arg.mkString(" "))
+    }.toMap
+  }
 
   private val projectRoot = {
     if (System.getenv("BEAM_ROOT") != null) {
@@ -69,27 +94,27 @@ object ExperimentGenerator extends App {
   val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
   val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.beamTemplateConfPath).toFile)
   val baseScenarioRun = ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, ExperimentRun(experiment.baseScenario, combinations = List()), baseConfig)
-  val runs =  baseScenarioRun :: experiment.combinationsOfLevels().map { run =>
+  val experimentVariations = experiment.combinationsOfLevels()
+  val experimentRunsWithBase =  baseScenarioRun :: experimentVariations.map { run =>
     ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, run, baseConfig)
   }
 
-  val jinjava = new Jinjava()
   val modeChoiceTemplate = Resources.toString(modeChoiceTemplateFile.toUri.toURL, Charsets.UTF_8)
   val runScriptTemplate = Resources.toString(runScriptTemplateFile.toUri.toURL, Charsets.UTF_8)
+  val jinjava = new Jinjava()
 
-  runs.foreach { runSandbox =>
+  experimentRunsWithBase.foreach { runSandbox =>
     if (!Files.exists(runSandbox.beamConfPath.getParent)) {
       runSandbox.beamConfPath.getParent.toFile.mkdirs()
     }
 
     val beamConfWriter = new BufferedWriter(new FileWriter(runSandbox.beamConfPath.toFile, false))
     try {
-
       val beamConfStr = runSandbox.runConfig.root().render(ConfigRenderOptions.concise().setJson(false).setFormatted(true))
       beamConfWriter.write(beamConfStr)
       beamConfWriter.flush()
     } finally {
-      beamConfWriter.close()
+      IOUtils.closeQuietly(beamConfWriter)
     }
 
     if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {
@@ -108,7 +133,7 @@ object ExperimentGenerator extends App {
       modeChoiceWriter.write(renderedTemplate)
       modeChoiceWriter.flush()
     } finally {
-      modeChoiceWriter.close()
+      IOUtils.closeQuietly(modeChoiceWriter)
     }
     if (!Files.exists(runSandbox.runExperimentScriptPath.getParent)) {
       runSandbox.runExperimentScriptPath.getParent.toFile.mkdirs()
@@ -120,77 +145,28 @@ object ExperimentGenerator extends App {
       runScriptWriter.write(renderedTemplate)
       runScriptWriter.flush()
     } finally {
-      runScriptWriter.close()
+      IOUtils.closeQuietly(runScriptWriter)
     }
 
     Runtime.getRuntime.exec(s"chmod +x ${runSandbox.runExperimentScriptPath.toFile.toString}")
 
   }
+  val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
+  val experimentsCsv = new BufferedWriter(new FileWriter(
+    Paths.get(experimentFile.getParent.toString, "experiments.csv").toFile, false))
 
-
-  private def validateExperimentConfig(experiment: ExperimentDef) = {
-    if (!Files.exists(Paths.get(experiment.beamTemplateConfPath))) {
-      throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.beamTemplateConfPath}")
-   }
-    val runScriptTemplateFile = Paths.get(experiment.runExperimentScript).toAbsolutePath
-    if (!Files.exists(runScriptTemplateFile)) {
-      throw new IllegalArgumentException("No runs script template found " + runScriptTemplateFile.toString)
+  try {
+    val header = dynamicParamsPerFactor.map{ case (factor, param_name) => s"$param_name"}.mkString(",")
+    val paramNames = dynamicParamsPerFactor.map(_._2)
+    experimentsCsv.write(List("experiment_name", header, "config_path").mkString("", "," ,"\n"))
+    experimentRunsWithBase.foreach{ run =>
+      val runValues = paramNames.map(run.experimentRun.getParam).mkString(",")
+      val row  = List(run.experimentRun.name, runValues,
+        run.runExperimentScriptPath.getParent.toString).mkString("", "," ,"\n")
+      experimentsCsv.write(row)
     }
-
-    val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
-    if (!Files.exists(modeChoiceTemplateFile)) {
-      throw new IllegalArgumentException("No mode choice template found " + modeChoiceTemplateFile.toString)
-    }
-  }
-
-  def parseArgs(args: Array[String]) = {
-
-    args.sliding(2, 1).toList.collect {
-      case Array("--experiments", filePath: String) if filePath.trim.nonEmpty => (ExperimentsParamName, filePath)
-      case arg@_ =>
-        throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
-  }
-
-}
-
-case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, experimentDef: ExperimentDef, experimentRun: ExperimentRun, beamTplConf: Config) {
-  require(Files.exists(experimentBaseDir))
-
-  lazy val runConfig: Config = buildRunConfig
-
-  def runDirectory = Paths.get(experimentBaseDir.toString,
-    experimentDef.title.replace("\\s", "_"),
-    "runs", s"run.${experimentRun.name}"
-  )
-
-  def modeChoiceParametersXmlPath = Paths.get(runDirectory.toString, "modeChoiceParameters.xml")
-
-  def runExperimentScriptPath = Paths.get(runDirectory.toString, "runExperiment.sh")
-
-  def beamConfPath = {
-    projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
-  }
-
-  /**
-    *
-    * @return path to an output folder relatively to project root
-    */
-  def beamOutputDir = {
-    projectRoot.relativize(Paths.get(runDirectory.toString, "output"))
-  }
-
-  def buildRunConfig = {
-    // set critical properties
-    // beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
-    // beam.outputs.outputDirectory
-    val runConfig = ( Map(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile" -> projectRoot.relativize(modeChoiceParametersXmlPath).toString,
-        "beam.outputs.outputDirectory" -> beamOutputDir.toString
-    ) ++ experimentRun.params).foldLeft(beamTplConf) { case (prevConfig, (paramName, paramValue)) =>
-        val configValue = ConfigValueFactory.fromAnyRef(paramValue)
-        prevConfig.withValue(paramName, configValue)
-    }
-    runConfig
+    experimentsCsv.flush()
+  } finally {
+    IOUtils.closeQuietly(experimentsCsv)
   }
 }
