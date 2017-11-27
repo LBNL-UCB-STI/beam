@@ -79,7 +79,6 @@ for(file.path in args$args){
     write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = " ",row.names =F,quote=F)
     setwd(tmp.dir)
     zip(file.path,'stop_times.txt')
-    stop('did one')
   }else{
     my.cat('No repairs needed')
   }
