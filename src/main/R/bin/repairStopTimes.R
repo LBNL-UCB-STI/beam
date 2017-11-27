@@ -19,7 +19,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/r5/SC.zip'
+  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/r5/PE.zip'
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T)
@@ -34,7 +34,7 @@ repair.arrival <- function(arrs,durs){
     remainder <- rdur[inds[i]] - amount*(inds[i+1]-inds[i])
     rdur[inds[i]:(inds[i+1]-1)] <- c(rep(amount,inds[i+1]-inds[i]-1),amount+remainder)
   }
-  if(rdur[1]==0)rdur[1]<-1
+  if(!is.na(rdur[1]) && rdur[1]==0)rdur[1]<-1
   as.POSIXct(sapply(cumsum(c(0,rev(na.omit(rdur)))),function(x){ x + as.numeric(arrs[1]) }),origin = "1970-01-01")
 }
 
@@ -56,6 +56,7 @@ for(file.path in args$args){
   if('timepoint' %in% names(stops)){
     stops <- stops[timepoint==1]
   }
+  stops <- stops[!str_trim(arrival_time)=='']
 
   stops[,arrival_str:=''] 
   stops[,arrival_str:=pp(ifelse(as.numeric(substr(arrival_time,0,str_locate(arrival_time,':')[,'start']-1))>23,'1970-01-02 ','1970-01-01 '),as.numeric(substr(arrival_time,0,str_locate(arrival_time,':')[,'start']-1))%%24,substr(arrival_time,str_locate(arrival_time,':')[,'start'],str_length(arrival_time)))]
@@ -76,7 +77,7 @@ for(file.path in args$args){
     setkey(stops.final,orig.order)
     stops.final[,':='(fix.arrival_time=NULL,fix.departure_time=NULL,orig.order=NULL)]
 
-    write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = " ",row.names =F,quote=F)
+    write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = " ",row.names =F,quote=T)
     setwd(tmp.dir)
     zip(file.path,'stop_times.txt')
   }else{
