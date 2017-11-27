@@ -19,7 +19,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/r5/MA.zip'
+  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/r5/SC.zip'
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T)
@@ -34,6 +34,7 @@ repair.arrival <- function(arrs,durs){
     remainder <- rdur[inds[i]] - amount*(inds[i+1]-inds[i])
     rdur[inds[i]:(inds[i+1]-1)] <- c(rep(amount,inds[i+1]-inds[i]-1),amount+remainder)
   }
+  if(rdur[1]==0)rdur[1]<-1
   as.POSIXct(sapply(cumsum(c(0,rev(na.omit(rdur)))),function(x){ x + as.numeric(arrs[1]) }),origin = "1970-01-01")
 }
 
@@ -78,6 +79,7 @@ for(file.path in args$args){
     write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = " ",row.names =F,quote=F)
     setwd(tmp.dir)
     zip(file.path,'stop_times.txt')
+    stop('did one')
   }else{
     my.cat('No repairs needed')
   }
