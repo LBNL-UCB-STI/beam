@@ -34,15 +34,12 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices) extends Actor with ActorLogging {
+class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator, val tollCalculator: TollCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
-
-  val fareCalculator: FareCalculator = beamServices.fareCalculator
-  val tollCalculator: TollCalculator = beamServices.tollCalculator
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
@@ -334,7 +331,7 @@ class R5RoutingWorker(val beamServices: BeamServices) extends Actor with ActorLo
 }
 
 object R5RoutingWorker {
-  def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
+  def props(beamServices: BeamServices, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator, tollCalculator)
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 

@@ -10,6 +10,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.RoutingModel.BeamLegWithNext
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -47,7 +48,9 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
 
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles))
+    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator, tollCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

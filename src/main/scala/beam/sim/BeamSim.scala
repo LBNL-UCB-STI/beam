@@ -95,7 +95,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       }
     }
 
-    val router = actorSystem.actorOf(BeamRouter.props(beamServices, beamServices.matsimServices.getScenario.getTransitVehicles), "router")
+    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+
+    val router = actorSystem.actorOf(BeamRouter.props(beamServices, beamServices.matsimServices.getScenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
     beamServices.beamRouter = router
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
