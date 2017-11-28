@@ -1,0 +1,11 @@
+@startuml
+Scheduler -> PersonAgent: PersonDepartureTrigger
+PersonAgent --> Driver: BecomeDriver|ModifyPassengerSchedule if PersonIsDriver
+Driver --> Scheduler: ScheduleNotifyStartLegTrigger if PersonIsPassenger
+Scheduler --> PersonAgent: NotifyStartLegTrigger
+Driver --> Scheduler: ScheduleNotifyEndLegTrigger if PersonIsPassenger
+Scheduler --> PersonAgent: NotifyEndLegTrigger
+Driver --> Scheduler: ScheduleNotifyEndLegTrigger if PersonIsDriver
+Scheduler --> PersonAgent: PassengerScheduleEmptyTrigger if PersonIsDriver
+PersonAgent -> Scheduler: ScheduleActivityEndTrigger
+@enduml

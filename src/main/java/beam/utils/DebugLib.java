@@ -35,10 +35,18 @@ public class DebugLib {
         }
     }
 
+    public static void stopSystemAndReportMethodWhichShouldNeverHaveBeenCalled(){
+        DebugLib.stopSystemAndReportInconsistency("this method should never be called");
+    }
+
     public static void startDebuggingInIteration(int iterationNumber){
         if (iterationNumber==18){
             System.out.println();
         }
+    }
+
+    public static void stopSystemAndReportUnknownMessageType(){
+        stopSystemAndReportInconsistency("unknown message type");
     }
 
     public static void stopSystemAndReportInconsistency(String errorString){

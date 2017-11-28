@@ -1,12 +1,8 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Trajectory}
-import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, RIDEHAIL, TRANSIT, WALK}
-import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -17,15 +13,7 @@ object RoutingModel {
 
   type LegCostEstimator = BeamLeg => Option[Double]
 
-  case class BeamTrip(legs: Vector[BeamLeg],
-                      accessMode: BeamMode) {
-    lazy val tripClassifier: BeamMode = if (legs map (_.mode) contains CAR) {
-      CAR
-    } else {
-      TRANSIT
-    }
-    val totalTravelTime: Long = legs.map(_.duration).sum
-  }
+  case class BeamTrip(legs: Vector[BeamLeg], accessMode: BeamMode)
 
   object BeamTrip {
     def apply(legs: Vector[BeamLeg]): BeamTrip = BeamTrip(legs, legs.head.mode)
@@ -38,6 +26,8 @@ object RoutingModel {
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
     lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
+    lazy val requiresReservationConfirmation: Boolean = tripClassifier!=WALK && legs.exists(!_.asDriver)
+
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
 
     def beamLegs(): Vector[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
@@ -46,7 +36,9 @@ object RoutingModel {
 
     def determineTripMode(legs: Vector[EmbodiedBeamLeg]): BeamMode = {
       var theMode: BeamMode = WALK
+      var hasUsedCar: Boolean = false
       legs.foreach { leg =>
+        if(leg.beamLeg.mode == CAR)hasUsedCar = true
         // Any presence of transit makes it transit
         if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
@@ -61,8 +53,16 @@ object RoutingModel {
           theMode = BIKE
         }
       }
-      theMode
+      if(theMode == TRANSIT && hasUsedCar){
+        DRIVE_TRANSIT
+      }else if(theMode == TRANSIT && !hasUsedCar){
+        WALK_TRANSIT
+      }else{
+        theMode
+      }
     }
+
+
 
     def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
@@ -74,36 +74,6 @@ object RoutingModel {
 
   object EmbodiedBeamTrip {
 
-
-    //TODO this is a prelimnary version of embodyWithStreetVehicle that assumes Person drives a single access vehicle (either CAR or BIKE) that is left behind as soon as a different mode is encountered in the trip, it also doesn't allow for chaining of Legs without exiting the vehilce in between, e.g. WALK->CAR->CAR->WALK
-    //TODO this needs unit testing
-    def embodyWithStreetVehicles(trip: BeamTrip, accessVehiclesByMode: Map[BeamMode, StreetVehicle], egressVehiclesByMode: Map[BeamMode, StreetVehicle], legFares: Map[Int, Double], services: BeamServices): EmbodiedBeamTrip = {
-      if(trip.legs.isEmpty){
-        EmbodiedBeamTrip.empty
-      } else {
-        var inAccessPhase = true
-        val embodiedLegs: Vector[EmbodiedBeamLeg] = for(tuple <- trip.legs.zipWithIndex) yield {
-          val beamLeg = tuple._1
-          val currentMode: BeamMode = beamLeg.mode
-          val unbecomeDriverAtComplete = Modes.isR5LegMode(currentMode) && (currentMode != WALK || beamLeg == trip.legs(trip.legs.size - 1))
-
-          val cost = legFares.getOrElse(tuple._2, 0.0)
-          if (Modes.isR5TransitMode(currentMode)) {
-            if(services.transitVehiclesByBeamLeg.contains(beamLeg)) {
-              EmbodiedBeamLeg(beamLeg, services.transitVehiclesByBeamLeg(beamLeg), false, None, 0.0, false)
-            }else{
-              EmbodiedBeamLeg.empty
-            }
-          } else if (inAccessPhase) {
-            EmbodiedBeamLeg(beamLeg, accessVehiclesByMode(currentMode).id, accessVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
-          } else {
-            EmbodiedBeamLeg(beamLeg, egressVehiclesByMode(currentMode).id, egressVehiclesByMode(currentMode).asDriver, None, 0.0, unbecomeDriverAtComplete)
-          }
-        }
-        EmbodiedBeamTrip(embodiedLegs)
-      }
-    }
-
     def beamModeToVehicleId(beamMode: BeamMode): Id[Vehicle] = {
       if (beamMode == WALK) {
         Id.create("body", classOf[Vehicle])
@@ -114,9 +84,7 @@ object RoutingModel {
       }
     }
 
-    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty)
-
-    def apply(beamTrip: BeamTrip) = new EmbodiedBeamTrip(beamTrip.legs.map(leg => EmbodiedBeamLeg(leg)))
+    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty.legs.map(leg=>EmbodiedBeamLeg(leg)))
   }
 
   /**
@@ -159,7 +127,7 @@ object RoutingModel {
     def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
   }
 
-  case class TransitStopsInfo(fromStopId: Int, toStopId: Int)
+  case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
 
   /**
     *

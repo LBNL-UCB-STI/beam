@@ -1,29 +1,25 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.FSM
+import akka.actor.FSM.Failure
+import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, VehicleFull}
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
-import beam.agentsim.agents.{BeamAgent, RemovePassengerFromTrip}
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
+import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, BeamVehicleIdAndRef, BecomeDriverSuccess, BecomeDriverSuccessAck, BoardingConfirmation, RemovePassengerFromTrip, VehicleFull}
+import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}
+import beam.router.RoutingModel.BeamLeg
 import beam.router.r5.NetworkCoordinator
 import beam.sim.HasServices
-import beam.sim.common.GeoUtils
-import com.vividsolutions.jts.geom.{Coordinate}
-import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.HashSet
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * @author dserdiuk on 7/29/17.
@@ -45,10 +41,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   protected var _currentVehicleUnderControl: Option[BeamVehicleIdAndRef] = None
   protected var _awaitingBoardConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _awaitingAlightConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
-  protected var _errorMessageFromDrivesVehicle: String = ""
 
   chainedWhen(Moving) {
-    case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), agentInfo) =>
+    case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _ ) =>
       //we have just completed a leg
       logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
       passengerSchedule.schedule.get(completedLeg) match {
@@ -68,7 +63,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
-          errorFromDrivesVehicle(s"Driver ${id} did not find a manifest for BeamLeg ${_currentLeg}", triggerId)
+          throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
       }
     case Event(AlightingConfirmation(vehicleId), agentInfo) =>
       _awaitingAlightConfirmation -= vehicleId
@@ -80,9 +75,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
   chainedWhen(Waiting) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), agentInfo) =>
-      if(id.toString.equals("TransitDriverAgent-BA.gtfs:05R10")){
-        val i =0
-      }
       holdTickAndTriggerId(tick,triggerId)
       logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for beamVehicleId=${_currentVehicleUnderControl.get.id} ")
 
@@ -101,7 +93,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
-          errorFromDrivesVehicle(s"Driver ${id} did not find a manifest for BeamLeg ${newLeg}",triggerId)
+          stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
     case Event(BoardingConfirmation(vehicleId), agentInfo) =>
       _awaitingBoardConfirmation -= vehicleId
@@ -148,9 +140,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         }
       }
       if(errorFlag) {
-        _errorMessageFromDrivesVehicle = "Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"
-        logError(_errorMessageFromDrivesVehicle)
-        goto(BeamAgent.Error) using stateData.copy(errorReason = Some(_errorMessageFromDrivesVehicle))
+        stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
       }else{
         passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
         updatedPassengerSchedule.schedule.foreach{ legAndManifest =>
@@ -238,9 +228,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),
       _currentLeg.get,getStartCoord,getEndCoord)))
-    if(id.toString.equals("SM:43|10748241:T1|15:00")){
-      val i =0
-    }
 
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
@@ -252,13 +239,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       beamServices.schedulerRef ! completed(theTriggerId, schedule[PassengerScheduleEmptyTrigger](theTick, self))
       goto(Waiting)
     }
-  }
-
-  def errorFromDrivesVehicle(reason: String, triggerId: Long): DrivesVehicle.this.State = {
-    _errorMessageFromDrivesVehicle = reason
-    logError(s"Erroring: From DrivesVehicle ${id}, reason: ${_errorMessageFromDrivesVehicle}")
-    if(triggerId>=0)beamServices.schedulerRef ! completed(triggerId)
-    goto(BeamAgent.Error) using stateData.copy(errorReason = Some(reason))
   }
 
   private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {

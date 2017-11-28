@@ -1,0 +1,18 @@
+@startuml
+PersonAgent -> RideHailManager: RideHailInquiry
+RideHailManager -> PersonAgent: RideHailResponse(TravelProposal)
+PersonAgent -> RideHailManager: ReserveRide
+RideHailManager -> RideHailAgent: ModifyPassengerSchedule
+RideHailManager -> PersonAgent: ReservationResponse(Success|Failure)
+PersonAgent -> Scheduler: ScheduleStartLegTriggers
+Scheduler -> PersonAgent: StartLegTrigger(Walk)
+Scheduler -> RideHailAgent: StartLegTrigger(Drive)
+RideHailAgent -> Scheduler: ScheduleNotifyLegStartTrigger
+Scheduler -> PersonAgent: NotifyLegStartTrigger
+PersonAgent -> RideHailAgent: EnterVehicle
+RideHailAgent -> Scheduler: ScheduleEndLegTrigger
+Scheduler -> RideHailAgent: EndLegTrigger
+RideHailAgent -> Scheduler: ScheduleNotifyLegEndTrigger
+Scheduler -> PersonAgent: NotifyLegEndTrigger
+PersonAgent -> RideHailAgent: ExitVehicle
+@enduml

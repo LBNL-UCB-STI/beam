@@ -1,17 +1,4 @@
 @startuml
-Driver -> Scheduler: ScheduleCompleteLegTrigger
-PersonAgent -> BeamVehicle: ReservationRequest
-BeamVehicle -> Driver: ReservationRequest
-Driver -> PersonAgent: ReservationConfirmed
-Scheduler -> Driver: CompleteLegTrigger
-Driver -> Passengers: AlightingNotice
-Passengers -> BeamVehicle: ExitVehicle
-BeamVehicle -> Driver: AlightingConfirmation
-
-Driver -> PersonAgent: BoardingNotice
-PersonAgent -> BeamVehicle: EnterVehicle
-BeamVehicle -> Driver: BoardingConfirmation
-
-Driver -> Scheduler : ScheduleBeginLegTrigger
-Scheduler -> Driver: BeginLegTrigger
+PersonAgent -> Driver: ReservationRequestWithVehicle
+Driver -> PersonAgent: ReservationResponse(VehicleGone|VehicleFull|ReserveConfirmInfo)
 @enduml

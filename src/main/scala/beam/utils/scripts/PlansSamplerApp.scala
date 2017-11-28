@@ -5,8 +5,10 @@ import java.util
 import beam.utils.gis.Plans2Shapefile
 import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.scripts.PopulationAttrib.Rank
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
+import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import org.apache.log4j.Logger
+import org.geotools.geometry.jts.JTS
+import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
@@ -21,14 +23,15 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
 import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
-import org.matsim.pt2matsim.tools.{CoordTools, NetworkTools}
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 
+import scala.collection.JavaConverters._
 import scala.collection.{JavaConverters, immutable}
 import scala.io.Source
 import scala.util.Random
+
 
 
 case class SynthHousehold(householdId: Id[Household], numPersons: Integer, cars: Integer, coord: Coord)
@@ -122,16 +125,69 @@ object QuadTreeBuilder {
     QuadTreeExtent(minX, minY, maxX, maxY)
   }
 
-  def buildQuadTree[T: HasXY](aoiShapeFileLoc: String, els: Vector[T]): QuadTree[T] = {
+  // Returns a single geometry that is the union of all the polgyons in a shapefile
+  private def geometrtyUnionFromShapefile(aioShapeFileName: String): Geometry = {
+    val sfr: ShapeFileReader = new ShapeFileReader
+    sfr.readFileAndInitialize(aioShapeFileName)
+    val features: util.Collection[SimpleFeature] = sfr.getFeatureSet
+
+    import scala.collection.JavaConversions._
+    val sourceCRS = sfr.getCoordinateSystem
+    val targetCRS = CRS.decode("EPSG:26910")
+    val transform = CRS.findMathTransform(sourceCRS, targetCRS, false)
+    var outGeoms = new util.ArrayList[Geometry]()
+    // Get the polygons and add them to the output list
+    for (f <- features) {
+      f.getDefaultGeometry match {
+        case g: Geometry =>
+//          val ca = wgs2Utm(g.getEnvelope.getEnvelopeInternal)
+          val gt = JTS.transform(g, transform)  // transformed geometry
+          outGeoms.add(gt)
+      }
+    }
+    val gF = new GeometryFactory()
+    val gC = new GeometryCollection(outGeoms.asScala.toArray, gF)
+    val union = gC.union()
+    union
+  }
+
+  // This version parses all activity locations and only keeps agents who have all activities w/ in the bounds
+  def buildQuadTree[T: HasXY](aoiShapeFileLoc: String, pop: Vector[Person]): QuadTree[T] = {
     val ev = implicitly[HasXY[T]]
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
     val qt: QuadTree[T] = new QuadTree[T](qte.minx, qte.miny, qte.maxx, qte.maxy)
-    for (p <- els) {
-      qt.put(ev.getX(p), ev.getY(p), p)
+    // Get the shapefile Envelope
+    val aoi = geometrtyUnionFromShapefile(aoiShapeFileLoc)
+    // loop through all activities and check if each is in the bounds
+    for (person <- pop) {
+      val pplan = person.getPlans().get(0)  // First and only plan
+      //      val elements = JavaConverters.collectionAsScalaIterable(pplan.getPlanElements())
+      val activities = PopulationUtils.getActivities(pplan, null);
+      //      val plans = JavaConverters.collectionAsScalaIterable(person.getPlans())   //.iterator();
+      //      while (plans.hasNext()){
+      //        val plan = plans.next();
+
+      // If any activities outside of bounding box, skip this person
+      var allIn = true
+      activities.forEach(act => {
+        val coord = act.getCoord
+        val gF = new GeometryFactory()
+        val vsCoord = Array(new Coordinate(coord.getX, coord.getY))
+        val point = new Point(gF.getCoordinateSequenceFactory().create(vsCoord), gF)
+        if (!(aoi.contains(point))) {
+          allIn = false
+        }
+      })
+      if (allIn) {
+        val first = PopulationUtils.getFirstActivity(pplan)
+        val coord = first.getCoord
+        qt.put(coord.getX, coord.getY, pplan.asInstanceOf[T])
+      }
     }
     qt
   }
 }
+
 
 
 object SynthHouseholdParser {
@@ -185,6 +241,7 @@ object PlansSampler {
 
   private var pop = Vector[Person]()
   var outDir: String = ""
+  var sampleFrac: Float= 0
 
   def init(args: Array[String]): Unit = {
 
@@ -196,10 +253,12 @@ object PlansSampler {
     pop ++= scala.collection.JavaConverters.mapAsScalaMap(sc.getPopulation.getPersons).values.toVector
     synthPop ++= SynthHouseholdParser.parseFile(args(3))
 
-    val plans = pop.map(_.getPlans.get(0))
+    val plans = pop.map(_.getPlans.get(0))  // Home "plan" objects for each person
 
-    planQt = Some(QuadTreeBuilder.buildQuadTree(args(1), plans))
-    outDir = args(5)
+//    planQt = Some(QuadTreeBuilder.buildQuadTree(args(1), plans))
+    planQt = Some(QuadTreeBuilder.buildQuadTree(args(1), pop))
+    outDir = args(6)
+    sampleFrac = args(5).toFloat
   }
 
   def snapPlanActivityLocsToNearestLink(plan:Plan): Plan ={
@@ -239,11 +298,11 @@ object PlansSampler {
 
 
     // Init vehicle type (easier to do here)
+    val vehTypes = sc.getVehicles.getVehicleTypes.values()
     val defaultVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
     newVehicles.addVehicleType(defaultVehicleType)
 
-
-    Random.shuffle(synthPop).take((0.0001 * synthPop.size).toInt).toStream.foreach(sh => {
+    Random.shuffle(synthPop).take((sampleFrac * synthPop.size).toInt).toStream.foreach(sh => {
 
       val N = if (sh.numPersons * 2 > 0) {
         sh.numPersons * 2
@@ -328,11 +387,12 @@ object PlansSampler {
 /**
   * Inputs
   * [0] Raw plans input filename
-  * [1] AOI shapefile
+  * [1] Input AOI shapefile
   * [2] Network input filename
-  * [3] Synthetic person filename
-  * [4] Default vehicle type(s)
-  * [5] Output directory
+  * [3] Synthetic person input filename
+  * [4] Default vehicle type(s) input filename
+  * [5] Sample fraction (0.01 = 1% sample of Inputs [3])
+  * [6] Output directory
   */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler
