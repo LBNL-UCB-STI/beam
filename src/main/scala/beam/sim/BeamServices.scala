@@ -7,6 +7,8 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.events.AgentsimEventsBus
+import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -33,6 +35,10 @@ trait BeamServices extends ActorInject {
   val agentSimEventsBus: AgentsimEventsBus
 
   val registry: ActorRef
+
+  val fareCalculator: FareCalculator
+  val tollCalculator: TollCalculator
+
   val geo: GeoUtils
   var modeChoiceCalculator: ModeChoiceCalculator
   val dates: DateUtils
@@ -57,6 +63,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
+
+  val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+  val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
   val dates: DateUtils = DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate))

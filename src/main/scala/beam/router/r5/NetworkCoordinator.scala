@@ -2,10 +2,9 @@ package beam.router.r5
 
 import java.io.File
 import java.nio.file.Files.exists
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
-import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator._
 import beam.sim.BeamServices
 import beam.utils.reflection.ReflectionUtils
@@ -41,19 +40,18 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
 
   override def receive: Receive = {
     case msg => log.info(s"Unknown message[$msg] received by NetworkCoordinator Actor.")
-    FareCalculator.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory))
-    loadNetwork(inputDir)
-    FareCalculator.fromDirectory(inputDir)
-    TollCalculator.fromDirectory(inputDir)
   }
 
-  def loadNetwork(networkDir: Path) = {
-    if (!exists(networkDir)) {
-      networkDir.toFile.mkdir()
+  def loadNetwork = {
+    val networkDir = beamServices.beamConfig.beam.routing.r5.directory
+    val networkDirPath = Paths.get(networkDir)
+    if (!exists(networkDirPath)) {
+      Paths.get(networkDir).toFile.mkdir()
     }
-    val unprunedNetworkFilePath = Paths.get(networkDir.toString, UNPRUNED_GRAPH_FILE)  // The first R5 network, created w/out island pruning
+
+    val unprunedNetworkFilePath = Paths.get(networkDir, UNPRUNED_GRAPH_FILE)  // The first R5 network, created w/out island pruning
     val partiallyPrunedNetworkFile: File = unprunedNetworkFilePath.toFile
-    val prunedNetworkFilePath = Paths.get(networkDir.toString, PRUNED_GRAPH_FILE)  // The final R5 network that matches the cleaned (pruned) MATSim network
+    val prunedNetworkFilePath = Paths.get(networkDir, PRUNED_GRAPH_FILE)  // The final R5 network that matches the cleaned (pruned) MATSim network
     val prunedNetworkFile: File = prunedNetworkFilePath.toFile
     if (exists(prunedNetworkFilePath)) {
       log.debug(s"Initializing router by reading network from: ${prunedNetworkFilePath.toAbsolutePath}")

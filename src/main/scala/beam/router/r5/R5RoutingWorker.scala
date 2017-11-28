@@ -13,6 +13,8 @@ import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.FareCalculator._
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator._
 import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.router.{Modes, StreetSegmentTrajectoryResolver}
@@ -32,12 +34,15 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
+class R5RoutingWorker(val beamServices: BeamServices) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
+
+  val fareCalculator: FareCalculator = beamServices.fareCalculator
+  val tollCalculator: TollCalculator = beamServices.tollCalculator
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
@@ -153,12 +158,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           val access = option.access.get(itinerary.connection.access)
         val toll = if (access.mode == LegMode.CAR) {
           val osm = access.streetEdges.asScala.map(e => transportNetwork.streetLayer.edgeStore.getCursor(e.edgeId).getOSMID).toVector
-          TollCalculator.calcToll(osm)
+          tollCalculator.calcToll(osm)
         } else 0.0
           // Using itinerary start as access leg's startTime
           val tripStartTime = beamServices.dates.toBaseMidnightSeconds(itinerary.startTime, transportNetwork.transitLayer.routes.size() == 0)
           val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-        legFares += legs.size -> toll
+//        legFares += legs.size -> toll
           legsWithFares :+= (BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access, tripStartTime)), 0.0)
 
           //add a Dummy walk BeamLeg to the end of that trip
@@ -329,7 +334,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 }
 
 object R5RoutingWorker {
-  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator)
+  def props(beamServices: BeamServices) = Props(classOf[R5RoutingWorker], beamServices)
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 

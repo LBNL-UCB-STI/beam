@@ -1,9 +1,11 @@
 package beam.router.osm
 
-import java.io.File
+import java.io._
 import java.lang
 import java.nio.file.{Files, Path, Paths}
 
+import beam.router.gtfs.FareCalculator.BeamFareRule
+import beam.router.osm.TollCalculator.{Charge, Toll}
 import com.conveyal.osmlib.OSMEntity.Tag
 import com.conveyal.osmlib.{OSM, Way}
 
@@ -28,59 +30,86 @@ object TollCalculator {
       charge.split(";").map(c => {
         val tokens = c.split(" ")
         val tts = tokens.length
-        if(tts >= 2) {
-          val sfxTokens = tokens(tts-1).split("/")
+        if (tts >= 2) {
+          val sfxTokens = tokens(tts - 1).split("/")
 
-          new Charge(tokens(tts-2).toDouble,
-                      sfxTokens(0),
-                      sfxTokens(1),
-                      if(sfxTokens.length == 3) Option(sfxTokens(2)) else None,
-                      tts match {
-                        case 2 => Vector()
-                        case 3 => Vector(ChargeDate.apply(tokens(0)))
-                        case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
-                        case 5 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)), ChargeDate.apply(tokens(2)))
-                      })
+          new Charge(tokens(tts - 2).toDouble,
+            sfxTokens(0),
+            sfxTokens(1),
+            if (sfxTokens.length == 3) Option(sfxTokens(2)) else None,
+            tts match {
+              case 2 => Vector()
+              case 3 => Vector(ChargeDate.apply(tokens(0)))
+              case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
+              case 5 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)), ChargeDate.apply(tokens(2)))
+            })
         } else empty
       }).toVector
     }
 
-    def empty : Charge = {
+    def empty: Charge = {
       Charge(0.0, "USD")
     }
   }
 
-  trait ChargeDate { val dType: String; val on: String  }
+  trait ChargeDate {
+    val dType: String;
+    val on: String
+  }
+
   case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
+
   case class DateRange(override val dType: String, override val on: String, till: String) extends ChargeDate
 
   object ChargeDate {
     private val months = Set("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     private val days = Set("mo", "tu", "we", "th", "fr", "sa", "su")
     private val events = Set("dawn", "sunrise", "sunset", "dusk")
+
     def apply(pattern: String): ChargeDate = {
       val dateTokens = pattern.split("-")
-      val dType = if(isMonth(dateTokens(0))) {
+      val dType = if (isMonth(dateTokens(0))) {
         "m"
-      } else if(isDay(dateTokens(0))) {
+      } else if (isDay(dateTokens(0))) {
         "d"
-      } else if(isHour(dateTokens(0))) {
+      } else if (isHour(dateTokens(0))) {
         "h"
       } else {
         "y"
       }
-      if(dateTokens.length == 1) new DiscreteDate(dType, dateTokens(0)) else new DateRange(dType, dateTokens(0), dateTokens(1))
+      if (dateTokens.length == 1) new DiscreteDate(dType, dateTokens(0)) else new DateRange(dType, dateTokens(0), dateTokens(1))
     }
 
     def isMonth(m: String) = months.contains(m.toLowerCase)
+
     def isDay(d: String) = days.contains(d.toLowerCase)
+
     def isHour(h: String) = h.contains(":") || events.exists(h.contains(_))
   }
 
-  val MIN_TOLL = 1.0
-  var ways: mutable.Map[java.lang.Long, Toll] = _
+}
+  class TollCalculator(val directory: String) {
 
-  def fromDirectory(directory: Path): Unit = {
+  val MIN_TOLL = 1.0
+  private val dataDirectory: Path = Paths.get(directory)
+  private val cacheFile: File = dataDirectory.resolve("tolls.dat").toFile
+
+  /**
+    * agencies is a Map of FareRule by agencyId
+    */
+  val ways: Map[java.lang.Long, Toll] = if (cacheFile.exists()) {
+    new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[Map[java.lang.Long, Toll]]
+  } else {
+    val ways = fromDirectory(dataDirectory)
+    val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
+    stream.writeObject(ways)
+    stream.close()
+    ways
+  }
+
+  def fromDirectory(directory: Path): Map[java.lang.Long, Toll] = {
+    var ways: Map[java.lang.Long, Toll] = Map()
+
     /**
       * Checks whether its a osm.pbf feed and has fares data.
       *
@@ -116,6 +145,8 @@ object TollCalculator {
     if (Files.isDirectory(directory)) {
       directory.toFile.listFiles(hasOSM(_)).map(_.getAbsolutePath).headOption.foreach(loadOSM(_))
     }
+
+    ways
   }
 
   def calcToll(osmIds: Vector[Long]): Double = {

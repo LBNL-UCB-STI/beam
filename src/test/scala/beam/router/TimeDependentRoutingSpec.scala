@@ -11,6 +11,7 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.WALK
 import beam.router.RoutingModel.BeamLegWithNext
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -50,8 +51,7 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test")) with 
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator))
+    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles))
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

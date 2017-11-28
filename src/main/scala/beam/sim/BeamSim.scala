@@ -20,6 +20,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.BeamRouter.InitTransit
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.sim.config.BeamLoggingSetup
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
@@ -94,9 +95,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       }
     }
 
-    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-
-    val router = actorSystem.actorOf(BeamRouter.props(beamServices, beamServices.matsimServices.getScenario.getTransitVehicles, fareCalculator), "router")
+    val router = actorSystem.actorOf(BeamRouter.props(beamServices, beamServices.matsimServices.getScenario.getTransitVehicles), "router")
     beamServices.beamRouter = router
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 

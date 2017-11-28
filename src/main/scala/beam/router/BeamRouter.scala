@@ -17,6 +17,7 @@ import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.{BeamMode, isOnStreetTransit}
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator.transportNetwork
 import beam.router.r5.{NetworkCoordinator, R5RoutingWorker}
 import beam.sim.BeamServices
@@ -35,7 +36,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
 
-class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
+class BeamRouter(services: BeamServices, transitVehicles: Vehicles) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val networkCoordinator = context.actorOf(NetworkCoordinator.props(transitVehicles, services), "network-coordinator")
@@ -43,7 +44,7 @@ class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculat
   // FIXME Wait for networkCoordinator because it initializes global variables.
   Await.ready(networkCoordinator ? Identify(0), timeout.duration)
 
-  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, fareCalculator), "router-worker")
+  private val routerWorker = context.actorOf(R5RoutingWorker.props(services), "router-worker")
 
   override def receive = {
     case InitTransit =>
@@ -277,5 +278,5 @@ object BeamRouter {
     }
   }
 
-  def props(beamServices: BeamServices, transitVehicles: Vehicles, fareCalculator: FareCalculator) = Props(classOf[BeamRouter], beamServices, transitVehicles, fareCalculator)
+  def props(beamServices: BeamServices, transitVehicles: Vehicles) = Props(classOf[BeamRouter], beamServices, transitVehicles)
 }

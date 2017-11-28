@@ -41,9 +41,8 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator))
+    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles))
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

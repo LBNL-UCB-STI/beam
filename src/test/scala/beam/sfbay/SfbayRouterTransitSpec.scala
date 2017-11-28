@@ -47,10 +47,9 @@ class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with Wo
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
     when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     new VehicleReaderV1(scenario.getTransitVehicles).readFile("production/application-sfbay/transitVehicles.xml")
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator), "router")
+    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles), "router")
 
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)
