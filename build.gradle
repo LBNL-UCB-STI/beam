@@ -108,7 +108,7 @@ dependencies {
     compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
-    compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-SNAPSHOT', changing:true) {
+    compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
