@@ -62,18 +62,24 @@ if (project.hasProperty('env')) {
 
 
 repositories {
+    maven { url "http://maven.geotoolkit.org/" }
     maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-    mavenLocal()
-    mavenCentral()
-    jcenter()
-    maven { url "https://jitpack.io" }
+    maven { url "http://central.maven.org/maven2" }
+    maven { url "http://repo.maven.apache.org/maven2" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
     maven { url "http://maven.conveyal.com/" }
+    maven { url "http://repo1.maven.org/maven2" }
+    maven { url "http://download.java.net/maven/2/" }
+    maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
     maven { url "http://dl.bintray.com/andimarek/graphql-java" }
     maven { url "http://maven.geo-solutions.it" }
-
-
+    maven { url "http://dl.bintray.com/scalaz/releases" }
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+    maven { url "https://jitpack.io" }
 }
 
 dependencies {
