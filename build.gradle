@@ -68,6 +68,11 @@ repositories {
     maven { url "https://jitpack.io" }
     maven { url "http://download.osgeo.org/webdav/geotools" }
     maven { url "http://dl.bintray.com/matsim/matsim" }
+    maven { url "http://maven.conveyal.com/" }
+    maven { url "http://dl.bintray.com/andimarek/graphql-java" }
+    maven { url "http://maven.geo-solutions.it" }
+
+
 }
 
 dependencies {
