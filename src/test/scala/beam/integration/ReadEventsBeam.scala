@@ -7,10 +7,11 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.Queue
 
 class ReadEventsBeam extends ReadEvents{
   val basicEventHandler = new BasicEventHandler{
-    var events: Seq[Event] = Seq()
+    var events: Queue[Event] = Queue()
     def handleEvent(event: Event): Unit = {
       events = events :+ event
     }
