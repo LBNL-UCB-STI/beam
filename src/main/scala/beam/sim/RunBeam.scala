@@ -10,7 +10,7 @@ import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler._
-import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
@@ -41,9 +41,10 @@ trait RunBeam {
       override def install(): Unit = {
         // Override MATSim Defaults
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
+        bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
 
         // Beam -> MATSim Wirings
-        bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
+        bindMobsim().to(classOf[BeamMobsim])
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
