@@ -116,6 +116,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     cleanupRideHailingAgents()
     cleanupVehicle()
     cleanupHouseHolder()
+    Thread.sleep(5000)
     agentSimToPhysSimPlanConverter.startPhysSim()
   }
 
