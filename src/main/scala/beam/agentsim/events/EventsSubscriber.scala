@@ -40,7 +40,6 @@ class EventsSubscriber (private val eventsManager: EventsManager) extends Actor 
       }
 
     case EndIteration(it) =>
-      eventsManager.finishProcessing()
       sender() ! ProcessingFinished(it)
 
     case _ => log.info("received unknown message")
