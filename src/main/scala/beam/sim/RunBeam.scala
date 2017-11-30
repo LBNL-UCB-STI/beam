@@ -46,7 +46,6 @@ trait RunBeam {
         bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
       }
     }))
