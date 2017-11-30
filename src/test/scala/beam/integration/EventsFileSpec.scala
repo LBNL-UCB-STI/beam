@@ -21,17 +21,17 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   val beamConfig = BeamConfig(config)
 
+  override protected def beforeAll(): Unit = {
+    runBeamWithConfig(config)
+    super.beforeAll()
+  }
+
   def xmlFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "xml")
   def csvFile: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , "csv")
   def busTripsFile = new File(s"${beamConfig.beam.inputDirectory}/r5/bus/trips.txt")
   def trainTripsFile = new File(s"${beamConfig.beam.inputDirectory}/r5/train/trips.txt")
   def busStopTimesFile = new File(s"${beamConfig.beam.inputDirectory}/r5/bus/stop_times.txt")
   def trainStopTimesFile = new File(s"${beamConfig.beam.inputDirectory}/r5/train/stop_times.txt")
-
-  override protected def beforeAll(): Unit = {
-    runBeamWithConfig(config)
-    super.beforeAll()
-  }
 
   "Create xml events file in output directory" should behave like fileExists(xmlFile)
 
