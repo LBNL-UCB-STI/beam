@@ -10,9 +10,9 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
 import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
-import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
+import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.LegWithPassengerVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
@@ -21,7 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
@@ -45,7 +45,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   var routingResponse: Option[RoutingResponse] = None
   var rideHailingResult: Option[RideHailingInquiryResponse] = None
-  var hasReceivedCompleteChoiceTrigger = false
   var awaitingReservationConfirmation: mutable.Map[Id[ReservationRequest], Option[ActorRef]] = mutable.Map()
   var pendingChosenTrip: Option[EmbodiedBeamTrip] = None
   var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
@@ -71,7 +70,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       .getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
-    if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
+    if (routingResponse.isDefined && rideHailingResult.isDefined) {
       val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).isDefined
       var predefinedMode: Option[BeamMode] = None
       var combinedItinerariesForChoice = rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
@@ -236,7 +235,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     if(awaitingReservationConfirmation.nonEmpty){
       awaitingReservationConfirmation.clear()
     }
-    hasReceivedCompleteChoiceTrigger = false
     pendingChosenTrip = None
     scheduler ! completed(triggerId = theTriggerId, triggersToSchedule ++
       schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
@@ -248,35 +246,31 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       goto(Initialized)
   }
 
+  def chooseMode(tick: Double, triggerId: Long) = {
+    holdTickAndTriggerId(tick, triggerId)
+    val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
+    modeChoiceStrategy match {
+      case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+        // Only need to get available street vehicles from household if our mode requires such a vehicle
+        context.parent ! mobilityStatusInquiry(id)
+      case None =>
+        context.parent ! mobilityStatusInquiry(id)
+      case _ =>
+        // Otherwise, send empty list to self
+        self ! MobilityStatusReponse(Vector())
+    }
+    goto(ChoosingMode)
+  }
+
+
   chainedWhen(ChoosingMode) {
-    /*
-     * Begin Choice Process
-     *
-     * When we begin the mode choice process, we send out requests for data that we need from other system components.
-     * Then we reply with a completion notice and schedule the finalize choice trigger.
-     */
-    case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), _: BeamAgentInfo[PersonData]) =>
-      holdTickAndTriggerId(tick, triggerId)
-      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
-      modeChoiceStrategy match {
-        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
-          // Only need to get available street vehicles from household if our mode requires such a vehicle
-          context.parent ! mobilityStatusInquiry(id)
-        case None =>
-          context.parent ! mobilityStatusInquiry(id)
-        case _ =>
-          // Otherwise, send empty list to self
-          self ! MobilityStatusReponse(Vector())
-      }
-      stay()
     case Event(MobilityStatusReponse(streetVehicles), _: BeamAgentInfo[PersonData]) =>
-      val (tick, theTriggerId) = releaseTickAndTriggerId()
-      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle, SpaceTime(currentActivity.getCoord, tick.toLong),
+      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong),
         WALK, asDriver = true)
       availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
 
       val nextAct = nextActivity.right.get
-      val departTime = DiscreteTime(tick.toInt)
+      val departTime = DiscreteTime(_currentTick.get.toInt)
 
       val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextAct, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
       modeChoiceStrategy match {
@@ -350,8 +344,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
       }
-
-      scheduler ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()
     /*
      * Receive and store data needed for choice.
@@ -393,13 +385,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       }
     case Event(ReservationResponse(_, _), _) =>
       stop(Failure("unknown res response"))
-    /*
-     * Finishing choice.
-     */
-    case Event(TriggerWithId(FinalizeModeChoiceTrigger(tick), theTriggerId), _: BeamAgentInfo[PersonData]) =>
-      holdTickAndTriggerId(tick, theTriggerId)
-      hasReceivedCompleteChoiceTrigger = true
-      completeChoiceIfReady()
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg),theTriggerId),_) =>
       // We've received this leg too early...
       stash()
@@ -425,10 +410,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 }
 
 object ChoosesMode {
-
-  case class BeginModeChoiceTrigger(tick: Double) extends Trigger
-
-  case class FinalizeModeChoiceTrigger(tick: Double) extends Trigger
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
