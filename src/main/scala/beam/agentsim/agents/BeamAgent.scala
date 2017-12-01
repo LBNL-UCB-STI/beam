@@ -150,12 +150,13 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   }
 
   onTermination {
-    case StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
+    case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
       reason match {
         case FSM.Shutdown =>
           log.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
         case _ =>
       }
+      log.error(event.toString)
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, stateData.tick))
   }
