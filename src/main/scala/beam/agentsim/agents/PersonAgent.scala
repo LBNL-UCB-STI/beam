@@ -12,7 +12,6 @@ import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, RemovePassengerFromTrip, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
-import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
@@ -160,7 +159,7 @@ class PersonAgent(val beamServices: BeamServices,
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ $tick")
-          beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType)))
+          context.system.eventStream.publish(new ActivityEndEvent(tick, id, currentAct.getLinkId, currentAct.getFacilityId, currentAct.getType))
           goto(ChoosingMode) replying completed(triggerId,schedule[BeginModeChoiceTrigger](tick, self))
         }
       )
@@ -360,8 +359,8 @@ class PersonAgent(val beamServices: BeamServices,
             //TODO consider ending the day here to match MATSim convention for start/end activity
             tick + 60*10
           }
-          beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value)))
-          beamServices.agentSimEventsBus.publish(MatsimEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType)))
+          context.system.eventStream.publish(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value))
+          context.system.eventStream.publish(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
           goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
       }
     }

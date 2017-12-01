@@ -6,7 +6,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.events.AgentsimEventsBus
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -30,7 +29,6 @@ trait BeamServices extends ActorInject {
   val matsimServices: MatsimServices
   val controler: ControlerI
   var beamConfig: BeamConfig
-  val agentSimEventsBus: AgentsimEventsBus
 
   val registry: ActorRef
   val geo: GeoUtils
@@ -55,7 +53,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-  val agentSimEventsBus = new AgentsimEventsBus
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])

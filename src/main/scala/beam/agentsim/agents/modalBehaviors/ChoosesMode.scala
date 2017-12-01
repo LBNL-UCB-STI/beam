@@ -16,7 +16,6 @@ import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
-import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -150,10 +149,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     val location = if(chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty){ chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString }else{ "" }
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum)))
+    context.system.eventStream.publish(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+      location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum))
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
+    context.system.eventStream.publish(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode))
 
     val personalVehicleUsed: Vector[Id[Vehicle]] = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
