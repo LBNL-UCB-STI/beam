@@ -205,8 +205,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private void createLastActivityOfDayForPopulation() {
         for (Person p : jdeqSimScenario.getPopulation().getPersons().values()) {
             Plan plan = p.getSelectedPlan();
-            Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-            plan.addActivity(populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
+            if (!plan.getPlanElements().isEmpty()) {
+                Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
+                plan.addActivity(populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
+            }
         }
     }
 }
