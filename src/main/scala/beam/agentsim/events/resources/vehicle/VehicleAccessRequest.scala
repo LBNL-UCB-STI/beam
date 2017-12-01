@@ -44,6 +44,9 @@ case object UnknownInquiryId extends ReservationError {
   override def errorCode: ReservationErrorCode = ReservationErrorCode.UnknownInquiryId
 }
 
+case object NoRidesToHail extends ReservationError {
+  override def errorCode: ReservationErrorCode = ReservationErrorCode.NoRidesToHail
+}
 
 case object CouldNotFindRouteToCustomer extends ReservationError {
   override def errorCode: ReservationErrorCode = ReservationErrorCode.RideHailRouteNotFound

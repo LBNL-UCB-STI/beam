@@ -12,7 +12,7 @@ import org.matsim.api.core.v01.Id
   */
 object TransitFareDefaults {
 
-  def estimateTransitFares(alternatives: Vector[EmbodiedBeamTrip]): Vector[BigDecimal] = {
+  def estimateTransitFares(alternatives: Seq[EmbodiedBeamTrip]): Seq[BigDecimal] = {
     alternatives.map{ alt =>
       alt.tripClassifier match {
         case TRANSIT if alt.costEstimate == 0.0 =>

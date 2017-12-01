@@ -145,15 +145,11 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
-    case ProcessingFinished(it) =>
-      startSender ! CompletionNotice(0L)
-
-
     case DoSimStep(newNow: Double) if newNow > stopTick =>
       nowInSeconds = newNow
       if (awaitingResponse.isEmpty && (triggerQueue.isEmpty || (triggerQueue.nonEmpty  && triggerQueue.headOption.fold(true)(_.triggerWithId.trigger.tick <= newNow)))) {
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
-        eventSubscriberRef ! EndIteration(currentIter)
+        startSender ! CompletionNotice(0L)
       } else {
         context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }

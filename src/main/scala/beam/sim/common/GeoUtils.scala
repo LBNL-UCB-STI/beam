@@ -1,6 +1,6 @@
 package beam.sim.common
 
-import beam.sim.config.{BeamConfig, ConfigModule}
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, BoundingBox, HasServices}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{Split, StreetLayer}
@@ -89,11 +89,13 @@ trait GeoUtils extends HasServices  {
 
 object GeoUtils {
 
+  @Inject
+  var beamConfig: BeamConfig = _
+
   implicit class CoordOps(val coord: Coord) extends AnyVal{
 
     def toWgs: Coord= {
-      lazy val config = BeamConfig(ConfigModule.typesafeConfig)
-      lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(config.beam.spatial.localCRS, "epsg:4326")
+      lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamConfig.beam.spatial.localCRS, "epsg:4326")
       //TODO fix this monstrosity
       if (coord.getX > 1.0 | coord.getX < -0.0) {
         utm2Wgs.transform(coord)
@@ -103,8 +105,7 @@ object GeoUtils {
     }
 
     def toUtm: Coord ={
-      lazy val config = BeamConfig(ConfigModule.typesafeConfig)
-      lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("epsg:4326",config.beam.spatial.localCRS)
+      lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("epsg:4326",beamConfig.beam.spatial.localCRS)
       wgs2Utm.transform(coord)
     }
   }

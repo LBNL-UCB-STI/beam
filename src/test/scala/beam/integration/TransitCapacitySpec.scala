@@ -1,6 +1,9 @@
 package beam.integration
 
+import java.io.File
+
 import beam.sim.RunBeam
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -13,7 +16,11 @@ class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with B
   "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing transitCapacity value" must {
     "create more entries for mode choice transit as value increases" ignore {
       val inputTransitCapacity = 0.1 to 1.0 by 0.9
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable"), transitCapacity = Some(tc)).groupedCount)
+      val modeChoice = inputTransitCapacity.map(tc => new StartWithCustomConfig(
+        baseConfig
+          .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceTransitIfAvailable"))
+          .withValue("beam.agentsim.tuning.transitCapacity", ConfigValueFactory.fromAnyRef(tc))
+      ).groupedCount)
 
       val tc = modeChoice
         .map(_.get("transit"))

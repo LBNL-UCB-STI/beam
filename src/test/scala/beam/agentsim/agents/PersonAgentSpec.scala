@@ -1,14 +1,16 @@
 package beam.agentsim.agents
 
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.events.{AgentsimEventsBus, EventsSubscriber}
+import beam.agentsim.events.AkkaEventsManagerImpl
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigFactory
@@ -18,7 +20,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.events.EventsUtils
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
 import org.matsim.households.Household
@@ -32,14 +33,12 @@ import org.scalatest.{FunSpecLike, MustMatchers}
   */
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """))) with MustMatchers with FunSpecLike with ImplicitSender with MockitoSugar {
+  """).withFallback(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve()))) with MustMatchers with FunSpecLike with ImplicitSender with MockitoSugar {
 
-  private val agentSimEventsBus = new AgentsimEventsBus
-  val config = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
-
+  private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
+  val config = BeamConfig(system.settings.config)
   val services: BeamServices = {
     val theServices  = mock[BeamServices]
-    when(theServices.agentSimEventsBus).thenReturn(agentSimEventsBus)
     when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.modeChoiceCalculator).thenReturn(mock[ModeChoiceCalculator])
@@ -63,6 +62,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(0)
       expectTerminated(personAgentRef)
+      expectMsg(CompletionNotice(0L))
     }
 
     it("should be able to be registered in registry") {
@@ -81,15 +81,13 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     it("should publish events that can be received by a MATSim EventsManager") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
-      val events: EventsManager = EventsUtils.createEventsManager()
+      val events: EventsManager = new AkkaEventsManagerImpl(system)
       events.addHandler(new ActivityEndEventHandler {
         override def handleEvent(event: ActivityEndEvent): Unit = {
-          system.log.info("events-subscriber received actend event!")
+          system.log.error("events-subscriber received actend event!")
         }
         override def reset(iteration: Int): Unit = {}
       })
-      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber1")
-      agentSimEventsBus.subscribe(eventSubscriber, ActivityEndEvent.EVENT_TYPE)
 
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -103,17 +101,14 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
 
-      EventFilter.info(message = "events-subscriber received actend event!", occurrences = 1) intercept {
+      EventFilter.error(message = "events-subscriber received actend event!", occurrences = 1) intercept {
         beamAgentSchedulerRef ! StartSchedule(0)
       }
     }
 
     it("should be able to route legs"){
-      val events: EventsManager = EventsUtils.createEventsManager()
-      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber2")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
       val houseIdDummy = Id.create("dummy",classOf[Household])
-      agentSimEventsBus.subscribe(eventSubscriber,ActivityEndEvent.EVENT_TYPE)
 
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))

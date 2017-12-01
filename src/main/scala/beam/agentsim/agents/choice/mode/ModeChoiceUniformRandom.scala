@@ -16,8 +16,8 @@ class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoice
 
   override def clone(): ModeChoiceCalculator = new ModeChoiceUniformRandom(beamServices)
 
-  override def apply(alternatives: Vector[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]) = {
-    chooseRandomAlternativeIndex(alternatives).map(x=>alternatives(x))
+  override def apply(alternatives: Seq[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]) = {
+    alternatives(chooseRandomAlternativeIndex(alternatives))
   }
 
 }
