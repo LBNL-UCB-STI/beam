@@ -1,12 +1,15 @@
 package beam.sim
 
+import java.nio.file.{Files, Paths}
+
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.sim.config.{BeamConfig, ConfigModule}
+import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.controler.corelisteners.BeamPrepareForSimImpl
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.FileUtils
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler._
@@ -53,12 +56,24 @@ trait RunBeam {
     }))
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
-    val config = ConfigModule.loadConfig(configFileName)
+    val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
+    val config = configFileName match {
+      case Some(fileName) if Files.exists(Paths.get(fileName)) =>
+        ConfigFactory.parseFile(Paths.get(fileName).toFile)
+      case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
+        ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile)
+      case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
+        ConfigFactory.parseResources(fileName)
+      case _ =>
+        ConfigFactory.parseResources("beam.conf")
+    }
+    config.resolve()
     runBeamWithConfig(config)
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config) = {
-    val matsimConfig = ConfigModule.matSimConfig(config)
+    val configBuilder = new MatSimBeamConfigBuilder(config)
+    val matsimConfig = configBuilder.buildMatSamConf()
 
     val beamConfig = BeamConfig(config)
 
