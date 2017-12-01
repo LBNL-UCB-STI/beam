@@ -10,7 +10,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.events.{AgentsimEventsBus, EventsSubscriber}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigFactory
@@ -65,6 +65,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(0)
       expectTerminated(personAgentRef)
+      expectMsg(CompletionNotice(0L))
     }
 
     it("should be able to be registered in registry") {
