@@ -63,11 +63,10 @@ trait RunBeam {
       case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
         ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile).resolve()
       case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
-        ConfigFactory.parseResources(fileName)
+        ConfigFactory.parseResources(fileName).resolve()
       case _ =>
-        ConfigFactory.parseResources("beam.conf")
+        ConfigFactory.parseResources("beam.conf").resolve()
     }
-    config.resolve()
     runBeamWithConfig(config)
   }
 
