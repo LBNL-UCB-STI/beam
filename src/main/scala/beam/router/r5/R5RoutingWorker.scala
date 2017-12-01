@@ -228,18 +228,20 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       val maybeBody = routingRequestTripInfo.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
         log.warning("Adding dummy walk route with maximum street time.")
-        val originX=routingRequestTripInfo.origin.getX();
-        val originY=routingRequestTripInfo.origin.getY();
+        val originX=routingRequestTripInfo.origin.getX
+        val originY=routingRequestTripInfo.origin.getY
 
-        val destX=routingRequestTripInfo.destination.getX();
-        val destY=routingRequestTripInfo.destination.getY();
+        val destX=routingRequestTripInfo.destination.getX
+        val destY=routingRequestTripInfo.destination.getY
 
         val distanceInMeters=beamServices.geo.distInMeters(new Coord(originX,originY),new Coord(destX,destY))
-        val bushWalkingTime=Math.round(distanceInMeters/BUSHWALKING_SPEED_IN_METERS_PER_SECOND);
+        val bushwhackingTime=Math.round(distanceInMeters/BUSHWALKING_SPEED_IN_METERS_PER_SECOND);
 
+        val body = routingRequestTripInfo.streetVehicles.find(_.mode == WALK).get
         val dummyTrip = EmbodiedBeamTrip(
           Vector(
-              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushWalkingTime))
+              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushwhackingTime),
+                body.id, body.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
         RoutingResponse(embodiedTrips :+ dummyTrip)

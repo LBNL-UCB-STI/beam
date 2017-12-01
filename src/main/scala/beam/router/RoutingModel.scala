@@ -84,7 +84,7 @@ object RoutingModel {
       }
     }
 
-    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty.legs.map(leg=>EmbodiedBeamLeg(leg)))
+    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
   }
 
   /**
@@ -119,12 +119,6 @@ object RoutingModel {
                              unbecomeDriverOnCompletion: Boolean
                             ) {
     val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
-  }
-
-  object EmbodiedBeamLeg {
-    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("", classOf[Vehicle]), false, None, 0.0, false)
-
-    def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None, 0.0, false)
   }
 
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
