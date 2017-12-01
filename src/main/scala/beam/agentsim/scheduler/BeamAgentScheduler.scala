@@ -99,9 +99,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
 
-    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow || triggerToSchedule.trigger.tick>=stopTick) {
-      log.warning(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds sender=${sender()} sending target agent to Error")
+    if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow) {
       triggerToSchedule.agent ! IllegalTriggerGoToError(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds}")
+    } else if (triggerToSchedule.trigger.tick >= stopTick) {
+      triggerToSchedule.agent ! IllegalTriggerGoToError(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when simulation end time is at $stopTick}")
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
       triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
