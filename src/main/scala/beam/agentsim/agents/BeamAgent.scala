@@ -104,17 +104,18 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
         if(numCompletionNotices>1){
           stop(Failure(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}"))
-        }else if(numCompletionNotices == 1){
-          theStateData = theStateData.copy(triggerId = None)
+        } else {
+          if(numCompletionNotices == 1) {
+            theStateData = theStateData.copy(triggerId = None)
+          }
+          FSM.State(
+            stateName = newStates.head.stateName,
+            stateData = theStateData,
+            timeout = None,
+            stopReason = newStates.flatMap(s => s.stopReason).headOption, // Stop iff anyone wants to. TODO: Maybe do a consensus check here, too.
+            replies = resultingReplies
+          )
         }
-
-        FSM.State(
-          stateName = newStates.head.stateName,
-          stateData = theStateData,
-          timeout = None,
-          stopReason = newStates.flatMap(s => s.stopReason).headOption, // Stop iff anyone wants to. TODO: Maybe do a consensus check here, too.
-          replies = resultingReplies
-        )
       }
     }else{
       FSM.State(state, event.stateData)

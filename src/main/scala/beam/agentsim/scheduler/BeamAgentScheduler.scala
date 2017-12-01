@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
 import akka.util.Timeout
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.events.EventsSubscriber._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.sim.config.BeamConfig
@@ -144,13 +145,13 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       nowInSeconds = newNow
       if (awaitingResponse.isEmpty) {
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
+        triggerQueue.dequeueAll.foreach(scheduledTrigger => scheduledTrigger.agent ! Finish)
         startSender ! CompletionNotice(0L)
       } else {
         context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
-      //      log.info(s"recieved notice that trigger triggerId: $triggerId is complete")
       newTriggers.foreach {
         scheduleTrigger
       }

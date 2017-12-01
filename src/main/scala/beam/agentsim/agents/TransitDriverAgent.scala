@@ -64,6 +64,8 @@ class TransitDriverAgent(val beamServices: BeamServices,
       stop replying completed(triggerId)
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
   }
 
   when(Waiting) {
