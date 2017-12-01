@@ -193,9 +193,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
             numberRepeats.set(0)
           }
           if (numReps > 2) {
-            log.error(s"DEBUG: $numReps > 2 repeats!!! Clearing out stuck agents and proceeding with schedule")
+            val reason = s"DEBUG: $numReps > 2 repeats!!! Clearing out stuck agents and proceeding with schedule"
+            log.error(reason)
             awaitingResponse.values().stream().forEach({ x =>
-              x.agent ! IllegalTriggerGoToError
+              x.agent ! IllegalTriggerGoToError(reason)
               currentTotalAwaitingResponse.set(0)
               self ! CompletionNotice(x.triggerWithId.triggerId)
             })
