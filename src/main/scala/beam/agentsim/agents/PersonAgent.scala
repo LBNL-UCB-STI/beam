@@ -404,8 +404,8 @@ class PersonAgent(val beamServices: BeamServices,
       scheduleStartLegAndStay()
     case Event(BecomeDriverSuccessAck, _)  =>
       scheduleStartLegAndStay()
-    case Event(IllegalTriggerGoToError, _)  =>
-      stop(Failure("Illegal Trigger sent to Scheduler"))
+    case Event(IllegalTriggerGoToError(reason), _)  =>
+      stop(Failure(reason))
   }
 
   def scheduleStartLegAndStay() = {

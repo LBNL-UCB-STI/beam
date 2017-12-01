@@ -90,7 +90,7 @@ object BeamAgentSchedulerSpec {
         stay() replying completed(triggerId, Vector())
     }
     chainedWhen(AnyState) {
-      case Event(IllegalTriggerGoToError, _) =>
+      case Event(IllegalTriggerGoToError(_), _) =>
         stop
     }
   }
