@@ -2,6 +2,7 @@ package beam.sim
 
 import java.nio.file.{Files, Paths}
 
+import beam.agentsim.events.AkkaEventsManagerImpl
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.controler.corelisteners.BeamPrepareForSimImpl
@@ -50,7 +51,7 @@ trait RunBeam {
         bindMobsim().to(classOf[BeamMobsim])
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
+        bind(classOf[EventsManager]).to(classOf[AkkaEventsManagerImpl])
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
       }
     }))

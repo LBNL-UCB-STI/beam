@@ -8,7 +8,7 @@ import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, Test
 import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.events.EventsSubscriber
+import beam.agentsim.events.AkkaEventsManagerImpl
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.sim.BeamServices
@@ -20,7 +20,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.events.EventsUtils
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
 import org.matsim.households.Household
@@ -82,15 +81,13 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     it("should publish events that can be received by a MATSim EventsManager") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
-      val events: EventsManager = EventsUtils.createEventsManager()
+      val events: EventsManager = new AkkaEventsManagerImpl(system)
       events.addHandler(new ActivityEndEventHandler {
         override def handleEvent(event: ActivityEndEvent): Unit = {
           system.log.error("events-subscriber received actend event!")
         }
         override def reset(iteration: Int): Unit = {}
       })
-      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber1")
-      system.eventStream.subscribe(eventSubscriber, classOf[ActivityEndEvent])
 
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -110,11 +107,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     }
 
     it("should be able to route legs"){
-      val events: EventsManager = EventsUtils.createEventsManager()
-      val eventSubscriber: ActorRef = TestActorRef(new EventsSubscriber(events), "events-subscriber2")
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
       val houseIdDummy = Id.create("dummy",classOf[Household])
-      system.eventStream.subscribe(eventSubscriber, classOf[ActivityEndEvent])
 
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))

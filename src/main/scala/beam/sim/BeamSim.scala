@@ -49,7 +49,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
                        ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[BeamSim])
-  var eventSubscriber: ActorRef = _
   var eventsManager: EventsManager = _
   var writer: BeamEventsLogger = _
   var currentIter = 0
@@ -60,8 +59,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyStartup(event: StartupEvent): Unit = {
     eventsManager = beamServices.matsimServices.getEvents
-    eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), EventsSubscriber.SUBSCRIBER_NAME)
-    actorSystem.eventStream.subscribe(eventSubscriber, classOf[Event])
 
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
@@ -131,7 +128,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    actorSystem.stop(eventSubscriber)
     actorSystem.stop(beamServices.schedulerRef)
     actorSystem.terminate()
   }
