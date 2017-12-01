@@ -31,6 +31,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Co
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! StartSchedule(0)
       beamAgentRef.stateName should be(Initialized)
+      expectMsg(CompletionNotice(0L))
     }
 
     it("should fail to schedule events with negative tick value") {
@@ -62,6 +63,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Co
       beamAgentSchedulerRef ! completed(3)
       expectMsg(TriggerWithId(ReportState(15.0), 5))
       beamAgentSchedulerRef ! completed(5)
+      expectMsg(CompletionNotice(0L))
     }
   }
 }
