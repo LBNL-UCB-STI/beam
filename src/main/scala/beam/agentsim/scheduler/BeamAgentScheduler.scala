@@ -101,8 +101,6 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
     if (nowInSeconds - triggerToSchedule.trigger.tick > maxWindow) {
       triggerToSchedule.agent ! IllegalTriggerGoToError(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when 'nowInSeconds' is at $nowInSeconds}")
-    } else if (triggerToSchedule.trigger.tick >= stopTick) {
-      triggerToSchedule.agent ! IllegalTriggerGoToError(s"Cannot schedule an event $triggerToSchedule at tick ${triggerToSchedule.trigger.tick} when simulation end time is at $stopTick}")
     } else {
       val triggerWithId = TriggerWithId(triggerToSchedule.trigger, this.idCount)
       triggerQueue.enqueue(ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority))
@@ -144,7 +142,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
 
     case DoSimStep(newNow: Double) if newNow > stopTick =>
       nowInSeconds = newNow
-      if (awaitingResponse.isEmpty && (triggerQueue.isEmpty || (triggerQueue.nonEmpty  && triggerQueue.headOption.fold(true)(_.triggerWithId.trigger.tick <= newNow)))) {
+      if (awaitingResponse.isEmpty) {
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
         startSender ! CompletionNotice(0L)
       } else {
@@ -177,8 +175,6 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           log.warning("Clearing trigger because agent died: " + trigger)
         })
 
-    case msg =>
-      log.error(s"received unknown message: $msg")
   }
 
   val monitorThread: Option[Cancellable] = if (beamConfig.beam.debug.debugEnabled || beamConfig.beam.debug.skipOverBadActors ) {
