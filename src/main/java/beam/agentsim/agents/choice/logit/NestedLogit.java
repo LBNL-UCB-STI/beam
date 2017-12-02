@@ -121,9 +121,13 @@ public class NestedLogit implements AbstractLogit{
 	}
 	public double getExpOfExpectedMaximumUtility(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, LinkedHashMap<NestedLogit,Double> conditionalProbs){
 		if(this.isAlternative()){
-			double utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName()));
-			this.data.setExpectedMaxUtility(utilOfAlternative);
-			return Math.exp(utilOfAlternative/this.data.getElasticity());
+			if(inputData.containsKey(this.data.getNestName())) {
+				double utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName()));
+				this.data.setExpectedMaxUtility(utilOfAlternative);
+				return Math.exp(utilOfAlternative / this.data.getElasticity());
+			}else{
+				throw new RuntimeException("Logit model expects nest '"+this.data.getNestName()+"' but not found in input data.");
+			}
 		}else{
 			double sumOfExpOfExpMaxUtil = 0.0;
 			for(NestedLogit child : this.children){
