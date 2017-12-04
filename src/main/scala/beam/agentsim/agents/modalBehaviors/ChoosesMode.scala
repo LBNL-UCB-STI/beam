@@ -25,6 +25,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.sim.HasServices
+import beam.agentsim.events.resources.vehicle.RideHailNotRequested
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.api.core.v01.population.Person
@@ -107,9 +108,17 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       var prevLeg = chosenTrip.legs.head
       for (leg <- chosenTrip.legs) {
         if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle = inferredVehicle.pop()
+//        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
 
         if (inferredVehicle.nestedVehicles.nonEmpty) {
-          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, inferredVehicle.outermostVehicle())
+          val passengerVeh: Id[Vehicle] = if(inferredVehicle.outermostVehicle() == leg.beamVehicleId){
+            if(inferredVehicle.nestedVehicles.size<2){
+              // In this case, we are changing into a WALK leg
+              Id.create("dummy",classOf[Vehicle])
+            }else{
+              inferredVehicle.penultimateVehicle() }
+          }else{ inferredVehicle.outermostVehicle() }
+          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
         exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
@@ -211,14 +220,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         case Some(personalVeh) =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
           logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id).toString)
+          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA",classOf[RideHailingInquiry]),Vector(),Some(RideHailNotRequested)))
         case None =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
           logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id).toString)
+          //TODO parameterize search distance
+          val pickUpLocation = currentActivity.getCoord
+          beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, nextAct.getCoord)
       }
-
-      //TODO parameterize search distance
-      val pickUpLocation = currentActivity.getCoord
-      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()
