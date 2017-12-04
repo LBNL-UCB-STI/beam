@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
 import akka.util.Timeout
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.events.EventsSubscriber._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.sim.config.BeamConfig
@@ -26,7 +27,7 @@ object BeamAgentScheduler {
     */
   case class StartSchedule(iteration: Int) extends SchedulerMessage
 
-  case object IllegalTriggerGoToError extends SchedulerMessage
+  case class IllegalTriggerGoToError(reason: String) extends SchedulerMessage
 
   case class DoSimStep(tick: Double) extends SchedulerMessage
 
@@ -148,21 +149,17 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
-    case ProcessingFinished(it) =>
-      startSender ! CompletionNotice(0L)
-
-
     case DoSimStep(newNow: Double) if newNow > stopTick =>
       nowInSeconds = newNow
-      if (awaitingResponse.isEmpty && (triggerQueue.isEmpty || (triggerQueue.nonEmpty  && triggerQueue.headOption.fold(true)(_.triggerWithId.trigger.tick <= newNow)))) {
+      if (awaitingResponse.isEmpty) {
         log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
-        eventSubscriberRef ! EndIteration(currentIter)
+        triggerQueue.dequeueAll.foreach(scheduledTrigger => scheduledTrigger.agent ! Finish)
+        startSender ! CompletionNotice(0L)
       } else {
         context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
       }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
-      //      log.info(s"recieved notice that trigger triggerId: $triggerId is complete")
       newTriggers.foreach {
         scheduleTrigger
       }
@@ -187,8 +184,6 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           log.warning("Clearing trigger because agent died: " + trigger)
         })
 
-    case msg =>
-      log.error(s"received unknown message: $msg")
   }
 
   val monitorThread: Option[Cancellable] = if (beamConfig.beam.debug.debugEnabled || beamConfig.beam.debug.skipOverBadActors ) {
@@ -204,9 +199,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
             numberRepeats.set(0)
           }
           if (numReps > 2) {
-            log.error(s"DEBUG: $numReps > 2 repeats!!! Clearing out stuck agents and proceeding with schedule")
+            val reason = s"DEBUG: $numReps > 2 repeats!!! Clearing out stuck agents and proceeding with schedule"
+            log.error(reason)
             awaitingResponse.values().stream().forEach({ x =>
-              x.agent ! IllegalTriggerGoToError
+              x.agent ! IllegalTriggerGoToError(reason)
               currentTotalAwaitingResponse.set(0)
               self ! CompletionNotice(x.triggerWithId.triggerId)
             })

@@ -1,22 +1,22 @@
 package beam.sim
 
+import java.nio.file.{Files, Paths}
+
+import beam.agentsim.events.AkkaEventsManagerImpl
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.sim.config.{BeamConfig, BeamLoggingSetup, ConfigModule}
-import beam.sim.modules.{AgentsimModule, BeamAgentModule, UtilsModule}
-import beam.sim.controler.corelisteners.{BeamControllerCoreListenersModule, BeamPrepareForSimImpl}
-import beam.sim.controler.BeamControler
+import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
+import beam.sim.controler.corelisteners.BeamPrepareForSimImpl
+import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.FileUtils
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.Config
 import org.matsim.core.controler._
-import org.matsim.core.events.{EventsUtils, ParallelEventsManagerImpl}
-import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
-import net.codingwell.scalaguice.InjectorExtensions._
-import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
 import org.matsim.core.events.EventsUtils
+import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
@@ -26,67 +26,65 @@ trait RunBeam {
   /**
     * mBeamConfig optional parameter is used to add custom BeamConfig instance to application injector
     */
-  def beamInjector(scenario: Scenario,  matSimConfig: Config,mBeamConfig: Option[BeamConfig] = None): com.google.inject.Injector =
-    org.matsim.core.controler.Injector.createInjector(matSimConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
+  def beamInjector(scenario: Scenario, typesafeConfig: com.typesafe.config.Config): com.google.inject.Injector =
+    org.matsim.core.controler.Injector.createInjector(scenario.getConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
       override def install(): Unit = {
         // MATSim defaults
         install(new NewControlerModule)
         install(new ScenarioByInstanceModule(scenario))
-        install(new controler.ControlerDefaultsModule)
-        install(new BeamControllerCoreListenersModule)
+        install(new ControlerDefaultsModule)
+        install(new ControlerDefaultCoreListenersModule)
 
 
         // Beam Inject below:
-        install(new ConfigModule)
-        install(new AgentsimModule)
-        install(new BeamAgentModule)
+        install(new ConfigModule(typesafeConfig))
+        install(new BeamAgentModule(BeamConfig(typesafeConfig)))
         install(new UtilsModule)
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
         // Override MATSim Defaults
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
+        bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
 
         // Beam -> MATSim Wirings
-        bindMobsim().to(classOf[BeamMobsim]) //TODO: This will change
+        bindMobsim().to(classOf[BeamMobsim])
         addControlerListenerBinding().to(classOf[BeamSim])
-        bind(classOf[EventsManager]).toInstance(EventsUtils.createEventsManager())
-        bind(classOf[ControlerI]).to(classOf[BeamControler]).asEagerSingleton()
-        mBeamConfig.foreach(beamConfig => bind(classOf[BeamConfig]).toInstance(beamConfig)) //Used for testing - if none passed, app will use factory BeamConfig
+        bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
+        bind(classOf[EventsManager]).to(classOf[AkkaEventsManagerImpl])
+        bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
       }
     }))
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
-    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-
-    //set config filename before Guice start init procedure
-    ConfigModule.ConfigFileName = configFileName
-
-    // Inject and use tsConfig instead here
-    // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
-    FileUtils.setConfigOutputFile(ConfigModule.beamConfig.beam.outputs.outputDirectory, ConfigModule.beamConfig.beam.agentsim.simulationName, ConfigModule.matSimConfig)
-
-    BeamLoggingSetup.configureLogs(ConfigModule.beamConfig)
-
-    lazy val scenario = ScenarioUtils.loadScenario(ConfigModule.matSimConfig)
-    val injector = beamInjector(scenario, ConfigModule.matSimConfig)
-    val services: BeamServices = injector.getInstance(classOf[BeamServices])
-
-    services.controler.run()
+    val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
+    val config = configFileName match {
+      case Some(fileName) if Files.exists(Paths.get(fileName)) =>
+        ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve()
+      case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
+        ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile).resolve()
+      case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
+        ConfigFactory.parseResources(fileName).resolve()
+      case _ =>
+        ConfigFactory.parseResources("beam.conf").resolve()
+    }
+    runBeamWithConfig(config)
   }
 
-  /*
-  Used for testing - runs BEAM with custom BeamConfig object instead of default BeamConfig factory
-  * */
-  def runBeamWithConfig(beamConfig: BeamConfig, matsimConfig: Config) = {
-    // Inject and use tsConfig instead here
-    // Make implicit to be able to pass as implicit arg to constructors requiring config (no need for explicit imports).
+  def runBeamWithConfig(config: com.typesafe.config.Config) = {
+    val configBuilder = new MatSimBeamConfigBuilder(config)
+    val matsimConfig = configBuilder.buildMatSamConf()
+
+    val beamConfig = BeamConfig(config)
+
+    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+
+
     FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)
 
-    BeamLoggingSetup.configureLogs(beamConfig)
 
     lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
-    val injector = beamInjector(scenario, matsimConfig, Some(beamConfig))
+    val injector = beamInjector(scenario, config)
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 

@@ -16,7 +16,6 @@ import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
-import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
@@ -51,24 +50,26 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector()
   var modeChoiceCalculator: ModeChoiceCalculator = _
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
-  var availableAlternatives: Vector[String] = Vector()
+
+  private def availableAlternatives = {
+    routingResponse.get.itineraries.map(_.tripClassifier).distinct :+ rideHailingResult.map(_ => RIDEHAIL)
+  }
+
   //TODO source these attributes from pop input data
-  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households.get(_household).get.getIncome.getIncome,
-    beamServices.households.get(_household).get.getMemberIds.size(),
-    (new Random()).nextBoolean(),
-    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_.getType.getDescription.toLowerCase.contains("car")).size,
-    beamServices.households.get(_household).get.getVehicleIds.asScala.map(beamServices.vehicles.get(_).get).filter(_.getType.getDescription.toLowerCase.contains("bike")).size)
+  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households(_household).getIncome.getIncome,
+    beamServices.households(_household).getMemberIds.size(),
+    new Random().nextBoolean(),
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType.getDescription.toLowerCase.contains("car")),
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType.getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
-
-      val combinedItinerariesForChoice: Vector[EmbodiedBeamTrip] = if (rideHailingResult.get.proposals.nonEmpty) {
-        rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.get.itineraries
-      } else {
+      val combinedItinerariesForChoice =
+        rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
         routingResponse.get.itineraries
-      }
+      assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
 
-      val chosenTrip = modeChoiceCalculator match {
+      val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
         case logit: ModeChoiceLCCM =>
           val tourType : TourType = Mandatory
           logit(combinedItinerariesForChoice, Some(attributesOfIndividual), tourType)
@@ -80,18 +81,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
-      chosenTrip match {
-        case Some(theChosenTrip) if theChosenTrip.legs.nonEmpty =>
-          if (theChosenTrip.requiresReservationConfirmation) {
-            pendingChosenTrip = chosenTrip
-            sendReservationRequests(theChosenTrip)
-          } else {
-            scheduleDepartureWithValidatedTrip(theChosenTrip)
-          }
-        case _ =>
-          val (tick, theTriggerId) = releaseTickAndTriggerId()
-          stop(Failure("no alternatives found"))
-      }
+        if (chosenTrip.requiresReservationConfirmation) {
+          pendingChosenTrip = Some(chosenTrip)
+          sendReservationRequests(chosenTrip)
+        } else {
+          scheduleDepartureWithValidatedTrip(chosenTrip)
+        }
     } else {
       stay()
     }
@@ -163,10 +158,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     val location = if(chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty){ chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString }else{ "" }
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum)))
+    context.system.eventStream.publish(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+      location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum))
 
-    beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode)))
+    context.system.eventStream.publish(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, chosenTrip.tripClassifier.matsimMode))
 
     val personalVehicleUsed: Vector[Id[Vehicle]] = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
@@ -186,7 +181,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head.rideHailingAgentLocation.vehicleId)
     }
     availablePersonalStreetVehicles = Vector()
-    availableAlternatives = Vector()
     _currentRoute = chosenTrip
     routingResponse = None
     rideHailingResult = None
@@ -222,7 +216,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(tick.toInt)
-      //val departTime = BeamTime.within(stateData.data.currentActivity.getEndTime.toInt)
       currentTourPersonalVehicle match {
         case Some(personalVeh) =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
@@ -242,20 +235,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Receive and store data needed for choice.
      */
     case Event(theRouterResult: RoutingResponse, _: BeamAgentInfo[PersonData]) =>
-      currentTourPersonalVehicle match {
-        case Some(_) =>
-          // Here we remove all WALK-only trips from routing response if we are requiring Person to continue using their personal vehicle
-          routingResponse = Some(theRouterResult.copy(itineraries = theRouterResult.itineraries.filter(itin => itin.tripClassifier != WALK)))
-        case None =>
-          routingResponse = Some(theRouterResult)
-      }
-      availableAlternatives = availableAlternatives ++ routingResponse.get.itineraries.map(_.tripClassifier.toString).distinct
+      routingResponse = Some(theRouterResult)
       completeChoiceIfReady()
     case Event(theRideHailingResult: RideHailingInquiryResponse, _: BeamAgentInfo[PersonData]) =>
       rideHailingResult = Some(theRideHailingResult)
-      if(theRideHailingResult.error.isEmpty){
-        availableAlternatives = availableAlternatives :+ "RIDE_HAIL"
-      }
       completeChoiceIfReady()
     /*
      * Process ReservationReponses
@@ -299,8 +282,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(res@ReservationResponse(_, _), _) =>
       logWarn(s"Reservation confirmation received from state $stateName: ${res.response}")
       stay()
-    //      logError(s"Going to error, reservation response received from state ${stateName}: ${res}")
-    //      goto(BeamAgent.Error)
   }
 
   def cancelReservations(): Unit = {

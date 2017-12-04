@@ -10,7 +10,6 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.CancelReservationWithVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle.{AlightingConfirmation, AppendToTrajectory, AssignedCarrier, BecomeDriver, BecomeDriverSuccess, BoardingConfirmation, EnterVehicle, ExitVehicle, Idle, Moving, RemovePassengerFromTrip, ResetCarrier, UnbecomeDriver, VehicleFull, VehicleLocationRequest, VehicleLocationResponse}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
-import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.agentsim.events.resources.vehicle._
@@ -193,7 +192,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         if (driver.isEmpty) {
           driver = Some(beamServices.agentRefs(newDriver.toString))
           newDriver match {
-            case personId: Id[Person] => beamServices.agentSimEventsBus.publish(new PersonEntersVehicleEvent(tick, personId, id))
+            case personId: Id[Person] => context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, personId, id))
             case _ =>
           }
         }
@@ -224,7 +223,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       } else {
         driver = None
         theDriver match {
-          case personId: Id[Person] => beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, personId, id)))
+          case personId: Id[Person] => context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, personId, id))
           case _ =>
         }
       }
@@ -237,7 +236,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach { vehiclePassengerRef =>
           vehiclePassengerRef ! AssignedCarrier(vehicleId)
         }
-        beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId, id)))
+        context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId, id))
       } else {
         val leftSeats = fullCapacity - passengers.size
         val beamAgent = sender()
@@ -252,7 +251,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       }
 
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
-      beamServices.agentSimEventsBus.publish(MatsimEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id)))
+      context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id))
       stay()
     case Event(Finish, _) =>
       stop
