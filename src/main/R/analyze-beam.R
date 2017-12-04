@@ -55,6 +55,7 @@ outs.dir.base <- '/Users/critter/Documents/beam/beam-output/experiments/'
 outs.exps <- c('ridehail_num','ridehail_price','toll_price','transit_capacity','transit_price','vot_vot')
 outs.exps <- c('base','ridehail_num','ridehail_price','transit_capacity','transit_price','vot_vot')
 outs.exps <- c('base','transit_capacity','transit_price','ridehail_num','ridehail_price')
+outs.exps <- c('base')
 
 outs.exp <- outs.exps[1]
 for(outs.exp in outs.exps){
@@ -83,7 +84,7 @@ for(outs.exp in outs.exps){
         }else if(file.exists(the.file.csv.gz)){
           ev <- data.table(read.csv(gzfile(the.file.csv.gz)))
         }
-        save(ev,file=pp(the.file.rdata))
+        save(ev,file=the.file.rdata)
       }
 
       exp.to.add <- exp[which(sapply(as.character(exp$name),function(str){grepl(str,file.path)}))[1]]
