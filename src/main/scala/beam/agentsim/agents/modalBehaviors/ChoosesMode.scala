@@ -25,6 +25,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.sim.HasServices
+import beam.agentsim.events.resources.vehicle.RideHailNotRequested
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.api.core.v01.population.Person
@@ -211,14 +212,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         case Some(personalVeh) =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
           logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id).toString)
+          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA",classOf[RideHailingInquiry]),Vector(),Some(RideHailNotRequested)))
         case None =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
           logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id).toString)
+          //TODO parameterize search distance
+          val pickUpLocation = currentActivity.getCoord
+          beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, nextAct.getCoord)
       }
-
-      //TODO parameterize search distance
-      val pickUpLocation = currentActivity.getCoord
-      beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, nextAct.getCoord)
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()

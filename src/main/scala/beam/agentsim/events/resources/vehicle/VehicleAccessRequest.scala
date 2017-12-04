@@ -56,4 +56,7 @@ case object VehicleGone extends ReservationError {
   override def errorCode: ReservationErrorCode = ReservationErrorCode.ResourceUnAvailable
 }
 
+case object RideHailNotRequested extends ReservationError {
+  override def errorCode: ReservationErrorCode = ReservationErrorCode.RideHailNotRequested
+}
 
