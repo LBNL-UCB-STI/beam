@@ -1,6 +1,7 @@
 package beam.integration
 
 import beam.sim.RunBeam
+import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -13,7 +14,11 @@ class TollPriceSpec extends WordSpecLike with Matchers with RunBeam with BeforeA
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing tollCapacity value" must {
     "create less entries for mode choice car as value increases" ignore {
       val inputTollPrice = Seq(0.1, 1.0)
-      val modeChoice = inputTollPrice.map(tc => new StartWithCustomConfig(modeChoice = Some("ModeChoiceMultinomialLogit"), tollPrice = Some(tc)).groupedCount)
+      val modeChoice = inputTollPrice.map(tc => new StartWithCustomConfig(
+        baseConfig
+          .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+          .withValue("beam.agentsim.tuning.tollPrice", ConfigValueFactory.fromAnyRef(tc))
+      ).groupedCount)
 
       val tc = modeChoice
         .map(_.get("car"))

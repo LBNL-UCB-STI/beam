@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
@@ -61,6 +62,10 @@ class TransitDriverAgent(val beamServices: BeamServices,
       stay
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
       stop replying completed(triggerId)
+    case Event(IllegalTriggerGoToError(reason), _)  =>
+      stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
   }
 
   when(Waiting) {
