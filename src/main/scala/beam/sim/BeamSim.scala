@@ -6,6 +6,7 @@ import akka.actor.FSM.SubscribeTransitionCallBack
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import beam.agentsim
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.InitializeRideHailAgent
@@ -34,7 +35,7 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener,
   StartupListener}
 import org.matsim.households.Household
-import org.matsim.vehicles.{VehicleCapacity, VehicleType, VehicleUtils}
+import org.matsim.vehicles.{Vehicle, VehicleCapacity, VehicleType, VehicleUtils}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
@@ -323,7 +324,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   //      rideHailingVehicles += (rideHailVehicleId -> vehicleIdAndRef._2)
   //    }
 
-  private def initHouseholds(iterId: Option[String] = None): Unit = {
+  private def initHouseholds(iterId: Option[String] = None)(implicit ev: Id[Vehicle] => Id[BeamVehicle]): Unit = {
     val householdAttrs =
       beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
 
@@ -357,21 +358,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
           }
           .toMap
 
-        val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = Map.empty
-
-        val props = HouseholdActor.props(beamServices,
-          householdId,
-          matSimHousehold,
-          houseHoldVehicles,
-          membersActors,
-          homeCoord)
-        val householdActor = actorSystem.actorOf(
-          props,
-          HouseholdActor.buildActorName(householdId, iterId))
-
-        houseHoldVehicles ++ JavaConverters
+        val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
           .collectionAsScalaIterable(matSimHousehold.getVehicleIds)
-          .map { id =>
+          .map({ id =>
             val matsimVehicle = JavaConverters.mapAsScalaMap(
               beamServices.matsimServices.getScenario.getVehicles.getVehicles)(
               id)
@@ -382,12 +371,26 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
               information
                 .map(_.getGasConsumption)
                 .getOrElse(Powertrain.AverageMilesPerGallon))
-            id -> new BeamVehicle(Option(householdActor),
+            agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(None,
               powerTrain,
               matsimVehicle,
               vehicleAttribute,
               CarVehicle)
-          }
+          }).toMap
+
+        val props = HouseholdActor.props(beamServices,
+          householdId,
+          matSimHousehold,
+          houseHoldVehicles,
+          membersActors,
+          homeCoord)
+
+        val householdActor = actorSystem.actorOf(
+          props,
+          HouseholdActor.buildActorName(householdId, iterId))
+
+        houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
+
 
         beamServices.householdRefs.put(householdId, householdActor)
     }
