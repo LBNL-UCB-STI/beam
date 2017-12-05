@@ -29,19 +29,19 @@ public class NestedLogit implements AbstractLogit{
 		this.children = tree.children;
 		this.ancestorNests = tree.ancestorNests;
 	}
-	public static NestedLogit NestedLogitFactory(String nestedLogitTreeAsXML){
+	public static NestedLogit nestedLogitFactory(String nestedLogitTreeAsXML){
 		SAXBuilder saxBuilder = new SAXBuilder();
 		InputStream stream = new ByteArrayInputStream(nestedLogitTreeAsXML.getBytes(StandardCharsets.UTF_8));
 		Document document;
 		try {
 			document = saxBuilder.build(stream);
-			return NestedLogit.NestedLogitFactory(document.getRootElement());
+			return NestedLogit.nestedLogitFactory(document.getRootElement());
 		} catch (JDOMException | IOException e) {
 			e.printStackTrace();
 		}
 		return null;
 	}
-	public static NestedLogit NestedLogitFactory(Element rootElem) {
+	public static NestedLogit nestedLogitFactory(Element rootElem) {
 		NestedLogitData theData = new NestedLogitData();
 		theData.setNestName(rootElem.getAttributeValue("name"));
 		NestedLogit tree = new NestedLogit(theData);
@@ -67,7 +67,7 @@ public class NestedLogit implements AbstractLogit{
 				if(tree.children == null){
 					tree.children = new LinkedList<NestedLogit>();
 				}
-				NestedLogit child = NestedLogit.NestedLogitFactory(elem);
+				NestedLogit child = NestedLogit.nestedLogitFactory(elem);
 				child.parent = tree;
 				tree.children.add(child);
 			}
@@ -85,7 +85,6 @@ public class NestedLogit implements AbstractLogit{
 	}
 
 	@Override
-	public String getName() { return this.data.getNestName(); }
 	public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData){
 		LinkedHashMap<NestedLogit,Double> conditionalProbs = new LinkedHashMap<NestedLogit,Double>();
 		double totalExpMaxUtil = getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
