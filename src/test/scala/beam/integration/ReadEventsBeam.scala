@@ -6,16 +6,14 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 
-import scala.io.Source
 import scala.collection.JavaConverters._
+import scala.collection.immutable.Queue
 
 class ReadEventsBeam extends ReadEvents{
   val basicEventHandler = new BasicEventHandler{
-    var events: Seq[Event] = Seq()
+    var events: Queue[Event] = Queue()
     def handleEvent(event: Event): Unit = {
       events = events :+ event
-    }
-    def reset(iteration: Int): Unit = {
     }
   }
 
@@ -37,8 +35,8 @@ class ReadEventsBeam extends ReadEvents{
     val events = basicEventHandler.events
     val filteredEvents = events.filter{ event =>
       val attributes = event.getAttributes.asScala
-      eventType.map(_.equals(event.getEventType)).getOrElse(true) &&
-        mkeyValue.map{case (key, value) => attributes.get(key).filter(_.contains(value)).isDefined}.getOrElse(true)
+      eventType.forall(_.equals(event.getEventType)) &&
+        mkeyValue.forall { case (key, value) => attributes.get(key).exists(_.contains(value)) }
 
     }
     filteredEvents
@@ -48,7 +46,4 @@ class ReadEventsBeam extends ReadEvents{
 
   }
 
-  def getLinesFrom(file: File): String = {
-    Source.fromFile(file.getPath).getLines.mkString
-  }
 }

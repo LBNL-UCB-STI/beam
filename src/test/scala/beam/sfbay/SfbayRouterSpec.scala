@@ -26,14 +26,13 @@ import org.scalatest.mockito.MockitoSugar
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-@Ignore
 class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("production/application-sfbay/beam.conf")).resolve())
+    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve())
 
     // Have to mock some things to get the router going
     val services: BeamServices = mock[BeamServices]
@@ -96,6 +95,11 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
       assert(response.itineraries.exists(_.tripClassifier == CAR))
+
+      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
+      assertMakesSense(carOption)
+      val actualModesOfCarOption = carOption.toBeamTrip().legs.map(_.mode)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
     "respond with a fallback walk route to a RoutingRequest which actually doesn't have a walkable solution, and a car route" in {
@@ -109,12 +113,6 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       val response = expectMsgType[RoutingResponse]
 
       assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == CAR))
-
-      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assertMakesSense(carOption)
-      val actualModesOfCarOption = carOption.toBeamTrip().legs.map(_.mode)
-      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
 
       val actualModesOfWalkOption = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip().legs.map(_.mode)
       actualModesOfWalkOption should contain theSameElementsInOrderAs List(WALK)
