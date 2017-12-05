@@ -6,7 +6,7 @@ import beam.agentsim.agents.PersonAgent
 import org.scalatest.{FlatSpec, FunSpecLike, Matchers, MustMatchers}
 import beam.agentsim.util.MockAgents._
 import beam.router.Modes.BeamMode.WALK
-import beam.router.RoutingModel.{BeamLeg, BeamStreetPath}
+import beam.router.RoutingModel.{BeamLeg, BeamPath, EmptyBeamPath}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -33,7 +33,7 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
       val vehicleId: Id[Vehicle] = Id.create("dummyVehicle",classOf[Vehicle])
       val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
 
-      val leg = BeamLeg(0L, WALK, 1L)
+      val leg = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
 
       val sched: PassengerSchedule = PassengerSchedule()
 
@@ -49,9 +49,9 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
       val vehicleId: Id[Vehicle]  = Id.create("dummyVehicle",classOf[Vehicle])
       val passengerPersonId: Id[Person] = Id.create("passengerPerson",classOf[Person])
 
-      val leg1 = BeamLeg(0L, WALK, 1L)
-      val leg2 = BeamLeg(1L, WALK, 1L)
-      val leg3 = BeamLeg(2L, WALK, 1L)
+      val leg1 = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
+      val leg2 = BeamLeg(1L, WALK, 1L, EmptyBeamPath.path)
+      val leg3 = BeamLeg(2L, WALK, 1L, EmptyBeamPath.path)
 
       val sched: PassengerSchedule = PassengerSchedule()
 
@@ -79,9 +79,9 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testsystem")) with Matc
       val vehicleId2: Id[Vehicle]  = Id.create("dummyVehicle2",classOf[Vehicle])
       val passengerPersonId2: Id[Person] = Id.create("passengerPerson2",classOf[Person])
 
-      val leg1 = BeamLeg(0L, WALK, 1L)
-      val leg2 = BeamLeg(1L, WALK, 1L)
-      val leg3 = BeamLeg(2L, WALK, 1L)
+      val leg1 = BeamLeg(0L, WALK, 1L, EmptyBeamPath.path)
+      val leg2 = BeamLeg(1L, WALK, 1L, EmptyBeamPath.path)
+      val leg3 = BeamLeg(2L, WALK, 1L, EmptyBeamPath.path)
 
       val sched: PassengerSchedule = PassengerSchedule()
 

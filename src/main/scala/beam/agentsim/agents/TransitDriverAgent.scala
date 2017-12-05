@@ -1,17 +1,18 @@
 package beam.agentsim.agents
 
-import akka.actor.Props
-import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData, BeamAgentInfo, Error, Finished, Uninitialized}
+import akka.actor.FSM.Failure
+import akka.actor.{ActorContext, Props}
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
+import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
-import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.events.resources.vehicle.ModifyPassengerScheduleAck
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccessAck}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.TriggerWithId
-import beam.router.RoutingModel.EmbodiedBeamLeg
+import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -20,24 +21,31 @@ import org.matsim.vehicles.Vehicle
   * BEAM
   */
 object TransitDriverAgent {
-  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, passengerSchedule: PassengerSchedule) = {
-    Props(classOf[TransitDriverAgent], services, transitDriverId, vehicleIdAndRef, passengerSchedule)
+  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, legs: Seq[BeamLeg]) = {
+    Props(classOf[TransitDriverAgent], services, transitDriverId, vehicleIdAndRef, legs)
   }
   case class TransitDriverData() extends BeamAgentData
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]) = {
-    Id.create("TransitDriverAgent-" + transitVehicle.toString, classOf[TransitDriverAgent])
+    Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
+  }
+
+  def selectByVehicleId(transitVehicle: Id[Vehicle])(implicit context: ActorContext) = {
+    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
   }
 }
 
 class TransitDriverAgent(val beamServices: BeamServices,
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicleIdAndRef: BeamVehicleIdAndRef,
-                         val initialPassengerSchedule: PassengerSchedule) extends
+                         val legs: Seq[BeamLeg]) extends
   BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
   override val id: Id[TransitDriverAgent] = transitDriverId
   override val data: TransitDriverData = TransitDriverData()
   override def logPrefix(): String = s"TransitDriverAgent:$id "
+
+  val initialPassengerSchedule = PassengerSchedule()
+  initialPassengerSchedule.addLegs(legs)
 
   chainedWhen(Uninitialized){
     case Event(TriggerWithId(InitializeTrigger(tick),triggerId), info: BeamAgentInfo[TransitDriverData]) =>
@@ -47,37 +55,31 @@ class TransitDriverAgent(val beamServices: BeamServices,
       goto(PersonAgent.Waiting)
   }
 
-  chainedWhen(Waiting) {
-    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
-      goto(Finished) replying completed(triggerId)
-  }
-
   chainedWhen(AnyState) {
     case Event(BecomeDriverSuccessAck, _) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       beamServices.schedulerRef ! completed(triggerId,schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,self,passengerSchedule.schedule.firstKey))
       stay
+    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
+      stop replying completed(triggerId)
+    case Event(IllegalTriggerGoToError(reason), _)  =>
+      stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
   }
 
   when(Waiting) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
   }
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
-    case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
   }
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      stop(Failure(s"Unrecognized message ${msg}"))
   }
 }

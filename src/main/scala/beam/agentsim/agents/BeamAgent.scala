@@ -2,17 +2,15 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{FSM, LoggingFSM}
+import akka.actor.FSM.Failure
+import akka.actor.{ActorRef, FSM, LoggingFSM}
 import akka.persistence.fsm.PersistentFSM.FSMState
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.Event
 
-import collection.mutable.{HashMap, MultiMap, Set}
 import scala.collection.mutable
-import scala.concurrent.duration.FiniteDuration
 
 
 object BeamAgent {
@@ -32,39 +30,32 @@ object BeamAgent {
     override def identifier = "AnyState"
   }
 
-  case object Finished extends BeamAgentState {
-    override def identifier = "Finished"
-  }
-
-  case object Error extends BeamAgentState {
-    override def identifier: String = s"Error!"
-  }
-
   sealed trait Info
 
   trait BeamAgentData
 
   case class BeamAgentInfo[T <: BeamAgentData](id: Id[_],
                                                implicit val data: T,
-                                               val triggerId: Option[Long] = None,
-                                               val tick: Option[Double] = None) extends Info
+                                               triggerId: Option[Long] = None,
+                                               tick: Option[Double] = None,
+                                               errorReason: Option[String] = None) extends Info
   case class NoData() extends BeamAgentData
+
+  case object Finish
+
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Double])
 
 }
 
 case class InitializeTrigger(tick: Double) extends Trigger
-/**
-  * MemoryEvents play a dual role. They not only act as persistence in Akka, but
-  * also get piped to the MATSimEvent Handler.
-  */
-sealed trait MemoryEvent extends Event
-
 
 /**
   * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] {
+
+  override def logDepth = 12
 
   def id: Id[_]
   def data: T
@@ -86,35 +77,45 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
         // do nothing
     }
     var theEvent = event.copy(stateData = theStateData)
+
+
+
     if(chainedStateFunctions.contains(state)) {
-      var resultingBeamStates = List[BeamAgentState]()
+      var resultingBeamStates = List[State]()
       var resultingReplies = List[Any]()
       chainedStateFunctions(state).foreach { stateFunction =>
         if(stateFunction isDefinedAt (theEvent)){
           val fsmState: State = stateFunction(theEvent)
           theStateData = fsmState.stateData.copy(triggerId = theStateData.triggerId, tick = theStateData.tick)
           theEvent = Event(event.event,theStateData)
-          resultingBeamStates = resultingBeamStates :+ fsmState.stateName
+          resultingBeamStates = resultingBeamStates :+ fsmState
           resultingReplies = resultingReplies ::: fsmState.replies
         }
       }
-      val newStates = for (result <- resultingBeamStates if result != Abstain) yield result
-      if (!allStatesSame(newStates)){
-        throw new RuntimeException(s"Chained when blocks did not achieve consensus on state to transition " +
-          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,")
+      val newStates = for (result <- resultingBeamStates if result.stateName != Abstain) yield result
+      if (!allStatesSame(newStates.map(_.stateName))){
+        stop(Failure(s"Chained when blocks did not achieve consensus on state to transition " +
+          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,"))
       } else if(newStates.isEmpty && state == AnyState){
-        logError(s"Did not handle the event=$event")
-        FSM.State(Error, event.stateData)
+        stop(Failure(s"Did not handle the event=$event"))
       } else if(newStates.isEmpty){
         handleEvent(AnyState, event)
       } else {
         val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
         if(numCompletionNotices>1){
-          throw new RuntimeException(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}")
-        }else if(numCompletionNotices == 1){
-          theStateData = theStateData.copy(triggerId = None)
+          stop(Failure(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}"))
+        } else {
+          if(numCompletionNotices == 1) {
+            theStateData = theStateData.copy(triggerId = None)
+          }
+          FSM.State(
+            stateName = newStates.head.stateName,
+            stateData = theStateData,
+            timeout = None,
+            stopReason = newStates.flatMap(s => s.stopReason).headOption, // Stop iff anyone wants to. TODO: Maybe do a consensus check here, too.
+            replies = resultingReplies
+          )
         }
-        FSM.State(newStates.head, theStateData, None, None, resultingReplies)
       }
     }else{
       FSM.State(state, event.stateData)
@@ -138,16 +139,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       handleEvent(stateName, ev)
   }
 
-  when(Finished) {
-    case Event(StopEvent, _) =>
-      goto(Uninitialized)
-  }
-
-  when(Error) {
-    case Event(StopEvent, _) =>
-      stop()
-  }
-
   whenUnhandled {
     case ev@Event(_, _) =>
       val result = handleEvent(AnyState, ev)
@@ -157,9 +148,18 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       }else{
         result
       }
-    case msg@_ =>
-      logError(s"Unrecognized message ${msg}")
-      goto(Error)
+  }
+
+  onTermination {
+    case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
+      reason match {
+        case FSM.Shutdown =>
+          log.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
+        case _ =>
+      }
+      log.error(event.toString)
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, stateData.tick))
   }
 
   /*

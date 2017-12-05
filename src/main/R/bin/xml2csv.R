@@ -13,7 +13,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/matsim/pev/development_2016-07-19_19-28-47/ITERS/it.0/run0.0.events.xml'
+  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/population.xml'
   args <- parse_args(OptionParser(option_list = option_list,usage = "xml2csv.R [file-to-convert]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "xml2csv.R [file-to-convert]"),positional_arguments=T)

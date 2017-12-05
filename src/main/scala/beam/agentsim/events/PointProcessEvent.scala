@@ -4,7 +4,6 @@ import java.util
 
 import beam.agentsim.events.PointProcessEvent.PointProcessType
 import beam.agentsim.events.PointProcessEvent.PointProcessType.Choice
-import beam.utils.GeoUtils._
 import beam.utils.JsonUtils.syntax._
 import enumeratum._
 import io.circe.syntax._
@@ -37,7 +36,7 @@ class PointProcessEvent(time: Double, id: Id[Person],
       "typ" -> Json.fromString(EVENT_TYPE),
       "kind" -> Json.fromString(PointProcessType.Choice.name),
       "startTime" -> Json.fromLong(time.toLong),
-      "shp" -> Transformer.Utm2Wgs(location).asJson,
+      "shp" -> location.asJson,
       "attrib" -> Json.fromJsonObject(JsonObject.fromMap(Map("val" -> intensity.asJson)))
     )
     Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
@@ -49,6 +48,7 @@ class PointProcessEvent(time: Double, id: Id[Person],
     attr.put(ATTRIBUTE_VIZ_DATA, if (this.pointProcessType.equals(Choice)) createStarBurst(time, location, intensity).noSpaces else "")
     attr
   }
+
 }
 
 object PointProcessEvent {

@@ -1,47 +1,34 @@
 package beam.agentsim.agents
 
+import akka.actor.FSM.Failure
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
+import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
-import beam.agentsim.agents.RideHailingManager.{RegisterRideAvailable, RideAvailableAck}
+import beam.agentsim.agents.RideHailingManager.RideAvailableAck
+import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, BecomeDriver, BecomeDriverSuccessAck}
-import beam.agentsim.agents.vehicles.{PassengerSchedule, VehiclePersonId}
-import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ReservationRequest, ReservationResponse}
+import beam.agentsim.events.resources.vehicle.{ModifyPassengerScheduleAck, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
-import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamLeg, BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-/**
-  */
 object RideHailingAgent {
 
-
-  private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
-
-  // syntactic sugar for props creation
   def props(services: BeamServices, rideHailingAgentId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
     Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleIdAndRef, location), services))
-
-  //////////////////////////////
-  // RideHailingAgentData Begin... //
-  /////////////////////////////
-  object RideHailingAgentData {
-    //    def apply(): TaxiData = TaxiData()
-  }
 
   case class RideHailingAgentData(vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) extends BeamAgentData
 
@@ -82,13 +69,13 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[RideHailingAgentData]) =>
       val passengerSchedule = PassengerSchedule()
-      data.vehicleIdAndRef.ref ! BecomeDriver(triggerId, id, Some(passengerSchedule))
+      data.vehicleIdAndRef.ref ! BecomeDriver(tick, id, Some(passengerSchedule))
       goto(PersonAgent.Waiting) replying completed(triggerId, schedule[PassengerScheduleEmptyTrigger](tick,self))
   }
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = SpaceTime(info.data.location, tick.toLong))
+      val rideAvailable = ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
       val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
         RegisterRideAvailableWrapper(triggerId)
       )
@@ -97,13 +84,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case Event(RegisterRideAvailableWrapper(triggerId), info) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       stay()
-  }
-
-
-  chainedWhen(Moving) {
-    case Event(DropOffCustomer(newLocation), info: BeamAgentInfo[RideHailingAgentData]) =>
-      beamServices.rideHailingManager ? RegisterRideAvailable(self, info.data.vehicleIdAndRef.id, availableSince = newLocation)
-      goto(Idle) using BeamAgentInfo(id, info.data.copy(location = newLocation.loc))
+    case Event(Finish, _) =>
+      stop
   }
 
   chainedWhen(AnyState) {
@@ -120,49 +102,22 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      stop(Failure(s"Unrecognized message ${msg}"))
   }
 
   when(Moving) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      stop(Failure(s"Unrecognized message ${msg}"))
   }
 
   when(AnyState) {
     case ev@Event(_, _) =>
       handleEvent(stateName, ev)
     case msg@_ =>
-      logError(s"Unrecognized message $msg")
-      goto(Error)
+      stop(Failure(s"Unrecognized message ${msg}"))
   }
-
-
-  //// END BOILERPLATE ////
-  /*
-   * Helper methods
-  def logInfo(msg: String): Unit = {
-    //    log.info(s"PersonAgent $id: $msg")
-  }
-
-  def logWarn(msg: String): Unit = {
-    log.warning(s"PersonAgent $id: $msg")
-  }
-
-  def logError(msg: String): Unit = {
-    log.error(s"PersonAgent $id: $msg")
-  }
-
-  private def publishPathTraversal(event: PathTraversalEvent): Unit = {
-    if(beamConfig.beam.events.pathTraversalEvents contains event.mode){
-      agentSimEventsBus.publish(MatsimEvent(event))
-
-    }
-  }
-   */
 
 }
 

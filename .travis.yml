@@ -8,13 +8,52 @@ addons:
   apt:
     packages:
       - oracle-java8-installer
+
+git:
+  lfs_skip_smudge: true
+
+before_install:
+  - git lfs pull
+  
+script:
+#  - zip -r beam.zip build/libs/beam.jar test appspec.yml || true
+  - ./gradlew check
+  - mkdir -p "dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}"
+  - cp build/libs/beam.jar dpl_cd_upload/${TRAVIS_PULL_REQUEST_BRANCH:-$TRAVIS_BRANCH}/beam-${TRAVIS_BUILD_NUMBER}.jar || true
+
 before_cache:
   - rm -f  $HOME/.gradle/caches/modules-2/modules-2.lock
   - rm -fr $HOME/.gradle/caches/*/plugin-resolution/
+
 cache:
   directories:
     - $HOME/.gradle/caches/
     - $HOME/.gradle/wrapper/
+
+deploy:
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY # declared in Travis repo settings
+    secret_access_key: $AWS_SECRET_KEY
+    local_dir: dpl_cd_upload
+    bucket: beam-builds
+    region: us-east-2
+    skip_cleanup: true
+    on:
+      repo: LBNL-UCB-STI/beam
+      all_branches: true
+#  - provider: codedeploy
+#    access_key_id: $AWS_ACCESS_KEY # declared in Travis repo settings
+#    secret_access_key: $AWS_SECRET_KEY
+#    bucket: beam-builds
+#    key: beam.zip
+#    bundle_type: zip
+#    application: Beam
+#    deployment_group: BeamDeploymentGroup
+#    region: us-east-2
+#    on:
+#      repo: LBNL-UCB-STI/beam
+#      all_branches: true
+
 notifications:
   webhooks:
     urls:

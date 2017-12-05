@@ -8,9 +8,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.physsim.jdeqsim.akka.AkkaEventHandlerAdapter;
 import beam.physsim.jdeqsim.akka.EventManagerActor;
 import beam.physsim.jdeqsim.akka.JDEQSimActor;
-import beam.router.Modes;
-import beam.router.RoutingModel;
-import beam.router.r5.NetworkCoordinator;
 import beam.sim.BeamServices;
 import glokka.Registry;
 import org.matsim.api.core.v01.Id;
@@ -25,6 +22,7 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
@@ -36,33 +34,41 @@ import java.util.concurrent.TimeUnit;
 
 
 /**
- * Created by asif on 8/18/2017.
+ * @Authors asif and rwaraich.
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
+
+    public static final String CAR = "car";
+    public static final String BUS = "bus";
+    public static final String DUMMY_ACTIVITY = "DummyActivity";
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private Scenario jdeqSimScenario;
-    private Population population;
     private PopulationFactory populationFactory;
-    private Network network;
+    private Scenario agentSimScenario;
     private BeamServices services;
 
     private ActorRef eventHandlerActorREF;
     private ActorRef jdeqsimActorREF;
     private EventsManager eventsManager;
+    private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
+    AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    public AgentSimToPhysSimPlanConverter(BeamServices services){
-
+    public AgentSimToPhysSimPlanConverter(BeamServices services) {
+        services.matsimServices().getEvents().addHandler(this);
         this.services = services;
-        Scenario agentSimScenario = this.services.matsimServices().getScenario();
-        network = agentSimScenario.getNetwork();
+        agentSimScenario = services.matsimServices().getScenario();
 
-        resetJDEQSimScenario();
+        if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
+            log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
+            agentSimPhysSimInterfaceDebugger=new AgentSimPhysSimInterfaceDebugger(services);
+        }
+
+        preparePhysSimForNewIteration();
     }
 
-    private void resetJDEQSimScenario(){
+    private void preparePhysSimForNewIteration() {
         jdeqSimScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-        population = jdeqSimScenario.getPopulation();
         populationFactory = jdeqSimScenario.getPopulation().getFactory();
     }
 
@@ -70,36 +76,27 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     @Override
     public void reset(int iteration) {
 
-        for(Person p : population.getPersons().values()){
-            Plan plan = p.getSelectedPlan();
-            Leg leg = (Leg)plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-
-            plan.addActivity(populationFactory.createActivityFromLinkId("DUMMY", leg.getRoute().getEndLinkId()));
-        }
-        initializeAndRun();
-        resetJDEQSimScenario();
     }
 
-    public void initializeAndRun(){
+    public void initializeActorsAndRunPhysSim() {
 
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
         ActorRef registry = this.services.registry();
-        try{
+        try {
 
             // TODO: adapt code to send new scenario data to jdeqsim actor each time
-            if(eventHandlerActorREF == null) {
-                eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props());
+            if (eventHandlerActorREF == null) {
+                eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props(agentSimScenario.getNetwork()));
                 eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
             }
 
-            if(jdeqsimActorREF == null) {
-                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup, jdeqSimScenario, eventsManager, network, this.services.beamRouter()));
+            if (jdeqsimActorREF == null) {
+                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager,   this.services.beamRouter()));
             }
 
-            jdeqsimActorREF.tell("start", ActorRef.noSender());
-            eventHandlerActorREF.tell("registerJDEQSimREF", jdeqsimActorREF);
-        }
-        catch(Exception e){
+            jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM,jdeqSimScenario.getPopulation()), ActorRef.noSender());
+            eventHandlerActorREF.tell(EventManagerActor.REGISTER_JDEQSIM_REF, jdeqsimActorREF);
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -115,87 +112,102 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     @Override
     public void handleEvent(Event event) {
 
-        if(event instanceof PathTraversalEvent){
-            PathTraversalEvent ptEvent = (PathTraversalEvent)event;
-            String mode = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_MODE());
+        if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
+            agentSimPhysSimInterfaceDebugger.handleEvent(event);
+        }
 
-            if(mode != null && mode.equalsIgnoreCase("car")) {
+        if (event instanceof PathTraversalEvent) {
+            PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
+            String mode = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
 
-                String links = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_LINK_IDS());
+            if (mode != null && (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS))) {
 
-                String departureTime = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_DEPARTURE_TIME());
-                String vehicleId = ptEvent.getAttributes().get(ptEvent.ATTRIBUTE_VEHICLE_ID());
-                double time = ptEvent.getTime();
-                String eventType = ptEvent.getEventType();
-                RoutingModel.BeamLeg beamLeg = ptEvent.beamLeg();
+                String links = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
+                double departureTime = Double.parseDouble(pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
+                String vehicleId = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
 
-                beamLeg.duration();
-                beamLeg.endTime();
-                Modes.BeamMode beamMode = beamLeg.mode();
-                RoutingModel.BeamPath beamPath = beamLeg.travelPath();
+                Id<Person> personId = Id.createPersonId(vehicleId);
+                initializePersonAndPlanIfNeeded(personId);
 
-                Id<Person> personId = Id.createPersonId(vehicleId); //vehiclePersonMap.get(vehicleId1);
+                // add previous activity and leg to plan
+                Person person=jdeqSimScenario.getPopulation().getPersons().get(personId);
+                Plan plan=person.getSelectedPlan();
+                Leg leg=createLeg(mode, links, departureTime);
 
-                if (personId != null) {
-                    boolean personAlreadyExist = false;
-
-                    if (population.getPersons() != null) {
-                        personAlreadyExist = population.getPersons().containsKey(personId); // person already exists
-                    }
-
-                    Leg leg = populationFactory.createLeg(beamLeg.mode().matsimMode());
-                    leg.setDepartureTime(beamLeg.startTime());
-                    leg.setTravelTime(0);
-                    List<Id<Link>> linkIds = new ArrayList<>();
-                    int negCount = 0;
-                    for(String link : links.split(",")) {
-
-                        long osmLinkId = NetworkCoordinator.getOsmId(Integer.parseInt(link));
-
-                        if(osmLinkId < 0) {
-                            negCount++;
-                            // The OSM id can be smaller than zero at the start and end of the route [transit stops vertex connected to the road network]
-                        }else {
-                            Id<Link> linkId = Id.createLinkId(osmLinkId);
-                            linkIds.add(linkId);
-                        }
-                    }
-
-                    if(negCount > 2){
-
-                        // At most two negative vertex ids are expected, one at the beginning of the route and one at the end
-                        // Something might be wrong
-                        String errorMessage = "At most two negative vertex ids are expected, one at the beginning of the route and one at the end. " +
-                                "Something might be wrong";
-                        log.error(errorMessage);
-                        //throw new Exception(errorMessage);
-                    }
-                    Route route = RouteUtils.createNetworkRoute(linkIds, network);
-                    leg.setRoute(route);
-
-                    Activity dummyActivity = populationFactory.createActivityFromLinkId("DUMMY", route.getEndLinkId());
-                    dummyActivity.setEndTime(beamLeg.startTime());
-
-                    Person person = null;
-                    if (personAlreadyExist) {
-                        person = population.getPersons().get(personId);
-
-                        Plan plan = person.getSelectedPlan();
-                        plan.addActivity(dummyActivity);
-                        plan.addLeg(leg);
-                    } else {
-                        person = populationFactory.createPerson(personId);
-
-                        Plan plan = populationFactory.createPlan();
-                        plan.addActivity(dummyActivity);
-                        plan.addLeg(leg);
-
-                        plan.setPerson(person);
-                        person.addPlan(plan);
-                        person.setSelectedPlan(plan);
-                        population.addPerson(person);
-                    }
+                if (leg==null){
+                    return; // dont't process leg further, if empty
                 }
+
+                Activity previousActivity = populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
+                previousActivity.setEndTime(departureTime);
+                plan.addActivity(previousActivity);
+                plan.addLeg(leg);
+            }
+        }
+    }
+
+    private void initializePersonAndPlanIfNeeded(Id<Person> personId) {
+        if (!jdeqSimScenario.getPopulation().getPersons().containsKey(personId)){
+            Person person = populationFactory.createPerson(personId);
+            Plan plan = populationFactory.createPlan();
+            plan.setPerson(person);
+            person.addPlan(plan);
+            person.setSelectedPlan(plan);
+            jdeqSimScenario.getPopulation().addPerson(person);
+        }
+    }
+
+    private Leg createLeg(String mode, String links, double departureTime) {
+        List<Id<Link>> linkIds = new ArrayList<>();
+
+        for (String link : links.split(",")) {
+            Id<Link> linkId = Id.createLinkId(link.trim());
+            linkIds.add(linkId);
+        }
+
+
+        // hack: removing non-road links from route
+        // TODO: debug problem properly, so that no that no events for physsim contain non-road links
+        List<Id<Link>> removeLinks = new ArrayList<>();
+        for (Id<Link> linkId : linkIds) {
+            if (!agentSimScenario.getNetwork().getLinks().containsKey(linkId)) {
+                removeLinks.add(linkId);
+            }
+        }
+        numberOfLinksRemovedFromRouteAsNonCarModeLinks += removeLinks.size();
+        linkIds.removeAll(removeLinks);
+
+        if (linkIds.size() == 0) {
+            return null;
+        }
+        // end of hack
+
+
+        Route route = RouteUtils.createNetworkRoute(linkIds, agentSimScenario.getNetwork());
+        Leg leg = populationFactory.createLeg(mode);
+        leg.setDepartureTime(departureTime);
+        leg.setTravelTime(0);
+        leg.setRoute(route);
+        return leg;
+    }
+
+
+
+    public void startPhysSim() {
+        createLastActivityOfDayForPopulation();
+
+        log.warn("numberOfLinksRemovedFromRouteAsNonCarModeLinks (for physsim):" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
+        initializeActorsAndRunPhysSim();
+
+        preparePhysSimForNewIteration();
+    }
+
+    private void createLastActivityOfDayForPopulation() {
+        for (Person p : jdeqSimScenario.getPopulation().getPersons().values()) {
+            Plan plan = p.getSelectedPlan();
+            if (!plan.getPlanElements().isEmpty()) {
+                Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
+                plan.addActivity(populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
     }

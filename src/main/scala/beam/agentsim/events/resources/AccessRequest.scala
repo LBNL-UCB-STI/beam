@@ -3,6 +3,7 @@ package beam.agentsim.events.resources
 import java.time.Period
 
 import akka.actor.ActorRef
+import beam.agentsim.events.resources.ReservationErrorCode.Value
 import beam.router.RoutingModel.BeamLeg
 import org.matsim.api.core.v01.Id
 
@@ -40,13 +41,24 @@ trait ReservationResponse {
 
 }
 
+
+
 trait ReservationError {
   def errorCode : ReservationErrorCode.ReservationErrorCode
 }
 
 object ReservationErrorCode extends Enumeration {
+
   type ReservationErrorCode = ReservationErrorCode.Value
-  val ResourceUnAvailable = Value("NoResourceAvailable")
+  val UnknownInquiryId: _root_.beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode = Value("UnknownInquiryIdReceivec")
+  val RideHailVehicleTaken: ReservationErrorCode = Value("RideHailVehicleTaken")
+  val UnknownRideHailReservationError = Value("UnknownRideHailReservationError")
+  val RideHailNotRequested = Value("RideHailNotRequested")
+  val ResourceUnAvailable = Value("VehicleLeft")
   val ResourceCapacityExhausted = Value("ResourceCapacityExhausted")
+  val RideHailRouteNotFound = Value("RouteNotFound")
+  val NoRidesToHail = Value("NoRidesToHail")
+
 
 }
+
