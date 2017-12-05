@@ -104,7 +104,7 @@ object RoutingModel {
   }
 
   object BeamLeg {
-    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x=>(x.startTime,x.duration))
+    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x=>x.startTime)
 
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
   }
