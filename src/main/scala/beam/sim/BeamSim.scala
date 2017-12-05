@@ -161,7 +161,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     currentIter = event.getIteration
     resetPop(event.getIteration)
     //    eventsManager.initProcessing()
-
     // Await.result throws an Exception in case the Future fails.
     Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     logger.info(s"Transit schedule has been initialized")
@@ -208,6 +207,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     val errorListener = createErrorListener(iter)
 
+    // populateBeamServices
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(
       beamServices.matsimServices.getScenario.getPopulation.getPersons)
     //    beamServices.vehicles ++= beamServices.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
@@ -227,12 +227,31 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     val iterId = Option(iter.toString)
 
-    //    initVehicleActors(iterId)
+    // Initialize Person Agents
+    initializePersonAgents(personToHouseholdId)
 
+    // Init households before RHA.... RHA vehicles will initially be managed by households
+    initHouseholds(iterId)
+
+    // Init ridehailing agents
+    sampleRideHailAgentsFromPop(
+      beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation)
+
+    //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
+    beamServices.personRefs.foreach {
+      case (id, ref) =>
+        ref ! SubscribeTransitionCallBack(errorListener) // Subscribes each person to the error listener
+        beamServices.agentRefs.put(id.toString, ref)
+    }
+  }
+
+  private def initializePersonAgents(personToHouseholdId: Map[Id[Person], Id[Household]]) = {
     for ((personId, matsimPerson) <- beamServices.persons.take(
       beamServices.beamConfig.beam.agentsim.numAgents)) {
+
       val bodyVehicleIdFromPerson = HumanBodyVehicle.createId(personId)
-      val ref: ActorRef = actorSystem.actorOf(
+
+      val personAgentRef: ActorRef = actorSystem.actorOf(
         PersonAgent.props(beamServices,
           personId,
           personToHouseholdId(personId),
@@ -246,7 +265,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         bodyVehicleIdFromPerson,
         HumanBodyVehicle.MatsimHumanBodyVehicleType)
       val bodyVehicle = new BeamVehicle(
-        Option(ref),
+        Option(personAgentRef),
         HumanBodyVehicle.powerTrainForHumanBody(),
         matsimBodyVehicle,
         None,
@@ -256,23 +275,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       //let's put here human body vehicle too, it should be clean up on each iteration
       beamServices.beamVehicles += ((bodyVehicleIdFromPerson, bodyVehicle))
 
-      beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
-      beamServices.personRefs += ((personId, ref))
-    }
-
-    // Init households before RHA.... RHA vehicles will initially be managed by households
-
-    initHouseholds(iterId)
-
-    // Init ridehailing agents
-    sampleRideHailAgentsFromPop(
-      beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation)
-
-    //TODO if we can't do the following with generic Ids, then we should seriously consider abandoning typed IDs
-    beamServices.personRefs.foreach {
-      case (id, ref) =>
-        ref ! SubscribeTransitionCallBack(errorListener) // Subscribes each person to the error listener
-        beamServices.agentRefs.put(id.toString, ref)
+      beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
+      beamServices.personRefs += ((personId, personAgentRef))
     }
   }
 
