@@ -169,6 +169,7 @@ class PersonAgent(val beamServices: BeamServices,
 
     _numReschedules = _numReschedules + 1
     if(_numReschedules > 500){
+      cancelTrip(_currentRoute.legs,_currentVehicle)
       stop(Failure(s"Too many reschedule attempts."))
     }else{
       val toSchedule = if(isStart) {
