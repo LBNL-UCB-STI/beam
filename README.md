@@ -23,26 +23,25 @@ java -Xmx2g -jar build/libs/beam.jar --config test/input/beamville/beam.conf
 > You need to set an environment variable named `PWD` to BEAM home.
 
 
-## Run Simulation on Amazon EC2 
+## Deploy
 To run BEAM simulation on amazon ec2, use following command with some optional parameters.
 ```
-gradle runAwsSim
+gradle deploy
 ```
  It can take some parameters from command line, use `-P` to specify the parameter.
  
  - `beamBranch`: To specify the branch for simulation, master is default branch.
- - `beamBuild`: The TravisCI build number to run simulation. use `latest` if you want to run with latest build.
- - `beamInput`: To specify shared input package like beamville.
- - `beamConfigs`: A comma `,` separated list of `beam.conf` file names. It looks files under the input package specified in `beamInput`.
+ - `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit.
+ - `beamConfigs`: A comma `,` separated list of `beam.conf` file names. It should be relative path under the project home.
  - `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min. 
  
  To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can found in the output log of the command.
  
  To run batch simulation you can specify the conf files using parameter like:
  ```
- gradle runAwsSim -PbeamConfigs=beamA.conf,beamB.conf,beamC.conf,beamD.conf
+ gradle deploy -PbeamConfigs=production/application-sfbay/base.conf,production/application-sfbay/beamB.conf,production/application-sfbay/beamC.conf,production/application-sfbay/beamD.conf
  ```
- It will start four ec2 instances, using provided configurations.
+ It will start an ec2 instance, using provided configurations and run all simulations in serial. At the end of each simulation it uploads the results to s3.
  
 > gradle.properties contains default values for all the parameters.
 

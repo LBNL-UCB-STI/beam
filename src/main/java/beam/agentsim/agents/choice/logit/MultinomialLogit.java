@@ -9,6 +9,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.Random;
@@ -46,7 +47,7 @@ public class MultinomialLogit implements AbstractLogit, Cloneable {
                 if (tree.children == null) {
                     tree.children = new LinkedList<NestedLogit>();
                 }
-                NestedLogit child = NestedLogit.NestedLogitFactory(elem);
+                NestedLogit child = NestedLogit.nestedLogitFactory(elem);
                 child.parent = tree;
                 tree.children.add(child);
             } else {
@@ -55,6 +56,44 @@ public class MultinomialLogit implements AbstractLogit, Cloneable {
         }
         return new MultinomialLogit(tree);
     }
+
+    public static MultinomialLogit multinomialLogitFactory(String modelName, LinkedList<String> variables, LinkedList<String> alternatives, LinkedList<Double> values) {
+        return multinomialLogitFactory(modelName,1.0, variables, alternatives, values);
+    }
+
+	public static MultinomialLogit multinomialLogitFactory(String modelName, Double elasticity, LinkedList<String> variables, LinkedList<String> alternatives, LinkedList<Double> values) {
+		NestedLogitData theData = new NestedLogitData();
+		theData.setNestName(modelName);
+		theData.setElasticity(elasticity);
+		NestedLogit tree = new NestedLogit(theData);
+		NestedLogit child;
+		if(variables.size() != alternatives.size() || variables.size() != values.size()){
+			throw new RuntimeException("MultinomialLogit model factory expects three lists of equal sizes, but was given unequal lists instead.");
+		}
+		HashMap<String,NestedLogit> alternativesProcessed = new HashMap<String,NestedLogit>();
+		for(int i=0; i < values.size(); i++) {
+			String alternative = alternatives.get(i);
+			String variable = variables.get(i);
+			Double value = values.get(i);
+			if (tree.children == null) {
+				tree.children = new LinkedList<NestedLogit>();
+			}
+			if(!alternativesProcessed.containsKey(alternative)) {
+				NestedLogitData childData = new NestedLogitData();
+				childData.setNestName(alternative);
+				childData.setElasticity(1.0);
+				childData.setUtility(new UtilityFunction());
+                child = new NestedLogit(childData);
+                child.parent = tree;
+                tree.children.add(child);
+				alternativesProcessed.put(alternative,child);
+			}else{
+				child = alternativesProcessed.get(alternative);
+			}
+			child.data.utility.addCoefficient(variable, value, variable.equalsIgnoreCase("ASC") ? LogitCoefficientType.INTERCEPT : LogitCoefficientType.MULTIPLIER);
+		}
+		return new MultinomialLogit(tree);
+	}
 
     @Override
     public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData) {
@@ -69,6 +108,14 @@ public class MultinomialLogit implements AbstractLogit, Cloneable {
     @Override
     public Double getExpectedMaximumUtility() {
         return tree.getExpectedMaximumUtility();
+    }
+
+    public LinkedList<String> getAlternativeNames(){
+        LinkedList<String> names = new LinkedList<>();
+        for(NestedLogit child : tree.children){
+            names.add(child.getName());
+        }
+        return names;
     }
 
     @Override
