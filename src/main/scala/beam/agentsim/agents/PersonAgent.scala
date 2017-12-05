@@ -237,8 +237,8 @@ class PersonAgent(val beamServices: BeamServices,
           }
       }
 
-    case Event(TriggerWithId(NotifyLegEndTrigger(_,beamLeg),_), _) =>
-      stop(Failure(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: $beamLeg"))
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg), triggerId), _) =>
+      warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
   }
 
   chainedWhen(Moving) {
