@@ -17,9 +17,9 @@ import org.matsim.api.core.v01.population.Person
 import org.scalatest.Matchers._
 import org.scalatest.{FunSpecLike, MustMatchers}
 
-class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) with MustMatchers with FunSpecLike with ImplicitSender {
+class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with MustMatchers with FunSpecLike with ImplicitSender {
 
-  val config = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
+  val config = BeamConfig(system.settings.config)
 
   describe("A BEAM Agent Scheduler") {
 
@@ -31,6 +31,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! StartSchedule(0)
       beamAgentRef.stateName should be(Initialized)
+      expectMsg(CompletionNotice(0L))
     }
 
     it("should fail to schedule events with negative tick value") {
@@ -42,32 +43,6 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
     }
 
     it("should dispatch triggers in chronological order") {
-      val beamAgentSchedulerRef = system.actorOf(SchedulerProps(config, stopTick = 100.0, maxWindow = 100.0))
-      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), self)
-      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(1.0), self)
-      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(10.0), self)
-      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(5.0), self)
-      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(15.0), self)
-      beamAgentSchedulerRef ! ScheduleTrigger(ReportState(9.0), self)
-      beamAgentSchedulerRef ! StartSchedule(0)
-      expectMsg(TriggerWithId(InitializeTrigger(0.0), 1))
-      beamAgentSchedulerRef ! completed(1)
-      expectMsg(TriggerWithId(ReportState(1.0), 2))
-      beamAgentSchedulerRef ! completed(2)
-      expectMsg(TriggerWithId(ReportState(5.0), 4))
-      beamAgentSchedulerRef ! completed(4)
-      expectMsg(TriggerWithId(ReportState(9.0), 6))
-      beamAgentSchedulerRef ! completed(6)
-      expectMsg(TriggerWithId(ReportState(10.0), 3))
-      beamAgentSchedulerRef ! completed(3)
-      expectMsg(TriggerWithId(ReportState(15.0), 5))
-      beamAgentSchedulerRef ! completed(5)
-    }
-
-    ignore("should work even on a single thread") {
-      // FIXME: The difference to the previous test is that this one uses a single-threaded environment.
-      // FIXME: This does not work. I think because the scheduler works by sending messages to itself without
-      // FIXME: increasing the time, essentially an infinite recursion.
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 100.0, maxWindow = 100.0))
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), self)
       beamAgentSchedulerRef ! ScheduleTrigger(ReportState(1.0), self)
@@ -88,6 +63,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       beamAgentSchedulerRef ! completed(3)
       expectMsg(TriggerWithId(ReportState(15.0), 5))
       beamAgentSchedulerRef ! completed(5)
+      expectMsg(CompletionNotice(0L))
     }
   }
 }
@@ -114,7 +90,7 @@ object BeamAgentSchedulerSpec {
         stay() replying completed(triggerId, Vector())
     }
     chainedWhen(AnyState) {
-      case Event(IllegalTriggerGoToError, _) =>
+      case Event(IllegalTriggerGoToError(_), _) =>
         stop
     }
   }

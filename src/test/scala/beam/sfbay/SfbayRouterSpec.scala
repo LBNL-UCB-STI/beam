@@ -9,7 +9,6 @@ import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, WALK}
-import beam.router.RoutingModel.BeamLegWithNext
 import beam.router.gtfs.FareCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
@@ -19,47 +18,35 @@ import beam.utils.DateUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-@Ignore
 class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("production/application-sfbay/beam.conf")).resolve())
+    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve())
 
-    // Have to mock a lot of things to get the router going
+    // Have to mock some things to get the router going
     val services: BeamServices = mock[BeamServices]
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("56658-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("66752-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("80672-0")))
-    scenario.getPopulation.addPerson(scenario.getPopulation.getFactory.createPerson(Id.createPersonId("116378-0")))
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    val matsimServices = mock[MatsimServices]
-    when(matsimServices.getScenario).thenReturn(scenario)
-    when(services.matsimServices).thenReturn(matsimServices)
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
-    when(services.transitLegsByStopAndDeparture).thenReturn(tupleToNext)
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    router = system.actorOf(BeamRouter.props(services, fareCalculator))
+    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
-      router ! InitializeRouter
-      expectMsg(RouterInitialized)
+      router ! Identify(0)
+      expectMsgType[ActorIdentity]
     }
   }
 
@@ -72,7 +59,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
       val destination = new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
       val time = RoutingModel.DiscreteTime(25740)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
     }
@@ -81,7 +68,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       val origin = new BeamRouter.Location(626575.0322098453, 4181202.599243111)
       val destination = new BeamRouter.Location(607385.7148858022, 4172426.3760835854)
       val time = RoutingModel.DiscreteTime(25860)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-56658-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("56658-0")))
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-56658-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("56658-0")))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
     }
@@ -90,7 +77,7 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       val origin = new BeamRouter.Location(583117.0300037456, 4168059.6668392466)
       val destination = new BeamRouter.Location(579985.712067158, 4167298.6137483735)
       val time = RoutingModel.DiscreteTime(20460)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-80672-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("80672-0")))
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-80672-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("80672-0")))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
     }
@@ -108,6 +95,11 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
       assert(response.itineraries.exists(_.tripClassifier == CAR))
+
+      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
+      assertMakesSense(carOption)
+      val actualModesOfCarOption = carOption.toBeamTrip().legs.map(_.mode)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
     "respond with a fallback walk route to a RoutingRequest which actually doesn't have a walkable solution, and a car route" in {
@@ -121,12 +113,6 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       val response = expectMsgType[RoutingResponse]
 
       assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == CAR))
-
-      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assertMakesSense(carOption)
-      val actualModesOfCarOption = carOption.toBeamTrip().legs.map(_.mode)
-      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
 
       val actualModesOfWalkOption = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip().legs.map(_.mode)
       actualModesOfWalkOption should contain theSameElementsInOrderAs List(WALK)

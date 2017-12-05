@@ -58,10 +58,10 @@ public class BeamEventsLogger {
         allLoggableEvents.add(ActivityStartEvent.class);
 
         //filter according loggerLevel
-        if (this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel().equals("")) {
+        if (this.beamServices.beamConfig().beam().outputs().events().defaultWritingLevel().equals("")) {
             defaultLevel = OFF;
         } else {
-            defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().defaultLoggingLevel());
+            defaultLevel = LoggerLevels.valueOf(this.beamServices.beamConfig().beam().outputs().events().defaultWritingLevel());
             eventsToLog.addAll(getAllLoggableEvents());
         }
         overrideDefaultLoggerSetup();
@@ -89,7 +89,7 @@ public class BeamEventsLogger {
 
             for (BeamEventsFileFormats fmt : this.eventsFileFormatsArray) {
                 BeamEventsWriterBase newWriter = null;
-                if (this.beamServices.beamConfig().beam().outputs().explodeEventsIntoFiles()) {
+                if (this.beamServices.beamConfig().beam().outputs().events().explodeIntoFiles()) {
                     for (Class<?> eventTypeToLog : getAllEventsToLog()) {
                         newWriter = createEventWriterForClassAndFormat(eventsFileBasePath, eventTypeToLog, fmt);
                         writers.add(newWriter);
@@ -148,7 +148,7 @@ public class BeamEventsLogger {
     public void setEventsFileFormats() {
         String eventsFilePath = "";
         BeamEventsFileFormats fmt = null;
-        this.eventsFileFormats = this.beamServices.beamConfig().beam().outputs().eventsFileOutputFormats();
+        this.eventsFileFormats = this.beamServices.beamConfig().beam().outputs().events().fileOutputFormats();
         this.eventsFileFormatsArray.clear();
         for (String format : eventsFileFormats.split(",")) {
             if (format.equalsIgnoreCase("xml")) {
@@ -188,7 +188,7 @@ public class BeamEventsLogger {
     public void overrideDefaultLoggerSetup() {
         Class<?> theClass = null;
 
-        for (String classAndLevel : beamServices.beamConfig().beam().outputs().overrideLoggingLevels().split(",")) {
+        for (String classAndLevel : beamServices.beamConfig().beam().outputs().events().overrideWritingLevels().split(",")) {
             String[] splitClassLevel = classAndLevel.split(":");
             String classString = splitClassLevel[0].trim();
             String levelString = splitClassLevel[1].trim();

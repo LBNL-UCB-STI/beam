@@ -2,7 +2,7 @@ package beam.sim
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Identify, Props}
+import akka.actor.{ActorRef, ActorSystem, Identify, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource.AssignManager
@@ -18,9 +18,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
-import beam.router.BeamRouter.{InitTransit, InitializeRouter}
+import beam.router.BeamRouter.InitTransit
 import beam.router.gtfs.FareCalculator
-import beam.sim.config.BeamLoggingSetup
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
 import glokka.Registry
@@ -50,7 +49,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
                        ) extends StartupListener with IterationStartsListener with IterationEndsListener with ShutdownListener {
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[BeamSim])
-  var eventSubscriber: ActorRef = _
   var eventsManager: EventsManager = _
   var writer: BeamEventsLogger = _
   var currentIter = 0
@@ -60,23 +58,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    actorSystem.eventStream.setLogLevel(BeamLoggingSetup.log4jLogLevelToAkka(beamServices.beamConfig.beam.outputs.logging.beam.logLevel))
     eventsManager = beamServices.matsimServices.getEvents
-    eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], eventsManager), EventsSubscriber.SUBSCRIBER_NAME)
-
-    subscribe(ActivityEndEvent.EVENT_TYPE)
-    subscribe(ActivityStartEvent.EVENT_TYPE)
-    subscribe(PersonEntersVehicleEvent.EVENT_TYPE)
-    subscribe(PersonLeavesVehicleEvent.EVENT_TYPE)
-    subscribe(VehicleEntersTrafficEvent.EVENT_TYPE)
-    subscribe(PathTraversalEvent.EVENT_TYPE)
-    subscribe(VehicleLeavesTrafficEvent.EVENT_TYPE)
-    subscribe(PersonDepartureEvent.EVENT_TYPE)
-    subscribe(AgentWaitingForPtEvent.EVENT_TYPE)
-    subscribe(TeleportationArrivalEvent.EVENT_TYPE)
-    subscribe(PersonArrivalEvent.EVENT_TYPE)
-    subscribe(PointProcessEvent.EVENT_TYPE)
-    subscribe(ModeChoiceEvent.EVENT_TYPE)
 
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
@@ -96,10 +78,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
 
-    val routerFuture = beamServices.registry ? Registry.Register("router", BeamRouter.props(beamServices, fareCalculator))
-    beamServices.beamRouter = Await.result(routerFuture, timeout.duration).asInstanceOf[Created].ref
-    val routerInitFuture = beamServices.beamRouter ? InitializeRouter
-    Await.result(routerInitFuture, timeout.duration)
+    val router = actorSystem.actorOf(BeamRouter.props(beamServices, beamServices.matsimServices.getScenario.getTransitVehicles, fareCalculator), "router")
+    beamServices.beamRouter = router
+    Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     val rideHailingManagerFuture = beamServices.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
       Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
@@ -111,9 +92,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     currentIter = event.getIteration
     resetPop(event.getIteration)
-//    eventsManager.initProcessing()
-
-    // Await.result throws an Exception in case the Future fails.
     Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     logger.info(s"Transit schedule has been initialized")
   }
@@ -145,12 +123,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private def cleanupHouseHolder(): Unit = {
     for ((_, householdAgent) <- beamServices.householdRefs) {
       logger.debug(s"Stopping ${householdAgent.path.name} ")
-      householdAgent ! Finish
+      householdAgent ! PoisonPill
     }
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    actorSystem.stop(eventSubscriber)
     actorSystem.stop(beamServices.schedulerRef)
     actorSystem.terminate()
   }
@@ -277,12 +254,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     (vehicleId, beamVehicleRef)
 
   }
-
-
-  def subscribe(eventType: String): Unit = {
-    beamServices.agentSimEventsBus.subscribe(eventSubscriber, eventType)
-  }
-
 }
 
 
