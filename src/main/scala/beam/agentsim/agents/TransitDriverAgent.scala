@@ -20,13 +20,13 @@ import org.matsim.vehicles.Vehicle
   */
 object TransitDriverAgent {
   def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicle: BeamVehicle,
-            passengerSchedule: PassengerSchedule) = {
+            passengerSchedule: PassengerSchedule): Props = {
     Props(new TransitDriverAgent(services, transitDriverId, vehicle, passengerSchedule))
   }
 
   case class TransitDriverData() extends BeamAgentData
 
-  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]) = {
+  def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
     Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
   }
 }

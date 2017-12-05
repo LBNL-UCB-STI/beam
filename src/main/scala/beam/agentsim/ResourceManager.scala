@@ -6,8 +6,6 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.{Id, Identifiable}
 
-import scala.reflect.ClassTag
-
 /**
   *
   * @author dserdiuk, saf
@@ -21,11 +19,12 @@ trait Resource[R] extends Identifiable[R] {
 
   /**
     * Ensures that outgoing messages from resource use the correct ID type.
+    *
     * @param whenWhere when and where the resource is.
-    * @param e implicit conversion to the [[Resource]]'s type for the [[Id]]
+    * @param e         implicit conversion to the [[Resource]]'s type for the [[Id]]
     * @tparam T Any ID type
     */
-  def informManagerResourceIsAvailable[T](whenWhere: SpaceTime)(implicit e: Id[T]=>Id[R]):  Unit = {
+  def informManagerResourceIsAvailable[T](whenWhere: SpaceTime)(implicit e: Id[T] => Id[R]): Unit = {
     val x = ResourceIsAvailableNotification(getId, whenWhere)
     manager.foreach(_ ! x)
   }
@@ -36,6 +35,18 @@ trait Resource[R] extends Identifiable[R] {
 object Resource {
 
   case class TellManagerResourceIsAvailable(when: SpaceTime)
+
+  case class RegisterResource(resourceId: Id[_])
+
+  case class UnRegisterResource(resourceId: Id[_])
+
+  case class CheckInResource(resourceId: Id[_])
+
+  case class CheckOutResource(resourceId: Id[_])
+
+  case class NotifyResourceInUse(resourceId: Id[_], when: SpaceTime)
+
+  case class NotifyResourceIdle(resourceId: Id[_], when: SpaceTime)
 
   case class ResourceIsAvailableNotification(resourceId: Id[_], when: SpaceTime)
 

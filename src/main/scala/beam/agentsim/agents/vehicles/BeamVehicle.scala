@@ -1,17 +1,13 @@
 package beam.agentsim.agents.vehicles
 
-import java.lang.NullPointerException
-
 import akka.actor.ActorRef
 import beam.agentsim.Resource
-import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.SeatAssignmentRule.RandomSeatAssignmentRule
 import beam.agentsim.agents.vehicles.VehicleOccupancyAdministrator.DefaultVehicleOccupancyAdministrator
 import beam.agentsim.agents.vehicles.VehicleProtocol._
-import beam.agentsim.events.SpaceTime
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -122,6 +118,7 @@ object BeamVehicle {
     //TODO: add energy type registry
     0.0
   }
+
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 }
@@ -220,7 +217,6 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
       Success(ClearCarrier())
     }
   }
-
 
 
 }

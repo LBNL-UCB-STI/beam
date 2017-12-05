@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
 import akka.actor.FSM.Failure
-import beam.agentsim.Resource.ResourceIsAvailableNotification
+import beam.agentsim.Resource.{CheckInResource, ResourceIsAvailableNotification}
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo, Initialized, Uninitialized}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
@@ -12,8 +12,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Tour
 import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger,
-  LegWithPassengerVehicle}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}
@@ -181,7 +180,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     if (personalVehicleUsed.nonEmpty) {
       if (personalVehicleUsed.size > 1) {
         logWarn(s"Found multiple personal vehicle in use for chosenTrip: $chosenTrip but only expected one. Using " +
-          s"only one for subequent planning.")
+          s"only one for subsequent planning.")
       }
       currentTourPersonalVehicle = Some(personalVehicleUsed(0))
       availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed(0))
@@ -189,7 +188,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val householdRef: ActorRef = beamServices.householdRefs(_household)
     availablePersonalStreetVehicles.foreach { veh =>
       householdRef ! ReleaseVehicleReservation(id, veh.id)
-      householdRef ! ResourceIsAvailableNotification(veh.id, new SpaceTime(currentActivity.getCoord, tick.toLong))
+      householdRef ! CheckInResource(veh.id)
     }
     if (chosenTrip.tripClassifier != RIDEHAIL && rideHailingResult.get.proposals.nonEmpty) {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head

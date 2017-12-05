@@ -2,8 +2,9 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource.ResourceIsAvailableNotification
+import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.RideHailingManager._
 import beam.agentsim.agents.TriggerUtils._
@@ -22,7 +23,6 @@ import beam.router.RoutingModel.{BeamTime, BeamTrip}
 import beam.router.{BeamRouter, RoutingModel}
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -82,7 +82,8 @@ case class RideHailingManagerData(name: String, fares: Map[Id[VehicleType], BigD
 
 class RideHailingManager(info: RideHailingManagerData,
                          val beamServices: BeamServices,
-                         val managedVehicles: Map[Id[_ <: BeamVehicle], BeamVehicle]) extends Actor with HasServices
+                         val managedVehicles: Map[Id[_ <: BeamVehicle], BeamVehicle]) extends VehicleManager with
+  HasServices
   with AggregatorFactory {
 
   import scala.collection.JavaConverters._
@@ -244,7 +245,7 @@ class RideHailingManager(info: RideHailingManagerData,
     case ModifyPassengerScheduleAck(inquiryIDOption) =>
       completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]))
 
-    case ReleaseVehicleReservation(personId, vehId) =>
+    case ReleaseVehicleReservation(_, vehId) =>
       lockedVehicles -= vehId
 
     case msg =>
@@ -291,7 +292,7 @@ class RideHailingManager(info: RideHailingManagerData,
   private def handleReservation(inquiryId: Id[RideHailingInquiry], vehiclePersonId: VehiclePersonId,
                                 customerPickUp: Location, destination: Location,
                                 customerAgent: ActorRef, closestRideHailingAgentLocation: RideHailingAgentLocation,
-                                travelProposal: TravelProposal, trip2DestPlan: Option[BeamTrip]) = {
+                                travelProposal: TravelProposal, trip2DestPlan: Option[BeamTrip]): Unit = {
 
     // Modify RH agent passenger schedule and create BeamAgentScheduler message that will dispatch RH agent to do the
     // pickup
@@ -342,17 +343,6 @@ class RideHailingManager(info: RideHailingManagerData,
   }
 
 
-  //  triggerCustomerPickUp(customerPickUp, destination, closestRideHailingAgentLocation, trip2DestPlan,
-  // travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip(), confirmation, vehiclePersonId)
-  private def triggerCustomerPickUp(customerPickUp: Location, destination: Location,
-                                    closestRideHailingAgentLocation: RideHailingAgentLocation,
-                                    trip2DestPlan: Option[BeamTrip], trip2CustPlan: BeamTrip,
-                                    confirmation: ReservationResponse, personId: Id[Person]) = {
-  }
-
-  private def findVehicle(resourceId: Id[Vehicle]): Option[Vehicle] = {
-    info.fleet.get(resourceId)
-  }
 }
 
 

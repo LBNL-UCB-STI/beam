@@ -1,15 +1,14 @@
 package beam.agentsim.agents.household
 
 import akka.actor.{ActorLogging, ActorRef, Props}
-import beam.agentsim.Resource.ResourceIsAvailableNotification
+import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.VehicleManager
+import beam.agentsim.agents.RideHailingAgent
 import beam.agentsim.agents.household.HouseholdActor._
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
-import beam.router.DefinedTrajectoryHolder
 import beam.router.Modes.BeamMode.CAR
-import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
@@ -54,6 +53,8 @@ object HouseholdActor {
 
   case class MemberWithRank(personId: Id[Person], rank: Option[Int])
 
+  case class InitializeRideHailAgent(b: Id[Person])
+
 }
 
 class HouseholdActor(services: BeamServices,
@@ -71,7 +72,7 @@ class HouseholdActor(services: BeamServices,
   /**
     * Available [[Vehicle]]s in [[Household]]
     */
-  val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x=>Id.createVehicleId(x))
+  val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
 
   /**
     * Household members sorted by rank
@@ -106,8 +107,7 @@ class HouseholdActor(services: BeamServices,
       _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver =
         true))
 
-    case ResourceIsAvailableNotification(resourceId, when) =>
-      val vehicleId = Id.createVehicleId(resourceId)
+    case CheckInResource(vehicleId: Id[Vehicle]) =>
       val personIDOpt = _checkedOutVehicles.remove(vehicleId)
       personIDOpt match {
         case Some(personId) =>
@@ -118,7 +118,7 @@ class HouseholdActor(services: BeamServices,
           }
         case None =>
       }
-      log.info(s"Resource $resourceId is now available again at $when")
+      log.info(s"Resource $vehicleId is now available again")
 
     case ReleaseVehicleReservation(personId, vehId) =>
       _reservedForPerson.get(personId) match {
@@ -128,6 +128,16 @@ class HouseholdActor(services: BeamServices,
           _availableVehicles.add(vehicleId)
         case _ =>
       }
+
+    case InitializeRideHailAgent(memberId) => {
+      memberActors.keys.toList.find(_.equals(memberId)).foreach(personId => {
+        _reservedForPerson.get(personId).foreach({ vehId =>
+          RideHailingAgent.props(services, personId, vehId, homeCoord)
+        })
+        //        RideHailingAgent.props(beamServices,)
+      })
+
+    }
 
     case MobilityStatusInquiry(_, personId) =>
       // Query reserved vehicles
@@ -173,7 +183,6 @@ class HouseholdActor(services: BeamServices,
     // Initial locations and trajectories
     //Initialize all vehicles to have a stationary trajectory starting at time zero
     val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
-    val initialBeamPath = BeamPath(Vector(), None, DefinedTrajectoryHolder(Trajectory(Vector(initialLocation))))
     _vehicles.foreach { veh =>
       //XXXX (VR): What goes here?
       //      services.vehicleRefs(veh) ! AppendToTrajectory(initialBeamPath)

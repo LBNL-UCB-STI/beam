@@ -19,7 +19,7 @@ import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
@@ -27,7 +27,7 @@ import org.matsim.vehicles.Vehicle
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object RideHailingAgent {
-
+  val idPrefix: String = "rideHailingAgent"
   // syntactic sugar for props creation
   def props(services: BeamServices, rideHailingAgentId: Id[RideHailingAgent], vehicleId: Id[Vehicle], location: Coord) =
     Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleId, location), services))
@@ -65,7 +65,7 @@ object RideHailingAgent {
 
 class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val
 beamServices: BeamServices)
-    extends DrivesVehicle[RideHailingAgentData] with Resource[RideHailingAgent] {
+  extends DrivesVehicle[RideHailingAgentData]  {
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   chainedWhen(Uninitialized) {
@@ -77,9 +77,9 @@ beamServices: BeamServices)
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = new ResourceIsAvailableNotification(id, SpaceTime(info.data.location,
+      val rideAvailable = ResourceIsAvailableNotification(id, SpaceTime(info.data.location,
         tick
-        .toLong))
+          .toLong))
       val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(_ =>
         RegisterRideAvailableWrapper(triggerId)
       )
@@ -122,10 +122,6 @@ beamServices: BeamServices)
     case msg@_ =>
       stop(Failure(s"Unrecognized message $msg"))
   }
-  override var manager: Option[ActorRef] = None
-
-  override def getId: Id[RideHailingAgent] = id
-
 
 }
 
