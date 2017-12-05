@@ -4,7 +4,7 @@ import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
 
 import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
-import org.reflections.{ReflectionUtils, Reflections}
+import org.reflections.Reflections
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag

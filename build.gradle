@@ -262,20 +262,20 @@ lambda {
 
 def pload = """{
   "branch": "$beamBranch",
-  "build": "$beamBuild",
-  "input": "$beamInput",
-  "configs": [ "${beamConfigs.split(',').join("\", \"")}" ],
+  "commit": "$beamCommit",
+  "configs": "'${beamConfigs.split(',').join("' '")}'",
+  "batch": $beamBatch,
   "shutdown_wait": "$shutdownWait"
 }"""
 
-task runAwsSim(type: AWSLambdaInvokeTask) {
-    functionName = "testSim"
+task deploy(type: AWSLambdaInvokeTask) {
+    functionName = "simulateBeam"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
     doLast {
         println pload
-        println "Lambda function result: " + new String(invokeResult.payload.array(), "UTF-8")
+        println new String(invokeResult.payload.array(), "UTF-8")
     }
 }
 
