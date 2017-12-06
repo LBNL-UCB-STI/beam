@@ -17,9 +17,9 @@ import org.matsim.api.core.v01.population.Person
 import org.scalatest.Matchers._
 import org.scalatest.{FunSpecLike, MustMatchers}
 
-class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) with MustMatchers with FunSpecLike with ImplicitSender {
+class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with MustMatchers with FunSpecLike with ImplicitSender {
 
-  val config = BeamConfig(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())
+  val config = BeamConfig(system.settings.config)
 
   describe("A BEAM Agent Scheduler") {
 
@@ -31,6 +31,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! StartSchedule(0)
       beamAgentRef.stateName should be(Initialized)
+      expectMsg(CompletionNotice(0L))
     }
 
     it("should fail to schedule events with negative tick value") {
@@ -62,6 +63,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system")) w
       beamAgentSchedulerRef ! completed(3)
       expectMsg(TriggerWithId(ReportState(15.0), 5))
       beamAgentSchedulerRef ! completed(5)
+      expectMsg(CompletionNotice(0L))
     }
   }
 }
@@ -88,7 +90,7 @@ object BeamAgentSchedulerSpec {
         stay() replying completed(triggerId, Vector())
     }
     chainedWhen(AnyState) {
-      case Event(IllegalTriggerGoToError, _) =>
+      case Event(IllegalTriggerGoToError(_), _) =>
         stop
     }
   }

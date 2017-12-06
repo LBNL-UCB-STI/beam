@@ -13,7 +13,7 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
 
   override def clone(): ModeChoiceCalculator = new ModeChoiceRideHailIfAvailable(beamServices)
 
-  override def apply(alternatives: Vector[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]) = {
+  override def apply(alternatives: Seq[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]) = {
     var containsDriveAlt: Vector[Int] = Vector[Int]()
     alternatives.zipWithIndex.foreach { alt =>
       if (alt._1.tripClassifier == RIDEHAIL) {
@@ -21,12 +21,12 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
       }
     }
 
-    (if (containsDriveAlt.nonEmpty) {
-      containsDriveAlt.headOption
+    alternatives(if (containsDriveAlt.nonEmpty) {
+      containsDriveAlt.head
     }
     else {
       chooseRandomAlternativeIndex(alternatives)
-    }).map(x => alternatives(x))
+    })
   }
 
 

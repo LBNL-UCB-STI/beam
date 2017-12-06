@@ -30,8 +30,6 @@ public final class BeamEventsHandling implements EventsHandling, BeforeMobsimLis
     public void notifyBeforeMobsim(BeforeMobsimEvent event) {
         this.eventsLogger = new BeamEventsLogger(beamServices, beamServices.matsimServices().getEvents());
         beamServices.matsimServices().getEvents().resetHandlers(event.getIteration());
-        // init for event processing of new iteration
-        beamServices.matsimServices().getEvents().initProcessing();
     }
 
 

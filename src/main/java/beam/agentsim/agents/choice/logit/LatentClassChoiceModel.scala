@@ -23,8 +23,8 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
 
   val lccmData = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
 
-  val classMembershipModels: Map[TourType,MulitnomialLogit] = extractClassMembershipModels(lccmData)
-  val modeChoiceModels: Map[TourType,Map[String,MulitnomialLogit]] = {
+  val classMembershipModels: Map[TourType,MultinomialLogit] = extractClassMembershipModels(lccmData)
+  val modeChoiceModels: Map[TourType,Map[String,MultinomialLogit]] = {
     val mods = extractModeChoiceModels(lccmData)
     mods
   }
@@ -46,7 +46,7 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     data
   }
 
-  def extractClassMembershipModels(lccmData: Vector[LccmData]): Map[TourType,MulitnomialLogit] = {
+  def extractClassMembershipModels(lccmData: Vector[LccmData]): Map[TourType,MultinomialLogit] = {
     val classMemData = lccmData.filter(_.model=="classMembership")
     Vector[TourType](Mandatory,Nonmandatory).map{ theTourType =>
       val theData = classMemData.filter( _.tourType.equalsIgnoreCase(theTourType.toString))
@@ -56,11 +56,11 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
       theAlternatives.addAll(theData.map(_.alternative).asJava)
       theVariables.addAll(theData.map(_.variable).asJava)
       theValues.addAll(theData.map{theRow => java.lang.Double.valueOf(theRow.value)}.asJava)
-      (theTourType -> MulitnomialLogit.MulitnomialLogitFactory(theTourType.toString, theVariables,theAlternatives,theValues))
+      (theTourType -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables,theAlternatives,theValues))
     }.toMap
   }
 
-  def extractModeChoiceModels(lccmData: Vector[LccmData]): Map[TourType,Map[String,MulitnomialLogit]] = {
+  def extractModeChoiceModels(lccmData: Vector[LccmData]): Map[TourType,Map[String,MultinomialLogit]] = {
     val uniqueClasses = lccmData.map(_.latentClass).distinct
     val modeChoiceData = lccmData.filter(_.model=="modeChoice")
     Vector[TourType](Mandatory,Nonmandatory).map{ theTourType =>
@@ -73,7 +73,7 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
         theAlternatives.addAll(theData.map(_.alternative).asJava)
         theVariables.addAll(theData.map(_.variable).asJava)
         theValues.addAll(theData.map{theRow => java.lang.Double.valueOf(theRow.value)}.asJava)
-        (theLatentClass -> MulitnomialLogit.MulitnomialLogitFactory(theTourType.toString, theVariables,theAlternatives,theValues))
+        (theLatentClass -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables,theAlternatives,theValues))
       }.toMap)
     }.toMap
   }

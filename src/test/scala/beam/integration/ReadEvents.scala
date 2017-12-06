@@ -11,5 +11,4 @@ trait ReadEvents{
                       tagToReturn: String,
                       eventType: Option[String] = None): Seq[String]
 
-  def getLinesFrom(file: File): String
 }

@@ -20,9 +20,9 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     schedule(beamLeg).riders.size
   }
 
-  def isEmpty = schedule.isEmpty
+  def isEmpty: Boolean = schedule.isEmpty
 
-  def initialSpacetime(): SpaceTime = {
+  def initialSpacetime: SpaceTime = {
     schedule.firstKey.travelPath.getStartPoint()
   }
 
@@ -31,11 +31,11 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     lastLeg.travelPath.getEndPoint()
   }
 
-  def getStartLeg() = {
+  def getStartLeg: BeamLeg = {
     schedule.head._1
   }
 
-  def addLegs(legs: Seq[BeamLeg]) = {
+  def addLegs(legs: Seq[BeamLeg]): Seq[Option[Manifest]] = {
     legs.withFilter(leg => !(schedule contains leg)).map(leg => schedule.put(leg, Manifest()))
   }
 
@@ -56,8 +56,7 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     anyRemoved
   }
 
-  def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {
-
+  def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): Unit = {
     legs.foreach(leg =>
       schedule.get(leg) match {
         case Some(manifest) =>
@@ -66,12 +65,11 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
           schedule.put(leg, Manifest(passenger))
       }
     )
-    val firstLeg = legs.head
-    schedule.get(firstLeg).get.boarders += passenger.vehicleId
-    val lastLeg = legs.last
-    schedule.get(lastLeg).get.alighters += passenger.vehicleId
+    if(!legs.isEmpty){
+      schedule(legs.head).boarders += passenger.vehicleId
+      schedule(legs.last).alighters += passenger.vehicleId
+    }
   }
-
 
 }
 
@@ -83,7 +81,7 @@ object PassengerSchedule {
 case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
 
 class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]]) {
-  def isEmpty: Boolean = riders.size == 0
+  def isEmpty: Boolean = riders.isEmpty
 }
 
 object Manifest {

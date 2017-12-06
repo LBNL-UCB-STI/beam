@@ -147,7 +147,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           * And after locating through these indexes, constructing BeamLeg for each and
           * finally add these legs back to BeamTrip.
           */
-        option.itinerary.asScala.map(itinerary => {
+        option.itinerary.asScala.filter{itin =>
+          val startTime = beamServices.dates.toBaseMidnightSeconds(itin.startTime, transportNetwork.transitLayer.routes.size() == 0)
+          startTime >= time.fromTime && startTime <= time.toTime
+          }.map(itinerary => {
           var legsWithFares = Vector[(BeamLeg, Double)]()
           maybeWalkToVehicle.foreach(legsWithFares +:= (_, 0.0))
 
@@ -161,6 +164,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           //add a Dummy walk BeamLeg to the end of that trip
           if (isRouteForPerson && access.mode != LegMode.WALK) {
             if (!isTransit) legsWithFares = legsWithFares :+ (dummyWalk(tripStartTime + access.duration), 0.0)
+          }
+
+          if(tripStartTime>86400){
+            val i = 0
           }
 
           if (isTransit) {
@@ -228,18 +235,20 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       val maybeBody = routingRequestTripInfo.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
         log.warning("Adding dummy walk route with maximum street time.")
-        val originX=routingRequestTripInfo.origin.getX();
-        val originY=routingRequestTripInfo.origin.getY();
+        val originX=routingRequestTripInfo.origin.getX
+        val originY=routingRequestTripInfo.origin.getY
 
-        val destX=routingRequestTripInfo.destination.getX();
-        val destY=routingRequestTripInfo.destination.getY();
+        val destX=routingRequestTripInfo.destination.getX
+        val destY=routingRequestTripInfo.destination.getY
 
         val distanceInMeters=beamServices.geo.distInMeters(new Coord(originX,originY),new Coord(destX,destY))
-        val bushWalkingTime=Math.round(distanceInMeters/BUSHWALKING_SPEED_IN_METERS_PER_SECOND);
+        val bushwhackingTime=Math.round(distanceInMeters/BUSHWALKING_SPEED_IN_METERS_PER_SECOND);
 
+        val body = routingRequestTripInfo.streetVehicles.find(_.mode == WALK).get
         val dummyTrip = EmbodiedBeamTrip(
           Vector(
-              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushWalkingTime))
+              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushwhackingTime),
+                body.id, body.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
         RoutingResponse(embodiedTrips :+ dummyTrip)
