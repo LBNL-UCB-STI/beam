@@ -6,7 +6,7 @@ import javax.inject.Inject
 import akka.actor.{Actor, ActorSystem, Props, Stash}
 import akka.pattern.ask
 import akka.util.Timeout
-import beam.agentsim.events.AkkaEventsManagerImpl.{EventsSubscriber, FinishWaiter, Finished, FinishedAck}
+import beam.agentsim.events.AkkaEventsManagerImpl.{EventsSubscriber, Finished, FinishedAck}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.EventsManagerImpl
@@ -23,28 +23,10 @@ object AkkaEventsManagerImpl {
     def receive: Receive = {
       case event: Event =>
         eventsManager.processEvent(event)
-    }
-  }
-
-  private class FinishWaiter extends Actor with Stash {
-    import context._
-
-    def receive: Receive = notFinished
-
-    def notFinished: Receive = {
       case Finished() =>
-        unstashAll()
-        become(finished)
-      case _ =>
-        stash()
-    }
-
-    def finished: Receive = {
-      case FinishedAck() =>
         sender ! FinishedAck()
         context.stop(self)
     }
-
   }
 
 }
@@ -56,13 +38,11 @@ class AkkaEventsManagerImpl @Inject()(val actorSystem: ActorSystem) extends Even
   private val delegate = new EventsManagerImpl()
   private val eventSubscriber = actorSystem.actorOf(Props(classOf[EventsSubscriber], delegate))
   actorSystem.eventStream.subscribe(eventSubscriber, classOf[Event])
+  actorSystem.eventStream.subscribe(eventSubscriber, classOf[Finished])
 
   override def processEvent(event: Event) = actorSystem.eventStream.publish(event)
   override def finishProcessing() = {
-    val finishWaiter = actorSystem.actorOf(Props(classOf[FinishWaiter]) )
-    actorSystem.eventStream.subscribe(finishWaiter, classOf[Finished])
-    actorSystem.eventStream.publish(Finished())
-    Await.result(finishWaiter ? FinishedAck(), timeout.duration)
+    Await.result(eventSubscriber ? Finished(), timeout.duration)
     delegate.finishProcessing()
   }
 
