@@ -1,4 +1,4 @@
-package beam.sfbay
+package beam.sflight
 
 import java.io.File
 import java.time.ZonedDateTime
@@ -27,7 +27,7 @@ import org.scalatest.mockito.MockitoSugar
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
+class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _

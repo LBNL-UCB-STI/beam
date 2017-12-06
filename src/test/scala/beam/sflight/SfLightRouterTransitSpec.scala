@@ -1,4 +1,4 @@
-package beam.sfbay
+package beam.sflight
 
 import java.io.File
 import java.time.ZonedDateTime
@@ -9,7 +9,7 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{WALK, WALK_TRANSIT}
 import beam.router.gtfs.FareCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
@@ -30,7 +30,7 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   """))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
