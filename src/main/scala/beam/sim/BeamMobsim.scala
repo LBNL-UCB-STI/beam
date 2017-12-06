@@ -2,7 +2,7 @@ package beam.sim
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Identify, PoisonPill}
+import akka.actor.{ActorRef, ActorSystem, Identify, PoisonPill, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource.AssignManager
@@ -10,11 +10,16 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, CarVehicle, HumanBodyVehicle, Powertrain}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, RideHailingAgent}
+import beam.agentsim.agents._
+import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.router.BeamRouter
 import beam.router.BeamRouter.InitTransit
+import beam.router.gtfs.FareCalculator
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
+import glokka.Registry
+import glokka.Registry.Created
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
@@ -41,6 +46,19 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val actorSystem: Acto
   var rideHailingAgents: Seq[ActorRef] = Nil
 
   override def run() = {
+    val schedulerFuture = beamServices.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0))
+    beamServices.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
+
+    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+
+    val router = actorSystem.actorOf(BeamRouter.props(beamServices, beamServices.matsimServices.getScenario.getTransitVehicles, fareCalculator), "router")
+    beamServices.beamRouter = router
+    Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
+
+    val rideHailingManagerFuture = beamServices.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
+      Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
+    beamServices.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
+
     resetPop()
     Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     log.info(s"Transit schedule has been initialized")
@@ -50,6 +68,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val actorSystem: Acto
     cleanupRideHailingAgents()
     cleanupVehicle()
     cleanupHouseHolder()
+    actorSystem.stop(beamServices.schedulerRef)
     beamServices.matsimServices.getEvents.finishProcessing()
   }
 
