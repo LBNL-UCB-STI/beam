@@ -35,7 +35,7 @@ import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
@@ -242,7 +242,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
         val destY=routingRequestTripInfo.destination.getY
 
         val distanceInMeters=beamServices.geo.distInMeters(new Coord(originX,originY),new Coord(destX,destY))
-        val bushwhackingTime=Math.round(distanceInMeters/BUSHWALKING_SPEED_IN_METERS_PER_SECOND);
+        val bushwhackingTime=Math.round(distanceInMeters/BUSHWHACKING_SPEED_IN_METERS_PER_SECOND);
 
         val body = routingRequestTripInfo.streetVehicles.find(_.mode == WALK).get
         val dummyTrip = EmbodiedBeamTrip(
