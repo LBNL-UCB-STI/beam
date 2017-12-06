@@ -29,7 +29,9 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
+class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+  akka.loglevel="OFF"
+  """))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
