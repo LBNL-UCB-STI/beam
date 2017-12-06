@@ -34,7 +34,7 @@ import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  val BUSHWALKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
@@ -59,7 +59,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
   def calcRoute(routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
 
-    def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode) = {
+    def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode): ProfileResponse = {
       // If we already have observed travel times, probably from the previous iteration,
       // let R5 use those. Otherwise, let R5 use its own travel time estimates.
       val pointToPointQuery = maybeTravelTime match {
@@ -90,8 +90,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
         profileRequest.accessModes = util.EnumSet.of(accessMode)
         profileRequest.egressModes = util.EnumSet.of(egressMode)
       }
-      val response = pointToPointQuery.getPlan(profileRequest)
-      response
+      return pointToPointQuery.getPlan(profileRequest)
     }
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -166,10 +165,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
             if (!isTransit) legsWithFares = legsWithFares :+ (dummyWalk(tripStartTime + access.duration), 0.0)
           }
 
-          if(tripStartTime>86400){
-            val i = 0
-          }
-
           if (isTransit) {
             var arrivalTime: Long = Long.MinValue
             /*
@@ -235,20 +230,14 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       val maybeBody = routingRequestTripInfo.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
         log.warning("Adding dummy walk route with maximum street time.")
-        val originX=routingRequestTripInfo.origin.getX
-        val originY=routingRequestTripInfo.origin.getY
-
-        val destX=routingRequestTripInfo.destination.getX
-        val destY=routingRequestTripInfo.destination.getY
-
-        val distanceInMeters=beamServices.geo.distInMeters(new Coord(originX,originY),new Coord(destX,destY))
-        val bushwhackingTime=Math.round(distanceInMeters/BUSHWALKING_SPEED_IN_METERS_PER_SECOND);
-
-        val body = routingRequestTripInfo.streetVehicles.find(_.mode == WALK).get
+        val origin = new Coord(routingRequestTripInfo.origin.getX, routingRequestTripInfo.origin.getY)
+        val dest = new Coord(routingRequestTripInfo.destination.getX, routingRequestTripInfo.destination.getY)
+        val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)
+        val bushwhackingTime = Math.round(beelineDistanceInMeters/BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
         val dummyTrip = EmbodiedBeamTrip(
           Vector(
               EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushwhackingTime),
-                body.id, body.asDriver, None, 0, unbecomeDriverOnCompletion = false)
+                maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
         RoutingResponse(embodiedTrips :+ dummyTrip)
