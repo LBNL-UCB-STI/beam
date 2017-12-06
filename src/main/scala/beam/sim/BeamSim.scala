@@ -7,6 +7,8 @@ import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import com.google.inject.Inject
+import org.matsim.api.core.v01.Scenario
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
 import org.matsim.vehicles.VehicleCapacity
@@ -15,10 +17,12 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class BeamSim @Inject()(private val actorSystem: ActorSystem,
-                        private val beamServices: BeamServices
+                        private val beamServices: BeamServices,
+                        private val eventsManager: EventsManager,
+                        private val scenario: Scenario,
                        ) extends StartupListener with IterationEndsListener with ShutdownListener {
 
-  private val agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(beamServices)
+  private val agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {

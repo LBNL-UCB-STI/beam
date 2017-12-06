@@ -21,6 +21,7 @@ import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
@@ -34,7 +35,7 @@ import scala.concurrent.Future
 abstract class Dimension
 
 trait BeamVehicleObject {
-  def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props
+  def props(beamServices: BeamServices, eventsManager: EventsManager, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props
 }
 
 object BeamVehicle {
@@ -192,7 +193,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         if (driver.isEmpty) {
           driver = Some(beamServices.agentRefs(newDriver.toString))
           newDriver match {
-            case personId: Id[Person] => context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, personId, id))
+            case personId: Id[Person] => eventsManager.processEvent(new PersonEntersVehicleEvent(tick, personId, id))
             case _ =>
           }
         }
@@ -223,7 +224,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       } else {
         driver = None
         theDriver match {
-          case personId: Id[Person] => context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, personId, id))
+          case personId: Id[Person] => eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, personId, id))
           case _ =>
         }
       }
@@ -236,7 +237,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
         beamServices.vehicleRefs.get(newPassengerVehicle.vehicleId).foreach { vehiclePassengerRef =>
           vehiclePassengerRef ! AssignedCarrier(vehicleId)
         }
-        context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId, id))
+        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, newPassengerVehicle.personId, id))
       } else {
         val leftSeats = fullCapacity - passengers.size
         val beamAgent = sender()
@@ -251,7 +252,7 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       }
 
       logDebug(s"Passenger ${passengerVehicleId} alighted from vehicleId=$id")
-      context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id))
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, passengerVehicleId.personId, id))
       stay()
     case Event(Finish, _) =>
       stop

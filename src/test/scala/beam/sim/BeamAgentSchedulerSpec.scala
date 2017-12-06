@@ -14,6 +14,7 @@ import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
+import org.matsim.core.events.EventsManagerImpl
 import org.scalatest.Matchers._
 import org.scalatest.{FunSpecLike, MustMatchers}
 
@@ -77,6 +78,7 @@ object BeamAgentSchedulerSpec {
   }
 
   class TestBeamAgent(override val id: Id[Person]) extends BeamAgent[NoData] {
+    val eventsManager = new EventsManagerImpl
     override def data = NoData()
 
     override def logPrefix(): String = "TestBeamAgent"

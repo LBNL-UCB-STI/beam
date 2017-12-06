@@ -19,6 +19,7 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
@@ -48,7 +49,7 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator))
+    router = system.actorOf(BeamRouter.props(services, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

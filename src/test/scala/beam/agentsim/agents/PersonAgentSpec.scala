@@ -8,7 +8,6 @@ import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, Test
 import akka.util.Timeout
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.events.AkkaEventsManagerImpl
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.sim.BeamServices
@@ -20,6 +19,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
 import org.matsim.households.Household
@@ -37,6 +37,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
+  val eventsManager = new EventsManagerImpl()
   val services: BeamServices = {
     val theServices  = mock[BeamServices]
     when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
@@ -55,7 +56,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
 
       watch(personAgentRef)
@@ -73,7 +74,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       plan.addActivity(homeActivity)
       val householdId  =  Id.create("dummyHousehold", classOf[Household])
       val bodyVehicle = Id.create("dummyBody", classOf[Vehicle])
-      val props = PersonAgent.props(services, Id.createPersonId(name), householdId, plan, bodyVehicle)
+      val props = PersonAgent.props(services, eventsManager, Id.createPersonId(name), householdId, plan, bodyVehicle)
       registry ! Registry.Register(name, props)
       val ok = expectMsgType[Created]
       ok.name mustEqual name
@@ -81,7 +82,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     it("should publish events that can be received by a MATSim EventsManager") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
-      val events: EventsManager = new AkkaEventsManagerImpl(system)
+      val events: EventsManager = new EventsManagerImpl()
       events.addHandler(new ActivityEndEventHandler {
         override def handleEvent(event: ActivityEndEvent): Unit = {
           system.log.error("events-subscriber received actend event!")
@@ -97,7 +98,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
 
@@ -125,7 +126,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       plan.addActivity(workActivity)
       plan.addActivity(backHomeActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 200.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)

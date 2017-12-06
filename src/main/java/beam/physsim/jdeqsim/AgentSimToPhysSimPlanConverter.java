@@ -9,6 +9,7 @@ import beam.physsim.jdeqsim.akka.AkkaEventHandlerAdapter;
 import beam.physsim.jdeqsim.akka.EventManagerActor;
 import beam.physsim.jdeqsim.akka.JDEQSimActor;
 import beam.sim.BeamServices;
+import beam.sim.common.GeoUtils;
 import glokka.Registry;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -42,26 +43,28 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     public static final String CAR = "car";
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
+    private final ActorRef router;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private Scenario jdeqSimScenario;
     private PopulationFactory populationFactory;
     private Scenario agentSimScenario;
-    private BeamServices services;
+    private final ActorRef registry;
 
     private ActorRef eventHandlerActorREF;
     private ActorRef jdeqsimActorREF;
     private EventsManager eventsManager;
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
-    AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
+    private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    public AgentSimToPhysSimPlanConverter(BeamServices services) {
-        services.matsimServices().getEvents().addHandler(this);
-        this.services = services;
-        agentSimScenario = services.matsimServices().getScenario();
+    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
+        eventsManager.addHandler(this);
+        this.registry = registry;
+        this.router = router;
+        agentSimScenario = scenario;
 
         if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
-            agentSimPhysSimInterfaceDebugger=new AgentSimPhysSimInterfaceDebugger(services);
+            agentSimPhysSimInterfaceDebugger=new AgentSimPhysSimInterfaceDebugger(geoUtils);
         }
 
         preparePhysSimForNewIteration();
@@ -81,7 +84,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     public void initializeActorsAndRunPhysSim() {
 
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
-        ActorRef registry = this.services.registry();
         try {
 
             // TODO: adapt code to send new scenario data to jdeqsim actor each time
@@ -91,7 +93,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             }
 
             if (jdeqsimActorREF == null) {
-                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager,   this.services.beamRouter()));
+                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager, router));
             }
 
             jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM,jdeqSimScenario.getPopulation()), ActorRef.noSender());
