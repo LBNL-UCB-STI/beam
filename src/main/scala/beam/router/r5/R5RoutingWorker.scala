@@ -149,7 +149,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           */
         option.itinerary.asScala.filter{itin =>
           val startTime = beamServices.dates.toBaseMidnightSeconds(itin.startTime, transportNetwork.transitLayer.routes.size() == 0)
-          startTime >= time.fromTime && startTime <= time.toTime
+          //TODO make a more sensible window not just 30 minutes
+          startTime >= time.fromTime && startTime <= time.fromTime + 1800
           }.map(itinerary => {
           var legsWithFares = Vector[(BeamLeg, Double)]()
           maybeWalkToVehicle.foreach(legsWithFares +:= (_, 0.0))
