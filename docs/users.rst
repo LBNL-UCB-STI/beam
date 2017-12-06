@@ -22,16 +22,17 @@ Model Config
 
 Instructions on downloading and using the BEAM executable coming soon... 
 
-Experiment config generation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Experiment Manager
+^^^^^^^^^^^^^^^^^^
 
-For the purpose of rapid model calibration BEAM supports configuration generation capabilities powered by Jinja templates ( see more http://jinja.pocoo.org/docs/2.10/)
-It's been used to create simulation config files such as beam.conf, modeChoiceParameters.xml, etc.
+BEAM features a flexible experiment manager which allows users to conduct multi-factorial experiments with minimal configuration. The tool is powered by Jinja templates ( see more http://jinja.pocoo.org/docs/2.10/).
+
+To demonstrate how to use the experiment manager, we will use parameter calibration as an example. In this case, the experiment is to vary the parameters of the mode choice model systematically in order to reproduce observed modal splits in the transportation system. This requires modifying the overall BEAM config file (beam.conf) as well as the mode choice parameters file (modeChoiceParameters.xml).
 
 Lets start from building your experiment definitions in experiment.yml ( see example in  test/input/beamville/calibration/experiments.yml).
 `experiment.yml` is YAML config file which consists of 3 sections: header, `baseScenario` and `factors`.
 
-The Header defines basic properties of experiment(title, author, etc. ) and several paths to Jinja-based templates of BEAM config files.
+The Header defines the basic properties of the experiment (title, author, etc.) and several paths (all relative to the project root) to Jinja-based templates of BEAM config files.
 
     ```
         title: Transport-Cost-Calibration
@@ -41,13 +42,11 @@ The Header defines basic properties of experiment(title, author, etc. ) and seve
         modeChoiceTemplate: test/input/beamville/calibration/modeChoiceParameters.xml.tpl
     ```
 
-Factors defines so called `levels`. You can think about factors as of main influencers( or features) of simulation model( e.g transportation mode cost) while levels are discrete values of each factor.
-Usually one should set at least two levels: low and high values of each factor variable, but factor can have as many levels as you want.
-Each level of factors and baseScenario defines `params` - set of key,value pairs.
-Those keys are either property names from beam.conf or placeholder from template config files.
-Param names across factors must be unique, otherwise they will overwrite each other cause each run of experiment contains a level from every factor
+Experiments consist of 'factors', which are a dimension along which you want to vary parameters. Each instance of the factor is a level. E.g. a factor could be "Transit Price" consisting of two levels, "Low" and "High". You can think about factors as of main influencers (or features) of simulation model while levels are discrete values of each factor.
 
-First you need to defines all properties and template placeholders in baseScenario and than vary these params in levels.
+Usually one should set at least two levels per factor (in addition to the Base Level). But factors can have as many levels as you want. Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from the template config files. Param names across factors must be unique, otherwise they will overwrite each other.
+
+First you need to defines all properties and template placeholders in baseScenario and then you vary any subset of these params in each level.
 
 For example, for beamville calibration, we have defined 3 factors with two levels each. One of levels contains  property `mnl_ride_hailing_cost`.
 It appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hailing_cost }}`. This placeholder will be replaced during template processing.
