@@ -45,14 +45,11 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", Config
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    val matsimServices = mock[MatsimServices]
-    when(matsimServices.getScenario).thenReturn(scenario)
-    when(services.matsimServices).thenReturn(matsimServices)
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    router = system.actorOf(BeamRouter.props(services, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator))
+    router = system.actorOf(BeamRouter.props(services, scenario.getNetwork, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

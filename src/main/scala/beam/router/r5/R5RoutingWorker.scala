@@ -25,6 +25,7 @@ import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.RouteInfo
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
@@ -33,7 +34,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
+class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
@@ -65,7 +66,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       // let R5 use those. Otherwise, let R5 use its own travel time estimates.
       val pointToPointQuery = maybeTravelTime match {
         case Some(travelTime) => new PointToPointQuery(transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
-          travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+          travelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
         })
         case None => new PointToPointQuery(transportNetwork)
       }
@@ -321,7 +322,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 }
 
 object R5RoutingWorker {
-  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator)
+  def props(beamServices: BeamServices, network: Network, fareCalculator: FareCalculator) = Props(new R5RoutingWorker(beamServices, network, fareCalculator))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 

@@ -31,7 +31,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     // Before we initialize router we need to scale the transit vehicle capacities
     val alreadyScaled: mutable.HashSet[VehicleCapacity] = mutable.HashSet()
-    beamServices.matsimServices.getScenario.getTransitVehicles.getVehicleTypes.asScala.foreach{ case(_, vehType) =>
+    scenario.getTransitVehicles.getVehicleTypes.asScala.foreach{ case(_, vehType) =>
       val theCap: VehicleCapacity = vehType.getCapacity
       if(!alreadyScaled.contains(theCap)){
         theCap.setSeats(math.round(theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)

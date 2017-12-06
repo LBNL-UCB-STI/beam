@@ -24,6 +24,7 @@ import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -35,7 +36,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
 
-class BeamRouter(services: BeamServices, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
+class BeamRouter(services: BeamServices, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val networkCoordinator = context.actorOf(NetworkCoordinator.props(transitVehicles, services), "network-coordinator")
@@ -43,7 +44,7 @@ class BeamRouter(services: BeamServices, eventsManager: EventsManager, transitVe
   // FIXME Wait for networkCoordinator because it initializes global variables.
   Await.ready(networkCoordinator ? Identify(0), timeout.duration)
 
-  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, fareCalculator), "router-worker")
+  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, network, fareCalculator), "router-worker")
 
   override def receive = {
     case InitTransit =>
@@ -277,5 +278,5 @@ object BeamRouter {
     }
   }
 
-  def props(beamServices: BeamServices, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) = Props(new BeamRouter(beamServices, eventsManager, transitVehicles, fareCalculator))
+  def props(beamServices: BeamServices, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) = Props(new BeamRouter(beamServices, network, eventsManager, transitVehicles, fareCalculator))
 }

@@ -22,7 +22,7 @@ import glokka.Registry
 import glokka.Registry.Created
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
@@ -36,7 +36,7 @@ import scala.concurrent.Await
   * BEAM
   */
 
-class BeamMobsim @Inject()(val beamServices: BeamServices, val eventsManager: EventsManager, val actorSystem: ActorSystem) extends Mobsim {
+class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem) extends Mobsim {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val log = Logger.getLogger(classOf[BeamMobsim])
@@ -51,7 +51,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val eventsManager: Ev
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
 
-    val router = actorSystem.actorOf(BeamRouter.props(beamServices, eventsManager, beamServices.matsimServices.getScenario.getTransitVehicles, fareCalculator), "router")
+    val router = actorSystem.actorOf(BeamRouter.props(beamServices, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
     beamServices.beamRouter = router
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
@@ -63,13 +63,13 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val eventsManager: Ev
     Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     log.info(s"Transit schedule has been initialized")
     log.info("Running BEAM Mobsim")
-    beamServices.matsimServices.getEvents.initProcessing()
+    eventsManager.initProcessing()
     Await.result(beamServices.schedulerRef ? StartSchedule(0), timeout.duration)
     cleanupRideHailingAgents()
     cleanupVehicle()
     cleanupHouseHolder()
     actorSystem.stop(beamServices.schedulerRef)
-    beamServices.matsimServices.getEvents.finishProcessing()
+    eventsManager.finishProcessing()
   }
 
   private def cleanupRideHailingAgents(): Unit = {
@@ -97,9 +97,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val eventsManager: Ev
   }
 
   def resetPop(): Unit = {
-    beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(beamServices.matsimServices.getScenario.getPopulation.getPersons)
-    beamServices.vehicles ++= beamServices.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
-    beamServices.households ++= beamServices.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
+    beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
+    beamServices.vehicles ++= scenario.getVehicles.getVehicles.asScala.toMap
+    beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
     log.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.vehicles.size} vehicles")
 
 
@@ -114,7 +114,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val eventsManager: Ev
     val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
     val initialLocationJitter = 500 // meters
 
-    val rideHailingVehicleType = beamServices.matsimServices.getScenario.getVehicles.getVehicleTypes().get(Id.create("1",classOf[VehicleType]))
+    val rideHailingVehicleType = scenario.getVehicles.getVehicleTypes().get(Id.create("1",classOf[VehicleType]))
 
     var rideHailingVehicles: Map[Id[Vehicle], ActorRef] = Map[Id[Vehicle], ActorRef]()
 
@@ -153,7 +153,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val eventsManager: Ev
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
-    val householdAttrs = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
+    val householdAttrs = scenario.getHouseholds.getHouseholdAttributes
 
     beamServices.households.foreach {
       case (householdId, matSimHousehold) =>
@@ -179,7 +179,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val eventsManager: Ev
         }.collect {
           case (personId, Some(personAgent)) => (personId, personAgent)
         }.toMap
-        val props = HouseholdActor.props(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
+        val props = HouseholdActor.props(beamServices, scenario.getPopulation, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
         val householdActor = actorSystem.actorOf(props, HouseholdActor.buildActorName(householdId, iterId))
         houseHoldVehicles.values.foreach{
           vehicle =>

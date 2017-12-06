@@ -82,8 +82,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     it("should publish events that can be received by a MATSim EventsManager") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
-      val events: EventsManager = new EventsManagerImpl()
-      events.addHandler(new ActivityEndEventHandler {
+      eventsManager.addHandler(new ActivityEndEventHandler {
         override def handleEvent(event: ActivityEndEvent): Unit = {
           system.log.error("events-subscriber received actend event!")
         }
