@@ -410,6 +410,8 @@ class PersonAgent(val beamServices: BeamServices,
       scheduleStartLegAndStay()
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
   }
 
   def scheduleStartLegAndStay() = {
