@@ -19,7 +19,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/r5/PE.zip'
+  args<-'/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/r5/AC.zip'
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "repairStopTimes.R [archives-to-repair]"),positional_arguments=T)
@@ -37,6 +37,24 @@ repair.arrival <- function(arrs,durs){
   if(!is.na(rdur[1]) && rdur[1]==0)rdur[1]<-1
   as.POSIXct(sapply(cumsum(c(0,rev(na.omit(rdur)))),function(x){ x + as.numeric(arrs[1]) }),origin = "1970-01-01")
 }
+repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
+    if (!forward) x = rev(x)           # reverse x twice if carrying backward
+    ind = which(!is.na(x))             # get positions of nonmissing values
+    if (is.na(x[1]) && !na.rm)         # if it begins with NA
+        ind = c(1,ind)                 # add first pos
+    rep_times = diff(                  # diffing the indices + length yields how often
+        c(ind, length(x) + 1) )          # they need to be repeated
+    if (maxgap < Inf) {
+        exceed = rep_times - 1 > maxgap  # exceeding maxgap
+        if (any(exceed)) {               # any exceed?
+            ind = sort(c(ind[exceed] + 1, ind))      # add NA in gaps
+            rep_times = diff(c(ind, length(x) + 1) ) # diff again
+        }
+    }
+    x = rep(x[ind], times = rep_times) # repeat the values at these indices
+    if (!forward) x = rev(x)           # second reversion
+    x
+}
 
 working.dir <- getwd()
 
@@ -50,13 +68,14 @@ for(file.path in args$args){
 
   tmp.dir <- tempdir()
   unzip(file.path,"stop_times.txt", exdir=tmp.dir)
-  stops <- data.table(read.csv(pp(tmp.dir,'/stop_times.txt')))
+  stops <- data.table(read.csv(pp(tmp.dir,'/stop_times.txt'),colClasses='character'))
   stops[,orig.order:=1:nrow(stops)]
   stops.orig <- copy(stops)
   if('timepoint' %in% names(stops)){
-    stops <- stops[timepoint==1]
+    stops <- stops[timepoint=='1']
   }
-  stops <- stops[!str_trim(arrival_time)=='']
+  stops[str_trim(arrival_time)=='',arrival_time:=NA]
+  stops[,arrival_time:=repeat_last(arrival_time),by='trip_id']
 
   stops[,arrival_str:=''] 
   stops[,arrival_str:=pp(ifelse(as.numeric(substr(arrival_time,0,str_locate(arrival_time,':')[,'start']-1))>23,'1970-01-02 ','1970-01-01 '),as.numeric(substr(arrival_time,0,str_locate(arrival_time,':')[,'start']-1))%%24,substr(arrival_time,str_locate(arrival_time,':')[,'start'],str_length(arrival_time)))]
