@@ -2,9 +2,8 @@ package beam.agentsim.scheduler
 
 import java.lang.Double
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.events.EventsSubscriber._
@@ -32,6 +31,10 @@ object BeamAgentScheduler {
   case class DoSimStep(tick: Double) extends SchedulerMessage
 
   case class CompletionNotice(id: Long, newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()) extends SchedulerMessage
+
+  case object Monitor extends SchedulerMessage
+
+  case object SkipOverBadActors extends SchedulerMessage
 
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage {
     def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger]): CompletionNotice = {
@@ -70,31 +73,28 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  var triggerQueue: mutable.PriorityQueue[ScheduledTrigger] = new mutable.PriorityQueue[ScheduledTrigger]()
-  var awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap.create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
-  val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long, java.lang.Double]()
-  val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] = scala.collection.mutable.Map[Long, ScheduledTrigger]()
+  private var triggerQueue: mutable.PriorityQueue[ScheduledTrigger] = new mutable.PriorityQueue[ScheduledTrigger]()
+  private var awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap.create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
+  private val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long, java.lang.Double]()
+  private val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] = scala.collection.mutable.Map[Long, ScheduledTrigger]()
 
   private var idCount: Long = 0L
-  var startSender: ActorRef = _
+  private var startSender: ActorRef = _
   private var nowInSeconds: Double = 0.0
-  @volatile var isRunning = true
 
-  private var previousTotalAwaitingRespone: AtomicLong = new AtomicLong(0)
-  private var currentTotalAwaitingResponse: AtomicLong = new AtomicLong(0)
-  private var numberRepeats: AtomicLong = new AtomicLong(0)
+  private var previousTotalAwaitingRespone = 0L
+  private var currentTotalAwaitingResponse = 0L
+  private var numberRepeats = 0
 
   // Event stream state and cleanup management
   private var currentIter:Int = -1
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
+  private val monitorTask = if (beamConfig.beam.debug.debugEnabled) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, Monitor)) else None
+  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, SkipOverBadActors)) else None
+
   def increment(): Unit = {
-    previousTotalAwaitingRespone.incrementAndGet
-  }
-
-
-  override def postStop(): Unit = {
-    monitorThread.foreach(_.cancel())
+    previousTotalAwaitingRespone += 1
   }
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
@@ -176,62 +176,45 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           log.warning("Clearing trigger because agent died: " + trigger)
         })
 
+    case Monitor =>
+      log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
+
+    case SkipOverBadActors =>
+      var numReps = 0L
+      currentTotalAwaitingResponse = awaitingResponse.values().stream().count()
+      if (currentTotalAwaitingResponse == previousTotalAwaitingRespone && currentTotalAwaitingResponse != 0) {
+        numberRepeats += 1
+        numReps = numberRepeats
+        log.error(s"DEBUG: $numReps repeats.")
+      } else {
+        numberRepeats = 0
+      }
+      if (numReps > 4) {
+        val reason = s"DEBUG: $numReps > 4 repeats!!! Clearing out stuck agents and proceeding with schedule"
+        log.error(reason)
+        awaitingResponse.values().stream().forEach({ x =>
+          x.agent ! IllegalTriggerGoToError(reason)
+          currentTotalAwaitingResponse = 0
+          self ! CompletionNotice(x.triggerWithId.triggerId)
+        })
+      }
+      previousTotalAwaitingRespone = currentTotalAwaitingResponse
+
   }
 
-  val monitorThread: Option[Cancellable] = if (beamConfig.beam.debug.debugEnabled || beamConfig.beam.debug.skipOverBadActors ) {
-    Option(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), () => {
-      try {
-        if (beamConfig.beam.debug.skipOverBadActors) {
-          var numReps = 0L
-          currentTotalAwaitingResponse.set(awaitingResponse.values().stream().count())
-          if (currentTotalAwaitingResponse.get() == previousTotalAwaitingRespone.get() && currentTotalAwaitingResponse.get() != 0) {
-            numReps = numberRepeats.incrementAndGet()
-            log.error(s"DEBUG: $numReps repeats.")
-          } else {
-            numberRepeats.set(0)
-          }
-          if (numReps > 4) {
-            val reason = s"DEBUG: $numReps > 4 repeats!!! Clearing out stuck agents and proceeding with schedule"
-            log.error(reason)
-            awaitingResponse.values().stream().forEach({ x =>
-              x.agent ! IllegalTriggerGoToError(reason)
-              currentTotalAwaitingResponse.set(0)
-              self ! CompletionNotice(x.triggerWithId.triggerId)
-            })
-          }
-          previousTotalAwaitingRespone.set(currentTotalAwaitingResponse.get())
-        }
-        if (beamConfig.beam.debug.debugEnabled) {
-          log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
-        }
-      } catch {
-        case e: Throwable =>
-        //do nothing
-      }
-    }))
-  } else {
-    None
+  override def postStop(): Unit = {
+    monitorTask.foreach(_.cancel())
+    skipOverBadActorsTask.foreach(_.cancel())
   }
 
   def awaitingToString: String = {
-    this.synchronized {
-      if (awaitingResponse.keySet().isEmpty) {
-        "empty"
-      } else {
-        if (beamConfig.beam.debug.debugEnabled) {
-          awaitingResponse.synchronized(
-            s"${awaitingResponse.get(awaitingResponse.keySet().first())}}"
-          )
-        } else {
-          awaitingResponse.synchronized(
-            awaitingResponse.synchronized(
-              s"${awaitingResponse.keySet().first()} ${awaitingResponse.get(awaitingResponse.keySet().first())}}"
-            )
-          )
-        }
-      }
+    if (awaitingResponse.keySet().isEmpty) {
+      "empty"
+    } else {
+      s"${awaitingResponse.get(awaitingResponse.keySet().first())}"
     }
   }
+
 }
 
 
