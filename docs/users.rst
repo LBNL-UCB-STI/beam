@@ -48,31 +48,25 @@ Usually one should set at least two levels per factor (in addition to the Base L
 
 First you need to defines all properties and template placeholders in baseScenario and then you vary any subset of these params in each level.
 
-For example, for beamville calibration, we have defined 3 factors with two levels each. One of levels contains  property `mnl_ride_hailing_cost`.
-It appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hailing_cost }}`. This placeholder will be replaced during template processing.
-Same true for all properties in baseScenario. placeholders for template files must NOT contain dot symbol( due to special behaviour of Jinja with dot).
-However it's possible to put full names of properties from `beam.conf` if they need to be overrided within this experiment run.
+For example, for beamville calibration, we have defined 3 factors with two levels each. One level contains the property `mnl_ride_hailing_cost`, which appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hailing_cost }}`. This placeholder will be replaced during template processing. The same is true for all properties in the baseScenario. Placeholders for template files must NOT contain dot symbol( due to special behaviour of Jinja with dot). However it is possible to use the full names of properties from `beam.conf` (which *do* include dots) if they need to be overrided within this experiment run.
 
-Also note that `mnl_ride_hailing_cost` appears in baseScenario too. This important concept each level overrides properties from baseScenario.
-It's better to keep long self-describing params keys across all levels.
+Also note that `mnl_ride_hailing_cost` appears both in the level specification and in the baseScenario. This is important, each level can only override properties from the baseScenario.
 
-As for now, there is two template files `modeChoiceParameters.xml.tpl` which defines mode choice model params and `runExperiment.sh.tpl` that defines bash script to run individual experiment.
-Note:
-  All paths in templates and beam.conf should be *relative to project root*.
+As for now, there are two template files `modeChoiceParameters.xml.tpl` which defines mode choice model params and `runExperiment.sh.tpl` which defines the bash script to run the actual experiment. 
 
-experiment.xml may defines bash variable that will be available in runExperiment.sh.
+experiment.xml may defines bash variables that will be available in runExperiment.sh.
 
-Experiment generation can be run using following command from *project root* after project has been built:
+Experiment generation can be run using following command from *project root* after the project has been compiled: 
 
 ```
+gradle assemble
+
 java -cp build/libs/*:build/resources/main beam.experiment.ExperimentGenerator --experiments test/input/beamville/calibration/experiments.yml
-
 ```
-It's better to create a new `calibration` folder in your data input directory and put both templates and experiment.yml there.
-ExperimentGenerator will create folder structure next to experiment.yml with name of title of experiment and subfolders for each combination of levels( experiment run) including baseScenario run.
 
-Each experiment run folder will contain generated beam.conf ( based on beamTemplateConfPath), modeChoiceParameters.xml and runExperiment.sh
- with placeholders substituted with values from baseScenario or level's params. Obviously level's params override baseScenario params.
-The generator also creates  `experiments.csv` next to experiment.yml with mapping between experiment run name, level's params of each experiment and location of configs.
+It's better to create a new sub-folder folder (e.g. 'calibration' or 'experiment-1') in your data input directory and put both templates and the experiment.yml there.
+The ExperimentGenerator will create a folder structure next to experiment.yml named with the title of the experiment and a subfolder for each combination of levels (also referred to as an "experimentinal group") including the baseScenario run.
 
-`runExperiment.sh` is executable and can be executed to run individual simulation. Output of simulation will appear in `output` subfolder next to runExperiment.sh
+Each experiment run folder will contain the generated beam.conf (based on beamTemplateConfPath), modeChoiceParameters.xml and runExperiment.sh with all placeholders properly substituted.params. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 
+
+`runExperiment.sh` is executable and can be executed to run any individual simulation. The output of simulation will appear in the `output` subfolder next to runExperiment.sh

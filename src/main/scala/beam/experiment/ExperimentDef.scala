@@ -8,11 +8,12 @@ case class ExperimentDef(@BeanProperty var title: String,
                          @BeanProperty var author: String,
                          @BeanProperty var beamTemplateConfPath: String,
                          @BeanProperty var runExperimentScript: String,
+                         @BeanProperty var batchRunScript: String,
                          @BeanProperty var modeChoiceTemplate: String,
 
                          @BeanProperty var baseScenario: BaseScenario,
                          @BeanProperty var factors: java.util.List[Factor]) {
-  def this() = this("", "", "", "", "", null, new java.util.LinkedList())
+  def this() = this("", "", "", "", "","", null, new java.util.LinkedList())
 
   def combinationsOfLevels() = {
 

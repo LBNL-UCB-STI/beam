@@ -90,6 +90,7 @@ object ExperimentGenerator extends App {
   }
 
   validateExperimentConfig(experiment)
+  val batchRunTemplateFile = Paths.get(experiment.batchRunScript).toAbsolutePath
   val runScriptTemplateFile = Paths.get(experiment.runExperimentScript).toAbsolutePath
   val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
   val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.beamTemplateConfPath).toFile)
@@ -101,6 +102,7 @@ object ExperimentGenerator extends App {
 
   val modeChoiceTemplate = Resources.toString(modeChoiceTemplateFile.toUri.toURL, Charsets.UTF_8)
   val runScriptTemplate = Resources.toString(runScriptTemplateFile.toUri.toURL, Charsets.UTF_8)
+  val batchScriptTemplate = Resources.toString(batchRunTemplateFile.toUri.toURL, Charsets.UTF_8)
   val jinjava = new Jinjava()
 
   experimentRunsWithBase.foreach { runSandbox =>
@@ -150,10 +152,27 @@ object ExperimentGenerator extends App {
 
     Runtime.getRuntime.exec(s"chmod +x ${runSandbox.runExperimentScriptPath.toFile.toString}")
 
+
   }
+  /*
+   * Write a shell script designed to run the batch locally
+   */
+  val templateParams = Map(
+    "EXPERIMENT_PATH" -> baseScenarioRun.batchRunScriptPath.getParent.toString,
+  ) ++ baseScenarioRun.experimentRun.params
+  val batchRunWriter = new BufferedWriter(new FileWriter(baseScenarioRun.batchRunScriptPath.toFile, false))
+  try {
+    val renderedTemplate = jinjava.render(batchScriptTemplate,templateParams.asJava)
+    batchRunWriter.write(renderedTemplate)
+    batchRunWriter.flush()
+  } finally {
+    IOUtils.closeQuietly(batchRunWriter)
+  }
+  Runtime.getRuntime.exec(s"chmod +x ${baseScenarioRun.batchRunScriptPath.toFile.toString}")
+
   val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
   val experimentsCsv = new BufferedWriter(new FileWriter(
-    Paths.get(experimentFile.getParent.toString, "experiments.csv").toFile, false))
+    Paths.get(baseScenarioRun.experimentBaseDir.toString,baseScenarioRun.experimentDef.title,"experiments.csv").toFile, false))
 
   try {
     val header = dynamicParamsPerFactor.map{ case (factor, param_name) => s"$param_name"}.mkString(",")

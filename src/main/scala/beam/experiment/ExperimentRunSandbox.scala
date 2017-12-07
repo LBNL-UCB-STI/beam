@@ -21,6 +21,8 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
 
   def runExperimentScriptPath = Paths.get(runDirectory.toString, "runExperiment.sh")
 
+  def batchRunScriptPath = Paths.get(runDirectory.getParent.getParent.toString, "batchRunExperiment.sh")
+
   def beamConfPath = {
     projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
   }
