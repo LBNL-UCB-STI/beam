@@ -1,6 +1,6 @@
 ---
 
-title: Calibration-SFLight-v2
+title: Calibration-SFLight-v5
 author: Colin
 beamTemplateConfPath: test/input/sf-light/sf-light-10k.conf
 runExperimentScript: test/input/sf-light/calibration/runExperiment.sh.tpl
@@ -16,12 +16,12 @@ baseScenario:
       mnl_car_cost: -1.0
       mnl_car_time: -0.0047
 
-      mnl_walk_transit_intercept: 0.0
+      mnl_walk_transit_intercept: 2.0
       mnl_walk_transit_cost: -1.0
       mnl_walk_transit_time: -0.0047
       mnl_walk_transit_transfer: -1.4
 
-      mnl_drive_transit_intercept: 0.0
+      mnl_drive_transit_intercept: 2.0
       mnl_drive_transit_cost: -1.0
       mnl_drive_transit_time: -0.0047
       mnl_drive_transit_transfer: -1.4
@@ -30,7 +30,7 @@ baseScenario:
       mnl_ride_hailing_cost: -1.0
       mnl_ride_hailing_time: -0.0047
 
-      mnl_walk_intercept: -0.0
+      mnl_walk_intercept: -10.0
       mnl_walk_cost: -1.0
       mnl_walk_time: -0.0047
 
@@ -47,35 +47,23 @@ baseScenario:
       ### ---- beam-template.conf param replacement ---####
       beam.agentsim.tuning.transitCapacity: 0.05
       beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
+      beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.005
 
 factors:
-  - title: transit 
+  - title: numRideHail
     levels:
-    - name: 0
+    - name: 1
       params:
-        mnl_walk_transit_intercept: 0
-        mnl_drive_transit_intercept: 0
-    - name: 5
+        mnl_walk_intercept: 0.01
+    - name: 2
       params:
-        mnl_walk_transit_intercept: 5
-        mnl_drive_transit_intercept: 5
-    - name: 10
+        mnl_walk_intercept: 0.02
+    - name: 4
       params:
-        mnl_walk_transit_intercept: 5
-        mnl_drive_transit_intercept: 5
-
-  - title: walk
-    levels:
-    levels:
-    - name: 0
+        mnl_walk_intercept: 0.04
+    - name: 8
       params:
-        mnl_walk_intercept: 0
-    - name: -5
-      params:
-        mnl_walk_intercept: -5
-    - name: -10
-      params:
-        mnl_walk_intercept: -10
+        mnl_walk_intercept: 0.08
 
 #
 #Experiments:
