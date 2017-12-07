@@ -21,7 +21,6 @@ import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.common.JsonUtilities
-import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.RouteInfo
@@ -64,10 +63,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       // If we already have observed travel times, probably from the previous iteration,
       // let R5 use those. Otherwise, let R5 use its own travel time estimates.
       val pointToPointQuery = maybeTravelTime match {
-        case Some(travelTime) => new PointToPointQuery(transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+        case Some(travelTime) => new BeamPointToPointQuery(transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
           travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
         })
-        case None => new PointToPointQuery(transportNetwork)
+        case None => new BeamPointToPointQuery(transportNetwork)
       }
       val profileRequest = new ProfileRequest()
       profileRequest.fromLon = from.getX
