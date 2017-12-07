@@ -16,9 +16,9 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
 import org.scalatest.Matchers._
-import org.scalatest.{FunSpecLike, MustMatchers}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
-class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with MustMatchers with FunSpecLike with ImplicitSender {
+class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with FunSpecLike with BeforeAndAfterAll with MustMatchers with ImplicitSender {
 
   val config = BeamConfig(system.settings.config)
 
@@ -67,6 +67,11 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Co
       expectMsg(CompletionNotice(0L))
     }
   }
+
+  override def afterAll: Unit = {
+    shutdown()
+  }
+
 }
 
 object BeamAgentSchedulerSpec {

@@ -9,7 +9,7 @@ import org.scalatest.WordSpecLike
 
 import scala.language.postfixOps
 
-class FareCalculatorSpec extends TestKit(ActorSystem("farecalculator-test")) with ImplicitSender with WordSpecLike {
+class FareCalculatorSpec extends WordSpecLike {
 
   var path: Path = Paths.get("test", "input", "fares")
 

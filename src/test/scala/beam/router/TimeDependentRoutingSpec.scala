@@ -84,4 +84,8 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", Config
     }
   }
 
+  override def afterAll: Unit = {
+    shutdown()
+  }
+
 }

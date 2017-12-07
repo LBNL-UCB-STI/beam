@@ -69,4 +69,8 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     }
   }
 
+  override def afterAll: Unit = {
+    shutdown()
+  }
+
 }

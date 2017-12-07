@@ -18,7 +18,6 @@ import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
@@ -26,14 +25,14 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FunSpecLike, MustMatchers}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
 /**
   * Created by sfeygin on 2/7/17.
   */
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """).withFallback(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve()))) with MustMatchers with FunSpecLike with ImplicitSender with MockitoSugar {
+  """).withFallback(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve()))) with FunSpecLike with BeforeAndAfterAll with MustMatchers with ImplicitSender with MockitoSugar {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
@@ -134,6 +133,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     // TODO
     //it("should demonstrate a simple complete daily activity pattern")(pending)
+  }
+
+  override def afterAll: Unit = {
+    shutdown()
   }
 
 }
