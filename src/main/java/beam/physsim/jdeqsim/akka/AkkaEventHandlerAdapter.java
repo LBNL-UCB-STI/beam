@@ -49,7 +49,7 @@ public class AkkaEventHandlerAdapter implements EventsManager {
 
 	@Override
 	public void finishProcessing() {
-		eventHandlerActorREF.tell(EventManagerActor.LAST_MESSAGE, ActorRef.noSender());
+		eventHandlerActorREF.tell(EventManagerActor.LAST_MESSAGE(), ActorRef.noSender());
 	}
 
 }
