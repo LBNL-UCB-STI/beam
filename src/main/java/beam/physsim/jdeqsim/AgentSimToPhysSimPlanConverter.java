@@ -218,7 +218,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         Timeout timeout = new Timeout(Duration.create(50000, "seconds"));
         Future<Object> future = Patterns.ask(jdeqsimActorREF, JDEQSimActor.ALL_MESSAGES_PROCESSED(), timeout);
         String result = (String) Await.result(future, timeout.duration());
-
     }
 }
 

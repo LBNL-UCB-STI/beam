@@ -50,7 +50,7 @@ class JDEQSimActor(var config: JDEQSimConfigGroup, var agentSimScenario: Scenari
 
     case message:String => {
       if (message.equalsIgnoreCase(JDEQSimActor.ALL_MESSAGES_PROCESSED)) {
-          if (JDEQSimActor.allMessagesProcessed){
+          if (!JDEQSimActor.allMessagesProcessed){
             stash()
           } else {
             sender()!"done"
