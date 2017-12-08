@@ -165,7 +165,7 @@ public class BeamPointToPointQuery {
                 }
                 return c;
             });
-            LOG.info("Usefull paths:{}", usefullpathList.size());
+            LOG.trace("Usefull paths:{}", usefullpathList.size());
             int seen_paths = 0;
             int boardStop =-1, alightStop = -1;
             for (PathWithTimes path : usefullpathList) {
@@ -211,8 +211,8 @@ public class BeamPointToPointQuery {
 
         profileResponse.recomputeStats(request);
 
-        LOG.info("Returned {} options", profileResponse.getOptions().size());
-        LOG.info("Took {} ms", System.currentTimeMillis() - startRouting);
+        LOG.trace("Returned {} options", profileResponse.getOptions().size());
+        LOG.trace("Took {} ms", System.currentTimeMillis() - startRouting);
 
         return profileResponse;
     }
