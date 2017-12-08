@@ -1,21 +1,22 @@
-package beam.sfbay
+package beam.sflight
 
 import java.io.File
 import java.time.ZonedDateTime
 
+import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{WALK, WALK_TRANSIT}
 import beam.router.gtfs.FareCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigParseOptions}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
@@ -28,19 +29,24 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-@Ignore
-class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
+class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+  akka.loglevel="OFF"
+  """))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
+  var geo: GeoUtils = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("production/application-sfbay/beam.conf")).resolve())
+    val beamConfig = BeamConfig(ConfigFactory.parseFile(
+      new File("test/input/sf-light/sf-light.conf"),
+      ConfigParseOptions.defaults().setAllowMissing(false)).resolve())
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    geo = new GeoUtilsImpl(services)
+    when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], Vehicle])
     when(services.vehicleRefs).thenReturn(new TrieMap[Id[Vehicle], ActorRef])
@@ -49,14 +55,14 @@ class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with Wo
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    new VehicleReaderV1(scenario.getTransitVehicles).readFile("production/application-sfbay/transitVehicles.xml")
+    new VehicleReaderV1(scenario.getTransitVehicles).readFile("test/input/sf-light/transitVehicles.xml")
     router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator), "router")
 
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)
       expectMsgType[ActorIdentity]
       router ! InitTransit
-      expectMsg(TransitInited)
+      expectMsgType[Success]
     }
   }
 
@@ -66,29 +72,16 @@ class SfbayRouterTransitSpec extends TestKit(ActorSystem("router-test")) with Wo
 
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
-      val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
-      val destination = new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
+      val origin = geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = RoutingModel.DiscreteTime(25740)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == TRANSIT))
-      val transitOption = response.itineraries.find(_.tripClassifier == TRANSIT).get
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+      val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
       assertMakesSense(transitOption)
-      assert(transitOption.legs.head.beamLeg.startTime == 27254)
-    }
-
-    "respond with a route to yet another reasonable RoutingRequest" in {
-      val origin = new BeamRouter.Location(583117.0300037456, 4168059.6668392466)
-      val destination = new BeamRouter.Location(579985.712067158, 4167298.6137483735)
-      val time = RoutingModel.DiscreteTime(20460)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-80672-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("80672-0")))
-      val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == TRANSIT))
-      val transitOption = response.itineraries.find(_.tripClassifier == TRANSIT).get
-      assertMakesSense(transitOption)
-      assert(transitOption.legs.head.beamLeg.startTime == 21131)
+      assert(transitOption.legs.head.beamLeg.startTime == 26031)
     }
   }
 
