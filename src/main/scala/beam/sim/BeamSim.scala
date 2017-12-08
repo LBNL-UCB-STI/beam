@@ -128,6 +128,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
+    agentSimToPhysSimPlanConverter.awaitCompletionOfPhyssimEventsHandling() // TODO: move to proper place when multi iteration run works
     actorSystem.stop(beamServices.schedulerRef)
     actorSystem.terminate()
   }

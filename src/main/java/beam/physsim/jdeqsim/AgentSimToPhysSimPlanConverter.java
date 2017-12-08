@@ -26,6 +26,8 @@ import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 import scala.util.Left;
 
 import java.util.ArrayList;
@@ -94,8 +96,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager,   this.services.beamRouter()));
             }
 
-            jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM,jdeqSimScenario.getPopulation()), ActorRef.noSender());
-            eventHandlerActorREF.tell(EventManagerActor.REGISTER_JDEQSIM_REF, jdeqsimActorREF);
+            jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM(),jdeqSimScenario.getPopulation()), ActorRef.noSender());
+            eventHandlerActorREF.tell(EventManagerActor.REGISTER_JDEQSIM_REF(), jdeqsimActorREF);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -210,6 +212,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 plan.addActivity(populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
+    }
+
+    public void awaitCompletionOfPhyssimEventsHandling() throws Exception {
+        Timeout timeout = new Timeout(Duration.create(50000, "seconds"));
+        Future<Object> future = Patterns.ask(jdeqsimActorREF, JDEQSimActor.ALL_MESSAGES_PROCESSED(), timeout);
+        String result = (String) Await.result(future, timeout.duration());
+
     }
 }
 
