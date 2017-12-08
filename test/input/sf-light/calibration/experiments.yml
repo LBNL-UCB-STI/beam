@@ -1,8 +1,8 @@
 ---
 
-title: Calibration-SFLight-v5
+title: Calibration-SFLight-v6
 author: Colin
-beamTemplateConfPath: test/input/sf-light/sf-light-10k.conf
+beamTemplateConfPath: test/input/sf-light/sf-light-100k.conf
 runExperimentScript: test/input/sf-light/calibration/runExperiment.sh.tpl
 batchRunScript: test/input/sf-light/calibration/batchRunExperiment.sh.tpl
 modeChoiceTemplate: test/input/sf-light/calibration/modeChoiceParameters.xml.tpl
