@@ -48,7 +48,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private Scenario jdeqSimScenario;
     private PopulationFactory populationFactory;
     private Scenario agentSimScenario;
-    private BeamServices services;
+    private BeamServices beamServices;
 
     private ActorRef eventHandlerActorREF;
     private ActorRef jdeqsimActorREF;
@@ -56,14 +56,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
     AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    public AgentSimToPhysSimPlanConverter(BeamServices services) {
-        services.matsimServices().getEvents().addHandler(this);
-        this.services = services;
-        agentSimScenario = services.matsimServices().getScenario();
+    public AgentSimToPhysSimPlanConverter(BeamServices beamServices) {
+        beamServices.matsimServices().getEvents().addHandler(this);
+        this.beamServices = beamServices;
+        agentSimScenario = beamServices.matsimServices().getScenario();
 
         if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
-            agentSimPhysSimInterfaceDebugger=new AgentSimPhysSimInterfaceDebugger(services);
+            agentSimPhysSimInterfaceDebugger=new AgentSimPhysSimInterfaceDebugger(beamServices);
         }
 
         preparePhysSimForNewIteration();
@@ -83,17 +83,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     public void initializeActorsAndRunPhysSim() {
 
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
-        ActorRef registry = this.services.registry();
+        ActorRef registry = this.beamServices.registry();
         try {
 
             // TODO: adapt code to send new scenario data to jdeqsim actor each time
             if (eventHandlerActorREF == null) {
-                eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props(agentSimScenario.getNetwork()));
+                eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props(beamServices));
                 eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
             }
 
             if (jdeqsimActorREF == null) {
-                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager,   this.services.beamRouter()));
+                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager,   this.beamServices.beamRouter()));
             }
 
             jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM(),jdeqSimScenario.getPopulation()), ActorRef.noSender());
