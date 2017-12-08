@@ -158,12 +158,13 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Outputs(
       events              : BeamConfig.Beam.Outputs.Events,
       outputDirectory     : java.lang.String,
       writeEventsInterval : scala.Int,
-      writePlansInterval  : scala.Int
+      writePlansInterval  : scala.Int,
+      writePhysSimEventsInterval  : scala.Int
     )
     object Outputs {
       case class Events(
@@ -188,7 +189,8 @@ object BeamConfig {
           events              = BeamConfig.Beam.Outputs.Events(c.getConfig("events")),
           outputDirectory     = if(c.hasPathOrNull("outputDirectory")) c.getString("outputDirectory") else "/Users/michaelzilske/git/beam/test/output",
           writeEventsInterval = if(c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
-          writePlansInterval  = if(c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
+          writePlansInterval  = if(c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
+          writePhysSimEventsInterval  = if(c.hasPathOrNull("writePhysSimEventsInterval")) c.getInt("writePhysSimEventsInterval") else 0
         )
       }
     }
