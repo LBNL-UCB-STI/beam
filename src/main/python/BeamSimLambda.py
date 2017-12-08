@@ -7,7 +7,7 @@ from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"'''
 
-EXPERIMENT_SCRIPT = '''./experiment.sh '$cf' '''
+EXPERIMENT_SCRIPT = '''./bin/experiment.sh '$cf' '''
 
 BRANCH_DEFAULT = 'master'
 
@@ -41,10 +41,12 @@ runcmd:
   -  do
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
-  -    sleep 10s
-  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
-  -    rm -rf test/output/*
+  -    if [ "$IS_EXPERIMENT" == "false" ]; then
+  -      sleep 10s
+  -      for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -      sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
+  -      rm -rf test/output/*
+  -    fi
   -  done
   - sudo shutdown -h +$SHUTDOWN_WAIT
 ''')
@@ -130,7 +132,7 @@ def lambda_handler(event, context):
     if validate(branch) and validate(commit_id):
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
             instance_id = deploy(script, instance_type)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)

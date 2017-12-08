@@ -1,4 +1,6 @@
 #!/bin/bash
+
+
 echo "Generating experiments for config: $1"
 java -cp build/libs/beam.jar beam.experiment.ExperimentGenerator --experiments $1
 
@@ -10,7 +12,11 @@ for (( i=1; i<${#experiments[@]}; i++ ));
 do
     IFS=', ' read -r -a csv_rows <<< "${experiments[$i]}"
     echo "Running experiment using config ${csv_rows[4]}/beam.conf"
-    ${csv_rows[4]}/runExperiment.sh  > ${csv_rows[4]}/console.log 2>&1
+    if [ "$2" == "cloud" ]; then
+        ${csv_rows[4]}/runExperiment.sh cloud  > ${csv_rows[4]}/console.log 2>&1
+    else
+        ${csv_rows[4]}/runExperiment.sh  > ${csv_rows[4]}/console.log 2>&1
+    fi
 done
 unset experiments
 
