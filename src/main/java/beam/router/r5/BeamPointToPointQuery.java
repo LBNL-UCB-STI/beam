@@ -1,5 +1,6 @@
 package beam.router.r5;
 
+import beam.sim.config.BeamConfig;
 import com.conveyal.r5.api.ProfileResponse;
 import com.conveyal.r5.api.util.LegMode;
 import com.conveyal.r5.api.util.ProfileOption;
@@ -89,12 +90,10 @@ public class BeamPointToPointQuery {
     public static final int CAR_PARK_DROPOFF_TIME_S = 120;
 
     private static final int CAR_PARK_DROPOFF_COST = 120;
+    private final BeamConfig beamConfig;
 
-    public BeamPointToPointQuery(TransportNetwork transportNetwork) {
-        this(transportNetwork, new EdgeStore.DefaultTravelTimeCalculator());
-    }
-
-    public BeamPointToPointQuery(TransportNetwork transportNetwork, TravelTimeCalculator travelTimeCalculator) {
+    public BeamPointToPointQuery(BeamConfig beamConfig, TransportNetwork transportNetwork, TravelTimeCalculator travelTimeCalculator) {
+        this.beamConfig = beamConfig;
         this.transportNetwork = transportNetwork;
         this.travelTimeCalculator = travelTimeCalculator;
     }
@@ -126,7 +125,7 @@ public class BeamPointToPointQuery {
                     .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getReachedStops()));
 
             McRaptorSuboptimalPathProfileRouter router = new McRaptorSuboptimalPathProfileRouter(transportNetwork, request, accessTimes, egressTimes);
-            router.NUMBER_OF_SEARCHES = 1;
+            router.NUMBER_OF_SEARCHES = beamConfig.beam().routing().r5().numberOfSamples();
             List<PathWithTimes> usefullpathList = new ArrayList<>();
 
             // getPaths actually returns a set, which is important so that things are deduplicated. However we need a list

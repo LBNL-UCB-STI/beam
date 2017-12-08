@@ -63,10 +63,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       // If we already have observed travel times, probably from the previous iteration,
       // let R5 use those. Otherwise, let R5 use its own travel time estimates.
       val pointToPointQuery = maybeTravelTime match {
-        case Some(travelTime) => new BeamPointToPointQuery(transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+        case Some(travelTime) => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
           travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
         })
-        case None => new BeamPointToPointQuery(transportNetwork)
+        case None => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
       }
       val profileRequest = new ProfileRequest()
       profileRequest.fromLon = from.getX
