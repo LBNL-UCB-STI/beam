@@ -1,5 +1,7 @@
 package beam.physsim.jdeqsim.akka
 
+import java.io.File
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash, UntypedActor}
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.events.Event
@@ -36,14 +38,24 @@ class EventManagerActor(var beamServices: BeamServices) extends Actor with Stash
     val ttccg = new TravelTimeCalculatorConfigGroup
     travelTimeCalculator = new TravelTimeCalculator(beamServices.matsimServices.getScenario.getNetwork, ttccg)
     eventsManager.addHandler(travelTimeCalculator)
+    addEventWriter
+  }
 
-    val writeEventsInterval= beamServices.beamConfig.beam.outputs.writePhysSimEventsInterval
+  private def addEventWriter = {
+    val writeEventsInterval = beamServices.beamConfig.beam.outputs.writePhysSimEventsInterval
     val iteration = beamServices.matsimServices.getIterationNumber
 
-    if (writeEventsInterval==1 || (writeEventsInterval>0 && beamServices.matsimServices.getIterationNumber / writeEventsInterval==0)){
-      NetworkUtils.writeNetwork(beamServices.matsimServices.getScenario.getNetwork,beamServices.matsimServices.getControlerIO.getOutputFilename("physSimNetwork.xml"));
-      eventsWriterXML=new EventWriterXML(beamServices.matsimServices.getControlerIO.getIterationFilename(iteration,"physSimEvents.xml"))
+    if (writeEventsInterval == 1 || (writeEventsInterval > 0 && beamServices.matsimServices.getIterationNumber / writeEventsInterval == 0)) {
+      createNetworkFile
+      eventsWriterXML = new EventWriterXML(beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "physSimEvents.xml.gz"))
       eventsManager.addHandler(eventsWriterXML)
+    }
+  }
+
+  private def createNetworkFile = {
+    val physSimNetworkFilePath = beamServices.matsimServices.getControlerIO.getOutputFilename("physSimNetwork.xml.gz")
+    if (!(new File(physSimNetworkFilePath)).exists()) {
+      NetworkUtils.writeNetwork(beamServices.matsimServices.getScenario.getNetwork, physSimNetworkFilePath)
     }
   }
 
