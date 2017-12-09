@@ -1,21 +1,17 @@
 package beam.router.r5
 
-import java.io.File
 import java.nio.file.Files.exists
 import java.nio.file.Paths
+import java.util
 
 import akka.actor.{Actor, ActorLogging, Props, Status}
 import beam.router.r5.NetworkCoordinator._
 import beam.sim.BeamServices
 import beam.utils.reflection.ReflectionUtils
-import com.conveyal.r5.profile.StreetMode
-import com.conveyal.r5.streets.{StreetLayer, TarjanIslandPruner}
+import com.conveyal.r5.streets.{EdgeStore, StreetLayer}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.vehicles.Vehicles
 
-/**
-  * Created by salma_000 on 8/25/2017.
-  */
 class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamServices) extends Actor with ActorLogging {
 
   loadNetwork
@@ -43,46 +39,20 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
   }
 
   def loadNetwork = {
-    val networkDir = beamServices.beamConfig.beam.routing.r5.directory
-    val networkDirPath = Paths.get(networkDir)
-    if (!exists(networkDirPath)) {
-      Paths.get(networkDir).toFile.mkdir()
-    }
-
-    val unprunedNetworkFilePath = Paths.get(networkDir, UNPRUNED_GRAPH_FILE)  // The first R5 network, created w/out island pruning
-    val partiallyPrunedNetworkFile: File = unprunedNetworkFilePath.toFile
-    val prunedNetworkFilePath = Paths.get(networkDir, PRUNED_GRAPH_FILE)  // The final R5 network that matches the cleaned (pruned) MATSim network
-    val prunedNetworkFile: File = prunedNetworkFilePath.toFile
-    if (exists(prunedNetworkFilePath)) {
-      log.debug(s"Initializing router by reading network from: ${prunedNetworkFilePath.toAbsolutePath}")
-      transportNetwork = TransportNetwork.read(prunedNetworkFile)
+    if (exists(Paths.get(beamServices.beamConfig.beam.routing.r5.directory, GRAPH_FILE))) {
+      log.debug(s"Initializing router by reading network from: ${Paths.get(beamServices.beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}")
+      transportNetwork = TransportNetwork.read(Paths.get(beamServices.beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
     } else {  // Need to create the unpruned and pruned networks from directory
-      log.debug(s"Network file [${prunedNetworkFilePath.toAbsolutePath}] not found. ")
-      log.debug(s"Initializing router by creating unpruned network from: ${networkDirPath.toAbsolutePath}")
-      val partiallyPrunedTransportNetwork = TransportNetwork.fromDirectory(networkDirPath.toFile, false, false) // Uses the new signature Andrew created
+      log.debug(s"Initializing router by creating network from directory: ${Paths.get(beamServices.beamConfig.beam.routing.r5.directory).toAbsolutePath}")
+      transportNetwork = TransportNetwork.fromDirectory(Paths.get(beamServices.beamConfig.beam.routing.r5.directory).toFile, true, false) // Uses the new signature Andrew created
+      transportNetwork.write(Paths.get(beamServices.beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
+      transportNetwork = TransportNetwork.read(Paths.get(beamServices.beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile) // Needed because R5 closes DB on write
 
-      // Prune the walk network. This seems to work without problems in R5.
-      new TarjanIslandPruner(partiallyPrunedTransportNetwork.streetLayer, StreetLayer.MIN_SUBGRAPH_SIZE, StreetMode.WALK).run()
-
-      partiallyPrunedTransportNetwork.write(partiallyPrunedNetworkFile)
-
-      ////
-      // Convert car network to MATSim network, prune it, compare links one-by-one, and if it was pruned by MATSim,
-      // remove the car flag in R5.
-      ////
-      log.debug(s"Create the cleaned MATSim network from unpuned R5 network")
-      val osmFilePath = beamServices.beamConfig.beam.routing.r5.osmFile
-      val rmNetBuilder = new R5MnetBuilder(partiallyPrunedNetworkFile.toString, beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
+      log.debug(s"Create the MATSim network from R5 network")
+      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamServices.beamConfig.beam.routing.r5.osmMapdbFile, util.EnumSet.of(EdgeStore.EdgeFlag.ALLOWS_CAR))
       rmNetBuilder.buildMNet()
-      rmNetBuilder.cleanMnet()
-      log.debug(s"Pruned MATSim network created and written")
+      log.debug(s"MATSim network created and written")
       rmNetBuilder.writeMNet(beamServices.beamConfig.matsim.modules.network.inputNetworkFile)
-      log.debug(s"Prune the R5 network")
-      rmNetBuilder.pruneR5()
-      transportNetwork = rmNetBuilder.getR5Network
-
-      transportNetwork.write(prunedNetworkFile)
-      transportNetwork = TransportNetwork.read(prunedNetworkFile) // Needed because R5 closes DB on write
     }
     //
     beamPathBuilder = new BeamPathBuilder(transportNetwork = transportNetwork, beamServices)
@@ -99,8 +69,7 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
 }
 
 object NetworkCoordinator {
-  val PRUNED_GRAPH_FILE = "/pruned_network.dat"
-  val UNPRUNED_GRAPH_FILE = "/unpruned_network.dat"
+  val GRAPH_FILE = "/network.dat"
 
   var transportNetwork: TransportNetwork = _
   var linkMap: Map[Int, Long] = Map()
