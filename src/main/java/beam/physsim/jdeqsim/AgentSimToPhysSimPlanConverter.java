@@ -71,6 +71,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private void preparePhysSimForNewIteration() {
         jdeqSimScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         populationFactory = jdeqSimScenario.getPopulation().getFactory();
+
+        unregisterAnyPreviousActors();
+    }
+
+    private void unregisterAnyPreviousActors() {
+        // TODO: unregister actor for multi iterations run?
+        // system.stop(actorRef) and/or unregister
     }
 
 
@@ -79,7 +86,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     }
 
-    // TODO: unregister actor for multi iterations run?
+
     public void initializeActorsAndRunPhysSim() {
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
         ActorRef registry = this.beamServices.registry();
