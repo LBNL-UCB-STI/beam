@@ -26,4 +26,6 @@ orig/
 /production/application-sfbay/r5/*network.dat
 /production/application-sfbay/r5/osm.mapdb
 /production/sfbay-*
+/production/application-sfbay/physsim-network.xml
 native/
+.idea/runConfigurations/Run_BEAMVILLE.xml

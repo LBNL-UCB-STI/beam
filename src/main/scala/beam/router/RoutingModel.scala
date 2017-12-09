@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
+import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, Trajectory}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -26,7 +26,7 @@ object RoutingModel {
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
     lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
-    lazy val requiresReservationConfirmation: Boolean = tripClassifier != WALK && legs.exists(!_.asDriver)
+    lazy val requiresReservationConfirmation: Boolean = tripClassifier!=WALK && legs.exists(!_.asDriver)
 
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
 
@@ -38,38 +38,37 @@ object RoutingModel {
       var theMode: BeamMode = WALK
       var hasUsedCar: Boolean = false
       legs.foreach { leg =>
-        if (leg.beamLeg.mode == CAR) hasUsedCar = true
+        if(leg.beamLeg.mode == CAR)hasUsedCar = true
         // Any presence of transit makes it transit
-        if (leg.beamLeg.mode.isTransit()) {
+        if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
-          if ((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
-            (legs.size > 1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle"))) {
+          if((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
+            (legs.size>1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle")) ){
             theMode = RIDEHAIL
-          } else {
+          }else{
             theMode = CAR
           }
         } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
           theMode = BIKE
         }
       }
-      if (theMode == TRANSIT && hasUsedCar) {
+      if(theMode == TRANSIT && hasUsedCar){
         DRIVE_TRANSIT
-      } else if (theMode == TRANSIT && !hasUsedCar) {
+      }else if(theMode == TRANSIT && !hasUsedCar){
         WALK_TRANSIT
-      } else {
+      }else{
         theMode
       }
     }
 
 
+
     def determineVehiclesInTrip(legs: Vector[EmbodiedBeamLeg]): Vector[Id[Vehicle]] = {
       legs.map(leg => leg.beamVehicleId).distinct
     }
-
     override def toString() = {
-      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode)
-        .mkString(",")})"
+      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
     }
   }
 
@@ -85,7 +84,7 @@ object RoutingModel {
       }
     }
 
-    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(BeamTrip.empty.legs.map(leg => EmbodiedBeamLeg(leg)))
+    val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
   }
 
   /**
@@ -105,7 +104,7 @@ object RoutingModel {
   }
 
   object BeamLeg {
-    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x => (x.startTime, x.duration))
+    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x=>(x.startTime,x.duration))
 
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
   }
@@ -119,26 +118,18 @@ object RoutingModel {
                              cost: BigDecimal,
                              unbecomeDriverOnCompletion: Boolean
                             ) {
+    val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
   }
 
-  object EmbodiedBeamLeg {
-    def apply(leg: BeamLeg): EmbodiedBeamLeg = EmbodiedBeamLeg(leg, Id.create("", classOf[Vehicle]), false, None,
-      0.0, false)
-
-    def empty: EmbodiedBeamLeg = EmbodiedBeamLeg(BeamLeg.dummyWalk(0L), Id.create("", classOf[Vehicle]), false, None,
-      0.0, false)
-  }
-
-  case class TransitStopsInfo(fromStopId: Int, toStopId: Int)
+  case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
 
   /**
     *
-    * @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
+    * @param linkIds either matsim linkId or R5 edgeIds that describes whole path
     * @param transitStops start and end stop if this path is transit (partial) route
-    *
+
     */
-  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], protected[router] val
-  resolver: TrajectoryResolver) {
+  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], protected[router] val resolver: TrajectoryResolver) {
 
     def isTransit = transitStops.isDefined
 
@@ -148,11 +139,7 @@ object RoutingModel {
 
     lazy val distanceInM: Double = resolver.resolveLengthInM(this)
 
-    def toShortString() = if (linkIds.size > 0) {
-      s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"
-    } else {
-      ""
-    }
+    def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
     def getStartPoint() = resolver.resolveStart(this)
 
@@ -163,13 +150,13 @@ object RoutingModel {
     override def equals(other: Any): Boolean = other match {
       case that: BeamPath =>
         (that eq this) || (
-          if (this.isTransit && that.isTransit) {
-            transitStops == that.transitStops
-          } else if (!this.isTransit && !that.isTransit) {
-            this.linkIds == that.linkIds
-          } else {
-            false
-          }
+            if (this.isTransit && that.isTransit) {
+              transitStops == that.transitStops
+            } else if (!this.isTransit && !that.isTransit) {
+              this.linkIds == that.linkIds
+            } else {
+              false
+            }
           )
       case _ => false
     }
@@ -183,9 +170,7 @@ object RoutingModel {
     }
   }
 
-  //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity,
-  // Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity,
-  // Long.MinValue))
+  //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
   object EmptyBeamPath {
     val path = BeamPath(Vector[String](), None, EmptyTrajectoryResolver)
   }

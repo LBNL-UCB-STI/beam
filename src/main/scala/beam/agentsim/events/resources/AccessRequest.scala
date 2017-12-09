@@ -3,6 +3,7 @@ package beam.agentsim.events.resources
 import java.time.Period
 
 import akka.actor.ActorRef
+import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.router.RoutingModel.BeamLeg
 import enumeratum._
 import org.matsim.api.core.v01.Id
@@ -51,10 +52,12 @@ trait ReservationError {
   def errorCode: ReservationErrorCode
 }
 
-sealed abstract class ReservationErrorCode extends EnumEntry 
+sealed abstract class ReservationErrorCode extends EnumEntry
+
+//  val RideHailNotRequested = Value("RideHailNotRequested")
 
   case object ReservationErrorCode extends Enum[ReservationErrorCode] {
-    
+
     val values: immutable.IndexedSeq[ReservationErrorCode] = findValues
 
     case object UnknownInquiryId extends ReservationErrorCode
@@ -72,6 +75,7 @@ sealed abstract class ReservationErrorCode extends EnumEntry
     case object ResourceFull extends ReservationErrorCode
 
     case object VehicleNotUnderControl extends ReservationErrorCode
+  //  val NoRidesToHail = Value("NoRidesToHail")
 
   }
 

@@ -22,7 +22,7 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
 
   def isEmpty: Boolean = schedule.isEmpty
 
-  def initialSpacetime(): SpaceTime = {
+  def initialSpacetime: SpaceTime = {
     schedule.firstKey.travelPath.getStartPoint()
   }
 
@@ -56,8 +56,7 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     anyRemoved
   }
 
-  def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]) = {
-
+  def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): Unit = {
     legs.foreach(leg =>
       schedule.get(leg) match {
         case Some(manifest) =>
@@ -71,7 +70,6 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     val lastLeg = legs.last
     schedule(lastLeg).alighters += passenger.vehicleId
   }
-
 
 }
 

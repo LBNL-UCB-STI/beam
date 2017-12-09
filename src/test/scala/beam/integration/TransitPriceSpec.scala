@@ -1,6 +1,9 @@
 package beam.integration
 
+import java.io.File
+
 import beam.sim.RunBeam
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -13,7 +16,11 @@ class TransitPriceSpec extends WordSpecLike with Matchers with RunBeam with Befo
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing transitPrice value" must {
     "create more entries for mode choice transit as value increases" in {
       val inputTransitPrice = Seq(0.1, 1.0)
-      val modeChoice = inputTransitPrice.map(tc => new StartWithCustomConfig(modeChoice =  Some("ModeChoiceMultinomialLogit"), transitPrice = Some(tc)).groupedCount)
+      val modeChoice = inputTransitPrice.map(tc => new StartWithCustomConfig(
+        baseConfig
+          .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+          .withValue("beam.agentsim.tuning.transitPrice", ConfigValueFactory.fromAnyRef(tc))
+      ).groupedCount)
 
       val tc = modeChoice
         .map(_.get("transit"))
