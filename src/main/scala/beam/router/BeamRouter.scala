@@ -18,11 +18,12 @@ import beam.router.Modes.{BeamMode, isOnStreetTransit}
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator.transportNetwork
-import beam.router.r5.{NetworkCoordinator, R5RoutingWorker}
+import beam.router.r5.{BeamPointToPointQuery, NetworkCoordinator, R5RoutingWorker}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment}
 import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
+import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Identifiable}
@@ -136,10 +137,10 @@ class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculat
     val vehicleTypeId = Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
 
     val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)){
-      transitVehicles.getVehicleTypes.get(vehicleTypeId);
+      transitVehicles.getVehicleTypes.get(vehicleTypeId)
     } else {
       log.info(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
-      transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]));
+      transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]))
     }
 
     mode match {
@@ -173,7 +174,7 @@ class BeamRouter(services: BeamServices, transitVehicles: Vehicles, fareCalculat
     */
   private def routeTransitPathThroughStreets(fromStopIdx: Int, toStopIdx: Int) = {
 
-    val pointToPointQuery = new PointToPointQuery(transportNetwork)
+    val pointToPointQuery = new BeamPointToPointQuery(services.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
