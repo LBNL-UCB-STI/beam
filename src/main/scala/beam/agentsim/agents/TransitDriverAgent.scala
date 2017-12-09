@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.Props
+import akka.actor.{ActorContext, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
@@ -28,6 +28,10 @@ object TransitDriverAgent {
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
     Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
+  }
+
+  def selectByVehicleId(transitVehicle: Id[Vehicle])(implicit context: ActorContext) = {
+    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
   }
 }
 

@@ -33,6 +33,8 @@ object VehicleProtocol {
 
   case class ExitVehicle(tick: Double, passengerVehicle: VehiclePersonId)
 
+  case class RemovePassengerFromTrip(passId: VehiclePersonId)
+
 
   case class AppendToTrajectory(beamPath: BeamPath)
 

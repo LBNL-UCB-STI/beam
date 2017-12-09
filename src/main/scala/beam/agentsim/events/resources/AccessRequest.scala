@@ -3,7 +3,6 @@ package beam.agentsim.events.resources
 import java.time.Period
 
 import akka.actor.ActorRef
-import beam.agentsim.events.resources.ReservationErrorCode.ReservationErrorCode
 import beam.router.RoutingModel.BeamLeg
 import enumeratum._
 import org.matsim.api.core.v01.Id
@@ -64,6 +63,8 @@ sealed abstract class ReservationErrorCode extends EnumEntry
 
     case object RideHailVehicleTaken extends ReservationErrorCode
 
+    case object RideHailNotRequested extends ReservationErrorCode
+
     case object UnknownRideHailReservation extends ReservationErrorCode
 
     case object RideHailRouteNotFound extends ReservationErrorCode
@@ -75,7 +76,6 @@ sealed abstract class ReservationErrorCode extends EnumEntry
     case object ResourceFull extends ReservationErrorCode
 
     case object VehicleNotUnderControl extends ReservationErrorCode
-  //  val NoRidesToHail = Value("NoRidesToHail")
 
   }
 

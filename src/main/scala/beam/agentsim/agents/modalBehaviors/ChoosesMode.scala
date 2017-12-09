@@ -2,7 +2,7 @@ package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.ActorRef
 import akka.actor.FSM.Failure
-import beam.agentsim.Resource.{CheckInResource, ResourceIsAvailableNotification}
+import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentInfo, Initialized, Uninitialized}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
@@ -12,16 +12,12 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Tour
 import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger,
+  LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
+import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}
-import beam.agentsim.events.AgentsimEventsBus.MatsimEvent
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
-import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
-import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack}
-import beam.agentsim.events.resources.vehicle.{ReservationRequest, ReservationRequestWithVehicle, ReservationResponse}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -30,9 +26,9 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.sim.HasServices
-import beam.agentsim.events.resources.vehicle.RideHailNotRequested
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
@@ -60,18 +56,21 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   //TODO source these attributes from pop input data
-  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households(_household).getIncome.getIncome,
+  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households
+  (_household).getIncome.getIncome,
     beamServices.households(_household).getMemberIds.size(),
     new Random().nextBoolean(),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType.getDescription.toLowerCase.contains("car")),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType.getDescription.toLowerCase.contains("bike")))
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType
+      .getDescription.toLowerCase.contains("car")),
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType
+      .getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
 
-      val combinedItinerariesForChoice=
+      val combinedItinerariesForChoice =
         rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
-        routingResponse.get.itineraries
+          routingResponse.get.itineraries
       assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
 
       val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
@@ -86,12 +85,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
-        if (chosenTrip.requiresReservationConfirmation) {
-          pendingChosenTrip = Some(chosenTrip)
-          sendReservationRequests(chosenTrip)
-        } else {
-          scheduleDepartureWithValidatedTrip(chosenTrip)
-        }
+      if (chosenTrip.requiresReservationConfirmation) {
+        pendingChosenTrip = Some(chosenTrip)
+        sendReservationRequests(chosenTrip)
+      } else {
+        scheduleDepartureWithValidatedTrip(chosenTrip)
+      }
     } else {
       stay()
     }
@@ -115,16 +114,20 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       for (leg <- chosenTrip.legs) {
         if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle =
           inferredVehicle.pop()
-//        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+        //        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
 
         if (inferredVehicle.nestedVehicles.nonEmpty) {
-          val passengerVeh: Id[Vehicle] = if(inferredVehicle.outermostVehicle() == leg.beamVehicleId){
-            if(inferredVehicle.nestedVehicles.size<2){
+          val passengerVeh: Id[Vehicle] = if (inferredVehicle.outermostVehicle() == leg.beamVehicleId) {
+            if (inferredVehicle.nestedVehicles.size < 2) {
               // In this case, we are changing into a WALK leg
-              Id.create("dummy",classOf[Vehicle])
-            }else{
-              inferredVehicle.penultimateVehicle() }
-          }else{ inferredVehicle.outermostVehicle() }legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
+              Id.create("dummy", classOf[Vehicle])
+            } else {
+              inferredVehicle.penultimateVehicle()
+            }
+          } else {
+            inferredVehicle.outermostVehicle()
+          }
+          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
         }
         inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
         exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
@@ -242,7 +245,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
             .filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
           logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id ==
             personalVeh) :+ bodyStreetVehicle, id).toString)
-          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA",classOf[RideHailingInquiry]),Vector(),Some(RideHailNotRequested)))
+          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA",
+            classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequestedError)))
         case None =>
           beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT),
             streetVehicles :+ bodyStreetVehicle, id)
@@ -251,7 +255,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           //TODO parameterize search distance
           val pickUpLocation = currentActivity.getCoord
           beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id,
-        pickUpLocation, departTime, nextAct.getCoord)
+            pickUpLocation, departTime, nextAct.getCoord)
       }
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
@@ -327,3 +331,7 @@ object ChoosesMode {
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
 }
+
+case class CancelReservation(reservationId: Id[ReservationRequest], passengerId: Id[Person])
+
+case class CancelReservationWithVehicle(vehiclePersonId: VehiclePersonId)
