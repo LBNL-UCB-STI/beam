@@ -9,7 +9,7 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }

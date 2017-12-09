@@ -52,7 +52,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
 
   private def availableAlternatives = {
-    routingResponse.get.itineraries.map(_.tripClassifier).distinct :+ rideHailingResult.map(_ => RIDEHAIL)
+    val theModes = routingResponse.get.itineraries.map(_.tripClassifier).distinct
+    if(rideHailingResult.isDefined && rideHailingResult.get.error.isEmpty){
+      theModes :+ RIDEHAIL
+    }else{
+      theModes
+    }
   }
 
   //TODO source these attributes from pop input data
