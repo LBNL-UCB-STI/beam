@@ -227,6 +227,7 @@ class PersonAgent(val beamServices: BeamServices,
                 _currentRoute = processedData.restTrip
                 val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
                 nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
+                context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, id, nextBeamVehicleId))
                 _currentRoute = processedData.restTrip
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
                 _currentVehicle = _currentVehicle.pushIfNew(nextBeamVehicleId)
@@ -259,6 +260,7 @@ class PersonAgent(val beamServices: BeamServices,
                 // The next vehicle is different from current so we exit the current vehicle
                 val passengerVehicleId = _currentVehicle.penultimateVehicle()
                 beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! ExitVehicle(tick, VehiclePersonId(passengerVehicleId,id))
+                context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
                 _currentVehicle = _currentVehicle.pop()
                 // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass on the new trigger
                 processNextLegOrStartActivity(triggerId,tick)
