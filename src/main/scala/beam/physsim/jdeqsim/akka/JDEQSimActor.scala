@@ -28,7 +28,6 @@ class JDEQSimActor(var config: JDEQSimConfigGroup, var agentSimScenario: Scenari
   var jdeqSimPopulation: Population = _
 
   private def runPhysicalSimulation(): Unit = {
-
     jdeqSimulation = new JDEQSimulation(config, jdeqSimPopulation, events, agentSimScenario.getNetwork, agentSimScenario.getConfig.plans.getActivityDurationInterpretation)
     jdeqSimulation.run()
     events.finishProcessing()
