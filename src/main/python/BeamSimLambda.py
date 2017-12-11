@@ -33,8 +33,11 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - cd /home/ubuntu/git/beam
-  - git checkout $BRANCH
+  - git config --global filter.lfs.smudge "git-lfs smudge --skip %f"
+  - git config --global filter.lfs.process "git-lfs filter-process --skip"
   - git fetch --all
+  - git checkout $BRANCH
+  - git lfs checkout
   - git checkout -qf $COMMIT
   - IFS=, read -ra cfs <<< $CONFIG
   - for cf in "${cfs[@]}"
