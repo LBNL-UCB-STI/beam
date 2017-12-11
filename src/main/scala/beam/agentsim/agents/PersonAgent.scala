@@ -352,7 +352,7 @@ class PersonAgent(val beamServices: BeamServices,
               s"$tick."))
           } else if (processedData.nextLeg.asDriver) {
             val passengerSchedule = PassengerSchedule()
-            val vehiclePersonId = if (HumanBodyVehicle.testId(processedData.nextLeg.beamVehicleId)) {
+            val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)) {
               VehiclePersonId(_humanBodyVehicle, id)
             } else {
               VehiclePersonId(processedData.nextLeg.beamVehicleId, id)

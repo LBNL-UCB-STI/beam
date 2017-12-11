@@ -11,6 +11,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.VehicleProtocol.BecomeDriverSuccessAck
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.TriggerWithId
+import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -20,8 +21,8 @@ import org.matsim.vehicles.Vehicle
   */
 object TransitDriverAgent {
   def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicle: BeamVehicle,
-            passengerSchedule: PassengerSchedule): Props = {
-    Props(new TransitDriverAgent(services, transitDriverId, vehicle, passengerSchedule))
+            legs: Seq[BeamLeg]): Props = {
+    Props(new TransitDriverAgent(services, transitDriverId, vehicle, legs))
   }
 
   case class TransitDriverData() extends BeamAgentData
@@ -38,7 +39,7 @@ object TransitDriverAgent {
 class TransitDriverAgent(val beamServices: BeamServices,
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicle: BeamVehicle,
-                         val initialPassengerSchedule: PassengerSchedule) extends
+                         val legs: Seq[BeamLeg]) extends
   BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
   override val id: Id[TransitDriverAgent] = transitDriverId
   override val data: TransitDriverData = TransitDriverData()

@@ -42,7 +42,7 @@ case object BeamVehicleType extends Enum[BeamVehicleType] {
       *
       * @param id : The [[Id]] to test
       */
-    def testId(id: Id[_ <: Vehicle]): Boolean = {
+    def isHumanBodyVehicle(id: Id[_ <: Vehicle]): Boolean = {
       id.toString.startsWith(idString)
     }
 
