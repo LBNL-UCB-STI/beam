@@ -9,6 +9,7 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, RemovePassengerFromTrip, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
@@ -97,7 +98,7 @@ class PersonAgent(val beamServices: BeamServices,
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] {
 
-  var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
+  val _beamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentVehicle: VehicleStack = VehicleStack()
   var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
@@ -108,9 +109,9 @@ class PersonAgent(val beamServices: BeamServices,
   var _numReschedules: Int = 0
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
-    if (ind < 0 || ind >= _activityChain.length) Left(msg) else Right(_activityChain(ind))
+    if (ind < 0 || ind >= _beamPlan.activities.length) Left(msg) else Right(_beamPlan.activities(ind))
   }
-  def currentActivity: Activity = _activityChain(_currentActivityIndex)
+  def currentActivity: Activity = _beamPlan.activities(_currentActivityIndex)
   def nextActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex + 1, "plan finished")
   }
@@ -168,7 +169,6 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   private def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
-
     _numReschedules = _numReschedules + 1
     if(_numReschedules > 500){
       cancelTrip(_currentRoute.legs,_currentVehicle)
