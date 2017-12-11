@@ -21,7 +21,7 @@ pushd ${BEAM_ROOT}
     mkdir -p ${BEAM_OUTPUT}
 
     echo "Running experiment using config ${CONFIG_PATH} , output_dir:  ${BEAM_OUTPUT} "
-    ./gradlew --stacktrace run -PappArgs="['--config', '${CONFIG_PATH}']"
+    ./gradlew --stacktrace run -PappArgs="['--config', '${CONFIG_PATH//\\//}']"
     exit_status=$?
     if [ "$exit_status" != "0" ]; then
         exit $exit_status
