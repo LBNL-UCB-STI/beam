@@ -35,7 +35,6 @@ object VehicleProtocol {
 
   case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
-
   case class AppendToTrajectory(beamPath: BeamPath)
 
   case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)

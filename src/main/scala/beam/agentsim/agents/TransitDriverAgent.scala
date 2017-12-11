@@ -1,20 +1,27 @@
 package beam.agentsim.agents
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, Props}
+import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.BecomeDriverSuccessAck
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
 import org.matsim.vehicles.Vehicle
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.FiniteDuration
 
 /**
   * BEAM
@@ -46,12 +53,29 @@ class TransitDriverAgent(val beamServices: BeamServices,
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "
 
+  val initialPassengerSchedule = PassengerSchedule()
+  initialPassengerSchedule.addLegs(legs)
+
+
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       holdTickAndTriggerId(tick, triggerId)
-      vehicle.becomeDriver(self)
-      goto(PersonAgent.Waiting)
+      this.context.system.scheduler.scheduleOnce(FiniteDuration.apply(1, TimeUnit.NANOSECONDS), self, BecomeDriver
+      (tick, id, Some(initialPassengerSchedule)))
+        stay ()
+
+    /*
+    * Becoming driver
+    */
+    case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
+      vehicle.becomeDriver(beamServices.agentRefs(newDriver.toString)).fold(fa =>
+        stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
+          s"but driver ${vehicle.driver.get} already assigned.")), fb => {
+        vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle)
+        context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+        stay()
+      })
   }
 
   chainedWhen(AnyState) {
