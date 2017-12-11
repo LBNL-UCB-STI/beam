@@ -21,3 +21,7 @@ Model Config
 ^^^^^^^^^^^^
 
 Instructions on downloading and using the BEAM executable coming soon... 
+
+Logging
+^^^^^^^
+

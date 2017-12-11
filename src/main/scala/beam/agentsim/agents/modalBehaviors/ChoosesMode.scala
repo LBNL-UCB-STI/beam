@@ -178,11 +178,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       location, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_
         .beamLeg.travelPath.distanceInM).sum))
 
-    context.system.eventStream.publish(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,
-      chosenTrip.tripClassifier.matsimMode))
-
-    val personalVehicleUsed: Vector[Id[Vehicle]] = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip
-      .vehiclesInTrip)
+    val personalVehicleUsed: Vector[Id[Vehicle]] = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
     if (personalVehicleUsed.nonEmpty) {
       if (personalVehicleUsed.size > 1) {
@@ -315,7 +311,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
 
   def cancelReservations(): Unit = {
-    //    cancelTrip(pendingChosenTrip.get.legs, _currentVehicle)
+    cancelTrip(pendingChosenTrip.get.legs, _currentVehicle)
     awaitingReservationConfirmation.clear()
   }
 

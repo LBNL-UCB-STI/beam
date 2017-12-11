@@ -13,7 +13,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 class SfLightRunSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
 
-  "SF Light" ignore  {
+  "SF Light" must  {
     "run without error and at least one person chooses car mode" in {
       val config = ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve()
         .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))

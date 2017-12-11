@@ -88,8 +88,6 @@ beamServices: BeamServices)
     case Event(RegisterRideAvailableWrapper(triggerId), _) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       stay()
-    case Event(Finish, _) =>
-      stop
   }
 
   chainedWhen(AnyState) {
@@ -97,6 +95,8 @@ beamServices: BeamServices)
       stay
     case Event(BecomeDriverSuccessAck, _) =>
       stay
+    case Event(Finish, _) =>
+      stop
   }
 
 
