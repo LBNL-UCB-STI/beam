@@ -16,6 +16,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.router.Modes
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
@@ -101,6 +102,7 @@ class PersonAgent(val beamServices: BeamServices,
   var _currentVehicle: VehicleStack = VehicleStack()
   var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
   var _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
+  var _currentTripMode: Option[Modes.BeamMode] = None
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var _household: Id[Household] = householdId
   var _numReschedules: Int = 0
@@ -169,6 +171,7 @@ class PersonAgent(val beamServices: BeamServices,
 
     _numReschedules = _numReschedules + 1
     if(_numReschedules > 500){
+      cancelTrip(_currentRoute.legs,_currentVehicle)
       stop(Failure(s"Too many reschedule attempts."))
     }else{
       val toSchedule = if(isStart) {
@@ -186,7 +189,8 @@ class PersonAgent(val beamServices: BeamServices,
      * Starting Trip
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-
+      _currentTripMode = Some(_currentRoute.tripClassifier)
+      context.system.eventStream.publish(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, _currentTripMode.get.matsimMode))
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Complete leg(s) as driver
@@ -226,6 +230,7 @@ class PersonAgent(val beamServices: BeamServices,
                 _currentRoute = processedData.restTrip
                 val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
                 nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
+                context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, id, nextBeamVehicleId))
                 _currentRoute = processedData.restTrip
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
                 _currentVehicle = _currentVehicle.pushIfNew(nextBeamVehicleId)
@@ -236,8 +241,8 @@ class PersonAgent(val beamServices: BeamServices,
           }
       }
 
-    case Event(TriggerWithId(NotifyLegEndTrigger(_,beamLeg),_), _) =>
-      stop(Failure(s"Going to Error: NotifyLegEndTrigger while in state Waiting with beamLeg: $beamLeg"))
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick,beamLeg), triggerId), _) =>
+      warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
   }
 
   chainedWhen(Moving) {
@@ -258,6 +263,7 @@ class PersonAgent(val beamServices: BeamServices,
                 // The next vehicle is different from current so we exit the current vehicle
                 val passengerVehicleId = _currentVehicle.penultimateVehicle()
                 beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! ExitVehicle(tick, VehiclePersonId(passengerVehicleId,id))
+                context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
                 _currentVehicle = _currentVehicle.pop()
                 // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass on the new trigger
                 processNextLegOrStartActivity(triggerId,tick)
@@ -363,7 +369,8 @@ class PersonAgent(val beamServices: BeamServices,
             //TODO consider ending the day here to match MATSim convention for start/end activity
             tick + 60*10
           }
-          context.system.eventStream.publish(new PersonArrivalEvent(tick, id, activity.getLinkId, savedLegMode.value))
+          context.system.eventStream.publish(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTripMode.get.matsimMode))
+          _currentTripMode = None
           context.system.eventStream.publish(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
           goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
       }
@@ -410,6 +417,8 @@ class PersonAgent(val beamServices: BeamServices,
       scheduleStartLegAndStay()
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
   }
 
   def scheduleStartLegAndStay() = {

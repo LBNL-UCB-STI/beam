@@ -23,7 +23,7 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
   def formatErrorReasons(): String = {
     def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = event.tick.map(_ / 3600.0).getOrElse(-1.0).toInt
     terminatedPrematurelyEvents
-      .groupBy( event => event.reason )
+      .groupBy( event => event.reason.toString.substring(0,Math.min(event.reason.toString.length-1,65)) )
       .mapValues( eventsPerReason =>
         eventsPerReason
           .groupBy(event => hourOrMinus1(event))

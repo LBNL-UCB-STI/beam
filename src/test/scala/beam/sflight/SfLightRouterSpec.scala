@@ -1,4 +1,4 @@
-package beam.sfbay
+package beam.sflight
 
 import java.io.File
 import java.time.ZonedDateTime
@@ -12,7 +12,7 @@ import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, WALK}
 import beam.router.gtfs.FareCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
 import com.typesafe.config.ConfigFactory
@@ -26,10 +26,11 @@ import org.scalatest.mockito.MockitoSugar
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
+class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
+  var geo: GeoUtils = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve())
@@ -37,7 +38,8 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
     // Have to mock some things to get the router going
     val services: BeamServices = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    geo = new GeoUtilsImpl(services)
+    when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
@@ -102,17 +104,17 @@ class SfbayRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecL
       actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
-    "respond with a fallback walk route to a RoutingRequest which actually doesn't have a walkable solution, and a car route" in {
-      val origin = new BeamRouter.Location(545379.1120515711, 4196841.43220292)
-      val destination = new BeamRouter.Location(550620.1726742609, 4201484.428639883)
+    "respond with a walk and a car route for going from downtown SF to Treasure Island" in {
+      val origin = geo.wgs2Utm(new Coord(-122.439194, 37.785368))
+      val destination = geo.wgs2Utm(new Coord(-122.3712, 37.815819))
       val time = RoutingModel.DiscreteTime(27840)
       router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(
-        StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(new Coord(545639.565355, 4196945.53107), 0), Modes.BeamMode.CAR, asDriver = true),
+        StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
         StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
       ), Id.createPersonId("116378-2")))
       val response = expectMsgType[RoutingResponse]
-
       assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == CAR))
 
       val actualModesOfWalkOption = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip().legs.map(_.mode)
       actualModesOfWalkOption should contain theSameElementsInOrderAs List(WALK)

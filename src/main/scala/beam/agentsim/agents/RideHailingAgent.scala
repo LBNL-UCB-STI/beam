@@ -84,8 +84,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
     case Event(RegisterRideAvailableWrapper(triggerId), info) =>
       beamServices.schedulerRef ! CompletionNotice(triggerId)
       stay()
-    case Event(Finish, _) =>
-      stop
   }
 
   chainedWhen(AnyState) {
@@ -93,6 +91,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
       stay
     case Event(BecomeDriverSuccessAck, _)  =>
       stay
+    case Event(Finish, _) =>
+      stop
   }
 
 

@@ -126,7 +126,7 @@ dependencies {
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
 
-    compile(group: 'com.github.michaz', name: 'r5', version: 'traveltime-SNAPSHOT', changing: true) {
+    compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }

@@ -65,8 +65,10 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
           schedule.put(leg, Manifest(passenger))
       }
     )
-    schedule(legs.head).boarders += passenger.vehicleId
-    schedule(legs.last).alighters += passenger.vehicleId
+    if(!legs.isEmpty){
+      schedule(legs.head).boarders += passenger.vehicleId
+      schedule(legs.last).alighters += passenger.vehicleId
+    }
   }
 
 }
