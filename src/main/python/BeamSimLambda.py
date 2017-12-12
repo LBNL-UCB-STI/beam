@@ -5,9 +5,13 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"'''
+CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"
+  -    sleep 10s
+  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -    sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
+  -    rm -rf test/output/*'''
 
-EXPERIMENT_SCRIPT = '''./bin/experiment.sh '$cf' '''
+EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf '''
 
 BRANCH_DEFAULT = 'master'
 
@@ -21,7 +25,7 @@ EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
-initscript = ('''#cloud-config
+initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
@@ -33,26 +37,21 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - cd /home/ubuntu/git/beam
-  - git config --global filter.lfs.smudge "git-lfs smudge --skip %f"
-  - git config --global filter.lfs.process "git-lfs filter-process --skip"
-  - git fetch --all
+  - git fetch
+  - echo "git checkout ..."
   - git checkout $BRANCH
-  - git lfs checkout
+  - echo "git checkout -qf ..."
   - git checkout -qf $COMMIT
-  - IFS=, read -ra cfs <<< $CONFIG
-  - for cf in "${cfs[@]}"
+  - echo "gradlew assemble ..."
+  - ./gradlew assemble
+  - echo "looping config ..."
+  - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
-  -    if [ "$IS_EXPERIMENT" == "false" ]; then
-  -      sleep 10s
-  -      for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -      sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
-  -      rm -rf test/output/*
-  -    fi
   -  done
   - sudo shutdown -h +$SHUTDOWN_WAIT
-''')
+'''))
 
 instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
                   'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
@@ -126,9 +125,9 @@ def lambda_handler(event, context):
         selected_script = EXPERIMENT_SCRIPT
 
     if batch == TRUE:
-        configs = [ configs ]
+        configs = [ configs.replace(',', ' ') ]
     else:
-        configs = configs.split(' ')
+        configs = configs.split(',')
 
     txt = ''
 

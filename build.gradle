@@ -273,7 +273,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "commit": "$beamCommit",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments')}",
   "is_experiment": "${!project.hasProperty('beamConfigs')}",
-  "batch": $beamBatch,
+  "batch": "$beamBatch",
   "shutdown_wait": "$shutdownWait"
 }"""
 
