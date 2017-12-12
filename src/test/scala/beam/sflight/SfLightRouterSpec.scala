@@ -18,6 +18,7 @@ import beam.utils.DateUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.Mockito._
 import org.scalatest._
@@ -44,7 +45,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator))
+    router = system.actorOf(BeamRouter.props(services, scenario.getNetwork, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

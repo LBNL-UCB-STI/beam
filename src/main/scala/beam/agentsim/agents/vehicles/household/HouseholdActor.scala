@@ -15,7 +15,7 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households
 import org.matsim.households.Household
@@ -34,8 +34,8 @@ object HouseholdActor {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
 
-  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], ActorRef], membersActors: Map[Id[Person], ActorRef], homeCoord: Coord): Props = {
-    Props(new HouseholdActor(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
+  def props(beamServices: BeamServices, population: Population, householdId: Id[Household], matSimHousehold: Household, houseHoldVehicles: Map[Id[Vehicle], ActorRef], membersActors: Map[Id[Person], ActorRef], homeCoord: Coord): Props = {
+    Props(new HouseholdActor(beamServices, population, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
   }
 
   case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
@@ -57,6 +57,7 @@ object HouseholdActor {
 }
 
 class HouseholdActor(services: BeamServices,
+                     population: Population,
                      id: Id[households.Household],
                      matSimHouseHold: org.matsim.households.Household,
                      vehicleActors: Map[Id[Vehicle], ActorRef],
@@ -145,7 +146,7 @@ class HouseholdActor(services: BeamServices,
 
   def lookupMemberRank(member: Id[Person]): Option[Int] = {
 
-    beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank") match {
+    population.getPersonAttributes.getAttribute(member.toString, "rank") match {
       case rank: Integer =>
         Some(rank)
       case _ =>

@@ -22,13 +22,14 @@ import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object RideHailingAgent {
 
-  def props(services: BeamServices, rideHailingAgentId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
-    Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleIdAndRef, location), services))
+  def props(services: BeamServices, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
+    Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleIdAndRef, location), eventsManager, services))
 
   case class RideHailingAgentData(vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) extends BeamAgentData
 
@@ -44,8 +45,6 @@ object RideHailingAgent {
 
   case class DropOffCustomer(newLocation: SpaceTime)
 
-  case class RegisterRideAvailableWrapper(triggerId: Long)
-
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
   }
@@ -60,7 +59,7 @@ object RideHailingAgent {
 
 }
 
-class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val beamServices: BeamServices)
+class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val eventsManager: EventsManager, val beamServices: BeamServices)
   extends BeamAgent[RideHailingAgentData]
     with HasServices
     with DrivesVehicle[RideHailingAgentData] {
@@ -75,14 +74,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
-      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
-        RegisterRideAvailableWrapper(triggerId)
-      )
-      managerFuture pipeTo self
-      stay()
-    case Event(RegisterRideAvailableWrapper(triggerId), info) =>
-      beamServices.schedulerRef ! CompletionNotice(triggerId)
+      val response = beamServices.rideHailingManager ? ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
+      response.mapTo[RideAvailableAck.type].map(result => CompletionNotice(triggerId)) pipeTo beamServices.schedulerRef
       stay()
   }
 

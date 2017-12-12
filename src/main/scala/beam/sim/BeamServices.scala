@@ -26,7 +26,6 @@ import scala.concurrent.duration.FiniteDuration
 
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices extends ActorInject {
-  val matsimServices: MatsimServices
   val controler: ControlerI
   var beamConfig: BeamConfig
 
@@ -50,7 +49,6 @@ trait BeamServices extends ActorInject {
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
-  val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
