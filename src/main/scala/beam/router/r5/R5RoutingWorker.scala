@@ -146,7 +146,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
           * And after locating through these indexes, constructing BeamLeg for each and
           * finally add these legs back to BeamTrip.
           */
-        option.itinerary.asScala.map(itinerary => {
+        option.itinerary.asScala.filter{itin =>
+          val startTime = beamServices.dates.toBaseMidnightSeconds(itin.startTime, transportNetwork.transitLayer.routes.size() == 0)
+          //TODO make a more sensible window not just 30 minutes
+          startTime >= time.fromTime && startTime <= time.fromTime + 1800
+          }.map(itinerary => {
           var legsWithFares = Vector[(BeamLeg, Double)]()
           maybeWalkToVehicle.foreach(legsWithFares +:= (_, 0.0))
 
