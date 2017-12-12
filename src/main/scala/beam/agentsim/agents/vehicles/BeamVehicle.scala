@@ -103,7 +103,6 @@ class BeamVehicle(override var manager: Option[ActorRef],
     */
   def becomeDriver(newDriverRef: ActorRef)
   : Either[DriverAlreadyAssigned, BecomeDriverSuccessAck] = {
-
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
       Right(BecomeDriverSuccessAck(id))

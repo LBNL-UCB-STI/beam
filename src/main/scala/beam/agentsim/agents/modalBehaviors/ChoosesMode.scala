@@ -12,8 +12,10 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Tour
 import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger,
-  LegWithPassengerVehicle}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{
+  BeginModeChoiceTrigger, FinalizeModeChoiceTrigger,
+  LegWithPassengerVehicle
+}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -60,9 +62,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   (_household).getIncome.getIncome,
     beamServices.households(_household).getMemberIds.size(),
     new Random().nextBoolean(),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.matsimServices.getScenario.getVehicles.getVehicles.get(_)).count(_.getType
       .getDescription.toLowerCase.contains("car")),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles(_)).count(_.getType
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.matsimServices.getScenario.getVehicles.getVehicles.get(_)).count(_.getType
       .getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {

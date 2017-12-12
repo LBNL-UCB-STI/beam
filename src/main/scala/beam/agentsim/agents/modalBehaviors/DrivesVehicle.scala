@@ -248,7 +248,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
     context.system.eventStream.publish(new PathTraversalEvent(theTick, _currentVehicleUnderControl.get.id,
-      beamServices.vehicles(_currentVehicleUnderControl.get.id).getType,
+      _currentVehicleUnderControl.get.getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),
       _currentLeg.get, getStartCoord, getEndCoord))
 

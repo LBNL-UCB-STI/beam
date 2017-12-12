@@ -379,22 +379,31 @@ class PersonAgent(val beamServices: BeamServices,
               (passengerSchedule))
             } else {
               //XXXX (VR): Our first time entering this vehicle, so become driver directly
-              beamServices.vehicles(vehiclePersonId.vehicleId).becomeDriver(self)
+              val vehicle = beamServices.vehicles(vehiclePersonId.vehicleId)
+              vehicle.becomeDriver(self).fold(fa =>
+                stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
+                  s"but driver ${vehicle.driver.get} already assigned.")),
+                fb => {
+                  vehicle.driver.get ! fb
+                  context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+                })
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _currentRoute = processedData.restTrip
             _currentEmbodiedLeg = Some(processedData.nextLeg)
             stay() replying completed(triggerId)
-          } else {
+          }
+          else {
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
             _currentEmbodiedLeg = None
-            goto(Waiting) replying completed(triggerId)
+            goto(Waiting)
           }
         case None =>
           stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
       }
-    } else {
+    }
+    else {
       val savedLegMode = _currentRoute.tripClassifier
       _currentEmbodiedLeg = None
       nextActivity match {
@@ -461,7 +470,9 @@ class PersonAgent(val beamServices: BeamServices,
     }
   }
 
-  override def postStop(): Unit = {
+  override def postStop(): Unit
+
+  = {
     val legs = _currentEmbodiedLeg ++: _currentRoute.legs
     if (legs.nonEmpty) {
       logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
@@ -473,7 +484,7 @@ class PersonAgent(val beamServices: BeamServices,
   chainedWhen(AnyState) {
     case Event(ModifyPassengerScheduleAck(_), _) =>
       scheduleStartLegAndStay()
-    case Event(BecomeDriverSuccessAck, _) =>
+    case Event(BecomeDriverSuccessAck(_), _) =>
       scheduleStartLegAndStay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
@@ -493,9 +504,13 @@ class PersonAgent(val beamServices: BeamServices,
     stay
   }
 
-  override def logPrefix(): String = s"PersonAgent:$id "
+  override def logPrefix(): String
 
-  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip, tick: Double): Option[ProcessedData] = {
+  = s"PersonAgent:$id "
+
+  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip, tick: Double): Option[ProcessedData]
+
+  = {
     if (trip.legs.isEmpty) {
       None
     } else {
