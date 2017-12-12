@@ -384,7 +384,7 @@ class PersonAgent(val beamServices: BeamServices,
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _currentRoute = processedData.restTrip
             _currentEmbodiedLeg = Some(processedData.nextLeg)
-            stay()
+            stay() replying completed(triggerId)
           } else {
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
