@@ -44,8 +44,6 @@ object RideHailingAgent {
 
   case class DropOffCustomer(newLocation: SpaceTime)
 
-  case class RegisterRideAvailableWrapper(triggerId: Long)
-
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
   }
@@ -75,14 +73,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], override val data:
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
-      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(result =>
-        RegisterRideAvailableWrapper(triggerId)
-      )
-      managerFuture pipeTo self
-      stay()
-    case Event(RegisterRideAvailableWrapper(triggerId), info) =>
-      beamServices.schedulerRef ! CompletionNotice(triggerId)
+      val response = beamServices.rideHailingManager ? ResourceIsAvailableNotification(self, info.data.vehicleIdAndRef.id, SpaceTime(info.data.location, tick.toLong))
+      response.mapTo[RideAvailableAck.type].map(result => CompletionNotice(triggerId)) pipeTo beamServices.schedulerRef
       stay()
   }
 
