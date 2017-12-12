@@ -19,6 +19,7 @@ import beam.utils.DateUtils
 import com.typesafe.config.{ConfigFactory, ConfigParseOptions}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.{Vehicle, VehicleReaderV1}
 import org.mockito.Mockito.when
@@ -56,7 +57,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     new VehicleReaderV1(scenario.getTransitVehicles).readFile("test/input/sf-light/transitVehicles.xml")
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator), "router")
+    router = system.actorOf(BeamRouter.props(services, scenario.getNetwork, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator), "router")
 
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)

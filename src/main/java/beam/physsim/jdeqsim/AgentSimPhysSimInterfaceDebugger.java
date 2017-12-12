@@ -4,6 +4,7 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.PathTraversalLib;
 import beam.router.r5.NetworkCoordinator;
 import beam.sim.BeamServices;
+import beam.sim.common.GeoUtils;
 import beam.utils.DebugLib;
 import com.conveyal.r5.streets.EdgeStore;
 import org.matsim.api.core.v01.Coord;
@@ -16,12 +17,11 @@ public class AgentSimPhysSimInterfaceDebugger {
 
     // TODO: push this parameter to config
     public static final boolean DEBUGGER_ON = false;
-    private BeamServices services;
+    private final GeoUtils geoUtils;
 
 
-    public AgentSimPhysSimInterfaceDebugger(BeamServices services){
-
-        this.services = services;
+    public AgentSimPhysSimInterfaceDebugger(GeoUtils geoUtils) {
+        this.geoUtils = geoUtils;
     }
 
 
@@ -53,7 +53,7 @@ public class AgentSimPhysSimInterfaceDebugger {
             ///System.out.println(linkIdInt + "-> (" + currentEdge.getFromVertex() + "," + currentEdge.getToVertex() + ")");
             EdgeStore.Edge nextEdge = NetworkCoordinator.transportNetwork().streetLayer.edgeStore.getCursor(nextlinkIdInt);
 
-            double distanceBetweenEdgesInMeters=services.geo().distInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x,currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));
+            double distanceBetweenEdgesInMeters=geoUtils.distInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x,currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));
             if (currentEdge.getToVertex()==nextEdge.getFromVertex()){
                 DebugLib.emptyFunctionForSettingBreakPoint();
             } else {

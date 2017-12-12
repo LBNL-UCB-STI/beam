@@ -7,7 +7,7 @@ import beam.agentsim.agents.BeamAgent
   * @author sid.feygin
   *
   */
-class ErrorListener(iter: Int) extends Actor with ActorLogging {
+class ErrorListener() extends Actor with ActorLogging {
   private var nextCounter = 1
   private var terminatedPrematurelyEvents: List[BeamAgent.TerminatedPrematurelyEvent] = Nil
 
@@ -16,7 +16,7 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
       terminatedPrematurelyEvents ::= event
       if (terminatedPrematurelyEvents.size >= nextCounter) {
         nextCounter *= 2
-        log.error(s"\n\n\t****** Iteration: $iter\t||\tAgents gone to Error: ${terminatedPrematurelyEvents.size} ********\n${formatErrorReasons()}")
+        log.error(s"\n\n\t****** Agents gone to Error: ${terminatedPrematurelyEvents.size} ********\n${formatErrorReasons()}")
       }
   }
 
@@ -34,7 +34,7 @@ class ErrorListener(iter: Int) extends Actor with ActorLogging {
 }
 
 object ErrorListener {
-  def props(iter: Int): Props = {
-    Props(new ErrorListener(iter: Int))
+  def props(): Props = {
+    Props(new ErrorListener())
   }
 }
