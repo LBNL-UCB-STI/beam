@@ -99,8 +99,27 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
     def tripsForVehicle(vehicle: BeamVehicle.StreetVehicle): Seq[EmbodiedBeamTrip] = {
-      var maybeWalkToVehicle: Option[BeamLeg] = None
-      if (routingRequestTripInfo.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK) {
+      /*
+       * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
+       * call the "main" route calculation below. In both cases, we have a single main transit route
+       * which is only calculate once in the code below. But we optionally add a WALK leg from the origin to the
+       * beginning of the route (called "mainRouteFromVehicle" as opposed to main route from origin). Or we optionally
+       * add a vehicle-based trip on the egress portion of the trip (called "mainRouteToVehicle" as opposed to main route
+       * to destination).
+       *
+       * Note that we don't use the R5 egress concept to accomplish the mainRouteToVehicle pattern because
+       * we want to fix the location of the vehicle, not make it dynamic (this may change when we enable TNC's with transit).
+       * Also note that in both cases, these patterns are only the result of human travelers, we assume AI is fixed to
+       * a vehicle and therefore only needs the simplest of routes.
+       *
+       * For the mainRouteFromVehicle pattern, the traveler is using a vehicle within the context of a
+       * trip that could be multimodal (e.g. drive to transit) or unimodal (drive only). We don't assume the vehicle is
+       * co-located with the person, so this first block of code determines the distance from the vehicle to the person and based
+       * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & time accordingly.
+       *
+       */
+      val mainRouteFromVehicle = routingRequestTripInfo.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK
+      val maybeWalkToVehicle: Option[BeamLeg] = if (mainRouteFromVehicle) {
         val time = routingRequestTripInfo.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
           case time: WindowTime => time
@@ -118,13 +137,17 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           }
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
-          maybeWalkToVehicle = Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
+          Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
         } else {
-          maybeWalkToVehicle = Some(dummyWalk(time.atTime))
+          Some(dummyWalk(time.atTime))
         }
-      }
-      var maybeUseVehicleOnEgress: Option[BeamLeg] = None
-      if (!routingRequestTripInfo.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK) {
+      }else{ None }
+      /*
+       * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesAsAccess == false, and then we
+       * route from the vehicle to the destination and adjust the main route location & time accordingly.
+       */
+      val mainRouteToVehicle = !routingRequestTripInfo.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK
+      val maybeUseVehicleOnEgress: Option[BeamLeg] = if (mainRouteToVehicle) {
         val time = routingRequestTripInfo.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
           case time: WindowTime => time
@@ -139,14 +162,16 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
-          maybeUseVehicleOnEgress = Some(BeamLeg(time.atTime, vehicle.mode, travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
-        }
-      }
+          Some(BeamLeg(time.atTime, vehicle.mode, travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
+        }else{ None }
+      }else{ None }
 
-      val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(vehicle.location.loc), 10E3)
-      val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(routingRequestTripInfo.destination), 10E3)
-      val directMode = vehicle.mode.r5Mode.get.left.get
-      val accessMode = vehicle.mode.r5Mode.get.left.get
+      val theOrigin = if(mainRouteToVehicle) { routingRequestTripInfo.origin } else { vehicle.location.loc }
+      val theDestination = if(mainRouteToVehicle) { vehicle.location.loc  } else { routingRequestTripInfo.destination }
+      val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(theOrigin), 10E3)
+      val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(theDestination), 10E3)
+      val directMode = if(mainRouteToVehicle) { LegMode.WALK } else { vehicle.mode.r5Mode.get.left.get }
+      val accessMode = directMode
       val egressMode = LegMode.WALK
       val walkToVehicleDuration = maybeWalkToVehicle.map(leg => leg.duration).getOrElse(0l).toInt
       val time = routingRequestTripInfo.departureTime match {
@@ -219,6 +244,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
               if (isRouteForPerson && egress.mode != LegMode.WALK) legsWithFares :+= (dummyWalk(arrivalTime + egress.duration), 0.0)
             }
           }
+          maybeUseVehicleOnEgress.foreach(legsWithFares +:= (_, 0.0))
           TripWithFares(BeamTrip(legsWithFares.map(_._1), mapLegMode(access.mode)), legsWithFares.map(_._2).zipWithIndex.map(_.swap).toMap)
         })
       })
