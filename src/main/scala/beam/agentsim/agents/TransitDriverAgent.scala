@@ -74,7 +74,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
         vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle)
         context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        stay()
+        goto(PersonAgent.Waiting)
       })
   }
 

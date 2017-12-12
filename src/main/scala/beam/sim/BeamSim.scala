@@ -140,7 +140,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     // populateBeamServices
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(
       beamServices.matsimServices.getScenario.getPopulation.getPersons)
-    //    beamServices.vehicles ++= beamServices.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
+//        beamServices.vehicles ++= beamServices.matsimServices.getScenario.getVehicles.getVehicles.asScala.toMap
     beamServices.households ++= beamServices.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap
     logger.info(
       s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with " +
@@ -265,6 +265,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
           }
           .toMap
 
+
         val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
           .collectionAsScalaIterable(matSimHousehold.getVehicleIds)
           .map({ id =>
@@ -284,6 +285,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
               vehicleAttribute,
               CarVehicle)
           }).toMap
+
+        houseHoldVehicles.foreach(x=>beamServices.vehicles.update(x._1,x._2))
 
         val props = HouseholdActor.props(beamServices,
           householdId,

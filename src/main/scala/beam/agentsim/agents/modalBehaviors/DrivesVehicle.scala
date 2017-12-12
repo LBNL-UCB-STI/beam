@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleGoneError, VehicleNotUnderControlError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
 import beam.router.r5.NetworkCoordinator
@@ -39,7 +39,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   //TODO: double check that mutability here is legit espeically with the schedules passed in
   protected var passengerSchedule: PassengerSchedule = PassengerSchedule()
-
+  var lastVisited:  SpaceTime = SpaceTime.zero
   protected var _currentLeg: Option[BeamLeg] = None
   //TODO: send some message to set _currentVehicle
   protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
@@ -195,6 +195,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           releaseAndScheduleEndLeg()
         }
       }
+      stay()
+
+      // VR: From Vehicle Model...
+    case Event(AppendToTrajectory(newSegments), info) =>
+      lastVisited = newSegments.getEndPoint()
       stay()
 
   }
