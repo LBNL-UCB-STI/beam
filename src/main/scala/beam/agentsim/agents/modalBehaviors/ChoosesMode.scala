@@ -12,6 +12,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Tour
 import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
+import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.agents.vehicles.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
@@ -210,26 +211,71 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), _: BeamAgentInfo[PersonData]) =>
       logInfo(s"inside ChoosesMode @ $tick")
       holdTickAndTriggerId(tick, triggerId)
-      beamServices.householdRefs.get(_household).foreach(_ ! mobilityStatusInquiry(id))
+      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
+      modeChoiceStrategy match {
+        case None | Some(mode) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+          // Only need to get available street vehicles from household if our mode requires such a vehicle
+          beamServices.householdRefs.get(_household).foreach(_ ! mobilityStatusInquiry(id))
+        case _ =>
+          // Otherwise, send empty list to self
+          self ! MobilityStatusReponse(Vector())
+      }
       stay()
     case Event(MobilityStatusReponse(streetVehicles), _: BeamAgentInfo[PersonData]) =>
       val (tick, theTriggerId) = releaseTickAndTriggerId()
       val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle, SpaceTime(currentActivity.getCoord, tick.toLong), WALK, asDriver = true)
-      availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
-
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(tick.toInt)
-      currentTourPersonalVehicle match {
-        case Some(personalVeh) =>
-          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id)
-          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle, id).toString)
-          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA",classOf[RideHailingInquiry]),Vector(),Some(RideHailNotRequested)))
-        case None =>
-          beamServices.beamRouter ! RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id)
-          logInfo(RoutingRequest(currentActivity, nextAct, departTime, Vector(BeamMode.TRANSIT), streetVehicles :+ bodyStreetVehicle, id).toString)
-          //TODO parameterize search distance
-          val pickUpLocation = currentActivity.getCoord
-          beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, pickUpLocation, departTime, nextAct.getCoord)
+
+      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextAct,classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
+      modeChoiceStrategy match {
+        case None | Some(mode) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+        // In these cases, a personal vehicle will be involved
+          availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
+        case _ =>
+          availablePersonalStreetVehicles = Vector()
+      }
+
+      // Mark rideHailingResult
+      modeChoiceStrategy match {
+        case None | Some(mode) if mode == RIDEHAIL =>
+          rideHailingResult = None
+        case _ =>
+          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA", classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequested)))
+      }
+
+      // Form and send requests
+      modeChoiceStrategy match {
+        case None | Some(mode) if mode == WALK_TRANSIT =>
+          val req = RoutingRequest(currentActivity, nextAct, departTime, Vector(TRANSIT), Vector(bodyStreetVehicle), id)
+          beamServices.beamRouter ! req
+          logInfo(req.toString)
+          beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
+        case Some(mode) if mode == CAR || mode == BIKE =>
+          val streetVehiclesToUseInQuery = currentTourPersonalVehicle match {
+            case Some(personalVeh) =>
+              // We already have a vehicle we're using on this tour, so filter down to that
+              streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle
+            case None =>
+              // Just filter down to any CAR or BIKE
+              streetVehicles.filter(_.mode == mode) :+ bodyStreetVehicle
+          }
+          val req = RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehiclesToUseInQuery, id)
+          beamServices.beamRouter ! req
+          logInfo(req.toString)
+        case Some(mode) if mode == DRIVE_TRANSIT =>
+          val streetVehiclesToUseInQuery = currentTourPersonalVehicle match {
+            case Some(personalVeh) =>
+              // We already have a vehicle we're using on this tour, so filter down to that
+              streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle
+            case None =>
+              streetVehicles.filter(_.mode == CAR) :+ bodyStreetVehicle
+          }
+          val req = RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehiclesToUseInQuery, id, streetVehiclesAsAccess = false)
+          beamServices.beamRouter ! req
+          logInfo(req.toString)
+        case Some(mode) if mode == RIDEHAIL =>
+          beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
       }
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))

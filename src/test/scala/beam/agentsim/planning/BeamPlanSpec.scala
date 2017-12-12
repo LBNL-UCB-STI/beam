@@ -86,6 +86,14 @@ class BeamPlanSpec extends WordSpecLike with Matchers with RunBeam with BeforeAn
         }
       }
     }
+    "should return a trip or tour containing a leg" in {
+      val beamPlan = BeamPlan(matsimPlan)
+      val tour = beamPlan.tours(2)
+      val trip = tour.trips.head
+      beamPlan.getTripContaining(trip.activity) should be (trip)
+      beamPlan.getTripContaining(trip.leg.get) should be (trip)
+      beamPlan.getTourContaining(trip.activity) should be (tour)
+    }
   }
 }
 

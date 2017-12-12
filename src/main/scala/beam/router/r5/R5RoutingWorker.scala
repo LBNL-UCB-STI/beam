@@ -56,49 +56,51 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       this.maybeTravelTime = Some(travelTime)
   }
 
-  def calcRoute(routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
+  def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode): ProfileResponse = {
     val maxStreetTime = 2 * 60
 
-    def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode): ProfileResponse = {
-      // If we already have observed travel times, probably from the previous iteration,
-      // let R5 use those. Otherwise, let R5 use its own travel time estimates.
-      val pointToPointQuery = maybeTravelTime match {
-        case Some(travelTime) => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
-          travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
-        })
-        case None => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
-      }
-      val profileRequest = new ProfileRequest()
-      profileRequest.fromLon = from.getX
-      profileRequest.fromLat = from.getY
-      profileRequest.toLon = to.getX
-      profileRequest.toLat = to.getY
-      profileRequest.maxWalkTime = 3 * 60
-      profileRequest.maxCarTime = 4 * 60
-      profileRequest.maxBikeTime = 4 * 60
-      profileRequest.streetTime = maxStreetTime
-      profileRequest.maxTripDurationMinutes = 4 * 60
-      profileRequest.wheelchair = false
-      profileRequest.bikeTrafficStress = 4
-      profileRequest.zoneId = transportNetwork.getTimeZone
-      profileRequest.fromTime = time.fromTime
-      profileRequest.toTime = time.toTime
-      profileRequest.date = beamServices.dates.localBaseDate
-      profileRequest.directModes = util.EnumSet.of(directMode)
-      if (transitModes.nonEmpty) {
-        profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
-        profileRequest.accessModes = util.EnumSet.of(accessMode)
-        profileRequest.egressModes = util.EnumSet.of(egressMode)
-      }
-      return pointToPointQuery.getPlan(profileRequest)
+    // If we already have observed travel times, probably from the previous iteration,
+    // let R5 use those. Otherwise, let R5 use its own travel time estimates.
+    val pointToPointQuery = maybeTravelTime match {
+      case Some(travelTime) => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+        travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+      })
+      case None => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
     }
+    val profileRequest = new ProfileRequest()
+    profileRequest.fromLon = from.getX
+    profileRequest.fromLat = from.getY
+    profileRequest.toLon = to.getX
+    profileRequest.toLat = to.getY
+    profileRequest.maxWalkTime = 3 * 60
+    profileRequest.maxCarTime = 4 * 60
+    profileRequest.maxBikeTime = 4 * 60
+    profileRequest.streetTime = maxStreetTime
+    profileRequest.maxTripDurationMinutes = 4 * 60
+    profileRequest.wheelchair = false
+    profileRequest.bikeTrafficStress = 4
+    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.fromTime = time.fromTime
+    profileRequest.toTime = time.toTime
+    profileRequest.date = beamServices.dates.localBaseDate
+    profileRequest.directModes = util.EnumSet.of(directMode)
+    if (transitModes.nonEmpty) {
+      profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
+      profileRequest.accessModes = util.EnumSet.of(accessMode)
+      profileRequest.egressModes = util.EnumSet.of(egressMode)
+    }
+    return pointToPointQuery.getPlan(profileRequest)
+  }
+
+
+  def calcRoute(routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
     def tripsForVehicle(vehicle: BeamVehicle.StreetVehicle): Seq[EmbodiedBeamTrip] = {
       var maybeWalkToVehicle: Option[BeamLeg] = None
-      if (isRouteForPerson && vehicle.mode != WALK) {
+      if (routingRequestTripInfo.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK) {
         val time = routingRequestTripInfo.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
           case time: WindowTime => time
@@ -119,6 +121,25 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           maybeWalkToVehicle = Some(BeamLeg(time.atTime, mapLegMode(LegMode.WALK), travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
         } else {
           maybeWalkToVehicle = Some(dummyWalk(time.atTime))
+        }
+      }
+      var maybeUseVehicleOnEgress: Option[BeamLeg] = None
+      if (!routingRequestTripInfo.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK) {
+        val time = routingRequestTripInfo.departureTime match {
+          case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
+          case time: WindowTime => time
+        }
+        val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(vehicle.location.loc), 10E3)
+        val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(routingRequestTripInfo.destination), 10E3)
+        val directMode = vehicle.mode.r5Mode.get.left.get
+        val accessMode = vehicle.mode.r5Mode.get.left.get
+        val egressMode = LegMode.WALK
+        val transitModes = Nil
+        val profileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
+        if (!profileResponse.options.isEmpty) {
+          val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
+          val streetSegment = profileResponse.options.get(0).access.get(0)
+          maybeUseVehicleOnEgress = Some(BeamLeg(time.atTime, vehicle.mode, travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
         }
       }
 

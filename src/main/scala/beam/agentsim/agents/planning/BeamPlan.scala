@@ -45,9 +45,11 @@ object BeamPlan {
 
 class BeamPlan extends Plan{
 
+
   // Implementation of Legacy Interface
   private var person: Person = _
   private var actsLegs: Vector[PlanElement] = Vector()
+  private var actsLegToTrip: mutable.Map[PlanElement,Trip] = mutable.Map()
   private var score : Double = Double.NaN
   private var planType: String = ""
 
@@ -69,7 +71,7 @@ class BeamPlan extends Plan{
     actsLegs.foreach{planElement =>
       planElement match {
         case activity: Activity =>
-          var nextTrip = new Trip(activity, nextLeg)
+          var nextTrip = new Trip(activity, nextLeg, nextTour)
           nextTour.addTrip(nextTrip)
           if(activity.getType.equalsIgnoreCase("home")){
             tours = tours :+ nextTour
@@ -80,6 +82,20 @@ class BeamPlan extends Plan{
       }
     }
     if(nextTour.trips.nonEmpty)tours = tours :+ nextTour
+    indexBeamPlan
+  }
+
+  def indexTrip(trip: Trip)= {
+    actsLegToTrip.put(trip.activity,trip)
+    trip.leg match {
+      case Some(leg) =>
+        actsLegToTrip.put(leg,trip)
+      case None =>
+    }
+  }
+
+  def indexBeamPlan = {
+    tours.foreach( tour => tour.trips.foreach(indexTrip(_)))
   }
 
   def putStrategy(planElement: PlanElement, strategy: Strategy): Unit = {
@@ -101,10 +117,39 @@ class BeamPlan extends Plan{
   def getStrategy(planElement: PlanElement, forClass: Class[_ <: Strategy]): Option[Strategy] = {
     strategies.get(planElement).getOrElse[mutable.Map[Class[_ <: Strategy],Strategy]](mutable.Map()).get(forClass)
   }
+  def getTripContaining(planElement: PlanElement): Trip = {
+    planElement match{
+      case tour: Tour =>
+        throw new RuntimeException("getTripContaining is only for finding the parent trip to a plan element, not a child.")
+      case actOrLeg: PlanElement =>
+        actsLegToTrip.get(actOrLeg) match {
+          case Some(trip) =>
+            trip
+          case None =>
+            throw new RuntimeException(s"Trip not found for plan element ${planElement}.")
+        }
+    }
+  }
+  def getTourContaining(planElement: PlanElement): Tour ={
+    getTripContaining(planElement).parentTour
+  }
+  def isLastElementInTour(planElement: PlanElement): Boolean = {
+    val tour = getTourContaining(planElement)
+    planElement match{
+      case act: Activity =>
+        tour.trips.last.activity == act
+      case leg: Leg =>
+        tour.trips.last.leg.isDefined && tour.trips.last.leg.get == leg
+      case trip: Trip =>
+        tour.trips.last == trip
+      case _ =>
+        throw new RuntimeException(s"Unexpected PlanElement ${planElement}.")
+    }
+  }
 
 
   //////////////////////////////////////////////////////////////////////
-  // Supporint legacy interface
+  // Supporting legacy interface
   //////////////////////////////////////////////////////////////////////
 
   override def getPerson: Person = this.person
@@ -121,10 +166,22 @@ class BeamPlan extends Plan{
   override def getPlanElements: java.util.List[PlanElement] = actsLegs.asJava
 
   override def addLeg(leg: Leg): Unit = {
-    actsLegs = actsLegs :+ leg
+    tours.isEmpty match {
+      case true =>
+        actsLegs = actsLegs :+ leg
+      case false =>
+        throw new RuntimeException("For compatibility with MATSim, a BeamPlan only supports addLeg during initialization " +
+          "but not after the BeamPlan plan has been created.")
+    }
   }
   override def addActivity(act: Activity): Unit = {
-    actsLegs = actsLegs :+ act
+    tours.isEmpty match {
+      case true =>
+        actsLegs = actsLegs :+ act
+      case false =>
+        throw new RuntimeException("For compatibility with MATSim, a BeamPlan only supports addActivity during initialization " +
+          "but not after the BeamPlan plan has been created.")
+    }
   }
 
   override def setScore(newScore: lang.Double) = score = newScore

@@ -98,7 +98,7 @@ class PersonAgent(val beamServices: BeamServices,
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] {
 
-  val _beamPlan: BeamPlan = BeamPlan(matsimPlan)
+  val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentVehicle: VehicleStack = VehicleStack()
   var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
@@ -109,9 +109,9 @@ class PersonAgent(val beamServices: BeamServices,
   var _numReschedules: Int = 0
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
-    if (ind < 0 || ind >= _beamPlan.activities.length) Left(msg) else Right(_beamPlan.activities(ind))
+    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg) else Right(_experiencedBeamPlan.activities(ind))
   }
-  def currentActivity: Activity = _beamPlan.activities(_currentActivityIndex)
+  def currentActivity: Activity = _experiencedBeamPlan.activities(_currentActivityIndex)
   def nextActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex + 1, "plan finished")
   }
