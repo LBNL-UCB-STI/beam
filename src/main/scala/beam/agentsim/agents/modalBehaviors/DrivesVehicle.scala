@@ -197,7 +197,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
       stay()
 
-      // VR: From Vehicle Model...
+      // XXXX (VR): From Vehicle Model...
     case Event(AppendToTrajectory(newSegments), info) =>
       lastVisited = newSegments.getEndPoint()
       stay()

@@ -5,7 +5,7 @@ import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, WALK}

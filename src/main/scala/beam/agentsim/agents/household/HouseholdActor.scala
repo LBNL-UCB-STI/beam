@@ -5,10 +5,12 @@ import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.RideHailingAgent
 import beam.agentsim.agents.household.HouseholdActor._
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.{AppendToTrajectory, StreetVehicle}
+import beam.agentsim.agents.vehicles.{BeamVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
+import beam.router.DefinedTrajectoryHolder
 import beam.router.Modes.BeamMode.CAR
+import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
@@ -183,12 +185,14 @@ class HouseholdActor(services: BeamServices,
     // Initial locations and trajectories
     //Initialize all vehicles to have a stationary trajectory starting at time zero
     val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
-    _vehicles.foreach { veh =>
-      //XXXX (VR): What goes here?
-      //      services.vehicleRefs(veh) ! AppendToTrajectory(initialBeamPath)
+    val initialBeamPath = BeamPath(Vector(), None, DefinedTrajectoryHolder(Trajectory(Vector(initialLocation))))
+
+    for {veh <- _vehicles
+         driver <- services.vehicles(veh).driver} yield {
+      driver ! AppendToTrajectory(initialBeamPath)
       //TODO following mode should come from the vehicle
-      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver =
-        true))
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle +
+        (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
     }
   }
 

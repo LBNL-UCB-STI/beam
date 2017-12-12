@@ -6,7 +6,8 @@ import java.time.ZonedDateTime
 import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{WALK, WALK_TRANSIT}
@@ -29,7 +30,8 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
+  """
   akka.loglevel="OFF"
   """))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
@@ -47,9 +49,9 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], Vehicle])
-    when(services.vehicleRefs).thenReturn(new TrieMap[Id[Vehicle], ActorRef])
+    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate, ZonedDateTime.parse(beamConfig.beam
+      .routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
     when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
 
@@ -75,7 +77,9 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val origin = geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
       val destination = geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = RoutingModel.DiscreteTime(25740)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT),
+        Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode
+          .WALK, asDriver = true)), Id.createPersonId("667520-0")))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
