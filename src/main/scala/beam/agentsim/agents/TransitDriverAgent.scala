@@ -61,8 +61,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       holdTickAndTriggerId(tick, triggerId)
-      this.context.system.scheduler.scheduleOnce(FiniteDuration.apply(1, TimeUnit.NANOSECONDS), self, BecomeDriver
-      (tick, id, Some(initialPassengerSchedule)))
+      self ! BecomeDriver(tick, id, Some(initialPassengerSchedule))
         stay ()
 
     /*
