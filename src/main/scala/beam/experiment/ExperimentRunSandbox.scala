@@ -13,7 +13,6 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
   lazy val runConfig: Config = buildRunConfig
 
   def runDirectory = Paths.get(experimentBaseDir.toString,
-    experimentDef.title.replace("\\s", "_"),
     "runs", s"run.${experimentRun.name}"
   )
 

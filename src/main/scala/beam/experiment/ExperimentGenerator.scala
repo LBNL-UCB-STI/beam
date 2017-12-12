@@ -29,10 +29,6 @@ object ExperimentGenerator extends App {
     if (!Files.exists(Paths.get(experiment.beamTemplateConfPath))) {
       throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.beamTemplateConfPath}")
     }
-    val runScriptTemplateFile = Paths.get(experiment.runExperimentScript).toAbsolutePath
-    if (!Files.exists(runScriptTemplateFile)) {
-      throw new IllegalArgumentException("No runs script template found " + runScriptTemplateFile.toString)
-    }
 
     val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
     if (!Files.exists(modeChoiceTemplateFile)) {
@@ -90,8 +86,7 @@ object ExperimentGenerator extends App {
   }
 
   validateExperimentConfig(experiment)
-  val batchRunTemplateFile = Paths.get(experiment.batchRunScript).toAbsolutePath
-  val runScriptTemplateFile = Paths.get(experiment.runExperimentScript).toAbsolutePath
+
   val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
   val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.beamTemplateConfPath).toFile)
   val baseScenarioRun = ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, ExperimentRun(experiment.baseScenario, combinations = List()), baseConfig)
@@ -101,8 +96,8 @@ object ExperimentGenerator extends App {
   }
 
   val modeChoiceTemplate = Resources.toString(modeChoiceTemplateFile.toUri.toURL, Charsets.UTF_8)
-  val runScriptTemplate = Resources.toString(runScriptTemplateFile.toUri.toURL, Charsets.UTF_8)
-  val batchScriptTemplate = Resources.toString(batchRunTemplateFile.toUri.toURL, Charsets.UTF_8)
+  val runScriptTemplate = experiment.getRunScriptTemplate()
+  val batchScriptTemplate = experiment.getBatchRunScriptTemplate()
   val jinjava = new Jinjava()
 
   experimentRunsWithBase.foreach { runSandbox =>
@@ -172,7 +167,7 @@ object ExperimentGenerator extends App {
 
   val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
   val experimentsCsv = new BufferedWriter(new FileWriter(
-    Paths.get(baseScenarioRun.experimentBaseDir.toString,baseScenarioRun.experimentDef.title,"experiments.csv").toFile, false))
+    Paths.get(baseScenarioRun.experimentBaseDir.toString,"experiments.csv").toFile, false))
 
   try {
     val header = dynamicParamsPerFactor.map{ case (factor, param_name) => s"$param_name"}.mkString(",")
