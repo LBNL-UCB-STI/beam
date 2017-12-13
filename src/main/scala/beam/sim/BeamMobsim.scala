@@ -46,29 +46,26 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
   var rideHailingAgents: Seq[ActorRef] = Nil
 
   override def run() = {
-    val schedulerFuture = beamServices.registry ? Registry.Register("scheduler", Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0))
-    beamServices.schedulerRef = Await.result(schedulerFuture, timeout.duration).asInstanceOf[Created].ref
+    eventsManager.initProcessing()
 
+    beamServices.schedulerRef = actorSystem.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-
-    val router = actorSystem.actorOf(BeamRouter.props(beamServices, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
-    beamServices.beamRouter = router
+    beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
-
-    val rideHailingManagerFuture = beamServices.registry ? Registry.Register("RideHailingManager", RideHailingManager.props("RideHailingManager",
-      Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
-    beamServices.rideHailingManager = Await.result(rideHailingManagerFuture, timeout.duration).asInstanceOf[Created].ref
+    beamServices.rideHailingManager = actorSystem.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
 
     resetPop()
+
     Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     log.info(s"Transit schedule has been initialized")
+
     log.info("Running BEAM Mobsim")
-    eventsManager.initProcessing()
     Await.result(beamServices.schedulerRef ? StartSchedule(0), timeout.duration)
     cleanupRideHailingAgents()
     cleanupVehicle()
     cleanupHouseHolder()
     actorSystem.stop(beamServices.schedulerRef)
+
     eventsManager.finishProcessing()
   }
 
