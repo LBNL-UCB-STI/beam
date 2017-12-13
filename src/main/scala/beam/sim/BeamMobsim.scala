@@ -13,13 +13,9 @@ import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, CarVehicle, HumanBodyVehicle, Powertrain}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter
 import beam.router.BeamRouter.InitTransit
-import beam.router.gtfs.FareCalculator
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
-import glokka.Registry
-import glokka.Registry.Created
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -49,9 +45,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     eventsManager.initProcessing()
 
     beamServices.schedulerRef = actorSystem.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
-    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-    beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
-    Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
     beamServices.rideHailingManager = actorSystem.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
 
     resetPop()

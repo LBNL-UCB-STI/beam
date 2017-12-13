@@ -2,10 +2,13 @@ package beam.sim
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Identify}
 import akka.util.Timeout
+import akka.pattern.ask
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
+import beam.router.BeamRouter
+import beam.router.gtfs.FareCalculator
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
@@ -15,6 +18,7 @@ import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.Await
 
 class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val beamServices: BeamServices,
@@ -22,12 +26,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val scenario: Scenario,
                        ) extends StartupListener with IterationEndsListener with ShutdownListener {
 
-  private val agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+  private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
-
 
     // Before we initialize router we need to scale the transit vehicle capacities
     val alreadyScaled: mutable.HashSet[VehicleCapacity] = mutable.HashSet()
@@ -39,6 +42,12 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
         alreadyScaled.add(theCap)
       }
     }
+
+    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
+    beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
+    Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
+
+    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
