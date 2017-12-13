@@ -27,6 +27,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.sim.HasServices
 import beam.agentsim.events.resources.vehicle.RideHailNotRequested
+import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.api.core.v01.population.Person
@@ -70,12 +71,26 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
-      val combinedItinerariesForChoice =
-        rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
-        routingResponse.get.itineraries
+      val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]).isDefined
+      var predefinedMode: Option[BeamMode] = None
+      var combinedItinerariesForChoice = rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
+          routingResponse.get.itineraries
+
+      if(modeAlreadyDefined){
+        predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
+        if(predefinedMode != WALK){
+          val itinsWithoutWalk = combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
+          if(itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
+        }
+      }
       assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
 
-      val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
+      //Debugging
+      if(modeAlreadyDefined){
+        val theMode = _experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode
+        val i = 0
+      }
+      var chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
         case logit: ModeChoiceLCCM =>
           val tourType : TourType = Mandatory
           logit(combinedItinerariesForChoice, Some(attributesOfIndividual), tourType)
@@ -87,12 +102,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
-        if (chosenTrip.requiresReservationConfirmation) {
-          pendingChosenTrip = Some(chosenTrip)
-          sendReservationRequests(chosenTrip)
-        } else {
-          scheduleDepartureWithValidatedTrip(chosenTrip)
-        }
+      if (chosenTrip.requiresReservationConfirmation) {
+        pendingChosenTrip = Some(chosenTrip)
+        sendReservationRequests(chosenTrip)
+      } else {
+        scheduleDepartureWithValidatedTrip(chosenTrip)
+      }
     } else {
       stay()
     }
@@ -163,9 +178,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
 
     val location = if(chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty){ chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString }else{ "" }
-
     context.system.eventStream.publish(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum))
+
+    val currentTour = _experiencedBeamPlan.getTourContaining(nextActivity.right.get)
+    _experiencedBeamPlan.putStrategy(currentTour,ModeChoiceStrategy(chosenTrip.tripClassifier))
 
     val personalVehicleUsed: Vector[Id[Vehicle]] = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
@@ -213,8 +230,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       holdTickAndTriggerId(tick, triggerId)
       val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
       modeChoiceStrategy match {
-        case None | Some(mode) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
+          beamServices.householdRefs.get(_household).foreach(_ ! mobilityStatusInquiry(id))
+        case None =>
           beamServices.householdRefs.get(_household).foreach(_ ! mobilityStatusInquiry(id))
         case _ =>
           // Otherwise, send empty list to self
@@ -229,53 +248,61 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
       val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextAct,classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
       modeChoiceStrategy match {
-        case None | Some(mode) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
         // In these cases, a personal vehicle will be involved
+          availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
+        case None =>
           availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
         case _ =>
           availablePersonalStreetVehicles = Vector()
       }
 
-      // Mark rideHailingResult
+      // Mark rideHailingResult as None if we need to request a new one, or fake a result if we don't need to make a request
       modeChoiceStrategy match {
-        case None | Some(mode) if mode == RIDEHAIL =>
+        case Some(ModeChoiceStrategy(mode)) if mode == RIDEHAIL =>
+          rideHailingResult = None
+        case None =>
           rideHailingResult = None
         case _ =>
           rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA", classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequested)))
       }
 
+      def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit ={
+        val req = RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, id)
+        beamServices.beamRouter ! req
+        logInfo(req.toString)
+      }
+      def makeRideHailRequest(): Unit = {
+        beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
+      }
+      def filterStreetVehiclesForQuery(streetVehicles: Vector[StreetVehicle], byMode: BeamMode): Vector[StreetVehicle] = {
+        currentTourPersonalVehicle match {
+          case Some(personalVeh) =>
+            // We already have a vehicle we're using on this tour, so filter down to that
+            streetVehicles.filter(_.id == personalVeh)
+          case None =>
+            // Otherwise, filter by mode
+            streetVehicles.filter(_.mode == byMode)
+        }
+      }
+
       // Form and send requests
       modeChoiceStrategy match {
-        case None | Some(mode) if mode == WALK_TRANSIT =>
-          val req = RoutingRequest(currentActivity, nextAct, departTime, Vector(TRANSIT), Vector(bodyStreetVehicle), id)
-          beamServices.beamRouter ! req
-          logInfo(req.toString)
-          beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
-        case Some(mode) if mode == CAR || mode == BIKE =>
-          val streetVehiclesToUseInQuery = currentTourPersonalVehicle match {
-            case Some(personalVeh) =>
-              // We already have a vehicle we're using on this tour, so filter down to that
-              streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle
-            case None =>
-              // Just filter down to any CAR or BIKE
-              streetVehicles.filter(_.mode == mode) :+ bodyStreetVehicle
-          }
-          val req = RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehiclesToUseInQuery, id)
-          beamServices.beamRouter ! req
-          logInfo(req.toString)
-        case Some(mode) if mode == DRIVE_TRANSIT =>
-          val streetVehiclesToUseInQuery = currentTourPersonalVehicle match {
-            case Some(personalVeh) =>
-              // We already have a vehicle we're using on this tour, so filter down to that
-              streetVehicles.filter(_.id == personalVeh) :+ bodyStreetVehicle
-            case None =>
-              streetVehicles.filter(_.mode == CAR) :+ bodyStreetVehicle
-          }
-          val req = RoutingRequest(currentActivity, nextAct, departTime, Vector(), streetVehiclesToUseInQuery, id, streetVehiclesAsAccess = false)
-          beamServices.beamRouter ! req
-          logInfo(req.toString)
-        case Some(mode) if mode == RIDEHAIL =>
-          beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
+        case None =>
+          makeRequestWith(Vector(TRANSIT),streetVehicles :+ bodyStreetVehicle)
+          makeRideHailRequest
+        case Some(ModeChoiceStrategy(mode)) if mode == WALK =>
+          makeRequestWith(Vector(),Vector(bodyStreetVehicle))
+        case Some(ModeChoiceStrategy(mode)) if mode == WALK_TRANSIT =>
+          makeRequestWith(Vector(TRANSIT),Vector(bodyStreetVehicle))
+        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE =>
+          makeRequestWith(Vector(),filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
+        case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
+          makeRequestWith(Vector(TRANSIT),filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
+        case Some(ModeChoiceStrategy(mode)) if mode == RIDEHAIL =>
+          makeRideHailRequest
+          // We also need to fake a routingResponse since no routing request will be made
+          routingResponse = Some(RoutingResponse(Vector()))
       }
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
