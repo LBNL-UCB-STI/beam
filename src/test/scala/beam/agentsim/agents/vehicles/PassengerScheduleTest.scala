@@ -1,6 +1,10 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorSystem
+import akka.testkit.{ImplicitSender, TestFSMRef, TestKit}
+import beam.agentsim.agents.PersonAgent
+import org.scalatest._
+import beam.agentsim.util.MockAgents._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.RoutingModel.{BeamLeg, EmptyBeamPath}
@@ -14,7 +18,7 @@ import org.scalatest.{FunSpecLike, Matchers}
 /**
   *
   */
-class PassengerScheduleTest extends TestKit(ActorSystem("testSystem")) with Matchers with FunSpecLike with ImplicitSender with MockitoSugar {
+class PassengerScheduleTest extends TestKit(ActorSystem("testSystem")) with FunSpecLike with BeforeAndAfterAll with Matchers with ImplicitSender with MockitoSugar {
   val services: BeamServices = mock[BeamServices]
 
   describe("A PassengerSchedule") {
@@ -101,4 +105,9 @@ class PassengerScheduleTest extends TestKit(ActorSystem("testSystem")) with Matc
       passengerSchedule.schedule(leg3).alighters.size should ===(2)
     }
   }
+
+  override def afterAll: Unit = {
+    shutdown()
+  }
+
 }

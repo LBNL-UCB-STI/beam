@@ -9,6 +9,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.controler.MatsimServices;
 
 import java.util.*;
 
@@ -27,6 +28,7 @@ public class BeamEventsLogger {
 
     private HashSet<Class<?>> allLoggableEvents = new HashSet<>(), eventsToLog = new HashSet<>();
     private BeamServices beamServices;
+    private final MatsimServices matsimServices;
     private String eventsFileFormats;
     private ArrayList<BeamEventsFileFormats> eventsFileFormatsArray = new ArrayList<>();
 
@@ -35,9 +37,10 @@ public class BeamEventsLogger {
     private Multimap<Class, String> eventFieldsToAddWhenVerbose = ArrayListMultimap.create();
     private List<String> eventFields = null;
 
-    public BeamEventsLogger(BeamServices beamServices, EventsManager eventsManager) {
+    public BeamEventsLogger(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager) {
 
         this.beamServices = beamServices;
+        this.matsimServices = matsimServices;
         this.eventsManager = eventsManager;
         setEventsFileFormats();
 
@@ -81,11 +84,11 @@ public class BeamEventsLogger {
     }
 
     public void createEventsWriters() {
-        int iterationNumber = this.beamServices.matsimServices().getIterationNumber();
+        int iterationNumber = this.matsimServices.getIterationNumber();
         boolean writeThisIteration = (this.beamServices.beamConfig().beam().outputs().writeEventsInterval() > 0) && (iterationNumber % this.beamServices.beamConfig().beam().outputs().writeEventsInterval() == 0);
         if (writeThisIteration) {
-            this.beamServices.matsimServices().getControlerIO().createIterationDirectory(iterationNumber);
-            String eventsFileBasePath = this.beamServices.matsimServices().getControlerIO().getIterationFilename(iterationNumber, "events");
+            this.matsimServices.getControlerIO().createIterationDirectory(iterationNumber);
+            String eventsFileBasePath = this.matsimServices.getControlerIO().getIterationFilename(iterationNumber, "events");
 
             for (BeamEventsFileFormats fmt : this.eventsFileFormatsArray) {
                 BeamEventsWriterBase newWriter = null;

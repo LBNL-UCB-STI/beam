@@ -175,7 +175,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       ""
     }
 
-    context.system.eventStream.publish(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value,
+    eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value,
       expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       location, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_
         .beamLeg.travelPath.distanceInM).sum))

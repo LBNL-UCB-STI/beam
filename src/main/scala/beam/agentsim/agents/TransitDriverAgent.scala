@@ -5,8 +5,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, Props}
 import akka.util.Timeout
-import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -18,18 +18,16 @@ import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
 
 /**
   * BEAM
   */
 object TransitDriverAgent {
-  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicle: BeamVehicle,
+  def props(services: BeamServices, eventsManager: EventsManager,  transitDriverId: Id[TransitDriverAgent], vehicle: BeamVehicle,
             legs: Seq[BeamLeg]): Props = {
-    Props(new TransitDriverAgent(services, transitDriverId, vehicle, legs))
+    Props(new TransitDriverAgent(services, eventsManager, transitDriverId, vehicle, legs))
   }
 
   case class TransitDriverData() extends BeamAgentData
@@ -44,6 +42,7 @@ object TransitDriverAgent {
 }
 
 class TransitDriverAgent(val beamServices: BeamServices,
+                         val eventsManager: EventsManager,
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicle: BeamVehicle,
                          val legs: Seq[BeamLeg]) extends

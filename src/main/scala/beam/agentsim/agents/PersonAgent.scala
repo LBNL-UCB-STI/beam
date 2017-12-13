@@ -22,6 +22,7 @@ import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
@@ -37,9 +38,9 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(services: BeamServices, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan,
+  def props(services: BeamServices, eventsManager: EventsManager, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(services, personId, householdId, plan, humanBodyVehicleId))
+    Props(new PersonAgent(services, eventsManager, personId, householdId, plan, humanBodyVehicleId))
   }
 
   def buildActorName(personId: Id[Person]): String = {
@@ -112,6 +113,7 @@ object PersonAgent {
 }
 
 class PersonAgent(val beamServices: BeamServices,
+                  val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
                   val householdId: Id[Household],
                   val matsimPlan: Plan,
@@ -193,7 +195,7 @@ class PersonAgent(val beamServices: BeamServices,
         },
         nextAct => {
           logInfo(s"going to ${nextAct.getType} @ $tick")
-          context.system.eventStream.publish(new ActivityEndEvent(tick, id, currentAct.getLinkId,
+          eventsManager.processEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId,
             currentAct.getFacilityId, currentAct.getType))
           goto(ChoosingMode) replying completed(triggerId, schedule[BeginModeChoiceTrigger](tick, self))
         }
@@ -225,7 +227,7 @@ class PersonAgent(val beamServices: BeamServices,
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       _currentTripMode = Some(_currentRoute.tripClassifier)
-      context.system.eventStream.publish(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,
+      eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,
         _currentTripMode.get.matsimMode))
       processNextLegOrStartActivity(triggerId, tick)
     /*
@@ -436,10 +438,10 @@ class PersonAgent(val beamServices: BeamServices,
             //TODO consider ending the day here to match MATSim convention for start/end activity
             tick + 60 * 10
           }
-          context.system.eventStream.publish(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTripMode
+          eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTripMode
             .get.matsimMode))
           _currentTripMode = None
-          context.system.eventStream.publish(new ActivityStartEvent(tick, id, activity.getLinkId, activity
+          eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity
             .getFacilityId, activity.getType))
           goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
       }

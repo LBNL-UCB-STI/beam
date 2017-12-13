@@ -9,6 +9,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import org.matsim.api.core.v01.Id
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable
 
@@ -58,6 +59,8 @@ case class InitializeTrigger(tick: Double) extends Trigger
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
 
   override def logDepth = 12
+
+  val eventsManager: EventsManager
 
   def id: Id[_]
 
