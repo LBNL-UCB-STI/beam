@@ -349,7 +349,8 @@ class PersonAgent(val beamServices: BeamServices,
     _currentEmbodiedLeg match {
       case Some(embodiedBeamLeg) =>
         if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
-          beamServices.vehicles(_currentVehicle.outermostVehicle()).becomeDriver(self)
+          beamServices.vehicles(_currentVehicle.outermostVehicle()).unsetDriver()
+          context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
           _currentVehicle = _currentVehicle.pop()
         }
       case None =>
@@ -397,7 +398,7 @@ class PersonAgent(val beamServices: BeamServices,
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
             _currentEmbodiedLeg = None
-            goto(Waiting)
+            goto(Waiting) replying completed(triggerId)
           }
         case None =>
           stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
