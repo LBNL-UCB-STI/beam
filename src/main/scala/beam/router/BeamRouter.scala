@@ -163,7 +163,7 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
           matSimTransitVehicle, None, TransitVehicle)
         services.vehicles += (transitVehId -> vehicle)
         val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(services, transitDriverId, vehicle, legs)
+        val transitDriverAgentProps = TransitDriverAgent.props(services,eventsManager, transitDriverId, vehicle, legs)
         val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         services.agentRefs += (transitDriverId.toString -> transitDriver)
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
