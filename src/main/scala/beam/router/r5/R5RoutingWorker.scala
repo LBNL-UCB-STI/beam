@@ -226,11 +226,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
     val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => tripsForVehicle(vehicle))
 
     if(!embodiedTrips.exists(_.tripClassifier == WALK)) {
-      log.warning("No walk route found. {}",
-        JsonUtilities.objectMapper.writeValueAsString(routingRequestTripInfo))
+      log.debug("No walk route found. {}", routingRequestTripInfo)
       val maybeBody = routingRequestTripInfo.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        log.warning("Adding dummy walk route with maximum street time.")
+        log.debug("Adding dummy walk route with maximum street time.")
         val origin = new Coord(routingRequestTripInfo.origin.getX, routingRequestTripInfo.origin.getY)
         val dest = new Coord(routingRequestTripInfo.destination.getX, routingRequestTripInfo.destination.getY)
         val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)

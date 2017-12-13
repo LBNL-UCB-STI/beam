@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, WALK}
-import beam.router.RoutingModel.BeamTrip
+import beam.router.RoutingModel.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.gtfs.FareCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
@@ -28,7 +28,7 @@ import org.scalatest.mockito.MockitoSugar
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers with Inside
+class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers with Inside with LoneElement
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
@@ -78,6 +78,11 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       inside (walkTrip) {
         case BeamTrip(legs, _) =>
           legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
+          inside (legs.loneElement) {
+            case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+              mode should be (WALK)
+              links should be ('empty)
+          }
       }
     }
 
