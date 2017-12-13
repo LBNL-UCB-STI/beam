@@ -5,6 +5,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TripSchedule
 import org.matsim.api.core.v01.Id
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
@@ -12,6 +13,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
   * BEAM
   */
 class TransitVehicle(val beamServices: BeamServices,
+                     val eventsManager: EventsManager,
   val vehicleId: Id[Vehicle],
   val data: TransitVehicleData,
   var powerTrain: Powertrain,
@@ -40,19 +42,19 @@ case class TransitVehicleData() extends BeamAgentData
 
 object TransitVehicle extends BeamVehicleObject{
   // This props has it all
-  def props(beamServices: BeamServices, vehicleId: Id[Vehicle], data: TransitVehicleData, powerTrain: Powertrain,
+  def props(beamServices: BeamServices, eventsManager: EventsManager, vehicleId: Id[Vehicle], data: TransitVehicleData, powerTrain: Powertrain,
             initialMatsimVehicle: Vehicle, initialMatsimAttributes: Attributes) = {
-    Props(classOf[TransitVehicle], beamServices, vehicleId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes)
+    Props(new TransitVehicle(beamServices, eventsManager, vehicleId, data, powerTrain, initialMatsimVehicle, initialMatsimAttributes))
   }
 
   // This props follows spec of BeamVehicle
-  override def props(beamServices: BeamServices, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
-    props(beamServices, vehicleId, TransitVehicleData(), powertrain, matSimVehicle, new Attributes())
+  override def props(beamServices: BeamServices, eventsManager: EventsManager, vehicleId: Id[Vehicle], matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
+    props(beamServices, eventsManager, vehicleId, TransitVehicleData(), powertrain, matSimVehicle, new Attributes())
   }
 
   // This props is specifically for vehicle creation during initialization
-  def props(beamServices: BeamServices, matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
-    props(beamServices, matSimVehicle.getId, TransitVehicleData(), powertrain, matSimVehicle,  new Attributes())
+  def props(beamServices: BeamServices, eventsManager: EventsManager, matSimVehicle: Vehicle, powertrain: Powertrain): Props = {
+    props(beamServices, eventsManager, matSimVehicle.getId, TransitVehicleData(), powertrain, matSimVehicle,  new Attributes())
   }
 
   def createId(tripSchedule: TripSchedule) = {

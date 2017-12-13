@@ -276,17 +276,18 @@ object BeamConfig {
   )
   object Matsim {
     case class Modules(
-      changeMode    : BeamConfig.Matsim.Modules.ChangeMode,
-      controler     : BeamConfig.Matsim.Modules.Controler,
-      global        : BeamConfig.Matsim.Modules.Global,
-      households    : BeamConfig.Matsim.Modules.Households,
-      network       : BeamConfig.Matsim.Modules.Network,
-      planCalcScore : BeamConfig.Matsim.Modules.PlanCalcScore,
-      plans         : BeamConfig.Matsim.Modules.Plans,
-      qsim          : BeamConfig.Matsim.Modules.Qsim,
-      strategy      : BeamConfig.Matsim.Modules.Strategy,
-      transit       : BeamConfig.Matsim.Modules.Transit,
-      vehicles      : BeamConfig.Matsim.Modules.Vehicles
+      changeMode            : BeamConfig.Matsim.Modules.ChangeMode,
+      controler             : BeamConfig.Matsim.Modules.Controler,
+      global                : BeamConfig.Matsim.Modules.Global,
+      households            : BeamConfig.Matsim.Modules.Households,
+      network               : BeamConfig.Matsim.Modules.Network,
+      parallelEventHandling : BeamConfig.Matsim.Modules.ParallelEventHandling,
+      planCalcScore         : BeamConfig.Matsim.Modules.PlanCalcScore,
+      plans                 : BeamConfig.Matsim.Modules.Plans,
+      qsim                  : BeamConfig.Matsim.Modules.Qsim,
+      strategy              : BeamConfig.Matsim.Modules.Strategy,
+      transit               : BeamConfig.Matsim.Modules.Transit,
+      vehicles              : BeamConfig.Matsim.Modules.Vehicles
     )
     object Modules {
       case class ChangeMode(
@@ -358,6 +359,23 @@ object BeamConfig {
         }
       }
             
+      case class ParallelEventHandling(
+        estimatedNumberOfEvents : scala.Int,
+        numberOfThreads         : scala.Int,
+        oneThreadPerHandler     : scala.Boolean,
+        synchronizeOnSimSteps   : scala.Boolean
+      )
+      object ParallelEventHandling {
+        def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.ParallelEventHandling = {
+          BeamConfig.Matsim.Modules.ParallelEventHandling(
+            estimatedNumberOfEvents = if(c.hasPathOrNull("estimatedNumberOfEvents")) c.getInt("estimatedNumberOfEvents") else 1000000000,
+            numberOfThreads         = if(c.hasPathOrNull("numberOfThreads")) c.getInt("numberOfThreads") else 1,
+            oneThreadPerHandler     = c.hasPathOrNull("oneThreadPerHandler") && c.getBoolean("oneThreadPerHandler"),
+            synchronizeOnSimSteps   = c.hasPathOrNull("synchronizeOnSimSteps") && c.getBoolean("synchronizeOnSimSteps")
+          )
+        }
+      }
+
       case class PlanCalcScore(
         BrainExpBeta   : scala.Long,
         earlyDeparture : scala.Long,
@@ -483,17 +501,18 @@ object BeamConfig {
             
       def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules = {
         BeamConfig.Matsim.Modules(
-          changeMode    = BeamConfig.Matsim.Modules.ChangeMode(c.getConfig("changeMode")),
-          controler     = BeamConfig.Matsim.Modules.Controler(c.getConfig("controler")),
-          global        = BeamConfig.Matsim.Modules.Global(c.getConfig("global")),
-          households    = BeamConfig.Matsim.Modules.Households(c.getConfig("households")),
-          network       = BeamConfig.Matsim.Modules.Network(c.getConfig("network")),
-          planCalcScore = BeamConfig.Matsim.Modules.PlanCalcScore(c.getConfig("planCalcScore")),
-          plans         = BeamConfig.Matsim.Modules.Plans(c.getConfig("plans")),
-          qsim          = BeamConfig.Matsim.Modules.Qsim(c.getConfig("qsim")),
-          strategy      = BeamConfig.Matsim.Modules.Strategy(c.getConfig("strategy")),
-          transit       = BeamConfig.Matsim.Modules.Transit(c.getConfig("transit")),
-          vehicles      = BeamConfig.Matsim.Modules.Vehicles(c.getConfig("vehicles"))
+          changeMode            = BeamConfig.Matsim.Modules.ChangeMode(c.getConfig("changeMode")),
+          controler             = BeamConfig.Matsim.Modules.Controler(c.getConfig("controler")),
+          global                = BeamConfig.Matsim.Modules.Global(c.getConfig("global")),
+          households            = BeamConfig.Matsim.Modules.Households(c.getConfig("households")),
+          network               = BeamConfig.Matsim.Modules.Network(c.getConfig("network")),
+          parallelEventHandling = BeamConfig.Matsim.Modules.ParallelEventHandling(c.getConfig("parallelEventHandling")),
+          planCalcScore         = BeamConfig.Matsim.Modules.PlanCalcScore(c.getConfig("planCalcScore")),
+          plans                 = BeamConfig.Matsim.Modules.Plans(c.getConfig("plans")),
+          qsim                  = BeamConfig.Matsim.Modules.Qsim(c.getConfig("qsim")),
+          strategy              = BeamConfig.Matsim.Modules.Strategy(c.getConfig("strategy")),
+          transit               = BeamConfig.Matsim.Modules.Transit(c.getConfig("transit")),
+          vehicles              = BeamConfig.Matsim.Modules.Vehicles(c.getConfig("vehicles"))
         )
       }
     }

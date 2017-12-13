@@ -15,14 +15,15 @@ import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 /**
   * BEAM
   */
 object TransitDriverAgent {
-  def props(services: BeamServices, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, legs: Seq[BeamLeg]) = {
-    Props(classOf[TransitDriverAgent], services, transitDriverId, vehicleIdAndRef, legs)
+  def props(services: BeamServices, eventsManager: EventsManager, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, legs: Seq[BeamLeg]) = {
+    Props(new TransitDriverAgent(services, eventsManager, transitDriverId, vehicleIdAndRef, legs))
   }
   case class TransitDriverData() extends BeamAgentData
 
@@ -36,6 +37,7 @@ object TransitDriverAgent {
 }
 
 class TransitDriverAgent(val beamServices: BeamServices,
+                         val eventsManager: EventsManager,
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicleIdAndRef: BeamVehicleIdAndRef,
                          val legs: Seq[BeamLeg]) extends
