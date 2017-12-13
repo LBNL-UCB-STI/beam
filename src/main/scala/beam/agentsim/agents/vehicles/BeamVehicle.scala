@@ -37,7 +37,7 @@ class BeamVehicle(override var manager: Option[ActorRef],
                   beamVehicleType: BeamVehicleType,
                  )
   extends Resource[BeamVehicle] {
-  val logger: Logger = Logger.getLogger("BeamVehicle")
+  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
 
   /**
     * MATSim vehicle delegate container (should be instantiated with all properties at creation).
@@ -45,16 +45,17 @@ class BeamVehicle(override var manager: Option[ActorRef],
   val matSimVehicle: Vehicle = initialMatsimVehicle
 
   /**
-    * Identifier for this vehicle
-    */
-  val id: Id[Vehicle] = matSimVehicle.getId
-
-  /**
     * Manages the functionality to add or remove passengers from the vehicle according
     * to standing or sitting seating occupancy information.
     */
-  val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator =
+  private val vehicleOccupancyAdministrator: VehicleOccupancyAdministrator =
     DefaultVehicleOccupancyAdministrator(this)
+
+
+  /**
+    * Identifier for this vehicle
+    */
+  val id: Id[Vehicle] = matSimVehicle.getId
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -68,11 +69,6 @@ class BeamVehicle(override var manager: Option[ActorRef],
     * The vehicle that is carrying this one. Like ferry or truck may carry a car and like a car carries a human body.
     */
   var carrier: Option[ActorRef] = None
-
-  /**
-    * The list of passenger vehicles (e.g., people, AVs, cars) currently occupying the vehicle.
-    */
-  var passengers: Set[Id[Vehicle]] = Set()
 
   def getType: VehicleType = matSimVehicle.getType
 
@@ -109,6 +105,33 @@ class BeamVehicle(override var manager: Option[ActorRef],
     } else {
       Left(DriverAlreadyAssigned(id, driver.get))
     }
+  }
+
+  /**
+    * Try to remove a passenger from the vehicle. If the passenger is seated, then perhaps a standing passenger
+    * will take the seat according to priorities defined through the [[SeatAssignmentRule.assignSeatOnLeave]].
+    *
+    * @param idToRemove the passenger [[Vehicle]] to remove.
+    * @return [[Try]] expression (maybe) holding a [[ClearCarrier]] message for the driver to pass on to the passenger.
+    */
+  def removePassenger(idToRemove: Id[Vehicle]): Unit = {
+    vehicleOccupancyAdministrator.removePassenger(idToRemove) match {
+      case Success(cc) =>
+        carrier = None
+      case Failure(_)=>
+        log.error(s"Trying to remove passenger $idToRemove, but this passenger is not on board!")
+    }
+  }
+
+  /**
+    * Try to add a passenger to the vehicle according to the [[SeatAssignmentRule]]
+    *
+    * @param idToAdd the passenger [[Vehicle]] to add
+    * @return [[Either]] a message to be sent from the driver to the passenger that the vehicle
+    *         capacity has been exceeded ([[Left]]) or a
+    */
+  def addPassenger(idToAdd: Id[Vehicle]): Either[VehicleFullError, SetCarrier] = {
+    vehicleOccupancyAdministrator.addPassenger(idToAdd)
   }
 }
 
@@ -188,13 +211,7 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     }
   }
 
-  /**
-    * Try to remove a passenger from the vehicle. If the passenger is seated, then perhaps a standing passenger
-    * will take the seat according to priorities defined through the [[SeatAssignmentRule.assignSeatOnLeave]].
-    *
-    * @param idToRemove the passenger [[Vehicle]] to remove.
-    * @return [[Try]] expression (maybe) holding a [[ClearCarrier]] message for the driver to pass on to the passenger.
-    */
+
   def removePassenger(idToRemove: Id[Vehicle]): Try[ClearCarrier] = {
     if (seatedPassengers.contains(idToRemove)) {
       if (standingPassengers.nonEmpty) {

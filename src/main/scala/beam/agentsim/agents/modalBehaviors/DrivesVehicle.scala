@@ -71,8 +71,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           val i = 0
           throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
       }
+
     case Event(AlightVehicle(tick, vehiclePersonId), _) =>
       _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
+
+      // Remove person from vehicle and clear carrier
+      _currentVehicleUnderControl.foreach(veh=>veh.removePassenger(vehiclePersonId.vehicleId))
+
       if (_awaitingAlightConfirmation.isEmpty) {
         processNextLegOrCompleteMission()
       } else {
@@ -256,6 +261,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
+
     if (passengerSchedule.schedule.nonEmpty) {
       val nextLeg = passengerSchedule.schedule.firstKey
       beamServices.schedulerRef ! completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
@@ -274,8 +280,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       case _ =>
         val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
         ReservationResponse(req.requestId,
-          _currentVehicleUnderControl.map(_.vehicleOccupancyAdministrator
-            .addPassenger(req
+          _currentVehicleUnderControl.map(_.addPassenger(req
               .passengerVehiclePersonId.vehicleId).flatMap({ _ =>
             val legs = tripReservations.map(_._1)
             passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
