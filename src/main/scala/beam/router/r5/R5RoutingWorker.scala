@@ -56,8 +56,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
       this.maybeTravelTime = Some(travelTime)
   }
 
-  def calcRoute(routingRequestTripInfo: RoutingRequestTripInfo)
-  : RoutingResponse = {
+  def calcRoute(routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
     val maxStreetTime = 2 * 60
 
     def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode,
