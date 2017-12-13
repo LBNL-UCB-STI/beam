@@ -69,7 +69,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
         StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
         StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
       ), Id.createPersonId("116378-2")))
-      val response = expectMsgType[RoutingResponse]
+      val response = expectMsgType[RoutingResponse] // uncomment this when debugging (10.minutes)
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
       assert(response.itineraries.exists(_.tripClassifier == CAR))

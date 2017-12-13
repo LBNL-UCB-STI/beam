@@ -39,7 +39,6 @@ object RoutingModel {
       var theMode: BeamMode = WALK
       var hasUsedCar: Boolean = false
       legs.foreach { leg =>
-        if(leg.beamLeg.mode == CAR)hasUsedCar = true
         // Any presence of transit makes it transit
         if (leg.beamLeg.mode.isTransit) {
           theMode = TRANSIT
@@ -53,6 +52,7 @@ object RoutingModel {
         } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
           theMode = BIKE
         }
+        if(theMode == CAR)hasUsedCar = true
       }
       if(theMode == TRANSIT && hasUsedCar){
         DRIVE_TRANSIT
