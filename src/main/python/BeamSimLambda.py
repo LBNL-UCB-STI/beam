@@ -40,6 +40,7 @@ runcmd:
   - git fetch
   - echo "git checkout ..."
   - git checkout $BRANCH
+  - git pull
   - echo "git checkout -qf ..."
   - git checkout -qf $COMMIT
   - echo "gradlew assemble ..."
