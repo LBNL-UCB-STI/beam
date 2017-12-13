@@ -11,7 +11,7 @@ CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"
   -    sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
   -    rm -rf test/output/*'''
 
-EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf '''
+EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
 BRANCH_DEFAULT = 'master'
 
@@ -51,6 +51,7 @@ runcmd:
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
+  - /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) finished execution..." -b "An EC2 instance of type $(ec2metadata --instance-type) has just completed the run for batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
