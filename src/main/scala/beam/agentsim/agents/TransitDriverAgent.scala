@@ -1,18 +1,16 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, Props}
-import akka.util.Timeout
-import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
@@ -84,6 +82,10 @@ class TransitDriverAgent(val beamServices: BeamServices,
       stay
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
       stop replying completed(triggerId)
+    case Event(IllegalTriggerGoToError(reason), _)  =>
+      stop(Failure(reason))
+    case Event(Finish, _) =>
+      stop
   }
 
   when(Waiting) {
