@@ -29,9 +29,9 @@ object VehicleProtocol {
 
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
-  case class EnterVehicle(tick: Double, passengerVehicle: VehiclePersonId)
+  case class BoardVehicle(tick: Double, passengerVehicle: VehiclePersonId)
 
-  case class ExitVehicle(tick: Double, passengerVehicle: VehiclePersonId)
+  case class AlightVehicle(tick: Double, passengerVehicle: VehiclePersonId)
 
   case class RemovePassengerFromTrip(passId: VehiclePersonId)
 

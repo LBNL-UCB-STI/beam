@@ -68,10 +68,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
+          val i = 0
           throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
       }
-    case Event(AlightingConfirmation(vehicleId), _) =>
-      _awaitingAlightConfirmation -= vehicleId
+    case Event(AlightVehicle(tick, vehiclePersonId), _) =>
+      _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
       if (_awaitingAlightConfirmation.isEmpty) {
         processNextLegOrCompleteMission()
       } else {
@@ -103,8 +104,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         case None =>
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
-    case Event(BoardingConfirmation(vehicleId), _) =>
-      _awaitingBoardConfirmation -= vehicleId
+    case Event(BoardVehicle(tick, vehiclePersonId), _) =>
+      _awaitingBoardConfirmation -= vehiclePersonId.vehicleId
       if (_awaitingBoardConfirmation.isEmpty) {
         releaseAndScheduleEndLeg()
       } else {

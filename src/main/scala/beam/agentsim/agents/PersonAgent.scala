@@ -271,7 +271,7 @@ class PersonAgent(val beamServices: BeamServices,
                 //       to the driver (associated with vehicleID)
                 beamServices.vehicles(nextBeamVehicleId).driver.foreach(
                   driver =>
-                    driver ! EnterVehicle(tick, VehiclePersonId(previousVehicleId, id))
+                    driver ! BoardVehicle(tick, VehiclePersonId(previousVehicleId, id))
                 )
 
                 _currentRoute = processedData.restTrip
@@ -306,7 +306,7 @@ class PersonAgent(val beamServices: BeamServices,
               } else {
                 // The next vehicle is different from current so we exit the current vehicle
                 val passengerVehicleId = _currentVehicle.penultimateVehicle()
-                beamServices.vehicles(_currentVehicle.outermostVehicle()).driver.get ! ExitVehicle(tick,
+                beamServices.vehicles(_currentVehicle.outermostVehicle()).driver.get ! AlightVehicle(tick,
                   VehiclePersonId(passengerVehicleId, id))
                 _currentVehicle = _currentVehicle.pop()
                 // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass
@@ -384,14 +384,14 @@ class PersonAgent(val beamServices: BeamServices,
                 stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
                   s"but driver ${vehicle.driver.get} already assigned.")),
                 fb => {
-                  vehicle.driver.get ! fb
+                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehicle)
                   context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
                 })
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _currentRoute = processedData.restTrip
             _currentEmbodiedLeg = Some(processedData.nextLeg)
-            stay() replying completed(triggerId)
+            stay()
           }
           else {
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
@@ -484,7 +484,7 @@ class PersonAgent(val beamServices: BeamServices,
   chainedWhen(AnyState) {
     case Event(ModifyPassengerScheduleAck(_), _) =>
       scheduleStartLegAndStay()
-    case Event(BecomeDriverSuccessAck(_), _) =>
+    case Event(BecomeDriverSuccessAck, _) =>
       scheduleStartLegAndStay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
