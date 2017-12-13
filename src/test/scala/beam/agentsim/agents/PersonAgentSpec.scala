@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -13,8 +14,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigFactory
-import glokka.Registry
-import glokka.Registry.Created
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
 import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler
@@ -65,27 +64,12 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       expectMsg(CompletionNotice(0L))
     }
 
-    it("should be able to be registered in registry") {
-      val registry = Registry.start(this.system, "actor-registry")
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      val name = "0"
-      val plan = PopulationUtils.getFactory.createPlan()
-      plan.addActivity(homeActivity)
-      val householdId  =  Id.create("dummyHousehold", classOf[Household])
-      val bodyVehicle = Id.create("dummyBody", classOf[Vehicle])
-      val props = PersonAgent.props(services, eventsManager, Id.createPersonId(name), householdId, plan, bodyVehicle)
-      registry ! Registry.Register(name, props)
-      val ok = expectMsgType[Created]
-      ok.name mustEqual name
-    }
-
     it("should publish events that can be received by a MATSim EventsManager") {
       val houseIdDummy = Id.create("dummy",classOf[Household])
       eventsManager.addHandler(new ActivityEndEventHandler {
         override def handleEvent(event: ActivityEndEvent): Unit = {
           system.log.error("events-subscriber received actend event!")
         }
-        override def reset(iteration: Int): Unit = {}
       })
 
       val plan = PopulationUtils.getFactory.createPlan()
@@ -103,9 +87,14 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       EventFilter.error(message = "events-subscriber received actend event!", occurrences = 1) intercept {
         beamAgentSchedulerRef ! StartSchedule(0)
       }
+      // Need to help the agent -- it can't finish its day on its own yet, without a router and such.
+      personAgentRef ! Finish
+      expectMsg(CompletionNotice(0L))
     }
 
-    it("should be able to route legs"){
+    // Finishing this test requires giving the agent a mock router,
+    // and verifying that the expected events are thrown.
+    ignore("should demonstrate a simple complete daily activity pattern") {
       val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
       val houseIdDummy = Id.create("dummy",classOf[Household])
 
@@ -125,14 +114,15 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       plan.addActivity(backHomeActivity)
 
       val personAgentRef = TestFSMRef(new PersonAgent(services, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+      watch(personAgentRef)
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 200.0, maxWindow = 10.0))
 
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(0)
+      expectTerminated(personAgentRef)
+      expectMsg(CompletionNotice(0L))
     }
 
-    // TODO
-    //it("should demonstrate a simple complete daily activity pattern")(pending)
   }
 
   override def afterAll: Unit = {

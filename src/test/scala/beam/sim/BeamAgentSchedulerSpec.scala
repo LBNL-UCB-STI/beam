@@ -32,6 +32,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Co
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! StartSchedule(0)
       beamAgentRef.stateName should be(Initialized)
+      beamAgentRef ! Finish
       expectMsg(CompletionNotice(0L))
     }
 
@@ -98,6 +99,8 @@ object BeamAgentSchedulerSpec {
     }
     chainedWhen(AnyState) {
       case Event(IllegalTriggerGoToError(_), _) =>
+        stop
+      case Event(Finish, _) =>
         stop
     }
   }
