@@ -102,6 +102,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
+          print("")
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
     case Event(BoardVehicle(tick, vehiclePersonId), _) =>
@@ -270,7 +271,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     _currentLeg match {
       case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
         ReservationResponse(req.requestId, Left(VehicleGoneError))
-      case None =>
+      case _ =>
         val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
         ReservationResponse(req.requestId,
           _currentVehicleUnderControl.map(_.vehicleOccupancyAdministrator
