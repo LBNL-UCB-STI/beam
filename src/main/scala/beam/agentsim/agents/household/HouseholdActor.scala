@@ -13,8 +13,9 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamPath
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
@@ -32,10 +33,10 @@ object HouseholdActor {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
 
-  def props(beamServices: BeamServices, householdId: Id[Household], matSimHousehold: Household,
+  def props(beamServices: BeamServices, eventsManager: EventsManager, population: Population, householdId: Id[Household], matSimHousehold: Household,
             houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], membersActors: Map[Id[Person], ActorRef],
             homeCoord: Coord): Props = {
-    Props(new HouseholdActor(beamServices, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
+    Props(new HouseholdActor(beamServices, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
   }
 
   case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
@@ -60,6 +61,8 @@ object HouseholdActor {
 }
 
 class HouseholdActor(services: BeamServices,
+                     eventsManager: EventsManager,
+                     population: Population,
                      id: Id[households.Household],
                      matSimHouseHold: org.matsim.households.Household,
                      vehicles: Map[Id[BeamVehicle], BeamVehicle],
@@ -131,15 +134,12 @@ class HouseholdActor(services: BeamServices,
         case _ =>
       }
 
-    case InitializeRideHailAgent(memberId) => {
+    case InitializeRideHailAgent(memberId) =>
       memberActors.keys.toList.find(_.equals(memberId)).foreach(personId => {
         _reservedForPerson.get(personId).foreach({ vehId =>
-          RideHailingAgent.props(services, personId, vehId, homeCoord)
+          RideHailingAgent.props(services, eventsManager, personId, vehId, homeCoord)
         })
-        //        RideHailingAgent.props(beamServices,)
       })
-
-    }
 
     case MobilityStatusInquiry(_, personId) =>
       // Query reserved vehicles
@@ -159,7 +159,7 @@ class HouseholdActor(services: BeamServices,
 
   def lookupMemberRank(member: Id[Person]): Option[Int] = {
 
-    beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank")
+    population.getPersonAttributes.getAttribute(member.toString, "rank")
     match {
       case rank: Integer =>
         Some(rank)

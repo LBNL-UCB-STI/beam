@@ -2,7 +2,6 @@ package beam.sim
 
 import java.nio.file.{Files, Paths}
 
-import beam.agentsim.events.AkkaEventsManagerImpl
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.controler.corelisteners.BeamPrepareForSimImpl
@@ -15,7 +14,7 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
-import org.matsim.core.events.EventsUtils
+import org.matsim.core.events.{EventsManagerImpl, EventsUtils, ParallelEventsManagerImpl}
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
 import scala.collection.JavaConverters._
@@ -51,7 +50,6 @@ trait RunBeam {
         bindMobsim().to(classOf[BeamMobsim])
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bind(classOf[EventsManager]).to(classOf[AkkaEventsManagerImpl])
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
       }
     }))

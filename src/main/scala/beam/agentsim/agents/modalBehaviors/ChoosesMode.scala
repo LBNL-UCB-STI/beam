@@ -12,10 +12,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Tour
 import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{
-  BeginModeChoiceTrigger, FinalizeModeChoiceTrigger,
-  LegWithPassengerVehicle
-}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -29,7 +26,6 @@ import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -62,9 +58,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   (_household).getIncome.getIncome,
     beamServices.households(_household).getMemberIds.size(),
     new Random().nextBoolean(),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.matsimServices.getScenario.getVehicles.getVehicles.get(_)).count(_.getType
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
       .getDescription.toLowerCase.contains("car")),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.matsimServices.getScenario.getVehicles.getVehicles.get(_)).count(_.getType
+    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
       .getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
@@ -175,7 +171,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       ""
     }
 
-    context.system.eventStream.publish(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value,
+    eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value,
       expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       location, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_
         .beamLeg.travelPath.distanceInM).sum))

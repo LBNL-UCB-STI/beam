@@ -1,9 +1,8 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props}
+import akka.actor.Props
 import akka.pattern.{ask, pipe}
-import beam.agentsim.Resource
 import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
@@ -19,18 +18,19 @@ import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object RideHailingAgent {
   val idPrefix: String = "rideHailingAgent"
-  // syntactic sugar for props creation
-  def props(services: BeamServices, rideHailingAgentId: Id[RideHailingAgent], vehicleId: Id[Vehicle], location: Coord) =
-    Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleId, location), services))
+
+  def props(services: BeamServices, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicleId: Id[Vehicle], location: Coord) =
+    Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleId, location), eventsManager, services))
 
   case class RideHailingAgentData(vehicleId: Id[Vehicle], location: Coord) extends BeamAgentData
 
@@ -38,16 +38,9 @@ object RideHailingAgent {
 
   case object Traveling extends BeamAgentState
 
-  case class PickupCustomer(confirmation: ReservationResponse,
-                            customerId: Id[Person],
-                            pickUpLocation: Location,
-                            destination: Location,
-                            trip2DestPlan: Option[BeamTrip],
-                            trip2CustPlan: Option[BeamTrip])
+  case class PickupCustomer(confirmation: ReservationResponse, customerId: Id[Person], pickUpLocation: Location, destination: Location, trip2DestPlan: Option[BeamTrip], trip2CustPlan: Option[BeamTrip])
 
   case class DropOffCustomer(newLocation: SpaceTime)
-
-  case class RegisterRideAvailableWrapper(triggerId: Long)
 
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
@@ -63,9 +56,10 @@ object RideHailingAgent {
 
 }
 
-class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val
-beamServices: BeamServices)
-  extends DrivesVehicle[RideHailingAgentData]  {
+class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val eventsManager: EventsManager, val beamServices: BeamServices)
+  extends BeamAgent[RideHailingAgentData]
+    with HasServices
+    with DrivesVehicle[RideHailingAgentData] {
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   chainedWhen(Uninitialized) {
@@ -77,16 +71,8 @@ beamServices: BeamServices)
 
   chainedWhen(Waiting) {
     case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info) =>
-      val rideAvailable = ResourceIsAvailableNotification(id, SpaceTime(info.data.location,
-        tick
-          .toLong))
-      val managerFuture = (beamServices.rideHailingManager ? rideAvailable).mapTo[RideAvailableAck.type].map(_ =>
-        RegisterRideAvailableWrapper(triggerId)
-      )
-      managerFuture pipeTo self
-      stay()
-    case Event(RegisterRideAvailableWrapper(triggerId), _) =>
-      beamServices.schedulerRef ! CompletionNotice(triggerId)
+      val response = beamServices.rideHailingManager ? ResourceIsAvailableNotification(info.data.vehicleId, SpaceTime(info.data.location, tick.toLong))
+      response.mapTo[RideAvailableAck.type].map(result => CompletionNotice(triggerId)) pipeTo beamServices.schedulerRef
       stay()
   }
 
