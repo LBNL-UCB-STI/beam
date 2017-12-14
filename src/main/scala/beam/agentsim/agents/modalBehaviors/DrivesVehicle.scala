@@ -272,26 +272,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       goto(Waiting)
     }
   }
-//
-//  private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
-//    // XXXX This is really quite beautiful functional code! Not IMO, very difficult to understand.
-//    _currentLeg match {
-//      case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
-//        ReservationResponse(req.requestId, Left(VehicleGoneError))
-//      case _ =>
-//        val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
-//        ReservationResponse(req.requestId,
-//          _currentVehicleUnderControl.map(_.addPassenger(req
-//              .passengerVehiclePersonId.vehicleId).flatMap({ _ =>
-//            val legs = tripReservations.map(_._1)
-//            passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
-//            Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId))
-//          })).getOrElse(
-//            // In case vehicle not currently under your control!
-//            Left(VehicleNotUnderControlError))
-//        )
-//    }
-//  }
 
   private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
     val response = _currentLeg match {
