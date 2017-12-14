@@ -94,39 +94,19 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
         }
       }.toSeq
       tripPattern.tripSchedules.asScala
-        .filter(_.getNStops > 0)
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique for this trip which will become the transit agent and vehicle ids
           val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
-          val numStops = tripSchedule.departures.length
-
           var legs: Seq[BeamLeg] = Nil
-          if (numStops > 1) {
-            val travelStops = tripSchedule.departures.zipWithIndex.sliding(2)
-            travelStops.foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
-              val duration = tripSchedule.arrivals(to) - departureTimeFrom
-              //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
-              //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
-              legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
-            }
-          } else {
-            log.warning(s"Transit trip  ${tripSchedule.tripId} has only one stop ")
-            val departureStart = tripSchedule.departures(0)
-            val fromStopIdx = tripPattern.stops(0)
-            //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
-            //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in beamServices.transitVehiclesByBeamLeg
-            val duration = 1L
-            val edgeIds = resolveFirstLastTransitEdges(fromStopIdx)
-            val stopsInfo = TransitStopsInfo(0, tripVehId, 0)
-            val transitPath = BeamPath(edgeIds, Option(stopsInfo),
-              TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration))
-            legs :+= BeamLeg(departureStart.toLong, mode, duration, transitPath)
+          tripSchedule.departures.zipWithIndex.sliding(2).foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
+            val duration = tripSchedule.arrivals(to) - departureTimeFrom
+            legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
           }
           (tripVehId, (route, legs))
         }
     }
-    val transitScheduleToCreate = transitData.filter(_._2._2.nonEmpty).toMap
+    val transitScheduleToCreate = transitData.toMap
     transitScheduleToCreate.foreach { case (tripVehId, (route, legs)) =>
       createTransitVehicle(tripVehId, route, legs)
     }
