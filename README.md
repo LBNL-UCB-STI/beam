@@ -24,24 +24,31 @@ java -Xmx2g -jar build/libs/beam.jar --config test/input/beamville/beam.conf
 
 
 ## Deploy
-To run BEAM simulation on amazon ec2, use following command with some optional parameters.
+To run BEAM simulation or experiment on amazon ec2, use following command with some optional parameters.
 ```
-gradle deploy
+gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
 ```
  It can take some parameters from command line, use `-P` to specify the parameter.
  
  - `beamBranch`: To specify the branch for simulation, master is default branch.
  - `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit.
- - `beamConfigs`: A comma `,` separated list of `beam.conf` file names. It should be relative path under the project home.
+ - `beamConfigs`: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home.
+ - `beamExperiments`: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.
+ - `beamBatch`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
  - `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min. 
  
- To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can found in the output log of the command.
+ To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can be found in the output log of the command.
  
- To run batch simulation you can specify the conf files using parameter like:
+ To run batch simulation, you can specify the configuration files using parameter like:
  ```
- gradle deploy -PbeamConfigs=production/application-sfbay/base.conf,production/application-sfbay/beamB.conf,production/application-sfbay/beamC.conf,production/application-sfbay/beamD.conf
+ gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
  ```
- It will start an ec2 instance, using provided configurations and run all simulations in serial. At the end of each simulation it uploads the results to s3.
+ 
+ To run batch experiments, you can specify the experiment files using parameter like:
+  ```
+  gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
+  ```
+ It will start an ec2 instance, using provided configurations and run all simulations in serial. To run all on separate parallel instances, set `beamBatch` to false. At the end of each simulation it uploads the results to s3.
  
 > gradle.properties contains default values for all the parameters.
 

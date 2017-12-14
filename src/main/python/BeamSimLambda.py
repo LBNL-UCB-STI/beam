@@ -5,7 +5,27 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-initscript = '''#cloud-config
+CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"
+  -    sleep 10s
+  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -    sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
+  -    rm -rf test/output/*'''
+
+EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
+
+BRANCH_DEFAULT = 'master'
+
+COMMIT_DEFAULT = 'HEAD'
+
+SHUTDOWN_DEFAULT = '30'
+
+TRUE = 'true'
+
+EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
+
+CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
+
+initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
@@ -17,20 +37,23 @@ runcmd:
   - crontab -l
   - echo "notification scheduled..."
   - cd /home/ubuntu/git/beam
+  - git fetch
+  - echo "git checkout ..."
   - git checkout $BRANCH
-  - git fetch --all
+  - git pull
+  - echo "git checkout -qf ..."
   - git checkout -qf $COMMIT
+  - echo "gradlew assemble ..."
+  - ./gradlew assemble
+  - echo "looping config ..."
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
-  -    ./gradlew --stacktrace run -PappArgs="['--config', '$cf']" 
-  -    sleep 10s
-  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
-  -    rm -rf test/output/*
+  -    $RUN_SCRIPT
   -  done
+  - /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) finished execution..." -b "An EC2 instance of type $(ec2metadata --instance-type) has just completed the run for batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
   - sudo shutdown -h +$SHUTDOWN_WAIT
-'''
+'''))
 
 instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
                   'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
@@ -88,30 +111,36 @@ def get_dns(instance_id):
     return host
 
 def lambda_handler(event, context):
-    branch = event.get('branch', 'master')
-    commit_id = event.get('commit', 'HEAD')
-    configs = event.get('configs', 'production/application-sfbay/base.conf')
+    branch = event.get('branch', BRANCH_DEFAULT)
+    commit_id = event.get('commit', COMMIT_DEFAULT)
+    configs = event.get('configs', CONFIG_DEFAULT)
+    is_experiment = event.get('is_experiment', 'false')
     instance_type = event.get('instance_type')
-    batch = event.get('batch', 'true')
-    shutdown_wait = event.get('shutdown_wait', '30')
+    batch = event.get('batch', TRUE)
+    shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
 
     if instance_type is None or instance_type not in instance_types:
         instance_type = os.environ['INSTANCE_TYPE']
 
-    if batch == 'true':
-        configs = [ configs ]
+    selected_script = CONFIG_SCRIPT
+    if is_experiment == TRUE:
+        selected_script = EXPERIMENT_SCRIPT
+
+    if batch == TRUE:
+        configs = [ configs.replace(',', ' ') ]
     else:
-        configs = configs.split(' ')
+        configs = configs.split(',')
 
     txt = ''
 
     if validate(branch) and validate(commit_id):
-        for cfg in configs:
+        for arg in configs:
             uid = str(uuid.uuid4())[:8]
-            script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', cfg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
             instance_id = deploy(script, instance_type)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
+            # txt = txt + 'Script is {script}. \n'.format(script=script)
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}.'.format(branch=branch, commit=commit_id)
 
