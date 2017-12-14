@@ -42,7 +42,7 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)

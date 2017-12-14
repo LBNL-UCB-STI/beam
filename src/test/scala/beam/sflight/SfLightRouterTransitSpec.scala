@@ -48,7 +48,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], Vehicle])
     when(services.vehicleRefs).thenReturn(new TrieMap[Id[Vehicle], ActorRef])
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
