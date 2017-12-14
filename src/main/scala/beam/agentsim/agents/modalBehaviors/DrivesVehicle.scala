@@ -7,7 +7,7 @@ import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleGoneError, VehicleNotUnderControlError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError, VehicleNotUnderControlError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -73,10 +73,10 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
 
     case Event(AlightVehicle(tick, vehiclePersonId), _) =>
-      _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
 
       // Remove person from vehicle and clear carrier
       _currentVehicleUnderControl.foreach(veh=>veh.removePassenger(vehiclePersonId.vehicleId))
+      _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
 
       if (_awaitingAlightConfirmation.isEmpty) {
         processNextLegOrCompleteMission()
@@ -112,6 +112,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
     case Event(BoardVehicle(tick, vehiclePersonId), _) =>
       _awaitingBoardConfirmation -= vehiclePersonId.vehicleId
+      _currentVehicleUnderControl.foreach(veh=>veh.addPassenger(vehiclePersonId.vehicleId))
       if (_awaitingBoardConfirmation.isEmpty) {
         releaseAndScheduleEndLeg()
       } else {
@@ -271,24 +272,47 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       goto(Waiting)
     }
   }
+//
+//  private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
+//    // XXXX This is really quite beautiful functional code! Not IMO, very difficult to understand.
+//    _currentLeg match {
+//      case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
+//        ReservationResponse(req.requestId, Left(VehicleGoneError))
+//      case _ =>
+//        val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
+//        ReservationResponse(req.requestId,
+//          _currentVehicleUnderControl.map(_.addPassenger(req
+//              .passengerVehiclePersonId.vehicleId).flatMap({ _ =>
+//            val legs = tripReservations.map(_._1)
+//            passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
+//            Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId))
+//          })).getOrElse(
+//            // In case vehicle not currently under your control!
+//            Left(VehicleNotUnderControlError))
+//        )
+//    }
+//  }
 
   private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
-    // XXXX This is really quite beautiful functional code!
-    _currentLeg match {
+    val response = _currentLeg match {
       case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
         ReservationResponse(req.requestId, Left(VehicleGoneError))
       case _ =>
         val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
-        ReservationResponse(req.requestId,
-          _currentVehicleUnderControl.map(_.addPassenger(req
-              .passengerVehiclePersonId.vehicleId).flatMap({ _ =>
-            val legs = tripReservations.map(_._1)
-            passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
-            Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId))
-          })).getOrElse(
-            // In case vehicle not currently under your control!
-            Left(VehicleNotUnderControlError))
-        )
+        val vehicleCap = _currentVehicleUnderControl.get.getType.getCapacity
+        val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
+        val hasRoom = tripReservations.forall { entry =>
+          entry._2.riders.size < fullCap
+        }
+        if(hasRoom){
+          val legs = tripReservations.map(_._1)
+          passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
+          ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
+        } else {
+          ReservationResponse(req.requestId, Left(VehicleFullError))
+        }
     }
+    response
   }
+
 }

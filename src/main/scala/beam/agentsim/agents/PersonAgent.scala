@@ -275,6 +275,7 @@ class PersonAgent(val beamServices: BeamServices,
                   driver =>
                     driver ! BoardVehicle(tick, VehiclePersonId(previousVehicleId, id))
                 )
+                eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, nextBeamVehicleId))
 
                 _currentRoute = processedData.restTrip
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
@@ -310,6 +311,7 @@ class PersonAgent(val beamServices: BeamServices,
                 val passengerVehicleId = _currentVehicle.penultimateVehicle()
                 beamServices.vehicles(_currentVehicle.outermostVehicle()).driver.get ! AlightVehicle(tick,
                   VehiclePersonId(passengerVehicleId, id))
+                eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
                 _currentVehicle = _currentVehicle.pop()
                 // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass
                 // on the new trigger
@@ -352,7 +354,7 @@ class PersonAgent(val beamServices: BeamServices,
       case Some(embodiedBeamLeg) =>
         if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
           beamServices.vehicles(_currentVehicle.outermostVehicle()).unsetDriver()
-          context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
+          eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
           _currentVehicle = _currentVehicle.pop()
         }
       case None =>
@@ -388,7 +390,7 @@ class PersonAgent(val beamServices: BeamServices,
                   s"but driver ${vehicle.driver.get} already assigned.")),
                 fb => {
                   vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehicle)
-                  context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+                  eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
                 })
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)

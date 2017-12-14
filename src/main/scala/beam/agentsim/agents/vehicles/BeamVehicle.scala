@@ -8,6 +8,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.SeatAssignmentRule.RandomSeatAssignmentRule
 import beam.agentsim.agents.vehicles.VehicleOccupancyAdministrator.DefaultVehicleOccupancyAdministrator
 import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.events.resources.ReservationError
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -130,8 +131,11 @@ class BeamVehicle(override var manager: Option[ActorRef],
     * @return [[Either]] a message to be sent from the driver to the passenger that the vehicle
     *         capacity has been exceeded ([[Left]]) or a
     */
-  def addPassenger(idToAdd: Id[Vehicle]): Either[VehicleFullError, SetCarrier] = {
+  def addPassenger(idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
     vehicleOccupancyAdministrator.addPassenger(idToAdd)
+  }
+  def canAddPassenger(): Boolean = {
+    vehicleOccupancyAdministrator.canAddPassenger
   }
 }
 
@@ -173,18 +177,18 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     ((standingPassengers.size + seatedPassengers.size) / totalOccupancyLimit).toDouble
 
   def addSeatedPassenger(
-                          idToAdd: Id[Vehicle]): Either[VehicleFullError, SetCarrier] = {
+                          idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
     if (seatedPassengers.size + 1 > seatedOccupancyLimit) {
-      Left(VehicleFullError())
+      Left(VehicleFullError)
     } else {
       seatedPassengers += idToAdd
       Right(SetCarrier(idToAdd))
     }
   }
 
-  def addStandingPassenger(idToAdd: Id[Vehicle]): Either[VehicleFullError, SetCarrier] = {
+  def addStandingPassenger(idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
     if (standingPassengers.size + 1 > standingOccupancyLimit) {
-      Left(VehicleFullError())
+      Left(VehicleFullError)
     } else {
       standingPassengers += idToAdd
       Right(SetCarrier(idToAdd))
@@ -193,15 +197,20 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
 
   //TODO: Improve this API to have custom error messages
   /**
-    * Try to add a passenger to the vehicle according to the [[SeatAssignmentRule]]
+    * Try to add a passenger to the vehicle according to the [[SeatAssignmentRule]] unless standing or seating is full
+    * in which case deterministically add passenger.
     *
     * @param idToAdd the passenger [[Vehicle]] to add
     * @return [[Either]] a message to be sent from the driver to the passenger that the vehicle
     *         capacity has been exceeded ([[Left]]) or a
     */
   def addPassenger(
-                    idToAdd: Id[Vehicle]): Either[VehicleFullError, SetCarrier] = {
-    if (seatAssignmentRule.assignSeatOnEnter(idToAdd,
+                    idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
+    if(seatedPassengers.size==seatedOccupancyLimit){
+      addStandingPassenger(idToAdd)
+    }else if(standingPassengers.size==standingOccupancyLimit){
+      addSeatedPassenger(idToAdd)
+    }else if (seatAssignmentRule.assignSeatOnEnter(idToAdd,
       standingPassengers,
       seatedPassengers,
       vehicle.matSimVehicle)) {
@@ -211,6 +220,9 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     }
   }
 
+  def canAddPassenger(): Boolean = {
+    seatedPassengers.size < seatedOccupancyLimit || standingPassengers.size < standingOccupancyLimit
+  }
 
   def removePassenger(idToRemove: Id[Vehicle]): Try[ClearCarrier] = {
     if (seatedPassengers.contains(idToRemove)) {
@@ -226,11 +238,14 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
             ClearCarrier()
           })
       } else {
-        Failure(new Exception("Error"))
+        seatedPassengers -= idToRemove
+        Success(ClearCarrier())
       }
-    } else {
+    } else if(standingPassengers.contains(idToRemove)) {
       standingPassengers -= idToRemove
       Success(ClearCarrier())
+    }else{
+      Failure(new Exception("Error"))
     }
   }
 
