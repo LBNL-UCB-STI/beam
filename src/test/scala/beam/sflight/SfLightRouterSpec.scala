@@ -42,7 +42,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
     when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
