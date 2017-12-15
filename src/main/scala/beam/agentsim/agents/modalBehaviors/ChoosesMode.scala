@@ -76,14 +76,17 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       var combinedItinerariesForChoice = rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
           routingResponse.get.itineraries
 
+
       if(modeAlreadyDefined){
         predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
-        if(predefinedMode != WALK){
+        if(predefinedMode.get != WALK){
           val itinsWithoutWalk = combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
           if(itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
         }
       }
-      assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
+      if(combinedItinerariesForChoice.isEmpty){
+        assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
+      }
 
       //Debugging
       if(modeAlreadyDefined){
@@ -100,6 +103,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           trip
         case _ =>
           modeChoiceCalculator(combinedItinerariesForChoice)
+      }
+
+      if(chosenTrip.tripClassifier == WALK){
+        _experiencedBeamPlan.getStrategy(currentTour,classOf[ModeChoiceStrategy]).foreach{ stratOption =>
+          if(stratOption.asInstanceOf[ModeChoiceStrategy].mode == DRIVE_TRANSIT) {
+            val i = 0
+          }
+        }
       }
 
       if (chosenTrip.requiresReservationConfirmation) {
@@ -179,10 +190,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     val location = if(chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty){ chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString }else{ "" }
     context.system.eventStream.publish(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum))
+      location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum,_experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get)))
 
-    val currentTour = _experiencedBeamPlan.getTourContaining(nextActivity.right.get)
-    _experiencedBeamPlan.putStrategy(currentTour,ModeChoiceStrategy(chosenTrip.tripClassifier))
+    _experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]) match {
+      case None =>
+        _experiencedBeamPlan.putStrategy(currentTour,ModeChoiceStrategy(chosenTrip.tripClassifier))
+      case _ =>
+    }
 
     val personalVehicleUsed: Vector[Id[Vehicle]] = availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
 
@@ -253,6 +267,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
         case None =>
           availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
+        case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
+          val tour = _experiencedBeamPlan.getTourContaining(nextAct)
+          val tripIndex = tour.tripIndexOfElement(nextAct)
+          if(tripIndex == 0 || tripIndex == tour.trips.size - 1){
+            availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
+          }else{
+            availablePersonalStreetVehicles = Vector()
+          }
         case _ =>
           availablePersonalStreetVehicles = Vector()
       }
@@ -300,9 +322,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
           makeRequestWith(Vector(TRANSIT),filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
         case Some(ModeChoiceStrategy(mode)) if mode == RIDEHAIL =>
+          makeRequestWith(Vector(),Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest
-          // We also need to fake a routingResponse since no routing request will be made
-          routingResponse = Some(RoutingResponse(Vector()))
       }
 
       beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))

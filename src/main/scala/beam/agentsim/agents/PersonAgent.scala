@@ -9,7 +9,8 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
-import beam.agentsim.agents.planning.BeamPlan
+import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
+import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.BeamVehicle.{BecomeDriver, BecomeDriverSuccessAck, EnterVehicle, ExitVehicle, RemovePassengerFromTrip, UnbecomeDriver}
 import beam.agentsim.agents.vehicles.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
 import beam.agentsim.agents.vehicles.{HumanBodyVehicle, PassengerSchedule, VehiclePersonId, VehicleStack}
@@ -18,6 +19,7 @@ import beam.agentsim.events.resources.vehicle.{ModifyPassengerSchedule, ModifyPa
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes
+import beam.router.Modes.BeamMode.DRIVE_TRANSIT
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
@@ -117,6 +119,14 @@ class PersonAgent(val beamServices: BeamServices,
   }
   def prevActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex - 1, "at start")
+  }
+  def currentTour: Tour = {
+    stateName match {
+      case PerformingActivity =>
+        _experiencedBeamPlan.getTourContaining(currentActivity)
+      case _ =>
+        _experiencedBeamPlan.getTourContaining(nextActivity.right.get)
+    }
   }
 
   when(PerformingActivity) {
@@ -230,7 +240,6 @@ class PersonAgent(val beamServices: BeamServices,
                 _currentRoute = processedData.restTrip
                 val nextBeamVehicleRef = beamServices.vehicleRefs(nextBeamVehicleId)
                 nextBeamVehicleRef ! EnterVehicle(tick, VehiclePersonId(previousVehicleId,id))
-                context.system.eventStream.publish(new PersonEntersVehicleEvent(tick, id, nextBeamVehicleId))
                 _currentRoute = processedData.restTrip
                 _currentEmbodiedLeg = Some(processedData.nextLeg)
                 _currentVehicle = _currentVehicle.pushIfNew(nextBeamVehicleId)
@@ -263,7 +272,6 @@ class PersonAgent(val beamServices: BeamServices,
                 // The next vehicle is different from current so we exit the current vehicle
                 val passengerVehicleId = _currentVehicle.penultimateVehicle()
                 beamServices.vehicleRefs(_currentVehicle.outermostVehicle()) ! ExitVehicle(tick, VehiclePersonId(passengerVehicleId,id))
-                context.system.eventStream.publish(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
                 _currentVehicle = _currentVehicle.pop()
                 // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass on the new trigger
                 processNextLegOrStartActivity(triggerId,tick)

@@ -146,6 +146,9 @@ class BeamPlan extends Plan{
         throw new RuntimeException(s"Unexpected PlanElement ${planElement}.")
     }
   }
+  def tourIndexOfElement(planElement: PlanElement): Int = {
+    (for (tour <- tours.zipWithIndex if (tour._1 == getTourContaining(planElement))) yield (tour._2)).head
+  }
 
 
   //////////////////////////////////////////////////////////////////////
