@@ -11,10 +11,8 @@ import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
-import org.matsim.core.events.{EventsManagerImpl, EventsUtils, ParallelEventsManagerImpl}
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
 import scala.collection.JavaConverters._
@@ -22,11 +20,8 @@ import scala.collection.mutable.ListBuffer
 
 trait RunBeam {
 
-  /**
-    * mBeamConfig optional parameter is used to add custom BeamConfig instance to application injector
-    */
-  def beamInjector(scenario: Scenario, typesafeConfig: com.typesafe.config.Config): com.google.inject.Injector =
-    org.matsim.core.controler.Injector.createInjector(scenario.getConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
+  def module(scenario: Scenario, typesafeConfig: com.typesafe.config.Config): com.google.inject.Module = AbstractModule.`override`(
+    ListBuffer(new AbstractModule() {
       override def install(): Unit = {
         // MATSim defaults
         install(new NewControlerModule)
@@ -52,7 +47,7 @@ trait RunBeam {
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
       }
-    }))
+    })
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
@@ -82,7 +77,7 @@ trait RunBeam {
 
 
     lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
-    val injector = beamInjector(scenario, config)
+    val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(scenario, config))
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 
