@@ -90,13 +90,12 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
     }
 
     "respond with a car route and a walk route for each trip in sflight" in {
-      system.log.error("{} people in SfLight", scenario.getPopulation.getPersons.size())
       scenario.getPopulation.getPersons.values().forEach(person => {
         val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
         activities.sliding(2).foreach(pair => {
           val origin = pair(0).getCoord
           val destination = pair(1).getCoord
-          val time = RoutingModel.DiscreteTime(27840)
+          val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
           router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(
             StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
             StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
@@ -118,6 +117,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
           }
 
           val carTrip = response.itineraries.find(_.tripClassifier == CAR).get.toBeamTrip()
+          assertMakesSense(carTrip)
           inside (carTrip) {
             case BeamTrip(legs, _) =>
               legs should have size 3
@@ -142,11 +142,11 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
 
   }
 
-  def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
-    var time = trip.legs.head.beamLeg.startTime
+  def assertMakesSense(trip: RoutingModel.BeamTrip): Unit = {
+    var time = trip.legs.head.startTime
     trip.legs.foreach(leg => {
-      assert(leg.beamLeg.startTime == time, "Leg starts when previous one finishes.")
-      time += leg.beamLeg.duration
+      assert(leg.startTime == time, "Leg starts when previous one finishes.")
+      time += leg.duration
     })
   }
 
