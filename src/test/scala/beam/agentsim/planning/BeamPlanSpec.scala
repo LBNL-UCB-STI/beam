@@ -30,7 +30,7 @@ class BeamPlanSpec extends WordSpecLike with Matchers with RunBeam with BeforeAn
     PopulationUtils.createAndAddLeg(matsimPlan, "Car")
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
 
-    val strat = ModeChoiceStrategy(Some(CAR))
+    val strat = ModeChoiceStrategy(CAR)
 
     "should contain the same activities and legs as the MATSimn plan used in creation" in {
       val beamPlan = BeamPlan(matsimPlan)
