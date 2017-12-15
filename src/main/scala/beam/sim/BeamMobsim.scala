@@ -47,7 +47,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     beamServices.schedulerRef = actorSystem.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
     beamServices.rideHailingManager = actorSystem.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
 
-    resetPop()
+    val population = initializePopulation()
 
     Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
     log.info(s"Transit schedule has been initialized")
@@ -71,7 +71,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     log.info(s"Stopping  BeamVehicle actors")
     for ((_, actorRef) <- beamServices.vehicleRefs) {
       actorRef ! Finish
-
     }
     for (personId <- beamServices.persons.keys) {
       val bodyVehicleId = HumanBodyVehicle.createId(personId)
@@ -86,7 +85,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     }
   }
 
-  def resetPop(): Unit = {
+  def initializePopulation(): ActorRef = {
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     beamServices.vehicles ++= scenario.getVehicles.getVehicles.asScala.toMap
     beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
@@ -140,6 +139,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     beamServices.personRefs.foreach { case (id, person) =>
       beamServices.agentRefs.put(id.toString, person)
     }
+    population
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
