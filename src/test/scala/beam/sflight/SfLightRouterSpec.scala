@@ -5,6 +5,7 @@ import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
+import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -14,11 +15,10 @@ import beam.router.gtfs.FareCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.DateUtils
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.config.ConfigUtils
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.Mockito._
@@ -33,19 +33,22 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
 
   var router: ActorRef = _
   var geo: GeoUtils = _
+  var scenario: Scenario = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve())
+    val config = ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve()
+    val beamConfig = BeamConfig(config)
 
     // Have to mock some things to get the router going
     val services: BeamServices = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(BeamRouter.props(services, scenario.getNetwork, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
@@ -69,7 +72,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
         StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
         StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
       ), Id.createPersonId("116378-2")))
-      val response = expectMsgType[RoutingResponse] // uncomment this when debugging (10.minutes)
+      val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
       assert(response.itineraries.exists(_.tripClassifier == CAR))
@@ -86,13 +89,64 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       }
     }
 
+    "respond with a car route and a walk route for each trip in sflight" in {
+      scenario.getPopulation.getPersons.values().forEach(person => {
+        val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
+        activities.sliding(2).foreach(pair => {
+          val origin = pair(0).getCoord
+          val destination = pair(1).getCoord
+          val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
+          router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(
+            StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
+            StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
+            StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
+          ), Id.createPersonId("116378-2")))
+          val response = expectMsgType[RoutingResponse]
+          assert(response.itineraries.exists(_.tripClassifier == WALK))
+          assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
+          assert(response.itineraries.exists(_.tripClassifier == CAR))
+
+          val walkTrip = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip()
+          inside (walkTrip) {
+            case BeamTrip(legs, _) =>
+              legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
+              inside (legs.loneElement) {
+                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                  mode should be (WALK)
+              }
+          }
+
+          val carTrip = response.itineraries.find(_.tripClassifier == CAR).get.toBeamTrip()
+          assertMakesSense(carTrip)
+          inside (carTrip) {
+            case BeamTrip(legs, _) =>
+              legs should have size 3
+              inside (legs(0)) {
+                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                  mode should be (WALK)
+              }
+              inside (legs(1)) {
+                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                  mode should be (CAR)
+                  links should not be 'empty
+              }
+              inside (legs(2)) {
+                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                  mode should be (WALK)
+              }
+          }
+
+        })
+      })
+    }
+
   }
 
-  def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
-    var time = trip.legs.head.beamLeg.startTime
+  def assertMakesSense(trip: RoutingModel.BeamTrip): Unit = {
+    var time = trip.legs.head.startTime
     trip.legs.foreach(leg => {
-      assert(leg.beamLeg.startTime == time, "Leg starts when previous one finishes.")
-      time += leg.beamLeg.duration
+      assert(leg.startTime == time, "Leg starts when previous one finishes.")
+      time += leg.duration
     })
   }
 

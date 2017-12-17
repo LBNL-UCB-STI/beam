@@ -42,9 +42,8 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate, ZonedDateTime.parse(beamConfig.beam
-      .routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    val tupleToNext = new TrieMap[Tuple3[Int, Int, Long], BeamLegWithNext]
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    val tupleToNext = new TrieMap[Tuple3[Int, Int, Long],BeamLegWithNext]
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     router = system.actorOf(BeamRouter.props(services, scenario.getNetwork, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator))
@@ -60,12 +59,10 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
    */
   "A multi-modal router" must {
     "return a route with a starting time consistent with profile request" in {
-      val origin = new BeamRouter.Location(552788, 4179300) // -122.4007,37.7595
-      val destination = new BeamRouter.Location(548918, 4182749) // -122.4444,37.7908
-      val time = RoutingModel.WindowTime(100, 200)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id
-        .createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes
-        .BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
+      val origin = new BeamRouter.Location(552788,4179300) // -122.4007,37.7595
+      val destination = new BeamRouter.Location(548918,4182749) // -122.4444,37.7908
+      val time = RoutingModel.WindowTime(100,200)
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
       val response = expectMsgType[RoutingResponse]
       val routedStartTime = response.itineraries.head.beamLegs().head.startTime
       assert(routedStartTime >= 100 && routedStartTime <= 200)

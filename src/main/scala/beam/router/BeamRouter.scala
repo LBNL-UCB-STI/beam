@@ -71,6 +71,7 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
 *
 */
   private def initTransit() = {
+    val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetSegment]]()
     val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
     val transitData = transitTrips.flatMap { tripPattern =>
@@ -96,41 +97,20 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
           (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(edgeIds, Option(TransitStopsInfo(fromStop, vehicleId, toStop)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
         }
       }.toSeq
-      val transitRouteTrips = tripPattern.tripSchedules.asScala
-      transitRouteTrips.filter(_.getNStops > 0).map { transitTrip =>
-        // First create a unique for this trip which will become the transit agent and vehicle ids
-        val tripVehId = Id.create(transitTrip.tripId, classOf[Vehicle])
-        val numStops = transitTrip.departures.length
-
-        var legs: Seq[BeamLeg] = Nil
-        if (numStops > 1) {
-          val travelStops = transitTrip.departures.zipWithIndex.sliding(2)
-          travelStops.foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
-            val duration = transitTrip.arrivals(to) - departureTimeFrom
-            //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
-            //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in
-            // beamServices.transitVehiclesByBeamLeg
-            legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong,
-              duration, tripVehId))
+      tripPattern.tripSchedules.asScala
+        .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
+        .map { tripSchedule =>
+          // First create a unique for this trip which will become the transit agent and vehicle ids
+          val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
+          var legs: Seq[BeamLeg] = Nil
+          tripSchedule.departures.zipWithIndex.sliding(2).foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
+            val duration = tripSchedule.arrivals(to) - departureTimeFrom
+            legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
           }
-        } else {
-          log.warning(s"Transit trip  ${transitTrip.tripId} has only one stop ")
-          val departureStart = transitTrip.departures(0)
-          val fromStopIdx = tripPattern.stops(0)
-          //XXX: inconsistency between Stop.stop_id and and data in stopIdForIndex, Stop.stop_id = stopIdForIndex + 1
-          //XXX: we have to use data from stopIdForIndex otherwise router want find vehicle by beamleg in
-          // beamServices.transitVehiclesByBeamLeg
-          val duration = 1L
-          val edgeIds = resolveFirstLastTransitEdges(fromStopIdx)
-          val stopsInfo = TransitStopsInfo(0, tripVehId, 0)
-          val transitPath = BeamPath(edgeIds, Option(stopsInfo),
-            TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureStart.toLong, duration))
-          legs :+= BeamLeg(departureStart.toLong, mode, duration, transitPath)
+          (tripVehId, (route, legs))
         }
-        (tripVehId, (route, legs))
-      }
     }
-    val transitScheduleToCreate = transitData.filter(_._2._2.nonEmpty).toMap
+    val transitScheduleToCreate = transitData.toMap
     transitScheduleToCreate.foreach { case (tripVehId, (route, legs)) =>
       createTransitVehicle(tripVehId, route, legs)
     }
@@ -247,18 +227,15 @@ object BeamRouter {
   type Location = Coord
 
   case object InitTransit
-
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
-
   case class UpdateTravelTime(travelTime: TravelTime)
 
   /**
     * It is use to represent a request object
-    *
-    * @param origin         start/from location of the route
-    * @param destination    end/to location of the route
-    * @param departureTime  time in seconds from base midnight
-    * @param transitModes   what transit modes should be considered
+    * @param origin start/from location of the route
+    * @param destination end/to location of the route
+    * @param departureTime time in seconds from base midnight
+    * @param transitModes what transit modes should be considered
     * @param streetVehicles what vehicles should be considered in route calc
     * @param personId
     */
@@ -271,24 +248,21 @@ object BeamRouter {
 
   /**
     * Message to request a route plan
-    *
     * @param params route information that is needs a plan
     */
   case class RoutingRequest(params: RoutingRequestTripInfo)
 
   /**
     * Message to respond a plan against a particular router request
-    *
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
 
   object RoutingRequest {
     def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent]): RoutingRequest = {
-      new RoutingRequest(RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime, Modes.filterForTransit(transitModes), streetVehicles, personId))
+      new RoutingRequest(RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, personId))
     }
-
-    def apply(params: RoutingRequestTripInfo): RoutingRequest = {
+    def apply(params : RoutingRequestTripInfo): RoutingRequest = {
       new RoutingRequest(params)
     }
   }

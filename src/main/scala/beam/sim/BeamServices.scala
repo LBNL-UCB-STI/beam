@@ -48,14 +48,13 @@ trait BeamServices extends ActorInject {
 
 }
 
-class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
+class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
-  val dates: DateUtils = DateUtils(beamConfig.beam.routing.baseDate, ZonedDateTime.parse(beamConfig.beam.routing
-    .baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
+  val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
 
   var modeChoiceCalculator: ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
