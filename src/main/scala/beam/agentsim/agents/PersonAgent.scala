@@ -211,7 +211,6 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   private def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
-
     _numReschedules = _numReschedules + 1
     if (_numReschedules > 500) {
       cancelTrip(_currentRoute.legs, _currentVehicle)
@@ -499,6 +498,9 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(ModifyPassengerScheduleAck(_), _) =>
       scheduleStartLegAndStay()
     case Event(BecomeDriverSuccessAck, _) =>
+      if(id.toString.equalsIgnoreCase("115-1")){
+        val i =0
+      }
       scheduleStartLegAndStay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

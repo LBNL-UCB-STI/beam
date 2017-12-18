@@ -62,7 +62,7 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
       val origin = new BeamRouter.Location(552788,4179300) // -122.4007,37.7595
       val destination = new BeamRouter.Location(548918,4182749) // -122.4444,37.7908
       val time = RoutingModel.WindowTime(100,200)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
+      router ! RoutingRequest(RoutingRequestTripInfo(Id.createPersonId("667520-0"),origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true))))
       val response = expectMsgType[RoutingResponse]
       val routedStartTime = response.itineraries.head.beamLegs().head.startTime
       assert(routedStartTime >= 100 && routedStartTime <= 200)

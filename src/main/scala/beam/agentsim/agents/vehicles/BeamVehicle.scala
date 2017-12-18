@@ -99,10 +99,10 @@ class BeamVehicle(override var manager: Option[ActorRef],
     * @param newDriverRef incoming driver
     */
   def becomeDriver(newDriverRef: ActorRef)
-  : Either[DriverAlreadyAssigned, BecomeDriverSuccessAck] = {
+  : Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type ] = {
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
-      Right(BecomeDriverSuccessAck(id))
+      Right(BecomeDriverOfVehicleSuccessAck)
     } else {
       Left(DriverAlreadyAssigned(id, driver.get))
     }
@@ -249,6 +249,7 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     }
   }
 
+  override def toString: String = s"BeamVehicle(id=${vehicle.id},driver=${vehicle.driver})"
 
 }
 
