@@ -14,7 +14,6 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
-import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.ConfigUtils;
@@ -88,7 +87,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
 
-    public void initializeActorsAndRunPhysSim() {
+    public void setupActorsAndRunPhysSim() {
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
         ActorRef registry = this.beamServices.registry();
         try {
@@ -196,8 +195,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     public void startPhysSim() {
         createLastActivityOfDayForPopulation();
         log.warn("numberOfLinksRemovedFromRouteAsNonCarModeLinks (for physsim):" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
+
+        setupActorsAndRunPhysSim();
         preparePhysSimForNewIteration();
-        initializeActorsAndRunPhysSim();
     }
 
     private void createLastActivityOfDayForPopulation() {
