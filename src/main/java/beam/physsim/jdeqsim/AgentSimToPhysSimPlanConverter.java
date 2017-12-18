@@ -66,6 +66,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             agentSimPhysSimInterfaceDebugger = new AgentSimPhysSimInterfaceDebugger(beamServices);
         }
 
+        preparePhysSimForNewIteration();
     }
 
     private void preparePhysSimForNewIteration() {
