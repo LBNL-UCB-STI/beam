@@ -21,7 +21,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with RunBeam with Before
 
   "SF Light" must {
     "run without error and at least one person chooses car mode" in {
-      val config = ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve()
+      val config = ConfigFactory.parseFile(new File("test/input/sf-light/sf-light-1k.conf")).resolve()
         .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()

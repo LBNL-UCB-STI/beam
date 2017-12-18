@@ -65,7 +65,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
       // let R5 use those. Otherwise, let R5 use its own travel time estimates.
       val pointToPointQuery = maybeTravelTime match {
         case Some(travelTime) => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
-          travelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+          if (edge.getOSMID < 0) {
+            // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
+            // MATSim network.
+            (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
+          } else {
+            travelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+          }
         })
         case None => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
       }

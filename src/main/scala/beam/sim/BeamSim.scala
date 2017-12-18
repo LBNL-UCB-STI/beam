@@ -48,6 +48,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+
+    beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
+    beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
+    actorSystem.log.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.vehicles.size} vehicles")
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

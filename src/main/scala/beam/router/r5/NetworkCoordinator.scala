@@ -10,6 +10,7 @@ import beam.sim.BeamServices
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.{EdgeStore, StreetLayer}
 import com.conveyal.r5.transit.TransportNetwork
+import org.matsim.api.core.v01.network.NetworkWriter
 import org.matsim.vehicles.Vehicles
 
 class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamServices) extends Actor with ActorLogging {
@@ -49,10 +50,11 @@ class NetworkCoordinator(val transitVehicles: Vehicles, val beamServices: BeamSe
       transportNetwork = TransportNetwork.read(Paths.get(beamServices.beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile) // Needed because R5 closes DB on write
 
       log.debug(s"Create the MATSim network from R5 network")
-      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamServices.beamConfig.beam.routing.r5.osmMapdbFile, util.EnumSet.of(EdgeStore.EdgeFlag.ALLOWS_CAR))
+      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
       rmNetBuilder.buildMNet()
       log.debug(s"MATSim network created and written")
-      rmNetBuilder.writeMNet(beamServices.beamConfig.matsim.modules.network.inputNetworkFile)
+      new NetworkWriter(rmNetBuilder.getNetwork).write(beamServices.beamConfig.matsim.modules.network.inputNetworkFile)
+
     }
     //
     beamPathBuilder = new BeamPathBuilder(transportNetwork = transportNetwork, beamServices)
