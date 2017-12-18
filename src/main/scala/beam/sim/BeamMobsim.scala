@@ -63,7 +63,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
           cleanupRideHailingAgents()
           cleanupVehicle()
           cleanupHouseHolder()
-          context.stop(population)
+          population ! Finish
           context.stop(beamServices.rideHailingManager)
           context.stop(beamServices.schedulerRef)
 

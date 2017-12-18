@@ -173,7 +173,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         .filter(trigger => trigger.agent == actor)
         .forEach(trigger => {
           self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
-          log.warning("Clearing trigger because agent died: " + trigger)
+          log.error("Clearing trigger because agent died: " + trigger)
         })
 
     case Monitor =>

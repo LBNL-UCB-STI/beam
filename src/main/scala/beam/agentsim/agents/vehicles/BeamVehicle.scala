@@ -297,14 +297,6 @@ trait BeamVehicle extends BeamAgent[BeamAgentData] with Resource[Vehicle] with H
       logError(s"Unhandled event: $id $any $data")
       stay()
   }
-
-  onTermination {
-    // Override BeamAgent behavior of logging an error message on termination.
-    // Cars are currently forcibly terminated at the end of an iterations.
-    // I'm not looking for a better solution here, with the upcoming demotion of vehicles to regular objects.
-    PartialFunction.empty
-  }
-
 }
 
 /**

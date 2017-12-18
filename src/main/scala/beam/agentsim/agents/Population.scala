@@ -1,7 +1,8 @@
 package beam.agentsim.agents
 
 import akka.actor.SupervisorStrategy.{Resume, Stop}
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.{BeamVehicle, HumanBodyVehicle}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.BeamServices
@@ -37,6 +38,7 @@ class Population(val beamServices: BeamServices, val eventsManager: EventsManage
     val bodyVehicleIdFromPerson = HumanBodyVehicle.createId(personId)
     val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, matsimHumanBodyVehicleType)
     val bodyVehicleRef = context.actorOf(HumanBodyVehicle.props(beamServices, eventsManager, matsimBodyVehicle, personId, HumanBodyVehicle.PowertrainForHumanBody()), BeamVehicle.buildActorName(matsimBodyVehicle))
+    context.watch(bodyVehicleRef)
     beamServices.vehicleRefs += ((bodyVehicleIdFromPerson, bodyVehicleRef))
     // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
     //let's put here human body vehicle too, it should be clean up on each iteration
@@ -47,7 +49,21 @@ class Population(val beamServices: BeamServices, val eventsManager: EventsManage
     beamServices.personRefs += ((personId, ref))
   }
 
-  override def receive = PartialFunction.empty
+  dieIfNoChildren()
+
+  override def receive = {
+    case Finish =>
+      context.children.foreach(_ ! Finish)
+      dieIfNoChildren()
+    case Terminated(_) =>
+      dieIfNoChildren()
+  }
+
+  def dieIfNoChildren() = {
+    if (context.children.isEmpty) {
+      context.stop(self)
+    }
+  }
 
 }
 
