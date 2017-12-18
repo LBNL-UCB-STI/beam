@@ -2,7 +2,6 @@ package beam.sim
 
 import java.nio.file.{Files, Paths}
 
-import beam.agentsim.events.AkkaEventsManagerImpl
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.controler.corelisteners.BeamPrepareForSimImpl
@@ -12,10 +11,8 @@ import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
-import org.matsim.core.events.EventsUtils
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
 import scala.collection.JavaConverters._
@@ -23,11 +20,8 @@ import scala.collection.mutable.ListBuffer
 
 trait RunBeam {
 
-  /**
-    * mBeamConfig optional parameter is used to add custom BeamConfig instance to application injector
-    */
-  def beamInjector(scenario: Scenario, typesafeConfig: com.typesafe.config.Config): com.google.inject.Injector =
-    org.matsim.core.controler.Injector.createInjector(scenario.getConfig, AbstractModule.`override`(ListBuffer(new AbstractModule() {
+  def module(scenario: Scenario, typesafeConfig: com.typesafe.config.Config): com.google.inject.Module = AbstractModule.`override`(
+    ListBuffer(new AbstractModule() {
       override def install(): Unit = {
         // MATSim defaults
         install(new NewControlerModule)
@@ -46,15 +40,15 @@ trait RunBeam {
         // Override MATSim Defaults
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
+//        bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
 
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim])
         addControlerListenerBinding().to(classOf[BeamSim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bind(classOf[EventsManager]).to(classOf[AkkaEventsManagerImpl])
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
       }
-    }))
+    })
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
@@ -84,7 +78,7 @@ trait RunBeam {
 
 
     lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
-    val injector = beamInjector(scenario, config)
+    val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(scenario, config))
 
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 

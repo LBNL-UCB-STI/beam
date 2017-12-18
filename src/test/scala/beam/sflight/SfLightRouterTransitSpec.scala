@@ -6,21 +6,23 @@ import java.time.ZonedDateTime
 import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.gtfs.FareCalculator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.DateUtils
 import com.typesafe.config.{ConfigFactory, ConfigParseOptions}
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.config.ConfigUtils
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.{Vehicle, VehicleReaderV1}
+import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -32,31 +34,32 @@ import scala.language.postfixOps
 class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
   akka.loglevel="OFF"
   """))) with WordSpecLike with Matchers
-  with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
+  with ImplicitSender with MockitoSugar with BeforeAndAfterAll with Inside {
 
   var router: ActorRef = _
   var geo: GeoUtils = _
+  var scenario: Scenario = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(
+    val config = ConfigFactory.parseFile(
       new File("test/input/sf-light/sf-light.conf"),
-      ConfigParseOptions.defaults().setAllowMissing(false)).resolve())
+      ConfigParseOptions.defaults().setAllowMissing(false)).resolve()
+    val beamConfig = BeamConfig(config)
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(beamConfig.beam.routing.baseDate,ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], Vehicle])
-    when(services.vehicleRefs).thenReturn(new TrieMap[Id[Vehicle], ActorRef])
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
     when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    new VehicleReaderV1(scenario.getTransitVehicles).readFile("test/input/sf-light/transitVehicles.xml")
-    router = system.actorOf(BeamRouter.props(services, scenario.getTransitVehicles, fareCalculator), "router")
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    scenario = ScenarioUtils.loadScenario(matsimConfig)
+    router = system.actorOf(BeamRouter.props(services, scenario.getNetwork, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator), "router")
 
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)
@@ -83,6 +86,24 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       assertMakesSense(transitOption)
       assert(transitOption.legs.head.beamLeg.startTime == 26004)
     }
+  }
+
+  "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
+    scenario.getPopulation.getPersons.values().forEach(person => {
+      val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
+      activities.sliding(2).foreach(pair => {
+        val origin = pair(0).getCoord
+        val destination = pair(1).getCoord
+        val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
+        router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
+          StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
+          StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
+        ), Id.createPersonId("116378-2")))
+        val response = expectMsgType[RoutingResponse]
+        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
+        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+      })
+    })
   }
 
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {

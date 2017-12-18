@@ -1,0 +1,15 @@
+@startuml
+participant PersonAgent as PersonAgent <<Passengers>>
+Driver -> Scheduler: ScheduleCompleteLegTrigger
+PersonAgent -> Driver: ReservationRequest
+Driver -> PersonAgent: ReservationConfirmed
+Scheduler -> Driver: CompleteLegTrigger
+Driver -> PersonAgent: AlightingNotice
+PersonAgent -> Driver: AlightingConfirmation
+
+Driver -> PersonAgent: BoardingNotice
+PersonAgent -> Driver: BoardingConfirmation
+
+Driver -> Scheduler : ScheduleBeginLegTrigger
+Scheduler -> Driver: BeginLegTrigger
+@enduml

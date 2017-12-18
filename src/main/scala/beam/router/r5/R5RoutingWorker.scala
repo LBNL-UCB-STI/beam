@@ -6,7 +6,7 @@ import java.util
 
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
@@ -20,10 +20,10 @@ import beam.router.{Modes, StreetSegmentTrajectoryResolver}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
-import com.conveyal.r5.common.JsonUtilities
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.RouteInfo
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
@@ -32,7 +32,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
+class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
@@ -195,7 +195,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
           val startTime = beamServices.dates.toBaseMidnightSeconds(itin.startTime, transportNetwork.transitLayer.routes.size() == 0)
           //TODO make a more sensible window not just 30 minutes
           startTime >= time.fromTime && startTime <= time.fromTime + 1800
-          }.map(itinerary => {
+        }.map(itinerary => {
           var legsWithFares = Vector[(BeamLeg, Double)]()
           maybeWalkToVehicle.foreach(legsWithFares +:= (_, 0.0))
 
@@ -272,19 +272,18 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
     val embodiedTrips = routingRequestTripInfo.streetVehicles.flatMap(vehicle => tripsForVehicle(vehicle))
 
     if(!embodiedTrips.exists(_.tripClassifier == WALK)) {
-      log.warning("No walk route found. {}",
-        JsonUtilities.objectMapper.writeValueAsString(routingRequestTripInfo))
+      log.debug("No walk route found. {}", routingRequestTripInfo)
       val maybeBody = routingRequestTripInfo.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        log.warning("Adding dummy walk route with maximum street time.")
+        log.debug("Adding dummy walk route with maximum street time.")
         val origin = new Coord(routingRequestTripInfo.origin.getX, routingRequestTripInfo.origin.getY)
         val dest = new Coord(routingRequestTripInfo.destination.getX, routingRequestTripInfo.destination.getY)
         val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)
         val bushwhackingTime = Math.round(beelineDistanceInMeters/BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
         val dummyTrip = EmbodiedBeamTrip(
           Vector(
-              EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushwhackingTime),
-                maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
+            EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushwhackingTime),
+              maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
         RoutingResponse(embodiedTrips :+ dummyTrip)
@@ -371,7 +370,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val fareCalculator: FareCa
 }
 
 object R5RoutingWorker {
-  def props(beamServices: BeamServices, fareCalculator: FareCalculator) = Props(classOf[R5RoutingWorker], beamServices, fareCalculator)
+  def props(beamServices: BeamServices, network: Network, fareCalculator: FareCalculator) = Props(new R5RoutingWorker(beamServices, network, fareCalculator))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 

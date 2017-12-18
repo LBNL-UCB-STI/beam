@@ -3,6 +3,7 @@ package beam.agentsim.agents
 import akka.actor.ActorRef
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
+
 import scala.reflect.{ClassTag, _}
 
 /**
@@ -12,7 +13,9 @@ object TriggerUtils {
   def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger] = Vector()): CompletionNotice = {
     CompletionNotice(triggerId, scheduleTriggers)
   }
-  def schedule[T <: Trigger](tick: Double, recipient: ActorRef, messageArgs: Any*)(implicit tag: scala.reflect.ClassTag[T]): Vector[ScheduleTrigger] = {
+
+  def schedule[T <: Trigger](tick: Double, recipient: ActorRef, messageArgs: Any*)(implicit tag: scala.reflect
+  .ClassTag[T]): Vector[ScheduleTrigger] = {
     Vector[ScheduleTrigger](scheduleOne(tick, recipient, messageArgs: _*))
   }
 
