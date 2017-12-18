@@ -8,17 +8,17 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.physsim.jdeqsim.akka.AkkaEventHandlerAdapter;
 import beam.physsim.jdeqsim.akka.EventManagerActor;
 import beam.physsim.jdeqsim.akka.JDEQSimActor;
-import beam.sim.BeamServices;
 import beam.sim.common.GeoUtils;
 import glokka.Registry;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
-import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.population.routes.RouteUtils;
@@ -44,6 +44,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
     private final ActorRef router;
+    private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private Scenario jdeqSimScenario;
     private PopulationFactory populationFactory;
@@ -56,8 +57,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
+    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
         eventsManager.addHandler(this);
+        this.controlerIO = controlerIO;
         this.registry = registry;
         this.router = router;
         agentSimScenario = scenario;
@@ -82,7 +84,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     public void initializeActorsAndRunPhysSim() {
-
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
         try {
 
@@ -101,6 +102,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void writePhyssimPlans(IterationEndsEvent event) {
+        String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsim-plans.xml");
+        new PopulationWriter(jdeqSimScenario.getPopulation()).write(plansFilename);
     }
 
     private ActorRef registerActor(ActorRef registry, String actorName, Props props) throws Exception {
@@ -195,9 +201,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
 
 
-    public void startPhysSim() {
+    public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
         createLastActivityOfDayForPopulation();
-
+        writePhyssimPlans(iterationEndsEvent);
         log.warn("numberOfLinksRemovedFromRouteAsNonCarModeLinks (for physsim):" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         initializeActorsAndRunPhysSim();
 
