@@ -3,7 +3,7 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorRef, ActorSystem, Identify, PoisonPill, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Identify, PoisonPill, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource.AssignManager
@@ -13,7 +13,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleIdAndRef
 import beam.agentsim.agents.vehicles.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, CarVehicle, HumanBodyVehicle, Powertrain}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
@@ -45,22 +45,38 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
 
   override def run() = {
     eventsManager.initProcessing()
-    val iteration = actorSystem.actorOf(Props(new Actor {
+    val iteration = actorSystem.actorOf(Props(new Actor with ActorLogging {
+      var runSender: ActorRef = _
+      beamServices.schedulerRef = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
+      context.watch(beamServices.schedulerRef)
+      beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty), "ridehailingmanager")
+      context.watch(beamServices.rideHailingManager)
+      private val population = initializePopulation()
+      context.watch(population)
+      Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
+      log.info(s"Transit schedule has been initialized")
+
       def receive = {
-        case _ =>
-          beamServices.schedulerRef = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
-          beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty), "ridehailingmanager")
-          val population = initializePopulation()
-          Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
-          log.info(s"Transit schedule has been initialized")
-          log.info("Running BEAM Mobsim")
-          Await.result(beamServices.schedulerRef ? StartSchedule(0), timeout.duration)
+
+        case CompletionNotice(_, _) =>
+          log.debug("Scheduler is finished.")
           cleanupRideHailingAgents()
           cleanupVehicle()
           cleanupHouseHolder()
+          context.stop(population)
+          context.stop(beamServices.rideHailingManager)
           context.stop(beamServices.schedulerRef)
-          context.stop(self)
-          sender ! Success("Ran.")
+
+        case Terminated(_) =>
+          if (context.children.isEmpty) {
+            context.stop(self)
+            runSender ! Success("Ran.")
+          }
+
+        case "Run!" =>
+          runSender = sender
+          log.info("Running BEAM Mobsim")
+          beamServices.schedulerRef ! StartSchedule(0)
       }
 
       private def cleanupRideHailingAgents(): Unit = {
@@ -117,7 +133,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
           val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
           val rideHailingAgent = RideHailingAgent.props(beamServices, eventsManager, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
           val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgent, rideHailingName)
-
+          context.watch(rideHailingAgentRef)
           // populate maps and initialize agent via scheduler
           beamServices.vehicles += (rideHailVehicleId -> rideHailVehicle)
           beamServices.vehicleRefs += vehicleIdAndRef
@@ -193,7 +209,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
           //only car is supported
           CarVehicle.props(beamServices, eventsManager,vehicleId, matSimVehicle, powerTrain)
         }
-        (vehicleId, context.actorOf(props, BeamVehicle.buildActorName(matSimVehicle)))
+        val actorRef = context.actorOf(props, BeamVehicle.buildActorName(matSimVehicle))
+        context.watch(actorRef)
+        (vehicleId, actorRef)
       }
     }))
     Await.result(iteration ? "Run!", timeout.duration)
