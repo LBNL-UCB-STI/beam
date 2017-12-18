@@ -14,6 +14,7 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import java.util
 
 import akka.event.LoggingReceive
+import beam.physsim.viz.EventWriterXML_viaCompatible
 import beam.sim.BeamServices
 import org.matsim.core.events.algorithms.EventWriterXML
 import org.matsim.core.network.NetworkUtils
@@ -31,7 +32,8 @@ class EventManagerActor(var beamServices: BeamServices) extends Actor with Stash
   var jdeqsimActorREF: ActorRef = _
   var travelTimeCalculator: TravelTimeCalculator = _
   var eventsManager: EventsManager = _
-  var eventsWriterXML: EventWriterXML = _
+  var eventsWriterXML: EventWriterXML_viaCompatible = _
+
 
   private def resetEventsActor(): Unit = {
     eventsManager = new EventsManagerImpl
@@ -47,7 +49,7 @@ class EventManagerActor(var beamServices: BeamServices) extends Actor with Stash
 
     if (writeEventsInterval == 1 || (writeEventsInterval > 0 && beamServices.matsimServices.getIterationNumber / writeEventsInterval == 0)) {
       createNetworkFile
-      eventsWriterXML = new EventWriterXML(beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "physSimEvents.xml.gz"))
+      eventsWriterXML = new EventWriterXML_viaCompatible(beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, "physSimEvents.xml.gz"))
       eventsManager.addHandler(eventsWriterXML)
     }
   }
