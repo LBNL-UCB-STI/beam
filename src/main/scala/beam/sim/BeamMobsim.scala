@@ -107,6 +107,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
         beamServices.vehicleRefs.clear()
         beamServices.agentRefs.clear()
 
+        beamServices.vehicles ++= scenario.getVehicles.getVehicles.asScala.toMap
         beamServices.vehicleRefs ++= initVehicleActors()
 
         // FIXME: Must wait for population because it currently initializes global variables
