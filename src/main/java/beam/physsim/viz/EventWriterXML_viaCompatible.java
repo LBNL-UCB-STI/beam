@@ -71,6 +71,12 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
         try {
             this.out.append("\t<event ");
             Map<String, String> attr = event.getAttributes();
+
+            if (attr.get("type").equalsIgnoreCase("vehicle enters traffic")){
+                attr.put("type","wait2link");
+            }
+
+
             for (Map.Entry<String, String> entry : attr.entrySet()) {
                 this.out.append(entry.getKey());
                 this.out.append("=\"");
