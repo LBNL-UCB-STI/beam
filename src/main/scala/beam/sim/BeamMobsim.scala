@@ -19,16 +19,16 @@ import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
 import org.apache.log4j.Logger
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
-import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
+import scala.util.Random
 
 /**
   * AgentSim entrypoint.
@@ -44,6 +44,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
   actorSystem.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
 
   var rideHailingAgents: Seq[ActorRef] = Nil
+  val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
 
   override def run() = {
     eventsManager.initProcessing()
@@ -96,6 +97,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     val population = actorSystem.actorOf(Population.props(beamServices, eventsManager), "population")
     Await.result(population ? Identify(0), timeout.duration)
 
+
     // Init households before RHA.... RHA vehicles will initially be managed by households
     initHouseholds()
 
@@ -108,21 +110,20 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
 
 
   private def sampleRideHailAgentsFromPop(fraction: Double): Unit = {
+
     val numRideHailAgents: Int = math
       .round(math.min(
         beamServices.beamConfig.beam.agentsim.numAgents,
         beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing
         .numDriversAsFractionOfPopulation)
       .toInt
-    var totalRideShareAgents: Int = 0
-    for {
-      (hId: Id[Household], hh: Household) <- beamServices.households
-      mId: Id[Person] <- JavaConverters.asScalaBuffer(hh.getMemberIds)
-    } yield {
-      totalRideShareAgents += 1
-      if (totalRideShareAgents < numRideHailAgents) {
-        beamServices.householdRefs(hId) ! InitializeRideHailAgent(mId)
-      }
+
+    val rideHailAgentSample = Random.shuffle(beamServices.persons.keys).take(numRideHailAgents).toVector
+    beamServices.households.foreach {
+      case (hhId, hh) =>
+        JavaConverters.asScalaBuffer(hh.getMemberIds).filter(rideHailAgentSample.contains(_)).foreach {
+          memberId => beamServices.householdRefs(hhId) ! InitializeRideHailAgent(memberId)
+        }
     }
     log.info(s"Initialized $numRideHailAgents ride hailing agents")
   }

@@ -21,6 +21,8 @@ case object BeamVehicleType extends Enum[BeamVehicleType] {
 
   val values: immutable.IndexedSeq[BeamVehicleType] = findValues
 
+  case object RideHailVehicle extends BeamVehicleType("rideHailVehicle") with LowerCamelcase
+
   case object CarVehicle extends BeamVehicleType("car") with LowerCamelcase
 
   case object TransitVehicle

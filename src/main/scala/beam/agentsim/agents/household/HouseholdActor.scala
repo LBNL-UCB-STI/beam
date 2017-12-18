@@ -3,11 +3,12 @@ package beam.agentsim.agents.household
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.VehicleManager
-import beam.agentsim.agents.RideHailingAgent
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.vehicles.VehicleProtocol.{AppendToTrajectory, StreetVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, Trajectory}
+import beam.agentsim.agents.{InitializeTrigger, RideHailingAgent}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.DefinedTrajectoryHolder
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamPath
@@ -77,7 +78,7 @@ class HouseholdActor(services: BeamServices,
   /**
     * Available [[Vehicle]]s in [[Household]]
     */
-  val _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
+  var _vehicles: Vector[Id[Vehicle]] = vehicles.keys.toVector.map(x => Id.createVehicleId(x))
 
   /**
     * Household members sorted by rank
@@ -137,7 +138,13 @@ class HouseholdActor(services: BeamServices,
     case InitializeRideHailAgent(memberId) =>
       memberActors.keys.toList.find(_.equals(memberId)).foreach(personId => {
         _reservedForPerson.get(personId).foreach({ vehId =>
-          RideHailingAgent.props(services, eventsManager, personId, vehId, homeCoord)
+         val rideHailingAgentProps = RideHailingAgent.props(services, eventsManager, personId, vehicles(vehId), homeCoord)
+          val rideHailingName = s"${RideHailingAgent.idPrefix+"-"+memberId.toString}"
+          val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgentProps, rideHailingName)
+          // XXXX (VR):  Not sure that we want to have this here w/out making the personagent
+          // whose place this rha is taking go away
+          beamServices.agentRefs.put(rideHailingName, rideHailingAgentRef)
+          beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
         })
       })
 

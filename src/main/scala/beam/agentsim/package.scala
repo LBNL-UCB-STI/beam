@@ -20,7 +20,7 @@ package object agentsim {
   implicit def beamVehicleId2VehicleId(id: Id[BeamVehicle]): Id[Vehicle] = Id.createVehicleId(id)
 
   implicit def personId2RideHailAgentId(id: Id[Person]): Id[RideHailingAgent] = {
-    Id.create(s"${RideHailingAgent.idPrefix}${prefixStrip(id)}", classOf[RideHailingAgent])
+    Id.create(s"${RideHailingAgent.idPrefix}-${prefixStrip(id)}", classOf[RideHailingAgent])
   }
 
   def prefixStrip(id: Id[_]): String = {

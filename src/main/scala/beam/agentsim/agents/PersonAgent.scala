@@ -389,7 +389,7 @@ class PersonAgent(val beamServices: BeamServices,
                 stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
                   s"but driver ${vehicle.driver.get} already assigned.")),
                 fb => {
-                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehicle)
+                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule), vehicle.id)
                   eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
                 })
             }

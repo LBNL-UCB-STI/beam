@@ -23,7 +23,7 @@ object VehicleProtocol {
 
   case class UnbecomeDriver(tick: Double, driver: Id[_])
 
-  case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], vehicle: BeamVehicle)
+  case class BecomeDriverSuccess(passengerSchedule: Option[PassengerSchedule], vehicle: Id[Vehicle])
 
   case class BecomeDriverSuccessAck(id: Id[_])
 

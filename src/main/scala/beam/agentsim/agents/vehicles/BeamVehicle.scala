@@ -135,7 +135,7 @@ class BeamVehicle(override var manager: Option[ActorRef],
     vehicleOccupancyAdministrator.addPassenger(idToAdd)
   }
   def canAddPassenger(): Boolean = {
-    vehicleOccupancyAdministrator.canAddPassenger
+    vehicleOccupancyAdministrator.canAddPassenger()
   }
 }
 

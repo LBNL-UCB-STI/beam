@@ -7,7 +7,7 @@ import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError, VehicleNotUnderControlError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -119,7 +119,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         stay()
       }
 
-    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
+    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicleId), info) =>
+      val assignedVehicle = beamServices.vehicles(assignedVehicleId)
       _currentVehicleUnderControl = Option(assignedVehicle)
       newPassengerSchedule match {
         case Some(passSched) =>

@@ -68,7 +68,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
       vehicle.becomeDriver(beamServices.agentRefs(newDriver.toString)).fold(fa =>
         stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle)
+        vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle.id)
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(PersonAgent.Waiting)
       })
