@@ -15,6 +15,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
 import beam.router.r5.NetworkCoordinator
 import beam.sim.HasServices
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -86,6 +87,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
   chainedWhen(Waiting) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
+      if(id.toString.equalsIgnoreCase("115-1")){
+        val i =0
+      }
       holdTickAndTriggerId(tick, triggerId)
       //      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id} ")
@@ -120,7 +124,10 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
 
     case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
-      _currentVehicleUnderControl = Option(assignedVehicle)
+      if(id.toString.equalsIgnoreCase("115-1")){
+        val i =0
+      }
+      _currentVehicleUnderControl = Some(beamServices.vehicles(assignedVehicle))
       newPassengerSchedule match {
         case Some(passSched) =>
           passengerSchedule = passSched
@@ -149,6 +156,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     // block has time to execute and send the Ack which ultimately results in the next Trigger (e.g. StartLegTrigger)
     // to be scheduled
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), _) =>
+      if(id.toString.equalsIgnoreCase("115-1")){
+        val i =0
+      }
       var errorFlag = false
       if (!passengerSchedule.isEmpty) {
         val endSpaceTime = passengerSchedule.terminalSpacetime()
@@ -210,6 +220,17 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       lastVisited = newSegments.getEndPoint()
       stay()
 
+  }
+
+  private def becomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double) = {
+    val vehicle = beamServices.vehicles(vehicleId)
+    vehicle.becomeDriver(self).fold(fa =>
+      stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
+        s"but driver ${vehicle.driver.get} already assigned.")),
+      fb => {
+        _currentVehicleUnderControl = Some(vehicle)
+        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicleId))
+      })
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {

@@ -10,6 +10,7 @@ import beam.agentsim.agents.household.HouseholdActor.{NotifyNewVehicleLocation, 
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
+import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -372,6 +373,9 @@ class PersonAgent(val beamServices: BeamServices,
             stop(Failure(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is " +
               s"$tick."))
           } else if (processedData.nextLeg.asDriver) {
+            /*
+             * AS DRIVER
+             */
             val passengerSchedule = PassengerSchedule()
             val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)) {
               VehiclePersonId(_humanBodyVehicle, id)
@@ -395,7 +399,7 @@ class PersonAgent(val beamServices: BeamServices,
                 stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
                   s"but driver ${vehicle.driver.get} already assigned.")),
                 fb => {
-                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehicle)
+                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehiclePersonId.vehicleId)
                   eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
                 })
             }
@@ -494,6 +498,9 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(ModifyPassengerScheduleAck(_), _) =>
       scheduleStartLegAndStay()
     case Event(BecomeDriverSuccessAck, _) =>
+      if(id.toString.equalsIgnoreCase("115-1")){
+        val i =0
+      }
       scheduleStartLegAndStay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

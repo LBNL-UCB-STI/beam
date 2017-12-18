@@ -14,9 +14,11 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
+import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}
+import beam.agentsim.events.resources.ReservationErrorCode.RideHailNotRequested
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -195,7 +197,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
 
     val location = if(chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty){ chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString }else{ "" }
-    context.system.eventStream.publish(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+    eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       location,availableAlternatives.mkString(":"),availablePersonalStreetVehicles.nonEmpty,chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum,_experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get)))
 
     _experiencedBeamPlan.getStrategy(nextActivity.right.get,classOf[ModeChoiceStrategy]) match {
@@ -298,7 +300,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         case None =>
           rideHailingResult = None
         case _ =>
-          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA", classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequested)))
+          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA", classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequestedError)))
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit ={

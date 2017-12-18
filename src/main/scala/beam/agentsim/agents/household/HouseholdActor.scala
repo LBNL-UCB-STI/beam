@@ -187,9 +187,12 @@ class HouseholdActor(services: BeamServices,
     val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
     val initialBeamPath = BeamPath(Vector(), None, DefinedTrajectoryHolder(Trajectory(Vector(initialLocation))))
 
-    for {veh <- _vehicles
-         driver <- services.vehicles(veh).driver} yield {
-      driver ! AppendToTrajectory(initialBeamPath)
+    for {veh <- _vehicles} yield {
+      services.vehicles(veh).driver match {
+        case Some(driver) =>
+          driver ! AppendToTrajectory(initialBeamPath)
+        case None =>
+      }
       //TODO following mode should come from the vehicle
       _vehicleToStreetVehicle = _vehicleToStreetVehicle +
         (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
@@ -203,12 +206,14 @@ class HouseholdActor(services: BeamServices,
     } yield availableStreetVehicle
   ).flatten
 
-  def lookupReservedVehicles(person: Id[Person]): Vector[StreetVehicle] = Vector(
-    for {
-      availableVehicle <- _reservedForPerson.get(person)
-      availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
-    } yield availableStreetVehicle
-  ).flatten
+  def lookupReservedVehicles(person: Id[Person]): Vector[StreetVehicle] = {
+    _reservedForPerson.get(person) match {
+      case Some(availableVehicle) =>
+        Vector(_vehicleToStreetVehicle.get(availableVehicle).get)
+      case None =>
+        Vector()
+    }
+  }
 
 }
 

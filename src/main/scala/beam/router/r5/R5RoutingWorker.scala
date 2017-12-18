@@ -6,6 +6,7 @@ import java.util
 
 import akka.actor._
 import akka.pattern._
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.WALK
@@ -63,7 +64,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
     // let R5 use those. Otherwise, let R5 use its own travel time estimates.
     val pointToPointQuery = maybeTravelTime match {
       case Some(travelTime) => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
-        travelTime.getLinkTravelTime(beamServices.matsimServices.getScenario.getNetwork.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+        travelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
       })
       case None => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
     }
@@ -98,7 +99,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
 
-    def tripsForVehicle(vehicle: BeamVehicle.StreetVehicle): Seq[EmbodiedBeamTrip] = {
+    def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
       /*
        * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
        * call the "main" route calculation below. In both cases, we have a single main transit route
