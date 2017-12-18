@@ -15,6 +15,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
 import beam.router.r5.NetworkCoordinator
 import beam.sim.HasServices
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -119,9 +120,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         stay()
       }
 
-    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicleId), info) =>
-      val assignedVehicle = beamServices.vehicles(assignedVehicleId)
-      _currentVehicleUnderControl = Option(assignedVehicle)
+    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
+      if(id.toString.equalsIgnoreCase("115-1")){
+        val i =0
+      }
+      _currentVehicleUnderControl = Some(beamServices.vehicles(assignedVehicle))
       newPassengerSchedule match {
         case Some(passSched) =>
           passengerSchedule = passSched
@@ -211,6 +214,17 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       lastVisited = newSegments.getEndPoint()
       stay()
 
+  }
+
+  private def becomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double) = {
+    val vehicle = beamServices.vehicles(vehicleId)
+    vehicle.becomeDriver(self).fold(fa =>
+      stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
+        s"but driver ${vehicle.driver.get} already assigned.")),
+      fb => {
+        _currentVehicleUnderControl = Some(vehicle)
+        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicleId))
+      })
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {

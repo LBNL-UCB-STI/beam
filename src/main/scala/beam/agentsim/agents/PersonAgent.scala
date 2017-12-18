@@ -10,6 +10,7 @@ import beam.agentsim.agents.household.HouseholdActor.{NotifyNewVehicleLocation, 
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
+import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -17,6 +18,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes
+import beam.router.Modes.BeamMode.DRIVE_TRANSIT
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
@@ -121,7 +123,7 @@ class PersonAgent(val beamServices: BeamServices,
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] {
 
-  var _activityChain: Vector[Activity] = PersonData.planToVec(matsimPlan)
+  val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentVehicle: VehicleStack = VehicleStack()
   var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
@@ -132,17 +134,23 @@ class PersonAgent(val beamServices: BeamServices,
   var _numReschedules: Int = 0
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
-    if (ind < 0 || ind >= _activityChain.length) Left(msg) else Right(_activityChain(ind))
+    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg) else Right(_experiencedBeamPlan.activities(ind))
   }
-
-  def currentActivity: Activity = _activityChain(_currentActivityIndex)
-
+  def currentActivity: Activity = _experiencedBeamPlan.activities(_currentActivityIndex)
   def nextActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex + 1, "plan finished")
   }
 
   def prevActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex - 1, "at start")
+  }
+  def currentTour: Tour = {
+    stateName match {
+      case PerformingActivity =>
+        _experiencedBeamPlan.getTourContaining(currentActivity)
+      case _ =>
+        _experiencedBeamPlan.getTourContaining(nextActivity.right.get)
+    }
   }
 
   when(PerformingActivity) {
@@ -366,6 +374,9 @@ class PersonAgent(val beamServices: BeamServices,
             stop(Failure(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is " +
               s"$tick."))
           } else if (processedData.nextLeg.asDriver) {
+            /*
+             * AS DRIVER
+             */
             val passengerSchedule = PassengerSchedule()
             val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)) {
               VehiclePersonId(_humanBodyVehicle, id)
@@ -389,7 +400,7 @@ class PersonAgent(val beamServices: BeamServices,
                 stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
                   s"but driver ${vehicle.driver.get} already assigned.")),
                 fb => {
-                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule), vehicle.id)
+                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehiclePersonId.vehicleId)
                   eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
                 })
             }
