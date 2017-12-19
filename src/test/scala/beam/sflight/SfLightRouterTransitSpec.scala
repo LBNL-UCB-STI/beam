@@ -33,6 +33,7 @@ import scala.language.postfixOps
 
 class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
   akka.loglevel="OFF"
+  akka.test.timefactor=10
   """))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll with Inside {
 

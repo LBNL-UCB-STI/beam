@@ -47,11 +47,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    agentSimToPhysSimPlanConverter.startPhysSim()
+    agentSimToPhysSimPlanConverter.startPhysSim(event)
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
