@@ -20,6 +20,7 @@ import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, HasServices}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -28,8 +29,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object RideHailingAgent {
 
-  def props(services: BeamServices, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
-    Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleIdAndRef, location), eventsManager, services))
+  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) =
+    Props(new RideHailingAgent(rideHailingAgentId, RideHailingAgentData(vehicleIdAndRef, location), eventsManager, services, transportNetwork))
 
   case class RideHailingAgentData(vehicleIdAndRef: BeamVehicleIdAndRef, location: Coord) extends BeamAgentData
 
@@ -59,7 +60,7 @@ object RideHailingAgent {
 
 }
 
-class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val eventsManager: EventsManager, val beamServices: BeamServices)
+class RideHailingAgent(override val id: Id[RideHailingAgent], override val data: RideHailingAgentData, val eventsManager: EventsManager, val beamServices: BeamServices, val transportNetwork: TransportNetwork)
   extends BeamAgent[RideHailingAgentData]
     with HasServices
     with DrivesVehicle[RideHailingAgentData] {

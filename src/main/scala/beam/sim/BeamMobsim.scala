@@ -16,6 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
@@ -34,7 +35,7 @@ import scala.concurrent.Await
   * BEAM
   */
 
-class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem) extends Mobsim {
+class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem) extends Mobsim {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val log = Logger.getLogger(classOf[BeamMobsim])
@@ -111,7 +112,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
         beamServices.vehicleRefs ++= initVehicleActors()
 
         // FIXME: Must wait for population because it currently initializes global variables
-        val population = context.actorOf(Population.props(beamServices, eventsManager), "population")
+        val population = context.actorOf(Population.props(beamServices, transportNetwork, eventsManager), "population")
         Await.result(population ? Identify(0), timeout.duration)
 
         //TODO the following should be based on config params
@@ -125,14 +126,13 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
 
         for ((k, v) <- beamServices.persons.take(numRideHailAgents)) {
           val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-          //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
           val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
           val rideHailingName = s"rideHailingAgent-${k}"
           val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
           val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
           val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
           val vehicleIdAndRef: (Id[Vehicle], ActorRef) = initCarVehicle(rideHailVehicleId, rideHailVehicle)
-          val rideHailingAgent = RideHailingAgent.props(beamServices, eventsManager, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
+          val rideHailingAgent = RideHailingAgent.props(beamServices, transportNetwork, eventsManager, rideHailId, BeamVehicleIdAndRef(vehicleIdAndRef), rideInitialLocation)
           val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgent, rideHailingName)
           context.watch(rideHailingAgentRef)
           // populate maps and initialize agent via scheduler

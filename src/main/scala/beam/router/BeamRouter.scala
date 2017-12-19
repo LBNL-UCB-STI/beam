@@ -5,8 +5,7 @@ import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, Identify, Props, Stash}
-import akka.pattern._
+import akka.actor.{Actor, ActorLogging, Props, Stash}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, Powertrain, TransitVehicle, TransitVehicleData}
@@ -17,13 +16,12 @@ import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.{BeamMode, isOnStreetTransit}
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
-import beam.router.r5.NetworkCoordinator.transportNetwork
 import beam.router.r5.{BeamPointToPointQuery, NetworkCoordinator, R5RoutingWorker}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment}
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.EdgeStore
-import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
+import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
@@ -34,19 +32,11 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.concurrent.Await
 
-class BeamRouter(services: BeamServices, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
+class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  try {
-    new NetworkCoordinator(transitVehicles, services).loadNetwork
-  } catch {
-    case t: Throwable =>
-      t.printStackTrace()
-      throw t
-  }
-  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, network, fareCalculator), "router-worker")
+  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator), "router-worker")
 
   override def receive = {
     case InitTransit =>
@@ -141,7 +131,7 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
 
         val vehicleIdAndRef = BeamVehicleIdAndRef(transitVehId, transitVehRef)
         val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(services, eventsManager, transitDriverId, vehicleIdAndRef, legs)
+        val transitDriverAgentProps = TransitDriverAgent.props(services, transportNetwork, eventsManager, transitDriverId, vehicleIdAndRef, legs)
         val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         services.agentRefs += (transitDriverId.toString -> transitDriver)
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
@@ -263,5 +253,5 @@ object BeamRouter {
     }
   }
 
-  def props(beamServices: BeamServices, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) = Props(new BeamRouter(beamServices, network, eventsManager, transitVehicles, fareCalculator))
+  def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator))
 }

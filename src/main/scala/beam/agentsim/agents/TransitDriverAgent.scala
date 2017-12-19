@@ -14,6 +14,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -22,8 +23,8 @@ import org.matsim.vehicles.Vehicle
   * BEAM
   */
 object TransitDriverAgent {
-  def props(services: BeamServices, eventsManager: EventsManager, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, legs: Seq[BeamLeg]) = {
-    Props(new TransitDriverAgent(services, eventsManager, transitDriverId, vehicleIdAndRef, legs))
+  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, transitDriverId: Id[TransitDriverAgent], vehicleIdAndRef: BeamVehicleIdAndRef, legs: Seq[BeamLeg]) = {
+    Props(new TransitDriverAgent(services, transportNetwork, eventsManager, transitDriverId, vehicleIdAndRef, legs))
   }
   case class TransitDriverData() extends BeamAgentData
 
@@ -37,6 +38,7 @@ object TransitDriverAgent {
 }
 
 class TransitDriverAgent(val beamServices: BeamServices,
+                         val transportNetwork: TransportNetwork,
                          val eventsManager: EventsManager,
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicleIdAndRef: BeamVehicleIdAndRef,

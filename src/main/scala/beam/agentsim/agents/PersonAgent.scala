@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -38,8 +39,8 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(services: BeamServices, eventsManager: EventsManager, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan, humanBodyVehicleId: Id[Vehicle]): Props = {
-      Props(new PersonAgent(services, eventsManager, personId, householdId, plan, humanBodyVehicleId))
+  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan, humanBodyVehicleId: Id[Vehicle]): Props = {
+      Props(new PersonAgent(services, transportNetwork, eventsManager, personId, householdId, plan, humanBodyVehicleId))
   }
   def buildActorName(personId: Id[Person]): String = {
     s"$ActorPrefixName${personId.toString}"
@@ -91,6 +92,7 @@ object PersonAgent {
 }
 
 class PersonAgent(val beamServices: BeamServices,
+                  val transportNetwork: TransportNetwork,
                   val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
                   val householdId: Id[Household],

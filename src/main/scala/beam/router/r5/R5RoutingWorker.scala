@@ -14,16 +14,14 @@ import beam.router.RoutingModel.BeamLeg._
 import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
-import beam.router.r5.NetworkCoordinator._
 import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.router.{Modes, StreetSegmentTrajectoryResolver}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
-import com.conveyal.r5.common.JsonUtilities
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.EdgeStore
-import com.conveyal.r5.transit.RouteInfo
+import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -33,7 +31,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
+class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND=0.447; // 1 mile per hour
 
@@ -333,7 +331,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
 }
 
 object R5RoutingWorker {
-  def props(beamServices: BeamServices, network: Network, fareCalculator: FareCalculator) = Props(new R5RoutingWorker(beamServices, network, fareCalculator))
+  def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, fareCalculator: FareCalculator) = Props(new R5RoutingWorker(beamServices, transportNetwork, network, fareCalculator))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
 

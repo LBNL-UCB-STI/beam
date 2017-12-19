@@ -9,6 +9,8 @@ import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
+import beam.router.r5.NetworkCoordinator
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
@@ -21,6 +23,7 @@ import scala.collection.mutable
 import scala.concurrent.Await
 
 class BeamSim @Inject()(private val actorSystem: ActorSystem,
+                        private val transportNetwork: TransportNetwork,
                         private val beamServices: BeamServices,
                         private val eventsManager: EventsManager,
                         private val scenario: Scenario,
@@ -44,10 +47,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     }
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
-    beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
+    beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, transportNetwork, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
 
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap

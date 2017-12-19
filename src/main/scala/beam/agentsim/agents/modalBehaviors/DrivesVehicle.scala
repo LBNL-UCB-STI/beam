@@ -13,8 +13,8 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.events.resources.vehicle._
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
-import beam.router.r5.NetworkCoordinator
 import beam.sim.HasServices
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -31,6 +31,8 @@ object DrivesVehicle {
 }
 
 trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
+
+  protected val transportNetwork: TransportNetwork
 
   //TODO: double check that mutability here is legit espeically with the schedules passed in
   protected var passengerSchedule: PassengerSchedule = PassengerSchedule()
@@ -203,7 +205,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   private def getStartCoord: Coord = {
     val startCoord=  try {
-      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.toInt).getGeometry.getCoordinate
+      val r5Coord=transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.toInt).getGeometry.getCoordinate
       Some(new Coord(r5Coord.x,r5Coord.y))
     } catch {
       case _: Exception => None
@@ -213,7 +215,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   private def getEndCoord: Coord = {
     val endCoord:Option[Coord]=  try {
-      val r5Coord=NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks(getLinks.size-1).toInt).getGeometry.getCoordinate
+      val r5Coord=transportNetwork.streetLayer.edgeStore.getCursor(getLinks(getLinks.size-1).toInt).getGeometry.getCoordinate
       Some(new Coord(r5Coord.x,r5Coord.y))
     } catch {
       case _: Exception => None
