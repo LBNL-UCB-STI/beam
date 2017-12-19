@@ -27,7 +27,7 @@ object RoutingModel {
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
     lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
-    lazy val requiresReservationConfirmation: Boolean = tripClassifier!=WALK && legs.exists(!_.asDriver)
+    lazy val requiresReservationConfirmation: Boolean = tripClassifier!= WALK && legs.exists(!_.asDriver)
 
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum
 
