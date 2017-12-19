@@ -360,9 +360,9 @@ class PersonAgent(val beamServices: BeamServices,
     _currentEmbodiedLeg match {
       case Some(embodiedBeamLeg) =>
         if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
-          beamServices.vehicles(_currentVehicle.outermostVehicle()).unsetDriver()
-          eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
+          unbecomeDriverOfVehicle(_currentVehicle.outermostVehicle(),tick)
           _currentVehicle = _currentVehicle.pop()
+          if(!_currentVehicle.isEmpty)resumeControlOfVehcile(_currentVehicle.outermostVehicle())
         }
       case None =>
     }
@@ -390,23 +390,26 @@ class PersonAgent(val beamServices: BeamServices,
             if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehiclePersonId.vehicleId) {
               // We are already in vehicle from before, so update schedule
               //XXXX (VR): Easy refactor => send directly to driver
-              beamServices.vehicles(vehiclePersonId.vehicleId).driver.foreach(_ ! ModifyPassengerSchedule
-              (passengerSchedule))
+//              beamServices.vehicles(vehiclePersonId.vehicleId).driver.foreach(_ ! ModifyPassengerSchedule
+//              (passengerSchedule))
+              modifyPassengerSchedule(passengerSchedule)
             } else {
-              //XXXX (VR): Our first time entering this vehicle, so become driver directly
-              val vehicle = beamServices.vehicles(vehiclePersonId.vehicleId)
-              vehicle.becomeDriver(self).fold(fa =>
-                stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
-                  s"but driver ${vehicle.driver.get} already assigned.")),
-                fb => {
-                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehiclePersonId.vehicleId)
-                  eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-                })
+//              //XXXX (VR): Our first time entering this vehicle, so become driver directly
+//              val vehicle = beamServices.vehicles(vehiclePersonId.vehicleId)
+//              vehicle.becomeDriver(self).fold(fa =>
+//                stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
+//                  s"but driver ${vehicle.driver.get} already assigned.")),
+//                fb => {
+//                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehiclePersonId.vehicleId)
+//                  eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+//                })
+              becomeDriverOfVehicle(vehiclePersonId.vehicleId,tick)
+              setPassengerSchedule(passengerSchedule)
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _currentRoute = processedData.restTrip
             _currentEmbodiedLeg = Some(processedData.nextLeg)
-            stay()
+            scheduleStartLegAndWait()
           }
           else {
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
@@ -432,7 +435,7 @@ class PersonAgent(val beamServices: BeamServices,
               if (currentActivity.getType.equals("Home")) {
                 beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id, personalVeh)
                 //XXXX (VR): use resource method on vehicle
-                self ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
+                beamServices.householdRefs(_household) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
                 currentTourPersonalVehicle = None
               } else {
                 beamServices.householdRefs(_household) ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity
@@ -496,28 +499,27 @@ class PersonAgent(val beamServices: BeamServices,
 
   chainedWhen(AnyState) {
     case Event(ModifyPassengerScheduleAck(_), _) =>
-      scheduleStartLegAndStay()
+      scheduleStartLegAndWait()
     case Event(BecomeDriverSuccessAck, _) =>
       if(id.toString.equalsIgnoreCase("115-1")){
         val i =0
       }
-      scheduleStartLegAndStay()
+      scheduleStartLegAndWait()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
   }
 
-  def scheduleStartLegAndStay(): State = {
+  def scheduleStartLegAndWait(): State = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     val newTriggerTime = _currentEmbodiedLeg.get.beamLeg.startTime
     if (newTriggerTime < tick) {
       stop(Failure(s"It is $tick and I am trying to schedule the start of my " +
         s"leg for $newTriggerTime. I can't do that."))
     }
-    beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self,
+    goto(Waiting) replying completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self,
       _currentEmbodiedLeg.get.beamLeg))
-    stay
   }
 
   override def logPrefix(): String

@@ -15,7 +15,7 @@ import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
 import beam.router.r5.NetworkCoordinator
 import beam.sim.HasServices
-import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
+import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -221,8 +221,35 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stay()
 
   }
+  def setPassengerSchedule(newPassengerSchedule: PassengerSchedule) = {
+    passengerSchedule = newPassengerSchedule
+  }
 
-  private def becomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double) = {
+  def modifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule)={
+    var errorFlag = false
+    if (!passengerSchedule.isEmpty) {
+      val endSpaceTime = passengerSchedule.terminalSpacetime()
+      if (updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
+        beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc, endSpaceTime.loc) >
+          beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+      ) {
+        errorFlag = true
+      }
+    }
+    if (errorFlag) {
+      stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with " +
+        "new"))
+    } else {
+      passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
+      updatedPassengerSchedule.schedule.foreach { legAndManifest =>
+        legAndManifest._2.riders.foreach { rider =>
+          passengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
+        }
+      }
+    }
+  }
+
+  def becomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double) = {
     val vehicle = beamServices.vehicles(vehicleId)
     vehicle.becomeDriver(self).fold(fa =>
       stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
@@ -231,6 +258,15 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         _currentVehicleUnderControl = Some(vehicle)
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicleId))
       })
+  }
+
+  def resumeControlOfVehcile(vehicleId: Id[Vehicle]) = {
+    _currentVehicleUnderControl = Some(beamServices.vehicles(vehicleId))
+  }
+
+  def unbecomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double): Unit ={
+    beamServices.vehicles(vehicleId).unsetDriver()
+    eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), vehicleId))
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
