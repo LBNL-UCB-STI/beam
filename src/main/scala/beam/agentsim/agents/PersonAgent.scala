@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
-import beam.agentsim.Resource.TellManagerResourceIsAvailable
+import beam.agentsim.Resource.{CheckInResource, TellManagerResourceIsAvailable}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
@@ -432,15 +432,13 @@ class PersonAgent(val beamServices: BeamServices,
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
             case Some(personalVeh) =>
+              val householdRef = beamServices.householdRefs(_household)
               if (currentActivity.getType.equals("Home")) {
-                beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id, personalVeh)
-                //XXXX (VR): use resource method on vehicle
-                beamServices.householdRefs(_household) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
+                householdRef ! ReleaseVehicleReservation(id, personalVeh)
+                householdRef ! CheckInResource(personalVeh)
                 currentTourPersonalVehicle = None
-              } else {
-                beamServices.householdRefs(_household) ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity
-                  .getCoord, tick.toLong))
               }
+              householdRef ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity.getCoord, tick.toLong))
             case None =>
           }
           val endTime = if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
