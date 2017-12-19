@@ -3,11 +3,10 @@ package beam.agentsim.agents.planning
 import java.{lang, util}
 
 import beam.agentsim.agents.planning.Startegy.Strategy
-import beam.router.Modes.BeamMode.CABLE_CAR
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, PlanElement}
+import org.matsim.api.core.v01.population._
 import org.matsim.utils.objectattributes.attributable.Attributes
 
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 /**
@@ -109,13 +108,13 @@ class BeamPlan extends Plan{
         tour.trips.foreach( trip => putStrategy(trip, strategy) )
       case trip: Trip =>
         putStrategy(trip.activity, strategy)
-        trip.leg.map(theLeg => putStrategy(theLeg, strategy))
+        trip.leg.foreach(theLeg => putStrategy(theLeg, strategy))
       case _ =>
         // Already dealt with Acts and Legs
     }
   }
   def getStrategy(planElement: PlanElement, forClass: Class[_ <: Strategy]): Option[Strategy] = {
-    strategies.get(planElement).getOrElse[mutable.Map[Class[_ <: Strategy],Strategy]](mutable.Map()).get(forClass)
+    strategies.getOrElse(planElement, mutable.Map()).get(forClass)
   }
   def getTripContaining(planElement: PlanElement): Trip = {
     planElement match{
