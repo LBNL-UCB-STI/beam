@@ -26,7 +26,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with RunBeam with Before
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
       val beamConfig = BeamConfig(config)
-      FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)
+      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig)
       var nCarTrips = 0
       val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, new AbstractModule() {

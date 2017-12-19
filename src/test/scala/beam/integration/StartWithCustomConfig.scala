@@ -3,7 +3,7 @@ package beam.integration
 import java.io.File
 
 import beam.sim.RunBeam
-import beam.sim.config.{BeamConfig, ConfigModule}
+import beam.sim.config.{BeamConfig}
 import com.typesafe.config.Config
 
 class StartWithCustomConfig(val config: Config) extends
@@ -11,9 +11,9 @@ class StartWithCustomConfig(val config: Config) extends
 
   val beamConfig = BeamConfig(config)
 
-  runBeamWithConfig(config)
+  val matsimConfig: org.matsim.core.config.Config = runBeamWithConfig(config)
 
-  val file: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , beamConfig.beam.outputs.events.fileOutputFormats)
+  val file: File = getEventsFilePath(matsimConfig, beamConfig.beam.outputs.events.fileOutputFormats)
 
   val eventsReader: ReadEvents = new ReadEventsBeam
 
