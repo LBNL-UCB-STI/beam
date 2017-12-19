@@ -44,7 +44,7 @@ object RoutingModel {
           theMode = TRANSIT
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
           if((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
-            (legs.size>1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle")) || legs.exists(l => l.beamLeg.mode == RIDEHAIL) ){
+            (legs.size>1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle"))){
             theMode = RIDEHAIL
           }else{
             theMode = CAR

@@ -172,27 +172,24 @@ class RideHailingManager(info: RideHailingManagerData,
 
 
       val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
-      // this won't work w
-      val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(CAR))
-      val itins2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(CAR))
+      val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
+      val itins2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
       if (timeToCustomer < Long.MaxValue && customerPlans2Costs.nonEmpty && itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
         val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
 
         //TODO: include customerTrip plan in response to reuse( as option BeamTrip can include createdTime to check if the trip plan is still valid
         //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
-        val modRHA2Cust = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(
-          asDriver = true,
-          beamLeg = c.beamLeg.copy(mode = if (c.beamLeg.mode == CAR) RIDEHAIL else WALK)))))
-
-        val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(
-          asDriver = c.beamLeg.mode == WALK,
+        val modRHA2Cust = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
+        val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK,
           unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg,
-          beamLeg =
-            c.beamLeg.copy(
-              startTime = c.beamLeg.startTime + timeToCustomer,
-              mode = if (c.beamLeg.mode == CAR) RIDEHAIL else WALK),
-          cost = if (c.beamLeg == l.legs(1).beamLeg) cost else 0.0))))
+          beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer),
+          cost = if (c.beamLeg == l.legs(1).beamLeg) {
+            cost
+          } else {
+            0.0
+          }
+        ))))
 
         val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
         val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest)

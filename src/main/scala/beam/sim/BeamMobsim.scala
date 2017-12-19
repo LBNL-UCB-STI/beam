@@ -9,26 +9,25 @@ import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor
-import beam.agentsim.agents.household.HouseholdActor.InitializeRideHailAgent
 import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.StartSchedule
+import beam.agentsim.scheduler.BeamAgentScheduler.{ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
 import com.google.inject.Inject
 import org.apache.log4j.Logger
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
-import scala.util.Random
 
 /**
   * AgentSim entrypoint.
@@ -101,30 +100,42 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     // Init households before RHA.... RHA vehicles will initially be managed by households
     initHouseholds()
 
-    // Init ridehailing agents
-    sampleRideHailAgentsFromPop(
-      beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation)
 
 
-  }
+    //TODO the following should be based on config params
+    //    val numRideHailAgents = 0.1
+    val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
+    val initialLocationJitter = 500 // meters
 
+    val rideHailingVehicleType = scenario.getVehicles.getVehicleTypes.get(Id.create("1",classOf[VehicleType]))
 
-  private def sampleRideHailAgentsFromPop(fraction: Double): Unit = {
+    var rideHailingVehicles: Map[Id[Vehicle], ActorRef] = Map[Id[Vehicle], ActorRef]()
 
-    val numRideHailAgents: Int = math
-      .round(math.min(
-        beamServices.beamConfig.beam.agentsim.numAgents,
-        beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing
-        .numDriversAsFractionOfPopulation)
-      .toInt
-
-    val rideHailAgentSample = Random.shuffle(beamServices.persons.keys).take(numRideHailAgents).toVector
-    beamServices.households.foreach {
-      case (hhId, hh) =>
-        JavaConverters.asScalaBuffer(hh.getMemberIds).filter(rideHailAgentSample.contains(_)).foreach {
-          memberId => beamServices.householdRefs(hhId) ! InitializeRideHailAgent(memberId)
-        }
+    for ((k, v) <- beamServices.persons.take(numRideHailAgents)) {
+      val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+      //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
+      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
+      val rideHailingName = s"rideHailingAgent-${k}"
+      val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
+      val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
+      val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
+      val rideHailingAgentPersonId:Id[RideHailingAgent] = Id.createPersonId(rideHailingName)
+      val information = Option(rideHailVehicle.getType.getEngineInformation)
+      val vehicleAttribute = Option(
+        scenario.getVehicles.getVehicleAttributes)
+      val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
+        information
+          .map(_.getGasConsumption)
+          .getOrElse(Powertrain.AverageMilesPerGallon))
+      val rideHailBeamVehicle = new BeamVehicle(None,powerTrain,rideHailVehicle,vehicleAttribute,CarVehicle)
+      val rideHailingAgentProps = RideHailingAgent.props(beamServices, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)
+      val rideHailingAgentRef: ActorRef = actorSystem.actorOf(rideHailingAgentProps, rideHailingName)
+      beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
+      beamServices.agentRefs.put(rideHailingName, rideHailingAgentRef)
+      beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
+      rideHailingAgents :+= rideHailingAgentRef
     }
+
     log.info(s"Initialized $numRideHailAgents ride hailing agents")
   }
 

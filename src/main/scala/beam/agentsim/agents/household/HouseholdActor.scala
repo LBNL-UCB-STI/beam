@@ -133,19 +133,6 @@ class HouseholdActor(services: BeamServices,
         case _ =>
       }
 
-//    case InitializeRideHailAgent(memberId) =>
-//      memberActors.keys.toList.find(_.equals(memberId)).foreach(personId => {
-//        _reservedForPerson.get(personId).foreach({ vehId =>
-//         val rideHailingAgentProps = RideHailingAgent.props(services, eventsManager, personId, vehicles(vehId), homeCoord)
-//          val rideHailingName = s"${RideHailingAgent.idPrefix+"-"+memberId.toString}"
-//          val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgentProps, rideHailingName)
-//          // XXXX (VR):  Not sure that we want to have this here w/out making the personagent
-//          // whose place this rha is taking go away
-//          beamServices.agentRefs.put(rideHailingName, rideHailingAgentRef)
-//          beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
-//        })
-//      })
-
     case MobilityStatusInquiry(_, personId) =>
       // Query reserved vehicles
       val availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles
