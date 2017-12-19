@@ -96,7 +96,7 @@ for(file.path in args$args){
     setkey(stops.final,orig.order)
     stops.final[,':='(fix.arrival_time=NULL,fix.departure_time=NULL,orig.order=NULL)]
 
-    write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = " ",row.names =F,quote=T)
+    write.csv(stops.final,file=pp(tmp.dir,'/stop_times.txt'),na = "",row.names =F,quote=1:4)
     setwd(tmp.dir)
     zip(file.path,'stop_times.txt')
   }else{

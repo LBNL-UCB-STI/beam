@@ -40,6 +40,7 @@ trait RunBeam {
         // Override MATSim Defaults
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
+//        bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
 
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim])
