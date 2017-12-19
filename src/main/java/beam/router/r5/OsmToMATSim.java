@@ -120,7 +120,14 @@ public class OsmToMATSim {
 	public Link createLink(final Way way, long osmID, Integer r5ID, final Node fromMNode, final Node toMNode,
 									  final double length, HashSet<String> flagStrings) {
 		String highway = way.getTag(TAG_HIGHWAY);
+		if (highway == null) {
+			highway = "unclassified";
+		}
 		BEAMHighwayDefaults defaults = this.highwayDefaults.get(highway);
+
+		if (defaults == null) {
+			defaults = this.highwayDefaults.get("unclassified");
+		}
 
 		double nofLanes = defaults.lanesPerDirection;
 		double laneCapacity = defaults.laneCapacity;

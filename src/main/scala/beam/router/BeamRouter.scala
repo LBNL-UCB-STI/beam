@@ -39,11 +39,13 @@ import scala.concurrent.Await
 class BeamRouter(services: BeamServices, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private val networkCoordinator = context.actorOf(NetworkCoordinator.props(transitVehicles, services), "network-coordinator")
-
-  // FIXME Wait for networkCoordinator because it initializes global variables.
-  Await.ready(networkCoordinator ? Identify(0), timeout.duration)
-
+  try {
+    new NetworkCoordinator(transitVehicles, services).loadNetwork
+  } catch {
+    case t: Throwable =>
+      t.printStackTrace()
+      throw t
+  }
   private val routerWorker = context.actorOf(R5RoutingWorker.props(services, network, fareCalculator), "router-worker")
 
   override def receive = {

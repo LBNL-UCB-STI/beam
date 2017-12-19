@@ -179,7 +179,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         List<Id<Link>> removeLinks = new ArrayList<>();
         for (Id<Link> linkId : linkIds) {
             if (!agentSimScenario.getNetwork().getLinks().containsKey(linkId)) {
-                removeLinks.add(linkId);
+                throw new RuntimeException("Link not found: "+linkId);
             }
         }
         numberOfLinksRemovedFromRouteAsNonCarModeLinks += removeLinks.size();

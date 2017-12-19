@@ -52,7 +52,7 @@ public class R5MnetBuilder {
 	 */
 	public R5MnetBuilder(TransportNetwork r5Net, String osmDBPath) {
 		this.osmFile = osmDBPath;
-		log.info("Found R5 Transport Network file, loading....");
+		log.debug("Found R5 Transport Network file, loading....");
 		this.r5Network = r5Net;
 		this.mNetowrk = NetworkUtils.createNetwork();
 	}
@@ -64,8 +64,8 @@ public class R5MnetBuilder {
 		EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
 		OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, this.transform, true);
 		while (cursor.advance()) {
-			log.info(cursor.getEdgeIndex());
-			log.info(cursor);
+			log.debug(cursor.getEdgeIndex());
+			log.debug(cursor);
 			// TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
 			// Check if we have already seen this OSM way. Skip if we have.
 			Integer edgeIndex = cursor.getEdgeIndex();
@@ -104,11 +104,19 @@ public class R5MnetBuilder {
 			if (way != null) {
 				Link link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
 				mNetowrk.addLink(link);
-				log.info("Created: " + link);
+				log.debug("Created regular link: " + link);
 				this.lastProcessedOSMId = osmID;
 				this.lastProcessedNodes = deezNodes;
 			} else {
-				log.info("Not in db: " + osmID);
+				// Made up numbers, this is a PT to road network connector or something
+				Link link = mNetowrk.getFactory().createLink(Id.create(edgeIndex, Link.class), fromNode, toNode);
+				link.setLength(length);
+				link.setFreespeed(10.0 / 3.6);
+				link.setCapacity(300);
+				link.setNumberOfLanes(1);
+				link.setAllowedModes(flagStrings);
+				mNetowrk.addLink(link);
+				log.debug("Created special link: " + link);
 			}
 		}
 	}
