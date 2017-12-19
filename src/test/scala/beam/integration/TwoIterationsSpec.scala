@@ -24,7 +24,7 @@ class TwoIterationsSpec extends FlatSpec with RunBeam with MockitoSugar {
     val matsimConfig = configBuilder.buildMatSamConf()
     matsimConfig.controler().setLastIteration(1)
     val beamConfig = BeamConfig(config)
-    FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)
+    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario = ScenarioUtils.loadScenario(matsimConfig)
     val iterationCounter = mock[IterationEndsListener]
     val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, new AbstractModule() {

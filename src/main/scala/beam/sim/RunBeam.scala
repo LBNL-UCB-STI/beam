@@ -11,6 +11,7 @@ import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
+import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
@@ -65,7 +66,7 @@ trait RunBeam {
     runBeamWithConfig(config)
   }
 
-  def runBeamWithConfig(config: com.typesafe.config.Config) = {
+  def runBeamWithConfig(config: com.typesafe.config.Config): Config = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
 
@@ -74,7 +75,7 @@ trait RunBeam {
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
 
-    FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)
+    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
 
     lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
@@ -83,7 +84,7 @@ trait RunBeam {
     val services: BeamServices = injector.getInstance(classOf[BeamServices])
 
     services.controler.run()
-
+    matsimConfig
   }
 }
 

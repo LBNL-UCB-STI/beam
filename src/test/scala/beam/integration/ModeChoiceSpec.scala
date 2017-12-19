@@ -32,18 +32,17 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
-    "prefer mode choice transit type than other modes" ignore {
-      val config = ConfigFactory.parseFile(new File(configFileName))
+    "prefer mode choice transit type than other modes" in {
       val multinomialRun = new StartWithCustomConfig(
-        config.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
+        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
         ("ModeChoiceMultinomialLogit"))
       )
       val transitIfAvailableRun = new StartWithCustomConfig(
-        config.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
+        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
         ("ModeChoiceTransitIfAvailable"))
       )
-      val multinomialCount = multinomialRun.groupedCount.getOrElse("transit", 0)
-      val transitIfAvailableCount = transitIfAvailableRun.groupedCount.getOrElse("transit", 0)
+      val multinomialCount = multinomialRun.groupedCount.getOrElse("walk_transit", 0)
+      val transitIfAvailableCount = transitIfAvailableRun.groupedCount.getOrElse("walk_transit", 0)
 
       transitIfAvailableCount should be >= multinomialCount
     }
