@@ -144,30 +144,25 @@ class RideHailingManager(info: RideHailingManagerData,
           //TODO: restarted, and probably someone will wait forever for its reply.
           implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
           import context.dispatcher
-          val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest
-          RoutingRequestTripInfo(personId, rideHailingLocation
-            .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin))
+          val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(personId, rideHailingLocation
+            .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin)))
           //XXXX: customer trip request might be redundant... possibly pass in info
-          val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo
-          (personId, customerPickUp, destination, departAt,
+          val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(personId, customerPickUp, destination, departAt,
             Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup)))
 
           for {
             rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
             rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
           } {
-            self ! RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation,
-              shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
+            self ! RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
           }
         case None =>
           // no rides to hail
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
       }
 
-    case RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation, shortDistanceToRideHailingAgent,
-    rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
-      val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t
-        .totalTravelTime)
+    case RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
+      val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
       // TODO: Find better way of doing this error checking than sentry value
       val timeToCustomer = if (timesToCustomer.nonEmpty) {
         timesToCustomer.min
