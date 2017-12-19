@@ -435,7 +435,7 @@ class PersonAgent(val beamServices: BeamServices,
               if (currentActivity.getType.equals("Home")) {
                 beamServices.householdRefs(_household) ! ReleaseVehicleReservation(id, personalVeh)
                 //XXXX (VR): use resource method on vehicle
-                self ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
+                beamServices.householdRefs(_household) ! TellManagerResourceIsAvailable(new SpaceTime(activity.getCoord, tick.toLong))
                 currentTourPersonalVehicle = None
               } else {
                 beamServices.householdRefs(_household) ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity
