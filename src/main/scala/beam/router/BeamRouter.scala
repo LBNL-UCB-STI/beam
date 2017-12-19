@@ -8,8 +8,10 @@ import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, Identify, Props, Stash}
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleIdAndRef, StreetVehicle}
-import beam.agentsim.agents.vehicles.{BeamVehicle, Powertrain, TransitVehicle, TransitVehicleData}
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
@@ -29,7 +31,6 @@ import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.router.util.TravelTime
-import org.matsim.utils.objectattributes.attributable.Attributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 
 import scala.collection.JavaConverters._
@@ -57,10 +58,13 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
       routerWorker.forward(w)
   }
 
+
   /*
 * Plan of action:
-* Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and a vehicle
-* The arrivals/departures within the TripSchedules are vectors of the same length as the "stops" field in the TripPattern
+* Each TripSchedule within each TripPattern represents a transit vehicle trip and will spawn a transitDriverAgent and
+ * a vehicle
+* The arrivals/departures within the TripSchedules are vectors of the same length as the "stops" field in the
+* TripPattern
 * The stop IDs will be used to extract the Coordinate of the stop from the transitLayer (don't see exactly how yet)
 * Also should hold onto the route and trip IDs and use route to lookup the transit agency which ultimately should
 * be used to decide what type of vehicle to assign
@@ -119,7 +123,7 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleTypeId = Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
 
-    val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)){
+    val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
       transitVehicles.getVehicleTypes.get(vehicleTypeId)
     } else {
       log.info(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
@@ -130,16 +134,16 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
       case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY) if vehicleType != null =>
         val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
         matSimTransitVehicle.getType.setDescription(mode.value)
-        val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain.AverageMilesPerGallon)
-        val transitVehProps = TransitVehicle.props(services, eventsManager, matSimTransitVehicle.getId, TransitVehicleData(), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
-        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
-        services.vehicles += (transitVehId -> matSimTransitVehicle)
-        services.vehicleRefs += (transitVehId -> transitVehRef)
-        services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitVehRef)
-
-        val vehicleIdAndRef = BeamVehicleIdAndRef(transitVehId, transitVehRef)
+        val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain
+          .AverageMilesPerGallon)
+        //        val transitVehProps = TransitVehicle.props(services, matSimTransitVehicle.getId, TransitVehicleData
+        // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
+        //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
+        val vehicle: BeamVehicle = new BeamVehicle(None, Powertrain.PowertrainFromMilesPerGallon(consumption),
+          matSimTransitVehicle, None, TransitVehicle)
+        services.vehicles += (transitVehId -> vehicle)
         val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(services, eventsManager, transitDriverId, vehicleIdAndRef, legs)
+        val transitDriverAgentProps = TransitDriverAgent.props(services,eventsManager, transitDriverId, vehicle, legs)
         val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         services.agentRefs += (transitDriverId.toString -> transitDriver)
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
@@ -151,8 +155,9 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
 
   /**
     * Does point2point routing request to resolve appropriated route between stops
+    *
     * @param fromStopIdx from stop
-    * @param toStopIdx to stop
+    * @param toStopIdx   to stop
     * @return
     */
   private def routeTransitPathThroughStreets(fromStopIdx: Int, toStopIdx: Int) = {
@@ -164,8 +169,8 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
 
     val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
     val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
-    var fromPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer,new Coord(fromVertex.getLon,fromVertex.getLat),100E3,StreetMode.WALK)
-    var toPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer,new Coord(toVertex.getLon,toVertex.getLat),100E3,StreetMode.WALK)
+    var fromPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer, new Coord(fromVertex.getLon, fromVertex.getLat), 100E3, StreetMode.WALK)
+    var toPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer, new Coord(toVertex.getLon, toVertex.getLat), 100E3, StreetMode.WALK)
 
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
@@ -183,7 +188,7 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
     val closestDepartItinerary = profileResponse.options.asScala.headOption
     val legsBetweenStops = closestDepartItinerary match {
       case Some(option) =>
-        val streetSeg =  option.access.get(0)
+        val streetSeg = option.access.get(0)
         val itinerary = option.itinerary.get(0)
         var activeLinkIds = Vector[String]()
         for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
@@ -198,16 +203,17 @@ class BeamRouter(services: BeamServices, network: Network, eventsManager: Events
 
   private def resolveFirstLastTransitEdges(stopIdxs: Int*) = {
     val edgeIds: Vector[String] = stopIdxs.map { stopIdx =>
-      if(transportNetwork.transitLayer.streetVertexForStop.get(stopIdx) >= 0){
-        val stopVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(stopIdx))
+      if (transportNetwork.transitLayer.streetVertexForStop.get(stopIdx) >= 0) {
+        val stopVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer
+          .streetVertexForStop.get(stopIdx))
         val split = transportNetwork.streetLayer.findSplit(stopVertex.getLat, stopVertex.getLon, 100, StreetMode.CAR)
-        if(split!=null){
+        if (split != null) {
           split.edge.toString
-        }else{
+        } else {
           log.warning(s"Stop ${stopIdx} not linked to street network.")
           ""
         }
-      }else{
+      } else {
         log.warning(s"Stop ${stopIdx} not linked to street network.")
         ""
       }
@@ -232,13 +238,16 @@ object BeamRouter {
     * @param transitModes what transit modes should be considered
     * @param streetVehicles what vehicles should be considered in route calc
     * @param personId
+    * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
     */
-  case class RoutingRequestTripInfo(origin: Location,
+  case class RoutingRequestTripInfo(personId: Id[PersonAgent],
+                                    origin: Location,
                                     destination: Location,
                                     departureTime: BeamTime,
                                     transitModes: Vector[BeamMode],
                                     streetVehicles: Vector[StreetVehicle],
-                                    personId: Id[PersonAgent])
+                                    streetVehiclesAsAccess: Boolean = true
+                                    )
 
   /**
     * Message to request a route plan
@@ -253,8 +262,8 @@ object BeamRouter {
   case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
 
   object RoutingRequest {
-    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent]): RoutingRequest = {
-      new RoutingRequest(RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, personId))
+    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent], streetVehiclesAsAccess: Boolean = true): RoutingRequest = {
+      new RoutingRequest(RoutingRequestTripInfo(personId, fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, streetVehiclesAsAccess))
     }
     def apply(params : RoutingRequestTripInfo): RoutingRequest = {
       new RoutingRequest(params)

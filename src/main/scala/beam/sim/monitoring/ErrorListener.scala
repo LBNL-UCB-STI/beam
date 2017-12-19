@@ -18,6 +18,8 @@ class ErrorListener() extends Actor with ActorLogging {
         nextCounter *= 2
         log.error(s"\n\n\t****** Agents gone to Error: ${terminatedPrematurelyEvents.size} ********\n${formatErrorReasons()}")
       }
+    case _ =>
+      ///
   }
 
   def formatErrorReasons(): String = {
