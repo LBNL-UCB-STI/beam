@@ -6,6 +6,7 @@ import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.household.HouseholdActor.NotifyNewVehicleLocation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
@@ -52,6 +53,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       //we have just completed a leg
       //      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
+      _currentVehicleUnderControl match {
+        case Some(veh) =>
+          // If no manager is set, we ignore
+          veh.manager.foreach( _ ! NotifyNewVehicleLocation(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())))
+        case None =>
+          throw new RuntimeException(s"Driver $id just ended a leg ${completedLeg} but had no vehicle under control")
+      }
       passengerSchedule.schedule.get(completedLeg) match {
         case Some(manifest) =>
           holdTickAndTriggerId(tick, triggerId)

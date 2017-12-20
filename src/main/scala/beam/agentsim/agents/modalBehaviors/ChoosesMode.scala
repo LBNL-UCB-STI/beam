@@ -80,7 +80,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if (modeAlreadyDefined) {
         predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
         if (predefinedMode.get != WALK) {
-          val itinsWithoutWalk = combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
+          val itinsWithoutWalk = if(predefinedMode.get == DRIVE_TRANSIT){
+            combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
+          }else{
+            combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
+          }
           if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
         }
       }
@@ -307,7 +311,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
-        val req = RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, id)
+        val req = RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, id, streetVehiclesAsAccess)
         beamServices.beamRouter ! req
         logInfo(req.toString)
       }
@@ -339,7 +343,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE =>
           makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
         case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
-          makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
+          currentTour.tripIndexOfElement(nextAct) match {
+            case ind if ind==0 =>
+              makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
+            case ind if ind == currentTour.trips.size-1 =>
+              makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
+            case _ =>
+              makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
+          }
         case Some(ModeChoiceStrategy(mode)) if mode == RIDEHAIL =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
