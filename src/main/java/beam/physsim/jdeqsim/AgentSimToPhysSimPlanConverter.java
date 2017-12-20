@@ -57,12 +57,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
+    private Integer writePhysSimEventsInterval;
+
+    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router, Integer writePhysSimEventsInterval) {
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
         this.registry = registry;
         this.router = router;
         agentSimScenario = scenario;
+
+        this.writePhysSimEventsInterval = writePhysSimEventsInterval;
+
 
         if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
@@ -83,13 +88,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     }
 
-    public void initializeActorsAndRunPhysSim() {
+    public void initializeActorsAndRunPhysSim(int iterationNumber) {
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
         try {
 
             // TODO: adapt code to send new scenario data to jdeqsim actor each time
             if (eventHandlerActorREF == null) {
-                eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props(agentSimScenario.getNetwork()));
+
+                eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props(agentSimScenario.getNetwork(), this.controlerIO, iterationNumber, writePhysSimEventsInterval));
                 eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
             }
 
@@ -97,8 +103,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager, router));
             }
 
-            jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM,jdeqSimScenario.getPopulation()), ActorRef.noSender());
-            eventHandlerActorREF.tell(EventManagerActor.REGISTER_JDEQSIM_REF, jdeqsimActorREF);
+            jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM(),jdeqSimScenario.getPopulation()), ActorRef.noSender());
+            eventHandlerActorREF.tell(EventManagerActor.REGISTER_JDEQSIM_REF(), jdeqsimActorREF);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -207,7 +213,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
-        initializeActorsAndRunPhysSim();
+        initializeActorsAndRunPhysSim(iterationEndsEvent.getIteration());
+
 
         preparePhysSimForNewIteration();
     }
