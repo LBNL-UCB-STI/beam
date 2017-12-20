@@ -1,5 +1,11 @@
 package beam.experiment
 
+import java.nio.file.{Files, Paths}
+
+import beam.experiment.ExperimentGenerator.experiment
+import com.google.common.base.Charsets
+import com.google.common.io.Resources
+
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
@@ -13,7 +19,7 @@ case class ExperimentDef(@BeanProperty var title: String,
 
                          @BeanProperty var baseScenario: BaseScenario,
                          @BeanProperty var factors: java.util.List[Factor]) {
-  def this() = this("", "", "", "", "","", null, new java.util.LinkedList())
+  def this() = this("", "", "", "", "", "", null, new java.util.LinkedList())
 
   def combinationsOfLevels() = {
 
@@ -38,6 +44,26 @@ case class ExperimentDef(@BeanProperty var title: String,
     */
   def getDynamicParamNamesPerFactor() = {
     factors.asScala.flatMap(f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))).distinct.toList
+  }
+
+  def getRunScriptTemplate() = {
+    getTemplate(runExperimentScript, "runExperiment.sh.tpl")
+  }
+
+  def getBatchRunScriptTemplate() = {
+    getTemplate(batchRunScript, "batchRunExperiment.sh.tpl")
+  }
+
+  private def getTemplate(script: String, resourceScript: String) = {
+    if(script != None) {
+      val scriptFile = Paths.get(script).toAbsolutePath
+      if (!Files.exists(scriptFile)) {
+        throw new IllegalArgumentException("No template script found " + scriptFile.toString)
+      }
+      scriptFile.toUri.toURL
+    }
+
+    Resources.toString(Resources.getResource(resourceScript), Charsets.UTF_8)
   }
 }
 
