@@ -145,13 +145,16 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
       }else{ None }
       /*
        * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesAsAccess == false, and then we
-       * route from the vehicle to the destination and adjust the main route location & time accordingly.
+       * route separately from the vehicle to the destination with an estimate of the start time and adjust the timing of this route
+       * after finding the main route from origin to vehicle.
        */
       val mainRouteToVehicle = !routingRequestTripInfo.streetVehiclesAsAccess && isRouteForPerson && vehicle.mode != WALK
       val maybeUseVehicleOnEgress: Option[BeamLeg] = if (mainRouteToVehicle) {
-        val time = routingRequestTripInfo.departureTime match {
-          case time: DiscreteTime => WindowTime(time.atTime, beamServices.beamConfig.beam.routing.r5.departureWindow)
-          case time: WindowTime => time
+        // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
+        val estimateDurationToGetToVeh: Int = math.round(beamServices.geo.distInMeters(routingRequestTripInfo.origin,vehicle.location.loc) / 5.8).intValue()
+        var time = routingRequestTripInfo.departureTime match {
+          case time: DiscreteTime => WindowTime(time.atTime + estimateDurationToGetToVeh, beamServices.beamConfig.beam.routing.r5.departureWindow)
+          case time: WindowTime => time.copy(time.atTime + estimateDurationToGetToVeh)
         }
         val from = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(vehicle.location.loc), 10E3)
         val to = beamServices.geo.snapToR5Edge(transportNetwork.streetLayer, beamServices.geo.utm2Wgs(routingRequestTripInfo.destination), 10E3)
@@ -245,7 +248,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val network: Network, val 
               if (isRouteForPerson && egress.mode != LegMode.WALK) legsWithFares :+= (dummyWalk(arrivalTime + egress.duration), 0.0)
             }
           }
-          maybeUseVehicleOnEgress.foreach(legsWithFares +:= (_, 0.0))
+          maybeUseVehicleOnEgress.foreach{ leg =>
+            val departAt = legsWithFares.last._1.endTime
+            legsWithFares :+= (leg.copy(startTime = departAt), 0.0)
+            legsWithFares :+= (dummyWalk(departAt + leg.duration), 0.0)
+          }
           TripWithFares(BeamTrip(legsWithFares.map(_._1), mapLegMode(access.mode)), legsWithFares.map(_._2).zipWithIndex.map(_.swap).toMap)
         })
       })
