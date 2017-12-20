@@ -3,8 +3,8 @@ package beam.utils.reflection
 import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
 
-import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
 import org.reflections.Reflections
+import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag

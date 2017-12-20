@@ -9,7 +9,7 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
@@ -171,6 +171,9 @@ dependencies {
     // https://mvnrepository.com/artifact/io.circe/circe-parser_2.12
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
     compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
+    compile 'com.hubspot.jinjava:jinjava:2.0.5'
+    compile group: 'org.yaml', name: 'snakeyaml', version: '1.18'
+
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
 

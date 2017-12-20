@@ -5,7 +5,7 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.vehicles.BeamVehicle.StreetVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.gtfs.FareCalculator
@@ -41,7 +41,7 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
-    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
@@ -62,7 +62,7 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
       val origin = new BeamRouter.Location(552788,4179300) // -122.4007,37.7595
       val destination = new BeamRouter.Location(548918,4182749) // -122.4444,37.7908
       val time = RoutingModel.WindowTime(100,200)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)), Id.createPersonId("667520-0")))
+      router ! RoutingRequest(RoutingRequestTripInfo(Id.createPersonId("667520-0"),origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true))))
       val response = expectMsgType[RoutingResponse]
       val routedStartTime = response.itineraries.head.beamLegs().head.startTime
       assert(routedStartTime >= 100 && routedStartTime <= 200)

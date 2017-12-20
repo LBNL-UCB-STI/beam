@@ -9,7 +9,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 /**
-  * BEAM
+  * Holds information about the numbers and identities of agents in the model
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
 

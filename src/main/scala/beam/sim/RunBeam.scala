@@ -13,6 +13,7 @@ import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
+import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
@@ -42,6 +43,7 @@ trait RunBeam {
         // Override MATSim Defaults
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSimImpl])
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
+//        bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
 
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim])
@@ -68,7 +70,7 @@ trait RunBeam {
     runBeamWithConfig(config)
   }
 
-  def runBeamWithConfig(config: com.typesafe.config.Config) = {
+  def runBeamWithConfig(config: com.typesafe.config.Config): Config = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
 
@@ -76,7 +78,7 @@ trait RunBeam {
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
-    FileUtils.setConfigOutputFile(beamConfig.beam.outputs.outputDirectory, beamConfig.beam.agentsim.simulationName, matsimConfig)
+    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
@@ -94,6 +96,7 @@ trait RunBeam {
     beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
 
     beamServices.controler.run()
+matsimConfig
   }
 }
 

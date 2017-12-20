@@ -5,6 +5,7 @@ import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
 import com.google.inject.Inject
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator
+import org.matsim.core.utils.geometry.CoordinateTransformation
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.TransformationFactory
 
@@ -14,9 +15,9 @@ object Trajectory {
   @Inject
   var beamConfig: BeamConfig = _
 
-  lazy val transformer = TransformationFactory.getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
+  lazy val transformer: CoordinateTransformation = TransformationFactory.getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
 
-  def defaultCoordinateSystem = beamConfig.beam.spatial.localCRS
+  def defaultCoordinateSystem: String = beamConfig.beam.spatial.localCRS
 
   def apply(path: Vector[SpaceTime]): Trajectory = {
     new Trajectory(path)

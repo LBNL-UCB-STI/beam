@@ -3,8 +3,8 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Identify}
-import akka.util.Timeout
 import akka.pattern.ask
+import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -37,9 +37,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     // Before we initialize router we need to scale the transit vehicle capacities
     val alreadyScaled: mutable.HashSet[VehicleCapacity] = mutable.HashSet()
-    scenario.getTransitVehicles.getVehicleTypes.asScala.foreach{ case(_, vehType) =>
+    scenario.getTransitVehicles.getVehicleTypes.asScala.foreach { case (_, vehType) =>
       val theCap: VehicleCapacity = vehType.getCapacity
-      if(!alreadyScaled.contains(theCap)){
+      if (!alreadyScaled.contains(theCap)) {
         theCap.setSeats(math.round(theCap.getSeats * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
         theCap.setStandingRoom(math.round(theCap.getStandingRoom * beamServices.beamConfig.beam.agentsim.tuning.transitCapacity).toInt)
         alreadyScaled.add(theCap)
