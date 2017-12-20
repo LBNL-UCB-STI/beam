@@ -135,7 +135,7 @@ class HouseholdActor(services: BeamServices,
 
     case MobilityStatusInquiry(_, personId) =>
       // Query reserved vehicles
-      val availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles
+      val availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles ++ lookupCheckedoutVehicles(personId)
 
       // Assign to requesting individual
       availableStreetVehicles.foreach { x =>
@@ -205,6 +205,11 @@ class HouseholdActor(services: BeamServices,
       case None =>
         Vector()
     }
+  }
+  def lookupCheckedoutVehicles(person: Id[Person]): Vector[StreetVehicle] = {
+    (for((veh,per) <- _checkedOutVehicles if per == person)yield{
+      _vehicleToStreetVehicle.get(veh).get
+    }).toVector
   }
 
 }

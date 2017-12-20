@@ -92,11 +92,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
       }
 
-      //Debugging
-      if (modeAlreadyDefined) {
-        val theMode = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode
-        val i = 0
-      }
       var chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
         case logit: ModeChoiceLCCM =>
           val tourType: TourType = Mandatory
@@ -109,12 +104,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
-      if (chosenTrip.tripClassifier == WALK) {
-        _experiencedBeamPlan.getStrategy(currentTour, classOf[ModeChoiceStrategy]).foreach { stratOption =>
-          if (stratOption.asInstanceOf[ModeChoiceStrategy].mode == DRIVE_TRANSIT) {
-            val i = 0
-          }
-        }
+      if (modeAlreadyDefined && chosenTrip.tripClassifier == WALK && predefinedMode.get != WALK) {
+          val i = 0
       }
 
       if (chosenTrip.requiresReservationConfirmation) {
