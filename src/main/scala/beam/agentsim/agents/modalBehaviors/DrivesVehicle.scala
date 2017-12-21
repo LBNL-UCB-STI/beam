@@ -294,36 +294,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     pathLinks
   }
 
-
-  private def getStartCoord: Coord = {
-    val startCoord = try {
-      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.toInt)
-        .getGeometry.getCoordinate
-      Some(new Coord(r5Coord.x, r5Coord.y))
-    } catch {
-      case _: Exception => None
-    }
-    startCoord.orNull
-  }
-
-  private def getEndCoord: Coord = {
-    val endCoord: Option[Coord] = try {
-      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks(getLinks.size - 1)
-        .toInt).getGeometry.getCoordinate
-      Some(new Coord(r5Coord.x, r5Coord.y))
-    } catch {
-      case _: Exception => None
-    }
-    endCoord.orNull
-  }
-
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
     eventsManager.processEvent(new PathTraversalEvent(theTick, _currentVehicleUnderControl.get.id,
       _currentVehicleUnderControl.get.getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),
-      _currentLeg.get, getStartCoord, getEndCoord))
+      _currentLeg.get))
 
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
