@@ -215,7 +215,8 @@ class PersonAgent(val beamServices: BeamServices,
   private def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
     _numReschedules = _numReschedules + 1
     if (_numReschedules > 500) {
-      cancelTrip(_currentRoute.legs, _currentVehicle)
+      val thisLeg: Vector[EmbodiedBeamLeg] = _currentEmbodiedLeg match{ case Some(leg) => Vector(leg) case None => Vector()}
+      cancelTrip(_currentRoute.legs ++ thisLeg, _currentVehicle)
       stop(Failure(s"Too many reschedule attempts."))
     } else {
       val toSchedule = if (isStart) {
@@ -440,7 +441,6 @@ class PersonAgent(val beamServices: BeamServices,
                 householdRef ! CheckInResource(personalVeh)
                 currentTourPersonalVehicle = None
               }
-              householdRef ! NotifyNewVehicleLocation(personalVeh, new SpaceTime(activity.getCoord, tick.toLong))
             case None =>
           }
           val endTime = if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
@@ -498,13 +498,8 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   chainedWhen(AnyState) {
-    case Event(ModifyPassengerScheduleAck(_), _) =>
-      scheduleStartLegAndWait()
-    case Event(BecomeDriverSuccessAck, _) =>
-      if(id.toString.equalsIgnoreCase("115-1")){
-        val i =0
-      }
-      scheduleStartLegAndWait()
+    case Event(NotifyNewVehicleLocation(_,_), _) =>
+      stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>

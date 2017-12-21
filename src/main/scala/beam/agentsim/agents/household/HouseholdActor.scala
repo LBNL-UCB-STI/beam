@@ -112,6 +112,9 @@ class HouseholdActor(services: BeamServices,
         true))
 
     case CheckInResource(vehicleId: Id[Vehicle]) =>
+      /*
+       * If the resource is checked out, remove. If the resource is not reserved to an individual, make available to all.
+       */
       val personIDOpt = _checkedOutVehicles.remove(vehicleId)
       personIDOpt match {
         case Some(personId) =>
@@ -125,17 +128,34 @@ class HouseholdActor(services: BeamServices,
       log.info(s"Resource $vehicleId is now available again")
 
     case ReleaseVehicleReservation(personId, vehId) =>
+      /*
+       * Remove the mapping in _reservedForPerson if it exists. If the vehicle is not checked out, make available to all.
+       */
       _reservedForPerson.get(personId) match {
         case Some(vehicleId) if vehicleId == vehId =>
           log.info(s"Vehicle $vehicleId is now available for anyone in household $id")
           _reservedForPerson.remove(personId)
-          _availableVehicles.add(vehicleId)
         case _ =>
       }
+      if(!_checkedOutVehicles.contains(vehId))_availableVehicles.add(vehId)
 
     case MobilityStatusInquiry(_, personId) =>
-      // Query reserved vehicles
-      val availableStreetVehicles = lookupReservedVehicles(personId) ++ lookupAvailableVehicles
+      // We give first priority to an already checkout out vehicle
+      val alreadyCheckedOutVehicle = lookupCheckedOutVehicle(personId)
+
+      val availableStreetVehicles = if(alreadyCheckedOutVehicle.isEmpty){
+        // Second priority is a reserved vehicle
+        val reservedVeh = lookupReservedVehicle(personId)
+        if(reservedVeh.isEmpty){
+          // Lastly we search for available vehicles but limit to one per mode
+          val anyAvailableVehs = lookupAvailableVehicles()
+          anyAvailableVehs.groupBy(_.mode).map(_._2.head).toVector
+        }else{
+          reservedVeh
+        }
+      }else{
+        alreadyCheckedOutVehicle
+      }
 
       // Assign to requesting individual
       availableStreetVehicles.foreach { x =>
@@ -198,13 +218,18 @@ class HouseholdActor(services: BeamServices,
     } yield availableStreetVehicle
   ).flatten
 
-  def lookupReservedVehicles(person: Id[Person]): Vector[StreetVehicle] = {
+  def lookupReservedVehicle(person: Id[Person]): Vector[StreetVehicle] = {
     _reservedForPerson.get(person) match {
       case Some(availableVehicle) =>
         Vector(_vehicleToStreetVehicle.get(availableVehicle).get)
       case None =>
         Vector()
     }
+  }
+  def lookupCheckedOutVehicle(person: Id[Person]): Vector[StreetVehicle] = {
+    (for((veh,per) <- _checkedOutVehicles if per == person)yield{
+      _vehicleToStreetVehicle.get(veh).get
+    }).toVector
   }
 
 }

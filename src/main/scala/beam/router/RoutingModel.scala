@@ -52,7 +52,7 @@ object RoutingModel {
         } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
           theMode = BIKE
         }
-        if(theMode == CAR)hasUsedCar = true
+        if(leg.beamLeg.mode == CAR)hasUsedCar = true
       }
       if(theMode == TRANSIT && hasUsedCar){
         DRIVE_TRANSIT

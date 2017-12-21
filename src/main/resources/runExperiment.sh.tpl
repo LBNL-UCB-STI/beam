@@ -21,7 +21,7 @@ pushd ${BEAM_ROOT}
     mkdir -p ${BEAM_OUTPUT}
 
     echo "Running experiment using config ${CONFIG_PATH} , output_dir:  ${BEAM_OUTPUT} "
-    ./gradlew --stacktrace run -PappArgs="['--config', '${CONFIG_PATH}']"
+    ./gradlew --stacktrace run -PappArgs="['--config', '${CONFIG_PATH//\\//}']"
     exit_status=$?
     if [ "$exit_status" != "0" ]; then
         exit $exit_status
@@ -37,10 +37,12 @@ pushd ${BEAM_ROOT}
     TAR_NAME=${RUN_NAME}__$(cat /proc/sys/kernel/random/uuid)
     tar -zcvf /tmp/${TAR_NAME}.tar.gz ${BEAM_OUTPUT}
 
-    echo " sudo aws --region us-east-2 s3 cp /tmp/${TAR_NAME}.tar.gz s3://beam-outputs/${S3_BUCKET_NAME}/  && rm -f /tmp/${TAR_NAME}.tar.gz "
+    if [ "$1" == "cloud" ]; then
+        sudo aws --region us-east-2 s3 cp /tmp/${TAR_NAME}.tar.gz s3://beam-outputs/${S3_BUCKET_NAME}/  && rm -f /tmp/${TAR_NAME}.tar.gz
 
-    if [ "$DROP_OUTPUT" == "true" ]; then
-        echo " rm -rf ${BEAM_OUTPUT} "
+        if [ "$DROP_OUTPUT" == "true" ]; then
+            rm -rf ${BEAM_OUTPUT}
+        fi
     fi
 
 popd
