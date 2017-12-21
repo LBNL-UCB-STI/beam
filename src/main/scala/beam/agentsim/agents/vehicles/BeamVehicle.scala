@@ -23,7 +23,6 @@ import scala.util.{Failure, Random, Success, Try}
   * reference to a parent [[BeamVehicle]] is maintained in its carrier. All other information is
   * managed either through the MATSim [[Vehicle]] interface or within several other classes.
   *
-  * @param manager The [[beam.agentsim.ResourceManager]] managing this [[BeamVehicle]]
   * @author saf
   * @since Beam 2.0.0
   */
@@ -31,8 +30,7 @@ import scala.util.{Failure, Random, Success, Try}
 // If we need immutable state, we will need to operate on this through lenses.
 
 // TODO: safety for
-class BeamVehicle(override var manager: Option[ActorRef],
-                  powerTrain: Powertrain,
+class BeamVehicle(powerTrain: Powertrain,
                   initialMatsimVehicle: Vehicle,
                   initialMatsimAttributes: Option[ObjectAttributes],
                   beamVehicleType: BeamVehicleType,
@@ -74,15 +72,6 @@ class BeamVehicle(override var manager: Option[ActorRef],
   def getType: VehicleType = matSimVehicle.getType
 
   override def getId: Id[BeamVehicle] = id
-
-  /**
-    * The resource manager for this [[BeamVehicle]] resource
-    *
-    * @param resourceManagerRef the [[beam.agentsim.ResourceManager]]
-    */
-  def setResourceManager(resourceManagerRef: ActorRef): Unit = {
-    manager = Option(resourceManagerRef)
-  }
 
   /**
     * Called by the driver.

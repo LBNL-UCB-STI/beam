@@ -49,7 +49,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     eventsManager.initProcessing()
 
     beamServices.schedulerRef = actorSystem.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
-    beamServices.rideHailingManager = actorSystem.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty))
 
     resetPop()
 
@@ -100,10 +99,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
     // Init households before RHA.... RHA vehicles will initially be managed by households
     initHouseholds()
 
+    beamServices.rideHailingManager = actorSystem.actorOf(RideHailingManager.props("RideHailingManager", beamServices))
 
-
-    //TODO the following should be based on config params
-    //    val numRideHailAgents = 0.1
     val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
     val initialLocationJitter = 500 // meters
 
@@ -121,16 +118,16 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
       val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
       val rideHailingAgentPersonId:Id[RideHailingAgent] = Id.createPersonId(rideHailingName)
       val information = Option(rideHailVehicle.getType.getEngineInformation)
-      val vehicleAttribute = Option(
-        scenario.getVehicles.getVehicleAttributes)
+      val vehicleAttribute = Option(scenario.getVehicles.getVehicleAttributes)
       val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
         information
           .map(_.getGasConsumption)
           .getOrElse(Powertrain.AverageMilesPerGallon))
-      val rideHailBeamVehicle = new BeamVehicle(None,powerTrain,rideHailVehicle,vehicleAttribute,CarVehicle)
+      val rideHailBeamVehicle = new BeamVehicle(powerTrain,rideHailVehicle,vehicleAttribute,CarVehicle)
+      beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
+      rideHailBeamVehicle.registerResource(beamServices.rideHailingManager)
       val rideHailingAgentProps = RideHailingAgent.props(beamServices, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)
       val rideHailingAgentRef: ActorRef = actorSystem.actorOf(rideHailingAgentProps, rideHailingName)
-      beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
       beamServices.agentRefs.put(rideHailingName, rideHailingAgentRef)
       beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
       rideHailingAgents :+= rideHailingAgentRef
@@ -188,7 +185,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
               information
                 .map(_.getGasConsumption)
                 .getOrElse(Powertrain.AverageMilesPerGallon))
-            agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(None,
+            agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(
               powerTrain,
               matsimVehicle,
               vehicleAttribute,

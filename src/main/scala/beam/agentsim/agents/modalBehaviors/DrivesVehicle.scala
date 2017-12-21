@@ -2,11 +2,11 @@ package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.FSM
 import akka.actor.FSM.Failure
+import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.household.HouseholdActor.NotifyNewVehicleLocation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
@@ -14,7 +14,6 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel.BeamLeg
-import beam.router.r5.NetworkCoordinator
 import beam.sim.HasServices
 import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -53,10 +52,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       //we have just completed a leg
       //      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
+      lastVisited = beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())
       _currentVehicleUnderControl match {
         case Some(veh) =>
           // If no manager is set, we ignore
-          veh.manager.foreach( _ ! NotifyNewVehicleLocation(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())))
+          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())))
         case None =>
           throw new RuntimeException(s"Driver $id just ended a leg ${completedLeg} but had no vehicle under control")
       }
@@ -105,7 +105,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
           _currentLeg = Some(newLeg)
-          _currentVehicleUnderControl.get.driver.get ! AppendToTrajectory(newLeg.travelPath)
           manifest.riders.foreach { personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
             beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs
@@ -221,11 +220,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           releaseAndScheduleEndLeg()
         }
       }
-      stay()
-
-      // XXXX (VR): From Vehicle Model...
-    case Event(AppendToTrajectory(newSegments), info) =>
-      lastVisited = newSegments.getEndPoint()
       stay()
 
   }
