@@ -21,6 +21,7 @@ import org.matsim.vehicles.VehicleCapacity
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val transportNetwork: TransportNetwork,
@@ -62,7 +63,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    actorSystem.terminate()
+    Await.result(actorSystem.whenTerminated, Duration.Inf)
   }
 
 }
