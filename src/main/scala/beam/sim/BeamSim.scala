@@ -6,7 +6,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
+import beam.physsim.jdeqsim.{AgentSimToPhysSimPlanConverter, CreateGraphsFromEvents}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import com.google.inject.Inject
@@ -29,6 +29,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  private var createGraphsFromEvents: CreateGraphsFromEvents = _;
+
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
@@ -48,10 +50,13 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter, beamServices.beamConfig.beam.outputs.writeEventsInterval)
+
+    createGraphsFromEvents = new CreateGraphsFromEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter, beamServices.beamConfig.beam.outputs.writeEventsInterval)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     agentSimToPhysSimPlanConverter.startPhysSim(event)
+    createGraphsFromEvents.createGraph(event);
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
