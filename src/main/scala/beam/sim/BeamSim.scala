@@ -63,7 +63,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    Await.result(actorSystem.whenTerminated, Duration.Inf)
+    Await.result(actorSystem.terminate(), Duration.Inf)
   }
 
 }
