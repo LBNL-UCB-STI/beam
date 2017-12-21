@@ -41,8 +41,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val log = Logger.getLogger(classOf[BeamMobsim])
-  private val errorListener = actorSystem.actorOf(ErrorListener.props())
-  actorSystem.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
 
   var rideHailingAgents: Seq[ActorRef] = Nil
   val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
@@ -51,6 +49,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(Props(new Actor with ActorLogging {
       var runSender: ActorRef = _
+      private val errorListener = context.actorOf(ErrorListener.props())
+      context.watch(errorListener)
+      context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
       beamServices.schedulerRef = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
       context.watch(beamServices.schedulerRef)
       beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty), "ridehailingmanager")
@@ -70,6 +71,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           population ! Finish
           context.stop(beamServices.rideHailingManager)
           context.stop(beamServices.schedulerRef)
+          context.stop(errorListener)
 
         case Terminated(_) =>
           if (context.children.isEmpty) {
@@ -108,7 +110,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
         log.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.vehicles.size} vehicles")
 
-        val population = actorSystem.actorOf(Population.props(beamServices, transportNetwork, eventsManager), "population")
+        val population = context.actorOf(Population.props(beamServices, transportNetwork, eventsManager), "population")
         Await.result(population ? Identify(0), timeout.duration)
 
         // Init households before RHA.... RHA vehicles will initially be managed by households
@@ -197,7 +199,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
             val props = HouseholdActor.props(beamServices, eventsManager, scenario.getPopulation, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
 
-            val householdActor = actorSystem.actorOf(
+            val householdActor = context.actorOf(
               props,
               HouseholdActor.buildActorName(householdId, iterId))
 
