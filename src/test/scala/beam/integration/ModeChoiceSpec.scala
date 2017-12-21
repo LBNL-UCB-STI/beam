@@ -15,53 +15,42 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with Before
 
   "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
     "prefer mode choice car type than other modes" in {
-      val multinomialRun = new StartWithCustomConfig(
-        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
-        ("ModeChoiceMultinomialLogit"))
-      )
-      val driveIfAvailableRun = new StartWithCustomConfig(
+      val theRun = new StartWithCustomConfig(
         baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
         ("ModeChoiceDriveIfAvailable"))
       )
-
-      val multinomialCount = multinomialRun.groupedCount.getOrElse("car", 0)
-      val driveIfAvailableCount = driveIfAvailableRun.groupedCount.getOrElse("car", 0)
-
-      driveIfAvailableCount should be >= multinomialCount
+      val testModeCount = theRun.groupedCount.getOrElse("car", 0)
+      val otherModesCount = theRun.groupedCount.getOrElse("ride_hailing", 0) +
+        theRun.groupedCount.getOrElse("walk_transit", 0) + theRun.groupedCount.getOrElse("drive_transit", 0) +
+        theRun.groupedCount.getOrElse("bike", 0)
+      testModeCount should be >= otherModesCount
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceTransitIfAvailable" must {
     "prefer mode choice transit type than other modes" in {
-      val multinomialRun = new StartWithCustomConfig(
-        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
-        ("ModeChoiceMultinomialLogit"))
-      )
-      val transitIfAvailableRun = new StartWithCustomConfig(
+      val theRun = new StartWithCustomConfig(
         baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
         ("ModeChoiceTransitIfAvailable"))
       )
-      val multinomialCount = multinomialRun.groupedCount.getOrElse("walk_transit", 0)
-      val transitIfAvailableCount = transitIfAvailableRun.groupedCount.getOrElse("walk_transit", 0)
-
-      transitIfAvailableCount should be >= multinomialCount
+      val testModeCount = theRun.groupedCount.getOrElse("walk_transit", 0) + theRun.groupedCount.getOrElse("drive_transit",0)
+      val otherModesCount = theRun.groupedCount.getOrElse("ride_hailing", 0)
+        theRun.groupedCount.getOrElse("bike", 0)
+      testModeCount should be >= otherModesCount
     }
   }
 
   "Running beam with modeChoiceClass ModeChoiceRideHailIfAvailable" must {
     "prefer more mode choice ride hail type than other modes" in {
-      val multinomialRun = new StartWithCustomConfig(
-        baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
-        ("ModeChoiceMultinomialLogit"))
-      )
-      val rideHailIfAvailableRun = new StartWithCustomConfig(
+      val theRun = new StartWithCustomConfig(
         baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
         ("ModeChoiceRideHailIfAvailable"))
       )
-      val multinomialCount = multinomialRun.groupedCount.getOrElse("ride_hailing", 0)
-      val rideHailIfAvailableCount = rideHailIfAvailableRun.groupedCount.getOrElse("ride_hailing", 0)
-
-      rideHailIfAvailableCount should be >= multinomialCount
+      val testModeCount = theRun.groupedCount.getOrElse("ride_hailing", 0)
+      val otherModesCount = theRun.groupedCount.getOrElse("car", 0) +
+        theRun.groupedCount.getOrElse("walk_transit", 0) + theRun.groupedCount.getOrElse("drive_transit", 0) +
+        theRun.groupedCount.getOrElse("bike", 0)
+      testModeCount should be >= otherModesCount
     }
   }
 
