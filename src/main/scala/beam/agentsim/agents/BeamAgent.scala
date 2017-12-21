@@ -58,7 +58,7 @@ case class InitializeTrigger(tick: Double) extends Trigger
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
 
-  override def logDepth = 12
+  override def logDepth = 0
 
   val eventsManager: EventsManager
 
