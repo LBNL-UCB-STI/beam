@@ -33,7 +33,7 @@ import scala.concurrent.duration._
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
   """).withFallback(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve()))) with FunSpecLike
-  with DefaultTimeout with BeforeAndAfterAll with MockitoSugar {
+  with BeforeAndAfterAll with MockitoSugar {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
@@ -92,7 +92,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         }
         // Need to help the agent -- it can't finish its day on its own yet, without a router and such.
         personAgentRef ! Finish
-        expectMsg(CompletionNotice(0L))
       }
     }
 
