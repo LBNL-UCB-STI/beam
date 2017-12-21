@@ -27,6 +27,8 @@ import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.concurrent.Await;
+import scala.concurrent.Future;
+import scala.concurrent.duration.Duration;
 import scala.util.Left;
 
 import java.util.ArrayList;
@@ -80,15 +82,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private void preparePhysSimForNewIteration() {
         jdeqSimScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         populationFactory = jdeqSimScenario.getPopulation().getFactory();
+        unregisterAnyPreviousActors();
     }
 
+    private void unregisterAnyPreviousActors() {
+        // TODO: unregister actor for multi iterations run?
+        // system.stop(actorRef) and/or unregister
+    }
 
     @Override
     public void reset(int iteration) {
 
     }
 
-    public void initializeActorsAndRunPhysSim(int iterationNumber) {
+    public void setupActorsAndRunPhysSim(int iterationNumber) {
         JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
         try {
 
@@ -213,7 +220,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
-        initializeActorsAndRunPhysSim(iterationEndsEvent.getIteration());
+        setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
 
 
         preparePhysSimForNewIteration();
@@ -227,6 +234,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 plan.addActivity(populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
+    }
+
+    public void awaitCompletionOfPhyssimEventsHandling() throws Exception {
+        Timeout timeout = new Timeout(Duration.create(50000, "seconds"));
+        Future<Object> future = Patterns.ask(jdeqsimActorREF, JDEQSimActor.ALL_MESSAGES_PROCESSED(), timeout);
+        String result = (String) Await.result(future, timeout.duration());
     }
 }
 
