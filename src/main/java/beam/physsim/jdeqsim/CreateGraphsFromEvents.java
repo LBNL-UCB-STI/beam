@@ -98,11 +98,9 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         if (event instanceof ModeChoiceEvent) {
 
-            System.out.println(">>> ModeChoiceEvent " + event);
             addModeChoiceEvent(event);
         }else if(event instanceof PathTraversalEvent){
 
-            System.out.println(">>> PathTraversalEvent " + event);
             addModeFuelage((PathTraversalEvent)event);
         }
     }
