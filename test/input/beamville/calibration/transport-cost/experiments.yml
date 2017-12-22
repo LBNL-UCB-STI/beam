@@ -3,7 +3,6 @@
 title: Transport-Cost-Calibration
 author: Denis
 beamTemplateConfPath: test/input/beamville/beam.conf
-runExperimentScript: test/input/beamville/calibration/runExperiment.sh.tpl
 modeChoiceTemplate: test/input/beamville/calibration/modeChoiceParameters.xml.tpl
 
 # base Multinomial Logit (mnl) scenario

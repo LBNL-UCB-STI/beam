@@ -1,5 +1,6 @@
 package beam.sim.common
 
+import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, BoundingBox, HasServices}
 import com.conveyal.r5.profile.StreetMode
@@ -22,6 +23,8 @@ trait GeoUtils extends HasServices  {
   lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326",beamServices.beamConfig.beam.spatial.localCRS)
   lazy val utmbbox: BoundingBox = new BoundingBox(beamServices.beamConfig.beam.spatial.localCRS)
 
+  def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc),spacetime.time)
+
   def wgs2Utm(coord: Coord): Coord = {
     wgs2Utm.transform(coord)
   }
@@ -30,6 +33,7 @@ trait GeoUtils extends HasServices  {
     val ur: Coord = wgs2Utm.transform(new Coord(envelope.getMaxX, envelope.getMaxY))
     new Envelope(ll.getX, ur.getX, ll.getY, ur.getY)
   }
+  def utm2Wgs(spacetime: SpaceTime): SpaceTime = SpaceTime(utm2Wgs(spacetime.loc),spacetime.time)
   def utm2Wgs(coord:Coord): Coord = {
     //TODO fix this monstrosity
     if (coord.getX > 1.0 | coord.getX < -0.0) {

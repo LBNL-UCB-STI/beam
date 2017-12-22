@@ -3,8 +3,6 @@
 title: Calibration-SFLight-v6
 author: Colin
 beamTemplateConfPath: test/input/sf-light/sf-light-100k.conf
-runExperimentScript: test/input/sf-light/calibration/runExperiment.sh.tpl
-batchRunScript: test/input/sf-light/calibration/batchRunExperiment.sh.tpl
 modeChoiceTemplate: test/input/sf-light/calibration/modeChoiceParameters.xml.tpl
 
 # base Multinomial Logit (mnl) scenario
@@ -64,16 +62,3 @@ factors:
     - name: 8
       params:
         mnl_walk_intercept: 0.08
-
-#
-#Experiments:
-#      hosts:
-#         host_1:
-#            type: m2.xlarge
-#            numberOfInstances: 2
-#            experiments: []
-#              transit_Base_ridehail_Low2
-#              transit_Base_ridehail_Low3
-#              transit_Base_ridehail_Low4
-#              transit_Base_ridehail_High5
-#

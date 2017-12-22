@@ -260,15 +260,23 @@ lambda {
     region = "us-east-2"
 }
 
-def pload = """{
+
+
+task deploy(type: AWSLambdaInvokeTask) {
+
+    if(!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments')) {
+        throw new GradleException('beamConfigs or beamExperiments is required to deploy.')
+    }
+
+    def pload = """{
   "branch": "$beamBranch",
   "commit": "$beamCommit",
-  "configs": "'${beamConfigs.split(',').join("' '")}'",
-  "batch": $beamBatch,
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments')}",
+  "is_experiment": "${!project.hasProperty('beamConfigs')}",
+  "batch": "$beamBatch",
   "shutdown_wait": "$shutdownWait"
 }"""
 
-task deploy(type: AWSLambdaInvokeTask) {
     functionName = "simulateBeam"
     invocationType = InvocationType.RequestResponse
     payload = pload

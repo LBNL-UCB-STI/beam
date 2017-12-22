@@ -6,6 +6,7 @@ import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.household.HouseholdActor.NotifyNewVehicleLocation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
@@ -52,6 +53,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       //we have just completed a leg
       //      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
+      _currentVehicleUnderControl match {
+        case Some(veh) =>
+          // If no manager is set, we ignore
+          veh.manager.foreach( _ ! NotifyNewVehicleLocation(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())))
+        case None =>
+          throw new RuntimeException(s"Driver $id just ended a leg ${completedLeg} but had no vehicle under control")
+      }
       passengerSchedule.schedule.get(completedLeg) match {
         case Some(manifest) =>
           holdTickAndTriggerId(tick, triggerId)
@@ -286,36 +294,13 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     pathLinks
   }
 
-
-  private def getStartCoord: Coord = {
-    val startCoord = try {
-      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks.head.toInt)
-        .getGeometry.getCoordinate
-      Some(new Coord(r5Coord.x, r5Coord.y))
-    } catch {
-      case _: Exception => None
-    }
-    startCoord.orNull
-  }
-
-  private def getEndCoord: Coord = {
-    val endCoord: Option[Coord] = try {
-      val r5Coord = NetworkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(getLinks(getLinks.size - 1)
-        .toInt).getGeometry.getCoordinate
-      Some(new Coord(r5Coord.x, r5Coord.y))
-    } catch {
-      case _: Exception => None
-    }
-    endCoord.orNull
-  }
-
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
     eventsManager.processEvent(new PathTraversalEvent(theTick, _currentVehicleUnderControl.get.id,
       _currentVehicleUnderControl.get.getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),
-      _currentLeg.get, getStartCoord, getEndCoord))
+      _currentLeg.get))
 
     _currentLeg = None
     passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
