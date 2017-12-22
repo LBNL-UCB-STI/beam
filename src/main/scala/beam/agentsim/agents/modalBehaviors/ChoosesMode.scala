@@ -104,10 +104,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
-      if (modeAlreadyDefined && chosenTrip.tripClassifier == WALK && predefinedMode.get != WALK) {
-          val i = 0
-      }
-
       if (chosenTrip.requiresReservationConfirmation) {
         pendingChosenTrip = Some(chosenTrip)
         sendReservationRequests(chosenTrip)

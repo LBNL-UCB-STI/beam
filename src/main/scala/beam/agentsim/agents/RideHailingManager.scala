@@ -136,7 +136,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
       })
 
     case CheckOutResource(_) =>
-      // Because the RideHail Manager is in charge of checking vehicles out to customers, this should never be used
+      // Because the RideHail Manager is in charge of deciding which specific vehicles to assign to customers, this should never be used
       throw new RuntimeException("Illegal use of CheckOutResource, RideHailingManager is responsible for checking out vehicles in fleet.")
 
 

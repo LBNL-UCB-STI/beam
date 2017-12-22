@@ -77,7 +77,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
-          val i = 0
           throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
       }
 
@@ -98,9 +97,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
   chainedWhen(Waiting) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
-      if(id.toString.equalsIgnoreCase("115-1")){
-        val i =0
-      }
       holdTickAndTriggerId(tick, triggerId)
       //      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id} ")
@@ -138,9 +134,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
 
     case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
-      if(id.toString.equalsIgnoreCase("115-1")){
-        val i =0
-      }
       _currentVehicleUnderControl = Some(beamServices.vehicles(assignedVehicle))
       newPassengerSchedule match {
         case Some(passSched) =>
@@ -170,9 +163,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     // block has time to execute and send the Ack which ultimately results in the next Trigger (e.g. StartLegTrigger)
     // to be scheduled
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), _) =>
-      if(id.toString.equalsIgnoreCase("115-1")){
-        val i =0
-      }
       var errorFlag = false
       if (!passengerSchedule.isEmpty) {
         val endSpaceTime = passengerSchedule.terminalSpacetime()
