@@ -109,7 +109,7 @@ class BeamVehicle(powerTrain: Powertrain,
       case Success(cc) =>
         carrier = None
       case Failure(_)=>
-        log.error(s"Trying to remove passenger $idToRemove, but this passenger is not on board!")
+        log.debug(s"Trying to remove passenger $idToRemove, but this passenger is not on board!")
     }
   }
 
@@ -165,8 +165,7 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
   def getTotalCrowdedness: Double =
     ((standingPassengers.size + seatedPassengers.size) / totalOccupancyLimit).toDouble
 
-  def addSeatedPassenger(
-                          idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
+  def addSeatedPassenger(idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
     if (seatedPassengers.size + 1 > seatedOccupancyLimit) {
       Left(VehicleFullError)
     } else {
@@ -193,8 +192,7 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     * @return [[Either]] a message to be sent from the driver to the passenger that the vehicle
     *         capacity has been exceeded ([[Left]]) or a
     */
-  def addPassenger(
-                    idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
+  def addPassenger(idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
     if(seatedPassengers.size==seatedOccupancyLimit){
       addStandingPassenger(idToAdd)
     }else if(standingPassengers.size==standingOccupancyLimit){

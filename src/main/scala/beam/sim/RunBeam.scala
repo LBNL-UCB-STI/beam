@@ -11,9 +11,11 @@ import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{ScenarioByInstanceModule, ScenarioUtils}
 
 import scala.collection.JavaConverters._

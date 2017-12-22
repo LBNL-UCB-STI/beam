@@ -211,8 +211,8 @@ public class BeamPointToPointQuery {
 
         profileResponse.recomputeStats(request);
 
-        LOG.trace("Returned {} options", profileResponse.getOptions().size());
-        LOG.trace("Took {} ms", System.currentTimeMillis() - startRouting);
+        LOG.debug("Returned {} options", profileResponse.getOptions().size());
+        LOG.debug("Took {} ms", System.currentTimeMillis() - startRouting);
 
         return profileResponse;
     }
@@ -241,10 +241,10 @@ public class BeamPointToPointQuery {
                 streetRouter.route();
                 TIntIntMap stops = streetRouter.getReachedStops();
                 egressRouter.put(mode, streetRouter);
-                LOG.info("Added {} edgres stops for mode {}",stops.size(), mode);
+                LOG.debug("Added {} edgres stops for mode {}",stops.size(), mode);
 
             } else {
-                LOG.warn("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode);
+                LOG.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode);
             }
         }
 
@@ -265,7 +265,7 @@ public class BeamPointToPointQuery {
             streetRouter.profileRequest = request;
             if (mode == LegMode.BICYCLE_RENT) {
                 if (!transportNetwork.streetLayer.bikeSharing) {
-                    LOG.warn("Bike sharing trip requested but no bike sharing stations in the streetlayer");
+                    LOG.debug("Bike sharing trip requested but no bike sharing stations in the streetlayer");
                     continue;
                 }
                 streetRouter = findBikeRentalPath(request, streetRouter, true);
@@ -275,11 +275,11 @@ public class BeamPointToPointQuery {
                         streetPath = new StreetPath(lastState, streetRouter, LegMode.BICYCLE_RENT, transportNetwork);
 
                     } else {
-                        LOG.warn("MODE:{}, Edge near the destination coordinate wasn't found. Routing didn't start!", mode);
+                        LOG.debug("MODE:{}, Edge near the destination coordinate wasn't found. Routing didn't start!", mode);
                         continue;
                     }
                 } else {
-                    LOG.warn("Not found path from cycle to end");
+                    LOG.debug("Not found path from cycle to end");
                     continue;
                 }
             } else {
@@ -287,18 +287,18 @@ public class BeamPointToPointQuery {
                 streetRouter.timeLimitSeconds = request.streetTime * 60;
                 if(streetRouter.setOrigin(request.fromLat, request.fromLon)) {
                     if(!streetRouter.setDestination(request.toLat, request.toLon)) {
-                        LOG.warn("Direct mode {} destination wasn't found!", mode);
+                        LOG.debug("Direct mode {} destination wasn't found!", mode);
                         continue;
                     }
                     streetRouter.route();
                     StreetRouter.State lastState = streetRouter.getState(streetRouter.getDestinationSplit());
                     if (lastState == null) {
-                        LOG.warn("Direct mode {} last state wasn't found", mode);
+                        LOG.debug("Direct mode {} last state wasn't found", mode);
                         continue;
                     }
                     streetPath = new StreetPath(lastState, transportNetwork, false);
                 } else {
-                    LOG.warn("Direct mode {} origin wasn't found!", mode);
+                    LOG.debug("Direct mode {} origin wasn't found!", mode);
                     continue;
                 }
             }
@@ -325,20 +325,20 @@ public class BeamPointToPointQuery {
                 if (streetRouter != null) {
                     accessRouter.put(LegMode.CAR_PARK, streetRouter);
                 } else {
-                    LOG.warn(
+                    LOG.debug(
                         "MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!",
                         mode);
                 }
             } else if (mode == LegMode.BICYCLE_RENT) {
                 if (!transportNetwork.streetLayer.bikeSharing) {
-                    LOG.warn("Bike sharing trip requested but no bike sharing stations in the streetlayer");
+                    LOG.debug("Bike sharing trip requested but no bike sharing stations in the streetlayer");
                     continue;
                 }
                 streetRouter = findBikeRentalPath(request, streetRouter, false);
                 if (streetRouter != null) {
                     accessRouter.put(LegMode.BICYCLE_RENT, streetRouter);
                 } else {
-                    LOG.warn("Not found path from cycle to end");
+                    LOG.debug("Not found path from cycle to end");
                 }
             } else {
                 streetRouter.streetMode = StreetMode.valueOf(mode.toString());
@@ -353,7 +353,7 @@ public class BeamPointToPointQuery {
                     //Searching for access paths
                     accessRouter.put(mode, streetRouter);
                 } else {
-                    LOG.warn("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode);
+                    LOG.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode);
                 }
             }
 
@@ -380,7 +380,7 @@ public class BeamPointToPointQuery {
         if(streetRouter.setOrigin(request.fromLat, request.fromLon)) {
             streetRouter.route();
             TIntObjectMap<StreetRouter.State> carParks = streetRouter.getReachedVertices(VertexStore.VertexFlag.PARK_AND_RIDE);
-            LOG.info("CAR PARK: Found {} car parks", carParks.size());
+            LOG.debug("CAR PARK: Found {} car parks", carParks.size());
             ParkRideRouter parkRideRouter = new ParkRideRouter(streetRouter.streetLayer);
             parkRideRouter.profileRequest = request;
             parkRideRouter.addParks(carParks, transitLayer);
@@ -435,7 +435,7 @@ public class BeamPointToPointQuery {
             streetRouter.route();
             //This finds all the nearest bicycle rent stations when walking
             TIntObjectMap<StreetRouter.State> bikeStations = streetRouter.getReachedVertices(VertexStore.VertexFlag.BIKE_SHARING);
-            LOG.info("BIKE RENT: Found {} bike stations which are {} minutes away", bikeStations.size(), streetRouter.timeLimitSeconds/60);
+            LOG.debug("BIKE RENT: Found {} bike stations which are {} minutes away", bikeStations.size(), streetRouter.timeLimitSeconds/60);
                         /*LOG.info("Start to bike share:");
                         bikeStations.forEachEntry((idx, state) -> {
                             LOG.info("   {} ({}m)", idx, state.distance);
@@ -460,7 +460,7 @@ public class BeamPointToPointQuery {
             bicycle.setDestination(destinationSplit);
             bicycle.route();
             TIntObjectMap<StreetRouter.State> cycledStations = bicycle.getReachedVertices(VertexStore.VertexFlag.BIKE_SHARING);
-            LOG.info("BIKE RENT: Found {} cycled stations which are {} minutes away", cycledStations.size(), bicycle.timeLimitSeconds/60);
+            LOG.debug("BIKE RENT: Found {} cycled stations which are {} minutes away", cycledStations.size(), bicycle.timeLimitSeconds/60);
                         /*LOG.info("Bike share to bike share:");
                         cycledStations.retainEntries((idx, state) -> {
                             if (bikeStations.containsKey(idx)) {
@@ -580,10 +580,10 @@ public class BeamPointToPointQuery {
                 if (it.value() > cutoff) it.remove();
             }
 
-            LOG.warn("{} stops found, using {} nearest", stopsFound, times.size());
+            LOG.debug("{} stops found, using {} nearest", stopsFound, times.size());
         } else {
 
-            LOG.info("{} stops found", stopsFound);
+            LOG.debug("{} stops found", stopsFound);
         }
 
         // return the times, not the weights

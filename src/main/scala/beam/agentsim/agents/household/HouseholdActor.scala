@@ -126,7 +126,7 @@ class HouseholdActor(services: BeamServices,
           }
         case None =>
       }
-      log.info(s"Resource $vehicleId is now available again")
+      log.debug(s"Resource $vehicleId is now available again")
 
     case ReleaseVehicleReservation(personId, vehId) =>
       /*
@@ -134,7 +134,7 @@ class HouseholdActor(services: BeamServices,
        */
       _reservedForPerson.get(personId) match {
         case Some(vehicleId) if vehicleId == vehId =>
-          log.info(s"Vehicle $vehicleId is now available for anyone in household $id")
+          log.debug(s"Vehicle $vehicleId is now available for anyone in household $id")
           _reservedForPerson.remove(personId)
         case _ =>
       }

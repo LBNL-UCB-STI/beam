@@ -90,7 +90,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
   def resetPop(): Unit = {
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
-    log.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.vehicles.size} vehicles")
 
     val population = actorSystem.actorOf(Population.props(beamServices, eventsManager), "population")
     Await.result(population ? Identify(0), timeout.duration)
@@ -133,6 +132,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val scenario: Scenari
       rideHailingAgents :+= rideHailingAgentRef
     }
 
+    log.info(s"Initialized ${beamServices.households.size} households")
+    log.info(s"Initialized ${beamServices.persons.size} people")
+    log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
     log.info(s"Initialized $numRideHailAgents ride hailing agents")
   }
 
