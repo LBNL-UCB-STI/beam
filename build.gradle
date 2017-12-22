@@ -213,7 +213,6 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o']
     classpath = sourceSets.test.runtimeClasspath
-    maxHeapSize = '2048m'
 }
 test.dependsOn spec
 
