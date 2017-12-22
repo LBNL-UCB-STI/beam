@@ -15,20 +15,20 @@
                     <param name="time" type="MULTIPLIER">{{ mnl_car_time }}</param>
                 </utility>
             </alternative>
-            <alternative name="walk_transit">
-                <utility>
-                    <param name="intercept" type="INTERCEPT">{{ mnl_walk_transit_intercept }}</param>
-                    <param name="cost" type="MULTIPLIER">{{ mnl_walk_transit_cost }}</param>
-                    <param name="time" type="MULTIPLIER">{{ mnl_walk_transit_time }}</param>
-                    <param name="transfer" type="MULTIPLIER">{{ mnl_walk_transit_transfer }}</param>
-                </utility>
-            </alternative>
             <alternative name="drive_transit">
                 <utility>
                     <param name="intercept" type="INTERCEPT">{{ mnl_drive_transit_intercept }}</param>
                     <param name="cost" type="MULTIPLIER">{{ mnl_drive_transit_cost }}</param>
                     <param name="time" type="MULTIPLIER">{{ mnl_drive_transit_time }}</param>
                     <param name="transfer" type="MULTIPLIER">{{ mnl_drive_transit_transfer }}</param>
+                </utility>
+            </alternative>
+            <alternative name="walk_transit">
+                <utility>
+                    <param name="intercept" type="INTERCEPT">{{ mnl_walk_transit_intercept }}</param>
+                    <param name="cost" type="MULTIPLIER">{{ mnl_walk_transit_cost }}</param>
+                    <param name="time" type="MULTIPLIER">{{ mnl_walk_transit_time }}</param>
+                    <param name="transfer" type="MULTIPLIER">{{ mnl_walk_transit_transfer }}</param>
                 </utility>
             </alternative>
             <alternative name="ride_hailing">

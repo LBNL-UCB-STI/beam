@@ -30,7 +30,7 @@ pushd ${BEAM_ROOT}
     echo "Simulation has been finished, statusCode=$exit_status"
 
     git rev-parse --verify HEAD > ${BEAM_OUTPUT}/version.txt
-    MODE_CHOICE_COUNT=$(find ${BEAM_OUTPUT} -name '0.events.csv*' -exec zgrep -- 'ModeChoice' {} \; | grep -Eo "ModeChoice,,\w*"	| sort | uniq -c)
+    MODE_CHOICE_COUNT=$(find ${BEAM_OUTPUT} -name '0.events.csv*' -exec zgrep -- 'ModeChoice' {} \; | grep -Eo "ModeChoice,,,\w*"	| sort | uniq -c)
     echo "$MODE_CHOICE_COUNT" > ${BEAM_OUTPUT}/ITERS/it.0/modeChoiceStat.txt
 
     RUN_NAME=$(basename "$(dirname  ${BEAM_OUTPUT} )")
