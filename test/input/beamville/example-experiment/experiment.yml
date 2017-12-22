@@ -1,21 +1,25 @@
 ---
 
-title: Example-Experiment
-author: Colin
-beamTemplateConfPath: test/input/beamville/beam.conf
+# Header
 
-# base scenario
-baseScenario:
-    title: base-scenario
+header:
+    title: Example-Experiment
+    author: MyName
+    beamTemplateConfPath: test/input/beamville/beam.conf
     params:
-      ### ---- template env variables ---####
+      ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 2g
       S3_OUTPUT_PATH_SUFFIX: "beamville"
       DROP_OUTPUT_ONCOMPLETE: "true"
 
-      ### ---- beam-template.conf param replacement ---####
-      beam.agentsim.tuning.transitCapacity: 0.05
-      beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+# Default Params
+
+defaultParams:
+    ### ---- beam-template.conf param replacement ---####
+    beam.agentsim.tuning.transitCapacity: 0.05
+    beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+
+# Factors
 
 factors:
   - title: transitCapacity
@@ -23,6 +27,9 @@ factors:
     - name: Low
       params:
         beam.agentsim.tuning.transitCapacity: 0.01
+    - name: Base
+      params:
+        beam.agentsim.tuning.transitCapacity: 0.05
     - name: High
       params:
         beam.agentsim.tuning.transitCapacity: 0.1
@@ -32,6 +39,9 @@ factors:
     - name: Low
       params:
         beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.001
+    - name: Base
+      params:
+        beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
     - name: High
       params:
         beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.1

@@ -26,11 +26,11 @@ object ExperimentGenerator extends App {
   val ExperimentsParamName = "experiments"
 
   private def validateExperimentConfig(experiment: ExperimentDef) = {
-    if (!Files.exists(Paths.get(experiment.beamTemplateConfPath))) {
-      throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.beamTemplateConfPath}")
+    if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
+      throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}")
     }
 
-    val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
+    val modeChoiceTemplateFile = Paths.get(experiment.header.modeChoiceTemplate).toAbsolutePath
     if (!Files.exists(modeChoiceTemplateFile)) {
       throw new IllegalArgumentException("No mode choice template found " + modeChoiceTemplateFile.toString)
     }
@@ -45,6 +45,13 @@ object ExperimentGenerator extends App {
     }.toMap
   }
 
+  def getExperimentPath() = {
+    Paths.get(experimentFile.getParent.toString,"runs")
+  }
+  def getBatchRunScriptPath() = {
+    Paths.get(getExperimentPath.toString,"batchRunExperiment.sh")
+  }
+
   private val projectRoot = {
     if (System.getenv("BEAM_ROOT") != null) {
       Paths.get(System.getenv("BEAM_ROOT"))
@@ -52,6 +59,7 @@ object ExperimentGenerator extends App {
       Paths.get("./").toAbsolutePath.getParent
     }
   }
+
   val argsMap = parseArgs(args)
 
   if (argsMap.get(ExperimentsParamName).isEmpty) {
@@ -87,26 +95,25 @@ object ExperimentGenerator extends App {
 
   validateExperimentConfig(experiment)
 
-  val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.beamTemplateConfPath).toFile)
-  val baseScenarioRun = ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, ExperimentRun(experiment.baseScenario, combinations = List()), baseConfig)
+  val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.header.beamTemplateConfPath).toFile)
   val experimentVariations = experiment.combinationsOfLevels()
-  val experimentRunsWithBase = baseScenarioRun :: experimentVariations.map { run =>
+  val experimentRuns = experimentVariations.map { run =>
     ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, run, baseConfig)
   }
 
-  val modeChoiceTemplate = Resources.toString(Paths.get(experiment.modeChoiceTemplate).toAbsolutePath.toUri.toURL, Charsets.UTF_8)
+  val modeChoiceTemplate = Resources.toString(Paths.get(experiment.header.modeChoiceTemplate).toAbsolutePath.toUri.toURL, Charsets.UTF_8)
   val runScriptTemplate = experiment.getRunScriptTemplate()
   val batchScriptTemplate = experiment.getBatchRunScriptTemplate()
   val jinjava = new Jinjava()
 
-  experimentRunsWithBase.foreach { runSandbox =>
+  experimentRuns.foreach { runSandbox =>
     val templateParams = Map(
       "BEAM_CONFIG_PATH" -> runSandbox.beamConfPath.toString,
       "BEAM_OUTPUT_PATH" -> runSandbox.beamOutputDir.toString
       //      ,
       //      "BEAM_SHARED_INPUT" -> runSandbox.beamOutputDir.toString
 
-    ) ++ runSandbox.experimentRun.params
+    ) ++ experiment.header.params.asScala ++ runSandbox.experimentRun.params
 
     /*
      * Write the config file
@@ -142,7 +149,7 @@ object ExperimentGenerator extends App {
     /*
      * Optionally write the mode choice params file
      */
-    experiment.modeChoiceTemplate.toString match {
+    experiment.header.modeChoiceTemplate.toString match {
       case "" =>
         // Do nothing since modeChoieParams wasn't specified in experiment.yaml file
         ""
@@ -164,9 +171,9 @@ object ExperimentGenerator extends App {
    * Write a shell script designed to run the batch locally
    */
   val templateParams = Map(
-    "EXPERIMENT_PATH" -> baseScenarioRun.batchRunScriptPath.getParent.toString,
-  ) ++ baseScenarioRun.experimentRun.params
-  val batchRunWriter = new BufferedWriter(new FileWriter(baseScenarioRun.batchRunScriptPath.toFile, false))
+    "EXPERIMENT_PATH" -> getExperimentPath().toString,
+  ) ++ experiment.defaultParams.asScala
+  val batchRunWriter = new BufferedWriter(new FileWriter(getBatchRunScriptPath().toFile, false))
   try {
     val renderedTemplate = jinjava.render(batchScriptTemplate, templateParams.asJava)
     batchRunWriter.write(renderedTemplate)
@@ -174,17 +181,17 @@ object ExperimentGenerator extends App {
   } finally {
     IOUtils.closeQuietly(batchRunWriter)
   }
-  Runtime.getRuntime.exec(s"chmod +x ${baseScenarioRun.batchRunScriptPath.toFile.toString}")
+  Runtime.getRuntime.exec(s"chmod +x ${getBatchRunScriptPath().toString}")
 
   val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
   val experimentsCsv = new BufferedWriter(new FileWriter(
-    Paths.get(baseScenarioRun.experimentBaseDir.toString,"runs","experiments.csv").toFile, false))
+    Paths.get(getExperimentPath().toString,"experiments.csv").toFile, false))
 
   try {
     val header = dynamicParamsPerFactor.map { case (factor, param_name) => s"$param_name" }.mkString(",")
     val paramNames = dynamicParamsPerFactor.map(_._2)
     experimentsCsv.write(List("experiment_name", "config_path", header).mkString("", ",", "\n"))
-    experimentRunsWithBase.foreach { run =>
+    experimentRuns.foreach { run =>
       val runValues = paramNames.map(run.experimentRun.getParam).mkString(",")
       val row = List(run.experimentRun.name, run.runBeamScriptPath.getParent.toString, runValues).mkString("", ",", "\n")
       experimentsCsv.write(row)

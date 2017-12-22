@@ -20,7 +20,6 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
 
   def runBeamScriptPath = Paths.get(runDirectory.toString, "runBeam.sh")
 
-  def batchRunScriptPath = Paths.get(runDirectory.getParent.toString, "batchRunExperiment.sh")
 
   def beamConfPath = {
     projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
@@ -50,7 +49,7 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
   }
 
   def modeChoiceConfigIfDefined = {
-    experimentDef.modeChoiceTemplate match {
+    experimentDef.header.modeChoiceTemplate match {
       case "" =>
         Map()
       case _ =>

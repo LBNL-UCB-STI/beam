@@ -1,50 +1,54 @@
 ---
 
-title: Example-Experiment
-author: Colin
-beamTemplateConfPath: test/input/beamville/beam.conf
-modeChoiceTemplate: test/input/beamville/example-calibration/modeChoiceParameters.xml.tpl
+# Header
 
-# base scenario
-baseScenario:
-    title: base-scenario
+header:
+    title: Example-Calibration
+    author: MyName
+    beamTemplateConfPath: test/input/beamville/beam.conf
+    modeChoiceTemplate: test/input/beamville/example-calibration/modeChoiceParameters.xml.tpl
     params:
-      ### ---- template model params ---####
-      mnl_car_intercept: 0.0
-      mnl_car_cost: -1.0
-      mnl_car_time: -0.0047
-
-      mnl_drive_transit_intercept: 1.0
-      mnl_drive_transit_cost: -1.0
-      mnl_drive_transit_time: -0.0047
-      mnl_drive_transit_transfer: -1.4
-
-      mnl_walk_transit_intercept: 1.0
-      mnl_walk_transit_cost: -1.0
-      mnl_walk_transit_time: -0.0047
-      mnl_walk_transit_transfer: -1.4
-
-      mnl_ride_hailing_intercept: -11.0
-      mnl_ride_hailing_cost: -1.0
-      mnl_ride_hailing_time: -0.0047
-
-      mnl_walk_intercept: -20.0
-      mnl_walk_cost: -1.0
-      mnl_walk_time: -0.0047
-
-      mnl_bike_intercept: 0.0
-      mnl_bike_cost: -1.0
-      mnl_bike_time: -0.0047
-
-      ### ---- template env variables ---####
-
+      ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 2g
       S3_OUTPUT_PATH_SUFFIX: "beamville"
       DROP_OUTPUT_ONCOMPLETE: "true"
 
-      ### ---- beam-template.conf param replacement ---####
-      beam.agentsim.tuning.transitCapacity: 0.05
-      beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
+
+# Default Params
+
+defaultParams:
+    ### ---- template model params ---####
+    mnl_car_intercept: 0.0
+    mnl_car_cost: -1.0
+    mnl_car_time: -0.0047
+
+    mnl_drive_transit_intercept: 1.0
+    mnl_drive_transit_cost: -1.0
+    mnl_drive_transit_time: -0.0047
+    mnl_drive_transit_transfer: -1.4
+
+    mnl_walk_transit_intercept: 1.0
+    mnl_walk_transit_cost: -1.0
+    mnl_walk_transit_time: -0.0047
+    mnl_walk_transit_transfer: -1.4
+
+    mnl_ride_hailing_intercept: -11.0
+    mnl_ride_hailing_cost: -1.0
+    mnl_ride_hailing_time: -0.0047
+
+    mnl_walk_intercept: -20.0
+    mnl_walk_cost: -1.0
+    mnl_walk_time: -0.0047
+
+    mnl_bike_intercept: 0.0
+    mnl_bike_cost: -1.0
+    mnl_bike_time: -0.0047
+
+    ### ---- beam-template.conf param replacement ---####
+    beam.agentsim.tuning.transitCapacity: 0.05
+    beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
+
+# Factors
 
 factors:
   - title: transit
