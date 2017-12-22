@@ -2,11 +2,11 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
-import beam.agentsim.Resource.{CheckInResource, TellManagerResourceIsAvailable}
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
@@ -188,7 +188,7 @@ class PersonAgent(val beamServices: BeamServices,
 
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentAct = currentActivity
-      logInfo(s"starting at ${currentAct.getType} @ $tick")
+      logDebug(s"starting at ${currentAct.getType} @ $tick")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentAct
         .getEndTime, self))
   }
@@ -198,11 +198,11 @@ class PersonAgent(val beamServices: BeamServices,
       val currentAct = currentActivity
       nextActivity.fold(
         msg => {
-          logInfo(s"didn't get nextActivity because $msg")
+          logDebug(s"didn't get nextActivity because $msg")
           stop replying completed(triggerId)
         },
         nextAct => {
-          logInfo(s"going to ${nextAct.getType} @ $tick")
+          logDebug(s"going to ${nextAct.getType} @ $tick")
           eventsManager.processEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId,
             currentAct.getFacilityId, currentAct.getType))
           goto(ChoosingMode) replying completed(triggerId, schedule[BeginModeChoiceTrigger](tick, self))
@@ -222,7 +222,7 @@ class PersonAgent(val beamServices: BeamServices,
       } else {
         schedule[NotifyLegEndTrigger](tick, self, beamLeg)
       }
-      logWarn(s"Rescheduling: $toSchedule")
+      logDebug(s"Rescheduling: $toSchedule")
       stay() replying completed(triggerId, toSchedule)
     }
   }
@@ -436,7 +436,7 @@ class PersonAgent(val beamServices: BeamServices,
               val householdRef = beamServices.householdRefs(_household)
               if (currentActivity.getType.equals("Home")) {
                 householdRef ! ReleaseVehicleReservation(id, personalVeh)
-                householdRef ! CheckInResource(personalVeh)
+                householdRef ! CheckInResource(personalVeh, None)
                 currentTourPersonalVehicle = None
               }
             case None =>
@@ -496,7 +496,11 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   chainedWhen(AnyState) {
-    case Event(NotifyNewVehicleLocation(_,_), _) =>
+    case Event(NotifyResourceInUse(_,_), _) =>
+      stay()
+    case Event(RegisterResource(_), _) =>
+      stay()
+    case Event(NotifyResourceIdle(_,_), _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

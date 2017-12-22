@@ -104,10 +104,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
 
-      if (modeAlreadyDefined && chosenTrip.tripClassifier == WALK && predefinedMode.get != WALK) {
-          val i = 0
-      }
-
       if (chosenTrip.requiresReservationConfirmation) {
         pendingChosenTrip = Some(chosenTrip)
         sendReservationRequests(chosenTrip)
@@ -217,7 +213,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val householdRef: ActorRef = beamServices.householdRefs(_household)
     availablePersonalStreetVehicles.foreach { veh =>
       householdRef ! ReleaseVehicleReservation(id, veh.id)
-      householdRef ! CheckInResource(veh.id)
+      householdRef ! CheckInResource(veh.id, None)
     }
     if (chosenTrip.tripClassifier != RIDEHAIL && rideHailingResult.get.proposals.nonEmpty) {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head
@@ -249,7 +245,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Then we reply with a completion notice and schedule the finalize choice trigger.
      */
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), _: BeamAgentInfo[PersonData]) =>
-      logInfo(s"inside ChoosesMode @ $tick")
+      logDebug(s"inside ChoosesMode @ $tick")
       holdTickAndTriggerId(tick, triggerId)
       val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
       modeChoiceStrategy match {
@@ -304,7 +300,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
         val req = RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, id, streetVehiclesAsAccess)
         beamServices.beamRouter ! req
-        logInfo(req.toString)
       }
 
       def makeRideHailRequest(): Unit = {
@@ -399,7 +394,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   }
   chainedWhen(AnyState) {
     case Event(res@ReservationResponse(_, _), _) =>
-      logWarn(s"Reservation confirmation received from state $stateName: ${res.response}")
       stay()
   }
 

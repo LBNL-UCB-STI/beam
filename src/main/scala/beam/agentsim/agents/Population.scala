@@ -40,10 +40,12 @@ class Population(val beamServices: BeamServices, val eventsManager: EventsManage
     //let's put here human body vehicle too, it should be clean up on each iteration
 
 
-    val ref: ActorRef = context.actorOf(PersonAgent.props(beamServices, eventsManager, personId, personToHouseholdId(personId), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
-    beamServices.vehicles += ((bodyVehicleIdFromPerson, new BeamVehicle(Some(ref), powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)))
-    beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), ref)
-    beamServices.personRefs += ((personId, ref))
+    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, eventsManager, personId, personToHouseholdId(personId), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
+    val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
+    newBodyVehicle.registerResource(personRef)
+    beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
+    beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
+    beamServices.personRefs += ((personId, personRef))
   }
 
   override def receive = PartialFunction.empty
