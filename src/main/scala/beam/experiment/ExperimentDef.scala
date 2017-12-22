@@ -70,11 +70,15 @@ case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Fa
     val overrideParams = experiment.defaultParams.asScala.clone() ++ runParams
     overrideParams.toMap
   }
+  lazy val levels: Map[String, String] = {
+    combinations.map(tup => tup._2.title -> tup._1.name).toMap
+  }
   lazy val name: String = {
     combinations.map(lf => s"${lf._2.title}__${lf._1.name}").mkString("___")
   }
 
   def getParam(name: String) = params(name)
+  def getLevelTitle(name: String) = levels(name)
 
   override def toString: String = {
     s"experiment-run: $name"

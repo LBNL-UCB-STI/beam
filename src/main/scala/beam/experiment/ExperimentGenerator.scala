@@ -188,12 +188,14 @@ object ExperimentGenerator extends App {
     Paths.get(getExperimentPath().toString,"experiments.csv").toFile, false))
 
   try {
-    val header = dynamicParamsPerFactor.map { case (factor, param_name) => s"$param_name" }.mkString(",")
-    val paramNames = dynamicParamsPerFactor.map(_._2)
-    experimentsCsv.write(List("experiment_name", "config_path", header).mkString("", ",", "\n"))
+    val factorNames: List[String] = dynamicParamsPerFactor.map(_._1)
+    val paramNames: List[String] = dynamicParamsPerFactor.map(_._2)
+    val header = (List("experimentName") ++ factorNames ++ paramNames).mkString("",",","\n")
+    experimentsCsv.write(header)
     experimentRuns.foreach { run =>
+      val levelNames = factorNames.map(run.experimentRun.getLevelTitle(_)).mkString(",")
       val runValues = paramNames.map(run.experimentRun.getParam).mkString(",")
-      val row = List(run.experimentRun.name, run.runBeamScriptPath.getParent.toString, runValues).mkString("", ",", "\n")
+      val row = List(run.experimentRun.name, levelNames, runValues).mkString("", ",", "\n")
       experimentsCsv.write(row)
     }
     experimentsCsv.flush()
