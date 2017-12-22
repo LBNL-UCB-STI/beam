@@ -47,7 +47,7 @@ case class ExperimentDef(@BeanProperty var title: String,
   }
 
   def getRunScriptTemplate() = {
-    getTemplate(runExperimentScript, "runExperiment.sh.tpl")
+    getTemplate(runExperimentScript, "runBeam.sh.tpl")
   }
 
   def getBatchRunScriptTemplate() = {

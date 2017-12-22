@@ -87,7 +87,6 @@ object ExperimentGenerator extends App {
 
   validateExperimentConfig(experiment)
 
-  val modeChoiceTemplateFile = Paths.get(experiment.modeChoiceTemplate).toAbsolutePath
   val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.beamTemplateConfPath).toFile)
   val baseScenarioRun = ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, ExperimentRun(experiment.baseScenario, combinations = List()), baseConfig)
   val experimentVariations = experiment.combinationsOfLevels()
@@ -95,16 +94,26 @@ object ExperimentGenerator extends App {
     ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, run, baseConfig)
   }
 
-  val modeChoiceTemplate = Resources.toString(modeChoiceTemplateFile.toUri.toURL, Charsets.UTF_8)
+  val modeChoiceTemplate = Resources.toString(Paths.get(experiment.modeChoiceTemplate).toAbsolutePath.toUri.toURL, Charsets.UTF_8)
   val runScriptTemplate = experiment.getRunScriptTemplate()
   val batchScriptTemplate = experiment.getBatchRunScriptTemplate()
   val jinjava = new Jinjava()
 
   experimentRunsWithBase.foreach { runSandbox =>
+    val templateParams = Map(
+      "BEAM_CONFIG_PATH" -> runSandbox.beamConfPath.toString,
+      "BEAM_OUTPUT_PATH" -> runSandbox.beamOutputDir.toString
+      //      ,
+      //      "BEAM_SHARED_INPUT" -> runSandbox.beamOutputDir.toString
+
+    ) ++ runSandbox.experimentRun.params
+
+    /*
+     * Write the config file
+     */
     if (!Files.exists(runSandbox.beamConfPath.getParent)) {
       runSandbox.beamConfPath.getParent.toFile.mkdirs()
     }
-
     val beamConfWriter = new BufferedWriter(new FileWriter(runSandbox.beamConfPath.toFile, false))
     try {
       val beamConfStr = runSandbox.runConfig.root().render(ConfigRenderOptions.concise().setJson(false).setFormatted(true))
@@ -114,29 +123,13 @@ object ExperimentGenerator extends App {
       IOUtils.closeQuietly(beamConfWriter)
     }
 
-    if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {
-      runSandbox.modeChoiceParametersXmlPath.getParent.toFile.mkdirs()
+    /*
+     * Write the shell script to run the single model run
+     */
+    if (!Files.exists(runSandbox.runBeamScriptPath.getParent)) {
+      runSandbox.runBeamScriptPath.getParent.toFile.mkdirs()
     }
-    val modeChoiceWriter = new BufferedWriter(new FileWriter(runSandbox.modeChoiceParametersXmlPath.toFile, false))
-    val templateParams = Map(
-      "BEAM_CONFIG_PATH" -> runSandbox.beamConfPath.toString,
-      "BEAM_OUTPUT_PATH" -> runSandbox.beamOutputDir.toString
-      //      ,
-      //      "BEAM_SHARED_INPUT" -> runSandbox.beamOutputDir.toString
-
-    ) ++ runSandbox.experimentRun.params
-    try {
-      val renderedTemplate = jinjava.render(modeChoiceTemplate, templateParams.asJava)
-      modeChoiceWriter.write(renderedTemplate)
-      modeChoiceWriter.flush()
-    } finally {
-      IOUtils.closeQuietly(modeChoiceWriter)
-    }
-    if (!Files.exists(runSandbox.runExperimentScriptPath.getParent)) {
-      runSandbox.runExperimentScriptPath.getParent.toFile.mkdirs()
-    }
-
-    val runScriptWriter = new BufferedWriter(new FileWriter(runSandbox.runExperimentScriptPath.toFile, false))
+    val runScriptWriter = new BufferedWriter(new FileWriter(runSandbox.runBeamScriptPath.toFile, false))
     try {
       val renderedTemplate = jinjava.render(runScriptTemplate, templateParams.asJava)
       runScriptWriter.write(renderedTemplate)
@@ -144,10 +137,28 @@ object ExperimentGenerator extends App {
     } finally {
       IOUtils.closeQuietly(runScriptWriter)
     }
+    Runtime.getRuntime.exec(s"chmod +x ${runSandbox.runBeamScriptPath.toFile.toString}")
 
-    Runtime.getRuntime.exec(s"chmod +x ${runSandbox.runExperimentScriptPath.toFile.toString}")
-
-
+    /*
+     * Optionally write the mode choice params file
+     */
+    experiment.modeChoiceTemplate.toString match {
+      case "" =>
+        // Do nothing since modeChoieParams wasn't specified in experiment.yaml file
+        ""
+      case uri =>
+        if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {
+          runSandbox.modeChoiceParametersXmlPath.getParent.toFile.mkdirs()
+        }
+        val modeChoiceWriter = new BufferedWriter(new FileWriter(runSandbox.modeChoiceParametersXmlPath.toFile, false))
+        try {
+          val renderedTemplate = jinjava.render(modeChoiceTemplate, templateParams.asJava)
+          modeChoiceWriter.write(renderedTemplate)
+          modeChoiceWriter.flush()
+        } finally {
+          IOUtils.closeQuietly(modeChoiceWriter)
+        }
+    }
   }
   /*
    * Write a shell script designed to run the batch locally
@@ -167,15 +178,15 @@ object ExperimentGenerator extends App {
 
   val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
   val experimentsCsv = new BufferedWriter(new FileWriter(
-    Paths.get(baseScenarioRun.experimentBaseDir.toString, "experiment.csv").toFile, false))
+    Paths.get(baseScenarioRun.experimentBaseDir.toString,"runs","experiments.csv").toFile, false))
 
   try {
     val header = dynamicParamsPerFactor.map { case (factor, param_name) => s"$param_name" }.mkString(",")
     val paramNames = dynamicParamsPerFactor.map(_._2)
-    experimentsCsv.write(List("experiment_name", header, "config_path").mkString("", ",", "\n"))
+    experimentsCsv.write(List("experiment_name", "config_path", header).mkString("", ",", "\n"))
     experimentRunsWithBase.foreach { run =>
       val runValues = paramNames.map(run.experimentRun.getParam).mkString(",")
-      val row = List(run.experimentRun.name, run.runExperimentScriptPath.getParent.toString, runValues).mkString("", ",", "\n")
+      val row = List(run.experimentRun.name, run.runBeamScriptPath.getParent.toString, runValues).mkString("", ",", "\n")
       experimentsCsv.write(row)
     }
     experimentsCsv.flush()
