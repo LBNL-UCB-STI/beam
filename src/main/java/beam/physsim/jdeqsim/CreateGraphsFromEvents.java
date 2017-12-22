@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.common.GeoUtils;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
@@ -42,7 +43,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     public static final String MODE_DRIVE_TRANSIT_LEGEND = "Drive Transit";
     public static final String MODE_WALK_TRANSIT_LEGEND = "Walk Transit";
     public static final String MODE_RIDE_HAILING_LEGEND = "Ride Hailing";
-    public static final String MODE_BUS_Legend = "Bus";
+    public static final String MODE_BUS_LEGEND = "Bus";
 
     public static final Color MODE_CAR_COLOR = Color.blue;
     public static final Color MODE_WALK_COLOR = Color.yellow;
@@ -70,6 +71,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private Integer writePhysSimEventsInterval;
 
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+    private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
     public CreateGraphsFromEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router, Integer writePhysSimEventsInterval) {
         eventsManager.addHandler(this);
@@ -95,11 +97,17 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     public void handleEvent(Event event) {
 
         if (event instanceof ModeChoiceEvent) {
-            addEvent(event);
+
+            System.out.println(">>> ModeChoiceEvent " + event);
+            addModeChoiceEvent(event);
+        }else if(event instanceof PathTraversalEvent){
+
+            System.out.println(">>> PathTraversalEvent " + event);
+            addModeFuelage((PathTraversalEvent)event);
         }
     }
 
-    private void addEvent(Event event){
+    private void addModeChoiceEvent(Event event){
 
         int hour = getEventHour(event.getTime());
         String mode = event.getAttributes().get("mode");
@@ -132,16 +140,60 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
 
 
+    ///
+    private void addModeFuelage(PathTraversalEvent event){
+
+        int hour = getEventHour(event.getTime());
+        String mode = event.getAttributes().get("mode");
+        
+        String fuel = event.getAttributes().get("fuel");
+        
+        if(fuel != null && !fuel.equalsIgnoreCase("NA")) {
+
+            try{
+                
+                Double _fuel = Double.parseDouble(fuel);
+
+                Map<String, Double> hourData = hourModeFuelage.get(hour);
+                if (hourData == null) {
+
+                    hourData = new HashMap<>();
+                    hourData.put(mode, _fuel);
+                    hourModeFuelage.put(hour, hourData);
+                } else {
+
+                    Double fuelage = hourData.get(hour);
+
+                    if (fuelage == null) {
+                        fuelage = _fuel;
+                    } else {
+                        fuelage = fuelage + _fuel;
+                    }
+
+                    hourData.put(mode, fuelage);
+                    hourModeFuelage.put(hour, hourData);
+                }
+            }catch (Exception e){
+                
+                e.printStackTrace();
+            }
+        }
+    }
+    //
+    
 
 
 
-    public void createGraph(IterationEndsEvent event){
+    public void createGraphs(IterationEndsEvent event){
 
-        CategoryDataset dataset = buildCategoryDataset();
-        createGraphs(dataset, event.getIteration());
+        CategoryDataset modesFrequencyDataset = buildModesFrequencyDataset();
+        createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+
+        CategoryDataset modesFuelageDataset = buildModesFuelageDataset();
+        createModesFuelageGraph(modesFuelageDataset, event.getIteration());
     }
 
-    private void createGraphs(CategoryDataset dataset, int iterationNumber){
+    private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber){
 
         String plotTitle = "Modes Histogram";
         String xaxis = "Hour";
@@ -167,7 +219,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         legendItems.add(new LegendItem(MODE_DRIVE_TRANSIT_LEGEND, MODE_DRIVE_TRANSIT_COLOR));
         legendItems.add(new LegendItem(MODE_WALK_TRANSIT_LEGEND, MODE_WALK_TRANSIT_COLOR));
         legendItems.add(new LegendItem(MODE_RIDE_HAILING_LEGEND, MODE_RIDE_HAILING_COLOR));
-        legendItems.add(new LegendItem(MODE_RIDE_HAILING_LEGEND, MODE_BUS_COLOR));
+        legendItems.add(new LegendItem(MODE_BUS_LEGEND, MODE_BUS_COLOR));
         plot.setFixedLegendItems(legendItems);
 
         plot.getRenderer().setSeriesPaint(0, MODE_CAR_COLOR);
@@ -186,7 +238,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         }
     }
 
-    private CategoryDataset buildCategoryDataset(){
+    private CategoryDataset buildModesFrequencyDataset(){
 
         double[][] dataset = new double[6][hourModeFrequency.keySet().size()];
 
@@ -226,5 +278,93 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
+    
+    ////
+    private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber){
+
+        String plotTitle = "Modes Fuelage Histogram";
+        String xaxis = "Hour";
+        String yaxis = "Modes";
+        int width = 800;
+        int height = 600;
+        boolean show = true;
+        boolean toolTips = false;
+        boolean urls = false;
+        PlotOrientation orientation = PlotOrientation.VERTICAL;
+        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, "hour_mode_fuelage.png");
+
+        final JFreeChart chart = ChartFactory.createStackedBarChart(
+                plotTitle , xaxis, yaxis,
+                dataset, orientation, show, toolTips, urls);
+
+        chart.setBackgroundPaint(new Color(255, 255, 255));
+        CategoryPlot plot = chart.getCategoryPlot();
+
+        LegendItemCollection legendItems = new LegendItemCollection();
+        legendItems.add(new LegendItem(MODE_CAR_LEGEND, MODE_CAR_COLOR));
+        legendItems.add(new LegendItem(MODE_WALK_LEGEND, MODE_WALK_COLOR));
+        legendItems.add(new LegendItem(MODE_DRIVE_TRANSIT_LEGEND, MODE_DRIVE_TRANSIT_COLOR));
+        legendItems.add(new LegendItem(MODE_WALK_TRANSIT_LEGEND, MODE_WALK_TRANSIT_COLOR));
+        legendItems.add(new LegendItem(MODE_RIDE_HAILING_LEGEND, MODE_RIDE_HAILING_COLOR));
+        legendItems.add(new LegendItem(MODE_BUS_LEGEND, MODE_BUS_COLOR));
+        plot.setFixedLegendItems(legendItems);
+
+        plot.getRenderer().setSeriesPaint(0, MODE_CAR_COLOR);
+        plot.getRenderer().setSeriesPaint(1, MODE_WALK_COLOR);
+        plot.getRenderer().setSeriesPaint(2, MODE_DRIVE_TRANSIT_COLOR);
+        plot.getRenderer().setSeriesPaint(3, MODE_WALK_TRANSIT_COLOR);
+        plot.getRenderer().setSeriesPaint(4, MODE_RIDE_HAILING_COLOR);
+        plot.getRenderer().setSeriesPaint(5, MODE_BUS_COLOR);
+
+        try {
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+                    height);
+        } catch (IOException e) {
+
+            e.printStackTrace();
+        }
+    }
+
+    private CategoryDataset buildModesFuelageDataset(){
+
+        double[][] dataset = new double[6][hourModeFuelage.keySet().size()];
+
+
+        java.util.List<Integer> keyList = new ArrayList<>();
+        keyList.addAll(hourModeFuelage.keySet());
+        Collections.sort(keyList);
+
+        double[] carFuelage = new double[hourModeFuelage.keySet().size()];
+        double[] walkFuelage = new double[hourModeFuelage.keySet().size()];
+        double[] driveTransitFuelage = new double[hourModeFuelage.keySet().size()];
+        double[] walkTransitFuelage = new double[hourModeFuelage.keySet().size()];
+        double[] rideFuelage = new double[hourModeFuelage.keySet().size()];
+        double[] busFuelage = new double[hourModeFuelage.keySet().size()];
+
+        int index = 0;
+        for(int hour : keyList){
+
+            Map<String, Double> hourData = hourModeFuelage.get(hour);
+
+            carFuelage[index] = hourData.get(MODE_CAR) == null ? 0 : hourData.get(MODE_CAR);
+            walkFuelage[index] = hourData.get(MODE_WALK) == null ? 0 : hourData.get(MODE_WALK);
+            driveTransitFuelage[index] = hourData.get(MODE_DRIVE_TRANSIT) == null ? 0 : hourData.get(MODE_DRIVE_TRANSIT);
+            walkTransitFuelage[index] = hourData.get(MODE_WALK_TRANSIT) == null ? 0 : hourData.get(MODE_WALK_TRANSIT);
+            rideFuelage[index] = hourData.get(MODE_RIDE_HAILING) == null ? 0 : hourData.get(MODE_RIDE_HAILING);
+            busFuelage[index] = hourData.get(MODE_BUS) == null ? 0 : hourData.get(MODE_BUS);
+
+            index = index + 1;
+        }
+
+        dataset[0] = carFuelage;
+        dataset[1] = walkFuelage;
+        dataset[2] = driveTransitFuelage;
+        dataset[3] = walkTransitFuelage;
+        dataset[4] = rideFuelage;
+        dataset[5] = busFuelage;
+
+        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+    //
 }
 

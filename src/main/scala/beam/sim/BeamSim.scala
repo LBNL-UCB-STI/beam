@@ -56,7 +56,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     agentSimToPhysSimPlanConverter.startPhysSim(event)
-    createGraphsFromEvents.createGraph(event);
+    createGraphsFromEvents.createGraphs(event);
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
