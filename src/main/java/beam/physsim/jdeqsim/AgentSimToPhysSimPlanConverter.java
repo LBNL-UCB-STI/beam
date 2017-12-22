@@ -8,6 +8,7 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.physsim.jdeqsim.akka.AkkaEventHandlerAdapter;
 import beam.physsim.jdeqsim.akka.EventManagerActor;
 import beam.physsim.jdeqsim.akka.JDEQSimActor;
+import beam.router.RoutingModel;
 import beam.sim.common.GeoUtils;
 import com.conveyal.r5.transit.TransportNetwork;
 import glokka.Registry;
@@ -31,6 +32,7 @@ import scala.concurrent.Await;
 import scala.util.Left;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -169,7 +171,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private Leg createLeg(String mode, String links, double departureTime) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
-        for (String link : links.split(",")) {
+        for (String link : links.equals("") ? new String[]{} : links.split(",")) {
             Id<Link> linkId = Id.createLinkId(link.trim());
             linkIds.add(linkId);
         }

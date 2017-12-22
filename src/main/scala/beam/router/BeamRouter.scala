@@ -37,6 +37,7 @@ import scala.collection.mutable
 class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  private val config = services.beamConfig.beam.routing
   private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator), "router-worker")
 
   override def receive = {
@@ -72,7 +73,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
       val transitPaths = tripPattern.stops.indices.sliding(2).map { case IndexedSeq(fromStopIdx, toStopIdx) =>
         val fromStop = tripPattern.stops(fromStopIdx)
         val toStop = tripPattern.stops(toStopIdx)
-        if (isOnStreetTransit(mode)) {
+        if (config.transitOnStreetNetwork && isOnStreetTransit(mode)) {
           stopToStopStreetSegmentCache.getOrElseUpdate((fromStop, toStop), routeTransitPathThroughStreets(fromStop, toStop)) match {
             case Some(streetSeg) =>
               var activeLinkIds = Vector[String]()
