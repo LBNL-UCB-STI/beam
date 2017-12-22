@@ -167,7 +167,7 @@ object ExperimentGenerator extends App {
 
   val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
   val experimentsCsv = new BufferedWriter(new FileWriter(
-    Paths.get(baseScenarioRun.experimentBaseDir.toString, "experiments.csv").toFile, false))
+    Paths.get(baseScenarioRun.experimentBaseDir.toString, "experiment.csv").toFile, false))
 
   try {
     val header = dynamicParamsPerFactor.map { case (factor, param_name) => s"$param_name" }.mkString(",")

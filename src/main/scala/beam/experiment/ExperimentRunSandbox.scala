@@ -37,10 +37,12 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
   def buildRunConfig = {
     // set critical properties
     // beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
-    // beam.outputs.outputDirectory
+    // beam.outputs.baseOutputDirectory
     val runConfig = ( Map(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile" -> projectRoot.relativize(modeChoiceParametersXmlPath).toString,
-        "beam.outputs.outputDirectory" -> beamOutputDir.toString
+      "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile" -> projectRoot.relativize(modeChoiceParametersXmlPath).toString,
+      "beam.agentsim.simulationName" -> "output",
+      "beam.outputs.baseOutputDirectory" -> beamOutputDir.getParent.toString,
+      "beam.outputs.addTimestampToOutputDirectory" -> "false"
     ) ++ experimentRun.params).foldLeft(beamTplConf) { case (prevConfig, (paramName, paramValue)) =>
         val configValue = ConfigValueFactory.fromAnyRef(paramValue)
         prevConfig.withValue(paramName, configValue)
