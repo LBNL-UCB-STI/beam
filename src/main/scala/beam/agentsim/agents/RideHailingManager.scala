@@ -260,7 +260,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
       lockedVehicles -= vehId
 
     case msg =>
-      log.debug(s"unknown message received by RideHailingManager $msg")
+      log.warn(s"unknown message received by RideHailingManager $msg")
 
 
   }
