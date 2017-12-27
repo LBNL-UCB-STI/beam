@@ -118,11 +118,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         context.watch(beamServices.rideHailingManager)
 
         val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
-        val initialLocationJitter = 500 // meters
-
         val rideHailingVehicleType = scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType]))
-
-        var rideHailingVehicles: Map[Id[Vehicle], ActorRef] = Map[Id[Vehicle], ActorRef]()
 
         for ((k, v) <- beamServices.persons.take(numRideHailAgents)) {
           val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
