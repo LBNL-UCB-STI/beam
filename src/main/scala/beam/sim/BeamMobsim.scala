@@ -212,7 +212,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       }
     }))
     Await.result(iteration ? "Run!", timeout.duration)
+    log.info("Agentsim finished.")
     eventsManager.finishProcessing()
+    log.info("Events drained.")
   }
 }
 
