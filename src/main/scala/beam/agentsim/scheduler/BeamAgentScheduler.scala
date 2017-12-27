@@ -130,7 +130,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           scheduledTrigger.agent ! triggerWithId
         }
         if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
-          log.info("Hour " + nowInSeconds / 3600.0 + " completed.")
+          log.info("Hour " + nowInSeconds / 3600.0 + " completed. "+math.round(10*(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/(Math.pow(1000,3)))/10.0+"(GB)")
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
           self ! DoSimStep(nowInSeconds + 1.0)
@@ -177,7 +177,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         })
 
     case Monitor =>
-      log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
+      log.debug(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
 
     case SkipOverBadActors =>
       var numReps = 0L
@@ -185,7 +185,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       if (currentTotalAwaitingResponse == previousTotalAwaitingRespone && currentTotalAwaitingResponse != 0) {
         numberRepeats += 1
         numReps = numberRepeats
-        log.error(s"DEBUG: $numReps repeats.")
+        log.debug(s"DEBUG: $numReps repeats.")
       } else {
         numberRepeats = 0
       }

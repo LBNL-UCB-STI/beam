@@ -1,10 +1,10 @@
 package beam.agentsim.agents.household
 
 import akka.actor.{ActorLogging, ActorRef, Props}
-import beam.agentsim.Resource.CheckInResource
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.household.HouseholdActor._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{AppendToTrajectory, StreetVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, Trajectory}
 import beam.agentsim.events.SpaceTime
 import beam.router.DefinedTrajectoryHolder
@@ -49,8 +49,6 @@ object HouseholdActor {
 
   case class ReleaseVehicleReservation(personId: Id[Person], vehId: Id[Vehicle])
 
-  case class NotifyNewVehicleLocation(vehId: Id[Vehicle], whenWhere: SpaceTime)
-
   case class MobilityStatusReponse(streetVehicle: Vector[StreetVehicle])
 
   case class MemberWithRank(personId: Id[Person], rank: Option[Int])
@@ -71,7 +69,8 @@ class HouseholdActor(services: BeamServices,
   extends VehicleManager with ActorLogging with HasServices {
 
   override val beamServices: BeamServices = services
-  override val resources: Map[Id[BeamVehicle], BeamVehicle] = vehicles
+  override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] = collection.mutable.Map[Id[BeamVehicle],BeamVehicle]()
+  resources ++ vehicles
 
   /**
     * Available [[Vehicle]]s in [[Household]]
@@ -107,11 +106,13 @@ class HouseholdActor(services: BeamServices,
 
   override def receive: Receive = {
 
-    case NotifyNewVehicleLocation(vehId, whenWhere) =>
-      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver =
-        true))
+    case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere) =>
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
 
-    case CheckInResource(vehicleId: Id[Vehicle]) =>
+    case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
+      _vehicleToStreetVehicle = _vehicleToStreetVehicle + (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+
+    case CheckInResource(vehicleId: Id[Vehicle], whenWhere) =>
       /*
        * If the resource is checked out, remove. If the resource is not reserved to an individual, make available to all.
        */
@@ -125,7 +126,7 @@ class HouseholdActor(services: BeamServices,
           }
         case None =>
       }
-      log.info(s"Resource $vehicleId is now available again")
+      log.debug(s"Resource $vehicleId is now available again")
 
     case ReleaseVehicleReservation(personId, vehId) =>
       /*
@@ -133,7 +134,7 @@ class HouseholdActor(services: BeamServices,
        */
       _reservedForPerson.get(personId) match {
         case Some(vehicleId) if vehicleId == vehId =>
-          log.info(s"Vehicle $vehicleId is now available for anyone in household $id")
+          log.debug(s"Vehicle $vehicleId is now available for anyone in household $id")
           _reservedForPerson.remove(personId)
         case _ =>
       }
@@ -200,11 +201,6 @@ class HouseholdActor(services: BeamServices,
     val initialBeamPath = BeamPath(Vector(), None, DefinedTrajectoryHolder(Trajectory(Vector(initialLocation))))
 
     for {veh <- _vehicles} yield {
-      services.vehicles(veh).driver match {
-        case Some(driver) =>
-          driver ! AppendToTrajectory(initialBeamPath)
-        case None =>
-      }
       //TODO following mode should come from the vehicle
       _vehicleToStreetVehicle = _vehicleToStreetVehicle +
         (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))

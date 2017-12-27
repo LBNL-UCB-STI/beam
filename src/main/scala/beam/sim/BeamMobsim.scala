@@ -32,8 +32,7 @@ import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
-  * AgentSim entrypoint.
-  * Should instantiate the [[ActorSystem]], [[BeamServices]] and interact concurrently w/ the QSim.
+  * AgentSim.
   *
   * Created by sfeygin on 2/8/17.
   */
@@ -54,8 +53,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
       beamServices.schedulerRef = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
       context.watch(beamServices.schedulerRef)
-      beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", Map[Id[VehicleType], BigDecimal](), beamServices.vehicles.toMap, beamServices, Map.empty), "ridehailingmanager")
-      context.watch(beamServices.rideHailingManager)
       private val population = initializePopulation()
       context.watch(population)
       Await.result(beamServices.beamRouter ? InitTransit, timeout.duration)
@@ -108,15 +105,19 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       def initializePopulation(): ActorRef = {
         beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
         beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
-        log.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.vehicles.size} vehicles")
+
 
         val population = context.actorOf(Population.props(beamServices, transportNetwork, eventsManager), "population")
         Await.result(population ? Identify(0), timeout.duration)
 
+
         // Init households before RHA.... RHA vehicles will initially be managed by households
-        initHouseholds() //TODO the following should be based on config params
-        //    val numRideHailAgents = 0.1
-        val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents, beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
+        initHouseholds()
+
+        beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices))
+        context.watch(beamServices.rideHailingManager)
+
+        val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
         val initialLocationJitter = 500 // meters
 
         val rideHailingVehicleType = scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType]))
@@ -139,16 +140,20 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             information
               .map(_.getGasConsumption)
               .getOrElse(Powertrain.AverageMilesPerGallon))
-          val rideHailBeamVehicle = new BeamVehicle(None, powerTrain, rideHailVehicle, vehicleAttribute, CarVehicle)
+          val rideHailBeamVehicle = new BeamVehicle(powerTrain, rideHailVehicle, vehicleAttribute, CarVehicle)
+          beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
+          rideHailBeamVehicle.registerResource(beamServices.rideHailingManager)
           val rideHailingAgentProps = RideHailingAgent.props(beamServices, transportNetwork, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)
           val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgentProps, rideHailingName)
           context.watch(rideHailingAgentRef)
-          beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
           beamServices.agentRefs.put(rideHailingName, rideHailingAgentRef)
           beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
           rideHailingAgents :+= rideHailingAgentRef
         }
 
+        log.info(s"Initialized ${beamServices.households.size} households")
+        log.info(s"Initialized ${beamServices.persons.size} people")
+        log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
         log.info(s"Initialized ${numRideHailAgents} ride hailing agents")
         population
       }
@@ -188,7 +193,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
                   information
                     .map(_.getGasConsumption)
                     .getOrElse(Powertrain.AverageMilesPerGallon))
-                agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(None,
+                agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(
                   powerTrain,
                   matsimVehicle,
                   vehicleAttribute,

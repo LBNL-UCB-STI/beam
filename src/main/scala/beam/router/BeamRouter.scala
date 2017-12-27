@@ -119,7 +119,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
       transitVehicles.getVehicleTypes.get(vehicleTypeId)
     } else {
-      log.info(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
+      log.debug(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
       transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]))
     }
 
@@ -132,7 +132,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         //        val transitVehProps = TransitVehicle.props(services, matSimTransitVehicle.getId, TransitVehicleData
         // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
         //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
-        val vehicle: BeamVehicle = new BeamVehicle(None, Powertrain.PowertrainFromMilesPerGallon(consumption),
+        val vehicle: BeamVehicle = new BeamVehicle(Powertrain.PowertrainFromMilesPerGallon(consumption),
           matSimTransitVehicle, None, TransitVehicle)
         services.vehicles += (transitVehId -> vehicle)
         val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)

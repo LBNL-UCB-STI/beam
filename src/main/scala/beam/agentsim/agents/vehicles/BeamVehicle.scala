@@ -23,7 +23,6 @@ import scala.util.{Failure, Random, Success, Try}
   * reference to a parent [[BeamVehicle]] is maintained in its carrier. All other information is
   * managed either through the MATSim [[Vehicle]] interface or within several other classes.
   *
-  * @param manager The [[beam.agentsim.ResourceManager]] managing this [[BeamVehicle]]
   * @author saf
   * @since Beam 2.0.0
   */
@@ -31,8 +30,7 @@ import scala.util.{Failure, Random, Success, Try}
 // If we need immutable state, we will need to operate on this through lenses.
 
 // TODO: safety for
-class BeamVehicle(override var manager: Option[ActorRef],
-                  powerTrain: Powertrain,
+class BeamVehicle(powerTrain: Powertrain,
                   initialMatsimVehicle: Vehicle,
                   initialMatsimAttributes: Option[ObjectAttributes],
                   beamVehicleType: BeamVehicleType,
@@ -76,15 +74,6 @@ class BeamVehicle(override var manager: Option[ActorRef],
   override def getId: Id[BeamVehicle] = id
 
   /**
-    * The resource manager for this [[BeamVehicle]] resource
-    *
-    * @param resourceManagerRef the [[beam.agentsim.ResourceManager]]
-    */
-  def setResourceManager(resourceManagerRef: ActorRef): Unit = {
-    manager = Option(resourceManagerRef)
-  }
-
-  /**
     * Called by the driver.
     */
   def unsetDriver(): Unit = {
@@ -115,13 +104,8 @@ class BeamVehicle(override var manager: Option[ActorRef],
     * @param idToRemove the passenger [[Vehicle]] to remove.
     * @return [[Try]] expression (maybe) holding a [[ClearCarrier]] message for the driver to pass on to the passenger.
     */
-  def removePassenger(idToRemove: Id[Vehicle]): Unit = {
-    vehicleOccupancyAdministrator.removePassenger(idToRemove) match {
-      case Success(cc) =>
-        carrier = None
-      case Failure(_)=>
-        log.error(s"Trying to remove passenger $idToRemove, but this passenger is not on board!")
-    }
+  def removePassenger(idToRemove: Id[Vehicle]): Boolean = {
+    vehicleOccupancyAdministrator.removePassenger(idToRemove)
   }
 
   /**
@@ -131,7 +115,7 @@ class BeamVehicle(override var manager: Option[ActorRef],
     * @return [[Either]] a message to be sent from the driver to the passenger that the vehicle
     *         capacity has been exceeded ([[Left]]) or a
     */
-  def addPassenger(idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
+  def addPassenger(idToAdd: Id[Vehicle]): Boolean = {
     vehicleOccupancyAdministrator.addPassenger(idToAdd)
   }
   def canAddPassenger(): Boolean = {
@@ -176,22 +160,21 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
   def getTotalCrowdedness: Double =
     ((standingPassengers.size + seatedPassengers.size) / totalOccupancyLimit).toDouble
 
-  def addSeatedPassenger(
-                          idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
+  def addSeatedPassenger(idToAdd: Id[Vehicle]): Boolean = {
     if (seatedPassengers.size + 1 > seatedOccupancyLimit) {
-      Left(VehicleFullError)
+      false
     } else {
       seatedPassengers += idToAdd
-      Right(SetCarrier(idToAdd))
+      true
     }
   }
 
-  def addStandingPassenger(idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
+  def addStandingPassenger(idToAdd: Id[Vehicle]): Boolean = {
     if (standingPassengers.size + 1 > standingOccupancyLimit) {
-      Left(VehicleFullError)
+      false
     } else {
       standingPassengers += idToAdd
-      Right(SetCarrier(idToAdd))
+      true
     }
   }
 
@@ -204,8 +187,7 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     * @return [[Either]] a message to be sent from the driver to the passenger that the vehicle
     *         capacity has been exceeded ([[Left]]) or a
     */
-  def addPassenger(
-                    idToAdd: Id[Vehicle]): Either[ReservationError, SetCarrier] = {
+  def addPassenger(idToAdd: Id[Vehicle]): Boolean = {
     if(seatedPassengers.size==seatedOccupancyLimit){
       addStandingPassenger(idToAdd)
     }else if(standingPassengers.size==standingOccupancyLimit){
@@ -224,7 +206,7 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     seatedPassengers.size < seatedOccupancyLimit || standingPassengers.size < standingOccupancyLimit
   }
 
-  def removePassenger(idToRemove: Id[Vehicle]): Try[ClearCarrier] = {
+  def removePassenger(idToRemove: Id[Vehicle]): Boolean = {
     if (seatedPassengers.contains(idToRemove)) {
       if (standingPassengers.nonEmpty) {
         seatAssignmentRule
@@ -235,17 +217,15 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
           .map({ idToSit =>
             standingPassengers -= idToSit
             seatedPassengers += idToSit
-            ClearCarrier()
           })
-      } else {
-        seatedPassengers -= idToRemove
-        Success(ClearCarrier())
       }
+      seatedPassengers -= idToRemove
+      true
     } else if(standingPassengers.contains(idToRemove)) {
       standingPassengers -= idToRemove
-      Success(ClearCarrier())
+      true
     }else{
-      Failure(new Exception("Error"))
+      false
     }
   }
 

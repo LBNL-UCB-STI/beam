@@ -299,7 +299,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         )
         RoutingResponse(embodiedTrips :+ dummyTrip)
       } else {
-        log.warning("Not adding a dummy walk route since agent has no body.")
+        log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(embodiedTrips)
       }
     } else {
