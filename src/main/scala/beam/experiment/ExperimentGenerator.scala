@@ -190,7 +190,7 @@ object ExperimentGenerator extends App {
   try {
     val factorNames: List[String] = dynamicParamsPerFactor.map(_._1)
     val paramNames: List[String] = dynamicParamsPerFactor.map(_._2)
-    val header = (List("experimentName") ++ factorNames ++ paramNames).mkString("",",","\n")
+    val header = (List("experimentalGroup") ++ factorNames ++ paramNames).mkString("",",","\n")
     experimentsCsv.write(header)
     experimentRuns.foreach { run =>
       val levelNames = factorNames.map(run.experimentRun.getLevelTitle(_)).mkString(",")

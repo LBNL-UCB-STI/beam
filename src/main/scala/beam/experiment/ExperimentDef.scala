@@ -74,7 +74,7 @@ case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Fa
     combinations.map(tup => tup._2.title -> tup._1.name).toMap
   }
   lazy val name: String = {
-    combinations.map(lf => s"${lf._2.title}__${lf._1.name}").mkString("___")
+    combinations.map(lf => s"${lf._2.title}_${lf._1.name}").mkString("__")
   }
 
   def getParam(name: String) = params(name)
