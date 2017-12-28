@@ -9,13 +9,7 @@ import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
-import org.matsim.api.core.v01.population.Activity;
-import org.matsim.api.core.v01.population.Leg;
-import org.matsim.api.core.v01.population.Person;
-import org.matsim.api.core.v01.population.Plan;
-import org.matsim.api.core.v01.population.Population;
-import org.matsim.api.core.v01.population.PopulationWriter;
-import org.matsim.api.core.v01.population.Route;
+import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
@@ -30,10 +24,6 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Await;
-import scala.concurrent.Future;
-import scala.concurrent.duration.Duration;
-import scala.util.Left;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +49,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     private Integer writePhysSimEventsInterval;
 
-    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, TransportNetwork transportNetwork, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef router) {
+    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
+                                          TransportNetwork transportNetwork,
+                                          OutputDirectoryHierarchy controlerIO,
+                                          Scenario scenario,
+                                          GeoUtils geoUtils,
+                                          ActorRef router,
+                                          Integer writePhysSimEventsInterval) {
 
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;

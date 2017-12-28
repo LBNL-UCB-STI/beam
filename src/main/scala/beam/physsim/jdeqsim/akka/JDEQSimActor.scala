@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
-import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
+import org.matsim.core.mobsim.jdeqsim.{JDEQSimConfigGroup, JDEQSimulation}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.collections.Tuple
 
@@ -28,7 +28,12 @@ class JDEQSimActor(var config: JDEQSimConfigGroup, var agentSimScenario: Scenari
   var jdeqSimPopulation: Population = _
 
   private def runPhysicalSimulation(): Unit = {
-    jdeqSimulation = new JDEQSimulation(config, jdeqSimPopulation, events, agentSimScenario.getNetwork, agentSimScenario.getConfig.plans.getActivityDurationInterpretation)
+    jdeqSimulation = new JDEQSimulation(config,
+      agentSimScenario,
+      events
+      //agentSimScenario.getNetwork,
+      //agentSimScenario.getConfig.plans.getActivityDurationInterpretation
+      )
     jdeqSimulation.run()
     events.finishProcessing()
   }
