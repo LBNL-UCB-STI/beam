@@ -9,7 +9,6 @@ import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
-import beam.router.r5.NetworkCoordinator
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
@@ -51,7 +50,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, transportNetwork, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, transportNetwork, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.beamRouter)
 
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
