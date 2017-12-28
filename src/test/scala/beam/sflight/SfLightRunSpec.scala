@@ -3,6 +3,7 @@ package beam.sflight
 import java.io.File
 
 import beam.agentsim.events.ModeChoiceEvent
+import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamServices, RunBeam}
 import beam.utils.FileUtils
@@ -10,7 +11,7 @@ import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -27,11 +28,14 @@ class SfLightRunSpec extends WordSpecLike with Matchers with RunBeam with Before
       val matsimConfig = configBuilder.buildMatSamConf()
       val beamConfig = BeamConfig(config)
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-      val scenario = ScenarioUtils.loadScenario(matsimConfig)
+      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+      val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
+      networkCoordinator.loadNetwork()
+      scenario.setNetwork(networkCoordinator.network)
       var nCarTrips = 0
       val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, new AbstractModule() {
         override def install(): Unit = {
-          install(module(scenario, config))
+          install(module(config, scenario, networkCoordinator.transportNetwork))
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {

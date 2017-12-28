@@ -10,23 +10,19 @@ import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
 
-case class ExperimentDef(@BeanProperty var title: String,
-                         @BeanProperty var author: String,
-                         @BeanProperty var beamTemplateConfPath: String,
-                         @BeanProperty var runExperimentScript: String,
+case class ExperimentDef(@BeanProperty var runExperimentScript: String,
                          @BeanProperty var batchRunScript: String,
-                         @BeanProperty var modeChoiceTemplate: String,
-
-                         @BeanProperty var baseScenario: BaseScenario,
+                         @BeanProperty var header: Header,
+                         @BeanProperty var defaultParams:  java.util.Map[String, Object],
                          @BeanProperty var factors: java.util.List[Factor]) {
-  def this() = this("", "", "", "", "", "", null, new java.util.LinkedList())
+  def this() = this("", "", null, null, new java.util.LinkedList())
 
   def combinationsOfLevels() = {
 
     val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor))).toArray
     val runs = cartesian(values).toList
     runs.map { levels =>
-      ExperimentRun(baseScenario, levels)
+      ExperimentRun(this, levels)
     }
   }
 
@@ -47,7 +43,7 @@ case class ExperimentDef(@BeanProperty var title: String,
   }
 
   def getRunScriptTemplate() = {
-    getTemplate(runExperimentScript, "runExperiment.sh.tpl")
+    getTemplate(runExperimentScript, "runBeam.sh.tpl")
   }
 
   def getBatchRunScriptTemplate() = {
@@ -67,28 +63,36 @@ case class ExperimentDef(@BeanProperty var title: String,
   }
 }
 
-case class ExperimentRun(baseScenario: BaseScenario, combinations: Seq[(Level, Factor)]) {
+case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Factor)]) {
 
   lazy val params: Map[String, Any] = {
     val runParams = combinations.flatMap(_._1.params.asScala)
-    val overrideParams = baseScenario.params.asScala.clone() ++ runParams
+    val overrideParams = experiment.defaultParams.asScala.clone() ++ runParams
     overrideParams.toMap
   }
+  lazy val levels: Map[String, String] = {
+    combinations.map(tup => tup._2.title -> tup._1.name).toMap
+  }
   lazy val name: String = {
-    if (combinations.isEmpty) {
-      "baseScenario__" + baseScenario.title
-    } else {
-      combinations.map(lf => s"${lf._2.title}__${lf._1.name}").mkString("___")
-    }
+    combinations.map(lf => s"${lf._2.title}_${lf._1.name}").mkString("__")
   }
 
   def getParam(name: String) = params(name)
+  def getLevelTitle(name: String) = levels(name)
 
   override def toString: String = {
     s"experiment-run: $name"
   }
 }
 
-case class BaseScenario(@BeanProperty var title: String, @BeanProperty var params: java.util.Map[String, Object]) {
+case class Header(@BeanProperty var title: String,
+                  @BeanProperty var author: String,
+                  @BeanProperty var beamTemplateConfPath: String,
+                  @BeanProperty var modeChoiceTemplate: String,
+                  @BeanProperty var params: java.util.Map[String, Object]) {
+  def this() = this("", "", "", "", new java.util.HashMap())
+}
+case class BaseScenario(@BeanProperty var title: String,
+                        @BeanProperty var params: java.util.Map[String, Object]) {
   def this() = this("", new java.util.HashMap())
 }

@@ -51,27 +51,27 @@ Environment Variables
 
 Depending on from where you want to run the BEAM application and from where you want to run gradle tasks, the specific place where you set these variables will differ. To run from the command line, add these statements to your .bash_profile file::
 
-  export BEAM_OUTPUTS=/path/to/your/preferred/output/destination/`
+  export BEAM_OUTPUT=/path/to/your/preferred/output/destination/`
 
 To run from IntelliJ as an "Application", edit the "Environment Variables" field in your Run Configuration to look like this::
 
-  BEAM_OUTPUTS="/path/to/your/preferred/output/destination/"
+  BEAM_OUTPUT="/path/to/your/preferred/output/destination/"
 
 Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure you variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
 
-File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUTS.plist`::
+File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
     <plist version="1.0">
       <dict>
         <key>Label</key>
-        <string>setenv.BEAM_OUTPUTS</string>
+        <string>setenv.BEAM_OUTPUT</string>
         <key>ProgramArguments</key>
         <array>
           <string>/bin/launchctl</string>
           <string>setenv</string>
-          <string>BEAM_OUTPUTS</string>
+          <string>BEAM_OUTPUT</string>
           <string>/path/to/your/preferred/output/destination/</string>
         </array>
         <key>RunAtLoad</key>

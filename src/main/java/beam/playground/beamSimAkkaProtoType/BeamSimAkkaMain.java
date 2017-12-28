@@ -19,7 +19,6 @@ import org.matsim.core.scenario.ScenarioUtils;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
-import akka.stream.scaladsl.BroadcastHub.Consumer;
 import akka.util.Timeout;
 import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargingInfrastructureManager;
 import beam.playground.beamSimAkkaProtoType.scheduler.Scheduler;

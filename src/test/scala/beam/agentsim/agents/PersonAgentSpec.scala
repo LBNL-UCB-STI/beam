@@ -11,6 +11,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.config.ConfigFactory
@@ -21,7 +22,7 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleUtils}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
@@ -45,6 +46,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     when(theServices.modeChoiceCalculator).thenReturn(mock[ModeChoiceCalculator])
     theServices
   }
+  private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
+  networkCoordinator.loadNetwork()
 
   describe("A PersonAgent FSM") {
 
@@ -56,7 +59,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
 
       watch(personAgentRef)
@@ -82,7 +85,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         workActivity.setEndTime(61200) //5:00:00 PM
         plan.addActivity(workActivity)
 
-        val personAgentRef = TestFSMRef(new PersonAgent(services, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+        val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
         val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
         beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
 
@@ -116,7 +119,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         plan.addActivity(workActivity)
         plan.addActivity(backHomeActivity)
 
-        val personAgentRef = TestFSMRef(new PersonAgent(services, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+        val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
         watch(personAgentRef)
         val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 200.0, maxWindow = 10.0))
 

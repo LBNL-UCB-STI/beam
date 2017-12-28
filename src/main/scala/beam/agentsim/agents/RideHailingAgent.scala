@@ -3,7 +3,6 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.Props
 import akka.pattern.{ask, pipe}
-import beam.agentsim.Resource.ResourceIsAvailableNotification
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
@@ -19,6 +18,7 @@ import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, HasServices}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -30,10 +30,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 object RideHailingAgent {
   val idPrefix: String = "rideHailingAgent"
 
-  def props(services: BeamServices, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
-    Props(new RideHailingAgent(rideHailingAgentId, vehicle, RideHailingAgentData(location), eventsManager, services))
+  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
+    Props(new RideHailingAgent(rideHailingAgentId, vehicle, location, eventsManager, services, transportNetwork))
 
-  case class RideHailingAgentData(location: Coord) extends BeamAgentData
+  case class RideHailingAgentData() extends BeamAgentData
 
   case object Idle extends BeamAgentState
 
@@ -60,57 +60,43 @@ object RideHailingAgent {
 
 }
 
-class RideHailingAgent(override val id: Id[RideHailingAgent], vehicle: BeamVehicle, override val data: RideHailingAgentData, val eventsManager: EventsManager, val beamServices: BeamServices)
+class RideHailingAgent(override val id: Id[RideHailingAgent], vehicle: BeamVehicle, initialLocation: Coord,
+                       val eventsManager: EventsManager, val beamServices: BeamServices, val transportNetwork: TransportNetwork)
   extends BeamAgent[RideHailingAgentData]
     with HasServices
     with DrivesVehicle[RideHailingAgentData] {
+  override val data: RideHailingAgentData = RideHailingAgentData()
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _: BeamAgentInfo[RideHailingAgentData]) =>
-      val passengerSchedule = PassengerSchedule()
-      self ! BecomeDriver(tick, id, Some(passengerSchedule))
-      holdTickAndTriggerId(tick, triggerId)
-      stay()
-
-    /*
-    * Becoming driver
-    */
-    case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
-      vehicle.becomeDriver(beamServices.agentRefs(newDriver.toString)).fold(fa =>
-        stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
+      vehicle.becomeDriver(self).fold(fa =>
+        stop(Failure(s"RideHailingAgent $self attempted to become driver of vehicle ${vehicle.id} " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle.id)
+        holdTickAndTriggerId(tick,triggerId)
+        vehicle.driver.get ! BecomeDriverSuccess(None, vehicle.id)
+        vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(PersonAgent.Waiting)
       })
+  }
 
-}
-
-chainedWhen (Waiting) {
-  case Event (TriggerWithId (PassengerScheduleEmptyTrigger (tick), triggerId), info) =>
-  val response = beamServices.rideHailingManager ? ResourceIsAvailableNotification (vehicle.id, SpaceTime (info.data.location, tick.toLong) )
-  response.mapTo[RideAvailableAck.type].map (result => {
-  // TODO: XXX (VR): Here is where we set the resource manager... Consider a more coherent protocol to ensure this
-  // happens.
-  vehicle.setResourceManager (beamServices.rideHailingManager)
-  CompletionNotice (triggerId)
-}
-  ) pipeTo beamServices.schedulerRef
-
-  stay ()
-}
+  chainedWhen (Waiting) {
+    case Event (TriggerWithId (PassengerScheduleEmptyTrigger (tick), triggerId), info) =>
+      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+      stay replying completed(triggerId)
+  }
 
   chainedWhen (AnyState) {
-  case Event (ModifyPassengerScheduleAck (Some (msgId) ), _) =>
-  stay
-  case Event(BecomeDriverSuccessAck, _) =>
-    val (tick, triggerId) = releaseTickAndTriggerId()
-    beamServices.schedulerRef ! completed(triggerId, schedule[PassengerScheduleEmptyTrigger](tick, self))
-    stay
-  case Event (Finish, _) =>
-  stop
-}
+    case Event (ModifyPassengerScheduleAck (Some (msgId) ), _) =>
+      stay
+    case Event(BecomeDriverSuccessAck, _) =>
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      beamServices.schedulerRef ! completed(triggerId)
+      stay
+    case Event (Finish, _) =>
+      stop
+  }
 
 
   //// BOILERPLATE /////
