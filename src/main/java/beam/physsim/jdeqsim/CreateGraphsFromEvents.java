@@ -23,6 +23,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.List;
 
 
 /**
@@ -30,6 +31,7 @@ import java.util.*;
  */
 public class CreateGraphsFromEvents implements BasicEventHandler {
 
+    public static final List<Color> colors = new ArrayList<>();
 
     public static final String MODE_CAR = "car";
     public static final String MODE_WALK = "walk";
@@ -74,6 +76,22 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
     private Map<Integer, Map<Integer, Integer>> carDeadHeadings = new HashMap<>();
     private Map<Integer, Map<Integer, Integer>> busDeadHeadings = new HashMap<>();
+
+    static {
+
+        colors.add(Color.GREEN);
+        colors.add(Color.BLUE);
+        colors.add(Color.GRAY);
+        colors.add(Color.PINK);
+        colors.add(Color.RED);
+        colors.add(Color.MAGENTA);
+        colors.add(Color.BLACK);
+        colors.add(Color.YELLOW);
+        colors.add(Color.CYAN);
+
+
+    }
+
 
     public CreateGraphsFromEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router, Integer writePhysSimEventsInterval) {
         eventsManager.addHandler(this);
@@ -201,7 +219,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         CategoryDataset carDeadHeadingDataset = buildDeadHeadingDataset(carDeadHeadings);
         createDeadHeadingGraph(carDeadHeadingDataset, event.getIteration(), "car");
 
-        CategoryDataset busDeadHeadingDataset = buildDeadHeadingDataset(carDeadHeadings);
+        CategoryDataset busDeadHeadingDataset = buildDeadHeadingDataset(busDeadHeadings);
         createDeadHeadingGraph(busDeadHeadingDataset, event.getIteration(), "bus");
     }
 
@@ -466,7 +484,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String mode){
 
-        String plotTitle = "Number of Passengers per Trip";
+        String plotTitle = "TNC - Number of Passengers per Trip";
         String xaxis = "Hour";
         String yaxis = "# trips";
         int width = 800;
