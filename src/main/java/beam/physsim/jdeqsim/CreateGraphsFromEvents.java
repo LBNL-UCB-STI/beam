@@ -78,6 +78,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private Map<Integer, Map<Integer, Integer>> busDeadHeadings = new HashMap<>();
 
     private Set<String> modesChosen = new TreeSet<>();
+    private Set<String> modesFuel = new TreeSet<>();
 
     static {
 
@@ -123,7 +124,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             processModeChoice(event);
         }else if(event instanceof PathTraversalEvent){
 
-            addModeFuelage((PathTraversalEvent)event);
+            processFuelUsage((PathTraversalEvent)event);
 
             processDeadHeading((PathTraversalEvent)event);
         }
@@ -259,22 +260,16 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     }
     //
 
-    //Example of simple implementation returning Color on basis of value
-    private Paint getCustomPaint(Comparable<?> rowKey) {
-        if ("JANUARY".equals(rowKey)){
-            return Color.BLACK;
-        }
-        return null;
-    }
-
     ////
     // fuel usage graph
-    private void addModeFuelage(PathTraversalEvent event){
+    private void processFuelUsage(PathTraversalEvent event){
 
         int hour = getEventHour(event.getTime());
         String mode = event.getAttributes().get("mode");
 
         String fuel = event.getAttributes().get("fuel");
+
+        modesFuel.add(mode);
 
         if(fuel != null && !fuel.equalsIgnoreCase("NA")) {
 
@@ -310,41 +305,30 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private CategoryDataset buildModesFuelageDataset(){
 
-        double[][] dataset = new double[6][hourModeFuelage.keySet().size()];
+        double[][] dataset = new double[modesFuel.size()][hourModeFuelage.keySet().size()];
 
 
         java.util.List<Integer> keyList = new ArrayList<>();
         keyList.addAll(hourModeFuelage.keySet());
         Collections.sort(keyList);
 
-        double[] carFuelage = new double[hourModeFuelage.keySet().size()];
-        double[] walkFuelage = new double[hourModeFuelage.keySet().size()];
-        double[] driveTransitFuelage = new double[hourModeFuelage.keySet().size()];
-        double[] walkTransitFuelage = new double[hourModeFuelage.keySet().size()];
-        double[] rideFuelage = new double[hourModeFuelage.keySet().size()];
-        double[] busFuelage = new double[hourModeFuelage.keySet().size()];
+        java.util.List<String> modesFuelList = new ArrayList<>();
+        modesFuelList.addAll(modesFuel);
+        Collections.sort(modesFuelList);
 
-        int index = 0;
-        for(int hour : keyList){
-
-            Map<String, Double> hourData = hourModeFuelage.get(hour);
-
-            carFuelage[index] = hourData.get(MODE_CAR) == null ? 0 : hourData.get(MODE_CAR);
-            walkFuelage[index] = hourData.get(MODE_WALK) == null ? 0 : hourData.get(MODE_WALK);
-            driveTransitFuelage[index] = hourData.get(MODE_DRIVE_TRANSIT) == null ? 0 : hourData.get(MODE_DRIVE_TRANSIT);
-            walkTransitFuelage[index] = hourData.get(MODE_WALK_TRANSIT) == null ? 0 : hourData.get(MODE_WALK_TRANSIT);
-            rideFuelage[index] = hourData.get(MODE_RIDE_HAILING) == null ? 0 : hourData.get(MODE_RIDE_HAILING);
-            busFuelage[index] = hourData.get(MODE_BUS) == null ? 0 : hourData.get(MODE_BUS);
-
-            index = index + 1;
+        System.out.println(Arrays.toString(modesFuelList.toArray()));
+        for(int i=0; i < modesFuelList.size(); i++){
+            double[] modeOccurrencePerHour = new double[hourModeFuelage.keySet().size()];
+            String modeChosen = modesFuelList.get(i);
+            int index = 0;
+            for(int hour : keyList){
+                Map<String, Double> hourData = hourModeFuelage.get(hour);
+                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                index = index + 1;
+            }
+            System.out.println(Arrays.toString(modeOccurrencePerHour));
+            dataset[i] = modeOccurrencePerHour;
         }
-
-        dataset[0] = carFuelage;
-        dataset[1] = walkFuelage;
-        dataset[2] = driveTransitFuelage;
-        dataset[3] = walkTransitFuelage;
-        dataset[4] = rideFuelage;
-        dataset[5] = busFuelage;
 
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
@@ -369,25 +353,26 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         chart.setBackgroundPaint(new Color(255, 255, 255));
         CategoryPlot plot = chart.getCategoryPlot();
 
+        System.out.println("rows " + dataset.getRowCount());
+        System.out.println("cols " + dataset.getColumnCount());
+
         LegendItemCollection legendItems = new LegendItemCollection();
-        legendItems.add(new LegendItem(MODE_CAR_LEGEND, MODE_CAR_COLOR));
-        legendItems.add(new LegendItem(MODE_WALK_LEGEND, MODE_WALK_COLOR));
-        legendItems.add(new LegendItem(MODE_DRIVE_TRANSIT_LEGEND, MODE_DRIVE_TRANSIT_COLOR));
-        legendItems.add(new LegendItem(MODE_WALK_TRANSIT_LEGEND, MODE_WALK_TRANSIT_COLOR));
-        legendItems.add(new LegendItem(MODE_RIDE_HAILING_LEGEND, MODE_RIDE_HAILING_COLOR));
-        legendItems.add(new LegendItem(MODE_BUS_LEGEND, MODE_BUS_COLOR));
+
+        java.util.List<String> modesFuelList = new ArrayList<>();
+        modesFuelList.addAll(modesFuel);
+        Collections.sort(modesFuelList);
+
+        System.out.println(Arrays.toString(modesFuelList.toArray()));
+
+        for (int i = 0; i<dataset.getRowCount(); i++) {
+
+            legendItems.add(new LegendItem(modesFuelList.get(i), colors.get(i)));
+            plot.getRenderer().setSeriesPaint(i, colors.get(i));
+        }
         plot.setFixedLegendItems(legendItems);
 
-        plot.getRenderer().setSeriesPaint(0, MODE_CAR_COLOR);
-        plot.getRenderer().setSeriesPaint(1, MODE_WALK_COLOR);
-        plot.getRenderer().setSeriesPaint(2, MODE_DRIVE_TRANSIT_COLOR);
-        plot.getRenderer().setSeriesPaint(3, MODE_WALK_TRANSIT_COLOR);
-        plot.getRenderer().setSeriesPaint(4, MODE_RIDE_HAILING_COLOR);
-        plot.getRenderer().setSeriesPaint(5, MODE_BUS_COLOR);
-
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
         } catch (IOException e) {
 
             e.printStackTrace();
