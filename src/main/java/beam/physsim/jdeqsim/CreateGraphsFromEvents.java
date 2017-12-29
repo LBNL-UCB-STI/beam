@@ -133,6 +133,9 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     ///
     public void createGraphs(IterationEndsEvent event){
 
+        System.out.println("car pathtraversal counts" + carModeOccurrence);
+        System.out.println(Arrays.deepToString(carDeadHeadings.values().toArray()));
+
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDataset();
         createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
@@ -380,6 +383,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     }
     //
 
+    int carModeOccurrence = 0;
     //
     private void processDeadHeading(PathTraversalEvent event){
 
@@ -388,38 +392,41 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         String vehicle_id = event.getAttributes().get("vehicle_id");
         String num_passengers = event.getAttributes().get("num_passengers");
-        if(vehicle_id.contains("ride")) {
 
-            Map<Integer, Map<Integer, Integer>> deadHeadings = null;
-            if(mode.equalsIgnoreCase("car")) {
-                deadHeadings = carDeadHeadings;
-            }else{
-                deadHeadings = busDeadHeadings;
-            }
+        String vehicle_id_partial = "";
+        Map<Integer, Map<Integer, Integer>> deadHeadings = null;
+        if(mode.equalsIgnoreCase("car")) {
+            deadHeadings = carDeadHeadings;
+            vehicle_id_partial = "ride";
 
-            if(deadHeadings != null) {
-                try {
-                    Integer _num_passengers = Integer.parseInt(num_passengers);
-                    if (_num_passengers >= 0 && _num_passengers <= 4) {
-                        Map<Integer, Integer> hourData = deadHeadings.get(hour);
-                        if (hourData == null) {
-                            hourData = new HashMap<>();
-                            hourData.put(_num_passengers, 1);
-                            deadHeadings.put(hour, hourData);
+        }else{
+            deadHeadings = busDeadHeadings;
+            vehicle_id_partial = "bus";
+        }
+
+        if(deadHeadings != null && vehicle_id.contains(vehicle_id_partial)) {
+            try {
+                Integer _num_passengers = Integer.parseInt(num_passengers);
+                if (_num_passengers >= 0 && _num_passengers <= 4) {
+
+                    if(mode.equalsIgnoreCase("car")) carModeOccurrence++;
+                    Map<Integer, Integer> hourData = deadHeadings.get(hour);
+                    if (hourData == null) {
+                        hourData = new HashMap<>();
+                        hourData.put(_num_passengers, 1);
+                    } else {
+                        Integer occurrence = hourData.get(_num_passengers);
+                        if (occurrence == null) {
+                            occurrence = 1;
                         } else {
-                            Integer occurrence = hourData.get(hour);
-                            if (occurrence == null) {
-                                occurrence = 1;
-                            } else {
-                                occurrence = occurrence + 1;
-                            }
-                            hourData.put(_num_passengers, occurrence);
-                            deadHeadings.put(hour, hourData);
+                            occurrence = occurrence + 1;
                         }
+                        hourData.put(_num_passengers, occurrence);
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    deadHeadings.put(hour, hourData);
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
@@ -468,7 +475,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String mode){
 
-        String plotTitle = "TNC - Number of Passengers per Trip";
+        String plotTitle = "Number of Passengers per Trip [TNC]";
         String xaxis = "Hour";
         String yaxis = "# trips";
         int width = 800;
@@ -482,7 +489,8 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         if(mode.equalsIgnoreCase("car")){
             fileName = "tnc_passenger_per_trip.png";
         }else if(mode.equalsIgnoreCase("bus")){
-            fileName = "tnc_passenger_per_trip_bus.png";
+            fileName = "bus_passenger_per_trip.png";
+            plotTitle = "Number of Passengers per Trip [BUS]";
         }
 
         String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
