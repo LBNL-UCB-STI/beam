@@ -114,20 +114,27 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     ///
     public void createGraphs(IterationEndsEvent event){
 
-        System.out.println("car pathtraversal counts" + carModeOccurrence);
-        System.out.println(Arrays.deepToString(carDeadHeadings.values().toArray()));
-
+        //
+        System.out.println("-- Building dataset for mode choice events --");
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDataset();
+        System.out.println("-- Going to plot mode choice events --");
         createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
+        //
+        System.out.println("-- Building dataset for mode fuel usage events --");
         CategoryDataset modesFuelageDataset = buildModesFuelageDataset();
+        System.out.println("-- Going to plot mode fuel usage events --");
         createModesFuelageGraph(modesFuelageDataset, event.getIteration());
 
+        //
         System.out.println("-- Building dataset for car mode --");
+        System.out.println("car pathtraversal counts" + carModeOccurrence);
+        System.out.println(Arrays.deepToString(carDeadHeadings.values().toArray()));
         CategoryDataset carDeadHeadingDataset = buildDeadHeadingDataset(carDeadHeadings);
         System.out.println("-- Going to plot the dataset for car mode --");
         createDeadHeadingGraph(carDeadHeadingDataset, event.getIteration(), CAR);
 
+        //
         System.out.println("-- Building dataset for bus mode --");
         CategoryDataset busDeadHeadingDataset = buildDeadHeadingDataset(busDeadHeadings);
         System.out.println("-- Going to plot the dataset for bus mode --");
@@ -170,23 +177,29 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private CategoryDataset buildModesFrequencyDataset(){
 
-        double[][] dataset = new double[modesChosen.size()][hourModeFrequency.keySet().size()];
-        java.util.List<Integer> keyList = new ArrayList<>();
-        keyList.addAll(hourModeFrequency.keySet());
-        Collections.sort(keyList);
+        java.util.List<Integer> hoursList = new ArrayList<>();
+        hoursList.addAll(hourModeFrequency.keySet());
+        Collections.sort(hoursList);
 
         java.util.List<String> modesChosenList = new ArrayList<>();
         modesChosenList.addAll(modesChosen);
         Collections.sort(modesChosenList);
-
         System.out.println(Arrays.toString(modesChosenList.toArray()));
+
+        int maxHour = hoursList.get(hoursList.size() - 1);
+        double[][] dataset = new double[modesChosen.size()][maxHour + 1];
+
         for(int i=0; i < modesChosenList.size(); i++){
-            double[] modeOccurrencePerHour = new double[hourModeFrequency.keySet().size()];
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
             String modeChosen = modesChosenList.get(i);
             int index = 0;
-            for(int hour : keyList){
+            for(int hour = 0; hour <= maxHour; hour++){
                 Map<String, Integer> hourData = hourModeFrequency.get(hour);
-                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                if(hourData != null) {
+                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                }else{
+                    modeOccurrencePerHour[index] = 0;
+                }
                 index = index + 1;
             }
             System.out.println(Arrays.toString(modeOccurrencePerHour));
@@ -228,7 +241,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         System.out.println(Arrays.toString(modesChosenList.toArray()));
 
-        for (int i = 0; i<dataset.getRowCount(); i++) {
+        for (int i = 0; i < dataset.getRowCount(); i++) {
 
             legendItems.add(new LegendItem(modesChosenList.get(i), colors.get(i)));
 
@@ -292,9 +305,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private CategoryDataset buildModesFuelageDataset(){
 
-        double[][] dataset = new double[modesFuel.size()][hourModeFuelage.keySet().size()];
-
-
         java.util.List<Integer> keyList = new ArrayList<>();
         keyList.addAll(hourModeFuelage.keySet());
         Collections.sort(keyList);
@@ -304,13 +314,21 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         Collections.sort(modesFuelList);
 
         System.out.println(Arrays.toString(modesFuelList.toArray()));
+
+        int maxHour = keyList.get(keyList.size() - 1);
+        double[][] dataset = new double[modesFuel.size()][maxHour + 1];
+
         for(int i=0; i < modesFuelList.size(); i++){
-            double[] modeOccurrencePerHour = new double[hourModeFuelage.keySet().size()];
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
             String modeChosen = modesFuelList.get(i);
             int index = 0;
-            for(int hour : keyList){
+            for(int hour = 0; hour <= maxHour; hour++){
                 Map<String, Double> hourData = hourModeFuelage.get(hour);
-                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                if(hourData != null) {
+                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+                }else{
+                    modeOccurrencePerHour[index] = 0;
+                }
                 index = index + 1;
             }
             System.out.println(Arrays.toString(modeOccurrencePerHour));
@@ -505,11 +523,11 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         legendItems.add(new LegendItem("p4", colors.get(4)));
         plot.setFixedLegendItems(legendItems);
 
-        plot.getRenderer().setSeriesPaint(0, colors.get(1));
-        plot.getRenderer().setSeriesPaint(1, colors.get(2));
-        plot.getRenderer().setSeriesPaint(2, colors.get(3));
-        plot.getRenderer().setSeriesPaint(3, colors.get(4));
-        plot.getRenderer().setSeriesPaint(4, colors.get(5));
+        plot.getRenderer().setSeriesPaint(0, colors.get(0));
+        plot.getRenderer().setSeriesPaint(1, colors.get(1));
+        plot.getRenderer().setSeriesPaint(2, colors.get(2));
+        plot.getRenderer().setSeriesPaint(3, colors.get(3));
+        plot.getRenderer().setSeriesPaint(4, colors.get(4));
 
 
         try {
