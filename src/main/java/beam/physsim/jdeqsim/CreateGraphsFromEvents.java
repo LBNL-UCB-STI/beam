@@ -467,28 +467,80 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             maxPassengers = maxPassengersSeenOnGenericCase;
         }
 
-        double[][] dataset = new double[maxPassengers + 1][maxHour + 1];
+        double dataset[][] = null;
 
+        if(graphName.equalsIgnoreCase("tnc") || graphName.equalsIgnoreCase("car")) {
 
-        for (int i = 0; i <= maxPassengers; i++) {
-            double[] modeOccurrencePerHour = new double[maxHour + 1];
-            //String passengerCount = "p" + i;
-            int index = 0;
-            for (int hour = 0; hour <= maxHour; hour++) {
-                Map<Integer, Integer> hourData = data.get(hour);
-                if (hourData != null) {
-                    modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i);
-                } else {
-                    modeOccurrencePerHour[index] = 0;
+            dataset = new double[maxPassengers + 1][maxHour + 1];
+
+            for (int i = 0; i <= maxPassengers; i++) {
+                double[] modeOccurrencePerHour = new double[maxHour + 1];
+                //String passengerCount = "p" + i;
+                int index = 0;
+                for (int hour = 0; hour <= maxHour; hour++) {
+                    Map<Integer, Integer> hourData = data.get(hour);
+                    if (hourData != null) {
+                        modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i);
+                    } else {
+                        modeOccurrencePerHour[index] = 0;
+                    }
+                    index = index + 1;
                 }
-                index = index + 1;
+                System.out.println(Arrays.toString(modeOccurrencePerHour));
+                dataset[i] = modeOccurrencePerHour;
             }
-            System.out.println(Arrays.toString(modeOccurrencePerHour));
-            dataset[i] = modeOccurrencePerHour;
+        }else{
+
+            // This loop gives the loop over all the different passenger groups, which is 1 in other cases.
+            // In this case we have to group 0, 1 to 5, 6 to 10
+
+            int bucketSize = getBucketSize();
+
+            dataset = new double[5][maxHour + 1];
+
+
+            // We need only 5 buckets
+            // The modeOccurrentPerHour array index will not go beyond 5 as all the passengers will be
+            // accomodated within the 4 buckets because the index will not be incremented until all
+            // passengers falling in one bucket are added into that index of modeOccurrencePerHour
+            double[] modeOccurrencePerHour = new double[maxHour+1];
+            int bucket = 0;
+
+            for (int i = 0; i <= maxPassengers; i++) {
+
+                //String passengerCount = "p" + i;
+                int index = 0;
+                for (int hour = 0; hour <= maxHour; hour++) {
+                    Map<Integer, Integer> hourData = data.get(hour);
+                    if (hourData != null) {
+                        modeOccurrencePerHour[index] += hourData.get(i) == null ? 0 : hourData.get(i);
+                    } else {
+                        modeOccurrencePerHour[index] += 0;
+                    }
+                    index = index + 1;
+                }
+
+                System.out.println("bucket status " + Arrays.toString(modeOccurrencePerHour));
+
+                if(i == 0 || (i % bucketSize == 0) || i == maxPassengers) {
+
+                    System.out.println("i = " + i + ", bucket = " + bucket + " bucketSize = " + bucketSize + ", maxPassengerSeen = " + maxPassengersSeenOnGenericCase);
+                    System.out.println("modeOccurrencePerHour to bucket \n " + Arrays.toString(modeOccurrencePerHour));
+                    dataset[bucket] = modeOccurrencePerHour;
+
+                    modeOccurrencePerHour = new double[maxHour + 1];
+                    bucket = bucket + 1;
+                    System.out.println("Reseting the bucket");
+                }
+            }
         }
 
 
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+
+    private int getBucketSize(){
+        return (int)Math.ceil(maxPassengersSeenOnGenericCase/4.0);
     }
 
     private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String graphName){
@@ -561,29 +613,37 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private String getLegendText(String graphName, int i){
 
+        int bucketSize = getBucketSize();
         if(graphName.equalsIgnoreCase("car") || graphName.equalsIgnoreCase("tnc")) {
             return "p" + i;
         }else{
-            return "set" + i;
+            if(i == 0){
+                return "0";
+            }else{
+                int start = (i - 1) * bucketSize + 1;
+                int end = (i - 1) * bucketSize + bucketSize;
+                return  start + ", " + end;
+            }
         }
     }
 
     private String getGraphFileName(String graphName){
-        if(graphName.equalsIgnoreCase("tnc")){
+        if(graphName.equalsIgnoreCase("tnc")) {
             return "tnc_passenger_per_trip.png";
-        }else if(graphName.equalsIgnoreCase("bus")){
-            return "bus_passenger_per_trip.png";
+        }else{
+            return graphName + "_passenger_per_trip.png";
         }
-        return "unknown.png";
+
     }
 
     private String getTitle(String graphName){
         if(graphName.equalsIgnoreCase("tnc")){
             return "Number of Passengers per Trip [TNC]";
-        }else if(graphName.equalsIgnoreCase("bus")){
-            return "Number of Passengers per Trip [BUS]";
+        }else if(graphName.equalsIgnoreCase("car")) {
+            return "Number of Passengers per Trip [Car]";
+        }else{
+            return "Number of Passengers per Trip [" + graphName + "]";
         }
-        return "unknown";
     }
 
     private Color getBarAndLegendColor(int i) {
