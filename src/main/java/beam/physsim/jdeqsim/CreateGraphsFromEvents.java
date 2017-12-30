@@ -33,27 +33,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     public static final List<Color> colors = new ArrayList<>();
 
-    public static final String MODE_CAR = "car";
-    public static final String MODE_WALK = "walk";
-    public static final String MODE_DRIVE_TRANSIT = "drive_transit";
-    public static final String MODE_WALK_TRANSIT = "walk_transit";
-    public static final String MODE_RIDE_HAILING = "ride_hailing";
-    public static final String MODE_BUS = "bus";
-
-    public static final String MODE_CAR_LEGEND = "Car";
-    public static final String MODE_WALK_LEGEND = "Walk";
-    public static final String MODE_DRIVE_TRANSIT_LEGEND = "Drive Transit";
-    public static final String MODE_WALK_TRANSIT_LEGEND = "Walk Transit";
-    public static final String MODE_RIDE_HAILING_LEGEND = "Ride Hailing";
-    public static final String MODE_BUS_LEGEND = "Bus";
-
-    public static final Color MODE_CAR_COLOR = Color.blue;
-    public static final Color MODE_WALK_COLOR = Color.yellow;
-    public static final Color MODE_DRIVE_TRANSIT_COLOR = Color.red;
-    public static final Color MODE_WALK_TRANSIT_COLOR = Color.pink;
-    public static final Color MODE_RIDE_HAILING_COLOR = Color.green;
-    public static final Color MODE_BUS_COLOR = Color.gray;
-
     public static final String CAR = "car";
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
@@ -80,6 +59,9 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private Set<String> modesChosen = new TreeSet<>();
     private Set<String> modesFuel = new TreeSet<>();
 
+    int carModeOccurrence = 0;
+
+    // Static Initializer
     static {
 
         colors.add(Color.GREEN);
@@ -95,7 +77,10 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     }
 
+    // No Arg Constructor
+    public CreateGraphsFromEvents() {  }
 
+    // Constructor
     public CreateGraphsFromEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router, Integer writePhysSimEventsInterval) {
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
@@ -104,10 +89,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         agentSimScenario = scenario;
 
         this.writePhysSimEventsInterval = writePhysSimEventsInterval;
-    }
-
-    public CreateGraphsFromEvents() {
-
     }
 
     @Override
@@ -142,11 +123,15 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         CategoryDataset modesFuelageDataset = buildModesFuelageDataset();
         createModesFuelageGraph(modesFuelageDataset, event.getIteration());
 
+        System.out.println("-- Building dataset for car mode --");
         CategoryDataset carDeadHeadingDataset = buildDeadHeadingDataset(carDeadHeadings);
-        createDeadHeadingGraph(carDeadHeadingDataset, event.getIteration(), "car");
+        System.out.println("-- Going to plot the dataset for car mode --");
+        createDeadHeadingGraph(carDeadHeadingDataset, event.getIteration(), CAR);
 
+        System.out.println("-- Building dataset for bus mode --");
         CategoryDataset busDeadHeadingDataset = buildDeadHeadingDataset(busDeadHeadings);
-        createDeadHeadingGraph(busDeadHeadingDataset, event.getIteration(), "bus");
+        System.out.println("-- Going to plot the dataset for bus mode --");
+        createDeadHeadingGraph(busDeadHeadingDataset, event.getIteration(), BUS);
     }
 
     ////
@@ -261,7 +246,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             e.printStackTrace();
         }
     }
-    //
 
     ////
     // fuel usage graph
@@ -381,10 +365,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             e.printStackTrace();
         }
     }
-    //
 
-    int carModeOccurrence = 0;
-    //
     private void processDeadHeading(PathTraversalEvent event){
 
         int hour = getEventHour(event.getTime());
@@ -434,30 +415,43 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     //
     private CategoryDataset buildDeadHeadingDataset(Map<Integer, Map<Integer, Integer>> data){
 
-        double[][] dataset = new double[6][data.keySet().size()];
-
-
         java.util.List<Integer> keyList = new ArrayList<>();
         keyList.addAll(data.keySet());
         Collections.sort(keyList);
 
-        double[] p0 = new double[data.keySet().size()];
-        double[] p1 = new double[data.keySet().size()];
-        double[] p2 = new double[data.keySet().size()];
-        double[] p3 = new double[data.keySet().size()];
-        double[] p4 = new double[data.keySet().size()];
+        int maxHour = keyList.get(keyList.size() - 1);
 
+
+        System.out.println("KeyList Size : " + keyList.size());
+        System.out.println("KeyList max hour: " + maxHour);
+        System.out.println("KeyList: " + Arrays.toString(keyList.toArray()));
+
+        double[][] dataset = new double[5][maxHour + 1];
+
+        double[] p0 = new double[maxHour + 1];
+        double[] p1 = new double[maxHour + 1];
+        double[] p2 = new double[maxHour + 1];
+        double[] p3 = new double[maxHour + 1];
+        double[] p4 = new double[maxHour + 1];
 
         int index = 0;
-        for(int hour : keyList){
+        for(int hour = 0; hour <= maxHour; hour++){
 
             Map<Integer, Integer> hourData = data.get(hour);
 
-            p0[index] = hourData.get(0) == null ? 0 : hourData.get(0);
-            p1[index] = hourData.get(1) == null ? 0 : hourData.get(1);
-            p2[index] = hourData.get(2) == null ? 0 : hourData.get(2);
-            p3[index] = hourData.get(3) == null ? 0 : hourData.get(3);
-            p4[index] = hourData.get(4) == null ? 0 : hourData.get(4);
+            if(hourData != null) {
+                p0[index] = hourData.get(0) == null ? 0 : hourData.get(0);
+                p1[index] = hourData.get(1) == null ? 0 : hourData.get(1);
+                p2[index] = hourData.get(2) == null ? 0 : hourData.get(2);
+                p3[index] = hourData.get(3) == null ? 0 : hourData.get(3);
+                p4[index] = hourData.get(4) == null ? 0 : hourData.get(4);
+            }else{
+                p0[index] = 0;
+                p1[index] = 0;
+                p2[index] = 0;
+                p3[index] = 0;
+                p4[index] = 0;
+            }
 
             index = index + 1;
         }
@@ -468,10 +462,11 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         dataset[3] = p3;
         dataset[4] = p4;
 
+        System.out.println("Dataset to plot: " + Arrays.deepToString(dataset));
+
 
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
-
 
     private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String mode){
 
@@ -525,7 +520,4 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             e.printStackTrace();
         }
     }
-
-
 }
-
