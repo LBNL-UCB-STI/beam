@@ -53,13 +53,18 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
-    private Map<Integer, Map<Integer, Integer>> carDeadHeadings = new HashMap<>();
-    private Map<Integer, Map<Integer, Integer>> busDeadHeadings = new HashMap<>();
+
+
+    private Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+
+    /*private Map<Integer, Map<Integer, Integer>> carDeadHeadings = new HashMap<>();
+    private Map<Integer, Map<Integer, Integer>> busDeadHeadings = new HashMap<>();*/
 
     private Set<String> modesChosen = new TreeSet<>();
     private Set<String> modesFuel = new TreeSet<>();
 
     int carModeOccurrence = 0;
+    int maxPassengersSeenOnGenericCase = 0;
 
     // Static Initializer
     static {
@@ -129,16 +134,17 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         //
         System.out.println("-- Building dataset for car mode --");
         System.out.println("car pathtraversal counts" + carModeOccurrence);
-        System.out.println(Arrays.deepToString(carDeadHeadings.values().toArray()));
-        CategoryDataset carDeadHeadingDataset = buildDeadHeadingDataset(carDeadHeadings);
+
+        System.out.println(Arrays.deepToString(deadHeadingsMap.get("tnc").values().toArray()));
+        CategoryDataset carDeadHeadingDataset = buildDeadHeadingDataset(deadHeadingsMap.get("tnc"), "tnc");
         System.out.println("-- Going to plot the dataset for car mode --");
-        createDeadHeadingGraph(carDeadHeadingDataset, event.getIteration(), CAR);
+        createDeadHeadingGraph(carDeadHeadingDataset, event.getIteration(), "tnc");
 
         //
         System.out.println("-- Building dataset for bus mode --");
-        CategoryDataset busDeadHeadingDataset = buildDeadHeadingDataset(busDeadHeadings);
+        CategoryDataset busDeadHeadingDataset = buildDeadHeadingDataset(deadHeadingsMap.get("bus"), "bus");
         System.out.println("-- Going to plot the dataset for bus mode --");
-        createDeadHeadingGraph(busDeadHeadingDataset, event.getIteration(), BUS);
+        createDeadHeadingGraph(busDeadHeadingDataset, event.getIteration(), "bus");
     }
 
     ////
@@ -305,9 +311,9 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
     private CategoryDataset buildModesFuelageDataset(){
 
-        java.util.List<Integer> keyList = new ArrayList<>();
-        keyList.addAll(hourModeFuelage.keySet());
-        Collections.sort(keyList);
+        java.util.List<Integer> hours = new ArrayList<>();
+        hours.addAll(hourModeFuelage.keySet());
+        Collections.sort(hours);
 
         java.util.List<String> modesFuelList = new ArrayList<>();
         modesFuelList.addAll(modesFuel);
@@ -315,7 +321,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         System.out.println(Arrays.toString(modesFuelList.toArray()));
 
-        int maxHour = keyList.get(keyList.size() - 1);
+        int maxHour = hours.get(hours.size() - 1);
         double[][] dataset = new double[modesFuel.size()][maxHour + 1];
 
         for(int i=0; i < modesFuelList.size(); i++){
@@ -384,6 +390,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         }
     }
 
+
     private void processDeadHeading(PathTraversalEvent event){
 
         int hour = getEventHour(event.getTime());
@@ -392,103 +399,102 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         String vehicle_id = event.getAttributes().get("vehicle_id");
         String num_passengers = event.getAttributes().get("num_passengers");
 
-        String vehicle_id_partial = "";
-        Map<Integer, Map<Integer, Integer>> deadHeadings = null;
-        if(mode.equalsIgnoreCase("car")) {
-            deadHeadings = carDeadHeadings;
-            vehicle_id_partial = "ride";
+        String graphName = mode;
 
-        }else{
-            deadHeadings = busDeadHeadings;
-            vehicle_id_partial = "bus";
+        Map<Integer, Map<Integer, Integer>> deadHeadings = null;
+        if(mode.equalsIgnoreCase("car") && vehicle_id.contains("ride")) {
+            graphName = "tnc";
         }
 
-        if(deadHeadings != null && vehicle_id.contains(vehicle_id_partial)) {
-            try {
-                Integer _num_passengers = Integer.parseInt(num_passengers);
-                if (_num_passengers >= 0 && _num_passengers <= 4) {
+        Integer _num_passengers = null;
+        try {
+            _num_passengers = Integer.parseInt(num_passengers);
+        }catch (NumberFormatException nfe) {
+            nfe.printStackTrace();
+        }
 
-                    if(mode.equalsIgnoreCase("car")) carModeOccurrence++;
-                    Map<Integer, Integer> hourData = deadHeadings.get(hour);
-                    if (hourData == null) {
-                        hourData = new HashMap<>();
-                        hourData.put(_num_passengers, 1);
-                    } else {
-                        Integer occurrence = hourData.get(_num_passengers);
-                        if (occurrence == null) {
-                            occurrence = 1;
-                        } else {
-                            occurrence = occurrence + 1;
-                        }
-                        hourData.put(_num_passengers, occurrence);
-                    }
-                    deadHeadings.put(hour, hourData);
+        boolean validCase = isValidCase(graphName, _num_passengers);
+
+        if (validCase) {
+
+            deadHeadings = deadHeadingsMap.get(graphName);
+
+            Map<Integer, Integer> hourData = null;
+            if(deadHeadings != null)
+                hourData = deadHeadings.get(hour);
+
+            if (hourData == null) {
+                hourData = new HashMap<>();
+                hourData.put(_num_passengers, 1);
+            } else {
+                Integer occurrence = hourData.get(_num_passengers);
+                if (occurrence == null) {
+                    occurrence = 1;
+                } else {
+                    occurrence = occurrence + 1;
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+                hourData.put(_num_passengers, occurrence);
             }
+
+            if(deadHeadings == null){
+                deadHeadings = new HashMap<>();
+            }
+            deadHeadings.put(hour, hourData);
+
+            deadHeadingsMap.put(graphName, deadHeadings);
         }
     }
 
     //
-    private CategoryDataset buildDeadHeadingDataset(Map<Integer, Map<Integer, Integer>> data){
+    private CategoryDataset buildDeadHeadingDataset(Map<Integer, Map<Integer, Integer>> data, String graphName){
 
-        java.util.List<Integer> keyList = new ArrayList<>();
-        keyList.addAll(data.keySet());
-        Collections.sort(keyList);
+        java.util.List<Integer> hours = new ArrayList<>();
+        hours.addAll(data.keySet());
+        Collections.sort(hours);
 
-        int maxHour = keyList.get(keyList.size() - 1);
+        int maxHour = hours.get(hours.size() - 1);
 
-
-        System.out.println("KeyList Size : " + keyList.size());
+        System.out.println("KeyList Size : " + hours.size());
         System.out.println("KeyList max hour: " + maxHour);
-        System.out.println("KeyList: " + Arrays.toString(keyList.toArray()));
+        System.out.println("KeyList: " + Arrays.toString(hours.toArray()));
 
-        double[][] dataset = new double[5][maxHour + 1];
-
-        double[] p0 = new double[maxHour + 1];
-        double[] p1 = new double[maxHour + 1];
-        double[] p2 = new double[maxHour + 1];
-        double[] p3 = new double[maxHour + 1];
-        double[] p4 = new double[maxHour + 1];
-
-        int index = 0;
-        for(int hour = 0; hour <= maxHour; hour++){
-
-            Map<Integer, Integer> hourData = data.get(hour);
-
-            if(hourData != null) {
-                p0[index] = hourData.get(0) == null ? 0 : hourData.get(0);
-                p1[index] = hourData.get(1) == null ? 0 : hourData.get(1);
-                p2[index] = hourData.get(2) == null ? 0 : hourData.get(2);
-                p3[index] = hourData.get(3) == null ? 0 : hourData.get(3);
-                p4[index] = hourData.get(4) == null ? 0 : hourData.get(4);
-            }else{
-                p0[index] = 0;
-                p1[index] = 0;
-                p2[index] = 0;
-                p3[index] = 0;
-                p4[index] = 0;
-            }
-
-            index = index + 1;
+        Integer maxPassengers = null;
+        if(graphName.equalsIgnoreCase("car")){
+            maxPassengers = 4;
+        }else if(graphName.equalsIgnoreCase("tnc")) {
+            maxPassengers = 6;
+        }else{
+            maxPassengers = maxPassengersSeenOnGenericCase;
         }
 
-        dataset[0] = p0;
-        dataset[1] = p1;
-        dataset[2] = p2;
-        dataset[3] = p3;
-        dataset[4] = p4;
+        double[][] dataset = new double[maxPassengers + 1][maxHour + 1];
 
-        System.out.println("Dataset to plot: " + Arrays.deepToString(dataset));
+
+        for (int i = 0; i <= maxPassengers; i++) {
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
+            //String passengerCount = "p" + i;
+            int index = 0;
+            for (int hour = 0; hour <= maxHour; hour++) {
+                Map<Integer, Integer> hourData = data.get(hour);
+                if (hourData != null) {
+                    modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i);
+                } else {
+                    modeOccurrencePerHour[index] = 0;
+                }
+                index = index + 1;
+            }
+            System.out.println(Arrays.toString(modeOccurrencePerHour));
+            dataset[i] = modeOccurrencePerHour;
+        }
 
 
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
 
-    private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String mode){
+    private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String graphName){
 
-        String plotTitle = "Number of Passengers per Trip [TNC]";
+        String fileName = getGraphFileName(graphName);
+        String plotTitle = getTitle(graphName);
         String xaxis = "Hour";
         String yaxis = "# trips";
         int width = 800;
@@ -497,14 +503,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
-
-        String fileName = "";
-        if(mode.equalsIgnoreCase("car")){
-            fileName = "tnc_passenger_per_trip.png";
-        }else if(mode.equalsIgnoreCase("bus")){
-            fileName = "bus_passenger_per_trip.png";
-            plotTitle = "Number of Passengers per Trip [BUS]";
-        }
 
         String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
 
@@ -516,19 +514,21 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         CategoryPlot plot = chart.getCategoryPlot();
 
         LegendItemCollection legendItems = new LegendItemCollection();
-        legendItems.add(new LegendItem("p0", colors.get(0)));
-        legendItems.add(new LegendItem("p1", colors.get(1)));
-        legendItems.add(new LegendItem("p2", colors.get(2)));
-        legendItems.add(new LegendItem("p3", colors.get(3)));
-        legendItems.add(new LegendItem("p4", colors.get(4)));
+
+        for (int i = 0; i<dataset.getRowCount(); i++) {
+
+            Color color = getBarAndLegendColor(i);
+            legendItems.add(new LegendItem(getLegendText(graphName, i), color));
+            plot.getRenderer().setSeriesPaint(i, color);
+        }
         plot.setFixedLegendItems(legendItems);
 
-        plot.getRenderer().setSeriesPaint(0, colors.get(0));
-        plot.getRenderer().setSeriesPaint(1, colors.get(1));
-        plot.getRenderer().setSeriesPaint(2, colors.get(2));
-        plot.getRenderer().setSeriesPaint(3, colors.get(3));
-        plot.getRenderer().setSeriesPaint(4, colors.get(4));
+        try {
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
+        } catch (IOException e) {
 
+            e.printStackTrace();
+        }
 
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
@@ -537,5 +537,74 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
             e.printStackTrace();
         }
+    }
+
+
+    // helper methods
+    private boolean isValidCase(String graphName, int numPassengers){
+        boolean validCase = false;
+
+        if(!graphName.equalsIgnoreCase("walk")) {
+            if (graphName.equalsIgnoreCase("tnc") && numPassengers >= 0 && numPassengers <= 6) {
+
+                validCase = true;
+            } else if (graphName.equalsIgnoreCase("car") && numPassengers >= 0 && numPassengers <= 4) {
+                validCase = true;
+            } else {
+                if (maxPassengersSeenOnGenericCase < numPassengers) maxPassengersSeenOnGenericCase = numPassengers;
+                validCase = true;
+            }
+        }
+
+        return validCase;
+    }
+
+    private String getLegendText(String graphName, int i){
+
+        if(graphName.equalsIgnoreCase("car") || graphName.equalsIgnoreCase("tnc")) {
+            return "p" + i;
+        }else{
+            return "set" + i;
+        }
+    }
+
+    private String getGraphFileName(String graphName){
+        if(graphName.equalsIgnoreCase("tnc")){
+            return "tnc_passenger_per_trip.png";
+        }else if(graphName.equalsIgnoreCase("bus")){
+            return "bus_passenger_per_trip.png";
+        }
+        return "unknown.png";
+    }
+
+    private String getTitle(String graphName){
+        if(graphName.equalsIgnoreCase("tnc")){
+            return "Number of Passengers per Trip [TNC]";
+        }else if(graphName.equalsIgnoreCase("bus")){
+            return "Number of Passengers per Trip [BUS]";
+        }
+        return "unknown";
+    }
+
+    private Color getBarAndLegendColor(int i) {
+        if(i < colors.size()){
+            return colors.get(i);
+        }else{
+            return getRandomColor();
+        }
+    }
+
+    private Color getRandomColor(){
+
+
+        Random rand = new Random();
+
+// Java 'Color' class takes 3 floats, from 0 to 1.
+        float r = rand.nextFloat();
+        float g = rand.nextFloat();
+        float b = rand.nextFloat();
+
+        Color randomColor = new Color(r, g, b);
+        return randomColor;
     }
 }
