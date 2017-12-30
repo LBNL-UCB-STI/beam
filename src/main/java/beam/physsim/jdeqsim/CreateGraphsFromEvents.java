@@ -135,16 +135,18 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         System.out.println("-- Building dataset for car mode --");
         System.out.println("car pathtraversal counts" + carModeOccurrence);
 
-        System.out.println(Arrays.deepToString(deadHeadingsMap.get("tnc").values().toArray()));
-        CategoryDataset carDeadHeadingDataset = buildDeadHeadingDataset(deadHeadingsMap.get("tnc"), "tnc");
-        System.out.println("-- Going to plot the dataset for car mode --");
-        createDeadHeadingGraph(carDeadHeadingDataset, event.getIteration(), "tnc");
+        List<String> graphNamesList = new ArrayList<>(deadHeadingsMap.keySet());
+        Collections.sort(graphNamesList);
 
-        //
-        System.out.println("-- Building dataset for bus mode --");
-        CategoryDataset busDeadHeadingDataset = buildDeadHeadingDataset(deadHeadingsMap.get("bus"), "bus");
-        System.out.println("-- Going to plot the dataset for bus mode --");
-        createDeadHeadingGraph(busDeadHeadingDataset, event.getIteration(), "bus");
+        for(String graphName : graphNamesList){
+
+            System.out.println(Arrays.deepToString(deadHeadingsMap.get(graphName).values().toArray()));
+            CategoryDataset tncDeadHeadingDataset = buildDeadHeadingDataset(deadHeadingsMap.get(graphName), graphName);
+            System.out.println("-- Going to plot the dataset for " + graphName + " mode --");
+            createDeadHeadingGraph(tncDeadHeadingDataset, event.getIteration(), graphName);
+        }
+
+
     }
 
     ////
@@ -622,7 +624,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             }else{
                 int start = (i - 1) * bucketSize + 1;
                 int end = (i - 1) * bucketSize + bucketSize;
-                return  start + ", " + end;
+                return  start + "-" + end;
             }
         }
     }
