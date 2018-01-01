@@ -91,7 +91,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val monitorTask = if (beamConfig.beam.debug.debugEnabled) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, Monitor)) else None
-  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, SkipOverBadActors)) else None
+  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(30, TimeUnit.SECONDS), self, SkipOverBadActors)) else None
 
   def increment(): Unit = {
     previousTotalAwaitingRespone += 1
