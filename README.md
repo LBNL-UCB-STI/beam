@@ -1,6 +1,7 @@
 # BEAM
 
 [![Build Status](https://travis-ci.org/LBNL-UCB-STI/beam.svg?branch=master)](https://travis-ci.org/LBNL-UCB-STI/beam) [all branches](BuildStatus.md)
+[![Documentation Status](https://readthedocs.org/projects/beam/badge/?version=latest)](http://beam.readthedocs.io/en/latest/?badge=latest)
 
 The Framework for Modeling Behavior, Energy, Autonomy, and Mobility in Transportation Systems
 
