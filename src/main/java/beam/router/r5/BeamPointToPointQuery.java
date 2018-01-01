@@ -182,21 +182,21 @@ public class BeamPointToPointQuery {
                     break;
                 }*/
 
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug(" ");
+                if (LOG.isTraceEnabled()) {
+                    LOG.trace(" ");
                     for (int i = 0; i < path.patterns.length; i++) {
                         //TransitSegment transitSegment = new TransitSegment(transportNetwork.transitLayer, path.boardStops[i], path.alightStops[i], path.patterns[i]);
                         if (!(((boardStop == path.boardStops[i] && alightStop == path.alightStops[i])))) {
-                            LOG.debug("   BoardStop: {} pattern: {} allightStop: {}", path.boardStops[i],
+                            LOG.trace("   BoardStop: {} pattern: {} allightStop: {}", path.boardStops[i],
                                 path.patterns[i], path.alightStops[i]);
                         }
                         TripPattern pattern = transportNetwork.transitLayer.tripPatterns.get(path.patterns[i]);
                         if (pattern.routeIndex >= 0) {
                             RouteInfo routeInfo = transportNetwork.transitLayer.routes.get(pattern.routeIndex);
-                            LOG.debug("     Pattern:{} on route:{} ({}) with {} stops", path.patterns[i],
+                            LOG.trace("     Pattern:{} on route:{} ({}) with {} stops", path.patterns[i],
                                 routeInfo.route_long_name, routeInfo.route_short_name, pattern.stops.length);
                         }
-                        LOG.debug("     {}->{} ({}:{})", transportNetwork.transitLayer.stopNames.get(path.boardStops[i]),
+                        LOG.trace("     {}->{} ({}:{})", transportNetwork.transitLayer.stopNames.get(path.boardStops[i]),
                             transportNetwork.transitLayer.stopNames.get(path.alightStops[i]),
                             path.alightTimes[i] / 3600, path.alightTimes[i] % 3600 / 60);
                         //transit_option.addTransit(transitSegment);
@@ -211,8 +211,8 @@ public class BeamPointToPointQuery {
 
         profileResponse.recomputeStats(request);
 
-        LOG.debug("Returned {} options", profileResponse.getOptions().size());
-        LOG.debug("Took {} ms", System.currentTimeMillis() - startRouting);
+        LOG.trace("Returned {} options", profileResponse.getOptions().size());
+        LOG.trace("Took {} ms", System.currentTimeMillis() - startRouting);
 
         return profileResponse;
     }
@@ -241,10 +241,10 @@ public class BeamPointToPointQuery {
                 streetRouter.route();
                 TIntIntMap stops = streetRouter.getReachedStops();
                 egressRouter.put(mode, streetRouter);
-                LOG.debug("Added {} edgres stops for mode {}",stops.size(), mode);
+                LOG.trace("Added {} edgres stops for mode {}",stops.size(), mode);
 
             } else {
-                LOG.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode);
+                LOG.trace("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode);
             }
         }
 
@@ -580,10 +580,10 @@ public class BeamPointToPointQuery {
                 if (it.value() > cutoff) it.remove();
             }
 
-            LOG.debug("{} stops found, using {} nearest", stopsFound, times.size());
+            LOG.trace("{} stops found, using {} nearest", stopsFound, times.size());
         } else {
 
-            LOG.debug("{} stops found", stopsFound);
+            LOG.trace("{} stops found", stopsFound);
         }
 
         // return the times, not the weights

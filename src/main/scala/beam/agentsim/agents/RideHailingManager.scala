@@ -120,7 +120,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
 
   override def receive: Receive = {
     case RegisterResource(vehId: Id[Vehicle]) =>
-      resources.put(agentsim.vehicleId2BeamVehicleId(vehId),beamServices.vehicles.get(vehId).get)
+      resources.put(agentsim.vehicleId2BeamVehicleId(vehId),beamServices.vehicles(vehId))
 
     case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehId,whenWhere,false)

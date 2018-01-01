@@ -1,37 +1,38 @@
 package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
-import akka.actor.Props;
-import akka.pattern.Patterns;
-import akka.util.Timeout;
 import beam.agentsim.events.PathTraversalEvent;
-import beam.physsim.jdeqsim.akka.AkkaEventHandlerAdapter;
-import beam.physsim.jdeqsim.akka.EventManagerActor;
-import beam.physsim.jdeqsim.akka.JDEQSimActor;
+import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
-import glokka.Registry;
+import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
-import org.matsim.api.core.v01.population.*;
+import org.matsim.api.core.v01.population.Activity;
+import org.matsim.api.core.v01.population.Leg;
+import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Plan;
+import org.matsim.api.core.v01.population.Population;
+import org.matsim.api.core.v01.population.PopulationWriter;
+import org.matsim.api.core.v01.population.Route;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
-import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
+import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
+import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
+import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
-import org.matsim.core.utils.collections.Tuple;
+import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.Await;
-import scala.util.Left;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -46,35 +47,28 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
-    private Scenario jdeqSimScenario;
-    private PopulationFactory populationFactory;
     private Scenario agentSimScenario;
-    private final ActorRef registry;
+    private Population jdeqsimPopulation;
 
-    private ActorRef eventHandlerActorREF;
-    private ActorRef jdeqsimActorREF;
-    private EventsManager eventsManager;
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
+    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, TransportNetwork transportNetwork, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef router) {
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
-        this.registry = registry;
         this.router = router;
         agentSimScenario = scenario;
 
         if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
-            agentSimPhysSimInterfaceDebugger=new AgentSimPhysSimInterfaceDebugger(geoUtils);
+            agentSimPhysSimInterfaceDebugger=new AgentSimPhysSimInterfaceDebugger(geoUtils, transportNetwork);
         }
 
         preparePhysSimForNewIteration();
     }
 
     private void preparePhysSimForNewIteration() {
-        jdeqSimScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-        populationFactory = jdeqSimScenario.getPopulation().getFactory();
+        jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
     }
 
 
@@ -83,38 +77,22 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     }
 
-    public void initializeActorsAndRunPhysSim() {
-        JDEQSimConfigGroup jdeqSimConfigGroup = new JDEQSimConfigGroup();
-        try {
+    private void initializeActorsAndRunPhysSim() {
+        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
+        jdeqSimScenario.setPopulation(jdeqsimPopulation);
+        EventsManager jdeqsimEvents = new EventsManagerImpl();
+        TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
+        jdeqsimEvents.addHandler(travelTimeCalculator);
 
-            // TODO: adapt code to send new scenario data to jdeqsim actor each time
-            if (eventHandlerActorREF == null) {
-                eventHandlerActorREF = registerActor(registry, "EventManagerActor", EventManagerActor.props(agentSimScenario.getNetwork()));
-                eventsManager = new AkkaEventHandlerAdapter(eventHandlerActorREF);
-            }
-
-            if (jdeqsimActorREF == null) {
-                jdeqsimActorREF = registerActor(registry, "JDEQSimActor", JDEQSimActor.props(jdeqSimConfigGroup,agentSimScenario, eventsManager, router));
-            }
-
-            jdeqsimActorREF.tell(new Tuple<String,Population>(JDEQSimActor.START_PHYSSIM,jdeqSimScenario.getPopulation()), ActorRef.noSender());
-            eventHandlerActorREF.tell(EventManagerActor.REGISTER_JDEQSIM_REF, jdeqsimActorREF);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(agentSimScenario.getConfig().jdeqSim(), jdeqSimScenario, jdeqsimEvents);
+        jdeqSimulation.run();
+        router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
 
     private void writePhyssimPlans(IterationEndsEvent event) {
         String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsim-plans.xml");
-        new PopulationWriter(jdeqSimScenario.getPopulation()).write(plansFilename);
-    }
-
-    private ActorRef registerActor(ActorRef registry, String actorName, Props props) throws Exception {
-        glokka.Registry.Register r = new glokka.Registry.Register(actorName, new Left(props));
-        Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
-        scala.concurrent.Future<Object> future = Patterns.ask(registry, r, timeout);
-        Registry.Created eventManagerActorCreated = (Registry.Created) Await.result(future, timeout.duration());
-        return eventManagerActorCreated.ref();
+        new PopulationWriter(jdeqsimPopulation).write(plansFilename);
     }
 
     @Override
@@ -138,7 +116,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 initializePersonAndPlanIfNeeded(personId);
 
                 // add previous activity and leg to plan
-                Person person=jdeqSimScenario.getPopulation().getPersons().get(personId);
+                Person person=jdeqsimPopulation.getPersons().get(personId);
                 Plan plan=person.getSelectedPlan();
                 Leg leg=createLeg(mode, links, departureTime);
 
@@ -146,7 +124,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     return; // dont't process leg further, if empty
                 }
 
-                Activity previousActivity = populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
+                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
                 previousActivity.setEndTime(departureTime);
                 plan.addActivity(previousActivity);
                 plan.addLeg(leg);
@@ -155,20 +133,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     private void initializePersonAndPlanIfNeeded(Id<Person> personId) {
-        if (!jdeqSimScenario.getPopulation().getPersons().containsKey(personId)){
-            Person person = populationFactory.createPerson(personId);
-            Plan plan = populationFactory.createPlan();
+        if (!jdeqsimPopulation.getPersons().containsKey(personId)){
+            Person person = jdeqsimPopulation.getFactory().createPerson(personId);
+            Plan plan = jdeqsimPopulation.getFactory().createPlan();
             plan.setPerson(person);
             person.addPlan(plan);
             person.setSelectedPlan(plan);
-            jdeqSimScenario.getPopulation().addPerson(person);
+            jdeqsimPopulation.addPerson(person);
         }
     }
 
     private Leg createLeg(String mode, String links, double departureTime) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
-        for (String link : links.split(",")) {
+        for (String link : links.equals("") ? new String[]{} : links.split(",")) {
             Id<Link> linkId = Id.createLinkId(link.trim());
             linkIds.add(linkId);
         }
@@ -179,7 +157,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         List<Id<Link>> removeLinks = new ArrayList<>();
         for (Id<Link> linkId : linkIds) {
             if (!agentSimScenario.getNetwork().getLinks().containsKey(linkId)) {
-                removeLinks.add(linkId);
+                throw new RuntimeException("Link not found: "+linkId);
             }
         }
         numberOfLinksRemovedFromRouteAsNonCarModeLinks += removeLinks.size();
@@ -192,7 +170,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
 
         Route route = RouteUtils.createNetworkRoute(linkIds, agentSimScenario.getNetwork());
-        Leg leg = populationFactory.createLeg(mode);
+        Leg leg = jdeqsimPopulation.getFactory().createLeg(mode);
         leg.setDepartureTime(departureTime);
         leg.setTravelTime(0);
         leg.setRoute(route);
@@ -213,11 +191,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     private void createLastActivityOfDayForPopulation() {
-        for (Person p : jdeqSimScenario.getPopulation().getPersons().values()) {
+        for (Person p : jdeqsimPopulation.getPersons().values()) {
             Plan plan = p.getSelectedPlan();
             if (!plan.getPlanElements().isEmpty()) {
                 Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-                plan.addActivity(populationFactory.createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
+                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
     }

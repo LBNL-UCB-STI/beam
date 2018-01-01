@@ -8,6 +8,7 @@ import com.vividsolutions.jts.geom.Coordinate;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
+import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.NetworkWriter;
 import org.matsim.api.core.v01.network.Node;
@@ -40,23 +41,19 @@ public class R5MnetBuilder {
 
 	private HashMap<Coord, Id<Node>> nodeMap = new HashMap<>();  // Maps x,y Coord to node ID
 	private int nodeId = 0;  // Current new MATSim network Node ids
-	private EnumSet<EdgeStore.EdgeFlag> modeFlags = EnumSet.noneOf(EdgeStore.EdgeFlag.class); // modes to keep
 
-	private Long lastProcessedOSMId;
+	private Long lastProcessedOSMId = -1L;
 	private Set<Integer> lastProcessedNodes = new HashSet<>(2);
 
 	/**
 	 *
 	 * @param r5Net R5 network.
 	 * @param osmDBPath Path to mapdb file with OSM data
-	 * @param modeFlags EnumSet defining the modes to be included in the network. See
-	 *                     com.conveyal.r5.streets.EdgeStore.EdgeFlag for EdgeFlag definitions.
 	 */
-	public R5MnetBuilder(TransportNetwork r5Net, String osmDBPath, EnumSet<EdgeStore.EdgeFlag> modeFlags){
+	public R5MnetBuilder(TransportNetwork r5Net, String osmDBPath) {
 		this.osmFile = osmDBPath;
-		log.info("Found R5 Transport Network file, loading....");
+		log.debug("Found R5 Transport Network file, loading....");
 		this.r5Network = r5Net;
-		this.modeFlags = modeFlags;
 		this.mNetowrk = NetworkUtils.createNetwork();
 	}
 
@@ -66,47 +63,21 @@ public class R5MnetBuilder {
 		Map<Long, Way> ways = osm.ways;
 		EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
 		OsmToMATSim OTM = new OsmToMATSim(this.mNetowrk, this.transform, true);
-		ArrayList<Long> newMLinkIDs = new ArrayList<>();
 		while (cursor.advance()) {
+			log.debug(cursor.getEdgeIndex());
+			log.debug(cursor);
 			// TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
 			// Check if we have already seen this OSM way. Skip if we have.
 			Integer edgeIndex = cursor.getEdgeIndex();
-			if (newMLinkIDs.size() == 2){
-				if (((edgeIndex-1)%2) == 1){  // Previous was an odd edge. Hopefully this never happens.
-					System.out.println("WHAT NOW?");
-					break;
-				}
-				newMLinkIDs = new ArrayList<>();
-				continue;
-			} else if (newMLinkIDs.size() == 1){
-			} else if (newMLinkIDs.size() > 2){
-				System.out.print("WHAT NOW AGAIN?");
-				break;
-			}
 			Long osmID = cursor.getOSMID();  // id of edge in the OSM db
 			Way way = ways.get(osmID);
 			Set<Integer> deezNodes = new HashSet<>(2);
 			deezNodes.add(cursor.getFromVertex());
 			deezNodes.add(cursor.getToVertex());
-			if (osmID.equals(this.lastProcessedOSMId) && deezNodes.equals(this.lastProcessedNodes)) {
-				log.info("EDGE SKIPPED - already processed edge." + "From: " +
-						String.valueOf(cursor.getFromVertex()) + " To: " +
-						String.valueOf(cursor.getToVertex()) +  " OSM ID: " + String.valueOf(osmID));
-				newMLinkIDs = new ArrayList<>();
-				continue;
-			}
-			// Check if this edge permits any of the desired modes.
-			EnumSet<EdgeStore.EdgeFlag> flags = cursor.getFlags();
-			flags.retainAll(this.modeFlags);
-			if (flags.isEmpty()) {
-				log.info("EDGE SKIPPED - no allowable modes: " + "cursor: " + String.valueOf(cursor.getEdgeIndex()) +
-				 "OSM ID: " + String.valueOf(osmID));
-				newMLinkIDs = new ArrayList<>();
-				continue;
-			}
+
 			// Convert flags to strings that the MATSim network will recognize.
 			HashSet<String> flagStrings = new HashSet<>();
-			for (EdgeStore.EdgeFlag eF : flags) {
+			for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
 				flagStrings.add(flagToString(eF));
 			}
 			////
@@ -131,21 +102,28 @@ public class R5MnetBuilder {
 			// Make and add the link (only if way exists)
 
 			if (way != null) {
-//				System.out.println(way.getTag("highway"));
-				newMLinkIDs = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
+				Link link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
+				mNetowrk.addLink(link);
+				log.debug("Created regular link: " + link);
 				this.lastProcessedOSMId = osmID;
 				this.lastProcessedNodes = deezNodes;
 			} else {
-				newMLinkIDs = new ArrayList<>(); // reset the IDs
+				// Made up numbers, this is a PT to road network connector or something
+				Link link = mNetowrk.getFactory().createLink(Id.create(edgeIndex, Link.class), fromNode, toNode);
+				link.setLength(length);
+				link.setFreespeed(10.0 / 3.6);
+				link.setCapacity(300);
+				link.setNumberOfLanes(1);
+				link.setAllowedModes(flagStrings);
+				mNetowrk.addLink(link);
+				log.debug("Created special link: " + link);
 			}
 		}
 	}
 
-	public void writeMNet(String mNetPath){
-		NetworkWriter nw = new NetworkWriter(this.mNetowrk);
-		nw.write(mNetPath);
+	public Network getNetwork() {
+		return this.mNetowrk;
 	}
-
 
 	/**
 	 * Checks whether we already have a MATSim Node at the Coord. If so, returns that Node. If not, makes and adds
