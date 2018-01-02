@@ -121,9 +121,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
         r5NetworkLinks = R5NetworkReader.readR5Network(r5NetworkPath, true);
 
-        vehicles = VehicleUtils.createVehiclesContainer();
-        new VehicleReaderV1(vehicles).readFile("C:\\Users\\rwaraich\\IdeaProjects\\application_sfbay_7\\beam\\production\\application-sfbay\\transitVehicles.xml");
-
+        loadVehicles("C:\\Users\\rwaraich\\IdeaProjects\\application_sfbay_7\\beam\\production\\application-sfbay\\transitVehicles.xml");
 
         EventsManager events = EventsUtils.createEventsManager();
 
@@ -149,6 +147,15 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
 
         energyConsumptionPerLinkOverTime.printDataToFile(TABLE_OUTPUT_FULL_PATH);
+    }
+
+    private static void loadVehicles(String vehiclesFileName) {
+        vehicles = VehicleUtils.createVehiclesContainer();
+        new VehicleReaderV1(vehicles).readFile(vehiclesFileName);
+    }
+
+    public static void setVehicles(Vehicles vehicles_) {
+        vehicles = vehicles_;
     }
 
     public PathTraversalSpatialTemporalTableGenerator() {

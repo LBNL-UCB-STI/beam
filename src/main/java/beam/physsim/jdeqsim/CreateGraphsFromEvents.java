@@ -3,6 +3,7 @@ package beam.physsim.jdeqsim;
 import akka.actor.ActorRef;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.sim.common.GeoUtils;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
@@ -94,6 +95,9 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         agentSimScenario = scenario;
 
         this.writePhysSimEventsInterval = writePhysSimEventsInterval;
+
+        // initialize transit vehicles for fuel energy consumption calculations
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
     }
 
     @Override
@@ -273,41 +277,43 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private void processFuelUsage(PathTraversalEvent event){
 
         int hour = getEventHour(event.getTime());
-        String mode = event.getAttributes().get("mode");
 
-        String fuel = event.getAttributes().get("fuel");
+
+
+        String vehicleType = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+        String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+        String vehicleId = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        double lengthInMeters = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+        String fuelString = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_FUEL);
 
         modesFuel.add(mode);
 
-        if(fuel != null && !fuel.equalsIgnoreCase("NA")) {
+        try{
 
-            try{
+            Double fuel = PathTraversalSpatialTemporalTableGenerator.getFuelConsumptionInMJ(vehicleId,mode,fuelString,lengthInMeters,vehicleType);;
 
-                Double _fuel = Double.parseDouble(fuel);
+            Map<String, Double> hourData = hourModeFuelage.get(hour);
+            if (hourData == null) {
 
-                Map<String, Double> hourData = hourModeFuelage.get(hour);
-                if (hourData == null) {
+                hourData = new HashMap<>();
+                hourData.put(mode, fuel);
+                hourModeFuelage.put(hour, hourData);
+            } else {
 
-                    hourData = new HashMap<>();
-                    hourData.put(mode, _fuel);
-                    hourModeFuelage.put(hour, hourData);
+                Double fuelage = hourData.get(mode);
+
+                if (fuelage == null) {
+                    fuelage = fuel;
                 } else {
-
-                    Double fuelage = hourData.get(mode);
-
-                    if (fuelage == null) {
-                        fuelage = _fuel;
-                    } else {
-                        fuelage = fuelage + _fuel;
-                    }
-
-                    hourData.put(mode, fuelage);
-                    hourModeFuelage.put(hour, hourData);
+                    fuelage = fuelage + fuel;
                 }
-            }catch (Exception e){
 
-                e.printStackTrace();
+                hourData.put(mode, fuelage);
+                hourModeFuelage.put(hour, hourData);
             }
+        }catch (Exception e){
+
+            e.printStackTrace();
         }
     }
 
@@ -350,7 +356,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         String plotTitle = "Energy Use by Mode";
         String xaxis = "Hour";
-        String yaxis = "Energy Use [?]";
+        String yaxis = "Energy Use [MJ]";
         int width = 800;
         int height = 600;
         boolean show = true;
