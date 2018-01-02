@@ -7,6 +7,8 @@ import beam.sim.common.GeoUtils;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.events.ActivityEndEvent;
+import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.*;
@@ -48,6 +50,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
     private Integer writePhysSimEventsInterval;
+    private String currentActivity = DUMMY_ACTIVITY;
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -108,7 +111,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             agentSimPhysSimInterfaceDebugger.handleEvent(event);
         }
 
-        if (event instanceof PathTraversalEvent) {
+        if (event instanceof ActivityStartEvent) {
+            ActivityStartEvent ase = (ActivityStartEvent) event;
+            currentActivity = ase.getActType();
+        }else if (event instanceof ActivityEndEvent) {
+            ActivityEndEvent aee = ((ActivityEndEvent) event);
+            currentActivity = DUMMY_ACTIVITY;
+        }else if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             String mode = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
 
@@ -130,7 +139,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     return; // dont't process leg further, if empty
                 }
 
-                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
+                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(currentActivity, leg.getRoute().getStartLinkId());
                 previousActivity.setEndTime(departureTime);
                 plan.addActivity(previousActivity);
                 plan.addLeg(leg);
@@ -202,7 +211,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             Plan plan = p.getSelectedPlan();
             if (!plan.getPlanElements().isEmpty()) {
                 Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
+                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(currentActivity, leg.getRoute().getEndLinkId()));
             }
         }
     }
