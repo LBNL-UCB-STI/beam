@@ -46,6 +46,7 @@ trait BeamServices extends ActorInject {
   val householdRefs: TrieMap[Id[Household], ActorRef]
   val agentRefs: TrieMap[String, ActorRef]
 
+  def clearAll
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
@@ -67,6 +68,15 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices{
   val households: TrieMap[Id[Household], Household] = TrieMap[Id[Household], Household]()
   val householdRefs: TrieMap[Id[Household], ActorRef] = TrieMap[Id[Household], ActorRef]()
   val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
+
+  def clearAll = {
+    persons.clear()
+    personRefs.clear
+    vehicles.clear()
+    households.clear()
+    householdRefs.clear()
+    agentRefs.clear()
+  }
 }
 
 object BeamServices {

@@ -3,7 +3,7 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Identify, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, DeadLetter, Identify, PoisonPill, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim
@@ -45,6 +45,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
 
   override def run() = {
+    beamServices.clearAll
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(Props(new Actor with ActorLogging {
       var runSender: ActorRef = _
@@ -52,6 +53,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       context.watch(errorListener)
       context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
       beamServices.schedulerRef = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
+      context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
       context.watch(beamServices.schedulerRef)
       private val population = initializePopulation()
       context.watch(population)
