@@ -38,7 +38,7 @@ pushd ${BEAM_ROOT}
     tar -zcvf /tmp/${TAR_NAME}.tar.gz ${BEAM_OUTPUT}
 
     if [ "$1" == "cloud" ]; then
-        sudo aws --region us-east-2 s3 cp /tmp/${TAR_NAME}.tar.gz s3://beam-outputs/${S3_BUCKET_NAME}/  && rm -f /tmp/${TAR_NAME}.tar.gz
+        sudo aws --region us-east-2 s3 cp /tmp/${TAR_NAME}.tar.gz s3://beam-outputs/  && rm -f /tmp/${TAR_NAME}.tar.gz
 
         if [ "$DROP_OUTPUT" == "true" ]; then
             rm -rf ${BEAM_OUTPUT}

@@ -91,7 +91,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val monitorTask = if (beamConfig.beam.debug.debugEnabled) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, Monitor)) else None
-  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, SkipOverBadActors)) else None
+  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(beamConfig.beam.debug.secondsToWaitForSkip*2, TimeUnit.SECONDS), new FiniteDuration(math.round(beamConfig.beam.debug.secondsToWaitForSkip/4.0), TimeUnit.SECONDS), self, SkipOverBadActors)) else None
 
   def increment(): Unit = {
     previousTotalAwaitingRespone += 1
@@ -190,10 +190,10 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         numberRepeats = 0
       }
       if (numReps > 4) {
-        val reason = s"DEBUG: $numReps > 4 repeats!!! Clearing out stuck agents and proceeding with schedule"
+        val reason = s"Clearing out ${awaitingResponse.get(awaitingResponse.keySet().first()).size()} stuck agents and proceeding with schedule"
         log.error(reason)
-        awaitingResponse.values().stream().forEach({ x =>
-          x.agent ! IllegalTriggerGoToError(reason)
+        awaitingResponse.get(awaitingResponse.keySet().first()).forEach({ x =>
+          x.agent ! IllegalTriggerGoToError("Stuck Agent")
           currentTotalAwaitingResponse = 0
           self ! CompletionNotice(x.triggerWithId.triggerId)
         })

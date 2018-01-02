@@ -237,8 +237,7 @@ class PersonAgent(val beamServices: BeamServices,
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       _currentTripMode = Some(_currentRoute.tripClassifier)
-      eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,
-        _currentTripMode.get.matsimMode))
+      eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,_currentRoute.tripClassifier.value))
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Complete leg(s) as driver
@@ -454,7 +453,7 @@ class PersonAgent(val beamServices: BeamServices,
             tick + 60 * 10
           }
           eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTripMode
-            .get.matsimMode))
+            .get.value))
           _currentTripMode = None
           eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity
             .getFacilityId, activity.getType))

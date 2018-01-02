@@ -34,7 +34,7 @@ import scala.concurrent.duration._
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
   """).withFallback(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve()))) with FunSpecLike
-  with BeforeAndAfterAll with MockitoSugar {
+  with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
@@ -66,6 +66,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(0)
       expectTerminated(personAgentRef)
+      expectMsg(CompletionNotice(0,Vector()))
     }
 
     it("should publish events that can be received by a MATSim EventsManager") {

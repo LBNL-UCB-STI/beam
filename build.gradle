@@ -1,5 +1,6 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 buildscript {
     repositories {
@@ -9,7 +10,7 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
@@ -32,7 +33,7 @@ apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 
 group = 'beam'
-version = '0.2.0-SNAPSHOT'
+version = '0.5.0-SNAPSHOT'
 
 description = """"""
 
@@ -222,7 +223,6 @@ test.dependsOn spec
 // Shadowjar bundles model together into executable jar
 //////////////////////////////////////////////////////////////////////
 
-
 apply plugin: 'com.github.johnrengelman.shadow'
 
 jar {
@@ -237,12 +237,27 @@ jar {
 
 shadowJar {
     baseName = 'beam'
-    zip64 true
+    mainClassName = "beam.sim.RunBeam"
     classifier = null
     version = null
 }
 
+task guiShadowJar(type: ShadowJar) {
+    baseName = 'beamgui'
+    mainClassName = "beam.gui.Gui"
+    classifier = null
+    version = null
+    from sourceSets.main.output
+    configurations = [project.configurations.runtime]
+    manifest {
+        attributes "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.gui.Gui'
+    }
+}
+
 assemble.dependsOn shadowJar
+assemble.dependsOn guiShadowJar
 
 //////////////////////////////////////////////////////////////////////
 // Amazon WS task to run beam sim on Lambda
@@ -274,6 +289,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments')}",
   "is_experiment": "${!project.hasProperty('beamConfigs')}",
   "batch": "$beamBatch",
+  "instance_type": "${project.findProperty('instanceType') ?: 't2.medium'}",
   "shutdown_wait": "$shutdownWait"
 }"""
 

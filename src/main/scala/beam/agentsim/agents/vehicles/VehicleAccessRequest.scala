@@ -61,6 +61,10 @@ case object AccessErrorCodes {
     override def errorCode: ReservationErrorCode = ResourceUnavailable
   }
 
+  case object DriverNotFoundError extends ReservationError {
+    override def errorCode: ReservationErrorCode = ResourceUnavailable
+  }
+
   case object VehicleNotUnderControlError extends ReservationError {
     override def errorCode: ReservationErrorCode = VehicleNotUnderControl
   }

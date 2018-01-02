@@ -67,7 +67,7 @@ object ExperimentGenerator extends App {
   }
   private val experimentFile = new File(argsMap(ExperimentsParamName)).toPath.toAbsolutePath
   if (!Files.exists(experimentFile)) {
-    throw new IllegalArgumentException(s"$ExperimentsParamName file is missing")
+    throw new IllegalArgumentException(s"$ExperimentsParamName file is missing: $experimentFile")
   }
 
   val experiment = loadExperimentDefs(experimentFile.toFile)
