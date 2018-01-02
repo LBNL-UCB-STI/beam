@@ -160,7 +160,7 @@ object QuadTreeBuilder {
     val aoi = geometrtyUnionFromShapefile(aoiShapeFileLoc)
     // loop through all activities and check if each is in the bounds
     for (person <- pop) {
-      val pplan = person.getPlans().get(0)  // First and only plan
+      val pplan = person.getPlans.get(0)  // First and only plan
       //      val elements = JavaConverters.collectionAsScalaIterable(pplan.getPlanElements())
       val activities = PopulationUtils.getActivities(pplan, null);
       //      val plans = JavaConverters.collectionAsScalaIterable(person.getPlans())   //.iterator();
@@ -173,8 +173,8 @@ object QuadTreeBuilder {
         val coord = act.getCoord
         val gF = new GeometryFactory()
         val vsCoord = Array(new Coordinate(coord.getX, coord.getY))
-        val point = new Point(gF.getCoordinateSequenceFactory().create(vsCoord), gF)
-        if (!(aoi.contains(point))) {
+        val point = new Point(gF.getCoordinateSequenceFactory.create(vsCoord), gF)
+        if (!aoi.contains(point)) {
           allIn = false
         }
       })
@@ -194,12 +194,12 @@ object SynthHouseholdParser {
 
   import HasXY.wgs2Utm
 
-
   private val hhIdIdx: Int = 0
   private val hhNumIdx: Int = 1
   private val carNumIdx: Int = 2
-  private val homeCoordXIdx: Int = 3
-  private val homeCoordYIdx: Int = 4
+  private val incomeIdx: Int =  3
+  private val homeCoordXIdx: Int = 4
+  private val homeCoordYIdx: Int = 5
 
   def parseFile(synthFileName: String): Vector[SynthHousehold] = {
     var res = Vector[SynthHousehold]()
@@ -210,6 +210,7 @@ object SynthHouseholdParser {
       val householdId = Id.create(sl(hhIdIdx), classOf[Household])
       val numCars = sl(carNumIdx).toDouble.toInt
       val numPeople = sl(hhNumIdx).toDouble.toInt
+      val income = sl(incomeIdx).toDouble.toInt
       res ++= Vector(SynthHousehold(householdId, numPeople, numCars, pt))
     }
     res
