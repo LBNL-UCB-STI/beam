@@ -1,5 +1,6 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 buildscript {
     repositories {
@@ -241,7 +242,22 @@ shadowJar {
     version = null
 }
 
+task guiShadowJar(type: ShadowJar) {
+    baseName = 'beamgui'
+    mainClassName = "beam.gui.Gui"
+    classifier = null
+    version = null
+    from sourceSets.main.output
+    configurations = [project.configurations.runtime]
+    manifest {
+        attributes "Specification-Vendor": "The BEAM Team",
+                "Implementation-Vendor": "The BEAM Team",
+                'Main-Class': 'beam.gui.Gui'
+    }
+}
+
 assemble.dependsOn shadowJar
+assemble.dependsOn guiShadowJar
 
 //////////////////////////////////////////////////////////////////////
 // Amazon WS task to run beam sim on Lambda
@@ -273,6 +289,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments')}",
   "is_experiment": "${!project.hasProperty('beamConfigs')}",
   "batch": "$beamBatch",
+  "instance_type": "${project.findProperty('instanceType') ?: 't2.medium'}",
   "shutdown_wait": "$shutdownWait"
 }"""
 
