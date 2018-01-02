@@ -243,7 +243,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         String yaxis = "Average Travel Time [min]";
         int width = 800;
         int height = 600;
-        boolean showLegend = true;
+        boolean showLegend = false;
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
