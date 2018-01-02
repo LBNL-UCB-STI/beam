@@ -273,6 +273,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments')}",
   "is_experiment": "${!project.hasProperty('beamConfigs')}",
   "batch": "$beamBatch",
+  "instance_type": "${project.findProperty('instanceType') ?: 't2.medium'}",
   "shutdown_wait": "$shutdownWait"
 }"""
 
