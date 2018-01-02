@@ -11,6 +11,11 @@ import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
+import org.apache.logging.log4j.core.Filter
+import org.apache.logging.log4j.{Level, LogManager, Logger}
+import org.apache.logging.log4j.core.appender.FileAppender
+import org.apache.logging.log4j.core.config.{AppenderRef, LoggerConfig}
+import org.apache.logging.log4j.core.layout.PatternLayout
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -79,8 +84,23 @@ trait RunBeam {
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
-    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+//    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+    val outputDirectory = FileUtils.getConfigOutputFile(beamConfig.beam.outputs.baseOutputDirectory, beamConfig.beam.agentsim.simulationName, beamConfig.beam.outputs.addTimestampToOutputDirectory)
+    matsimConfig.controler.setOutputDirectory(outputDirectory)
 
+    val context = LogManager.getContext(false)
+    val layout = PatternLayout.newBuilder().withPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n").build()
+
+//    val appender = FileAppender.newBuilder().withName("BeamFile").withFileName(s"${outputDirectory}/beam.log").withLayout(layout).build()
+    val appRef = AppenderRef.createAppenderRef("BeamFile", Level.INFO, null)
+
+
+//    val logger = Log.getLogger(classOf[Nothing])
+//    val layout = new SimpleLayout()
+//
+//    val appender = new FileAppender(layout,s"${outputDirectory}/beam.log",false);
+//
+//    logger.addAppender(appender)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
     networkCoordinator.loadNetwork()

@@ -10,6 +10,7 @@ import org.matsim.core.config.Config
 import org.slf4j.LoggerFactory
 
 import scala.util.Try
+
 /**
   * Created by sfeygin on 1/30/17.
   */
@@ -30,6 +31,19 @@ object FileUtils {
     outputDir.toFile.mkdir()
     matsimConfig.controler.setOutputDirectory(outputDir.toAbsolutePath.toString)
   }
+  def getConfigOutputFile(outputDirectoryBasePath: String, simulationName: String, addTimestampToOutputDirectory: Boolean): String = {
+    val baseOutputDir = Paths.get(outputDirectoryBasePath)
+    if (!Files.exists(baseOutputDir))baseOutputDir.toFile.mkdir()
+
+    val outputDir = (if(addTimestampToOutputDirectory){
+      val timestamp: String = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format (new java.util.Date () )
+      Paths.get(outputDirectoryBasePath + File.separator + simulationName + "_" + timestamp)
+    }else{
+      Paths.get(outputDirectoryBasePath + File.separator + simulationName)
+    }).toFile
+    outputDir.mkdir()
+    outputDir.getAbsolutePath
+  }
 
   def decompress(compressed: Array[Byte]): Option[String] =
     Try {
@@ -38,7 +52,7 @@ object FileUtils {
     }.toOption
 
 
-  def using[A <: { def close(): Unit }, B](resource: A)(f: A => B): B =
+  def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
     try {
       f(resource)
     } finally {
