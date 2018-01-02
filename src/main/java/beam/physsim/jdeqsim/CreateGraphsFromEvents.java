@@ -238,9 +238,9 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode){
 
         String fileName = "average_travel_times_" + mode + ".png";
-        String plotTitle = "Average Times Histogram";
+        String plotTitle = "Average Travel Time [" + mode + "]";
         String xaxis = "Hour";
-        String yaxis = "Avg Travel Time in Minutes";
+        String yaxis = "Average Travel Time [min]";
         int width = 800;
         int height = 600;
         boolean show = true;
