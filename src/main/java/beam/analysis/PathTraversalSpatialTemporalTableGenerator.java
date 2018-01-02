@@ -154,8 +154,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         new VehicleReaderV1(vehicles).readFile(vehiclesFileName);
     }
 
-    public static void setVehicles(Vehicles vehicles_) {
-        vehicles = vehicles_;
+    public static void setVehicles(Vehicles vehicles) {
+        PathTraversalSpatialTemporalTableGenerator.vehicles = vehicles;
     }
 
     public PathTraversalSpatialTemporalTableGenerator() {
