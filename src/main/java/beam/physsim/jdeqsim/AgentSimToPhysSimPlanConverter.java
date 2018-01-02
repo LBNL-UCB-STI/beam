@@ -4,6 +4,7 @@ import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
+import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -50,7 +52,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
     private Integer writePhysSimEventsInterval;
-    private String currentActivity = DUMMY_ACTIVITY;
+    private HashMap<String,String> previousActivity = new HashMap<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -112,11 +114,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         }
 
         if (event instanceof ActivityStartEvent) {
-            ActivityStartEvent ase = (ActivityStartEvent) event;
-            currentActivity = ase.getActType();
-        }else if (event instanceof ActivityEndEvent) {
-            ActivityEndEvent aee = ((ActivityEndEvent) event);
-            currentActivity = DUMMY_ACTIVITY;
+            ActivityStartEvent activityStartEvent = ((ActivityStartEvent) event);
+            previousActivity.put(activityStartEvent.getPersonId().toString(),activityStartEvent.getActType());
+        } else if (event instanceof ActivityEndEvent) {
+            ActivityEndEvent activityEndEvent = ((ActivityEndEvent) event);
+            previousActivity.put(activityEndEvent.getPersonId().toString(),activityEndEvent.getActType());
         }else if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             String mode = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
@@ -126,6 +128,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 String links = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
                 double departureTime = Double.parseDouble(pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
                 String vehicleId = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+                String vehicleType = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);
                 initializePersonAndPlanIfNeeded(personId);
@@ -139,7 +142,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     return; // dont't process leg further, if empty
                 }
 
-                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(currentActivity, leg.getRoute().getStartLinkId());
+                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(personId.toString()), leg.getRoute().getStartLinkId());
                 previousActivity.setEndTime(departureTime);
                 plan.addActivity(previousActivity);
                 plan.addLeg(leg);
@@ -206,12 +209,23 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         preparePhysSimForNewIteration();
     }
 
+
+    private String getPreviousActivityString(String personIdString){
+        String currentActivity=DUMMY_ACTIVITY;
+
+        if (previousActivity.containsKey(personIdString)){
+            currentActivity=previousActivity.get(personIdString);
+        }
+
+        return currentActivity;
+    }
+
     private void createLastActivityOfDayForPopulation() {
         for (Person p : jdeqsimPopulation.getPersons().values()) {
             Plan plan = p.getSelectedPlan();
             if (!plan.getPlanElements().isEmpty()) {
                 Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(currentActivity, leg.getRoute().getEndLinkId()));
+                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(p.getId().toString()), leg.getRoute().getEndLinkId()));
             }
         }
     }
