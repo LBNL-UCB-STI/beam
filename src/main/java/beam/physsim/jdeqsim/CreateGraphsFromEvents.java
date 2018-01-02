@@ -54,8 +54,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private EventsManager eventsManager;
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
 
-    private Integer writePhysSimEventsInterval;
-
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
 
@@ -96,14 +94,12 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     public CreateGraphsFromEvents() {  }
 
     // Constructor
-    public CreateGraphsFromEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router, Integer writePhysSimEventsInterval) {
+    public CreateGraphsFromEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
         this.registry = registry;
         this.router = router;
         agentSimScenario = scenario;
-
-        this.writePhysSimEventsInterval = writePhysSimEventsInterval;
 
         // initialize transit vehicles for fuel energy consumption calculations
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
