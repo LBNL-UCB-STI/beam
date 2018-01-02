@@ -394,6 +394,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       completeChoiceIfReady()
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg),theTriggerId),_) =>
       // We've received this leg too early... reschedule
+      logDebug(s"Rescheduling: ${NotifyLegStartTrigger(tick, beamLeg)}")
       stay() replying completed(theTriggerId, schedule[NotifyLegStartTrigger](tick,self,beamLeg))
 
   }
