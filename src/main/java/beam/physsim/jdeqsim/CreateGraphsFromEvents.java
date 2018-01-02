@@ -61,6 +61,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
 
     private Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+    Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
 
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
 
@@ -191,6 +192,10 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         //
         CategoryDataset modesFuelageDataset = buildModesFuelageDataset();
         createModesFuelageGraph(modesFuelageDataset, event.getIteration());
+
+
+        CategoryDataset tnc0DeadHeadingDataset = buildDeadHeadingDatasetTnc0(deadHeadingsTnc0Map, "tnc_deadheading_distance");
+        createDeadHeadingGraphTnc0(tnc0DeadHeadingDataset, event.getIteration(), "tnc_deadheading_distance");
 
         //
         List<String> graphNamesList = new ArrayList<>(deadHeadingsMap.keySet());
@@ -560,6 +565,31 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
             deadHeadingsMap.put(graphName, deadHeadings);
         }
+
+        if(graphName.equalsIgnoreCase("tnc") && _num_passengers == 0){
+
+
+
+            Double length = Double.parseDouble(event.getAttributes().get("length"));
+
+
+            Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
+
+            if (hourData == null) {
+                hourData = new HashMap<>();
+                hourData.put(_num_passengers, length);
+            } else {
+                Double distance = hourData.get(_num_passengers);
+                if (distance == null) {
+                    distance = length;
+                } else {
+                    distance = distance + length;
+                }
+                hourData.put(_num_passengers, distance);
+            }
+
+            deadHeadingsTnc0Map.put(hour, hourData);
+        }
     }
 
     //
@@ -646,6 +676,39 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
 
+    private CategoryDataset buildDeadHeadingDatasetTnc0(Map<Integer, Map<Integer, Double>> data, String graphName){
+
+        java.util.List<Integer> hours = new ArrayList<>();
+        hours.addAll(data.keySet());
+        Collections.sort(hours);
+
+        int maxHour = hours.get(hours.size() - 1);
+
+        Integer maxPassengers = 0;
+
+        double dataset[][] = null;
+
+        dataset = new double[maxPassengers + 1][maxHour + 1];
+
+        for (int i = 0; i <= maxPassengers; i++) {
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
+            //String passengerCount = "p" + i;
+            int index = 0;
+            for (int hour = 0; hour <= maxHour; hour++) {
+                Map<Integer, Double> hourData = data.get(hour);
+                if (hourData != null) {
+                    modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i)/1000;
+                } else {
+                    modeOccurrencePerHour[index] = 0;
+                }
+                index = index + 1;
+            }
+            dataset[i] = modeOccurrencePerHour;
+        }
+
+        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+
     private int getBucketSize(){
         return (int)Math.ceil(maxPassengersSeenOnGenericCase/4.0);
     }
@@ -656,6 +719,54 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         String plotTitle = getTitle(graphName);
         String xaxis = "Hour";
         String yaxis = "# trips";
+        int width = 800;
+        int height = 600;
+        boolean show = true;
+        boolean toolTips = false;
+        boolean urls = false;
+        PlotOrientation orientation = PlotOrientation.VERTICAL;
+
+        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
+
+        final JFreeChart chart = ChartFactory.createStackedBarChart(
+                plotTitle , xaxis, yaxis,
+                dataset, orientation, show, toolTips, urls);
+
+        chart.setBackgroundPaint(new Color(255, 255, 255));
+        CategoryPlot plot = chart.getCategoryPlot();
+
+        LegendItemCollection legendItems = new LegendItemCollection();
+
+        for (int i = 0; i<dataset.getRowCount(); i++) {
+
+            Color color = getBarAndLegendColor(i);
+            legendItems.add(new LegendItem(getLegendText(graphName, i), color));
+            plot.getRenderer().setSeriesPaint(i, color);
+        }
+        plot.setFixedLegendItems(legendItems);
+
+        try {
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
+        } catch (IOException e) {
+
+            e.printStackTrace();
+        }
+
+        try {
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+                    height);
+        } catch (IOException e) {
+
+            e.printStackTrace();
+        }
+    }
+
+    private void createDeadHeadingGraphTnc0(CategoryDataset dataset, int iterationNumber, String graphName){
+
+        String fileName = getGraphFileName(graphName);
+        String plotTitle = getTitle(graphName);
+        String xaxis = "Hour";
+        String yaxis = "Distance in kilometers";
         int width = 800;
         int height = 600;
         boolean show = true;
@@ -737,6 +848,8 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private String getGraphFileName(String graphName){
         if(graphName.equalsIgnoreCase("tnc")) {
             return "tnc_passenger_per_trip.png";
+        }else if(graphName.equalsIgnoreCase("tnc_deadheading_distance")) {
+            return "tnc_deadheading_distance.png";
         }else{
             return graphName + "_passenger_per_trip.png";
         }
@@ -746,6 +859,8 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     private String getTitle(String graphName){
         if(graphName.equalsIgnoreCase("tnc")){
             return "Number of Passengers per Trip [TNC]";
+        }else if(graphName.equalsIgnoreCase("tnc_deadheading_distance")){
+            return "Dead Heading Distance [TNC]";
         }else if(graphName.equalsIgnoreCase("car")) {
             return "Number of Passengers per Trip [Car]";
         }else{
