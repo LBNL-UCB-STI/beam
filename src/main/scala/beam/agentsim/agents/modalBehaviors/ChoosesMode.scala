@@ -13,6 +13,7 @@ import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLo
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
@@ -391,6 +392,10 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       holdTickAndTriggerId(tick, theTriggerId)
       hasReceivedCompleteChoiceTrigger = true
       completeChoiceIfReady()
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg),theTriggerId),_) =>
+      // We've received this leg too early... reschedule
+      stay() replying completed(theTriggerId, schedule[NotifyLegStartTrigger](tick,self,beamLeg))
+
   }
   chainedWhen(AnyState) {
     case Event(res@ReservationResponse(_, _), _) =>
