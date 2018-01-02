@@ -165,7 +165,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             hourModeFrequency.put(hour, hourData);
         }else{
 
-            Integer frequency = hourData.get(hour);
+            Integer frequency = hourData.get(mode);
 
             if(frequency == null){
                 frequency = 1;
@@ -293,7 +293,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
                     hourModeFuelage.put(hour, hourData);
                 } else {
 
-                    Double fuelage = hourData.get(hour);
+                    Double fuelage = hourData.get(mode);
 
                     if (fuelage == null) {
                         fuelage = _fuel;
