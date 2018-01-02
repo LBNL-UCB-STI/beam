@@ -10,8 +10,12 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
+import org.matsim.api.core.v01.events.PersonArrivalEvent;
+import org.matsim.api.core.v01.events.PersonDepartureEvent;
+import org.matsim.api.core.v01.population.Person;
 import org.matsim.api.core.v01.population.PopulationFactory;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
@@ -57,6 +61,10 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
 
     private Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+
+    private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
+
+    private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
 
     /*private Map<Integer, Map<Integer, Integer>> carDeadHeadings = new HashMap<>();
     private Map<Integer, Map<Integer, Integer>> busDeadHeadings = new HashMap<>();*/
@@ -117,40 +125,156 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
             processFuelUsage((PathTraversalEvent)event);
 
             processDeadHeading((PathTraversalEvent)event);
+        }else if(event instanceof PersonDepartureEvent){
+
+            PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent)event;
+
+            String mode = ((PersonDepartureEvent) event).getLegMode();
+            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            if(departureEvents == null) {
+                departureEvents = new HashMap<>();
+            }
+            departureEvents.put(((PersonDepartureEvent) event).getPersonId(), personDepartureEvent);
+            personLastDepartureEvents.put(mode, departureEvents);
+        }else if(event instanceof PersonArrivalEvent){
+
+            String mode = ((PersonArrivalEvent) event).getLegMode();
+
+            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            if(departureEvents != null){
+
+                PersonArrivalEvent personArrivalEvent = (PersonArrivalEvent)event;
+
+                Id<Person> personId = personArrivalEvent.getPersonId();
+                PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
+
+                if(personDepartureEvent != null) {
+                    int basketHour = getEventHour(personDepartureEvent.getTime());
+
+                    Double travelTime = personArrivalEvent.getTime() - personDepartureEvent.getTime();
+
+                    Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
+                    if(hourlyPersonTravelTimesPerMode == null) {
+                        hourlyPersonTravelTimesPerMode = new HashMap<>();
+                        List<Double> travelTimes = new ArrayList<>();
+                        travelTimes.add(travelTime);
+                        hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                    }else{
+                        List<Double> travelTimes = hourlyPersonTravelTimesPerMode.get(basketHour);
+                        if (travelTimes == null) {
+                            travelTimes = new ArrayList<>();
+                            travelTimes.add(travelTime);
+                        }else{
+
+                            travelTimes.add(travelTime);
+                        }
+                        hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
+                    }
+
+                    hourlyPersonTravelTimes.put(mode, hourlyPersonTravelTimesPerMode);
+
+                    personLastDepartureEvents.remove(personId);
+                }
+            }
         }
     }
+
+
 
     ///
     public void createGraphs(IterationEndsEvent event){
 
         //
-        System.out.println("-- Building dataset for mode choice events --");
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDataset();
-        System.out.println("-- Going to plot mode choice events --");
         createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
         //
-        System.out.println("-- Building dataset for mode fuel usage events --");
         CategoryDataset modesFuelageDataset = buildModesFuelageDataset();
-        System.out.println("-- Going to plot mode fuel usage events --");
         createModesFuelageGraph(modesFuelageDataset, event.getIteration());
 
         //
-        System.out.println("-- Building dataset for car mode --");
-        System.out.println("car pathtraversal counts" + carModeOccurrence);
-
         List<String> graphNamesList = new ArrayList<>(deadHeadingsMap.keySet());
         Collections.sort(graphNamesList);
 
         for(String graphName : graphNamesList){
 
-            System.out.println(Arrays.deepToString(deadHeadingsMap.get(graphName).values().toArray()));
             CategoryDataset tncDeadHeadingDataset = buildDeadHeadingDataset(deadHeadingsMap.get(graphName), graphName);
-            System.out.println("-- Going to plot the dataset for " + graphName + " mode --");
             createDeadHeadingGraph(tncDeadHeadingDataset, event.getIteration(), graphName);
         }
 
+        for(String mode : hourlyPersonTravelTimes.keySet()){
 
+            CategoryDataset averageDataset = buildAverageTimesDataset(hourlyPersonTravelTimes.get(mode), mode);
+            createAverageTimesGraph(averageDataset, event.getIteration(), mode);
+        }
+        //
+    }
+
+    private CategoryDataset buildAverageTimesDataset(Map<Integer, List<Double>> times, String mode){
+
+        java.util.List<Integer> hoursList = new ArrayList<>();
+        hoursList.addAll(times.keySet());
+        Collections.sort(hoursList);
+
+        int maxHour = hoursList.get(hoursList.size() - 1);
+        double[][] dataset = new double[1][maxHour + 1];
+
+        double[] travelTimes = new double[maxHour + 1];
+        for(int i=0; i<maxHour; i++){
+
+            List<Double> hourData = times.get(i);
+            Double average = 0d;
+            if(hourData != null) {
+                average = hourData.stream().mapToDouble(val -> val).average().getAsDouble();
+            }
+            travelTimes[i] = average;
+        }
+
+        dataset[0] = travelTimes;
+
+        return DatasetUtilities.createCategoryDataset(mode, "", dataset);
+    }
+
+    private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode){
+
+        String fileName = "average_travel_times_" + mode + ".png";
+        String plotTitle = "Average Times Histogram";
+        String xaxis = "Hour";
+        String yaxis = "Avg Travel Time in Minutes";
+        int width = 800;
+        int height = 600;
+        boolean show = true;
+        boolean toolTips = false;
+        boolean urls = false;
+        PlotOrientation orientation = PlotOrientation.VERTICAL;
+        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
+
+        final JFreeChart chart = ChartFactory.createStackedBarChart(
+                plotTitle , xaxis, yaxis,
+                dataset, orientation, show, toolTips, urls);
+
+        chart.setBackgroundPaint(new Color(255, 255, 255));
+        CategoryPlot plot = chart.getCategoryPlot();
+
+        LegendItemCollection legendItems = new LegendItemCollection();
+
+        for (int i = 0; i < dataset.getRowCount(); i++) {
+
+            legendItems.add(new LegendItem(mode, colors.get(i)));
+
+            plot.getRenderer().setSeriesPaint(i, colors.get(i));
+
+        }
+        plot.setFixedLegendItems(legendItems);
+
+
+        try {
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+                    height);
+        } catch (IOException e) {
+
+            e.printStackTrace();
+        }
     }
 
     ////
@@ -196,7 +320,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         java.util.List<String> modesChosenList = new ArrayList<>();
         modesChosenList.addAll(modesChosen);
         Collections.sort(modesChosenList);
-        System.out.println(Arrays.toString(modesChosenList.toArray()));
 
         int maxHour = hoursList.get(hoursList.size() - 1);
         double[][] dataset = new double[modesChosen.size()][maxHour + 1];
@@ -214,11 +337,9 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
                 }
                 index = index + 1;
             }
-            System.out.println(Arrays.toString(modeOccurrencePerHour));
             dataset[i] = modeOccurrencePerHour;
         }
 
-        System.out.println(Arrays.deepToString(dataset));
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
 
@@ -242,16 +363,12 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         chart.setBackgroundPaint(new Color(255, 255, 255));
         CategoryPlot plot = chart.getCategoryPlot();
 
-        System.out.println("rows " + dataset.getRowCount());
-        System.out.println("cols " + dataset.getColumnCount());
-
         LegendItemCollection legendItems = new LegendItemCollection();
 
         java.util.List<String> modesChosenList = new ArrayList<>();
         modesChosenList.addAll(modesChosen);
         Collections.sort(modesChosenList);
 
-        System.out.println(Arrays.toString(modesChosenList.toArray()));
 
         for (int i = 0; i < dataset.getRowCount(); i++) {
 
@@ -327,7 +444,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         modesFuelList.addAll(modesFuel);
         Collections.sort(modesFuelList);
 
-        System.out.println(Arrays.toString(modesFuelList.toArray()));
 
         int maxHour = hours.get(hours.size() - 1);
         double[][] dataset = new double[modesFuel.size()][maxHour + 1];
@@ -345,7 +461,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
                 }
                 index = index + 1;
             }
-            System.out.println(Arrays.toString(modeOccurrencePerHour));
             dataset[i] = modeOccurrencePerHour;
         }
 
@@ -372,16 +487,11 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         chart.setBackgroundPaint(new Color(255, 255, 255));
         CategoryPlot plot = chart.getCategoryPlot();
 
-        System.out.println("rows " + dataset.getRowCount());
-        System.out.println("cols " + dataset.getColumnCount());
-
         LegendItemCollection legendItems = new LegendItemCollection();
 
         java.util.List<String> modesFuelList = new ArrayList<>();
         modesFuelList.addAll(modesFuel);
         Collections.sort(modesFuelList);
-
-        System.out.println(Arrays.toString(modesFuelList.toArray()));
 
         for (int i = 0; i<dataset.getRowCount(); i++) {
 
@@ -462,10 +572,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         int maxHour = hours.get(hours.size() - 1);
 
-        System.out.println("KeyList Size : " + hours.size());
-        System.out.println("KeyList max hour: " + maxHour);
-        System.out.println("KeyList: " + Arrays.toString(hours.toArray()));
-
         Integer maxPassengers = null;
         if(graphName.equalsIgnoreCase("car")){
             maxPassengers = 4;
@@ -494,7 +600,6 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
                     }
                     index = index + 1;
                 }
-                System.out.println(Arrays.toString(modeOccurrencePerHour));
                 dataset[i] = modeOccurrencePerHour;
             }
         }else{
@@ -528,17 +633,12 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
                     index = index + 1;
                 }
 
-                System.out.println("bucket status " + Arrays.toString(modeOccurrencePerHour));
-
                 if(i == 0 || (i % bucketSize == 0) || i == maxPassengers) {
 
-                    System.out.println("i = " + i + ", bucket = " + bucket + " bucketSize = " + bucketSize + ", maxPassengerSeen = " + maxPassengersSeenOnGenericCase);
-                    System.out.println("modeOccurrencePerHour to bucket \n " + Arrays.toString(modeOccurrencePerHour));
                     dataset[bucket] = modeOccurrencePerHour;
 
                     modeOccurrencePerHour = new double[maxHour + 1];
                     bucket = bucket + 1;
-                    System.out.println("Reseting the bucket");
                 }
             }
         }
@@ -675,4 +775,5 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         Color randomColor = new Color(r, g, b);
         return randomColor;
     }
+
 }
