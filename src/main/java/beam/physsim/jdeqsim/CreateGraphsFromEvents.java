@@ -243,7 +243,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
         String yaxis = "Average Travel Time [min]";
         int width = 800;
         int height = 600;
-        boolean show = true;
+        boolean showLegend = true;
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
@@ -251,21 +251,20 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
 
         final JFreeChart chart = ChartFactory.createStackedBarChart(
                 plotTitle , xaxis, yaxis,
-                dataset, orientation, show, toolTips, urls);
+                dataset, orientation, showLegend, toolTips, urls);
 
         chart.setBackgroundPaint(new Color(255, 255, 255));
         CategoryPlot plot = chart.getCategoryPlot();
 
-        LegendItemCollection legendItems = new LegendItemCollection();
+
 
         for (int i = 0; i < dataset.getRowCount(); i++) {
 
-            legendItems.add(new LegendItem(mode, colors.get(i)));
 
             plot.getRenderer().setSeriesPaint(i, colors.get(i));
 
         }
-        plot.setFixedLegendItems(legendItems);
+
 
 
         try {
