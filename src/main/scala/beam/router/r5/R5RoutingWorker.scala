@@ -93,11 +93,22 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         profileRequest.accessModes = util.EnumSet.of(accessMode)
         profileRequest.egressModes = util.EnumSet.of(egressMode)
       }
-      return pointToPointQuery.getPlan(profileRequest)
+      log.debug(profileRequest.toString)
+      val result = try{
+        pointToPointQuery.getPlan(profileRequest)
+      }catch{
+        case e: IllegalStateException =>
+          new ProfileResponse
+        case e: ArrayIndexOutOfBoundsException =>
+          new ProfileResponse
+      }
+      log.debug(s"# options found = ${result.options.size()}")
+      return result
     }
 
 
   def calcRoute(routingRequestTripInfo: RoutingRequestTripInfo): RoutingResponse = {
+    log.debug(routingRequestTripInfo.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = routingRequestTripInfo.streetVehicles.exists(_.mode == WALK)
