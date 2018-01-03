@@ -24,7 +24,7 @@ public class LoggingUtil {
                 .setConfiguration(config)
                 .withName("BeamFile")
                 .withLayout(layout)
-                .withFileName(String.format("%s/beam.log", outputDirectory))
+                .withFileName(String.format("%s/beam-log.out", outputDirectory))
                 .build();
 
         appender.start();
@@ -34,9 +34,9 @@ public class LoggingUtil {
         AppenderRef[] refs = new AppenderRef[] { ref };
 
         LoggerConfig loggerConfig = LoggerConfig
-                .createLogger(false, Level.INFO, LoggerConfig.ROOT, "true", refs, null, config, null);
-        loggerConfig.addAppender(appender, null, null);
-        config.addLogger(LoggerConfig.ROOT, loggerConfig);
+                .createLogger(false, Level.INFO, "beam", "true", refs, null, config, null);
+        loggerConfig.addAppender(appender, Level.INFO, null);
+        config.addLogger("beam", loggerConfig);
         ctx.updateLoggers();
     }
 }
