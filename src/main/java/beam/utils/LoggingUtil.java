@@ -1,10 +1,13 @@
 package beam.utils;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.FileAppender;
+import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
 public class LoggingUtil {
@@ -26,5 +29,14 @@ public class LoggingUtil {
 
         appender.start();
         config.addAppender(appender);
+
+        AppenderRef ref = AppenderRef.createAppenderRef("BeamFile", null, null);
+        AppenderRef[] refs = new AppenderRef[] { ref };
+
+        LoggerConfig loggerConfig = LoggerConfig
+                .createLogger(false, Level.INFO, "programmaticLogger", "true", refs, null, config, null);
+        loggerConfig.addAppender(appender, null, null);
+        config.addLogger("programmaticLogger", loggerConfig);
+        ctx.updateLoggers();
     }
 }
