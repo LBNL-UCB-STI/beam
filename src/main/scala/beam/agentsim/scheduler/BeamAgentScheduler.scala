@@ -91,7 +91,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   private val eventSubscriberRef = context.system.actorSelection(context.system./(SUBSCRIBER_NAME))
 
   private val monitorTask = if (beamConfig.beam.debug.debugEnabled) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, Monitor)) else None
-  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(1, TimeUnit.MINUTES), new FiniteDuration(3, TimeUnit.SECONDS), self, SkipOverBadActors)) else None
+  private val skipOverBadActorsTask = if (beamConfig.beam.debug.skipOverBadActors) Some(context.system.scheduler.schedule(new FiniteDuration(beamConfig.beam.debug.secondsToWaitForSkip*2, TimeUnit.SECONDS), new FiniteDuration(math.round(beamConfig.beam.debug.secondsToWaitForSkip/4.0), TimeUnit.SECONDS), self, SkipOverBadActors)) else None
 
   def increment(): Unit = {
     previousTotalAwaitingRespone += 1
@@ -130,7 +130,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           scheduledTrigger.agent ! triggerWithId
         }
         if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
-          log.info("Hour " + nowInSeconds / 3600.0 + " completed.")
+          log.info("Hour " + nowInSeconds / 3600.0 + " completed. "+math.round(10*(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/(Math.pow(1000,3)))/10.0+"(GB)")
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
           self ! DoSimStep(nowInSeconds + 1.0)
@@ -173,11 +173,11 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         .filter(trigger => trigger.agent == actor)
         .forEach(trigger => {
           self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
-          log.warning("Clearing trigger because agent died: " + trigger)
+          log.error("Clearing trigger because agent died: " + trigger)
         })
 
     case Monitor =>
-      log.error(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
+      log.debug(s"\n\tnowInSeconds=$nowInSeconds,\n\tawaitingResponse.size=${awaitingResponse.size()},\n\ttriggerQueue.size=${triggerQueue.size},\n\ttriggerQueue.head=${triggerQueue.headOption}\n\tawaitingResponse.head=${awaitingToString}")
 
     case SkipOverBadActors =>
       var numReps = 0L
@@ -185,15 +185,15 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       if (currentTotalAwaitingResponse == previousTotalAwaitingRespone && currentTotalAwaitingResponse != 0) {
         numberRepeats += 1
         numReps = numberRepeats
-        log.error(s"DEBUG: $numReps repeats.")
+        log.debug(s"DEBUG: $numReps repeats.")
       } else {
         numberRepeats = 0
       }
       if (numReps > 4) {
-        val reason = s"DEBUG: $numReps > 4 repeats!!! Clearing out stuck agents and proceeding with schedule"
+        val reason = s"Clearing out ${awaitingResponse.get(awaitingResponse.keySet().first()).size()} stuck agents and proceeding with schedule"
         log.error(reason)
-        awaitingResponse.values().stream().forEach({ x =>
-          x.agent ! IllegalTriggerGoToError(reason)
+        awaitingResponse.get(awaitingResponse.keySet().first()).forEach({ x =>
+          x.agent ! IllegalTriggerGoToError("Stuck Agent")
           currentTotalAwaitingResponse = 0
           self ! CompletionNotice(x.triggerWithId.triggerId)
         })

@@ -57,7 +57,15 @@ case object AccessErrorCodes {
     override def errorCode: ReservationErrorCode = RideHailRouteNotFound
   }
 
+  case object DriverHasEmptyPassengerScheduleError extends ReservationError {
+    override def errorCode: ReservationErrorCode = ResourceUnavailable
+  }
+
   case object VehicleGoneError extends ReservationError {
+    override def errorCode: ReservationErrorCode = ResourceUnavailable
+  }
+
+  case object DriverNotFoundError extends ReservationError {
     override def errorCode: ReservationErrorCode = ResourceUnavailable
   }
 

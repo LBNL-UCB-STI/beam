@@ -1,85 +1,168 @@
 
-Users' Guide
+User's Guide
 =================
 
-For now, the user guide maintains a focus on PEVs. 
+Getting Started
+---------------
+The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled-back population and transportation system. This is the ideal place to familiarize yourself with the basics of configuration a BEAM model run and for doing small scale tests and analysis. 
 
-If you want to run a BEAM model for your region, you will need the following data sets (real or synthetic):
+For more advanced utilization or to contribute to the BEAM project, see the :ref:`developers-guide`.
 
-* Road Network
-* Travel Activity for your Virtual Population
-* Charging Infrastructure
-* Vehicle Characteristics and Composition
+System Requirements
+^^^^^^^^^^^^^^^^^^^
 
+* At least 8GB RAM
+* Windows, Mac OSX, Linux
+* Java Runtime Environment 1.8
+* To verify your JRE: https://stackoverflow.com/questions/8472121/which-jre-i-am-using
+* To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
+* We also recommend downloading Senozon VIA and obtaining a Free License: https://via.senozon.com/download
 
 Installing
 ^^^^^^^^^^
 
-Instructions on downloading and using the BEAM executable coming soon... 
+Download the latest release of BEAM here:
+
+After you unzip the archive, you will see the following files in the top level of the expanded directory::
+
+  BEAM.exe
+  beam.conf
+  beamville.conf
+  sf-light.conf
+  input/
+    beamville
+    sf-light
+
+Running BEAM
+^^^^^^^^^^^^
+`BEAM.exe` is the executable which is run by double-clicking. ---describe what happens here---
+
+`beam.conf` is the configuration file that `BEAM.exe` will run, by deafult it is identical to `beamville.conf`. If you want to run the `sf-light` scenario, then replace `beam.conf` with the contents of `sf-light.conf` by copying over the file. 
+
+Scenarios
+^^^^^^^^^
+The `beamville` test scenario consists of a tiny 5 x 5 gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.  
+
+The `sf-light` scenario includes the City of San Francisco road network, the SF Muni public transit service, and a sample population of ~3,000 agents.
+
+Inputs
+^^^^^^^
+
+BEAM follows the [MATSim convention](http://archive.matsim.org/docs) for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the [R5 requirements](https://github.com/conveyal/r5). The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+
+* A configuration file (e.g. `beam.conf`)
+* The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
+* The household population and corresponding attributes files (e.g. `households.xml` and `householdAttributes.xml`)
+* The personal vehicle fleet (e.g. `vehicles.xml`)
+* The definition of vehicle types for the public transit fleet (e.g. `transitVehicles.xml`)
+* The mode choice parameters file (e.g. `modeChoiceParameters.xml`)
+* A directory containing network and transit data used by R5 (e.g. `r5/`)
+* The open street map network (e.g. `r5/beamville.osm`)
+* GTFS archives, one for each transit agency (e.g. `r5/bus.zip`)
+
+Outputs
+^^^^^^^
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to ---output location---. The files you should see in this directory are::
+
+  modestats.txt
+  scorestats.txt
+  stopwatch.png
+  stopwatch.txt
+  traveldistancestats.txt
+  ITERS/
+    it.0/
+      0.events.csv
+      0.legHistogram.txt
+      0.physsim-plans.xml
+      0.plans.xml.gz
+      0.tripdurations.txt
+      
 
 Model Config
 ^^^^^^^^^^^^
 
-Instructions on downloading and using the BEAM executable coming soon... 
+To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam.
+
+Model Config
+^^^^^^^^^^^^
+
+
 
 Experiment Manager
-^^^^^^^^^^^^^^^^^^
+------------------
 
 BEAM features a flexible experiment manager which allows users to conduct multi-factorial experiments with minimal configuration. The tool is powered by Jinja templates ( see more http://jinja.pocoo.org/docs/2.10/).
 
-To demonstrate how to use the experiment manager, we will use parameter calibration as an example. In this case, the experiment is to vary the parameters of the mode choice model systematically in order to reproduce observed modal splits in the transportation system. This requires modifying the overall BEAM config file (beam.conf) as well as the mode choice parameters file (modeChoiceParameters.xml).
+We have created two example experiments to demonstrate how to use the experiment manager. The first is a simple 2-factorial experiment that varies some parameters of scientific interest. The second involves varying parameters of the mode choice model as one might do in a calibration exercise. 
 
-Lets start from building your experiment definitions in experiment.yml ( see example in  test/input/beamville/calibration/experiments.yml).
-`experiment.yml` is YAML config file which consists of 3 sections: header, `baseScenario` and `factors`.
+In any experiment, we seek to vary the parameters of BEAM systematically and producing results in an organized, predicable location to facilitate post-processing. For the two factor experiment example, we only need to vary the contents of the BEAM config file (beam.conf) in order to achieve the desired anlaysis.
 
-The Header defines the basic properties of the experiment (title, author, etc.) and several paths (all relative to the project root) to Jinja-based templates of BEAM config files.
+Lets start from building your experiment definitions in experiment.yml ( see example in `test/input/beamville/example-experiment/experiment.yml`).
+`experiment.yml` is a YAML config file which consists of 3 sections: header, defaultParams, and factors.
 
-    ```
-        title: Transport-Cost-Calibration
-        author: MyName
-        beamTemplateConfPath: test/input/beamville/beam.conf
-        runExperimentScript: test/input/beamville/calibration/runExperiment.sh.tpl
-        modeChoiceTemplate: test/input/beamville/calibration/modeChoiceParameters.xml.tpl
-    ```
+The Header defines the basic properties of the experiment, the title, author, and a path to the configuration file (paths should be relative to the project root)::
 
-Experiments consist of 'factors', which are a dimension along which you want to vary parameters. Each instance of the factor is a level. E.g. a factor could be "Transit Price" consisting of two levels, "Low" and "High". You can think about factors as of main influencers (or features) of simulation model while levels are discrete values of each factor.
+  title: Example-Experiment
+  author: MyName
+  beamTemplateConfPath: test/input/beamville/beam.conf
 
-Usually one should set at least two levels per factor (in addition to the Base Level). But factors can have as many levels as you want. Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from the template config files. Param names across factors must be unique, otherwise they will overwrite each other.
+The Default Params are used to override any parameters from the BEAM config file for the whole experiment. These values can, in turn, be overridden by factor levels if specified. This section is mostly a convenient way to ensure certain parameters take on specific values without modifying the BEAM config file in use.
 
-First you need to defines all properties and template placeholders in baseScenario and then you vary any subset of these params in each level.
+Experiments consist of 'factors', which are a dimension along which you want to vary parameters. Each instance of the factor is a level. In our example, one factor is "transitCapacity" consisting of two levels, "Low" and "High". You can think about factors as of main influencers (or features) of simulation model while levels are discrete values of each factor.
 
-For example, for beamville calibration, we have defined 3 factors with two levels each. One level contains the property `mnl_ride_hailing_cost`, which appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hailing_cost }}`. This placeholder will be replaced during template processing. The same is true for all properties in the baseScenario. Placeholders for template files must NOT contain dot symbol( due to special behaviour of Jinja with dot). However it is possible to use the full names of properties from `beam.conf` (which *do* include dots) if they need to be overrided within this experiment run.
+Factors can be designed however you choose, including adding as many factors or levels within those factors as you want. E.g. to create a 3 x 3 experimental design, you would set three levels per factor as in the example below::
 
-Also note that `mnl_ride_hailing_cost` appears both in the level specification and in the baseScenario. This is important, each level can only override properties from the baseScenario.
+  factors:
+    - title: transitCapacity
+      levels:
+      - name: Low
+        params:
+          beam.agentsim.tuning.transitCapacity: 0.01
+      - name: Base
+        params:
+          beam.agentsim.tuning.transitCapacity: 0.05
+      - name: High
+        params:
+          beam.agentsim.tuning.transitCapacity: 0.1
 
-As for now, there are two template files `modeChoiceParameters.xml.tpl` which defines mode choice model params and `runExperiment.sh.tpl` which defines the bash script to run the actual experiment. 
+    - title: ridehailNumber
+      levels:
+      - name: Low
+        params:
+          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.001
+      - name: Base
+        params:
+          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.01
+      - name: High
+        params:
+          beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation: 0.1
 
-experiment.xml may defines bash variables that will be available in runExperiment.sh.
+Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from any template config files (see below for an example of this). Param names across factors and template files must be unique, otherwise they will overwrite each other.
 
-Experiment generation can be run using following command from *project root* after the project has been compiled: 
+In our second example (see directory `test/input/beamville/example-calibration/`), we have added a template file `modeChoiceParameters.xml.tpl` that allows us to change the values of parameters in BEAM input file `modeChoiceParameters.xml`. In the `experiment.yml` file, we have defined 3 factors with two levels each. One level contains the property `mnl_ride_hailing_intercept`, which appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hailing_intercept }}`. This placeholder will be replaced during template processing. The same is true for all properties in the defaultParams and under the facts. Placeholders for template files must NOT contain the dot symbol due to special behaviour of Jinja. However it is possible to use the full names of properties from `beam.conf` (which *do* include dots) if they need to be overridden within this experiment run.
 
-```
-gradle assemble
+Also note that `mnl_ride_hailing_intercept` appears both in the level specification and in the baseScenario. When using a template file (versus a BEAM Config file), each level can only override properties from Default Params section of `experiment.yml`.
 
-java -cp build/libs/*:build/resources/main beam.experiment.ExperimentGenerator --experiments test/input/beamville/calibration/experiments.yml
-```
+Experiment generation can be run using following command from *project root* after the project has been compiled::
+
+  gradle assemble
+
+  java -cp build/libs/*:build/resources/main beam.experiment.ExperimentGenerator --experiments test/input/beamville/example-experiment/experiments.yml
 
 It's better to create a new sub-folder folder (e.g. 'calibration' or 'experiment-1') in your data input directory and put both templates and the experiment.yml there.
-The ExperimentGenerator will create a folder structure next to experiment.yml named with the title of the experiment and a subfolder for each combination of levels (also referred to as an "experimentinal group") including the baseScenario run.
+The ExperimentGenerator will create a sub-folder next to experiment.yml named `runs` which will include all of the data needed to run the experiment along with a shell script to execute a local run. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 
 
-Each experiment run folder will contain the generated beam.conf (based on beamTemplateConfPath), modeChoiceParameters.xml and runExperiment.sh with all placeholders properly substituted.params. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 
-
-`runExperiment.sh` is executable and can be executed to run any individual simulation. The output of simulation will appear in the `output` subfolder next to runExperiment.sh
+Within each run sub-folder you will find the generated BEAM config file (based on beamTemplateConfPath), any files from the template engine (e.g. `modeChoiceParameters.xml`) with all placeholders properly substituted, and a `runBeam.sh` executable which can be used to execute an individual simulation. The outputs of each simulation will appear in the `output` subfolder next to runBeam.sh
 
 
 Automated Cloud Deployment
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------
 
-To run BEAM simulation or experiment on amazon ec2, use following command with some optional parameters.
-```
-gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
-```
- It can take some parameters from command line, use `-P` to specify the parameter.
+To run BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
+
+  gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
+
+It can take some parameters from command line, use `-P` to specify the parameter.
 
 * `beamBranch`: To specify the branch for simulation, master is default branch.
 * `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit.
@@ -88,17 +171,17 @@ gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
 * `beamBatch`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
 * `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 
- To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can be found in the output log of the command.
+To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can be found in the output log of the command.
 
- To run batch simulation, you can specify the configuration files using parameter like:
- ```
- gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
- ```
+To run batch simulation, you can specify the configuration files using parameter like::
 
- To run batch experiments, you can specify the experiment files using parameter like:
-  ```
+  gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
+
+
+To run batch experiments, you can specify the experiment files using parameter like::
+
   gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
-  ```
- It will start an ec2 instance, using provided configurations and run all simulations in serial. To run all on separate parallel instances, set `beamBatch` to false. At the end of each simulation it uploads the results to s3.
 
-    gradle.properties contains default values for all the parameters.
+It will start an ec2 instance, using provided configurations and run all simulations in serial. To run all on separate parallel instances, set `beamBatch` to false. At the end of each simulation it uploads the results to s3.
+
+  gradle.properties contains default values for all the parameters.

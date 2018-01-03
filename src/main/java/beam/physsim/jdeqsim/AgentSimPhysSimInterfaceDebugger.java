@@ -7,6 +7,7 @@ import beam.sim.BeamServices;
 import beam.sim.common.GeoUtils;
 import beam.utils.DebugLib;
 import com.conveyal.r5.streets.EdgeStore;
+import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.collections.Tuple;
@@ -18,10 +19,12 @@ public class AgentSimPhysSimInterfaceDebugger {
     // TODO: push this parameter to config
     public static final boolean DEBUGGER_ON = false;
     private final GeoUtils geoUtils;
+    private final TransportNetwork transportNetwork;
 
 
-    public AgentSimPhysSimInterfaceDebugger(GeoUtils geoUtils) {
+    public AgentSimPhysSimInterfaceDebugger(GeoUtils geoUtils, TransportNetwork transportNetwork) {
         this.geoUtils = geoUtils;
+        this.transportNetwork = transportNetwork;
     }
 
 
@@ -49,9 +52,9 @@ public class AgentSimPhysSimInterfaceDebugger {
         for (int i=0;i< linkIds_.size()-1;i++){
             int linkIdInt=Integer.parseInt(linkIds_.get(i));
             int nextlinkIdInt=Integer.parseInt(linkIds_.get(i+1));
-            EdgeStore.Edge currentEdge = NetworkCoordinator.transportNetwork().streetLayer.edgeStore.getCursor(linkIdInt);
+            EdgeStore.Edge currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt);
             ///System.out.println(linkIdInt + "-> (" + currentEdge.getFromVertex() + "," + currentEdge.getToVertex() + ")");
-            EdgeStore.Edge nextEdge = NetworkCoordinator.transportNetwork().streetLayer.edgeStore.getCursor(nextlinkIdInt);
+            EdgeStore.Edge nextEdge = transportNetwork.streetLayer.edgeStore.getCursor(nextlinkIdInt);
 
             double distanceBetweenEdgesInMeters=geoUtils.distInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x,currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));
             if (currentEdge.getToVertex()==nextEdge.getFromVertex()){

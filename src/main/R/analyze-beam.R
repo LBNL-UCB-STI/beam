@@ -47,7 +47,7 @@ dist.from.latlon <- function(lat1,lon1,lat2,lon2){
 
 ######################################################################################################
 # Load the exp config
-exp.file <- '~/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/scenarios/experiment.csv'
+exp.file <- '/Users/critter/Documents/beam/beam-output/mnl-calibration/calibration/runs/experiments.csv'
 exp <- data.table(read.csv(exp.file))
 exp[,key:=pp(experiment,'_',factor)]
 

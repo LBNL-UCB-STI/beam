@@ -2,11 +2,11 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
-import beam.agentsim.Resource.{CheckInResource, TellManagerResourceIsAvailable}
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.household.HouseholdActor.{NotifyNewVehicleLocation, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
@@ -21,6 +21,7 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode.DRIVE_TRANSIT
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -40,9 +41,9 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(services: BeamServices, eventsManager: EventsManager, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan,
+  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(services, eventsManager, personId, householdId, plan, humanBodyVehicleId))
+    Props(new PersonAgent(services, transportNetwork, eventsManager, personId, householdId, plan, humanBodyVehicleId))
   }
 
   def buildActorName(personId: Id[Person]): String = {
@@ -115,6 +116,7 @@ object PersonAgent {
 }
 
 class PersonAgent(val beamServices: BeamServices,
+                  val transportNetwork: TransportNetwork,
                   val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
                   val householdId: Id[Household],
@@ -188,7 +190,7 @@ class PersonAgent(val beamServices: BeamServices,
 
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       val currentAct = currentActivity
-      logInfo(s"starting at ${currentAct.getType} @ $tick")
+      logDebug(s"starting at ${currentAct.getType} @ $tick")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentAct
         .getEndTime, self))
   }
@@ -198,11 +200,11 @@ class PersonAgent(val beamServices: BeamServices,
       val currentAct = currentActivity
       nextActivity.fold(
         msg => {
-          logInfo(s"didn't get nextActivity because $msg")
+          logDebug(s"didn't get nextActivity because $msg")
           stop replying completed(triggerId)
         },
         nextAct => {
-          logInfo(s"going to ${nextAct.getType} @ $tick")
+          logDebug(s"going to ${nextAct.getType} @ $tick")
           eventsManager.processEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId,
             currentAct.getFacilityId, currentAct.getType))
           goto(ChoosingMode) replying completed(triggerId, schedule[BeginModeChoiceTrigger](tick, self))
@@ -222,7 +224,7 @@ class PersonAgent(val beamServices: BeamServices,
       } else {
         schedule[NotifyLegEndTrigger](tick, self, beamLeg)
       }
-      logWarn(s"Rescheduling: $toSchedule")
+      logDebug(s"Rescheduling: $toSchedule")
       stay() replying completed(triggerId, toSchedule)
     }
   }
@@ -235,8 +237,7 @@ class PersonAgent(val beamServices: BeamServices,
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       _currentTripMode = Some(_currentRoute.tripClassifier)
-      eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,
-        _currentTripMode.get.matsimMode))
+      eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,_currentRoute.tripClassifier.value))
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Complete leg(s) as driver
@@ -436,7 +437,7 @@ class PersonAgent(val beamServices: BeamServices,
               val householdRef = beamServices.householdRefs(_household)
               if (currentActivity.getType.equals("Home")) {
                 householdRef ! ReleaseVehicleReservation(id, personalVeh)
-                householdRef ! CheckInResource(personalVeh)
+                householdRef ! CheckInResource(personalVeh, None)
                 currentTourPersonalVehicle = None
               }
             case None =>
@@ -452,7 +453,7 @@ class PersonAgent(val beamServices: BeamServices,
             tick + 60 * 10
           }
           eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTripMode
-            .get.matsimMode))
+            .get.value))
           _currentTripMode = None
           eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity
             .getFacilityId, activity.getType))
@@ -496,7 +497,11 @@ class PersonAgent(val beamServices: BeamServices,
   }
 
   chainedWhen(AnyState) {
-    case Event(NotifyNewVehicleLocation(_,_), _) =>
+    case Event(NotifyResourceInUse(_,_), _) =>
+      stay()
+    case Event(RegisterResource(_), _) =>
+      stay()
+    case Event(NotifyResourceIdle(_,_), _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))

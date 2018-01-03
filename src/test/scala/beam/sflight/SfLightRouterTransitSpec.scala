@@ -13,6 +13,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.gtfs.FareCalculator
+import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -22,7 +23,7 @@ import com.typesafe.config.{ConfigFactory, ConfigParseOptions}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleUtils}
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -56,11 +57,13 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
     when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
+    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
+    networkCoordinator.loadNetwork()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-    router = system.actorOf(BeamRouter.props(services, scenario.getNetwork, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator), "router")
+    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator), "router")
 
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)

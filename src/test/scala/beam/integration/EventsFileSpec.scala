@@ -17,6 +17,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+    .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
     .resolve()
 
   val beamConfig = BeamConfig(config)

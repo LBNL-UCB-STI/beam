@@ -50,17 +50,17 @@ if __name__ == '__main__':
     # Very basic use case w/ a few datasets...
     data = {}
     data['ridehail price low'] = find_num_drive_to_transit_agents(pd.read_csv(
-        "/Users/sfeygin/remote_files/beam_outputs/\
+        "/Users/sfeygin/remote_files/BEAM_OUTPUT/\
         sfBay_ridehail_price_low_2017-09-27_08-19-54/ITERS/it.0/\
         0.events.csv.gz"))
     print "done ridehail price low"
     data['ridehail price high'] = find_num_drive_to_transit_agents(pd.read_csv(
-        "/Users/sfeygin/remote_files/beam_outputs/\
+        "/Users/sfeygin/remote_files/BEAM_OUTPUT/\
         sfBay_ridehail_price_high_2017-09-27_05-05-15/ITERS/it.0/\
     0.events.csv.gz"))
     print "done ridehail price high"
     data['baseline'] = find_num_drive_to_transit_agents(pd.read_csv(
-        "/Users/sfeygin/remote_files/beam_outputs/\
+        "/Users/sfeygin/remote_files/BEAM_OUTPUT/\
         base_2017-09-27_05-05-07/ITERS/it.0/\
         0.events.csv.gz"))
     print "baseline"

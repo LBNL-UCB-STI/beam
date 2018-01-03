@@ -71,7 +71,9 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
                 parameterSet.get("type") match {
                   case Some(paramSetType) =>
                     paramSetClassCache.get(paramSetType.toString).foreach( paramSetClazz => {
-                      val paramSetInstance = paramSetClazz.newInstance()
+                      val c = paramSetClazz.getDeclaredConstructor()
+                      c.setAccessible(true)
+                      val paramSetInstance = c.newInstance()
                       val paramSetProperties = parameterSet.filterNot(_._1 == "type")
                       if (paramSetProperties.nonEmpty) {
                         paramSetProperties.foreach{ case (paramName, paramSetValue) =>

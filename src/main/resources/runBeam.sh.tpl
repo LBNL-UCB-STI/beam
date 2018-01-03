@@ -30,7 +30,7 @@ pushd ${BEAM_ROOT}
     echo "Simulation has been finished, statusCode=$exit_status"
 
     git rev-parse --verify HEAD > ${BEAM_OUTPUT}/version.txt
-    MODE_CHOICE_COUNT=$(find ${BEAM_OUTPUT} -name '0.events.csv*' -exec zgrep -- 'ModeChoice' {} \; | grep -Eo "ModeChoice,,\w*"	| sort | uniq -c)
+    MODE_CHOICE_COUNT=$(find ${BEAM_OUTPUT} -name '0.events.csv*' -exec zgrep -- 'ModeChoice' {} \; | grep -Eo "ModeChoice,,,\w*"	| sort | uniq -c)
     echo "$MODE_CHOICE_COUNT" > ${BEAM_OUTPUT}/ITERS/it.0/modeChoiceStat.txt
 
     RUN_NAME=$(basename "$(dirname  ${BEAM_OUTPUT} )")
@@ -38,7 +38,7 @@ pushd ${BEAM_ROOT}
     tar -zcvf /tmp/${TAR_NAME}.tar.gz ${BEAM_OUTPUT}
 
     if [ "$1" == "cloud" ]; then
-        sudo aws --region us-east-2 s3 cp /tmp/${TAR_NAME}.tar.gz s3://beam-outputs/${S3_BUCKET_NAME}/  && rm -f /tmp/${TAR_NAME}.tar.gz
+        sudo aws --region us-east-2 s3 cp /tmp/${TAR_NAME}.tar.gz s3://beam-outputs/  && rm -f /tmp/${TAR_NAME}.tar.gz
 
         if [ "$DROP_OUTPUT" == "true" ]; then
             rm -rf ${BEAM_OUTPUT}
