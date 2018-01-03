@@ -326,7 +326,6 @@ object PlansSampler {
 
     val defaultVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
     newVehicles.addVehicleType(defaultVehicleType)
-
     synthHouseholds foreach (sh => {
 
       val N = if (sh.numPersons * 2 > 0) {
