@@ -96,7 +96,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       return try{
         pointToPointQuery.getPlan(profileRequest)
       }catch{
-        case e: IllegalStateException =>
+        case e: IllegalStateException | ArrayIndexOutOfBoundsException =>
           new ProfileResponse
       }
     }
