@@ -5,8 +5,11 @@ package beam.physsim.viz;
         import java.io.IOException;
         import java.io.OutputStreamWriter;
         import java.io.PrintStream;
+        import java.util.HashMap;
+        import java.util.HashSet;
         import java.util.Map;
 
+        import beam.utils.DebugLib;
         import org.matsim.api.core.v01.events.Event;
         import org.matsim.core.events.algorithms.EventWriter;
         import org.matsim.core.events.handler.BasicEventHandler;
@@ -19,29 +22,35 @@ package beam.physsim.viz;
 
 public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHandler {
     private final BufferedWriter out;
+    private String outFileName;
 
-    public EventWriterXML_viaCompatible(final String outfilename) {
-        this.out = IOUtils.getBufferedWriter(outfilename);
+    private static final String TNC="ride";
+    private static final String BUS="SF";
+    private static final String CAR="car";
+
+    HashMap<String,HashSet<String>> filterPeopleForViaDemo=new HashMap<>();
+    HashMap<String,Integer> maxPeopleForViaDemo=new HashMap<>();
+
+    public EventWriterXML_viaCompatible(final String outFileName) {
+        this.outFileName =outFileName;
+        this.out = IOUtils.getBufferedWriter(outFileName);
+
+        filterPeopleForViaDemo.put(CAR,new HashSet<>());
+        filterPeopleForViaDemo.put(BUS,new HashSet<>());
+        filterPeopleForViaDemo.put(TNC,new HashSet<>());
+
+        maxPeopleForViaDemo.put(CAR,420);
+        maxPeopleForViaDemo.put(BUS,50);
+        maxPeopleForViaDemo.put(TNC,30);
+
         try {
             this.out.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">\n");
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    /**
-     * Constructor so you can pass System.out or System.err to the writer to see the result on the console.
-     *
-     * @param stream
-     */
-    public EventWriterXML_viaCompatible(final PrintStream stream ) {
-        this.out = new BufferedWriter(new OutputStreamWriter(stream));
-        try {
-            this.out.write("<events>\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
+
 
     @Override
     public void closeFile() {
@@ -66,8 +75,46 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
     public void reset(final int iter) {
     }
 
+    private boolean addPersonToEventsFile(String person){
+        String personLabel=null;
+
+        if (person==null){
+            DebugLib.emptyFunctionForSettingBreakPoint();
+        }
+
+        if (person.contains(BUS)) {
+            personLabel=BUS;
+        } else if (person.contains(TNC)){
+            personLabel=TNC;
+        } else {
+            personLabel=CAR;
+        }
+
+        if (filterPeopleForViaDemo.get(personLabel).size()<maxPeopleForViaDemo.get(personLabel) || filterPeopleForViaDemo.get(personLabel).contains(person)){
+            filterPeopleForViaDemo.get(personLabel).add(person);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     @Override
     public void handleEvent(final Event event) {
+
+        // select 500 agents for sf-light demo in via
+        if (outFileName.contains("sf-light")){
+            String person=event.getAttributes().get("person");
+            String vehicle=event.getAttributes().get("vehicle");
+
+            if (person!=null){
+                if (!addPersonToEventsFile(person)) return;
+            } else {
+                if (!addPersonToEventsFile(vehicle)) return;
+            }
+
+
+        }
+
         try {
             this.out.append("\t<event ");
             Map<String, String> attr = event.getAttributes();
