@@ -36,6 +36,8 @@ import java.util.List;
  */
 public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
+    private static final int SECONDS_IN_MINUTE=60;
+    private static final int SECONDS_IN_HOUR=3600;
     public static final List<Color> colors = new ArrayList<>();
 
     public static final String CAR = "car";
@@ -148,7 +150,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
                 if(personDepartureEvent != null) {
                     int basketHour = getEventHour(personDepartureEvent.getTime());
 
-                    Double travelTime = personArrivalEvent.getTime() - personDepartureEvent.getTime();
+                    Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime())/SECONDS_IN_MINUTE;
 
                     Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
                     if(hourlyPersonTravelTimesPerMode == null) {
@@ -308,7 +310,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
     private int getEventHour(double time){
 
-        return (int)time/3600;
+        return (int)time/SECONDS_IN_HOUR;
     }
 
     private CategoryDataset buildModesFrequencyDataset(){
@@ -829,7 +831,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
         int bucketSize = getBucketSize();
         if(graphName.equalsIgnoreCase("car") || graphName.equalsIgnoreCase("tnc")) {
-            return "p" + i;
+            return Integer.toString(i);
         }else{
             if(i == 0){
                 return "0";
