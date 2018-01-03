@@ -1,4 +1,6 @@
 
+.. _developers-guide:
+
 Developer's Guide
 =================
 
@@ -9,37 +11,23 @@ Repositories
 ^^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
-The convention for merging into the master branch is that the three main model components (AgentSim, PhysSim, Router) need to be functional and the overall model must be able to run. In addition, all classes should compile and all tests should pass. The BEAM project managers will be responsible for merging between master and the three main components (see below). Pull requests will be the mechanism to notify the project managers.
+The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to creat pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull requst. 
 
-The three componenet branches (agentsim, physsim, router) are for gradual development of new features. Commits to these branches should also be functional in the sense that they don't interfere with other team members working on the same component. 
+Please use the following naming convention for feature branches, "<initials-or-username>/<descriptive-feature-branch-name>". Adding the issue number is also helpful, e.g.:
 
-+ master
-    + agentsim
-        + agentsim-new-feature-1 
-        + agentsim-new-feature-2
-    + physsim
-    + router
-        + router-new-feature
+cjrs/issue112-update-docs
 
-An example workflow for contributing a new feature to the router branch might look like this:
+An example workflow for contributing a new feature beam might look like this:
 
-+ create a new branch off of the router (e.g. router-new-feature)
-+ work in router-new-feature
++ create a new branch off of master (e.g. cjrs/issue112-update-docs)
++ push and create a pull request right away
++ work in cjrs/issue112-update-docs
 + get it to compile, pass tests
-+ merge back into router
-+ create pull request
++ request reviews from pull request
++ after reviews and any subsequent iterations, merge into master and close pull request
++ delete feature branch unless continued work to happy imminently on same feature branch
 
-
-The pev-only and pev-only-calibration branches hold a previous version of BEAM (v1.X) which is inconpatible with master but is still used for modeling and analysis work.
-
-The following branches are deprecated and will be deleted in the near future, please do not commit to these:
-
-  akka 
-  calibration 
-  development 
-  sangjae 
-  akka-router-parallization 
-
+The pev-only and related feature branches hold a previous version of BEAM (v0.1.X) which is incompatible with master but is still used for modeling and analysis work.
 
 Configuration
 ^^^^^^^^^^^^^
@@ -63,30 +51,31 @@ This will generate a new class `src/main/scala/beam/metasim/config/BeamConfig.sc
 Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^
 
-Depending on from where you want to run the BEAM application and from where you want to run gradle tasks, the specific place where you set these variables will differ. To run from the command line, add these statements to your .bash_profile file::
+BEAM supports using an environment variable to optionally specify a directory to write outputs. This is not required.
 
-  export BEAM_SHARED_INPUTS=/path/to/beam-developers/`
-  export BEAM_OUTPUTS=/path/to/your/preferred/output/destination/`
+Depending on your operating system, the manner in which you want to run the BEAM application or gradle tasks, the specific place where you set these variables will differ. To run from the command line, add these statements to your .bash_profile file::
+
+  export BEAM_OUTPUT=/path/to/your/preferred/output/destination/`
 
 To run from IntelliJ as an "Application", edit the "Environment Variables" field in your Run Configuration to look like this::
 
-  BEAM_OUTPUTS="/path/to/your/preferred/output/destination/";BEAM_SHARED_INPUTS="/path/to/beam-developers/"
+  BEAM_OUTPUT="/path/to/your/preferred/output/destination/"
 
 Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure you variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
 
-File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUTS.plist`::
+File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
     <plist version="1.0">
       <dict>
         <key>Label</key>
-        <string>setenv.BEAM_OUTPUTS</string>
+        <string>setenv.BEAM_OUTPUT</string>
         <key>ProgramArguments</key>
         <array>
           <string>/bin/launchctl</string>
           <string>setenv</string>
-          <string>BEAM_OUTPUTS</string>
+          <string>BEAM_OUTPUT</string>
           <string>/path/to/your/preferred/output/destination/</string>
         </array>
         <key>RunAtLoad</key>
@@ -96,85 +85,3 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUTS.plist`::
       </dict>
     </plist>
 
-File: :code:`~/Library/LaunchAgents/setenv.BEAM_SHARED_INPUTS.plist`::
-
-    <?xml version="1.0" encoding="UTF-8"?>
-    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-    <plist version="1.0">
-      <dict>
-        <key>Label</key>
-        <string>setenv.BEAM_SHARED_INPUTS</string>
-        <key>ProgramArguments</key>
-        <array>
-          <string>/bin/launchctl</string>
-          <string>setenv</string>
-          <string>BEAM_SHARED_INPUTS</string>
-          <string>/path/to/beam-developers/</string>
-        </array>
-        <key>RunAtLoad</key>
-        <true/>
-        <key>ServiceIPC</key>
-        <false/>
-      </dict>
-    </plist>
-
-Deploying on NERSC
-^^^^^^^^^^^^^^^^^^
-
-Note, the following assumes you have configured your NERSC account to use bash as your default shell. To configure this go to the [NERSC NIM site](https://nim.nersc.gov/) and "Actions" -> "Change Shell".
-
-Log into system::
-
-    ssh <user>@cori.nersc.gov
-
-Configure your bash environment if you haven't already done so. Add an environment variable to your bash profile by opening ~/.bash_profile.ext and adding these lines::
-
-    export DIR=/project/projectdirs/m1927
-    export BEAMLIB=/project/projectdirs/m1927/beam/beamlib
-
-The first gives you a handy way to jump into our project directory (e.g. "cd $DIR") the second is what gradle will use to find the matsim static jar file. 
-Go to shared project directory::
-
-    cp /project/projectdirs/m1927/beam/
-
-Build and deploy model if necessary (if new changes have occurred)::
-
-    ./build-beam.sh
-
-Submit job to batch schedule::
-
-    cd batch
-    sbatch sf-bay.sl
-
-Monitor job::
-
-    sqs
-
-Setting up in Eclipse
-^^^^^^^^^^^^^^^^^^^^^
-
-Setup Matsim as a Dependency:
-
-* Eclipse -> New Project -> Import Projects from Git
-* Clone URI: git@github.com:colinsheppard/matsim.git
-* Host: github.com
-* Authenticate 
-* Folder: e.g. C:\Users\Admin\git\matsim
-* Then import just the "matsim" and "examples" subfolders as two independent projects
-* Finally add "matsim-examples" as a project dependency to "matsim"
-
-Pulling code from github:
-
-* Eclipse -> New Project -> Import Projects from Git
-* Clone URI: git@github.com:colinsheppard/beam.git 
-* Host: github.com
-* Authenticate 
-* Folder: e.g. C:\Users\Admin\git\beam
-* Import as generic project
-* Add "matsim" as a project dependency to "beam"
-
-Create gradle project:
-
-* Import -> gradle project
-* Project root: C:\Users\Admin\git\beam\
-    

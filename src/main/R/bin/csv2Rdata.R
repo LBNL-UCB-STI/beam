@@ -1,7 +1,9 @@
 #!/usr/local/bin/Rscript
 ##############################################################################################################################################
-# Script to convert CSV files to an R data table and then save as Rdata 
+# Script to convert CSV files to an R data table and then save as Rdata. This is intended to be run from the project root directory.
 ##############################################################################################################################################
+#setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
+source('./src/main/R/beam-utilities.R')
 
 ##############################################################################################################################################
 # LOAD LIBRARIES NEED BY THIS SCRIPT
@@ -30,8 +32,5 @@ for(file.path in args$args){
     the.file <- path
     the.dir <- './'
   }
-  the.file.rdata <- pp(head(str_split(the.file,'csv')[[1]],-1),'Rdata')
-
-  df <- data.table(read.csv(file.path))
-  save(df,file=pp(the.dir,the.file.rdata))
+  df <- csv2rdata(the.file)
 }
