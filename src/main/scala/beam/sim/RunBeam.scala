@@ -57,12 +57,9 @@ trait RunBeam {
     })
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
-    val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
     val config = configFileName match {
       case Some(fileName) if Files.exists(Paths.get(fileName)) =>
         ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve()
-      case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
-        ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile).resolve()
       case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
         ConfigFactory.parseResources(fileName).resolve()
       case _ =>
