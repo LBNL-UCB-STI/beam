@@ -6,7 +6,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
+import beam.physsim.jdeqsim.{AgentSimToPhysSimPlanConverter, CreateGraphsFromAgentSimEvents, ExpectedMaxUtilityHeatMap}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import com.conveyal.r5.transit.TransportNetwork
@@ -32,6 +32,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  private var createGraphsFromEvents: CreateGraphsFromAgentSimEvents = _;
+  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
+
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
@@ -50,15 +53,27 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(eventsManager, transportNetwork, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.beamRouter)
 
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
     actorSystem.log.info(s"Loaded ${beamServices.persons.size} people in ${beamServices.households.size} households with ${beamServices.vehicles.size} vehicles")
+    agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
+      eventsManager,
+      transportNetwork,
+      event.getServices.getControlerIO,
+      scenario,
+      beamServices.geo,
+      beamServices.beamRouter,
+      beamServices.beamConfig.beam.outputs.writeEventsInterval)
+
+    createGraphsFromEvents = new CreateGraphsFromAgentSimEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+
+    expectedDisutilityHeatMapDataCollector=new ExpectedMaxUtilityHeatMap(eventsManager,scenario.getNetwork,event.getServices.getControlerIO,beamServices.beamConfig.beam.outputs.writeEventsInterval)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     agentSimToPhysSimPlanConverter.startPhysSim(event)
+    createGraphsFromEvents.createGraphs(event);
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {

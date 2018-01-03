@@ -2,20 +2,19 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.physsim.viz.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
+import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
+import org.matsim.api.core.v01.events.ActivityEndEvent;
+import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
-import org.matsim.api.core.v01.population.Activity;
-import org.matsim.api.core.v01.population.Leg;
-import org.matsim.api.core.v01.population.Person;
-import org.matsim.api.core.v01.population.Plan;
-import org.matsim.api.core.v01.population.Population;
-import org.matsim.api.core.v01.population.PopulationWriter;
-import org.matsim.api.core.v01.population.Route;
+import org.matsim.api.core.v01.network.Network;
+import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
@@ -23,6 +22,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
+import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.scenario.MutableScenario;
@@ -31,7 +31,9 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -53,11 +55,24 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager, TransportNetwork transportNetwork, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef router) {
+    private Integer writeEventsInterval;
+    private HashMap<String,String> previousActivity = new HashMap<>();
+
+    public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
+                                          TransportNetwork transportNetwork,
+                                          OutputDirectoryHierarchy controlerIO,
+                                          Scenario scenario,
+                                          GeoUtils geoUtils,
+                                          ActorRef router,
+                                          Integer writeEventsInterval) {
+
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
         this.router = router;
         agentSimScenario = scenario;
+
+        this.writeEventsInterval = writeEventsInterval;
+
 
         if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
@@ -77,7 +92,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     }
 
-    private void initializeActorsAndRunPhysSim() {
+    public void setupActorsAndRunPhysSim(int iterationNumber) {
         MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(ConfigUtils.createConfig());
         jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
@@ -85,13 +100,37 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
 
+
+        EventWriterXML_viaCompatible eventsWriterXML=null;
+        if (writePhysSimEvents(iterationNumber)) {
+            createNetworkFile(jdeqSimScenario.getNetwork());
+            eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"));
+            jdeqsimEvents.addHandler(eventsWriterXML);
+        }
+
         JDEQSimulation jdeqSimulation = new JDEQSimulation(agentSimScenario.getConfig().jdeqSim(), jdeqSimScenario, jdeqsimEvents);
         jdeqSimulation.run();
+
+        if (writePhysSimEvents(iterationNumber)){
+            eventsWriterXML.closeFile();
+        }
+
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
 
+    private boolean writePhysSimEvents(int iterationNumber) {
+        return writeEventsInterval == 1 || (writeEventsInterval > 0 && iterationNumber / writeEventsInterval == 0);
+    }
+
+    private void createNetworkFile(Network network) {
+        String physSimNetworkFilePath = controlerIO.getOutputFilename("physSimNetwork.xml.gz");
+        if (!(new File(physSimNetworkFilePath)).exists()) {
+            NetworkUtils.writeNetwork(network, physSimNetworkFilePath);
+        }
+    }
+
     private void writePhyssimPlans(IterationEndsEvent event) {
-        String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsim-plans.xml");
+        String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsim-plans.xml.gz");
         new PopulationWriter(jdeqsimPopulation).write(plansFilename);
     }
 
@@ -102,7 +141,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             agentSimPhysSimInterfaceDebugger.handleEvent(event);
         }
 
-        if (event instanceof PathTraversalEvent) {
+        if (event instanceof ActivityStartEvent) {
+            ActivityStartEvent activityStartEvent = ((ActivityStartEvent) event);
+            previousActivity.put(activityStartEvent.getPersonId().toString(),activityStartEvent.getActType());
+        } else if (event instanceof ActivityEndEvent) {
+            ActivityEndEvent activityEndEvent = ((ActivityEndEvent) event);
+            previousActivity.put(activityEndEvent.getPersonId().toString(),activityEndEvent.getActType());
+        }else if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             String mode = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
 
@@ -111,6 +156,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 String links = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
                 double departureTime = Double.parseDouble(pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
                 String vehicleId = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+                String vehicleType = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);
                 initializePersonAndPlanIfNeeded(personId);
@@ -124,7 +170,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     return; // dont't process leg further, if empty
                 }
 
-                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
+                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(personId.toString()), leg.getRoute().getStartLinkId());
                 previousActivity.setEndTime(departureTime);
                 plan.addActivity(previousActivity);
                 plan.addLeg(leg);
@@ -185,9 +231,21 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
-        initializeActorsAndRunPhysSim();
+        setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
+
 
         preparePhysSimForNewIteration();
+    }
+
+
+    private String getPreviousActivityString(String personIdString){
+        String currentActivity=DUMMY_ACTIVITY;
+
+        if (previousActivity.containsKey(personIdString)){
+            currentActivity=previousActivity.get(personIdString);
+        }
+
+        return currentActivity;
     }
 
     private void createLastActivityOfDayForPopulation() {
@@ -195,9 +253,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             Plan plan = p.getSelectedPlan();
             if (!plan.getPlanElements().isEmpty()) {
                 Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
+                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(p.getId().toString()), leg.getRoute().getEndLinkId()));
             }
         }
     }
+
 }
 
