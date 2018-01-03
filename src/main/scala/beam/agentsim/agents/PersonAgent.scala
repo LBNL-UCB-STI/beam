@@ -490,7 +490,7 @@ class PersonAgent(val beamServices: BeamServices,
   override def postStop(): Unit = {
     val legs = _currentEmbodiedLeg ++: _currentRoute.legs
     if (legs.nonEmpty) {
-      logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
+//      logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
       cancelTrip(legs, _currentVehicle)
     }
     super.postStop()
