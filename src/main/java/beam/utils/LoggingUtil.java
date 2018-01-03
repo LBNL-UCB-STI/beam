@@ -34,9 +34,9 @@ public class LoggingUtil {
         AppenderRef[] refs = new AppenderRef[] { ref };
 
         LoggerConfig loggerConfig = LoggerConfig
-                .createLogger(false, Level.INFO, "programmaticLogger", "true", refs, null, config, null);
+                .createLogger(false, Level.INFO, LoggerConfig.ROOT, "true", refs, null, config, null);
         loggerConfig.addAppender(appender, null, null);
-        config.addLogger("programmaticLogger", loggerConfig);
+        config.addLogger(LoggerConfig.ROOT, loggerConfig);
         ctx.updateLoggers();
     }
 }
