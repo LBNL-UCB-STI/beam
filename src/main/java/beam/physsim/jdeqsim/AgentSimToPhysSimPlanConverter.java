@@ -164,7 +164,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                 // add previous activity and leg to plan
                 Person person=jdeqsimPopulation.getPersons().get(personId);
                 Plan plan=person.getSelectedPlan();
-                Leg leg=createLeg(mode, links, departureTime);
+                Leg leg=createLeg(CAR, links, departureTime);
 
                 if (leg==null){
                     return; // dont't process leg further, if empty
