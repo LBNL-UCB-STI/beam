@@ -6,7 +6,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.physsim.jdeqsim.{AgentSimToPhysSimPlanConverter, CreateGraphsFromEvents, ExpectedMaxUtilityHeatMap}
+import beam.physsim.jdeqsim.{AgentSimToPhysSimPlanConverter, CreateGraphsFromAgentSimEvents, ExpectedMaxUtilityHeatMap}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import com.conveyal.r5.transit.TransportNetwork
@@ -32,7 +32,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var createGraphsFromEvents: CreateGraphsFromEvents = _;
+  private var createGraphsFromEvents: CreateGraphsFromAgentSimEvents = _;
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
 
   override def notifyStartup(event: StartupEvent): Unit = {
@@ -66,7 +66,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamRouter,
       beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-    createGraphsFromEvents = new CreateGraphsFromEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+    createGraphsFromEvents = new CreateGraphsFromAgentSimEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
 
     expectedDisutilityHeatMapDataCollector=new ExpectedMaxUtilityHeatMap(eventsManager,scenario.getNetwork,event.getServices.getControlerIO,beamServices.beamConfig.beam.outputs.writeEventsInterval)
   }
