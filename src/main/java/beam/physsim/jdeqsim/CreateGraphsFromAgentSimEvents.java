@@ -34,7 +34,7 @@ import java.util.List;
 /**
  * @Authors asif and rwaraich.
  */
-public class CreateGraphsFromEvents implements BasicEventHandler {
+public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
     public static final List<Color> colors = new ArrayList<>();
 
@@ -43,7 +43,7 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     public static final String DUMMY_ACTIVITY = "DummyActivity";
     private ActorRef router;
     private OutputDirectoryHierarchy controlerIO;
-    private Logger log = LoggerFactory.getLogger(CreateGraphsFromEvents.class);
+    private Logger log = LoggerFactory.getLogger(CreateGraphsFromAgentSimEvents.class);
     private Scenario jdeqSimScenario;
     private PopulationFactory populationFactory;
     private Scenario agentSimScenario;
@@ -91,10 +91,10 @@ public class CreateGraphsFromEvents implements BasicEventHandler {
     }
 
     // No Arg Constructor
-    public CreateGraphsFromEvents() {  }
+    public CreateGraphsFromAgentSimEvents() {  }
 
     // Constructor
-    public CreateGraphsFromEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
+    public CreateGraphsFromAgentSimEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
         this.registry = registry;
