@@ -198,6 +198,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
     case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
       val response = if(passengerSchedule.isEmpty){
+        log.warning(s"$id received ReservationRequestWithVehicle from ${vehicleIdToReserve} but passengerSchedule is empty")
         ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
       }else{
         handleVehicleReservation(req, vehicleIdToReserve)
