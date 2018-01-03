@@ -34,9 +34,9 @@ public class LoggingUtil {
         AppenderRef[] refs = new AppenderRef[] { ref };
 
         LoggerConfig loggerConfig = LoggerConfig
-                .createLogger(false, Level.INFO, "beam", "true", refs, null, config, null);
+                .createLogger(false, Level.INFO, "", "true", refs, null, config, null);
         loggerConfig.addAppender(appender, Level.INFO, null);
-        config.addLogger("beam", loggerConfig);
+        config.addLogger("", loggerConfig);
         ctx.updateLoggers();
     }
 }
