@@ -841,7 +841,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         } else if (graphName.equalsIgnoreCase("tnc_deadheading_distance")) {
             return "tnc_deadheading_distance.png";
         } else {
-            return graphName + "_passenger_per_trip.png";
+            return "passenger_per_trip_" + graphName + ".png" ;
         }
 
     }
