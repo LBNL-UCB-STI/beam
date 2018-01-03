@@ -1,0 +1,84 @@
+---
+
+title: Transport-Cost-Calibration
+author: Denis
+beamTemplateConfPath: test/input/beamville/beam.conf
+modeChoiceTemplate: test/input/beamville/calibration/modeChoiceParameters.xml.tpl
+
+# base Multinomial Logit (mnl) scenario
+baseScenario:
+    title: mnl-base-scenario
+    params:
+      ### ---- template model params ---####
+      mnl_car_intercept: 0.0
+      mnl_car_cost: -1.0
+      mnl_car_time: -0.0047
+
+      mnl_transit_intercept: 1.0
+      mnl_transit_cost: -1.0
+      mnl_transit_time: -0.0047
+      mnl_transit_transfer: -1.4
+
+      mnl_ride_hailing_intercept: -11.0
+      mnl_ride_hailing_cost: -1.0
+      mnl_ride_hailing_time: -0.0047
+
+      mnl_walk_intercept: -20.0
+      mnl_walk_cost: -1.0
+      mnl_walk_time: -0.0047
+
+      mnl_bike_intercept: 0.0
+      mnl_bike_cost: -1.0
+      mnl_bike_time: -0.0047
+
+      ### ---- template env variables ---####
+
+      EXPERIMENT_MAX_RAM: 2g
+      S3_OUTPUT_PATH_SUFFIX: "beamville"
+      DROP_OUTPUT_ONCOMPLETE: "true"
+
+      ### ---- beam-template.conf param replacement ---####
+      beam.agentsim.tuning.transitCapacity: 0.05
+      beam.agentsim.agents.modalBehaviors.modeChoiceClass: "ModeChoiceMultinomialLogit"
+
+factors:
+  - title: transit
+    levels:
+    - name: LowCost
+      params:
+        mnl_transit_cost: -0.5
+
+    - name: HighCost
+      params:
+        mnl_transit_cost: 0.5
+
+  - title: ridehail
+    levels:
+    - name: LowCost
+      params:
+        mnl_ride_hailing_cost: -1.0
+    - name: HighCost
+      params:
+        mnl_ride_hailing_cost: 1.0
+
+  - title: car
+    levels:
+    - name: LowCost
+      params:
+        mnl_car_cost: -1.0
+    - name: HighCost
+      params:
+       mnl_car_cost: 1.0
+
+#
+#Experiments:
+#      hosts:
+#         host_1:
+#            type: m2.xlarge
+#            numberOfInstances: 2
+#            experiments: []
+#              transit_Base_ridehail_Low2
+#              transit_Base_ridehail_Low3
+#              transit_Base_ridehail_Low4
+#              transit_Base_ridehail_High5
+#

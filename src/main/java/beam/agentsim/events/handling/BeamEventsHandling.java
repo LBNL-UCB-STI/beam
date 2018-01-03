@@ -3,6 +3,8 @@ package beam.agentsim.events.handling;
 import beam.sim.BeamServices;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.controler.corelisteners.EventsHandling;
 import org.matsim.core.controler.events.AfterMobsimEvent;
 import org.matsim.core.controler.events.BeforeMobsimEvent;
@@ -19,30 +21,31 @@ import org.matsim.core.controler.listener.ShutdownListener;
 @Singleton
 public final class BeamEventsHandling implements EventsHandling, BeforeMobsimListener, AfterMobsimListener, IterationEndsListener, ShutdownListener {
     private final BeamServices beamServices;
+    private final EventsManager eventsManager;
+    private final MatsimServices matsimServices;
     private BeamEventsLogger eventsLogger;
 
     @Inject
-    BeamEventsHandling(BeamServices beamServices) {
+    BeamEventsHandling(BeamServices beamServices, MatsimServices matsimServices, EventsManager eventsManager) {
         this.beamServices = beamServices;
+        this.matsimServices = matsimServices;
+        this.eventsManager = eventsManager;
     }
 
     @Override
     public void notifyBeforeMobsim(BeforeMobsimEvent event) {
-        this.eventsLogger = new BeamEventsLogger(beamServices, beamServices.matsimServices().getEvents());
-        beamServices.matsimServices().getEvents().resetHandlers(event.getIteration());
-        // init for event processing of new iteration
-        beamServices.matsimServices().getEvents().initProcessing();
+        this.eventsLogger = new BeamEventsLogger(beamServices, matsimServices, eventsManager);
+        eventsManager.resetHandlers(event.getIteration());
     }
 
 
     @Override
     public void notifyAfterMobsim(AfterMobsimEvent event) {
-        beamServices.matsimServices().getEvents().finishProcessing();
     }
 
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
-        eventsLogger.interationEnds();
+        eventsLogger.iterationEnds();
     }
 
     @Override

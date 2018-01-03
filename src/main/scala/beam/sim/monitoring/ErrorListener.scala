@@ -1,42 +1,42 @@
 package beam.sim.monitoring
 
-import java.util.concurrent.atomic.AtomicLong
-
-import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent
-
-import scala.collection.mutable
 
 /**
   * @author sid.feygin
   *
   */
-class ErrorListener(iter: Int) extends Actor with ActorLogging {
-  private var counter: AtomicLong = new AtomicLong(0)
-  private val nextCounter:AtomicLong = new AtomicLong(1)
-  private var erroredAgents: mutable.Set[ActorRef] = mutable.Set[ActorRef]()
+class ErrorListener() extends Actor with ActorLogging {
+  private var nextCounter = 1
+  private var terminatedPrematurelyEvents: List[BeamAgent.TerminatedPrematurelyEvent] = Nil
 
   override def receive: Receive = {
-    case CurrentState(agentRef: ActorRef, BeamAgent.Uninitialized) =>
-      log.debug(s"Monitoring ${agentRef.path}")
-    case Transition(agentRef: ActorRef, _, BeamAgent.Error) =>
-      erroredAgents += agentRef
-      val i = this.counter.incrementAndGet
-      val n = this.nextCounter.get
-      if (i >= n) if (this.nextCounter.compareAndSet(n, n * 2))
-        {
-          log.error(s"\n\n\t****** Iteration: $iter\t||\tAgents gone to Error: ${n.toString} ********\n")
-        }
-    case Transition(agentRef: ActorRef,_,_)=>
-      //Do nothing
+    case event@BeamAgent.TerminatedPrematurelyEvent(agentRef, reason, maybeTick) =>
+      terminatedPrematurelyEvents ::= event
+      if (terminatedPrematurelyEvents.size >= nextCounter) {
+        nextCounter *= 2
+        log.error(s"\n\n\t****** Agents gone to Error: ${terminatedPrematurelyEvents.size} ********\n${formatErrorReasons()}")
+      }
+    case _ =>
+      ///
   }
 
+  def formatErrorReasons(): String = {
+    def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = event.tick.map(_ / 3600.0).getOrElse(-1.0).toInt
+    terminatedPrematurelyEvents
+      .groupBy( event => event.reason.toString.substring(0,Math.min(event.reason.toString.length-1,65)) )
+      .mapValues( eventsPerReason =>
+        eventsPerReason
+          .groupBy(event => hourOrMinus1(event))
+          .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size))
+      .map{case(msg, cntByHour) => s"$msg:\n\tHour\t${cntByHour.map{ case(hr, cnt) => hr.toString}.mkString("\t")}\n\tCnt \t${cntByHour.map{ case(hr, cnt) => cnt.toString}.mkString("\t")}"}.mkString("\n")
+  }
 
 }
 
 object ErrorListener {
-  def props(iter: Int): Props = {
-    Props(new ErrorListener(iter: Int))
+  def props(): Props = {
+    Props(new ErrorListener())
   }
 }

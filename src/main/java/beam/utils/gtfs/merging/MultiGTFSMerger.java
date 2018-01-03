@@ -43,7 +43,7 @@ public class MultiGTFSMerger {
     private TransitSchedule mergedSchedule;
     private Vehicles mergedVehicles;
 
-    private String outputDir = BEAM_CONFIG.beam().outputs().outputDirectory();
+    private String outputDir = BEAM_CONFIG.beam().outputs().baseOutputDirectory();
     private String initNetId;
 
     public MultiGTFSMerger(String netOutName, String scheduleOutName, String vehiclesOutName) {

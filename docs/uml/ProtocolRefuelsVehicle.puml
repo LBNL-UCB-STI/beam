@@ -1,0 +1,4 @@
+@startuml
+Driver -> Router: RoutingRequest
+Router --> Actor: RoutingResponse
+@enduml
