@@ -8,7 +8,7 @@ import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{DriverHasEmptyPassengerScheduleError, VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -156,6 +156,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         vehicleIdAndRef.driver.get ! CancelReservationWithVehicle(vehiclePersonId)
       }
       stay()
+    case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _) =>
+      stop(Failure(s"Received EndLegTrigger while in state Waiting. 'completedLeg': $completedLeg passenger schedule $passengerSchedule"))
   }
 
   chainedWhen(AnyState) {
@@ -195,11 +197,12 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         resultingState
       }
     case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
-      require(passengerSchedule.schedule.nonEmpty, "Driver needs to init list of stops")
-      //      logDebug(s"Received Reservation(vehicle=$vehicleIdToReserve, boardingLeg=${req.departFrom.startTime},
-      // alighting=${req.arriveAt.startTime}) ")
-
-      val response = handleVehicleReservation(req, vehicleIdToReserve)
+      val response = if(passengerSchedule.isEmpty){
+        log.warning(s"$id received ReservationRequestWithVehicle from ${vehicleIdToReserve} but passengerSchedule is empty")
+        ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
+      }else{
+        handleVehicleReservation(req, vehicleIdToReserve)
+      }
       beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response
       stay()
 

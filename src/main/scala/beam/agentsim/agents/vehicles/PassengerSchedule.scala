@@ -71,6 +71,10 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
     }
   }
 
+  override def toString: String = {
+    schedule.map(keyVal => s"${keyVal._1.toString} -> ${keyVal._2.toString}").mkString("--")
+  }
+
 }
 
 
@@ -82,6 +86,9 @@ case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
 
 class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]]) {
   def isEmpty: Boolean = riders.isEmpty
+  override def toString: String = {
+    s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
+  }
 }
 
 object Manifest {
