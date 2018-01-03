@@ -38,6 +38,8 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
     private static final int SECONDS_IN_MINUTE=60;
     private static final int SECONDS_IN_HOUR=3600;
+    private static final int METERS_IN_KM=1000;
+
     public static final List<Color> colors = new ArrayList<>();
 
     public static final String CAR = "car";
@@ -695,7 +697,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             for (int hour = 0; hour <= maxHour; hour++) {
                 Map<Integer, Double> hourData = data.get(hour);
                 if (hourData != null) {
-                    modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i)/1000;
+                    modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i)/METERS_IN_KM;
                 } else {
                     modeOccurrencePerHour[index] = 0;
                 }
