@@ -18,7 +18,7 @@ import org.scalatest.mockito.MockitoSugar
 class TwoIterationsSpec extends FlatSpec with RunBeam with MockitoSugar {
 
   it should "be able to run for two iterations without exceptions" in {
-    val config = ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve
+    val config = RunBeam.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)

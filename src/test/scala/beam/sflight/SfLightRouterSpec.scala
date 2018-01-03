@@ -14,7 +14,7 @@ import beam.router.RoutingModel.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, RunBeam}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.DateUtils
@@ -38,7 +38,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
   var scenario: Scenario = _
 
   override def beforeAll: Unit = {
-    val config = ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve()
+    val config = RunBeam.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
     val beamConfig = BeamConfig(config)
 
     // Have to mock some things to get the router going
