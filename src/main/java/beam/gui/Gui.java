@@ -431,7 +431,7 @@ public class Gui extends JFrame {
 		txtConfigfilename.setText(configFilename);
 
 		File par = configFile.getParentFile();
-		File outputDir = new File(par, config.getString("matsim.modules.controler.outputDirectory"));
+		File outputDir = new File(par, config.getString("beam.outputs.baseOutputDirectory"));
 		try {
 			txtOutput.setText(outputDir.getCanonicalPath());
 		} catch (IOException e1) {
