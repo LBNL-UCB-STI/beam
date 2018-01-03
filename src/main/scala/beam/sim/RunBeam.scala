@@ -58,12 +58,8 @@ trait RunBeam {
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val config = configFileName match {
-      case Some(fileName) if Files.exists(Paths.get(fileName)) =>
+      case Some(fileName) =>
         ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve()
-      case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
-        ConfigFactory.parseResources(fileName).resolve()
-      case _ =>
-        ConfigFactory.parseResources("beam.conf").resolve()
     }
     runBeamWithConfig(config)
   }
