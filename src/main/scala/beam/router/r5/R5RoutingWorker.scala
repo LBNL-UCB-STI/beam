@@ -93,7 +93,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         profileRequest.accessModes = util.EnumSet.of(accessMode)
         profileRequest.egressModes = util.EnumSet.of(egressMode)
       }
-      return pointToPointQuery.getPlan(profileRequest)
+      return try{
+        pointToPointQuery.getPlan(profileRequest)
+      }catch{
+        case IllegalStateException =>
+          new ProfileResponse
+      }
     }
 
 
