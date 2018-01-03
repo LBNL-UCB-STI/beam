@@ -66,7 +66,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamRouter,
       beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-    createGraphsFromEvents = new CreateGraphsFromEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter, beamServices.beamConfig.beam.outputs.writeEventsInterval)
+    createGraphsFromEvents = new CreateGraphsFromEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
 
     expectedDisutilityHeatMapDataCollector=new ExpectedMaxUtilityHeatMap(eventsManager,scenario.getNetwork,event.getServices.getControlerIO,beamServices.beamConfig.beam.outputs.writeEventsInterval)
   }
