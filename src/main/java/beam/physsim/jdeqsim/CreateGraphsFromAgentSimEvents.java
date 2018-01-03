@@ -354,7 +354,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
-        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, "mode_chosen.png");
+        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, "mode_choice.png");
 
         final JFreeChart chart = ChartFactory.createStackedBarChart(
                 plotTitle , xaxis, yaxis,
@@ -784,7 +784,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         for (int i = 0; i<dataset.getRowCount(); i++) {
 
             Color color = getBarAndLegendColor(i);
-            legendItems.add(new LegendItem(getLegendText(graphName, i), color));
+            //legendItems.add(new LegendItem(getLegendText(graphName, i), color));
             plot.getRenderer().setSeriesPaint(i, color);
         }
         plot.setFixedLegendItems(legendItems);
