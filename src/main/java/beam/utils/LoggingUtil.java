@@ -32,15 +32,8 @@ public class LoggingUtil {
                 .build();
 
         appender.start();
-        config.addAppender(appender);
 
-        AppenderRef ref = AppenderRef.createAppenderRef("BeamFile", null, null);
-        AppenderRef[] refs = new AppenderRef[]{ref};
-
-        LoggerConfig loggerConfig = LoggerConfig
-                .createLogger(false, Level.INFO, "beam", "true", refs, null, config, null);
-        loggerConfig.addAppender(appender, Level.INFO, null);
-        config.addLogger("beam", loggerConfig);
+        config.addLoggerAppender((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger(), appender);
         ctx.updateLoggers();
     }
 
