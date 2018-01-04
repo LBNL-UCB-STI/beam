@@ -66,7 +66,7 @@ public class Gui extends JFrame {
 		txtConfigfilename.setText("");
 		txtConfigfilename.setColumns(10);
 
-		btnStartMatsim = new JButton("Start MATSim");
+		btnStartMatsim = new JButton("Run BEAM");
 		btnStartMatsim.setEnabled(false);
 
 		this.lblWorkDirectory = new JLabel("Filepaths must either be absolute or relative to the location of the config file.");
