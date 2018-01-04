@@ -1,6 +1,5 @@
 package beam.sflight
 
-import java.io.File
 import java.time.ZonedDateTime
 
 import akka.actor.Status.Success
@@ -15,11 +14,11 @@ import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
-import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamServices, RunBeam}
 import beam.utils.DateUtils
-import com.typesafe.config.{ConfigFactory, ConfigParseOptions}
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
@@ -43,9 +42,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
   var scenario: Scenario = _
 
   override def beforeAll: Unit = {
-    val config = ConfigFactory.parseFile(
-      new File("test/input/sf-light/sf-light.conf"),
-      ConfigParseOptions.defaults().setAllowMissing(false)).resolve()
+    val config = RunBeam.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
     val beamConfig = BeamConfig(config)
 
     // Have to mock a lot of things to get the router going
