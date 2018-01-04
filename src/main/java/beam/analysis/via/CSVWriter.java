@@ -1,4 +1,4 @@
-package beam.physsim.jdeqsim;
+package beam.analysis.via;
 
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.utils.io.IOUtils;

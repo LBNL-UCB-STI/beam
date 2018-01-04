@@ -6,7 +6,9 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.physsim.jdeqsim.{AgentSimToPhysSimPlanConverter, CreateGraphsFromAgentSimEvents, ExpectedMaxUtilityHeatMap}
+import beam.analysis.plots.CreateGraphsFromAgentSimEvents
+import beam.analysis.via.ExpectedMaxUtilityHeatMap
+import beam.physsim.jdeqsim.{AgentSimToPhysSimPlanConverter, ExpectedMaxUtilityHeatMap}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import com.conveyal.r5.transit.TransportNetwork

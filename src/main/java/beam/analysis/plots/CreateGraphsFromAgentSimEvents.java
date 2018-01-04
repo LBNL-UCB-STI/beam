@@ -1,4 +1,4 @@
-package beam.physsim.jdeqsim;
+package beam.analysis.plots;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.ModeChoiceEvent;
