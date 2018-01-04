@@ -43,20 +43,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     public static final List<Color> colors = new ArrayList<>();
 
     public static final String CAR = "car";
-    public static final String BUS = "bus";
-    public static final String DUMMY_ACTIVITY = "DummyActivity";
-    private ActorRef router;
     private OutputDirectoryHierarchy controlerIO;
-    private Logger log = LoggerFactory.getLogger(CreateGraphsFromAgentSimEvents.class);
-    private Scenario jdeqSimScenario;
-    private PopulationFactory populationFactory;
-    private Scenario agentSimScenario;
-    private ActorRef registry;
-
-    private ActorRef eventHandlerActorREF;
-    private ActorRef jdeqsimActorREF;
-    private EventsManager eventsManager;
-    private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
 
     private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
@@ -104,12 +91,9 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     }
 
     // Constructor
-    public CreateGraphsFromAgentSimEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario, GeoUtils geoUtils, ActorRef registry, ActorRef router) {
+    public CreateGraphsFromAgentSimEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario) {
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
-        this.registry = registry;
-        this.router = router;
-        agentSimScenario = scenario;
 
         // initialize transit vehicles for fuel energy consumption calculations
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
