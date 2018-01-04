@@ -2,7 +2,6 @@ package beam.gui;
 
 import beam.sim.BeamConfigUtils;
 import beam.sim.RunBeam;
-import com.typesafe.config.ConfigFactory;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.ConfigWriter;
