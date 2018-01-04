@@ -17,7 +17,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/mnl-calibration/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/capacities-4/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
