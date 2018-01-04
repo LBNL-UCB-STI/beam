@@ -34,8 +34,6 @@ Configuration
 
 We use `typesafe config <https://github.com/typesafehub/config>`_ for our configuration parser and we use the `tscfg <https://github.com/carueda/tscfg>`_ utility for generating typesafe container class for our config that we can browse with auto-complete while developing.
 
-To use the configuration class, you need to specify two environment variables. See below for configuring these.
-
 Then you can make a copy of the config template under::
 
   src/main/resources/config-template.conf
@@ -85,3 +83,32 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
       </dict>
     </plist>
 
+Automated Cloud Deployment
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This functionality is available to internal BEAM developers with Amazon Web Services access privileges. Please contact [Colin](mailto:colin.sheppard@lbl.gov) to discuss how you might access this capability or set up your own cloud delpoyment capability.
+
+To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
+
+  gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
+
+The following optional parameters can be specified from command line:
+
+* `beamBranch`: To specify the branch for simulation, master is default branch.
+* `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit.
+* `beamConfigs`: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home.
+* `beamExperiments`: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.
+* `beamBatch`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
+* `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
+
+If not specified at the command line, then default values are assumed for the above optional parameters. These default values are contained in the project [gradle.properties](https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties) file.
+
+To run a mannually specified batch simulation, you can specify multiple configuration files separated by commas::
+
+  gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
+
+To run experiments, you can specify comma-separated experiment files::
+
+  gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
+
+The command will start an ec2 instance based on the provided configurations and run all simulations in serial. To run on separate parallel instances, set `beamBatch` to false. At the end of each simulation, outputs are uploaded to Amazon S3.
