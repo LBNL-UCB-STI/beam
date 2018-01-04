@@ -25,7 +25,7 @@ Download the latest release of BEAM here:
 
 After you unzip the archive, you will see the following files in the top level of the expanded directory::
 
-  BEAM.exe
+  beamgui.jar
   beam.conf
   beamville.conf
   sf-light.conf
@@ -35,17 +35,25 @@ After you unzip the archive, you will see the following files in the top level o
 
 Running BEAM
 ^^^^^^^^^^^^
-`BEAM.exe` is the executable which is run by double-clicking. ---describe what happens here---
+BEAM is most easily run from the provided GUI app. To open, double-click `beamgui.jar`. This app was adapted from the analogous MATSim GUI and works the same way.
 
-`beam.conf` is the configuration file that `BEAM.exe` will run, by deafult it is identical to `beamville.conf`. If you want to run the `sf-light` scenario, then replace `beam.conf` with the contents of `sf-light.conf` by copying over the file. 
+.. image:: _static/figs/beam-gui.png
+
+The app provides a file selector, allowing you to choose which configuration file to run. Choose `input/beamville/beam.conf`. 
+
+Click "Start MATSim". 
+
+You will see output written to the console. Congrats, you're running BEAM!
 
 Scenarios
 ^^^^^^^^^
+We have provided two scenarios for you to explore.
+
 The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
 
 .. image:: _static/figs/beamville-net.png
 
-The `sf-light` scenario includes the City of San Francisco road network, the SF Muni public transit service, and a sample population of ~3,000 agents.
+The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 500 to 25,000 agents.
 
 .. image:: _static/figs/sf-light.png
 
@@ -87,8 +95,6 @@ Model Config
 
 To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam.
 
-Model Config
-^^^^^^^^^^^^
 
 
 
