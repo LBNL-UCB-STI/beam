@@ -4,7 +4,7 @@ User's Guide
 
 Getting Started
 ---------------
-The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled-back population and transportation system. This is the ideal place to familiarize yourself with the basics of configuration a BEAM model run and for doing small scale tests and analysis. 
+The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled population and transportation system. This is the ideal place to familiarize yourself with the basics of configuring and running BEAM as well as doing small scale tests and analysis. 
 
 For more advanced utilization or to contribute to the BEAM project, see the :ref:`developers-guide`.
 
@@ -41,9 +41,13 @@ Running BEAM
 
 Scenarios
 ^^^^^^^^^
-The `beamville` test scenario consists of a tiny 5 x 5 gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.  
+The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
+
+.. image:: _static/figs/beamville-net.png
 
 The `sf-light` scenario includes the City of San Francisco road network, the SF Muni public transit service, and a sample population of ~3,000 agents.
+
+.. image:: _static/figs/sf-light.png
 
 Inputs
 ^^^^^^^
