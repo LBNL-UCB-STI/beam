@@ -3,7 +3,7 @@ package beam.sflight
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamServices, RunBeam}
+import beam.sim.{BeamConfigUtils, BeamServices, RunBeam}
 import beam.utils.FileUtils
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.Event
@@ -20,7 +20,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with RunBeam with Before
 
   "SF Light" must {
     "run without error and at least one person chooses car mode" in {
-      val config = RunBeam.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
+      val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
         .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()

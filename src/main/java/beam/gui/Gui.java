@@ -1,5 +1,7 @@
 package beam.gui;
 
+import beam.sim.BeamConfigUtils;
+import beam.sim.RunBeam;
 import com.typesafe.config.ConfigFactory;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
@@ -419,7 +421,7 @@ public class Gui extends JFrame {
 		String configFilename = configFile.getAbsolutePath();
 
 		try {
-			this.config = ConfigFactory.parseFile(this.configFile).resolve();
+			this.config = BeamConfigUtils.parseFileSubstitutingInputDirectory(this.configFile).resolve();
 		} catch (Exception e) {
 			Gui.this.textStdOut.setText("");
 			Gui.this.textStdOut.append("The configuration file could not be loaded. Error message:\n");
@@ -433,9 +435,9 @@ public class Gui extends JFrame {
 
 		File outputDir = new File(config.getString("beam.outputs.baseOutputDirectory"));
 		try {
-			txtOutput.setText(outputDir.getCanonicalPath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getCanonicalPath());
 		} catch (IOException e1) {
-			txtOutput.setText(outputDir.getAbsolutePath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getAbsolutePath());
 		}
 
 		btnStartMatsim.setEnabled(true);
