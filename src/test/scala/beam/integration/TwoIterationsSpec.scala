@@ -1,12 +1,10 @@
 package beam.integration
 
-import java.io.File
-
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamServices, RunBeam}
+import beam.sim.{BeamConfigUtils, BeamServices, RunBeam}
 import beam.utils.FileUtils
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -18,7 +16,7 @@ import org.scalatest.mockito.MockitoSugar
 class TwoIterationsSpec extends FlatSpec with RunBeam with MockitoSugar {
 
   it should "be able to run for two iterations without exceptions" in {
-    val config = RunBeam.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve
+    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)

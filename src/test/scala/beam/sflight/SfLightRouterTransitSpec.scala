@@ -16,7 +16,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamServices, RunBeam}
+import beam.sim.{BeamConfigUtils, BeamServices}
 import beam.utils.DateUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -42,7 +42,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
   var scenario: Scenario = _
 
   override def beforeAll: Unit = {
-    val config = RunBeam.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
+    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
     val beamConfig = BeamConfig(config)
 
     // Have to mock a lot of things to get the router going

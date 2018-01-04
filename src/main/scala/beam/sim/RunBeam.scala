@@ -1,7 +1,5 @@
 package beam.sim
 
-import java.nio.file.Paths
-
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -10,7 +8,6 @@ import beam.utils.FileUtils
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
-import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -59,7 +56,7 @@ trait RunBeam {
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val config = configFileName match {
       case Some(fileName) =>
-        RunBeam.parseFileSubstitutingInputDirectory(fileName)
+        BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName)
     }
     runBeamWithConfig(config)
   }
@@ -90,7 +87,7 @@ trait RunBeam {
     beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
 
     beamServices.controler.run()
-matsimConfig
+    matsimConfig
   }
 }
 
@@ -112,12 +109,6 @@ object RunBeam extends RunBeam with App{
       //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
       case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
     }.toMap
-  }
-
-  def parseFileSubstitutingInputDirectory(fileName: String) = {
-    ConfigFactory.parseFile(Paths.get(fileName).toFile)
-      .withFallback(ConfigFactory.parseMap(Map("beam.inputDirectory" -> Paths.get(fileName).getParent.toAbsolutePath.toString).asJava))
-      .resolve
   }
 
   val argsMap = parseArgs()
