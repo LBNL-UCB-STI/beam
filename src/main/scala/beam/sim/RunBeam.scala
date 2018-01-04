@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
 
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.router.r5.NetworkCoordinator
@@ -58,12 +58,8 @@ trait RunBeam {
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val config = configFileName match {
-      case Some(fileName) if Files.exists(Paths.get(fileName)) =>
-        ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve()
-      case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
-        ConfigFactory.parseResources(fileName).resolve()
-      case _ =>
-        ConfigFactory.parseResources("beam.conf").resolve()
+      case Some(fileName) =>
+        RunBeam.parseFileSubstitutingInputDirectory(fileName)
     }
     runBeamWithConfig(config)
   }
@@ -116,6 +112,12 @@ object RunBeam extends RunBeam with App{
       //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
       case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
     }.toMap
+  }
+
+  def parseFileSubstitutingInputDirectory(fileName: String) = {
+    ConfigFactory.parseFile(Paths.get(fileName).toFile)
+      .withFallback(ConfigFactory.parseMap(Map("beam.inputDirectory" -> Paths.get(fileName).getParent.toAbsolutePath.toString).asJava))
+      .resolve
   }
 
   val argsMap = parseArgs()

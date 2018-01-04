@@ -43,6 +43,7 @@ class Population(val beamServices: BeamServices, val transportNetwork: Transport
 
 
     val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, personId, personToHouseholdId(personId), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
+    context.watch(personRef)
     val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
     newBodyVehicle.registerResource(personRef)
     beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
@@ -50,14 +51,16 @@ class Population(val beamServices: BeamServices, val transportNetwork: Transport
     beamServices.personRefs += ((personId, personRef))
   }
 
-  dieIfNoChildren()
-
   override def receive = {
+    case Terminated(_) =>
+      // Do nothing
     case Finish =>
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
-    case Terminated(_) =>
-      dieIfNoChildren()
+      context.become {
+        case Terminated(_) =>
+          dieIfNoChildren()
+      }
   }
 
   def dieIfNoChildren() = {

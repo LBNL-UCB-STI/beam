@@ -95,8 +95,10 @@ import java.util.Arrays;
 		public void run()  {
 			try {
 				if (this.workingDirectory == null) {
+					System.out.println("Pups.");
 					this.p = Runtime.getRuntime().exec(this.cmdArgs);
 				} else {
+					System.out.println(this.workingDirectory);
 					this.p = Runtime.getRuntime().exec(this.cmdArgs, null, new File(this.workingDirectory));
 				}
 				

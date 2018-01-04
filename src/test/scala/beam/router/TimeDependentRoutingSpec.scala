@@ -1,6 +1,5 @@
 package beam.router
 
-import java.io.File
 import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
@@ -9,19 +8,16 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.WALK
-import beam.router.RoutingModel.BeamLegWithNext
 import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator
-import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamServices, RunBeam}
 import beam.utils.DateUtils
-import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
@@ -29,11 +25,10 @@ import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with WordSpecLike with Matchers
+class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", RunBeam.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve())) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _
