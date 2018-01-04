@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
-public class RunBeamExperiments {
+public class RunBeamExperimentsFromFolderInSequence {
 
     public static void main(String[] args){
 
