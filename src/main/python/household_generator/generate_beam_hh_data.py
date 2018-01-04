@@ -147,7 +147,7 @@ def get_random_point_in_polygon(poly):
 
 
 def _combine_and_synthesize():
-    df_comb = dd.read_csv('state_06_puma_*_generated.csv')
+    df_comb = dd.read_csv('state_{}_puma_*_generated.csv'.format(STATE))
     df_next = df_comb[['tract', 'num_people', 'num_vehicles', 'household_id_x', 'serial_number', 'repeat_index']]
     df_next.compute().to_csv('combined_pop.csv')
     df = pd.read_csv('combined_pop.csv')
@@ -155,7 +155,7 @@ def _combine_and_synthesize():
     tract_sd = pd.concat([df['num_people']['std'], df['num_vehicles']['std']], axis=1)
     tract_sd.columns = ['hh_sd', 'car_sd']
 
-    tract_gdf = gpd.read_file("input/tl_2016_06_tract/tl_2016_06_tract.shp")
+    tract_gdf = gpd.read_file("input/tl_2016_{}_tract/tl_2016_{}_tract.shp".format(STATE, STATE))
 
     tract_sd_df = pd.DataFrame(tract_sd)
     tract_sd_df['tract'] = tract_sd_df.index

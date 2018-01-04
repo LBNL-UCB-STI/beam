@@ -33,7 +33,7 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
   private val logger: Logger = LoggerFactory.getLogger(classOf[MatSimBeamConfigBuilder])
 
   def buildMatSamConf() = {
-    val matSimConfig = ConfigUtils.createConfig(Paths.get(beamConf.origin().url().toURI).getParent.toUri.toURL)
+    val matSimConfig = ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))
     val maybeParameterSets = MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].
       collect { case clazz if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>
         try {
@@ -71,7 +71,9 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
                 parameterSet.get("type") match {
                   case Some(paramSetType) =>
                     paramSetClassCache.get(paramSetType.toString).foreach( paramSetClazz => {
-                      val paramSetInstance = paramSetClazz.newInstance()
+                      val c = paramSetClazz.getDeclaredConstructor()
+                      c.setAccessible(true)
+                      val paramSetInstance = c.newInstance()
                       val paramSetProperties = parameterSet.filterNot(_._1 == "type")
                       if (paramSetProperties.nonEmpty) {
                         paramSetProperties.foreach{ case (paramName, paramSetValue) =>

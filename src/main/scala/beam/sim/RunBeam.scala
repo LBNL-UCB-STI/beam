@@ -3,7 +3,6 @@ package beam.sim
 import java.io.{File, FileOutputStream}
 import java.nio.file.{Files, Paths}
 import java.util.Properties
-
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -12,7 +11,6 @@ import beam.utils.{FileUtils, LoggingUtil}
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
-import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -59,20 +57,9 @@ trait RunBeam {
     })
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
-    val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
-    val (config, cfgFile) = configFileName match {
-      case Some(fileName) if Files.exists(Paths.get(fileName)) =>
-        (ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve(),
-        Paths.get(fileName).toUri.getPath)
-      case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
-        (ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile).resolve(),
-        Paths.get(inputDir.get, fileName).toUri.getPath)
-      case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
-        (ConfigFactory.parseResources(fileName).resolve(),
-        getClass.getClassLoader.getResources(fileName).nextElement().getPath)
-      case _ =>
-        (ConfigFactory.parseResources("beam.conf").resolve(),
-        getClass.getClassLoader.getResources("beam.conf").nextElement().getPath)
+    val config = configFileName match {
+      case Some(fileName) =>
+        BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName)
     }
 
     val (_, outputDirectory) = runBeamWithConfig(config)

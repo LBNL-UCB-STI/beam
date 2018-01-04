@@ -9,7 +9,7 @@ BEAM stands for Behavior, Energy, Autonomy, and Mobility. The model is being dev
 
 BEAM is an extension to the MATSim (Multi-Agent Transportation Simulation) model, where agents employ reinforcement learning across successive simulated days to maximize their personal utility through plan mutation (exploration) and selecting between previously executed plans (exploitation). The BEAM model shifts some of the behavioral emphasis in MATSim from across-day planning to within-day planning, where agents dynamically respond to the state of the system during the mobility simulation. In BEAM, agents can plan across all major modes of travel including driving, walking, biking, transit, and transportation network companies (TNCs).
 
-Key Features:
+These key features are summarized here and described in further detail below:
 
 * **MATSim Integration** BEAM leverages the MATSim modeling framework[1], an open source simulation tool with a vibrant community of global developers. MATSim is extensible (BEAM is one of those extensions) which allows modelers to utilize a large suite of tools and plug-ins to serve their research and analytical interests.
 
@@ -22,6 +22,62 @@ Key Features:
 
 * **Designed for Scale** BEAM is written primarily in Scala and leverages the [Akka](https://akka.io/) library for currenency which implements the [Actor Model of Computation](https://en.wikipedia.org/wiki/Actor_model). This approach simplifies the process of deploying transportation simulations at full scale and utilizing high performance computing resources. BEAM has been designed to integrate with Amazone Web Services including a framework to automatically deploy simulation runs to the cloud. 
 
+MATSim Integration
+------------------
+
+[MATSim](http://www.matsim.org/) is a well established agent-based transportation simulation framework with hundreds of users and developers worldwide. BEAM leverages much of the overall structure and conventions of MATSim, but replaces several facilities with new software. The most important of these are the Mobility Simulation and Router. 
+
+BeamMobSim
+^^^^^^^^^^
+When BEAM is executed, the MATSim engine manages loading of most data (population, households, vehicles, and the network used by PhysSim) as well as executing the MobSim -> Scoring -> Replanning iterative loop. BEAM takes over the MobSim, replacing the legacy MobSim engines (i.e. QSim) with the the BeamMobSim.
+
+.. image:: _static/figs/matsim-loop.png
+
+The BeamMobSim is composed of two simulators, the **AgentSim** and the **PhysSim**. These simulators are related to each other and to the router as illustrated in the following diagram:
+
+.. image:: _static/figs/beam-structure-med.png
+
+AgentSim
+^^^^^^^^
+
+The AgentSim is designed to execute the daily plans of the population, allowing the agents to dynamically resolve how limited transportation resources are allocated (see :ref:`resource-markets`). 
+
+All movements in the AgentSim occur via "teleportation" as discrete events. In other words, given a route and a travel time, an agent simply schedules herself to "arrive" at the destination accordingly. When this occurs, a PathTraversal Event is thrown -- one for each vehilce movement, not necessarily each passenger movement -- which is used by the PhysSim to simulate traffic flow, resolve congestion, and update travel times in the router so that in future iterations, agents will teleport according to travel times that are consistent with network congestion.
+
+PhysSim
+^^^^^^^
+
+The PhysSim simulates traffic in the road network. The underlying simulation engine is based on the JDEQSim from the MATSim framework. As PathTraversalEvents are recieved by the PhysSim, a set of MATSim Plans are created, with one plan for each vehicle in the AgentSim.
+
+R5 Router
+^^^^^^^^^
+
+BEAM uses the [R5 routing engine](https://github.com/conveyal/r5) to accomplish mult-modal routing. Agents from BEAM make request of the router, and the results of the routing calculation are then transformed into objects that are directly usable by the BEAM agents to choose between alternative routes and move throughout the system. 
+
+
+
+MATSim Events
+^^^^^^^^^^^^^
+
+The BeamMobSim adopts the MATSim convention of throwing events that correspond to key moments in the agent's day. The following MATSim events are thrown interally:
+
+* ActivityEndEvent
+* PersonDepartureEvent
+* PersonEntersVehicleEvent
+* PersonLeavesVehicleEvent
+* PersonArrivalEvent
+* ActivityStartEvent
+
+Extensions and modules written to observe the above MATSim events and do analysis can be seemlessly integrated with BEAM. However, extensions that are designed to accomplish "within-day" replanning in MATSim will not be compatible with BEAM. This is because BEAM already does extensive with-in day replanning in a manner that is substantially different from QSim.
+
+In addition, BeamMobSim throws two additional events that correspond to the act of choosing a Mode (`ModeChoiceEvent`) and of vehicle movements through the network (`PathTraversalEvent`). 
+
+Finally, BEAM decouples the AgentSim
+
+.. _resource-markets:
+
+Resource Markets
+----------------
 
 Plug-in Electric Vehicle Modeling with BEAM
 -------------------------------------------
