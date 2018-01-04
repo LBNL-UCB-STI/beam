@@ -63,7 +63,7 @@ trait RunBeam {
     val (config, cfgFile) = configFileName match {
       case Some(fileName) if Files.exists(Paths.get(fileName)) =>
         (ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve(),
-        Paths.get(inputDir.get, fileName).toUri.getPath)
+        Paths.get(fileName).toUri.getPath)
       case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
         (ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile).resolve(),
         Paths.get(inputDir.get, fileName).toUri.getPath)
