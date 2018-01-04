@@ -57,9 +57,9 @@ trait RunBeam {
     })
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
-    val config = configFileName match {
+    val (config, cfgFile) = configFileName match {
       case Some(fileName) =>
-        BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName)
+        (BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName), fileName)
     }
 
     val (_, outputDirectory) = runBeamWithConfig(config)
@@ -68,8 +68,7 @@ trait RunBeam {
     val props = new Properties()
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
     props.setProperty("configFile", cfgFile)
-    val f = new File(String.format("%s/beam.properties", outputDirectory))
-    val out = new FileOutputStream(f)
+    val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
     Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile), Paths.get(outputDirectory, "modeChoiceParameters.xml"))
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))

@@ -14,7 +14,7 @@ import java.io.File;
     File f = getSelectedFile();
     if (f.exists() && getDialogType() == SAVE_DIALOG) {
       String msg = String.format(
-          "<html>“%s” already exists.<br>Do you want to replace it?",
+          "<html>\"%s\" already exists.<br>Do you want to replace it?",
           f.getName());
       int option = JOptionPane.showOptionDialog(this, msg, "Save As", JOptionPane.YES_NO_OPTION,
       		JOptionPane.WARNING_MESSAGE, null, new String[] {"Replace", "Cancel"}, "Cancel");
