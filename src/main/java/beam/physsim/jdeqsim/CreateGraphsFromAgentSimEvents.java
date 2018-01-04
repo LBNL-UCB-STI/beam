@@ -293,24 +293,20 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         modesChosen.add(mode);
 
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
-        if (hourData == null) {
-
-            hourData = new HashMap<>();
-            hourData.put(mode, 1);
-            hourModeFrequency.put(hour, hourData);
-        } else {
-
-            Integer frequency = hourData.get(mode);
-
-            if (frequency == null) {
+        Integer frequency = 1;
+        if (hourData != null) {
+            frequency = hourData.get(mode);
+            if (frequency != null) {
+                frequency++;
+            }else{
                 frequency = 1;
-            } else {
-                frequency = frequency + 1;
             }
-
-            hourData.put(mode, frequency);
-            hourModeFrequency.put(hour, hourData);
+        } else {
+            hourData = new HashMap<>();
         }
+
+        hourData.put(mode, frequency);
+        hourModeFrequency.put(hour, hourData);
     }
 
     private int getEventHour(double time) {
@@ -841,7 +837,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         } else if (graphName.equalsIgnoreCase("tnc_deadheading_distance")) {
             return "tnc_deadheading_distance.png";
         } else {
-            return graphName + "_passenger_per_trip.png";
+            return "passenger_per_trip_" + graphName + ".png" ;
         }
 
     }
