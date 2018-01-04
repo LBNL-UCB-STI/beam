@@ -10,6 +10,10 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
 public class LoggingUtil {
     public static void createFileLogger(String outputDirectory) {
         LoggerContext  ctx = (LoggerContext) LogManager.getContext(false);
@@ -34,9 +38,23 @@ public class LoggingUtil {
         AppenderRef[] refs = new AppenderRef[] { ref };
 
         LoggerConfig loggerConfig = LoggerConfig
-                .createLogger(false, Level.INFO, "", "true", refs, null, config, null);
+                .createLogger(false, Level.INFO, "beam", "true", refs, null, config, null);
         loggerConfig.addAppender(appender, Level.INFO, null);
-        config.addLogger("", loggerConfig);
+        config.addLogger("beam", loggerConfig);
         ctx.updateLoggers();
+    }
+
+    public static String getCommitHash() {
+        Runtime runtime = Runtime.getRuntime();
+        try {
+            Process process = runtime.exec("git rev-parse HEAD");
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream())
+            )) {
+                return reader.readLine();
+            }
+        } catch(IOException e) {
+            return "HEAD";
+        }
     }
 }

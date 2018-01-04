@@ -1,6 +1,8 @@
 package beam.sim
 
+import java.io.{File, FileOutputStream}
 import java.nio.file.{Files, Paths}
+import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.router.r5.NetworkCoordinator
@@ -58,20 +60,35 @@ trait RunBeam {
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val inputDir = sys.env.get("BEAM_SHARED_INPUTS")
-    val config = configFileName match {
+    val (config, cfgFile) = configFileName match {
       case Some(fileName) if Files.exists(Paths.get(fileName)) =>
-        ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve()
+        (ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve(),
+        Paths.get(inputDir.get, fileName).toUri.getPath)
       case Some(fileName) if inputDir.isDefined && Files.exists(Paths.get(inputDir.get, fileName)) =>
-        ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile).resolve()
+        (ConfigFactory.parseFile(Paths.get(inputDir.get, fileName).toFile).resolve(),
+        Paths.get(inputDir.get, fileName).toUri.getPath)
       case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
-        ConfigFactory.parseResources(fileName).resolve()
+        (ConfigFactory.parseResources(fileName).resolve(),
+        getClass.getClassLoader.getResources(fileName).nextElement().getPath)
       case _ =>
-        ConfigFactory.parseResources("beam.conf").resolve()
+        (ConfigFactory.parseResources("beam.conf").resolve(),
+        getClass.getClassLoader.getResources("beam.conf").nextElement().getPath)
     }
-    runBeamWithConfig(config)
+
+    val (_, outputDirectory) = runBeamWithConfig(config)
+    val beamConfig = BeamConfig(config)
+
+    val props = new Properties()
+    props.setProperty("commitHash", LoggingUtil.getCommitHash)
+    props.setProperty("configFile", cfgFile.)
+    val f = new File(String.format("%s/beam.properties", outputDirectory))
+    val out = new FileOutputStream(f)
+    props.store(out, "Simulation out put props.")
+    Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile), Paths.get(outputDirectory, "modeChoiceParameters.xml"))
+    Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
   }
 
-  def runBeamWithConfig(config: com.typesafe.config.Config): Config = {
+  def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
 
@@ -80,7 +97,6 @@ trait RunBeam {
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
     val outputDirectory = FileUtils.getConfigOutputFile(beamConfig.beam.outputs.baseOutputDirectory, beamConfig.beam.agentsim.simulationName, beamConfig.beam.outputs.addTimestampToOutputDirectory)
-//    createFileLogger(outputDirectory)
     LoggingUtil.createFileLogger(outputDirectory)
     matsimConfig.controler.setOutputDirectory(outputDirectory)
 
@@ -100,41 +116,7 @@ trait RunBeam {
     beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
 
     beamServices.controler.run()
-    matsimConfig
-  }
-
-  def createFileLogger(outputDirectory: String) = {
-
-//    import org.apache.logging.log4j.core.LoggerContext
-//    import org.apache.logging.log4j.core.config.Configuration
-//    import org.apache.logging.log4j.LogManager
-//    import org.apache.logging.log4j.core.appender.FileAppender
-//    import org.apache.logging.log4j.core.layout.PatternLayout
-//
-//
-//    val config:Configuration = (LogManager.getContext(false).asInstanceOf[LoggerContext]).getConfiguration
-//
-//    val layout = PatternLayout.newBuilder.withConfiguration(config).withPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n").build
-//
-//    val appender = (FileAppender.newBuilder.asInstanceOf[FileAppender.Builder]).setConfiguration(config).withName("BeamFile").withLayout(layout).withFileName(s"${outputDirectory}/beam.log").build
-//
-//    appender.start
-//    config.addAppender(appender)
-//
-//
-//    val context = LogManager.getContext(false)
-//    val layout = PatternLayout.newBuilder().withPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n").build()
-//
-//    val appender = FileAppender.newBuilder().withName("BeamFile").withFileName(s"${outputDirectory}/beam.log").withLayout(layout).build()
-//    val appRef = AppenderRef.createAppenderRef("BeamFile", Level.INFO, null)
-
-
-//    val logger = Log.getLogger(classOf[Nothing])
-//    val layout = new SimpleLayout()
-//
-//    val appender = new FileAppender(layout, s"${outputDirectory}/beam.log", false);
-//
-//    logger.addAppender(appender)
+    (matsimConfig, outputDirectory)
   }
 }
 

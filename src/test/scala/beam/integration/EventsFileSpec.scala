@@ -24,7 +24,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   var matsimConfig: org.matsim.core.config.Config = null
 
   override protected def beforeAll(): Unit = {
-    matsimConfig = runBeamWithConfig(config)
+    (matsimConfig, _) = runBeamWithConfig(config)
   }
 
   it should "contain all bus routes" in {
