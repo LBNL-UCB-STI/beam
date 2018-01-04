@@ -435,9 +435,9 @@ public class Gui extends JFrame {
 
 		File outputDir = new File(config.getString("beam.outputs.baseOutputDirectory"));
 		try {
-			txtOutput.setText(outputDir.getCanonicalPath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getCanonicalPath());
 		} catch (IOException e1) {
-			txtOutput.setText(outputDir.getAbsolutePath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getAbsolutePath());
 		}
 
 		btnStartMatsim.setEnabled(true);
