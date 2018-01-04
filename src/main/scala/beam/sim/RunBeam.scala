@@ -1,14 +1,15 @@
 package beam.sim
 
-import java.io.{File, FileOutputStream}
+import java.io.FileOutputStream
 import java.nio.file.{Files, Paths}
 import java.util.Properties
+
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.utils.{FileUtils, LoggingUtil}
 import beam.utils.reflection.ReflectionUtils
+import beam.utils.{FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Scenario

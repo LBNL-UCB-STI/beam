@@ -16,7 +16,7 @@ import java.io.InputStreamReader;
 
 public class LoggingUtil {
     public static void createFileLogger(String outputDirectory) {
-        LoggerContext  ctx = (LoggerContext) LogManager.getContext(false);
+        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
         Configuration config = ctx.getConfiguration();
 
         PatternLayout layout = PatternLayout.newBuilder()
@@ -35,7 +35,7 @@ public class LoggingUtil {
         config.addAppender(appender);
 
         AppenderRef ref = AppenderRef.createAppenderRef("BeamFile", null, null);
-        AppenderRef[] refs = new AppenderRef[] { ref };
+        AppenderRef[] refs = new AppenderRef[]{ref};
 
         LoggerConfig loggerConfig = LoggerConfig
                 .createLogger(false, Level.INFO, "beam", "true", refs, null, config, null);
@@ -53,7 +53,7 @@ public class LoggingUtil {
             )) {
                 return reader.readLine();
             }
-        } catch(IOException e) {
+        } catch (IOException e) {
             return "HEAD";
         }
     }
