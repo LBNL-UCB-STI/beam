@@ -78,6 +78,9 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     int carModeOccurrence = 0;
     int maxPassengersSeenOnGenericCase = 0;
 
+    public static final Integer TNC_MAX_PASSENGERS = 6;
+    public static final Integer CAR_MAX_PASSENGERS = 4;
+
     // Static Initializer
     static {
 
@@ -93,6 +96,8 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
 
     }
+
+
 
     // No Arg Constructor
     public CreateGraphsFromAgentSimEvents() {
@@ -564,7 +569,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             deadHeadingsMap.put(graphName, deadHeadings);
         }
 
-        if (graphName.equalsIgnoreCase("tnc") && _num_passengers == 0) {
+        if (graphName.equalsIgnoreCase("tnc")) {
 
 
             Double length = Double.parseDouble(event.getAttributes().get("length"));
@@ -600,9 +605,9 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
         Integer maxPassengers = null;
         if (graphName.equalsIgnoreCase("car")) {
-            maxPassengers = 4;
+            maxPassengers = CAR_MAX_PASSENGERS;
         } else if (graphName.equalsIgnoreCase("tnc")) {
-            maxPassengers = 6;
+            maxPassengers = TNC_MAX_PASSENGERS;
         } else {
             maxPassengers = maxPassengersSeenOnGenericCase;
         }
@@ -684,11 +689,9 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             maxHour = hours.get(hours.size() - 1);
         }
 
-        Integer maxPassengers = 0;
+        Integer maxPassengers = TNC_MAX_PASSENGERS;
 
-        double dataset[][] = null;
-
-        dataset = new double[maxPassengers + 1][maxHour + 1];
+        double dataset[][] = new double[maxPassengers + 1][maxHour + 1];
 
         for (int i = 0; i <= maxPassengers; i++) {
             double[] modeOccurrencePerHour = new double[maxHour + 1];
@@ -751,14 +754,6 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
             e.printStackTrace();
         }
-
-        try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
-        } catch (IOException e) {
-
-            e.printStackTrace();
-        }
     }
 
     private void createDeadHeadingGraphTnc0(CategoryDataset dataset, int iterationNumber, String graphName) {
@@ -788,21 +783,13 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         for (int i = 0; i < dataset.getRowCount(); i++) {
 
             Color color = getBarAndLegendColor(i);
-            //legendItems.add(new LegendItem(getLegendText(graphName, i), color));
+            legendItems.add(new LegendItem(getLegendText(graphName, i), color));
             plot.getRenderer().setSeriesPaint(i, color);
         }
         plot.setFixedLegendItems(legendItems);
 
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
-        } catch (IOException e) {
-
-            e.printStackTrace();
-        }
-
-        try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
         } catch (IOException e) {
 
             e.printStackTrace();
@@ -815,10 +802,10 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         boolean validCase = false;
 
         if (!graphName.equalsIgnoreCase("walk")) {
-            if (graphName.equalsIgnoreCase("tnc") && numPassengers >= 0 && numPassengers <= 6) {
+            if (graphName.equalsIgnoreCase("tnc") && numPassengers >= 0 && numPassengers <= TNC_MAX_PASSENGERS) {
 
                 validCase = true;
-            } else if (graphName.equalsIgnoreCase("car") && numPassengers >= 0 && numPassengers <= 4) {
+            } else if (graphName.equalsIgnoreCase("car") && numPassengers >= 0 && numPassengers <= CAR_MAX_PASSENGERS) {
                 validCase = true;
             } else {
                 if (maxPassengersSeenOnGenericCase < numPassengers) maxPassengersSeenOnGenericCase = numPassengers;
@@ -832,7 +819,10 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     private String getLegendText(String graphName, int i) {
 
         int bucketSize = getBucketSize();
-        if (graphName.equalsIgnoreCase("car") || graphName.equalsIgnoreCase("tnc")) {
+        if (graphName.equalsIgnoreCase("car")
+                || graphName.equalsIgnoreCase("tnc")
+                || graphName.equalsIgnoreCase("tnc_deadheading_distance")
+        ) {
             return Integer.toString(i);
         } else {
             if (i == 0) {
