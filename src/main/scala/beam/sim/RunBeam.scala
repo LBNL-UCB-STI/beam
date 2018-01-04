@@ -80,7 +80,7 @@ trait RunBeam {
 
     val props = new Properties()
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
-    props.setProperty("configFile", cfgFile.)
+    props.setProperty("configFile", cfgFile)
     val f = new File(String.format("%s/beam.properties", outputDirectory))
     val out = new FileOutputStream(f)
     props.store(out, "Simulation out put props.")
