@@ -219,48 +219,6 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
 test.dependsOn spec
 
 //////////////////////////////////////////////////////////////////////
-// BUNDLING FOR EXECUTION
-//
-// Shadowjar bundles model together into executable jar
-//////////////////////////////////////////////////////////////////////
-
-apply plugin: 'com.github.johnrengelman.shadow'
-
-jar {
-    manifest {
-        attributes "Implementation-Title": project.name,
-                "Implementation-Version": version,
-                "Specification-Vendor": "The BEAM Team",
-                "Implementation-Vendor": "The BEAM Team",
-                'Main-Class': 'beam.sim.RunBeam'
-    }
-}
-
-shadowJar {
-    baseName = 'beam'
-    mainClassName = "beam.sim.RunBeam"
-    classifier = null
-    version = null
-}
-
-task guiShadowJar(type: ShadowJar) {
-    baseName = 'beamgui'
-    mainClassName = "beam.gui.Gui"
-    classifier = null
-    version = null
-    from sourceSets.main.output
-    configurations = [project.configurations.runtime]
-    manifest {
-        attributes "Specification-Vendor": "The BEAM Team",
-                "Implementation-Vendor": "The BEAM Team",
-                'Main-Class': 'beam.gui.Gui'
-    }
-}
-
-assemble.dependsOn shadowJar
-assemble.dependsOn guiShadowJar
-
-//////////////////////////////////////////////////////////////////////
 // Amazon WS task to run beam sim on Lambda
 //////////////////////////////////////////////////////////////////////
 

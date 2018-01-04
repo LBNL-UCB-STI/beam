@@ -33,7 +33,7 @@ class MatSimBeamConfigBuilder(beamConf: Config) {
   private val logger: Logger = LoggerFactory.getLogger(classOf[MatSimBeamConfigBuilder])
 
   def buildMatSamConf() = {
-    val matSimConfig = ConfigUtils.createConfig(Paths.get(beamConf.origin().url().toURI).getParent.toUri.toURL)
+    val matSimConfig = ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))
     val maybeParameterSets = MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].
       collect { case clazz if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>
         try {

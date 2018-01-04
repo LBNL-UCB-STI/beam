@@ -1,7 +1,5 @@
 package beam.sim
 
-import java.nio.file.{Files, Paths}
-
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -10,7 +8,6 @@ import beam.utils.FileUtils
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
-import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -58,12 +55,8 @@ trait RunBeam {
 
   def rumBeamWithConfigFile(configFileName: Option[String]) = {
     val config = configFileName match {
-      case Some(fileName) if Files.exists(Paths.get(fileName)) =>
-        ConfigFactory.parseFile(Paths.get(fileName).toFile).resolve()
-      case Some(fileName) if getClass.getClassLoader.getResources(fileName).hasMoreElements =>
-        ConfigFactory.parseResources(fileName).resolve()
-      case _ =>
-        ConfigFactory.parseResources("beam.conf").resolve()
+      case Some(fileName) =>
+        BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName)
     }
     runBeamWithConfig(config)
   }
@@ -94,7 +87,7 @@ trait RunBeam {
     beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
 
     beamServices.controler.run()
-matsimConfig
+    matsimConfig
   }
 }
 

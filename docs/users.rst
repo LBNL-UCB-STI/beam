@@ -4,7 +4,7 @@ User's Guide
 
 Getting Started
 ---------------
-The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled-back population and transportation system. This is the ideal place to familiarize yourself with the basics of configuration a BEAM model run and for doing small scale tests and analysis. 
+The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled population and transportation system. This is the ideal place to familiarize yourself with the basics of configuring and running BEAM as well as doing small scale tests and analysis. 
 
 For more advanced utilization or to contribute to the BEAM project, see the :ref:`developers-guide`.
 
@@ -25,7 +25,7 @@ Download the latest release of BEAM here:
 
 After you unzip the archive, you will see the following files in the top level of the expanded directory::
 
-  BEAM.exe
+  beamgui.jar
   beam.conf
   beamville.conf
   sf-light.conf
@@ -35,20 +35,35 @@ After you unzip the archive, you will see the following files in the top level o
 
 Running BEAM
 ^^^^^^^^^^^^
-`BEAM.exe` is the executable which is run by double-clicking. ---describe what happens here---
+BEAM is most easily run from the provided GUI app. To open, double-click `beamgui.jar`. This app was adapted from the analogous MATSim GUI and works the same way.
 
-`beam.conf` is the configuration file that `BEAM.exe` will run, by deafult it is identical to `beamville.conf`. If you want to run the `sf-light` scenario, then replace `beam.conf` with the contents of `sf-light.conf` by copying over the file. 
+.. image:: _static/figs/beam-gui.png
+
+The app provides a file selector, allowing you to choose which configuration file to run. Choose `input/beamville/beam.conf`. 
+
+Click "Start MATSim". 
+
+You will see output written to the console. Congrats, you're running BEAM!
 
 Scenarios
 ^^^^^^^^^
-The `beamville` test scenario consists of a tiny 5 x 5 gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.  
+We have provided two scenarios for you to explore.
 
-The `sf-light` scenario includes the City of San Francisco road network, the SF Muni public transit service, and a sample population of ~3,000 agents.
+The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
+
+.. image:: _static/figs/beamville-net.png
+
+The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 500 to 25,000 agents.
+
+.. image:: _static/figs/sf-light.png
 
 Inputs
 ^^^^^^^
 
-BEAM follows the [MATSim convention](http://archive.matsim.org/docs) for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the [R5 requirements](https://github.com/conveyal/r5). The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+
+.. _MATSim convention: http://archive.matsim.org/docs
+.. _R5 requirements: https://github.com/conveyal/r5
 
 * A configuration file (e.g. `beam.conf`)
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
@@ -83,8 +98,6 @@ Model Config
 
 To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam.
 
-Model Config
-^^^^^^^^^^^^
 
 
 
@@ -155,33 +168,3 @@ The ExperimentGenerator will create a sub-folder next to experiment.yml named `r
 Within each run sub-folder you will find the generated BEAM config file (based on beamTemplateConfPath), any files from the template engine (e.g. `modeChoiceParameters.xml`) with all placeholders properly substituted, and a `runBeam.sh` executable which can be used to execute an individual simulation. The outputs of each simulation will appear in the `output` subfolder next to runBeam.sh
 
 
-Automated Cloud Deployment
---------------------------
-
-To run BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
-
-  gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
-
-It can take some parameters from command line, use `-P` to specify the parameter.
-
-* `beamBranch`: To specify the branch for simulation, master is default branch.
-* `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit.
-* `beamConfigs`: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home.
-* `beamExperiments`: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.
-* `beamBatch`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
-* `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
-
-To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can be found in the output log of the command.
-
-To run batch simulation, you can specify the configuration files using parameter like::
-
-  gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
-
-
-To run batch experiments, you can specify the experiment files using parameter like::
-
-  gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
-
-It will start an ec2 instance, using provided configurations and run all simulations in serial. To run all on separate parallel instances, set `beamBatch` to false. At the end of each simulation it uploads the results to s3.
-
-  gradle.properties contains default values for all the parameters.
