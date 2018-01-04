@@ -118,7 +118,21 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     @Override
     public void reset(int iteration) {
 
+        hourModeFrequency.clear();
+        hourModeFuelage.clear();
 
+        deadHeadingsMap.clear();
+        deadHeadingsTnc0Map.clear();
+
+        personLastDepartureEvents.clear();
+
+        hourlyPersonTravelTimes.clear();
+
+        modesChosen.clear();
+        modesFuel.clear();
+
+        carModeOccurrence = 0;
+        maxPassengersSeenOnGenericCase = 0;
     }
 
     @Override
