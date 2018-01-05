@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.analysis.plots.CreateGraphsFromAgentSimEvents
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.physsim.jdeqsim.{AgentSimToPhysSimPlanConverter, ExpectedMaxUtilityHeatMap}
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import com.conveyal.r5.transit.TransportNetwork
@@ -67,7 +67,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamRouter,
       beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-    createGraphsFromEvents = new CreateGraphsFromAgentSimEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
+    createGraphsFromEvents = new CreateGraphsFromAgentSimEvents(eventsManager, event.getServices.getControlerIO, scenario)
 
     expectedDisutilityHeatMapDataCollector=new ExpectedMaxUtilityHeatMap(eventsManager,scenario.getNetwork,event.getServices.getControlerIO,beamServices.beamConfig.beam.outputs.writeEventsInterval)
   }

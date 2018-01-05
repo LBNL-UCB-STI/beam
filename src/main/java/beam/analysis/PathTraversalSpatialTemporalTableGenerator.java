@@ -50,6 +50,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     public static final int DISTANCE_INTERMEDIATE_NON_ROAD_MODE_LINKS_IN_METERS = 1000;
 
 
+
     // based on weight of average noth american (177.9lb), walking speed of 4km/h -> 259.5 J/m
     // sources:
     // https://en.wikipedia.org/wiki/Human_body_weight
@@ -105,6 +106,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     private HashMap<String, Tuple<Coord, Coord>> startAndEndCoordNonRoadModes = new HashMap();
 
+    public static int numberOfLinkIdsMissingInR5NetworkFile=0;
 
     public static void main(String[] args) {
         // String pathToEventsFile = "C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events_part.xml";
@@ -149,7 +151,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         energyConsumptionPerLinkOverTime.printDataToFile(TABLE_OUTPUT_FULL_PATH);
     }
 
-    private static void loadVehicles(String vehiclesFileName) {
+    public static void loadVehicles(String vehiclesFileName) {
         vehicles = VehicleUtils.createVehiclesContainer();
         new VehicleReaderV1(vehicles).readFile(vehiclesFileName);
     }
@@ -252,6 +254,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                 }
             }
             pw.close();
+            System.out.print("numberOfLinkIdsMissingInR5NetworkFile: " + numberOfLinkIdsMissingInR5NetworkFile);
+
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -510,15 +514,27 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         }
     }
 
+    private static R5NetworkLink getR5Link(String linkId){
+        if (r5NetworkLinks.get(linkId)!=null) {
+            return r5NetworkLinks.get(linkId);
+        } else {
+            if (numberOfLinkIdsMissingInR5NetworkFile==0){
+                System.out.println("link(s) missing in r5NetworkLinks file");
+            }
+
+            numberOfLinkIdsMissingInR5NetworkFile++;
+            return new R5NetworkLink("dummy",new Coord(),1.0,null);
+        }
+    }
 
     private double getFuelShareOfLink(String linkIdPartOfPath, LinkedList<String> pathLinkIds, double pathFuelConsumption) {
         double pathLength = CONST_NUM_ZERO;
 
         for (String linkId : pathLinkIds) {
-            pathLength += r5NetworkLinks.get(linkId).lengthInMeters;
+            pathLength += getR5Link(linkId).lengthInMeters;
         }
 
-        return r5NetworkLinks.get(linkIdPartOfPath).lengthInMeters / pathLength * pathFuelConsumption;
+        return getR5Link(linkIdPartOfPath).lengthInMeters / pathLength * pathFuelConsumption;
     }
 
 
