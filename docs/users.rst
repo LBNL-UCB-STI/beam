@@ -81,13 +81,32 @@ At the conclusion of a BEAM run using the default `beamville` scenario, you will
 
 .. image:: _static/figs/beamville-outputs.png
 
+Each iteration of the run produces a sub-folder under the `ITERS` directory. Within these, several automatically generated outputs are written including plots of modal usage, TNC dead heading, and energy consumption by mode. 
+
+In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
+
 Model Config
 ^^^^^^^^^^^^
 
-To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam.
+To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
+  # Ride Hailing Params
+  beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation=0.05
+  beam.agentsim.agents.rideHailing.defaultCostPerMile=1.25
+  beam.agentsim.agents.rideHailing.defaultCostPerMinute=0.75
+  # Scaling and Tuning Params; 1.0 results in no scaling
+  beam.agentsim.tuning.transitCapacity = 0.2
+  beam.agentsim.tuning.transitPrice = 1.0
+  beam.agentsim.tuning.tollPrice = 1.0
+  beam.agentsim.tuning.rideHailPrice = 1.0
 
-
+* numDriversAsFractionOfPopulation - Defines the # of ride hailing drivers to create. Drivers begin the simulation located at or near the homes of existing agents, uniformly distributed.
+* defaultCostPerMile - One component of the 2 part price of ride hail calculation.
+* defaultCostPerMinute - One component of the 2 part price of ride hail calculation.
+* transitCapacity - Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
+* transitPrice - Scale the price of riding on transit. Applies uniformly to all transit trips.
+* tollPrice - Scale the price to cross tolls.
+* rideHailPrice - Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
 
 Experiment Manager
 ------------------
