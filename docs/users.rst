@@ -43,11 +43,11 @@ Click "Run BEAM".
 
 You will see output appear in the console. Congrats, you're running BEAM! 
 
-Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville-%TIMESTAMP%".
+Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
 Scenarios
 ^^^^^^^^^
-We have provided two scenarios for you to explore.
+We have provided two scenarios for you to explore under the `input` directory.
 
 The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
 
