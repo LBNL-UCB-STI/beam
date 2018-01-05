@@ -23,7 +23,7 @@ Installing
 
 Download `BEAM v0.5`_.
 
-.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases
+.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.5.0/beam-gui.zip
 
 After you unzip the archive, you will see a directory that looks like this when partially expanded: 
 
