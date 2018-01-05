@@ -60,7 +60,7 @@ The `sf-light` scenario is based on the City of San Francisco, including the SF 
 Inputs
 ^^^^^^^
 
-BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
 
 .. _MATSim convention: http://archive.matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
@@ -77,21 +77,9 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to ---output location---. The files you should see in this directory are::
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files you in the output sub-folder should look like this when the run is complete:
 
-  modestats.txt
-  scorestats.txt
-  stopwatch.png
-  stopwatch.txt
-  traveldistancestats.txt
-  ITERS/
-    it.0/
-      0.events.csv
-      0.legHistogram.txt
-      0.physsim-plans.xml
-      0.plans.xml.gz
-      0.tripdurations.txt
-      
+.. image:: _static/figs/beamville-outputs.png
 
 Model Config
 ^^^^^^^^^^^^
