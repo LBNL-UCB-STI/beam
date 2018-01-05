@@ -11,7 +11,7 @@ Repositories
 ^^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
-The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to creat pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull requst. 
+The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull request. 
 
 Please use the following naming convention for feature branches, "<initials-or-username>/<descriptive-feature-branch-name>". Adding the issue number is also helpful, e.g.:
 
@@ -86,7 +86,9 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This functionality is available to internal BEAM developers with Amazon Web Services access privileges. Please contact [Colin](mailto:colin.sheppard@lbl.gov) to discuss how you might access this capability or set up your own cloud delpoyment capability.
+This functionality is available to internal BEAM developers with Amazon Web Services access privileges. Please contact Colin_ to discuss how you might access this capability or set up your own cloud deployment capability.
+
+.. _Colin: mailto:colin.sheppard@lbl.gov
 
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
 
@@ -101,9 +103,11 @@ The following optional parameters can be specified from command line:
 * `beamBatch`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
 * `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 
-If not specified at the command line, then default values are assumed for the above optional parameters. These default values are contained in the project [gradle.properties](https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties) file.
+If not specified at the command line, then default values are assumed for the above optional parameters. These default values are contained in the project gradle.properties_ file.
 
-To run a mannually specified batch simulation, you can specify multiple configuration files separated by commas::
+.. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
+
+To run a manually specified batch simulation, you can specify multiple configuration files separated by commas::
 
   gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
 

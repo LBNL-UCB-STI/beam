@@ -21,33 +21,33 @@ System Requirements
 Installing
 ^^^^^^^^^^
 
-Download the latest release of BEAM here:
+Download `BEAM v0.5`_.
 
-After you unzip the archive, you will see the following files in the top level of the expanded directory::
+.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases
 
-  beamgui.jar
-  beam.conf
-  beamville.conf
-  sf-light.conf
-  input/
-    beamville
-    sf-light
+After you unzip the archive, you will see a directory that looks like this when partially expanded: 
+
+.. image:: _static/figs/beam-gui-files.png
+
+For Windows, double click `bin/beam-gui.bat`, on UNIX-like systems, double-click `bin/beam-gui`.
 
 Running BEAM
 ^^^^^^^^^^^^
-BEAM is most easily run from the provided GUI app. To open, double-click `beamgui.jar`. This app was adapted from the analogous MATSim GUI and works the same way.
+The BEAM GUI app is the simplest way to run the model. It looks like this:
 
 .. image:: _static/figs/beam-gui.png
 
-The app provides a file selector, allowing you to choose which configuration file to run. Choose `input/beamville/beam.conf`. 
+Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`. 
 
-Click "Start MATSim". 
+Click "Run BEAM". 
 
-You will see output written to the console. Congrats, you're running BEAM!
+You will see output appear in the console. Congrats, you're running BEAM! 
+
+Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
 Scenarios
 ^^^^^^^^^
-We have provided two scenarios for you to explore.
+We have provided two scenarios for you to explore under the `input` directory.
 
 The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
 
@@ -60,7 +60,10 @@ The `sf-light` scenario is based on the City of San Francisco, including the SF 
 Inputs
 ^^^^^^^
 
-BEAM follows the [MATSim convention](http://archive.matsim.org/docs) for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the [R5 requirements](https://github.com/conveyal/r5). The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+
+.. _MATSim convention: http://archive.matsim.org/docs
+.. _R5 requirements: https://github.com/conveyal/r5
 
 * A configuration file (e.g. `beam.conf`)
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)

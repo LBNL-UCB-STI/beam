@@ -170,7 +170,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     return; // dont't process leg further, if empty
                 }
 
-                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(personId.toString()), leg.getRoute().getStartLinkId());
+                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
                 previousActivity.setEndTime(departureTime);
                 plan.addActivity(previousActivity);
                 plan.addLeg(leg);
@@ -237,23 +237,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         preparePhysSimForNewIteration();
     }
 
-
-    private String getPreviousActivityString(String personIdString){
-        String currentActivity=DUMMY_ACTIVITY;
-
-        if (previousActivity.containsKey(personIdString)){
-            currentActivity=previousActivity.get(personIdString);
-        }
-
-        return currentActivity;
-    }
-
     private void createLastActivityOfDayForPopulation() {
         for (Person p : jdeqsimPopulation.getPersons().values()) {
             Plan plan = p.getSelectedPlan();
             if (!plan.getPlanElements().isEmpty()) {
                 Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(p.getId().toString()), leg.getRoute().getEndLinkId()));
+                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
     }

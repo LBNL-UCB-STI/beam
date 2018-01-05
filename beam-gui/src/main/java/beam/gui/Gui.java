@@ -2,7 +2,6 @@ package beam.gui;
 
 import beam.sim.BeamConfigUtils;
 import beam.sim.RunBeam;
-import com.typesafe.config.ConfigFactory;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.ConfigWriter;
@@ -67,7 +66,7 @@ public class Gui extends JFrame {
 		txtConfigfilename.setText("");
 		txtConfigfilename.setColumns(10);
 
-		btnStartMatsim = new JButton("Start MATSim");
+		btnStartMatsim = new JButton("Run BEAM");
 		btnStartMatsim.setEnabled(false);
 
 		this.lblWorkDirectory = new JLabel("Filepaths must either be absolute or relative to the location of the config file.");
@@ -435,9 +434,9 @@ public class Gui extends JFrame {
 
 		File outputDir = new File(config.getString("beam.outputs.baseOutputDirectory"));
 		try {
-			txtOutput.setText(outputDir.getCanonicalPath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getCanonicalPath());
 		} catch (IOException e1) {
-			txtOutput.setText(outputDir.getAbsolutePath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getAbsolutePath());
 		}
 
 		btnStartMatsim.setEnabled(true);
