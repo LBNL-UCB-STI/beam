@@ -11,3 +11,21 @@ dependencies {
 compileJava.options.encoding = 'UTF-8'
 
 mainClassName = "beam.gui.Gui"
+
+apply plugin: 'distribution'
+
+distributions {
+    main {
+        contents {
+            from('..') {
+                include 'LICENSE', 'README.md'
+            }
+            into('input') {
+                from('../test/input') {
+                    include 'beamville/**', 'sf-light/**'
+                    exclude '**/output/**'
+                }
+            }
+        }
+    }
+}
