@@ -1,20 +1,22 @@
 package beam.utils;
 
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.FileAppender;
-import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 
 public class LoggingUtil {
+    /**
+     * Creates a File based appender to create a log file in output dir
+     * and adds into root logger to pu all the logs into output directory
+     *
+     * @param outputDirectory path of ths output directory
+     */
     public static void createFileLogger(String outputDirectory) {
         LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
         Configuration config = ctx.getConfiguration();
@@ -37,6 +39,11 @@ public class LoggingUtil {
         ctx.updateLoggers();
     }
 
+    /**
+     * Method returns the git commit hash or HEAD if git not present
+     *
+     * @return returns the git commit hash or HEAD if git not present
+     */
     public static String getCommitHash() {
         Runtime runtime = Runtime.getRuntime();
         try {
@@ -46,8 +53,8 @@ public class LoggingUtil {
             )) {
                 return reader.readLine();
             }
-        } catch (IOException e) {
-            return "HEAD";
+        } catch (Exception e) {
+            return "HEAD"; //for the env where git is not present
         }
     }
 }
