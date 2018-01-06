@@ -386,7 +386,7 @@ public class Gui extends JFrame {
 				Gui.this.textStdOut.setText("");
 				Gui.this.textErrOut.setText("");
 				Gui.this.exeRunner = ExeRunner.run(cmdArgs, Gui.this.textStdOut, Gui.this.textErrOut, new File(txtConfigfilename.getText()).getParent());
-				Gui.this.btnStartMatsim.setText("Run BEAM");
+				Gui.this.btnStartMatsim.setText("Stop BEAM");
 				Gui.this.btnStartMatsim.setEnabled(true);
 				int exitcode = exeRunner.waitForFinish();
 				Gui.this.exeRunner = null;
