@@ -93,6 +93,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     f=new File(event.getServices.getControlerIO.getOutputFilename("modestats.png"))
     f.delete()
 
+    f=new File(event.getServices.getControlerIO.getOutputFilename("tmp"))
+    f.delete()
+
     for (i<-0 to 200) {
       f=new File(event.getServices.getControlerIO.getIterationFilename(i,"plans.xml.gz"))
       f.delete()
