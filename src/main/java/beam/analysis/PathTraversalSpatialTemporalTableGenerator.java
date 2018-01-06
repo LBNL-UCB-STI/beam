@@ -42,7 +42,8 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     public static final boolean READ_FROM_CSV = false;
     public static final int MAX_TIME_IN_SECONDS = 3600 * 24;
-    public static final int BIN_SIZE_IN_SECONDS = 3600 * 1;
+    public static final int BIN_SIZE_IN_SECONDS = 3600;
+    public static final boolean USE_TIME_STEMP = true;
     public static final int NUMBER_OF_BINS = MAX_TIME_IN_SECONDS / BIN_SIZE_IN_SECONDS;
     public static final boolean ENABLE_INTERMEDIATE_TRANSIT_LINKS = true;
     public static final double SAMPLE_PERCENTAGE = 1.0;
@@ -223,7 +224,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
                         sb.append(r5Link.linkId);
                         sb.append("\t");
-                        sb.append(i);
+                        sb.append(USE_TIME_STEMP ? i*BIN_SIZE_IN_SECONDS : i);
                         sb.append("\t");
                         sb.append(convertVehicleType(vehicleType));
                         sb.append("\t");

@@ -10,21 +10,21 @@ public class GenerateEnergyInputForVia {
 
     public static void main(String[] args) {
 
-        String r5NetworkPath = "D:\\data\\trb2018\\bayAreaR5NetworkLinksWithCounties2.csv";
+        String r5NetworkPath = "Y:\\trb2018\\bayAreaR5NetworkLinksWithCounties2.csv";
 
         PathTraversalSpatialTemporalTableGenerator.r5NetworkLinks = R5NetworkReader.readR5Network(r5NetworkPath, true);
 
-        PathTraversalSpatialTemporalTableGenerator.loadVehicles("D:\\data\\trb2018\\transitVehicles.xml");
+        PathTraversalSpatialTemporalTableGenerator.loadVehicles("C:\\Users\\NRO_M4700_SSD_02\\IdeaProjects\\beam10\\beam\\test\\input\\sf-light\\transitVehicles.xml");
 
         EventsManager events = EventsUtils.createEventsManager();
 
         PathTraversalSpatialTemporalTableGenerator energyConsumptionPerLinkOverTime = new PathTraversalSpatialTemporalTableGenerator();
 
-        String eventCsvPath = "D:\\data\\trb2018\\base_2018-01-04_19-30-34\\ITERS\\it.0\\0.events.csv";
+        String eventCsvPath = "Y:\\trb2018\\sf-light-1k_2018-01-05_11-28-45\\ITERS\\it.0\\0.events.csv";
 
         PathTraversalEventGenerationFromCsv.generatePathTraversalEventsAndForwardToHandler(eventCsvPath, energyConsumptionPerLinkOverTime);
 
-        energyConsumptionPerLinkOverTime.printDataToFile("D:\\data\\trb2018\\energyConsumption_base_2018-01-04_19-30-34_2.txt");
+        energyConsumptionPerLinkOverTime.printDataToFile("Y:\\trb2018\\energyConsumption_sf-light-1k_2018-01-05_11-28-45.csv");
     }
 
 }
