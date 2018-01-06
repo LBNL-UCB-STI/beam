@@ -103,7 +103,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
         EventWriterXML_viaCompatible eventsWriterXML=null;
         if (writePhysSimEvents(iterationNumber)) {
-            createNetworkFile(jdeqSimScenario.getNetwork());
+          //  createNetworkFile(jdeqSimScenario.getNetwork());
             eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"));
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
@@ -227,12 +227,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
         createLastActivityOfDayForPopulation();
-        writePhyssimPlans(iterationEndsEvent);
+      //  writePhyssimPlans(iterationEndsEvent);
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
-
 
         preparePhysSimForNewIteration();
     }
