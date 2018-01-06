@@ -14,7 +14,7 @@ System Requirements
 * At least 8GB RAM
 * Windows, Mac OSX, Linux
 * Java Runtime Environment 1.8
-* To verify your JRE: https://stackoverflow.com/questions/8472121/which-jre-i-am-using
+* To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
 * We also recommend downloading Senozon VIA and obtaining a Free License: https://via.senozon.com/download
 
