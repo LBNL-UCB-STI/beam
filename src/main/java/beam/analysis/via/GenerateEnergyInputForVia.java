@@ -10,7 +10,7 @@ public class GenerateEnergyInputForVia {
 
     public static void main(String[] args) {
 
-        String r5NetworkPath = "Y:\\trb2018\\bayAreaR5NetworkLinksWithCounties2.csv";
+        String r5NetworkPath = "Y:\\trb2018\\sfLightR5NetworkLinksWithCounties2.csv";
 
         PathTraversalSpatialTemporalTableGenerator.r5NetworkLinks = R5NetworkReader.readR5Network(r5NetworkPath, true);
 
