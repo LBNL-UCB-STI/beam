@@ -132,4 +132,5 @@ object RunBeam extends RunBeam with App {
   val argsMap = parseArgs()
 
   rumBeamWithConfigFile(argsMap.get("config"))
+  print("Exiting BEAM")
 }

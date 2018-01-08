@@ -23,7 +23,7 @@ Installing
 
 Download `BEAM v0.5`_.
 
-.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases
+.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.5.0/beam-gui.zip
 
 After you unzip the archive, you will see a directory that looks like this when partially expanded: 
 
@@ -60,7 +60,7 @@ The `sf-light` scenario is based on the City of San Francisco, including the SF 
 Inputs
 ^^^^^^^
 
-BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
 
 .. _MATSim convention: http://archive.matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
@@ -77,29 +77,36 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to ---output location---. The files you should see in this directory are::
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files you in the output sub-folder should look like this when the run is complete:
 
-  modestats.txt
-  scorestats.txt
-  stopwatch.png
-  stopwatch.txt
-  traveldistancestats.txt
-  ITERS/
-    it.0/
-      0.events.csv
-      0.legHistogram.txt
-      0.physsim-plans.xml
-      0.plans.xml.gz
-      0.tripdurations.txt
-      
+.. image:: _static/figs/beamville-outputs.png
+
+Each iteration of the run produces a sub-folder under the `ITERS` directory. Within these, several automatically generated outputs are written including plots of modal usage, TNC dead heading, and energy consumption by mode. 
+
+In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
 
 Model Config
 ^^^^^^^^^^^^
 
-To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam.
+To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
+  # Ride Hailing Params
+  beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation=0.05
+  beam.agentsim.agents.rideHailing.defaultCostPerMile=1.25
+  beam.agentsim.agents.rideHailing.defaultCostPerMinute=0.75
+  # Scaling and Tuning Params; 1.0 results in no scaling
+  beam.agentsim.tuning.transitCapacity = 0.2
+  beam.agentsim.tuning.transitPrice = 1.0
+  beam.agentsim.tuning.tollPrice = 1.0
+  beam.agentsim.tuning.rideHailPrice = 1.0
 
-
+* numDriversAsFractionOfPopulation - Defines the # of ride hailing drivers to create. Drivers begin the simulation located at or near the homes of existing agents, uniformly distributed.
+* defaultCostPerMile - One component of the 2 part price of ride hail calculation.
+* defaultCostPerMinute - One component of the 2 part price of ride hail calculation.
+* transitCapacity - Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
+* transitPrice - Scale the price of riding on transit. Applies uniformly to all transit trips.
+* tollPrice - Scale the price to cross tolls.
+* rideHailPrice - Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
 
 Experiment Manager
 ------------------

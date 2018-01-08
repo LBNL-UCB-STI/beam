@@ -67,6 +67,8 @@ BEAM uses the `R5 routing engine`_ to accomplish multi-modal routing. Agents fro
 
 .. _R5 routing engine: https://github.com/conveyal/r5
 
+.. _matsim-events:
+
 MATSim Events
 ^^^^^^^^^^^^^
 

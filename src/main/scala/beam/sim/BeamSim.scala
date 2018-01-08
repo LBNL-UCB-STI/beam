@@ -1,5 +1,6 @@
 package beam.sim
 
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Identify}
@@ -77,6 +78,30 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
     Await.result(actorSystem.terminate(), Duration.Inf)
+
+
+    // remove output files which are not ready for release yet (enable again after Jan 2018)
+    var f:File=new File(event.getServices.getControlerIO.getOutputFilename("traveldistancestats.txt"))
+    f.delete()
+
+    f=new File(event.getServices.getControlerIO.getOutputFilename("traveldistancestats.png"))
+    f.delete()
+
+    f=new File(event.getServices.getControlerIO.getOutputFilename("modestats.txt"))
+    f.delete()
+
+    f=new File(event.getServices.getControlerIO.getOutputFilename("modestats.png"))
+    f.delete()
+
+    f=new File(event.getServices.getControlerIO.getOutputFilename("tmp"))
+    f.delete()
+
+    for (i<-0 to 200) {
+      f=new File(event.getServices.getControlerIO.getIterationFilename(i,"plans.xml.gz"))
+      f.delete()
+    }
+    //===========================
+
   }
 
 }
