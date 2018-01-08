@@ -122,5 +122,4 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       time += leg.beamLeg.duration
     })
   }
-
 }
