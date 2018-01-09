@@ -2,12 +2,12 @@ package beam.integration
 
 import java.io.File
 
-import beam.sim.RunBeam
+import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig}
 import com.typesafe.config.Config
 
 class StartWithCustomConfig(val config: Config) extends
-  EventsFileHandlingCommon with IntegrationSpecCommon with RunBeam {
+  EventsFileHandlingCommon with IntegrationSpecCommon with BeamHelper {
 
   val beamConfig = BeamConfig(config)
 

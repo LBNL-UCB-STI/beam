@@ -44,7 +44,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     case InitTransit =>
       val transitSchedule = initTransit()
       routerWorker ! TransitInited(transitSchedule)
-      sender ! Success()
+      sender ! Success("success")
     case updateRequest: UpdateTravelTime =>
       routerWorker.forward(updateRequest)
     case w: RoutingRequest =>

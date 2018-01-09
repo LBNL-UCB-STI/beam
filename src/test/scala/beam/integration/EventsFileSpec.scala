@@ -2,7 +2,7 @@ package beam.integration
 
 import java.io.File
 
-import beam.sim.RunBeam
+import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -12,7 +12,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
   * 
   */
 
-class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with RunBeam with
+class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with
   EventsFileHandlingCommon with IntegrationSpecCommon{
 
   private val config: Config = baseConfig

@@ -9,6 +9,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.sim.BeamAgentSchedulerSpec._
 import beam.sim.config.BeamConfig
+import beam.utils.BeamConfigUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
