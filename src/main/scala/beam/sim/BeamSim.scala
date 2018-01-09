@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.File
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Identify}
@@ -54,7 +54,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
     beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
@@ -68,7 +67,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     createGraphsFromEvents = new CreateGraphsFromAgentSimEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
 
-    expectedDisutilityHeatMapDataCollector=new ExpectedMaxUtilityHeatMap(eventsManager,scenario.getNetwork,event.getServices.getControlerIO,beamServices.beamConfig.beam.outputs.writeEventsInterval)
+    expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -79,31 +78,26 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyShutdown(event: ShutdownEvent): Unit = {
     Await.result(actorSystem.terminate(), Duration.Inf)
 
+    def deleteOutputFile(fileName: String) = {
+      Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
+    }
 
     // remove output files which are not ready for release yet (enable again after Jan 2018)
-    var f:File=new File(event.getServices.getControlerIO.getOutputFilename("traveldistancestats.txt"))
-    f.delete()
+    deleteOutputFile("traveldistancestats.txt")
 
-    f=new File(event.getServices.getControlerIO.getOutputFilename("traveldistancestats.png"))
-    f.delete()
+    deleteOutputFile("traveldistancestats.png")
 
-    f=new File(event.getServices.getControlerIO.getOutputFilename("modestats.txt"))
-    f.delete()
+    deleteOutputFile("modestats.txt")
 
-    f=new File(event.getServices.getControlerIO.getOutputFilename("modestats.png"))
-    f.delete()
+    deleteOutputFile("modestats.png")
 
-    f=new File(event.getServices.getControlerIO.getOutputFilename("tmp"))
-    f.delete()
+    deleteOutputFile("tmp")
 
-    for (i<-0 to 200) {
-      f=new File(event.getServices.getControlerIO.getIterationFilename(i,"plans.xml.gz"))
-      f.delete()
+    for (i <- 0 to 200) {
+      Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getIterationFilename(i, "plans.xml.gz"))
     }
     //===========================
-
   }
-
 }
 
 
