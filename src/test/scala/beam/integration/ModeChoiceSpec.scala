@@ -2,7 +2,7 @@ package beam.integration
 
 import java.io.File
 
-import beam.sim.RunBeam
+import beam.sim.BeamHelper
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
@@ -11,7 +11,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
   *
   */
 
-class ModeChoiceSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
+class ModeChoiceSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
 
   "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
     "prefer mode choice car type than other modes" in {

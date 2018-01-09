@@ -1,4 +1,4 @@
-package beam.sim
+package beam.utils
 
 import java.io.File
 import java.nio.file.Paths

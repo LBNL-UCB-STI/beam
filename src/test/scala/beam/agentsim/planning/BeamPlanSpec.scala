@@ -3,7 +3,7 @@ package beam.agentsim.planning
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
 import beam.router.Modes.BeamMode.CAR
-import beam.sim.RunBeam
+import beam.sim.BeamHelper
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Plan
 import org.matsim.core.population.PopulationUtils
@@ -13,7 +13,7 @@ import collection.JavaConverters._
 /**
   * BeamPlanSpec
   */
-class BeamPlanSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll{
+class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll{
 
   "A BeamPlan" must {
 

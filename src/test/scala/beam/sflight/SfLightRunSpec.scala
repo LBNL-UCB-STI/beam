@@ -3,8 +3,8 @@ package beam.sflight
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamConfigUtils, BeamServices, RunBeam}
-import beam.utils.FileUtils
+import beam.sim.{BeamHelper, BeamServices}
+import beam.utils.{BeamConfigUtils, FileUtils}
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
@@ -16,7 +16,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
   * Created by colinsheppard
   */
 
-class SfLightRunSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll {
+class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   "SF Light" must {
     "run without error and at least one person chooses car mode" in {
