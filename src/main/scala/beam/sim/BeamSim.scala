@@ -18,7 +18,6 @@ import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, Star
 import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
 import org.matsim.vehicles.VehicleCapacity
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -39,6 +38,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
+    import scala.collection.JavaConverters._
     // Before we initialize router we need to scale the transit vehicle capacities
     val alreadyScaled: mutable.HashSet[VehicleCapacity] = mutable.HashSet()
     scenario.getTransitVehicles.getVehicleTypes.asScala.foreach { case (_, vehType) =>
@@ -94,7 +94,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     deleteOutputFile("tmp")
 
     for (i <- 0 to 200) {
-      Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getIterationFilename(i, "plans.xml.gz"))
+      Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getIterationFilename(i, "plans.xml.gz")))
     }
     //===========================
   }
