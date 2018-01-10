@@ -40,7 +40,8 @@ case class ExperimentRunSandbox(projectRoot: Path, experimentBaseDir: Path, expe
     val runConfig = ( Map(
       "beam.agentsim.simulationName" -> "output",
       "beam.outputs.baseOutputDirectory" -> beamOutputDir.getParent.toString,
-      "beam.outputs.addTimestampToOutputDirectory" -> "false"
+      "beam.outputs.addTimestampToOutputDirectory" -> "false",
+      "beam.inputDirectory" -> experimentDef.getTemplateConfigParentDirAsString
     ) ++ modeChoiceConfigIfDefined ++ experimentRun.params).foldLeft(beamTplConf) { case (prevConfig, (paramName, paramValue)) =>
         val configValue = ConfigValueFactory.fromAnyRef(paramValue)
         prevConfig.withValue(paramName, configValue)

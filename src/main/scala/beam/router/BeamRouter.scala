@@ -18,7 +18,8 @@ import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.{BeamMode, isOnStreetTransit}
 import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
-import beam.router.r5.{BeamPointToPointQuery, NetworkCoordinator, R5RoutingWorker}
+import beam.router.osm.TollCalculator
+import beam.router.r5.{BeamPointToPointQuery, R5RoutingWorker}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.util.{LegMode, StreetEdgeInfo, StreetSegment}
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
@@ -34,11 +35,11 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) extends Actor with Stash with ActorLogging {
+class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with Stash with ActorLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val config = services.beamConfig.beam.routing
-  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator), "router-worker")
+  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
 
   override def receive = {
     case InitTransit =>
@@ -136,7 +137,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
           matSimTransitVehicle, None, TransitVehicle)
         services.vehicles += (transitVehId -> vehicle)
         val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(services, transportNetwork,eventsManager, transitDriverId, vehicle, legs)
+        val transitDriverAgentProps = TransitDriverAgent.props(services, transportNetwork, eventsManager, transitDriverId, vehicle, legs)
         val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
         services.agentRefs += (transitDriverId.toString -> transitDriver)
         services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
@@ -220,16 +221,19 @@ object BeamRouter {
   type Location = Coord
 
   case object InitTransit
+
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
+
   case class UpdateTravelTime(travelTime: TravelTime)
 
   /**
     * It is use to represent a request object
-    * @param origin start/from location of the route
-    * @param destination end/to location of the route
-    * @param departureTime time in seconds from base midnight
-    * @param transitModes what transit modes should be considered
-    * @param streetVehicles what vehicles should be considered in route calc
+    *
+    * @param origin                 start/from location of the route
+    * @param destination            end/to location of the route
+    * @param departureTime          time in seconds from base midnight
+    * @param transitModes           what transit modes should be considered
+    * @param streetVehicles         what vehicles should be considered in route calc
     * @param personId
     * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
     */
@@ -240,28 +244,31 @@ object BeamRouter {
                                     transitModes: Vector[BeamMode],
                                     streetVehicles: Vector[StreetVehicle],
                                     streetVehiclesAsAccess: Boolean = true
-                                    )
+                                   )
 
   /**
     * Message to request a route plan
+    *
     * @param params route information that is needs a plan
     */
   case class RoutingRequest(params: RoutingRequestTripInfo)
 
   /**
     * Message to respond a plan against a particular router request
+    *
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
 
   object RoutingRequest {
     def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent], streetVehiclesAsAccess: Boolean = true): RoutingRequest = {
-      new RoutingRequest(RoutingRequestTripInfo(personId, fromActivity.getCoord, toActivity.getCoord, departureTime,  Modes.filterForTransit(transitModes), streetVehicles, streetVehiclesAsAccess))
+      new RoutingRequest(RoutingRequestTripInfo(personId, fromActivity.getCoord, toActivity.getCoord, departureTime, Modes.filterForTransit(transitModes), streetVehicles, streetVehiclesAsAccess))
     }
-    def apply(params : RoutingRequestTripInfo): RoutingRequest = {
+
+    def apply(params: RoutingRequestTripInfo): RoutingRequest = {
       new RoutingRequest(params)
     }
   }
 
-  def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator))
+  def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }

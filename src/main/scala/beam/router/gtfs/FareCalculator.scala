@@ -7,7 +7,7 @@ import java.util.zip.ZipFile
 import beam.router.gtfs.FareCalculator._
 import com.conveyal.gtfs.GTFSFeed
 
-class FareCalculator(val directory: String) {
+class FareCalculator(directory: String) {
 
   private val dataDirectory: Path = Paths.get(directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
@@ -15,14 +15,18 @@ class FareCalculator(val directory: String) {
   /**
     * agencies is a Map of FareRule by agencyId
     */
-  val agencies: Map[String, Vector[BeamFareRule]] = if (cacheFile.exists()) {
-    new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[Map[String, Vector[BeamFareRule]]]
-  } else {
-    val agencies = fromDirectory(dataDirectory)
-    val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
-    stream.writeObject(agencies)
-    stream.close()
-    agencies
+  val agencies: Map[String, Vector[BeamFareRule]] = loadBeamFares
+
+  private def loadBeamFares = {
+    if (cacheFile.exists()) {
+      new ObjectInputStream(new FileInputStream(cacheFile)).readObject().asInstanceOf[Map[String, Vector[BeamFareRule]]]
+    } else {
+      val agencies = fromDirectory(dataDirectory)
+      val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
+      stream.writeObject(agencies)
+      stream.close()
+      agencies
+    }
   }
 
   /**
@@ -30,7 +34,7 @@ class FareCalculator(val directory: String) {
     *
     * @param directory Path of the directory that contains gtfs files to load
     */
-  def fromDirectory(directory: Path): Map[String, Vector[BeamFareRule]] = {
+  private def fromDirectory(directory: Path): Map[String, Vector[BeamFareRule]] = {
 
     var agencies: Map[String, Vector[BeamFareRule]] = Map()
 
@@ -84,7 +88,6 @@ class FareCalculator(val directory: String) {
         })
       })
 
-
       feed.agency.forEach((id, _) => {
         feed.routes.values().stream().filter(_.agency_id == id).forEach(route => {
           agencyRules ++= routes.getOrElse(route.route_id, Vector())
@@ -100,6 +103,7 @@ class FareCalculator(val directory: String) {
         feed.close()
       })
     }
+
     agencies
   }
 
@@ -117,10 +121,8 @@ class FareCalculator(val directory: String) {
   }
 
   def sumFares(rules: Vector[BeamFareSegment]): Double = {
-    val f = filterTransferFares(rules)
-    f.map(_.fare.price).sum
+    filterTransferFares(rules).map(_.fare.price).sum
   }
-
 }
 
 object FareCalculator {
@@ -130,19 +132,17 @@ object FareCalculator {
     * currency and whether it must be purchased on board the service or before boarding.
     * It also defines the number of transfers it can be used for, and the duration it is valid.
     *
-    * @param fareId Contains an ID that uniquely identifies a fare class. The fare_id is dataset unique. Its a required attribute.
-    * @param price Contains the fare price, in the unit specified by currency_type. Its a required attribute.
-    * @param currencyType Defines the currency used to pay the fare. Its a required attribute.
-    * @param paymentMethod The payment_method field indicates when the fare must be paid. Its a required attribute. Valid values for this field are:
-    *                      0: Fare is paid on board.
-    *                      1: Fare must be paid before boarding.
-    *
-    * @param transfers Specifies the number of transfers permitted on this fare. Its a required attribute. Valid values for this field are:
-    *                  0: No transfers permitted on this fare.
-    *                  1: Passenger may transfer once.
-    *                  2: Passenger may transfer twice.
+    * @param fareId           Contains an ID that uniquely identifies a fare class. The fare_id is dataset unique. Its a required attribute.
+    * @param price            Contains the fare price, in the unit specified by currency_type. Its a required attribute.
+    * @param currencyType     Defines the currency used to pay the fare. Its a required attribute.
+    * @param paymentMethod    The payment_method field indicates when the fare must be paid. Its a required attribute. Valid values for this field are:
+    *                         0: Fare is paid on board.
+    *                         1: Fare must be paid before boarding.
+    * @param transfers        Specifies the number of transfers permitted on this fare. Its a required attribute. Valid values for this field are:
+    *                         0: No transfers permitted on this fare.
+    *                         1: Passenger may transfer once.
+    *                         2: Passenger may transfer twice.
     *                  Int.MaxValue/(empty in gtfs): If this field is empty, unlimited transfers are permitted.
-    *
     * @param transferDuration Specifies the length of time in seconds before a transfer expires.
     */
   case class BeamFare(fareId: String,
@@ -155,17 +155,17 @@ object FareCalculator {
   /**
     * The FareRule lets you specify how fares in fare_attributes.txt apply to an itinerary.
     * Most fare structures use some combination of the following rules:
-    *   Fare depends on origin or destination stations.
-    *   Fare depends on which zones the itinerary passes through.
-    *   Fare depends on which route the itinerary uses.
+    * Fare depends on origin or destination stations.
+    * Fare depends on which zones the itinerary passes through.
+    * Fare depends on which route the itinerary uses.
     *
-    * @param fare Contains a fare object from fare_attributes.
-    * @param agencyId Defines an agency for the specified route. This value is referenced from the agency.txt file.
-    * @param routeId Associates the fare ID with a route. Route IDs are referenced from the routes.txt file.
-    * @param originId Associates the fare ID with an origin zone ID (referenced from the stops.txt file).
+    * @param fare          Contains a fare object from fare_attributes.
+    * @param agencyId      Defines an agency for the specified route. This value is referenced from the agency.txt file.
+    * @param routeId       Associates the fare ID with a route. Route IDs are referenced from the routes.txt file.
+    * @param originId      Associates the fare ID with an origin zone ID (referenced from the stops.txt file).
     * @param destinationId Associates the fare ID with a destination zone ID (referenced from the stops.txt file).
-    * @param containsId Associates the fare ID with a zone ID (referenced from the stops.txt file.
-    *                   The fare ID is then associated with itineraries that pass through every contains_id zone.
+    * @param containsId    Associates the fare ID with a zone ID (referenced from the stops.txt file.
+    *                      The fare ID is then associated with itineraries that pass through every contains_id zone.
     */
   case class BeamFareRule(fare: BeamFare,
                           agencyId: String,
@@ -176,9 +176,9 @@ object FareCalculator {
 
   /**
     *
-    * @param fare Contains a fare object from fare_attributes.
-    * @param agencyId Defines an agency for the specified route. This value is referenced from the agency.txt file.
-    * @param patternIndex Represents the pattern index from TransitJournyID to locate SegmentPattern from a specific TransitSegment
+    * @param fare            Contains a fare object from fare_attributes.
+    * @param agencyId        Defines an agency for the specified route. This value is referenced from the agency.txt file.
+    * @param patternIndex    Represents the pattern index from TransitJournyID to locate SegmentPattern from a specific TransitSegment
     * @param segmentDuration Defines the leg duration from start of itinerary to end of segment leg
     */
   case class BeamFareSegment(fare: BeamFare,
@@ -188,6 +188,7 @@ object FareCalculator {
 
   object BeamFareSegment {
     def apply(fare: BeamFare, agencyId: String): BeamFareSegment = new BeamFareSegment(fare, agencyId, 0, 0)
+
     def apply(fareSegment: BeamFareSegment, patternIndex: Int, segmentDuration: Long): BeamFareSegment = new BeamFareSegment(fareSegment.fare, fareSegment.agencyId, patternIndex, segmentDuration)
   }
 
@@ -197,9 +198,9 @@ object FareCalculator {
   // Fare depends on which route the itinerary uses AND Fare depends on origin or destination stations
   // BUT Fare depends on which zones the itinerary passes through, is group rule and apply separately
   private def baseRule(r: BeamFareRule, routeId: String, fromId: String, toId: String): Boolean =
-  (r.routeId == routeId || r.routeId == null) &&
-    (r.originId == fromId || r.originId == null) &&
-    (r.destinationId == toId || r.destinationId == null)
+    (r.routeId == routeId || r.routeId == null) &&
+      (r.originId == fromId || r.originId == null) &&
+      (r.destinationId == toId || r.destinationId == null)
 
   //Fare depends on which zones the itinerary passes through
   private def containsRule(t: (BeamFare, Vector[BeamFareRule]), routeId: String, containsIds: Set[String]) =
@@ -228,7 +229,7 @@ object FareCalculator {
         case (lhs, Vector()) => applyTransfer(lhs)
         case (lhs, rhs) => applyTransfer(lhs) ++ (trans match {
           case 0 => iterateTransfers(rhs, next)
-          case 1 | 2 => val sf = rhs.span(t => t.segmentDuration <= lhs(lhs.size - (lhs.size % (trans + 1))) .fare.transferDuration); iterateTransfers(sf._1.splitAt((trans + 1) - lhs.size % (trans + 1))._2 ++ sf._2, trans)
+          case 1 | 2 => val sf = rhs.span(t => t.segmentDuration <= lhs(lhs.size - (lhs.size % (trans + 1))).fare.transferDuration); iterateTransfers(sf._1.splitAt((trans + 1) - lhs.size % (trans + 1))._2 ++ sf._2, trans)
           case _ => rhs.span(t => t.segmentDuration <= lhs.head.fare.transferDuration)._2
         })
       }
@@ -245,5 +246,4 @@ object FareCalculator {
 
     spanAgency(rules)
   }
-
 }
