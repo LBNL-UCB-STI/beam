@@ -2,30 +2,18 @@ package beam.integration
 
 import java.io.File
 
-import beam.sim.RunBeam
-import beam.sim.config.ConfigModule
+import beam.sim.BeamHelper
+import beam.sim.config.{BeamConfig}
+import com.typesafe.config.Config
 
-import scala.util.Try
+class StartWithCustomConfig(val config: Config) extends
+  EventsFileHandlingCommon with IntegrationSpecCommon with BeamHelper {
 
-class StartWithCustomConfig(
-                             configFileToLoad: String = "test/input/beamville/beam.conf",
-                             modeChoice: Option[String] = None,
-                             numDriversAsFractionOfPopulation: Option[Double] = None,
-                             defaultCostPerMile: Option[Double] = None,
-                             defaultCostPerMinute: Option[Double] = None,
-                             transitCapacity: Option[Double] = None,
-                             transitPrice: Option[Double] = None,
-                             tollPrice: Option[Double] = None,
-                             rideHailPrice: Option[Double] = None) extends
-  EventsFileHandlingCommon with IntegrationSpecCommon with RunBeam {
-  lazy val configFileName = Some(s"${System.getenv("PWD")}/${configFileToLoad}")
+  val beamConfig = BeamConfig(config)
 
-  val beamConfig = customBeam(configFileName, modeChoice, numDriversAsFractionOfPopulation,
-  defaultCostPerMile,defaultCostPerMinute,transitCapacity,transitPrice,tollPrice,rideHailPrice)
+  val matsimConfig: org.matsim.core.config.Config = runBeamWithConfig(config)
 
-  val exec = Try(runBeamWithConfig(beamConfig, ConfigModule.matSimConfig))
-
-  val file: File = getRouteFile(beamConfig.beam.outputs.outputDirectory , beamConfig.beam.outputs.events.fileOutputFormats)
+  val file: File = getEventsFilePath(matsimConfig, beamConfig.beam.outputs.events.fileOutputFormats)
 
   val eventsReader: ReadEvents = new ReadEventsBeam
 

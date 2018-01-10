@@ -6,7 +6,7 @@ import java.time.{LocalDate, LocalDateTime, ZonedDateTime}
 /**
   * BEAM
   */
-case class DateUtils(val routingBaseDate: String, val localBaseDateTime: LocalDateTime, val zonedBaseDateTime: ZonedDateTime) {
+case class DateUtils(localBaseDateTime: LocalDateTime, zonedBaseDateTime: ZonedDateTime) {
   val localBaseDate: LocalDate = localBaseDateTime.toLocalDate
 
   def toBaseMidnightSeconds(time: ZonedDateTime, hasTransit: Boolean): Long = {

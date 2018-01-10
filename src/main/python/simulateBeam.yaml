@@ -21,7 +21,7 @@ Resources:
       Environment:
         Variables:
           IAM_ROLE: BeamCodeDeployEC2
-          IMAGE_ID: ami-2a416c4f
+          IMAGE_ID: ami-e9cce38c
           SECURITY_GROUP: sg-bb469dd3
           INSTANCE_TYPE: t2.micro
           KEY_NAME: beam-box01

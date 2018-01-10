@@ -1,6 +1,9 @@
 package beam.integration
 
-import beam.sim.RunBeam
+import java.io.File
+
+import beam.sim.BeamHelper
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -8,12 +11,16 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
   * 
   */
 
-class RideHailCostPerMileSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
+class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing defaultCostPerMinute value" must {
     "create less entries for mode choice rideHail as value increases" ignore {
       val inputCostPerMile = Seq(0.1, 1.0)
-      val modeChoice = inputCostPerMile.map(tc => new StartWithCustomConfig(modeChoice =  Some("ModeChoiceMultinomialLogit"), defaultCostPerMile = Some(tc)).groupedCount)
+      val modeChoice = inputCostPerMile.map(tc => new StartWithCustomConfig(
+        baseConfig
+          .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))
+          .withValue("beam.agentsim.agents.rideHailing.defaultCostPerMile", ConfigValueFactory.fromAnyRef(tc))
+      ).groupedCount)
 
       val tc = modeChoice
         .map(_.get("ride_hailing"))

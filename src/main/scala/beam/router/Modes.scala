@@ -89,7 +89,7 @@ object Modes {
   }
   def isOnStreetTransit(beamMode: BeamMode): Boolean = {
     beamMode.r5Mode match {
-      case Some(Left(streetMode)) =>
+      case Some(Left(_)) =>
         false
       case Some(Right(transitMode)) =>
         transitMode match {
@@ -98,6 +98,8 @@ object Modes {
           case _ =>
             false
         }
+      case _ =>
+        false
     }
   }
 

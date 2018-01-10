@@ -12,10 +12,10 @@ import org.matsim.api.core.v01.Id
   */
 object TransitFareDefaults {
 
-  def estimateTransitFares(alternatives: Vector[EmbodiedBeamTrip]): Vector[BigDecimal] = {
+  def estimateTransitFares(alternatives: Seq[EmbodiedBeamTrip]): Seq[BigDecimal] = {
     alternatives.map{ alt =>
       alt.tripClassifier match {
-        case TRANSIT if alt.costEstimate == 0.0 =>
+        case theMode: BeamMode if theMode.isTransit() && alt.costEstimate == 0.0 =>
           var vehId = Id.createVehicleId("dummy")
           var theFare = BigDecimal(0.0)
           alt.legs.foreach{ leg =>

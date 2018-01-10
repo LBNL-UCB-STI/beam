@@ -1,6 +1,7 @@
 package beam.integration
 
-import beam.sim.RunBeam
+import beam.sim.BeamHelper
+import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -8,13 +9,16 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
   * 
   */
 
-class RideHailNumDriversSpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon {
+class RideHailNumDriversSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing defaultCostPerMinute value" must {
     "create less entries for mode choice rideHail as value increases" in{
       val numDriversAsFractionOfPopulation = Seq(0.1, 1.0)
       val modeChoice = numDriversAsFractionOfPopulation.map(tc => new StartWithCustomConfig(
-        modeChoice = Some("ModeChoiceRideHailIfAvailable"), numDriversAsFractionOfPopulation = Some(tc)).groupedCount)
+        baseConfig
+          .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable"))
+          .withValue("beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation", ConfigValueFactory.fromAnyRef(tc))
+      ).groupedCount)
 
       val tc = modeChoice
         .map(_.get("ride_hailing"))

@@ -117,32 +117,16 @@ public class OsmToMATSim {
 		this.highwayDefaults.put(highwayType, new BEAMHighwayDefaults(hierarchy, lanesPerDirection, freespeed, freespeedFactor, laneCapacity_vehPerHour, oneway));
 	}
 
-	/**
-	 * Replaces OsmNetworkReader.createLink()
-	 * Creates the MATSim link and adds it to the MATSim network
-	 * @param way
-	 * @param osmID
-	 * @param r5ID
-	 * @param fromMNode From node MATSim network
-	 * @param toMNode To node in MATSim network
-	 * @param length
-	 * @param flagStrings: allowable modes for the link
-	 */
-	public ArrayList<Long> createLink(final Way way, long osmID, Integer r5ID, final Node fromMNode, final Node toMNode,
+	public Link createLink(final Way way, long osmID, Integer r5ID, final Node fromMNode, final Node toMNode,
 									  final double length, HashSet<String> flagStrings) {
 		String highway = way.getTag(TAG_HIGHWAY);
-		ArrayList<Long> newLinkIds = new ArrayList<>();
-
-
-		if ("no".equals(way.getTag(TAG_ACCESS))) {
-			return newLinkIds;
+		if (highway == null) {
+			highway = "unclassified";
 		}
-
-		// load defaults
 		BEAMHighwayDefaults defaults = this.highwayDefaults.get(highway);
+
 		if (defaults == null) {
-			this.unknownHighways.add(highway);
-			return newLinkIds;
+			defaults = this.highwayDefaults.get("unclassified");
 		}
 
 		double nofLanes = defaults.lanesPerDirection;
@@ -233,49 +217,18 @@ public class OsmToMATSim {
 		Id<Node> fromId = fromMNode.getId();
 		Id<Node> toId = toMNode.getId();
 		if(this.mNetwork.getNodes().get(fromId) != null && this.mNetwork.getNodes().get(toId) != null){
-			String origId = Long.toString(osmID);
-			// Not a reverse link, so use from and to-nodes in order
-			if (!onewayReverse) {
-				Link l = this.mNetwork.getFactory().createLink(Id.create(r5ID, Link.class), this.mNetwork.getNodes().get(fromId), this.mNetwork.getNodes().get(toId));
-				l.setLength(length);
-				l.setFreespeed(freespeed);
-				l.setCapacity(capacity);
-				l.setNumberOfLanes(nofLanes);
-				l.setAllowedModes(flagStrings);
-				if (l instanceof Link) {
-					final String id1 = origId;
-					NetworkUtils.setOrigId(l, id1 ) ;
-					final String type = highway;
-					NetworkUtils.setType(l, type);
-				}
-				this.mNetwork.addLink(l);
-				newLinkIds.add(Long.valueOf(r5ID));
-				r5ID++;
-			}
-			// CASE_1: Not onewayReverse AND not oneway. Then we have a 2-way and need to create 2 new links. The
-			//			first was created in the previous if clause. The second is created in the following if clause
-			// CASE_2: Is oneWay, then link created in previous if-clause
-			// CASE_3: Is onewayReverse. Link is created in following if-clause.
-			if (!oneway) {
-				Link l = this.mNetwork.getFactory().createLink(Id.create(r5ID, Link.class), this.mNetwork.getNodes().get(toId), this.mNetwork.getNodes().get(fromId));
-				l.setLength(length);
-				l.setFreespeed(freespeed);
-				l.setCapacity(capacity);
-				l.setNumberOfLanes(nofLanes);
-				l.setAllowedModes(flagStrings);
-				if (l instanceof Link) {
-					final String id1 = origId;
-					NetworkUtils.setOrigId(l, id1 ) ;
-					final String type = highway;
-					NetworkUtils.setType(l, type);
-				}
-				this.mNetwork.addLink(l);
-				newLinkIds.add(Long.valueOf(r5ID));
-				r5ID++;
-			}
-
+			Link l = this.mNetwork.getFactory().createLink(Id.create(r5ID, Link.class), this.mNetwork.getNodes().get(fromId), this.mNetwork.getNodes().get(toId));
+			l.setLength(length);
+			l.setFreespeed(freespeed);
+			l.setCapacity(capacity);
+			l.setNumberOfLanes(nofLanes);
+			l.setAllowedModes(flagStrings);
+			NetworkUtils.setOrigId(l, Long.toString(osmID));
+			NetworkUtils.setType(l, highway);
+			return l;
+		} else {
+			throw new RuntimeException();
 		}
-		return newLinkIds;
 	}
 
 	/**

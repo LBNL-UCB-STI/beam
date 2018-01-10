@@ -2,7 +2,7 @@ package beam.playground.dserdyuk
 
 import akka.actor.{ActorSystem, Props}
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.vehicles.household.HouseholdActor
+import beam.agentsim.agents.household.HouseholdActor
 import beam.sim.config.ConfigModule
 import org.matsim.households.{HouseholdsImpl, HouseholdsReaderV10}
 import org.matsim.vehicles.{VehicleReaderV1, VehicleUtils}
@@ -14,14 +14,14 @@ import scala.collection.JavaConverters._
   */
 object VehicleLoader extends App {
 
-  val config  = ConfigModule.matSimConfig
-
-  val scenario = config.scenario()
-  val vehicles = VehicleUtils.createVehiclesContainer()
-  val reader  = new VehicleReaderV1(vehicles)
-  val vehiclePath = getClass.getResource("/vehicles.xml").getFile
-  reader.readFile(vehiclePath)
-  Console.print(s"Loaded ${vehicles.getVehicles.size()} vehicles and ${vehicles.getVehicleTypes} vehicle types")
+//  val config  = ConfigModule.matSimConfig
+//
+//  val scenario = config.scenario()
+//  val vehicles = VehicleUtils.createVehiclesContainer()
+//  val reader  = new VehicleReaderV1(vehicles)
+//  val vehiclePath = getClass.getResource("/vehicles.xml").getFile
+//  reader.readFile(vehiclePath)
+//  Console.print(s"Loaded ${vehicles.getVehicles.size()} vehicles and ${vehicles.getVehicleTypes} vehicle types")
 
 //  val actorSystem = ActorSystem()
 //  val vehicleActors  = vehicles.getVehicles.asScala.map { case (vehicleId,matSimVehicle) =>
