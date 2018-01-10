@@ -19,11 +19,13 @@ class R5MnetBuilderSpec extends FlatSpec {
     val network = builder.getNetwork
     new NetworkWriter(network).write("test/input/beamville/physsim-network.xml")
   }
-
+//
 //  it should "not a real test, just for extracting edge data" in {
-//    var transportNetwork = TransportNetwork.fromDirectory(new File("production/application-sfbay/r5"))
-//    transportNetwork.write(new File("production/application-sfbay/network.dat"))
-//    transportNetwork = TransportNetwork.read(new File("production/application-sfbay/network.dat"))
+////    val r5Dir = "production/application-sfbay/r5"
+//    val r5Dir = "test/input/sf-light/r5"
+//    var transportNetwork = TransportNetwork.fromDirectory(new File(r5Dir))
+//    transportNetwork.write(new File(s"$r5Dir/network.dat"))
+//    transportNetwork = TransportNetwork.read(new File(s"$r5Dir/network.dat"))
 //    val cursor = transportNetwork.streetLayer.edgeStore.getCursor
 //    val pw = new PrintWriter(new File("bayAreaR5NetworkLinks.txt" ))
 //    pw.write(s"linkId,x,y,lengthInMeters\n")
