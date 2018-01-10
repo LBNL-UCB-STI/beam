@@ -15,6 +15,7 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
                          @BeanProperty var header: Header,
                          @BeanProperty var defaultParams:  java.util.Map[String, Object],
                          @BeanProperty var factors: java.util.List[Factor]) {
+
   def this() = this("", "", null, null, new java.util.LinkedList())
 
   def combinationsOfLevels() = {
@@ -61,6 +62,7 @@ case class ExperimentDef(@BeanProperty var runExperimentScript: String,
 
     Resources.toString(Resources.getResource(resourceScript), Charsets.UTF_8)
   }
+  def getTemplateConfigParentDirAsString: String = Paths.get(header.beamTemplateConfPath).getParent.toAbsolutePath.toString
 }
 
 case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Factor)]) {
