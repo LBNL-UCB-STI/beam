@@ -12,8 +12,8 @@ import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamConfigUtils, BeamServices}
-import beam.utils.DateUtils
+import beam.sim.BeamServices
+import beam.utils.{BeamConfigUtils, DateUtils}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}

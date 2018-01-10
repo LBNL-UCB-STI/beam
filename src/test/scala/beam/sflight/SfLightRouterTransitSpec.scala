@@ -16,8 +16,8 @@ import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamConfigUtils, BeamServices}
-import beam.utils.DateUtils
+import beam.sim.BeamServices
+import beam.utils.{BeamConfigUtils, DateUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
@@ -122,5 +122,4 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       time += leg.beamLeg.duration
     })
   }
-
 }

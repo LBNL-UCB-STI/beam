@@ -1,6 +1,7 @@
 package beam.integration
 
-import beam.sim.{BeamConfigUtils, RunBeam}
+import beam.sim.BeamHelper
+import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigValueFactory}
 
 trait IntegrationSpecCommon {

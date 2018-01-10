@@ -1,7 +1,6 @@
 package beam.gui;
 
-import beam.sim.BeamConfigUtils;
-import beam.sim.RunBeam;
+import beam.utils.BeamConfigUtils;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.ConfigWriter;
@@ -16,7 +15,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Paths;
 
 /**
  * @author mrieser / Senozon AG
