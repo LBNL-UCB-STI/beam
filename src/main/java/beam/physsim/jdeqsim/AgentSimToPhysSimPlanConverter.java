@@ -103,7 +103,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
         EventWriterXML_viaCompatible eventsWriterXML=null;
         if (writePhysSimEvents(iterationNumber)) {
-            createNetworkFile(jdeqSimScenario.getNetwork());
+          //  createNetworkFile(jdeqSimScenario.getNetwork());
             eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"));
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
@@ -170,7 +170,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                     return; // dont't process leg further, if empty
                 }
 
-                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(personId.toString()), leg.getRoute().getStartLinkId());
+                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
                 previousActivity.setEndTime(departureTime);
                 plan.addActivity(previousActivity);
                 plan.addLeg(leg);
@@ -227,25 +227,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
         createLastActivityOfDayForPopulation();
-        writePhyssimPlans(iterationEndsEvent);
+      //  writePhyssimPlans(iterationEndsEvent);
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
 
-
         preparePhysSimForNewIteration();
-    }
-
-
-    private String getPreviousActivityString(String personIdString){
-        String currentActivity=DUMMY_ACTIVITY;
-
-        if (previousActivity.containsKey(personIdString)){
-            currentActivity=previousActivity.get(personIdString);
-        }
-
-        return currentActivity;
     }
 
     private void createLastActivityOfDayForPopulation() {
@@ -253,7 +241,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             Plan plan = p.getSelectedPlan();
             if (!plan.getPlanElements().isEmpty()) {
                 Leg leg = (Leg) plan.getPlanElements().get(plan.getPlanElements().size() - 1);
-                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(getPreviousActivityString(p.getId().toString()), leg.getRoute().getEndLinkId()));
+                plan.addActivity(jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getEndLinkId()));
             }
         }
     }

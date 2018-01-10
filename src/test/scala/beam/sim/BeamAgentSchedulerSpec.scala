@@ -1,7 +1,5 @@
 package beam.sim
 
-import java.io.File
-
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import beam.agentsim.agents.BeamAgent.{NoData, _}
@@ -11,14 +9,14 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.sim.BeamAgentSchedulerSpec._
 import beam.sim.config.BeamConfig
-import com.typesafe.config.ConfigFactory
+import beam.utils.BeamConfigUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
-class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve())) with FunSpecLike with BeforeAndAfterAll with MustMatchers with ImplicitSender {
+class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve())) with FunSpecLike with BeforeAndAfterAll with MustMatchers with ImplicitSender {
 
   val config = BeamConfig(system.settings.config)
 

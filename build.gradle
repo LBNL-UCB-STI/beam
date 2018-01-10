@@ -1,6 +1,5 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 buildscript {
     repositories {
@@ -10,7 +9,6 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
@@ -40,6 +38,7 @@ description = """"""
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
 def akkaBinaryVersion = "2.4.16"
 def circeBinaryVersion="0.7.1"
@@ -61,26 +60,27 @@ if (project.hasProperty('env')) {
     }
 }
 
-
-repositories {
-    maven { url "http://maven.geotoolkit.org/" }
-    maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-    maven { url "http://central.maven.org/maven2" }
-    maven { url "http://repo.maven.apache.org/maven2" }
-    maven { url "http://download.osgeo.org/webdav/geotools" }
-    maven { url "http://dl.bintray.com/matsim/matsim" }
-    maven { url "http://maven.conveyal.com/" }
-    maven { url "http://repo1.maven.org/maven2" }
-    maven { url "http://download.java.net/maven/2/" }
-    maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
-    maven { url "http://dl.bintray.com/andimarek/graphql-java" }
-    maven { url "http://maven.geo-solutions.it" }
-    maven { url "http://dl.bintray.com/scalaz/releases" }
-    mavenLocal()
-    mavenCentral()
-    jcenter()
-    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
-    maven { url "https://jitpack.io" }
+allprojects {
+    repositories {
+        maven { url "http://maven.geotoolkit.org/" }
+        maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
+        maven { url "http://central.maven.org/maven2" }
+        maven { url "http://repo.maven.apache.org/maven2" }
+        maven { url "http://download.osgeo.org/webdav/geotools" }
+        maven { url "http://dl.bintray.com/matsim/matsim" }
+        maven { url "http://maven.conveyal.com/" }
+        maven { url "http://repo1.maven.org/maven2" }
+        maven { url "http://download.java.net/maven/2/" }
+        maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
+        maven { url "http://dl.bintray.com/andimarek/graphql-java" }
+        maven { url "http://maven.geo-solutions.it" }
+        maven { url "http://dl.bintray.com/scalaz/releases" }
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+        maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+        maven { url "https://jitpack.io" }
+    }
 }
 
 dependencies {
@@ -216,48 +216,6 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
-
-//////////////////////////////////////////////////////////////////////
-// BUNDLING FOR EXECUTION
-//
-// Shadowjar bundles model together into executable jar
-//////////////////////////////////////////////////////////////////////
-
-apply plugin: 'com.github.johnrengelman.shadow'
-
-jar {
-    manifest {
-        attributes "Implementation-Title": project.name,
-                "Implementation-Version": version,
-                "Specification-Vendor": "The BEAM Team",
-                "Implementation-Vendor": "The BEAM Team",
-                'Main-Class': 'beam.sim.RunBeam'
-    }
-}
-
-shadowJar {
-    baseName = 'beam'
-    mainClassName = "beam.sim.RunBeam"
-    classifier = null
-    version = null
-}
-
-task guiShadowJar(type: ShadowJar) {
-    baseName = 'beamgui'
-    mainClassName = "beam.gui.Gui"
-    classifier = null
-    version = null
-    from sourceSets.main.output
-    configurations = [project.configurations.runtime]
-    manifest {
-        attributes "Specification-Vendor": "The BEAM Team",
-                "Implementation-Vendor": "The BEAM Team",
-                'Main-Class': 'beam.gui.Gui'
-    }
-}
-
-assemble.dependsOn shadowJar
-assemble.dependsOn guiShadowJar
 
 //////////////////////////////////////////////////////////////////////
 // Amazon WS task to run beam sim on Lambda

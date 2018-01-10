@@ -4,7 +4,7 @@ User's Guide
 
 Getting Started
 ---------------
-The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled-back population and transportation system. This is the ideal place to familiarize yourself with the basics of configuration a BEAM model run and for doing small scale tests and analysis. 
+The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled population and transportation system. This is the ideal place to familiarize yourself with the basics of configuring and running BEAM as well as doing small scale tests and analysis. 
 
 For more advanced utilization or to contribute to the BEAM project, see the :ref:`developers-guide`.
 
@@ -21,34 +21,49 @@ System Requirements
 Installing
 ^^^^^^^^^^
 
-Download the latest release of BEAM here:
+Download `BEAM v0.5`_.
 
-After you unzip the archive, you will see the following files in the top level of the expanded directory::
+.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.5.0/beam-gui.zip
 
-  BEAM.exe
-  beam.conf
-  beamville.conf
-  sf-light.conf
-  input/
-    beamville
-    sf-light
+After you unzip the archive, you will see a directory that looks like this when partially expanded: 
+
+.. image:: _static/figs/beam-gui-files.png
+
+For Windows, double click `bin/beam-gui.bat`, on UNIX-like systems, double-click `bin/beam-gui`.
 
 Running BEAM
 ^^^^^^^^^^^^
-`BEAM.exe` is the executable which is run by double-clicking. ---describe what happens here---
+The BEAM GUI app is the simplest way to run the model. It looks like this:
 
-`beam.conf` is the configuration file that `BEAM.exe` will run, by deafult it is identical to `beamville.conf`. If you want to run the `sf-light` scenario, then replace `beam.conf` with the contents of `sf-light.conf` by copying over the file. 
+.. image:: _static/figs/beam-gui.png
+
+Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`. 
+
+Click "Run BEAM". 
+
+You will see output appear in the console. Congrats, you're running BEAM! 
+
+Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
 Scenarios
 ^^^^^^^^^
-The `beamville` test scenario consists of a tiny 5 x 5 gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.  
+We have provided two scenarios for you to explore under the `input` directory.
 
-The `sf-light` scenario includes the City of San Francisco road network, the SF Muni public transit service, and a sample population of ~3,000 agents.
+The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
+
+.. image:: _static/figs/beamville-net.png
+
+The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 500 to 25,000 agents.
+
+.. image:: _static/figs/sf-light.png
 
 Inputs
 ^^^^^^^
 
-BEAM follows the [MATSim convention](http://archive.matsim.org/docs) for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the [R5 requirements](https://github.com/conveyal/r5). The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
+
+.. _MATSim convention: http://archive.matsim.org/docs
+.. _R5 requirements: https://github.com/conveyal/r5
 
 * A configuration file (e.g. `beam.conf`)
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
@@ -62,31 +77,36 @@ BEAM follows the [MATSim convention](http://archive.matsim.org/docs) for most of
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to ---output location---. The files you should see in this directory are::
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files you in the output sub-folder should look like this when the run is complete:
 
-  modestats.txt
-  scorestats.txt
-  stopwatch.png
-  stopwatch.txt
-  traveldistancestats.txt
-  ITERS/
-    it.0/
-      0.events.csv
-      0.legHistogram.txt
-      0.physsim-plans.xml
-      0.plans.xml.gz
-      0.tripdurations.txt
-      
+.. image:: _static/figs/beamville-outputs.png
+
+Each iteration of the run produces a sub-folder under the `ITERS` directory. Within these, several automatically generated outputs are written including plots of modal usage, TNC dead heading, and energy consumption by mode. 
+
+In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
 
 Model Config
 ^^^^^^^^^^^^
 
-To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam.
+To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
-Model Config
-^^^^^^^^^^^^
+  # Ride Hailing Params
+  beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation=0.05
+  beam.agentsim.agents.rideHailing.defaultCostPerMile=1.25
+  beam.agentsim.agents.rideHailing.defaultCostPerMinute=0.75
+  # Scaling and Tuning Params; 1.0 results in no scaling
+  beam.agentsim.tuning.transitCapacity = 0.2
+  beam.agentsim.tuning.transitPrice = 1.0
+  beam.agentsim.tuning.tollPrice = 1.0
+  beam.agentsim.tuning.rideHailPrice = 1.0
 
-
+* numDriversAsFractionOfPopulation - Defines the # of ride hailing drivers to create. Drivers begin the simulation located at or near the homes of existing agents, uniformly distributed.
+* defaultCostPerMile - One component of the 2 part price of ride hail calculation.
+* defaultCostPerMinute - One component of the 2 part price of ride hail calculation.
+* transitCapacity - Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
+* transitPrice - Scale the price of riding on transit. Applies uniformly to all transit trips.
+* tollPrice - Scale the price to cross tolls.
+* rideHailPrice - Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
 
 Experiment Manager
 ------------------
@@ -155,33 +175,3 @@ The ExperimentGenerator will create a sub-folder next to experiment.yml named `r
 Within each run sub-folder you will find the generated BEAM config file (based on beamTemplateConfPath), any files from the template engine (e.g. `modeChoiceParameters.xml`) with all placeholders properly substituted, and a `runBeam.sh` executable which can be used to execute an individual simulation. The outputs of each simulation will appear in the `output` subfolder next to runBeam.sh
 
 
-Automated Cloud Deployment
---------------------------
-
-To run BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
-
-  gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
-
-It can take some parameters from command line, use `-P` to specify the parameter.
-
-* `beamBranch`: To specify the branch for simulation, master is default branch.
-* `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit.
-* `beamConfigs`: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home.
-* `beamExperiments`: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.
-* `beamBatch`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
-* `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
-
-To access the ec2 instance, a proper certificate from admin and DNS is required. DNS of ec2 instance can be found in the output log of the command.
-
-To run batch simulation, you can specify the configuration files using parameter like::
-
-  gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
-
-
-To run batch experiments, you can specify the experiment files using parameter like::
-
-  gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
-
-It will start an ec2 instance, using provided configurations and run all simulations in serial. To run all on separate parallel instances, set `beamBatch` to false. At the end of each simulation it uploads the results to s3.
-
-  gradle.properties contains default values for all the parameters.

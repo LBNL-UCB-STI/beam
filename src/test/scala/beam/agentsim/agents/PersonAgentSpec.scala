@@ -1,10 +1,9 @@
 package beam.agentsim.agents
 
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{DefaultTimeout, EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent._
@@ -12,8 +11,9 @@ import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.r5.NetworkCoordinator
-import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import beam.sim.BeamServices
+import beam.utils.BeamConfigUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.ActivityEndEvent
@@ -25,7 +25,8 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+
 import scala.concurrent.duration._
 
 /**
@@ -33,7 +34,7 @@ import scala.concurrent.duration._
   */
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString("""
   akka.loggers = ["akka.testkit.TestEventListener"]
-  """).withFallback(ConfigFactory.parseFile(new File("test/input/beamville/beam.conf")).resolve()))) with FunSpecLike
+  """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)

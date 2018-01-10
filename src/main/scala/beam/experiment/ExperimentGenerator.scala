@@ -8,6 +8,7 @@ import com.google.common.io.Resources
 import com.hubspot.jinjava.Jinjava
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import org.apache.commons.io.IOUtils
+import org.apache.commons.lang.SystemUtils
 import org.yaml.snakeyaml.constructor.Constructor
 
 import scala.collection.JavaConverters._
@@ -46,10 +47,11 @@ object ExperimentGenerator extends App {
   }
 
   def getExperimentPath() = {
-    Paths.get(experimentFile.getParent.toString,"runs")
+    Paths.get(experimentFile.getParent.toString, "runs")
   }
+
   def getBatchRunScriptPath() = {
-    Paths.get(getExperimentPath.toString,"batchRunExperiment.sh")
+    Paths.get(getExperimentPath.toString, "batchRunExperiment.sh")
   }
 
   private val projectRoot = {
@@ -144,8 +146,9 @@ object ExperimentGenerator extends App {
     } finally {
       IOUtils.closeQuietly(runScriptWriter)
     }
-    Runtime.getRuntime.exec(s"chmod +x ${runSandbox.runBeamScriptPath.toFile.toString}")
-
+    if (!SystemUtils.IS_OS_WINDOWS) {
+      Runtime.getRuntime.exec(s"chmod +x ${runSandbox.runBeamScriptPath.toFile.toString}")
+    }
     /*
      * Optionally write the mode choice params file
      */
@@ -181,7 +184,9 @@ object ExperimentGenerator extends App {
   } finally {
     IOUtils.closeQuietly(batchRunWriter)
   }
-  Runtime.getRuntime.exec(s"chmod +x ${getBatchRunScriptPath().toString}")
+  if (!SystemUtils.IS_OS_WINDOWS) {
+    Runtime.getRuntime.exec(s"chmod +x ${getBatchRunScriptPath().toString}")
+  }
 
   val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor()
   val experimentsCsv = new BufferedWriter(new FileWriter(

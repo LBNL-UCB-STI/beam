@@ -1,6 +1,6 @@
 package beam.gui;
 
-import com.typesafe.config.ConfigFactory;
+import beam.utils.BeamConfigUtils;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.ConfigWriter;
@@ -64,7 +64,7 @@ public class Gui extends JFrame {
 		txtConfigfilename.setText("");
 		txtConfigfilename.setColumns(10);
 
-		btnStartMatsim = new JButton("Start MATSim");
+		btnStartMatsim = new JButton("Run BEAM");
 		btnStartMatsim.setEnabled(false);
 
 		this.lblWorkDirectory = new JLabel("Filepaths must either be absolute or relative to the location of the config file.");
@@ -117,7 +117,11 @@ public class Gui extends JFrame {
 
 		JLabel lblYouAreUsing = new JLabel("You are using Java version:");
 
-		String javaVersion = System.getProperty("java.version") + "; "
+		String javaVersion = "";
+		if(!System.getProperty("java.version").startsWith("1.8")){
+			javaVersion += "ERROR - INCOMPATIBLE VERSION, USE JVM 1.8, your version: ";
+		}
+		javaVersion += System.getProperty("java.version") + "; "
 				+ System.getProperty("java.vm.vendor") + "; "
 				+ System.getProperty("java.vm.info") + "; "
 				+ System.getProperty("sun.arch.data.model") + "-bit";
@@ -210,7 +214,6 @@ public class Gui extends JFrame {
 										.addComponent(lblOutputDirectory)
 										.addGroup(groupLayout.createSequentialGroup()
 												.addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
-														.addComponent(lblYouAreRunning)
 														.addComponent(lblYouAreUsing)
 														.addComponent(lblMemory)
 														.addComponent(btnStartMatsim))
@@ -220,7 +223,6 @@ public class Gui extends JFrame {
 																.addComponent(txtRam, GroupLayout.PREFERRED_SIZE, 69, GroupLayout.PREFERRED_SIZE)
 																.addPreferredGap(ComponentPlacement.RELATED)
 																.addComponent(lblMb))
-														.addComponent(txtMatsimversion, GroupLayout.DEFAULT_SIZE, 285, Short.MAX_VALUE)
 														.addComponent(txtJvmversion, GroupLayout.DEFAULT_SIZE, 285, Short.MAX_VALUE)
 														.addComponent(txtJvmlocation, GroupLayout.DEFAULT_SIZE, 285, Short.MAX_VALUE)
 														.addGroup(groupLayout.createSequentialGroup()
@@ -243,9 +245,6 @@ public class Gui extends JFrame {
 				groupLayout.createParallelGroup(Alignment.LEADING)
 						.addGroup(groupLayout.createSequentialGroup()
 								.addContainerGap()
-								.addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-										.addComponent(lblYouAreRunning)
-										.addComponent(txtMatsimversion, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
 								.addPreferredGap(ComponentPlacement.RELATED)
 								.addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
 										.addComponent(lblYouAreUsing)
@@ -385,7 +384,7 @@ public class Gui extends JFrame {
 				Gui.this.textStdOut.setText("");
 				Gui.this.textErrOut.setText("");
 				Gui.this.exeRunner = ExeRunner.run(cmdArgs, Gui.this.textStdOut, Gui.this.textErrOut, new File(txtConfigfilename.getText()).getParent());
-				Gui.this.btnStartMatsim.setText("Stop MATSim");
+				Gui.this.btnStartMatsim.setText("Stop BEAM");
 				Gui.this.btnStartMatsim.setEnabled(true);
 				int exitcode = exeRunner.waitForFinish();
 				Gui.this.exeRunner = null;
@@ -394,7 +393,7 @@ public class Gui extends JFrame {
 					@Override
 					public void run() {
 						progressBar.setVisible(false);
-						btnStartMatsim.setText("Start MATSim");
+						btnStartMatsim.setText("Run BEAM");
 						btnStartMatsim.setEnabled(true);
 					}
 				});
@@ -406,7 +405,7 @@ public class Gui extends JFrame {
 					Gui.this.textErrOut.append("\n");
 					Gui.this.textErrOut.append("The simulation did not run properly. Error/Exit code: " + exitcode);
 					Gui.this.textErrOut.setCaretPosition(Gui.this.textStdOut.getDocument().getLength());
-					throw new RuntimeException("There was a problem running MATSim. exit code: " + exitcode);
+					throw new RuntimeException("There was a problem running BEAM. exit code: " + exitcode);
 				}
 			}
 		}).start();
@@ -418,7 +417,7 @@ public class Gui extends JFrame {
 		String configFilename = configFile.getAbsolutePath();
 
 		try {
-			this.config = ConfigFactory.parseFile(this.configFile).resolve();
+			this.config = BeamConfigUtils.parseFileSubstitutingInputDirectory(this.configFile).resolve();
 		} catch (Exception e) {
 			Gui.this.textStdOut.setText("");
 			Gui.this.textStdOut.append("The configuration file could not be loaded. Error message:\n");
@@ -430,12 +429,11 @@ public class Gui extends JFrame {
 		}
 		txtConfigfilename.setText(configFilename);
 
-		File par = configFile.getParentFile();
-		File outputDir = new File(par, config.getString("matsim.modules.controler.outputDirectory"));
+		File outputDir = new File(config.getString("beam.outputs.baseOutputDirectory"));
 		try {
-			txtOutput.setText(outputDir.getCanonicalPath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getCanonicalPath());
 		} catch (IOException e1) {
-			txtOutput.setText(outputDir.getAbsolutePath());
+			txtOutput.setText(configFile.toPath().getParent().resolve(outputDir.toPath()).toFile().getAbsolutePath());
 		}
 
 		btnStartMatsim.setEnabled(true);
@@ -450,7 +448,7 @@ public class Gui extends JFrame {
 				@Override
 				public void run() {
 					progressBar.setVisible(false);
-					btnStartMatsim.setText("Start MATSim");
+					btnStartMatsim.setText("Run BEAM");
 					btnStartMatsim.setEnabled(true);
 
 					Gui.this.textStdOut.append("\n");

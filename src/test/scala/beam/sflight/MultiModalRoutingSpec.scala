@@ -1,6 +1,5 @@
 package beam.sflight
 
-import java.io.File
 import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
@@ -11,11 +10,10 @@ import beam.router.BeamRouter._
 import beam.router.gtfs.FareCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
-import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.DateUtils
-import com.typesafe.config.ConfigFactory
+import beam.sim.BeamServices
+import beam.utils.{BeamConfigUtils, DateUtils}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
@@ -34,7 +32,7 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
   var router: ActorRef = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(ConfigFactory.parseFile(new File("test/input/sf-light/sf-light.conf")).resolve())
+    val beamConfig = BeamConfig(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve())
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices]
