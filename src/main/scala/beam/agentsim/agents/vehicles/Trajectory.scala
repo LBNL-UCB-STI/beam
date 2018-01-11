@@ -1,20 +1,23 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.Trajectory._
-import beam.sim.config.ConfigModule._
 import beam.agentsim.events.SpaceTime
-import beam.router.RoutingModel.{BeamPath, EmptyBeamPath}
-import com.conveyal.r5.api.util.TransitSegment
+import beam.sim.config.BeamConfig
+import com.google.inject.Inject
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator
+import org.matsim.core.utils.geometry.CoordinateTransformation
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.TransformationFactory
 
 import scala.collection.Searching.{Found, InsertionPoint, _}
 
 object Trajectory {
-  val transformer = TransformationFactory.getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
+  @Inject
+  var beamConfig: BeamConfig = _
 
-  def defaultCoordinateSystem = beamConfig.beam.spatial.localCRS
+  lazy val transformer: CoordinateTransformation = TransformationFactory.getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
+
+  def defaultCoordinateSystem: String = beamConfig.beam.spatial.localCRS
 
   def apply(path: Vector[SpaceTime]): Trajectory = {
     new Trajectory(path)

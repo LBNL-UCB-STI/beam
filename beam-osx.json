@@ -1,0 +1,17 @@
+{
+    "platform": "mac",
+    "jdk": "/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/"
+    "executable": "beam",
+    "classpath": [
+        "build/libs/beam.jar"
+    ],
+    "mainclass": "beam.sim.RunBeam",
+    "vmargs": [
+       "Xmx8G"
+    ],
+    "resources": [
+        "src/main/resources"
+    ],
+    "minimizejre": "soft",
+    "output": "BEAM-mac"
+}

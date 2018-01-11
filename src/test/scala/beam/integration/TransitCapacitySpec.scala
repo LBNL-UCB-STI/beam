@@ -1,6 +1,9 @@
 package beam.integration
 
-import beam.sim.RunBeam
+import java.io.File
+
+import beam.sim.BeamHelper
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -8,27 +11,21 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
   * 
   */
 
-class TransitCapacitySpec extends WordSpecLike with Matchers with RunBeam with BeforeAndAfterAll with IntegrationSpecCommon{
+class TransitCapacitySpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon{
 
   "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing transitCapacity value" must {
-    "create more entries for mode choice transit as value increases" ignore {
+    "create more entries for mode choice transit as value increases" in {
       val inputTransitCapacity = 0.1 to 1.0 by 0.9
-      val modeChoice = inputTransitCapacity.map(tc => new StartWithCustomConfig(modeChoice = Some("ModeChoiceTransitIfAvailable"), transitCapacity = Some(tc)).groupedCount)
+      val modeChoice = inputTransitCapacity.map(tc => new StartWithCustomConfig(
+        baseConfig
+          .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceTransitIfAvailable"))
+          .withValue("beam.agentsim.tuning.transitCapacity", ConfigValueFactory.fromAnyRef(tc))
+      ).groupedCount)
 
       val tc = modeChoice
         .map(_.get("transit"))
         .filter(_.isDefined)
         .map(_.get)
-
-//      val z1 = tc.drop(1)
-//      val z2 = tc.dropRight(1)
-//      val zip = z2 zip z1
-
-//      println("Transit")
-//      println(tc)
-//      println(z1)
-//      println(z2)
-//      println(zip)
 
       isOrdered(tc)((a, b) => a <= b) shouldBe true
     }

@@ -5,22 +5,56 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-initscript = '''#cloud-config
+CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"
+  -    sleep 10s
+  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -    sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
+  -    rm -rf test/output/*'''
+
+EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
+
+BRANCH_DEFAULT = 'master'
+
+COMMIT_DEFAULT = 'HEAD'
+
+SHUTDOWN_DEFAULT = '30'
+
+TRUE = 'true'
+
+EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
+
+CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
+
+initscript = (('''#cloud-config
 runcmd:
-  - cd /home/ubuntu/beam/test/input
-  - sudo aws --region "$REGION" s3 cp s3://beam-inputs/$INPUTS.zip $INPUTS.zip
-  - sudo aws --region "$REGION" s3 cp s3://beam-inputs/dtd.zip dtd.zip
-  - sudo unzip $INPUTS.zip
-  - sudo unzip dtd.zip
-  - cd ../..
-  - sudo aws --region "$REGION" s3 cp s3://beam-builds/$BRANCH/beam-$BUILD_ID.jar beam.jar
-  - java -jar beam.jar --config test/input/$INPUTS/$CONFIG
-  - sleep 10s
-  - echo "---- BEAM Simulation completed. ----"
-  - for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  - sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
+  - echo "-------------------Starting Beam Sim----------------------"
+  - echo $(date +%s) > /tmp/.starttime
+  - /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) started..." -b "An EC2 instance of type $(ec2metadata --instance-type) launched to run the batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
+  - echo "notification sent..."
+  - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
+  - echo "notification saved..."
+  - crontab /tmp/glip_notification
+  - crontab -l
+  - echo "notification scheduled..."
+  - cd /home/ubuntu/git/beam
+  - git fetch
+  - echo "git checkout ..."
+  - git checkout $BRANCH
+  - git pull
+  - echo "git checkout -qf ..."
+  - git checkout -qf $COMMIT
+  - echo "gradlew assemble ..."
+  - ./gradlew assemble
+  - echo "looping config ..."
+  - for cf in $CONFIG
+  -  do
+  -    echo "-------------------running $cf----------------------"
+  -    $RUN_SCRIPT
+  -  done
+  - /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) finished execution..." -b "An EC2 instance of type $(ec2metadata --instance-type) has just completed the run for batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
   - sudo shutdown -h +$SHUTDOWN_WAIT
-'''
+'''))
+
 instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
                   'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
                   'm3.medium', 'm3.large', 'm3.xlarge', 'm3.2xlarge']
@@ -49,6 +83,9 @@ def get_latest_build(branch):
     last_added = [obj['Key'] for obj in sorted(objs, key=get_last_modified, reverse=True)][0]
     return last_added[last_added.rfind('-')+1:-4]
 
+def validate(name):
+    return True
+
 def deploy(script, instance_type):
     res = ec2.run_instances(ImageId=os.environ['IMAGE_ID'],
                             InstanceType=instance_type,
@@ -74,33 +111,37 @@ def get_dns(instance_id):
     return host
 
 def lambda_handler(event, context):
-    branch = event.get('branch', 'master')
-    build_id = event.get('build', 'latest')
-    beam_input = event.get('input', 'beamville')
-    configs = event.get('configs', ['beam.conf'])
+    branch = event.get('branch', BRANCH_DEFAULT)
+    commit_id = event.get('commit', COMMIT_DEFAULT)
+    configs = event.get('configs', CONFIG_DEFAULT)
+    is_experiment = event.get('is_experiment', 'false')
     instance_type = event.get('instance_type')
-    shutdown_wait = event.get('shutdown_wait', '30')
-
-    if build_id == 'latest' and check_branch(branch):
-        build_id = get_latest_build(branch)
+    batch = event.get('batch', TRUE)
+    shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
 
     if instance_type is None or instance_type not in instance_types:
         instance_type = os.environ['INSTANCE_TYPE']
 
-    txt = ''
-    jar = branch + '/beam-' + build_id + '.jar'
-    archive = beam_input + '.zip'
+    selected_script = CONFIG_SCRIPT
+    if is_experiment == TRUE:
+        selected_script = EXPERIMENT_SCRIPT
 
-    if check_resource('beam-builds', jar):
-        if check_resource('beam-inputs', archive):
-            for cfg in configs:
-                uid = str(uuid.uuid4())[:8]
-                script = initscript.replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$BUILD_ID', build_id).replace('$INPUTS', beam_input).replace('$CONFIG', cfg).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
-                instance_id = deploy(script, instance_type)
-                host = get_dns(instance_id)
-                txt = txt + 'Started build: {build} with config: {config} at host {dns}. Please locate outputs with prefix code [{prefix}], '.format(build=build_id, config=cfg, dns=host, prefix=uid)
-        else:
-            txt = 'Unable to find input with provided name: ' + beam_input + '.'
+    if batch == TRUE:
+        configs = [ configs.replace(',', ' ') ]
     else:
-        txt = 'Travis build on branch: [' + branch + '] and build# [' + build_id + '] not found.'
+        configs = configs.split(',')
+
+    txt = ''
+
+    if validate(branch) and validate(commit_id):
+        for arg in configs:
+            uid = str(uuid.uuid4())[:8]
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
+            instance_id = deploy(script, instance_type)
+            host = get_dns(instance_id)
+            txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
+            # txt = txt + 'Script is {script}. \n'.format(script=script)
+    else:
+        txt = 'Unable to start bach for branch/commit {branch}/{commit}.'.format(branch=branch, commit=commit_id)
+
     return txt
