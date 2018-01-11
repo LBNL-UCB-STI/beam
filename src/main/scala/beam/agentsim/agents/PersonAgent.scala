@@ -229,6 +229,13 @@ class PersonAgent(val beamServices: BeamServices,
     }
   }
 
+  /*
+   * Complete leg(s) as driver
+   */
+  override def passengerScheduleEmptyActions(triggerId: Long, tick: Double): PersonAgent.this.State = {
+    processNextLegOrStartActivity(triggerId, tick)
+  }
+
   chainedWhen(Waiting) {
 
 
@@ -238,11 +245,6 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       _currentTripMode = Some(_currentRoute.tripClassifier)
       eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,_currentRoute.tripClassifier.value))
-      processNextLegOrStartActivity(triggerId, tick)
-    /*
-     * Complete leg(s) as driver
-     */
-    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Learn as passenger that leg is starting

@@ -291,6 +291,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     pathLinks
   }
 
+  def passengerScheduleEmptyActions(triggerId: Long, tick: Double): State
+
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
@@ -307,8 +309,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       beamServices.schedulerRef ! completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
       goto(Waiting)
     } else {
-      beamServices.schedulerRef ! completed(theTriggerId, schedule[PassengerScheduleEmptyTrigger](theTick, self))
-      goto(Waiting)
+      passengerScheduleEmptyActions(theTriggerId,theTick)
     }
   }
 

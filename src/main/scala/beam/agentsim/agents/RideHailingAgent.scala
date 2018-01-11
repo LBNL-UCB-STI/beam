@@ -81,10 +81,9 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], vehicle: BeamVehic
       })
   }
 
-  chainedWhen (Waiting) {
-    case Event (TriggerWithId (PassengerScheduleEmptyTrigger (tick), triggerId), info) =>
-      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
-      stay replying completed(triggerId)
+  override def passengerScheduleEmptyActions(triggerId: Long, tick: Double): State = {
+    vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+    stay replying completed(triggerId)
   }
 
   chainedWhen (AnyState) {

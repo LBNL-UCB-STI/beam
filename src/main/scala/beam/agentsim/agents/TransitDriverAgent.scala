@@ -82,12 +82,14 @@ class TransitDriverAgent(val beamServices: BeamServices,
       beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey
         .startTime, self, passengerSchedule.schedule.firstKey))
       stay
-    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), _) =>
-      stop replying completed(triggerId)
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
+  }
+
+  override def passengerScheduleEmptyActions(triggerId: Long, tick: Double): State = {
+    stop replying completed(triggerId)
   }
 
   when(Waiting) {
