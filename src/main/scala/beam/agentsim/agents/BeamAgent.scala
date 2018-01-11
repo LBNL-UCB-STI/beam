@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.sim.HasServices
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -55,7 +56,7 @@ case class InitializeTrigger(tick: Double) extends Trigger
   * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
   */
-trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
+trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] with HasServices  {
 
   val eventsManager: EventsManager
 
@@ -83,46 +84,49 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
     }
     var theEvent = event.copy(stateData = theStateData)
 
-
-    if (chainedStateFunctions.contains(state)) {
-      var resultingBeamStates = List[State]()
-      var resultingReplies = List[Any]()
-      chainedStateFunctions(state).foreach { stateFunction =>
-        if (stateFunction isDefinedAt theEvent) {
-          val fsmState: State = stateFunction(theEvent)
-          theStateData = fsmState.stateData.copy(triggerId = theStateData.triggerId, tick = theStateData.tick)
-          theEvent = Event(event.event, theStateData)
-          resultingBeamStates = resultingBeamStates :+ fsmState
-          resultingReplies = resultingReplies ::: fsmState.replies
-        }
-      }
-      val newStates = for (result <- resultingBeamStates if result.stateName != Abstain) yield result
-      if (!allStatesSame(newStates.map(_.stateName))) {
-        stop(Failure(s"Chained when blocks did not achieve consensus on state to transition " +
-          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,"))
-      } else if (newStates.isEmpty && state == AnyState) {
-        stop(Failure(s"Did not handle the event=$event"))
-      } else if (newStates.isEmpty) {
-        handleEvent(AnyState, event)
-      } else {
-        val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
-        if (numCompletionNotices > 1) {
-          stop(Failure(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}"))
-        } else {
-          if (numCompletionNotices == 1) {
-            theStateData = theStateData.copy(triggerId = None)
+    event match {
+      case Event(completeNotice: CompletionNotice,_) =>
+        beamServices.schedulerRef ! completeNotice
+        stay()
+      case _ if chainedStateFunctions.contains(state) =>
+        var resultingBeamStates = List[State]()
+        var resultingReplies = List[Any]()
+        chainedStateFunctions(state).foreach { stateFunction =>
+          if (stateFunction isDefinedAt theEvent) {
+            val fsmState: State = stateFunction(theEvent)
+            theStateData = fsmState.stateData.copy(triggerId = theStateData.triggerId, tick = theStateData.tick)
+            theEvent = Event(event.event, theStateData)
+            resultingBeamStates = resultingBeamStates :+ fsmState
+            resultingReplies = resultingReplies ::: fsmState.replies
           }
-          FSM.State(
-            stateName = newStates.head.stateName,
-            stateData = theStateData,
-            timeout = None,
-            stopReason = newStates.flatMap(s => s.stopReason).headOption, // Stop iff anyone wants to. TODO: Maybe do a consensus check here, too.
-            replies = resultingReplies
-          )
         }
-      }
-    } else {
-      FSM.State(state, event.stateData)
+        val newStates = for (result <- resultingBeamStates if result.stateName != Abstain) yield result
+        if (!allStatesSame(newStates.map(_.stateName))) {
+          stop(Failure(s"Chained when blocks did not achieve consensus on state to transition " +
+            s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,"))
+        } else if (newStates.isEmpty && state == AnyState) {
+          stop(Failure(s"Did not handle the event=$event"))
+        } else if (newStates.isEmpty) {
+          handleEvent(AnyState, event)
+        } else {
+          val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
+          if (numCompletionNotices > 1) {
+            stop(Failure(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}"))
+          } else {
+            if (numCompletionNotices == 1) {
+              theStateData = theStateData.copy(triggerId = None)
+            }
+            FSM.State(
+              stateName = newStates.head.stateName,
+              stateData = theStateData,
+              timeout = None,
+              stopReason = newStates.flatMap(s => s.stopReason).headOption, // Stop iff anyone wants to. TODO: Maybe do a consensus check here, too.
+              replies = resultingReplies
+            )
+          }
+        }
+      case _ =>
+          FSM.State(state, event.stateData)
     }
   }
 
