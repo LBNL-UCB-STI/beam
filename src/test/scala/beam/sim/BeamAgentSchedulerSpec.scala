@@ -83,6 +83,7 @@ object BeamAgentSchedulerSpec {
     val eventsManager = new EventsManagerImpl
     override def data = NoData()
 
+    override val beamServices: BeamServices = null
     override def logPrefix(): String = "TestBeamAgent"
 
     chainedWhen(Uninitialized){
