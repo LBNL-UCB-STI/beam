@@ -408,7 +408,7 @@ class PersonAgent(val beamServices: BeamServices,
 //                  eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
 //                })
               becomeDriverOfVehicle(vehiclePersonId.vehicleId,tick)
-              setPassengerSchedule(passengerSchedule)
+              completeBecomingDriver(Some(passengerSchedule), vehiclePersonId.vehicleId)
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _currentRoute = processedData.restTrip

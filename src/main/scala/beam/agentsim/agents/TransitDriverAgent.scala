@@ -1,14 +1,14 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorContext, Props}
+import akka.actor.{ActorContext, PoisonPill, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
+import beam.agentsim.agents.vehicles.VehicleProtocol.BecomeDriver
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.TriggerWithId
@@ -19,6 +19,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
+
+import scala.concurrent.duration._
 
 /**
   * BEAM
@@ -67,29 +69,32 @@ class TransitDriverAgent(val beamServices: BeamServices,
     * Becoming driver
     */
     case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
-      vehicle.becomeDriver(beamServices.agentRefs(newDriver.toString)).fold(fa =>
-        stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
-          s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle.id)
-        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(PersonAgent.Waiting)
+      vehicle.becomeDriver(beamServices.agentRefs(newDriver.toString)).fold(
+        fail =>
+          stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
+            s"but driver ${vehicle.driver.get} already assigned.")),
+        succ => {
+          val (tick, triggerId) = releaseTickAndTriggerId()
+          completeBecomingDriver(newPassengerSchedule, vehicle.id)
+          eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+          goto(PersonAgent.Waiting) replying completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey
+            .startTime, self, passengerSchedule.schedule.firstKey))
       })
   }
 
   chainedWhen(AnyState) {
-    case Event(BecomeDriverSuccessAck, _) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey
-        .startTime, self, passengerSchedule.schedule.firstKey))
-      stay
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
   }
 
+  import scala.concurrent.ExecutionContext.Implicits.global
   override def passengerScheduleEmptyActions(triggerId: Long, tick: Double): State = {
-    stop replying completed(triggerId)
+    // If we "stop" here without delay, the BeamAgentScheduler get's notice of Termination *before*
+    // it get's the completion notice, resulting in an Error message, so just wait a bit and then stop
+    context.system.scheduler.scheduleOnce(100 milliseconds, self, Finish)
+    stay replying completed(triggerId)
   }
 
   when(Waiting) {
