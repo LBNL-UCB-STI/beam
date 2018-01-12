@@ -1,12 +1,14 @@
 package beam.sim
 
-import java.nio.file.InvalidPathException
+import java.io.FileOutputStream
+import java.nio.file.{Files, InvalidPathException, Paths}
+import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.utils.{BeamConfigUtils, FileUtils}
+import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -55,17 +57,27 @@ trait BeamHelper {
       }
     })
 
-  def runBeamWithConfigFile(configFileName: Option[String]): Config = {
-    val config = configFileName match {
+  def runBeamWithConfigFile(configFileName: Option[String]): Unit = {
+    val (config, cfgFile) = configFileName match {
       case Some(fileName) =>
-        BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName)
+        (BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName), fileName)
       case _ =>
         throw new InvalidPathException("null", "invalid configuration file.")
     }
-    runBeamWithConfig(config)
+
+    val (_, outputDirectory) = runBeamWithConfig(config)
+    val beamConfig = BeamConfig(config)
+
+    val props = new Properties()
+    props.setProperty("commitHash", LoggingUtil.getCommitHash)
+    props.setProperty("configFile", cfgFile)
+    val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
+    props.store(out, "Simulation out put props.")
+    Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile), Paths.get(outputDirectory, "modeChoiceParameters.xml"))
+    Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
   }
 
-  def runBeamWithConfig(config: com.typesafe.config.Config): Config = {
+  def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
 
@@ -73,7 +85,9 @@ trait BeamHelper {
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
-    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+    val outputDirectory = FileUtils.getConfigOutputFile(beamConfig.beam.outputs.baseOutputDirectory, beamConfig.beam.agentsim.simulationName, beamConfig.beam.outputs.addTimestampToOutputDirectory)
+    LoggingUtil.createFileLogger(outputDirectory)
+    matsimConfig.controler.setOutputDirectory(outputDirectory)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
@@ -91,6 +105,6 @@ trait BeamHelper {
     beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
 
     beamServices.controler.run()
-    matsimConfig
+    (matsimConfig, outputDirectory)
   }
 }
