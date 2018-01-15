@@ -1,10 +1,8 @@
 package beam.utils
 
-import beam.router.RoutingModel.{BeamLeg, BeamPath}
-import io.circe.{Encoder, Json, JsonObject}
-import org.matsim.api.core.v01.{Coord, Id}
+import io.circe.{Encoder, Json}
+import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.io.IOUtils
-import io.circe.syntax._
 
 import scala.xml.XML
 
@@ -16,15 +14,6 @@ object JsonUtils {
 
   // Put global implicit encoders here. Can import wholesale in implementing code.
   object syntax {
-    implicit val encodeLeg: Encoder[BeamLeg] = (a: BeamLeg) => {
-      val jsonBuilder: Map[String, Json] = Map(
-        "typ" -> Json.fromString("trajectory"), "mode" -> a.mode.asJson, "shp" ->
-          a.travelPath.asJson
-      )
-
-      Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
-    }
-
     implicit val encodeCoord: Encoder[Coord]=(a:Coord)=>{
       Json.fromValues(Seq(Json.fromDoubleOrNull(MathUtils.roundDouble(a.getX,5)),Json.fromDoubleOrNull(MathUtils.roundDouble(a.getY,5))))
     }
@@ -42,28 +31,4 @@ object JsonUtils {
     writer.close()
   }
 
-  //// Private Methods
-
-  private[this] implicit val encodePath: Encoder[BeamPath] = (a: BeamPath) => {
-    val trajectory = a.toTrajectory
-    val props = if (a.isTransit) {
-      Map(
-        "trajectory" ->  Json.fromValues(trajectory.path.map(_.asJson)),
-        "fId" -> a.transitStops.get.fromStopId.asJson,
-        "tId" ->  a.transitStops.get.toStopId.asJson
-      )
-    } else {
-      Map("trajectory" ->  Json.fromValues(trajectory.path.map(_.asJson)) )
-    }
-    Json.fromJsonObject(JsonObject.fromMap(props))
-  }
-//
-//
-//  private[this] implicit val encodeTransitSegment: Encoder[BeamTransitSegment] = (a: BeamTransitSegment) => {
-//    val jsonBuilder: Map[String, Json] = Map(
-//      "vId" -> "dummy".asJson, "fId" -> a.fromStopId.toString.asJson, "tId" -> a.toStopId.toString.asJson, "time" -> a.departureTime.asJson)
-//    Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
-//  }
-
-  //~
 }
