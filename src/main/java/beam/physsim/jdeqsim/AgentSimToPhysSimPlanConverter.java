@@ -5,6 +5,7 @@ import beam.agentsim.events.PathTraversalEvent;
 import beam.physsim.viz.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
+import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
@@ -21,6 +22,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
@@ -56,6 +58,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
     private Integer writeEventsInterval;
+    private BeamConfig beamConfig;
     private HashMap<String,String> previousActivity = new HashMap<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
@@ -64,14 +67,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
                                           Scenario scenario,
                                           GeoUtils geoUtils,
                                           ActorRef router,
-                                          Integer writeEventsInterval) {
+                                          BeamConfig beamConfig) {
 
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
         this.router = router;
+        this.beamConfig=beamConfig;
         agentSimScenario = scenario;
 
-        this.writeEventsInterval = writeEventsInterval;
+        this.writeEventsInterval = beamConfig.beam().outputs().writeEventsInterval();
 
 
         if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
@@ -108,7 +112,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
 
-        JDEQSimulation jdeqSimulation = new JDEQSimulation(agentSimScenario.getConfig().jdeqSim(), jdeqSimScenario, jdeqsimEvents);
+
+        JDEQSimConfigGroup config=new JDEQSimConfigGroup();
+        config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
+        config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
+
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
         jdeqSimulation.run();
 
         if (writePhysSimEvents(iterationNumber)){

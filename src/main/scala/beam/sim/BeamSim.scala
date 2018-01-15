@@ -65,7 +65,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       scenario,
       beamServices.geo,
       beamServices.beamRouter,
-      beamServices.beamConfig.beam.outputs.writeEventsInterval)
+      beamServices.beamConfig)
 
     createGraphsFromEvents = new CreateGraphsFromAgentSimEvents(eventsManager, event.getServices.getControlerIO, scenario, beamServices.geo, beamServices.registry, beamServices.beamRouter)
 
