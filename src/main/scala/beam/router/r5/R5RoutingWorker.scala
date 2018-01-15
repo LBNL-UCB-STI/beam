@@ -7,7 +7,9 @@ import java.util
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
+import beam.router.Modes
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
@@ -16,7 +18,6 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.TripWithFares
-import beam.router.{Modes, StreetSegmentTrajectoryResolver}
 import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -34,7 +35,7 @@ import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  val BUSHWALKING_SPEED_IN_METERS_PER_SECOND = 0.447; // 1 mile per hour
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447; // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
@@ -326,10 +327,21 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val origin = new Coord(routingRequestTripInfo.origin.getX, routingRequestTripInfo.origin.getY)
         val dest = new Coord(routingRequestTripInfo.destination.getX, routingRequestTripInfo.destination.getY)
         val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)
-        val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWALKING_SPEED_IN_METERS_PER_SECOND)
+        val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
         val dummyTrip = EmbodiedBeamTrip(
           Vector(
-            EmbodiedBeamLeg(BeamLeg(routingRequestTripInfo.departureTime.atTime, WALK, bushwhackingTime),
+            EmbodiedBeamLeg(
+              BeamLeg(
+                routingRequestTripInfo.departureTime.atTime,
+                WALK,
+                bushwhackingTime,
+                BeamPath(
+                  Vector(),
+                  None,
+                  SpaceTime(origin, routingRequestTripInfo.departureTime.atTime),
+                  SpaceTime(dest, routingRequestTripInfo.departureTime.atTime + bushwhackingTime),
+                  beelineDistanceInMeters)
+              ),
               maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
@@ -351,7 +363,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       }
       activeLinkIds = activeLinkIds :+ edge.edgeId.toString
     }
-    BeamPath(activeLinkIds, None, new StreetSegmentTrajectoryResolver(segment, tripStartTime))
+    BeamPath(
+      activeLinkIds,
+      None,
+      SpaceTime(segment.geometry.getStartPoint.getX, segment.geometry.getStartPoint.getY, tripStartTime),
+      SpaceTime(segment.geometry.getEndPoint.getX, segment.geometry.getEndPoint.getY, tripStartTime + segment.duration),
+      segment.distance.toDouble / 1000)
   }
 
   /**

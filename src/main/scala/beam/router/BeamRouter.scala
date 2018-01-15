@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent, TransitDriverAgent}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM}
@@ -81,14 +82,36 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
               for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
                 activeLinkIds = activeLinkIds :+ edge.edgeId.toString
               }
-              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(activeLinkIds, Option(TransitStopsInfo(fromStop, vehicleId, toStop)), StreetSegmentTrajectoryResolver(streetSeg, departureTime))
+              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
+                BeamPath(
+                  activeLinkIds,
+                  Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+                  SpaceTime(streetSeg.geometry.getStartPoint.getX, streetSeg.geometry.getStartPoint.getY, departureTime),
+                  SpaceTime(streetSeg.geometry.getEndPoint.getX, streetSeg.geometry.getEndPoint.getY, departureTime + streetSeg.duration),
+                  streetSeg.distance.toDouble / 1000)
             case None =>
               val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
-              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(edgeIds, Option(TransitStopsInfo(fromStop, vehicleId, toStop)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
+              val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head.toInt)
+              val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last.toInt)
+              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(
+                edgeIds,
+                Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+                SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
+                SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
+                Double.PositiveInfinity
+              )
           }
         } else {
           val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
-          (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(edgeIds, Option(TransitStopsInfo(fromStop, vehicleId, toStop)), TrajectoryByEdgeIdsResolver(transportNetwork.streetLayer, departureTime, duration))
+          val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head.toInt)
+          val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last.toInt)
+          (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(
+            edgeIds,
+            Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+            SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
+            SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
+            Double.PositiveInfinity
+          )
         }
       }.toSeq
       tripPattern.tripSchedules.asScala

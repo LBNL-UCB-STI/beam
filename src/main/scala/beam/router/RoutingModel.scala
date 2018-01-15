@@ -1,7 +1,8 @@
 package beam.router
 
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
-import beam.agentsim.agents.vehicles.{PassengerSchedule, Trajectory}
+import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -98,7 +99,7 @@ object RoutingModel {
   case class BeamLeg(startTime: Long,
                      mode: BeamMode,
                      duration: Long,
-                     travelPath: BeamPath = EmptyBeamPath.path) {
+                     travelPath: BeamPath) {
     val endTime: Long = startTime + duration
 
     override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
@@ -107,7 +108,7 @@ object RoutingModel {
   object BeamLeg {
     val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x=>(x.startTime,x.duration))
 
-    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0)
+    def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
   }
 
   case class BeamLegWithNext(leg: BeamLeg, nextLeg: Option[BeamLeg])
@@ -130,17 +131,15 @@ object RoutingModel {
     * @param transitStops start and end stop if this path is transit (partial) route
 
     */
-  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], protected[router] val resolver: TrajectoryResolver) {
+  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 
     def isTransit = transitStops.isDefined
 
-    lazy val distanceInM: Double = resolver.resolveLengthInM(this)
-
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
-    def getStartPoint() = resolver.resolveStart(this)
+    def getStartPoint() = startPoint
 
-    def getEndPoint() = resolver.resolveEnd(this)
+    def getEndPoint() = endPoint
 
     def canEqual(other: Any): Boolean = other.isInstanceOf[BeamPath]
 
@@ -169,7 +168,7 @@ object RoutingModel {
 
   //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
   object EmptyBeamPath {
-    val path = BeamPath(Vector[String](), None, EmptyTrajectoryResolver)
+    val path = BeamPath(Vector[String](), None, null, null, 0)
   }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)

@@ -1,10 +1,8 @@
 package beam.utils
 
-import beam.router.RoutingModel.{BeamLeg, BeamPath}
-import io.circe.{Encoder, Json, JsonObject}
-import org.matsim.api.core.v01.{Coord, Id}
+import io.circe.{Encoder, Json}
+import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.io.IOUtils
-import io.circe.syntax._
 
 import scala.xml.XML
 
