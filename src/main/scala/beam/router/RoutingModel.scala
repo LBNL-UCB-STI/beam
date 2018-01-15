@@ -134,10 +134,6 @@ object RoutingModel {
 
     def isTransit = transitStops.isDefined
 
-    def toTrajectory: Trajectory = {
-      resolver.resolve(this)
-    }
-
     lazy val distanceInM: Double = resolver.resolveLengthInM(this)
 
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
