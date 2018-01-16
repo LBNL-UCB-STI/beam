@@ -8,25 +8,25 @@ import beam.sim.BeamServices
   * BEAM
   */
 object BridgeTollDefaults {
-  val tollPricesBeamVille = Map[String, Double](
-    "1" -> 100,
-    "2" -> 200
+  val tollPricesBeamVille = Map[Int, Double](
+    1 -> 100,
+    2 -> 200
   )
 
   // source: https://www.transit.wiki/
-  val tollPricesSFBay = Map[String, Double](
-    "1191692" -> 5,
-    "502" -> 5,
-    "998142" -> 5,
-    "722556" -> 5,
-    "1523426" -> 5,
-    "1053032" -> 5,
-    "1457468" -> 7,
-    "668214" -> 5
+  val tollPricesSFBay = Map[Int, Double](
+    1191692 -> 5,
+    502 -> 5,
+    998142 -> 5,
+    722556 -> 5,
+    1523426 -> 5,
+    1053032 -> 5,
+    1457468 -> 7,
+    668214 -> 5
   )
 
   def estimateBrdigeFares(alternatives: Seq[EmbodiedBeamTrip], beamServices: BeamServices): Seq[BigDecimal] = {
-    var tollPrices: Map[String, Double] = Map();
+    var tollPrices: Map[Int, Double] = Map();
     if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("beamville")) {
       tollPrices = tollPricesBeamVille;
     } else {

@@ -1,4 +1,4 @@
-package beam.physsim.viz;
+package beam.analysis.via;
 
 
         import java.io.BufferedWriter;
