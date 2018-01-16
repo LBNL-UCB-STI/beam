@@ -8,7 +8,7 @@ from botocore.errorfactory import ClientError
 CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"
   -    sleep 10s
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    sudo aws --region "$REGION" s3 cp test/output/*.zip s3://beam-outputs/
+  -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/
   -    rm -rf test/output/*'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
@@ -29,9 +29,9 @@ initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
-  - /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) started..." -b "An EC2 instance of type $(ec2metadata --instance-type) launched to run the batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
+  - /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) started..." -b "An EC2 instance of type $(ec2metadata --instance-type) launched in $REGION to run the batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
   - echo "notification sent..."
-  - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
+  - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.veryicon.com/256/Internet%20%26%20Web/Socialmedia/AWS.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
   - echo "notification saved..."
   - crontab /tmp/glip_notification
   - crontab -l
@@ -67,10 +67,11 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'd2.xlarge', 'd2.2xlarge', 'd2.4xlarge', 'd2.8xlarge',
                   'i2.xlarge', 'i2.2xlarge', 'i2.4xlarge', 'i2.8xlarge',
                   'h1.2xlarge', 'h1.4xlarge', 'h1.8xlarge', 'h1.16xlarge',
-                  'i3.large', 'i3.xlarge', 'i3.2xlarge', 'i3.4xlarge', 'i3.8xlarge', 'i3.16xlarge']
+                  'i3.large', 'i3.xlarge', 'i3.2xlarge', 'i3.4xlarge', 'i3.8xlarge', 'i3.16xlarge',
+                  'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge']
 
 s3 = boto3.client('s3')
-ec2 = boto3.client('ec2',region_name=os.environ['REGION'])
+ec2 = None
 
 def check_resource(bucket, key):
     try:
@@ -96,14 +97,14 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type):
-    res = ec2.run_instances(ImageId=os.environ['IMAGE_ID'],
+def deploy(script, instance_type, region):
+    res = ec2.run_instances(ImageId=os.environ[region.replace("-", "_")+'_IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
-                            KeyName=os.environ['KEY_NAME'],
+                            KeyName=os.environ[region.replace("-", "_")+'_KEY_NAME'],
                             MinCount=1,
                             MaxCount=1,
-                            SecurityGroupIds=[ os.environ['SECURITY_GROUP'] ],
+                            SecurityGroupIds=[ os.environ[region.replace("-", "_")+'_SECURITY_GROUP'] ],
                             IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
                             InstanceInitiatedShutdownBehavior='terminate')
     return res['Instances'][0]['InstanceId']
@@ -128,6 +129,7 @@ def lambda_handler(event, context):
     instance_type = event.get('instance_type')
     batch = event.get('batch', TRUE)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
+    region = event.get('region', os.environ['REGION'])
 
     if instance_type is None or instance_type not in instance_types:
         instance_type = os.environ['INSTANCE_TYPE']
@@ -142,12 +144,14 @@ def lambda_handler(event, context):
         configs = configs.split(',')
 
     txt = ''
+    global ec2
+    ec2 = boto3.client('ec2',region_name=region)
 
     if validate(branch) and validate(commit_id):
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
-            instance_id = deploy(script, instance_type)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
+            instance_id = deploy(script, instance_type, region)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
             # txt = txt + 'Script is {script}. \n'.format(script=script)

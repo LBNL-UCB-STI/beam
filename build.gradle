@@ -260,6 +260,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
   "batch": "$beamBatch",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
+  "region": "$region",
   "shutdown_wait": "$shutdownWait"
 }"""
 
