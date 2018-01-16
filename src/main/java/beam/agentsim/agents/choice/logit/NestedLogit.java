@@ -87,7 +87,7 @@ public class NestedLogit implements AbstractLogit{
 	@Override
 	public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData){
 		LinkedHashMap<NestedLogit,Double> conditionalProbs = new LinkedHashMap<NestedLogit,Double>();
-		double totalExpMaxUtil = getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
+//		double totalExpMaxUtil = getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
 		LinkedHashMap<String,Double> marginalProbs = marginalizeAlternativeProbabilities(conditionalProbs);
 		cdf = new DiscreteProbabilityDistribution();
 		cdf.setPDF(marginalProbs);
