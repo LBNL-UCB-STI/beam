@@ -99,14 +99,14 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, suffix):
-    res = ec2.run_instances(ImageId=os.environ[suffix+'_IMAGE_ID'],
+def deploy(script, instance_type, region_prefix):
+    res = ec2.run_instances(ImageId=os.environ[region_prefix + 'IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
-                            KeyName=os.environ[suffix+'_KEY_NAME'],
+                            KeyName=os.environ[region_prefix + 'KEY_NAME'],
                             MinCount=1,
                             MaxCount=1,
-                            SecurityGroupIds=[ os.environ[suffix+'_SECURITY_GROUP'] ],
+                            SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
                             IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
                             InstanceInitiatedShutdownBehavior='terminate')
     return res['Instances'][0]['InstanceId']
@@ -157,7 +157,7 @@ def lambda_handler(event, context):
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
-            instance_id = deploy(script, instance_type, region.replace("-", "_"))
+            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_')
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
             # txt = txt + 'Script is {script}. \n'.format(script=script)
