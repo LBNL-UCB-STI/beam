@@ -233,7 +233,19 @@ lambda {
     region = "us-east-2"
 }
 
-
+def getCurrentGitBranch() {
+    def gitBranch = "$defaultBranch"
+    try {
+        def workingDir = new File("${project.projectDir}")
+        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
+        result.waitFor()
+        if (result.exitValue() == 0) {
+            gitBranch = result.text.trim()
+        }
+    } catch (e) {
+    }
+    return gitBranch
+}
 
 task deploy(type: AWSLambdaInvokeTask) {
 
@@ -242,12 +254,12 @@ task deploy(type: AWSLambdaInvokeTask) {
     }
 
     def pload = """{
-  "branch": "$beamBranch",
+  "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "$beamCommit",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments')}",
   "is_experiment": "${!project.hasProperty('beamConfigs')}",
   "batch": "$beamBatch",
-  "instance_type": "${project.findProperty('instanceType') ?: 't2.medium'}",
+  "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "shutdown_wait": "$shutdownWait"
 }"""
 
