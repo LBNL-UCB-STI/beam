@@ -70,6 +70,8 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'i3.large', 'i3.xlarge', 'i3.2xlarge', 'i3.4xlarge', 'i3.8xlarge', 'i3.16xlarge',
                   'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge']
 
+regions = ['us-east-2', 'us-west-2']
+
 s3 = boto3.client('s3')
 ec2 = None
 
@@ -97,14 +99,14 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region):
-    res = ec2.run_instances(ImageId=os.environ[region.replace("-", "_")+'_IMAGE_ID'],
+def deploy(script, instance_type, suffix):
+    res = ec2.run_instances(ImageId=os.environ[suffix+'_IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
-                            KeyName=os.environ[region.replace("-", "_")+'_KEY_NAME'],
+                            KeyName=os.environ[suffix+'_KEY_NAME'],
                             MinCount=1,
                             MaxCount=1,
-                            SecurityGroupIds=[ os.environ[region.replace("-", "_")+'_SECURITY_GROUP'] ],
+                            SecurityGroupIds=[ os.environ[suffix+'_SECURITY_GROUP'] ],
                             IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
                             InstanceInitiatedShutdownBehavior='terminate')
     return res['Instances'][0]['InstanceId']
@@ -144,6 +146,10 @@ def lambda_handler(event, context):
         configs = configs.split(',')
 
     txt = ''
+
+    if region not in regions:
+        return "Unable to start run, {region} region not supported.".format(region=region)
+
     global ec2
     ec2 = boto3.client('ec2',region_name=region)
 
@@ -151,7 +157,7 @@ def lambda_handler(event, context):
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
-            instance_id = deploy(script, instance_type, region)
+            instance_id = deploy(script, instance_type, region.replace("-", "_"))
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
             # txt = txt + 'Script is {script}. \n'.format(script=script)
