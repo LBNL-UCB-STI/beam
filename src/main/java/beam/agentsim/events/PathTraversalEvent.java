@@ -75,10 +75,10 @@ public class PathTraversalEvent extends Event {
         attr.put(ATTRIBUTE_FUEL,fuel);
         attr.put(ATTRIBUTE_VEHICLE_CAPACITY,capacity.toString());
 
-        attr.put(ATTRIBUTE_START_COORDINATE_X, Double.toString(beamLeg.travelPath().getStartPoint().loc().getX()));
-        attr.put(ATTRIBUTE_START_COORDINATE_Y, Double.toString(beamLeg.travelPath().getStartPoint().loc().getY()));
-        attr.put(ATTRIBUTE_END_COORDINATE_X, Double.toString(beamLeg.travelPath().getEndPoint().loc().getX()));
-        attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(beamLeg.travelPath().getEndPoint().loc().getY()));
+        attr.put(ATTRIBUTE_START_COORDINATE_X, Double.toString(beamLeg.travelPath().startPoint().loc().getX()));
+        attr.put(ATTRIBUTE_START_COORDINATE_Y, Double.toString(beamLeg.travelPath().startPoint().loc().getY()));
+        attr.put(ATTRIBUTE_END_COORDINATE_X, Double.toString(beamLeg.travelPath().endPoint().loc().getX()));
+        attr.put(ATTRIBUTE_END_COORDINATE_Y, Double.toString(beamLeg.travelPath().endPoint().loc().getY()));
         return attr;
     }
 

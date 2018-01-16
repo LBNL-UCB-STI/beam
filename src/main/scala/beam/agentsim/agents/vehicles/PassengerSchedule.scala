@@ -23,12 +23,12 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
   def isEmpty: Boolean = schedule.isEmpty
 
   def initialSpacetime: SpaceTime = {
-    schedule.firstKey.travelPath.getStartPoint()
+    schedule.firstKey.travelPath.startPoint
   }
 
   def terminalSpacetime(): SpaceTime = {
     val lastLeg = schedule.lastKey
-    lastLeg.travelPath.getEndPoint()
+    lastLeg.travelPath.endPoint
   }
 
   def getStartLeg: BeamLeg = {

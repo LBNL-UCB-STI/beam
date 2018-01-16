@@ -1,4 +1,4 @@
-package beam.physsim.jdeqsim;
+package beam.analysis.via;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import org.matsim.api.core.v01.Id;

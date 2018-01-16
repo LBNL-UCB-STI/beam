@@ -11,7 +11,7 @@ class StartWithCustomConfig(val config: Config) extends
 
   val beamConfig = BeamConfig(config)
 
-  val matsimConfig: org.matsim.core.config.Config = runBeamWithConfig(config)
+  val (matsimConfig, _) = runBeamWithConfig(config)
 
   val file: File = getEventsFilePath(matsimConfig, beamConfig.beam.outputs.events.fileOutputFormats)
 

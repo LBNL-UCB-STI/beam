@@ -55,11 +55,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       //we have just completed a leg
       //      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
-      lastVisited = beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())
+      lastVisited = beamServices.geo.wgs2Utm(completedLeg.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
           // If no manager is set, we ignore
-          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())))
+          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.endPoint)))
         case None =>
           throw new RuntimeException(s"Driver $id just ended a leg ${completedLeg} but had no vehicle under control")
       }
@@ -281,8 +281,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     goto(Moving)
   }
 
-  private def getLinks: Vector[String] = {
-    val pathLinks: Vector[String] = _currentLeg match {
+  private def getLinks: Vector[Int] = {
+    val pathLinks: Vector[Int] = _currentLeg match {
       case Some(leg) =>
         leg.travelPath.linkIds
       case None =>

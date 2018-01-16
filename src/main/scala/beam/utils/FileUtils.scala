@@ -32,6 +32,20 @@ object FileUtils {
     matsimConfig.controler.setOutputDirectory(outputDir.toAbsolutePath.toString)
   }
 
+  def getConfigOutputFile(outputDirectoryBasePath: String, simulationName: String, addTimestampToOutputDirectory: Boolean): String = {
+    val baseOutputDir = Paths.get(outputDirectoryBasePath)
+    if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
+
+    val outputDir = (if (addTimestampToOutputDirectory) {
+      val timestamp: String = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date())
+      Paths.get(outputDirectoryBasePath + File.separator + simulationName + "_" + timestamp)
+    } else {
+      Paths.get(outputDirectoryBasePath + File.separator + simulationName)
+    }).toFile
+    outputDir.mkdir()
+    outputDir.getAbsolutePath
+  }
+
   def decompress(compressed: Array[Byte]): Option[String] =
     Try {
       val inputStream = new GZIPInputStream(new ByteArrayInputStream(compressed))
