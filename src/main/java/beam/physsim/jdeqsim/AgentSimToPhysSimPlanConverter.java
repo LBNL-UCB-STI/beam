@@ -57,7 +57,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     private int numberOfLinksRemovedFromRouteAsNonCarModeLinks;
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    private Integer writeEventsInterval;
     private BeamConfig beamConfig;
     private HashMap<String,String> previousActivity = new HashMap<>();
 
@@ -74,9 +73,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         this.router = router;
         this.beamConfig=beamConfig;
         agentSimScenario = scenario;
-
-        this.writeEventsInterval = beamConfig.beam().outputs().writeEventsInterval();
-
 
         if (AgentSimPhysSimInterfaceDebugger.DEBUGGER_ON){
             log.warn("AgentSimPhysSimInterfaceDebugger is enabled");
@@ -105,9 +101,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         jdeqsimEvents.addHandler(travelTimeCalculator);
 
 
+        if (beamConfig.beam().physsim().writeMATSimNetwork()){
+            createNetworkFile(jdeqSimScenario.getNetwork());
+        }
+
         EventWriterXML_viaCompatible eventsWriterXML=null;
         if (writePhysSimEvents(iterationNumber)) {
-          //  createNetworkFile(jdeqSimScenario.getNetwork());
+
             eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"));
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
@@ -128,7 +128,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     private boolean writePhysSimEvents(int iterationNumber) {
-        return writeEventsInterval == 1 || (writeEventsInterval > 0 && iterationNumber / writeEventsInterval == 0);
+        return writeInIteration(iterationNumber,beamConfig.beam().physsim().writeEventsInterval());
+    }
+
+    private boolean writePlans(int iterationNumber) {
+        return writeInIteration(iterationNumber,beamConfig.beam().physsim().writePlansInterval());
+    }
+
+    private boolean writeInIteration(int iterationNumber, int interval) {
+        return interval == 1 || (interval > 0 && iterationNumber / interval == 0);
     }
 
     private void createNetworkFile(Network network) {
@@ -139,8 +147,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     private void writePhyssimPlans(IterationEndsEvent event) {
-        String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsim-plans.xml.gz");
-        new PopulationWriter(jdeqsimPopulation).write(plansFilename);
+        if (writePlans(event.getIteration())){
+            String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsimPlans.xml.gz");
+            new PopulationWriter(jdeqsimPopulation).write(plansFilename);
+        }
     }
 
     @Override
@@ -236,7 +246,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
         createLastActivityOfDayForPopulation();
-      //  writePhyssimPlans(iterationEndsEvent);
+        writePhyssimPlans(iterationEndsEvent);
         if (numberOfLinksRemovedFromRouteAsNonCarModeLinks > 0) {
             log.error("number of links removed from route because they are not in the matsim network:" + numberOfLinksRemovedFromRouteAsNonCarModeLinks);
         }
