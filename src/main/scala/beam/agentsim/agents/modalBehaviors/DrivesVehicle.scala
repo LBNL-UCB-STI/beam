@@ -55,11 +55,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       //we have just completed a leg
       //      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
-      lastVisited = beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())
+      lastVisited = beamServices.geo.wgs2Utm(completedLeg.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
           // If no manager is set, we ignore
-          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.getEndPoint())))
+          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.endPoint))
         case None =>
           throw new RuntimeException(s"Driver $id just ended a leg ${completedLeg} but had no vehicle under control")
       }

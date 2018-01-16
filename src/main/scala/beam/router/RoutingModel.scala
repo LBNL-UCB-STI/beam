@@ -133,37 +133,8 @@ object RoutingModel {
     */
   case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 
-    def isTransit = transitStops.isDefined
-
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
-    def getStartPoint() = startPoint
-
-    def getEndPoint() = endPoint
-
-    def canEqual(other: Any): Boolean = other.isInstanceOf[BeamPath]
-
-    override def equals(other: Any): Boolean = other match {
-      case that: BeamPath =>
-        (that eq this) || (
-            if (this.isTransit && that.isTransit) {
-              transitStops == that.transitStops
-            } else if (!this.isTransit && !that.isTransit) {
-              this.linkIds == that.linkIds
-            } else {
-              false
-            }
-          )
-      case _ => false
-    }
-
-    override def hashCode(): Int = {
-      if (this.isTransit) {
-        transitStops.hashCode()
-      } else {
-        linkIds.hashCode()
-      }
-    }
   }
 
   //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
