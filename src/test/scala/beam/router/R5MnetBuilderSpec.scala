@@ -1,6 +1,6 @@
 package beam.router
 
-import java.io.File
+import java.io.{File, PrintWriter}
 
 import beam.router.r5.R5MnetBuilder
 import com.conveyal.r5.transit.TransportNetwork
@@ -19,5 +19,21 @@ class R5MnetBuilderSpec extends FlatSpec {
     val network = builder.getNetwork
     new NetworkWriter(network).write("test/input/beamville/physsim-network.xml")
   }
+//
+//  it should "not a real test, just for extracting edge data" in {
+////    val r5Dir = "production/application-sfbay/r5"
+//    val r5Dir = "test/input/sf-light/r5"
+//    var transportNetwork = TransportNetwork.fromDirectory(new File(r5Dir))
+//    transportNetwork.write(new File(s"$r5Dir/network.dat"))
+//    transportNetwork = TransportNetwork.read(new File(s"$r5Dir/network.dat"))
+//    val cursor = transportNetwork.streetLayer.edgeStore.getCursor
+//    val pw = new PrintWriter(new File("bayAreaR5NetworkLinks.txt" ))
+//    pw.write(s"linkId,x,y,lengthInMeters\n")
+//    while(cursor.advance()){
+//      val toVert = transportNetwork.streetLayer.vertexStore.getCursor(cursor.getToVertex)
+//      pw.write(s"${cursor.getEdgeIndex},${toVert.getLon},${toVert.getLat},${cursor.getLengthM}\n")
+//    }
+//    pw.close
+//  }
 
 }

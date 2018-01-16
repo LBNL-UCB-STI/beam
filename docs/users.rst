@@ -14,40 +14,40 @@ System Requirements
 * At least 8GB RAM
 * Windows, Mac OSX, Linux
 * Java Runtime Environment 1.8
-* To verify your JRE: https://stackoverflow.com/questions/8472121/which-jre-i-am-using
+* To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
 * We also recommend downloading Senozon VIA and obtaining a Free License: https://via.senozon.com/download
 
 Installing
 ^^^^^^^^^^
 
-Download the latest release of BEAM here:
+Download `BEAM v0.5`_.
 
-After you unzip the archive, you will see the following files in the top level of the expanded directory::
+.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.5.0/beam-gui.zip
 
-  beamgui.jar
-  beam.conf
-  beamville.conf
-  sf-light.conf
-  input/
-    beamville
-    sf-light
+After you unzip the archive, you will see a directory that looks like this when partially expanded: 
+
+.. image:: _static/figs/beam-gui-files.png
+
+For Windows, double click `bin/beam-gui.bat`, on UNIX-like systems, double-click `bin/beam-gui`.
 
 Running BEAM
 ^^^^^^^^^^^^
-BEAM is most easily run from the provided GUI app. To open, double-click `beamgui.jar`. This app was adapted from the analogous MATSim GUI and works the same way.
+The BEAM GUI app is the simplest way to run the model. It looks like this:
 
 .. image:: _static/figs/beam-gui.png
 
-The app provides a file selector, allowing you to choose which configuration file to run. Choose `input/beamville/beam.conf`. 
+Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`. 
 
-Click "Start MATSim". 
+Click "Run BEAM". 
 
-You will see output written to the console. Congrats, you're running BEAM!
+You will see output appear in the console. Congrats, you're running BEAM! 
+
+Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
 Scenarios
 ^^^^^^^^^
-We have provided two scenarios for you to explore.
+We have provided two scenarios for you to explore under the `input` directory.
 
 The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
 
@@ -60,7 +60,7 @@ The `sf-light` scenario is based on the City of San Francisco, including the SF 
 Inputs
 ^^^^^^^
 
-BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run, more detailed descriptions are available in the :ref:`developers-guide`.
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
 
 .. _MATSim convention: http://archive.matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
@@ -77,29 +77,36 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to ---output location---. The files you should see in this directory are::
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files you in the output sub-folder should look like this when the run is complete:
 
-  modestats.txt
-  scorestats.txt
-  stopwatch.png
-  stopwatch.txt
-  traveldistancestats.txt
-  ITERS/
-    it.0/
-      0.events.csv
-      0.legHistogram.txt
-      0.physsim-plans.xml
-      0.plans.xml.gz
-      0.tripdurations.txt
-      
+.. image:: _static/figs/beamville-outputs.png
+
+Each iteration of the run produces a sub-folder under the `ITERS` directory. Within these, several automatically generated outputs are written including plots of modal usage, TNC dead heading, and energy consumption by mode. 
+
+In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
 
 Model Config
 ^^^^^^^^^^^^
 
-To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam.
+To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
+  # Ride Hailing Params
+  beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation=0.05
+  beam.agentsim.agents.rideHailing.defaultCostPerMile=1.25
+  beam.agentsim.agents.rideHailing.defaultCostPerMinute=0.75
+  # Scaling and Tuning Params; 1.0 results in no scaling
+  beam.agentsim.tuning.transitCapacity = 0.2
+  beam.agentsim.tuning.transitPrice = 1.0
+  beam.agentsim.tuning.tollPrice = 1.0
+  beam.agentsim.tuning.rideHailPrice = 1.0
 
-
+* numDriversAsFractionOfPopulation - Defines the # of ride hailing drivers to create. Drivers begin the simulation located at or near the homes of existing agents, uniformly distributed.
+* defaultCostPerMile - One component of the 2 part price of ride hail calculation.
+* defaultCostPerMinute - One component of the 2 part price of ride hail calculation.
+* transitCapacity - Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
+* transitPrice - Scale the price of riding on transit. Applies uniformly to all transit trips.
+* tollPrice - Scale the price to cross tolls.
+* rideHailPrice - Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
 
 Experiment Manager
 ------------------
@@ -156,11 +163,9 @@ In our second example (see directory `test/input/beamville/example-calibration/`
 
 Also note that `mnl_ride_hailing_intercept` appears both in the level specification and in the baseScenario. When using a template file (versus a BEAM Config file), each level can only override properties from Default Params section of `experiment.yml`.
 
-Experiment generation can be run using following command from *project root* after the project has been compiled::
+Experiment generation can be run using following command::
 
-  gradle assemble
-
-  java -cp build/libs/*:build/resources/main beam.experiment.ExperimentGenerator --experiments test/input/beamville/example-experiment/experiments.yml
+  gradle -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']" execute
 
 It's better to create a new sub-folder folder (e.g. 'calibration' or 'experiment-1') in your data input directory and put both templates and the experiment.yml there.
 The ExperimentGenerator will create a sub-folder next to experiment.yml named `runs` which will include all of the data needed to run the experiment along with a shell script to execute a local run. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 

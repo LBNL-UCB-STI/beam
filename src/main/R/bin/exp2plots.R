@@ -17,7 +17,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/capacities-4/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/vot/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -64,7 +64,7 @@ ev[vehicle_type=="cable_car",vehicle_type:="Cable_Car"]
 ev[vehicle_type=="tram",vehicle_type:="Muni"]
 ev[vehicle_type=="rail",vehicle_type:="Rail"]
 ev[vehicle_type=="ferry",vehicle_type:="Ferry"]
-ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail'),'transit',as.character(mode))]
+ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car'),'transit',as.character(mode))]
 ev[,hour:=time/3600]
 ev[,hr:=round(hour)]
 setkey(ev,vehicle_type)
@@ -72,6 +72,21 @@ setkey(ev,vehicle_type)
 #ev[,pmt:=num_passengers*length/1609]
 #ev[is.na(pmt),pmt:=0]
 setkey(ev,type)
+
+## Prep data needed to do quick version of energy calc
+en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/energy/energy-consumption.csv'))
+setkey(en,vehicleType)
+en <- u(en)
+factor.to.scale.personal.back <- 32
+## Energy Density in MJ/liter or MJ/kWh
+en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c(34.2,35.8,3.6))
+ev[tripmode%in%c('car') & vehicle_type=='Car',':='(num_passengers=1)]
+ev[,pmt:=num_passengers*length/1609]
+ev[is.na(pmt),pmt:=0]
+setkey(ev,type)
+
+scale_fill_manual(values = colours)
+
 
 # Mode splits 
 for(fact in factors){
@@ -82,8 +97,10 @@ for(fact in factors){
   toplot <- ev[J('ModeChoice')][,.(tot=length(time)),by=the.factor]
   toplot <- join.on(ev[J('ModeChoice')][,.(num=length(time)),by=c('the.factor','tripmode')],toplot,'the.factor','the.factor')
   toplot[,frac:=num/tot]
+  toplot[,tripmode:=pretty.modes(tripmode)]
   setkey(toplot,the.factor,tripmode)
-  p <- ggplot(toplot,aes(x=the.factor,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")
+  p <- ggplot(toplot,aes(x=the.factor,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")+
+      scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
   pdf.scale <- .6
   ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
@@ -92,18 +109,46 @@ for(fact in factors){
   ggsave(pp(plots.dir,'mode-split-lines-by-',fact,'.pdf'),p,width=15*pdf.scale,height=8*pdf.scale,units='in')
 }
 
-#pretty.titles <- c('TNC Number'='ridehail_num',
-                   #'TNC Price'='ridehail_price',
-                   #'Transit Capacity'='transit_capacity',
-                   #'Transit Price'='transit_price',
-                   #'Toll Price'='toll_price',
-                   #'Value of Time'='vot_vot')
-#to.title <- function(outs.exp){ names(pretty.titles[which(pretty.titles==outs.exp)]) }
 
-## Quick version of energy calc
-#en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/energy/energy-consumption.csv'))
-#setkey(en,vehicleType)
-#en <- u(en)
+# Energy by Mode
+for(fact in factors){
+  streval(pp('ev[,the.factor:=',fact,']'))
+  if(all(c('low','base','high') %in% u(ev$the.factor)))ev[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
+  if(all(c('Low','Base','High') %in% u(ev$the.factor)))ev[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
+
+  toplot <- ev[J('PathTraversal')][,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
+  toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
+  toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
+  toplot <- join.on(toplot,en.density,'fuelType','fuelType')
+  toplot[,energy:=fuel*density]
+  toplot[vehicle_type=='TNC',tripmode:='TNC']
+  toplot[vehicle_type%in%c('Car','TNC'),energy:=energy*factor.to.scale.personal.back]
+  toplot[vehicle_type%in%c('Car','TNC'),numVehicles:=numVehicles*factor.to.scale.personal.back]
+  toplot[,pmt:=pmt*factor.to.scale.personal.back]
+  toplot[vehicle_type%in%c('Car','TNC'),numberOfPassengers:=numVehicles]
+  toplot[vehicle_type%in%c('BART','Bus','Cable_Car','Muni','Rail','TNC'),numberOfPassengers:=numberOfPassengers*factor.to.scale.personal.back]
+  toplot[,ag.mode:=tripmode]
+  toplot[tolower(ag.mode)%in%c('bart','bus','cable_car','muni','rail','tram','transit'),ag.mode:='Transit']
+  toplot[ag.mode=='car',ag.mode:='Car']
+  toplot.ag <- toplot[,.(energy=sum(energy),pmt=sum(pmt)),by=c('the.factor','ag.mode')]
+  setkey(toplot.ag,the.factor,ag.mode)
+  p <- ggplot(toplot.ag,aes(x=the.factor,y=energy/1e6,fill=ag.mode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (TJ)",title=to.title(fact),fill="Trip Mode")+
+      scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot.ag$ag.mode)),mode.colors$key)]))
+  ggsave(pp(plots.dir,'energy-by-mode-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+
+  per.pmt <- toplot[,.(energy=sum(energy)/sum(pmt)),by=c('the.factor','tripmode')]
+  per.pmt[,tripmode:=pretty.modes(tripmode)]
+  the.first <- per.pmt[the.factor==per.pmt$the.factor[1]]
+  per.pmt[,tripmode:=factor(tripmode,levels=the.first$tripmode[rev(order(the.first$energy))])]
+  p <- ggplot(per.pmt[energy<Inf],aes(x=the.factor,y=energy,fill=tripmode))+geom_bar(stat='identity',position='dodge')+labs(x="Scenario",y="Energy Consumption (MJ/passenger mile)",title=to.title(fact),fill="Trip Mode")+
+      scale_fill_manual(values=as.character(mode.colors$color.hex[match(levels(per.pmt$tripmode),mode.colors$key)]))
+  ggsave(pp(plots.dir,'energy-per-pmt-by-vehicle-type-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+}
+
+
+
+
+
 ##################################################################################
 ## Decide which to analyze
 ## ridehail_num ridehail_price toll_price transit_capacity transit_price vot_vot
@@ -150,26 +195,6 @@ for(fact in factors){
   ##ggsave(pp(outs.dir,'transit-passenger-miles.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 
-  ## Energy Use
-  #ev[tripmode%in%c('car'),':='(num_passengers=1)]
-  #ev[,pmt:=num_passengers*length/1609]
-  #ev[is.na(pmt),pmt:=0]
-  #toplot <- ev[J('PathTraversal')][,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('level','vehicle_type','tripmode')]
-  #toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
-  #toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
-  #en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c(34.2,35.8,3.6))
-  #toplot <- join.on(toplot,en.density,'fuelType','fuelType')
-  #toplot[,energy:=fuel*density]
-  #toplot[vehicle_type=='TNC',tripmode:='TNC']
-  #toplot[vehicle_type%in%c('Car','TNC'),energy:=energy*20]
-  #toplot[vehicle_type%in%c('Car','TNC'),numVehicles:=numVehicles*20]
-  #toplot[,pmt:=pmt*20]
-  #toplot[vehicle_type%in%c('Car','TNC'),numberOfPassengers:=numVehicles]
-  #toplot[vehicle_type%in%c('BART','Bus','Cable_Car','Muni','Rail','TNC'),numberOfPassengers:=numberOfPassengers*20]
-  #setkey(toplot,level,tripmode)
-  #p <- ggplot(toplot[,.(energy=sum(energy)),by=c('level','tripmode')],aes(x=level,y=energy/1e6,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (GJ)",title=to.title(outs.exp),fill="Trip Mode")
-  #per.pmt <- toplot[,.(energy=sum(energy)/sum(pmt)),by=c('level','tripmode')]
-  #p <- ggplot(per.pmt[energy<Inf],aes(x=level,y=energy,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (GJ)",title=to.title(outs.exp),fill="Trip Mode")
 
   #toplot <- ev[J('ModeChoice')][,.(length(time)),by=c('hr','level','tripmode')]
   #setkey(toplot,hr,level,tripmode)

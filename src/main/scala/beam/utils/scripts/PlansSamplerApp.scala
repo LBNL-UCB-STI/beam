@@ -29,18 +29,15 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.collection.{JavaConverters, immutable}
 import scala.io.Source
 import scala.util.Random
 
-
-case class SynthHousehold(householdId: Id[Household], numPersons: Integer, cars: Integer, coord: Coord)
-
 import enumeratum.EnumEntry._
 import enumeratum._
 
+case class SynthHousehold(householdId: Id[Household], numPersons: Integer, cars: Integer, coord: Coord)
 
 sealed trait HouseholdAttrib extends EnumEntry
 
@@ -110,8 +107,8 @@ object QuadTreeBuilder {
     var maxY: Double = Double.MinValue
 
 
-    import scala.collection.JavaConversions._
-    for (f <- features) {
+    import scala.collection.JavaConverters._
+    for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
           val ca = wgs2Utm(g.getEnvelope.getEnvelopeInternal)
@@ -128,12 +125,12 @@ object QuadTreeBuilder {
   // Returns a single geometry that is the union of all the polgyons in a shapefile
   def geometryUnionFromShapefile(features: util.Collection[SimpleFeature], sourceCRS: CoordinateReferenceSystem): Geometry = {
 
-    import scala.collection.JavaConversions._
+    import scala.collection.JavaConverters._
     val targetCRS = CRS.decode("EPSG:26910")
     val transform = CRS.findMathTransform(sourceCRS, targetCRS, false)
     var outGeoms = new util.ArrayList[Geometry]()
     // Get the polygons and add them to the output list
-    for (f <- features) {
+    for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
           //          val ca = wgs2Utm(g.getEnvelope.getEnvelopeInternal)
@@ -184,7 +181,6 @@ object QuadTreeBuilder {
   }
 }
 
-
 object SynthHouseholdParser {
 
   import HasXY.wgs2Utm
@@ -217,7 +213,6 @@ object SynthHouseholdParser {
   }
 
 }
-
 
 object PlansSampler {
 
@@ -265,7 +260,6 @@ object PlansSampler {
       shapeFileReader.getFeatureSet,
       shapeFileReader.getCoordinateSystem, pop))
 
-
     outDir = args(6)
   }
 
@@ -309,15 +303,15 @@ object PlansSampler {
     var totalPersonNumber = 0
     var idx = 0
     val popSize = synthHouseholds.size
-    val shuffledHouseholds = Random.shuffle(synthHouseholds)  // Randomize here
+    val shuffledHouseholds = Random.shuffle(synthHouseholds) // Randomize here
     var ret = ListBuffer[SynthHousehold]()
-    while(totalPersonNumber < popSize && totalPersonNumber < sampleNumber){
+    while (totalPersonNumber < popSize && totalPersonNumber < sampleNumber) {
       val hh: SynthHousehold = shuffledHouseholds(idx)
-      if(aoi.contains(MGC.coord2Point(hh.coord))){
+      if (aoi.contains(MGC.coord2Point(hh.coord))) {
         ret += hh
-        totalPersonNumber+=hh.numPersons
+        totalPersonNumber += hh.numPersons
       }
-      idx+=1
+      idx += 1
     }
     ret.toVector
   }

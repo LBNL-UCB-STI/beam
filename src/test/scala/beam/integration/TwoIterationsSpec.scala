@@ -2,8 +2,8 @@ package beam.integration
 
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamConfigUtils, BeamServices, RunBeam}
-import beam.utils.FileUtils
+import beam.sim.{BeamHelper, BeamServices}
+import beam.utils.{BeamConfigUtils, FileUtils}
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -13,7 +13,7 @@ import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
-class TwoIterationsSpec extends FlatSpec with RunBeam with MockitoSugar {
+class TwoIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for two iterations without exceptions" in {
     val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve

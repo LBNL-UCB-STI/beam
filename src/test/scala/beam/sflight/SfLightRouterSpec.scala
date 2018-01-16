@@ -11,12 +11,13 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, WALK}
 import beam.router.RoutingModel.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
+import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamConfigUtils, BeamServices}
-import beam.utils.DateUtils
+import beam.utils.{BeamConfigUtils, DateUtils}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
@@ -49,9 +50,10 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
     networkCoordinator.loadNetwork()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator))
+    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)
@@ -130,7 +132,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
         case BeamTrip(legs, _) =>
           legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
           inside(legs.loneElement) {
-            case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+            case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
               mode should be(WALK)
               links should be('empty)
           }
@@ -159,7 +161,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
             case BeamTrip(legs, _) =>
               legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
               inside(legs.loneElement) {
-                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
                   mode should be(WALK)
               }
           }
@@ -170,16 +172,16 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
             case BeamTrip(legs, _) =>
               legs should have size 3
               inside(legs(0)) {
-                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
                   mode should be(WALK)
               }
               inside(legs(1)) {
-                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
                   mode should be(CAR)
                   links should not be 'empty
               }
               inside(legs(2)) {
-                case BeamLeg(_, mode, _, BeamPath(links, _, _)) =>
+                case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
                   mode should be(WALK)
               }
           }

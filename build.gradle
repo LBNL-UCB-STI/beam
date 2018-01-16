@@ -1,6 +1,5 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 buildscript {
     repositories {
@@ -10,7 +9,6 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
     }
@@ -62,26 +60,27 @@ if (project.hasProperty('env')) {
     }
 }
 
-
-repositories {
-    maven { url "http://maven.geotoolkit.org/" }
-    maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-    maven { url "http://central.maven.org/maven2" }
-    maven { url "http://repo.maven.apache.org/maven2" }
-    maven { url "http://download.osgeo.org/webdav/geotools" }
-    maven { url "http://dl.bintray.com/matsim/matsim" }
-    maven { url "http://maven.conveyal.com/" }
-    maven { url "http://repo1.maven.org/maven2" }
-    maven { url "http://download.java.net/maven/2/" }
-    maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
-    maven { url "http://dl.bintray.com/andimarek/graphql-java" }
-    maven { url "http://maven.geo-solutions.it" }
-    maven { url "http://dl.bintray.com/scalaz/releases" }
-    mavenLocal()
-    mavenCentral()
-    jcenter()
-    maven { url "http://nexus.onebusaway.org/content/groups/public/" }
-    maven { url "https://jitpack.io" }
+allprojects {
+    repositories {
+        maven { url "http://maven.geotoolkit.org/" }
+        maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
+        maven { url "http://central.maven.org/maven2" }
+        maven { url "http://repo.maven.apache.org/maven2" }
+        maven { url "http://download.osgeo.org/webdav/geotools" }
+        maven { url "http://dl.bintray.com/matsim/matsim" }
+        maven { url "http://maven.conveyal.com/" }
+        maven { url "http://repo1.maven.org/maven2" }
+        maven { url "http://download.java.net/maven/2/" }
+        maven { url "http://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
+        maven { url "http://dl.bintray.com/andimarek/graphql-java" }
+        maven { url "http://maven.geo-solutions.it" }
+        maven { url "http://dl.bintray.com/scalaz/releases" }
+        mavenLocal()
+        mavenCentral()
+        jcenter()
+        maven { url "http://nexus.onebusaway.org/content/groups/public/" }
+        maven { url "https://jitpack.io" }
+    }
 }
 
 dependencies {
@@ -313,10 +312,11 @@ task sourcesJar(type: Jar, dependsOn: classes) {
     from sourceSets.main.allSource
 }
 
-//
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run Via application plugin
-// ./gradlew run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
-//
+// Note: colon preceding "run" is necessary to only run the main project and not launch the GUI as well.
+// ./gradlew :run -PappArgs="['--config', 'production/application-sfbay/beam.conf']"
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
 def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
@@ -330,3 +330,21 @@ run {
         args Eval.me(appArgs)
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Run ExperimentGenerator from Command line
+//  gradle execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+task execute(type:JavaExec) {
+    if(project.hasProperty("mainClass")){
+        main = mainClass
+    }else{
+        main = mainClassName
+    }
+   classpath = sourceSets.main.runtimeClasspath
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}
+

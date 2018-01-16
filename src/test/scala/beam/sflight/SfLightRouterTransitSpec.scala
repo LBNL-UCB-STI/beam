@@ -12,12 +12,13 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
+import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamConfigUtils, BeamServices}
-import beam.utils.DateUtils
+import beam.utils.{BeamConfigUtils, DateUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
@@ -31,7 +32,8 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString("""
+class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
+  """
   akka.loglevel="OFF"
   akka.test.timefactor=10
   """))) with WordSpecLike with Matchers
@@ -50,7 +52,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
     when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
@@ -58,9 +60,10 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     networkCoordinator.loadNetwork()
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator), "router")
+    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
 
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)
@@ -79,7 +82,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val origin = geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
       val destination = geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = RoutingModel.DiscreteTime(25740)
-      router ! RoutingRequest(RoutingRequestTripInfo( Id.createPersonId("667520-0"),origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true))))
+      router ! RoutingRequest(RoutingRequestTripInfo(Id.createPersonId("667520-0"), origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true))))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
@@ -99,16 +102,16 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
         val origin = pair(0).getCoord
         val destination = pair(1).getCoord
         val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
-        router ! RoutingRequest(RoutingRequestTripInfo( Id.createPersonId("116378-2"), origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
+        router ! RoutingRequest(RoutingRequestTripInfo(Id.createPersonId("116378-2"), origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
           StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
           StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
         )))
         val response = expectMsgType[RoutingResponse]
-        if(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))numDriveTransitFound = numDriveTransitFound + 1
-        if(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))numWalkTransitFound = numWalkTransitFound + 1
+        if (response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)) numDriveTransitFound = numDriveTransitFound + 1
+        if (response.itineraries.exists(_.tripClassifier == WALK_TRANSIT)) numWalkTransitFound = numWalkTransitFound + 1
         totalRoutesCalculated = totalRoutesCalculated + 1
-//        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
-//        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+        //        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
+        //        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       })
     })
     assert(totalRoutesCalculated - numDriveTransitFound < 10)
@@ -122,5 +125,4 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       time += leg.beamLeg.duration
     })
   }
-
 }
