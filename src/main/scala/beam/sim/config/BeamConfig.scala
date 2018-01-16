@@ -90,14 +90,20 @@ object BeamConfig {
 
     case class PhysSim(
                         flowCapacityFactor: scala.Double,
-                        storageCapacityFactor: scala.Double
+                        storageCapacityFactor: scala.Double,
+                        writeEventsInterval: scala.Int,
+                        writePlansInterval: scala.Int,
+                        writeMATSimNetwork: scala.Boolean
                       )
 
     object PhysSim {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.PhysSim = {
         BeamConfig.Beam.PhysSim(
           flowCapacityFactor = if (c.hasPathOrNull("flowCapacityFactor")) c.getDouble("flowCapacityFactor") else 1.0,
-          storageCapacityFactor = if (c.hasPathOrNull("storageCapacityFactor")) c.getDouble("storageCapacityFactor") else 1.0
+          storageCapacityFactor = if (c.hasPathOrNull("storageCapacityFactor")) c.getDouble("storageCapacityFactor") else 1.0,
+          writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 0,
+          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
+          writeMATSimNetwork = if (c.hasPathOrNull("writeMATSimNetwork")) c.getBoolean("writeMATSimNetwork") else false
         )
       }
     }
