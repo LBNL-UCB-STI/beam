@@ -224,7 +224,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     _currentRoute = chosenTrip
     routingResponse = None
     rideHailingResult = None
-    awaitingReservationConfirmation.clear()
+    if(awaitingReservationConfirmation.nonEmpty){
+      awaitingReservationConfirmation.clear()
+    }
     hasReceivedCompleteChoiceTrigger = false
     pendingChosenTrip = None
     beamServices.schedulerRef ! completed(triggerId = theTriggerId, triggersToSchedule ++

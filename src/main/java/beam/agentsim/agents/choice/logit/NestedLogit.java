@@ -87,7 +87,8 @@ public class NestedLogit implements AbstractLogit{
 	@Override
 	public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData){
 		LinkedHashMap<NestedLogit,Double> conditionalProbs = new LinkedHashMap<NestedLogit,Double>();
-		double totalExpMaxUtil = getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
+
+		getExpOfExpectedMaximumUtility(inputData,conditionalProbs);
 		LinkedHashMap<String,Double> marginalProbs = marginalizeAlternativeProbabilities(conditionalProbs);
 		cdf = new DiscreteProbabilityDistribution();
 		cdf.setPDF(marginalProbs);
@@ -119,6 +120,8 @@ public class NestedLogit implements AbstractLogit{
 			return conditionalProbs.get(node) * propogateNestProbs(node.parent, conditionalProbs);
 		}
 	}
+
+	//FIXME: Side-effecting... This should really return void, but it sets important of the data structures for this class.
 	public double getExpOfExpectedMaximumUtility(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, LinkedHashMap<NestedLogit,Double> conditionalProbs){
 		if(this.isAlternative()){
 			if(inputData.containsKey(this.data.getNestName())) {
