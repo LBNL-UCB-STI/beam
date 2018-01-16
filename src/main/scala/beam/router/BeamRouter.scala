@@ -78,9 +78,9 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         if (config.transitOnStreetNetwork && isOnStreetTransit(mode)) {
           stopToStopStreetSegmentCache.getOrElseUpdate((fromStop, toStop), routeTransitPathThroughStreets(fromStop, toStop)) match {
             case Some(streetSeg) =>
-              var activeLinkIds = Vector[String]()
+              var activeLinkIds = Vector[Int]()
               for (edge: StreetEdgeInfo <- streetSeg.streetEdges.asScala) {
-                activeLinkIds = activeLinkIds :+ edge.edgeId.toString
+                activeLinkIds = activeLinkIds :+ edge.edgeId.intValue()
               }
               (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
@@ -219,20 +219,20 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   }
 
   private def resolveFirstLastTransitEdges(stopIdxs: Int*) = {
-    val edgeIds: Vector[String] = stopIdxs.map { stopIdx =>
+    val edgeIds: Vector[Int] = stopIdxs.map { stopIdx =>
       if (transportNetwork.transitLayer.streetVertexForStop.get(stopIdx) >= 0) {
         val stopVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer
           .streetVertexForStop.get(stopIdx))
         val split = transportNetwork.streetLayer.findSplit(stopVertex.getLat, stopVertex.getLon, 100, StreetMode.CAR)
         if (split != null) {
-          split.edge.toString
+          split.edge
         } else {
           log.warning(s"Stop ${stopIdx} not linked to street network.")
-          ""
+          -1
         }
       } else {
         log.warning(s"Stop ${stopIdx} not linked to street network.")
-        ""
+        -1
       }
     }.toVector.distinct
     edgeIds

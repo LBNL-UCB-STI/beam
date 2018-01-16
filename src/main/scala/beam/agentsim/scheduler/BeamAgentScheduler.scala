@@ -130,6 +130,7 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
           scheduledTrigger.agent ! triggerWithId
         }
         if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
+          System.gc()
           log.info("Hour " + nowInSeconds / 3600.0 + " completed. "+math.round(10*(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/(Math.pow(1000,3)))/10.0+"(GB)")
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
