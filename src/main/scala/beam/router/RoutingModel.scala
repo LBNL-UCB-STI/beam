@@ -131,7 +131,7 @@ object RoutingModel {
     * @param transitStops start and end stop if this path is transit (partial) route
 
     */
-  case class BeamPath(linkIds: Vector[String], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
+  case class BeamPath(linkIds: Vector[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 
@@ -139,7 +139,7 @@ object RoutingModel {
 
   //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
   object EmptyBeamPath {
-    val path = BeamPath(Vector[String](), None, null, null, 0)
+    val path = BeamPath(Vector[Int](), None, null, null, 0)
   }
 
   case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)

@@ -356,12 +356,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   }
 
   private def buildStreetPath(segment: StreetSegment, tripStartTime: Long): BeamPath = {
-    var activeLinkIds = Vector[String]()
+    var activeLinkIds = Vector[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       if (!network.getLinks.containsKey(Id.createLinkId(edge.edgeId.longValue()))) {
         throw new RuntimeException("Link not found: " + edge.edgeId)
       }
-      activeLinkIds = activeLinkIds :+ edge.edgeId.toString
+      activeLinkIds = activeLinkIds :+ edge.edgeId.intValue()
     }
     BeamPath(
       activeLinkIds,
