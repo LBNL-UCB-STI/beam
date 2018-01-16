@@ -319,7 +319,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = System.getenv("MAXRAM") ?: "250g"
+def myAvailableRam = System.getenv("MAXRAM") ?: "950g"
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
