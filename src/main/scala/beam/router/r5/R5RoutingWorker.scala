@@ -42,11 +42,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
-  val cache = CacheBuilder.newBuilder().recordStats().build(new CacheLoader[RoutingRequestTripInfo, RoutingResponse] {
-    override def load(key: RoutingRequestTripInfo) = {
+  val cache = CacheBuilder.newBuilder().recordStats().build(new CacheLoader[R5Request, ProfileResponse] {
+    override def load(key: R5Request) = {
       val time = System.nanoTime()
-      val response = calcRoute(key)
-      log.info("{} {}", (System.nanoTime() - time) / (1000*1000), key.toString)
+      val response = getPlanFromR5(key)
+      log.debug("{} {}", (System.nanoTime() - time) / (1000*1000), key.toString)
       response
     }
   })
@@ -60,21 +60,23 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       transitSchedule = newTransitSchedule
     case RoutingRequest(params: RoutingRequestTripInfo) =>
       val eventualResponse = Future {
-        cache(params)
+        calcRoute(params)
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
       nRequests = nRequests+1
       if (nRequests % 100 == 0) {
         val stats = cache.stats()
-        log.info(stats.toString)
+        log.debug(stats.toString)
       }
     case UpdateTravelTime(travelTime) =>
-      this.maybeTravelTime = Some(travelTime)
+      maybeTravelTime = Some(travelTime)
+      cache.invalidateAll()
   }
 
+  case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
 
-  def getPlanFromR5(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode): ProfileResponse = {
+  def getPlanFromR5(request: R5Request): ProfileResponse = {
     val maxStreetTime = 2 * 60
     // If we already have observed travel times, probably from the previous iteration,
     // let R5 use those. Otherwise, let R5 use its own travel time estimates.
@@ -91,10 +93,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       case None => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
     }
     val profileRequest = new ProfileRequest()
-    profileRequest.fromLon = from.getX
-    profileRequest.fromLat = from.getY
-    profileRequest.toLon = to.getX
-    profileRequest.toLat = to.getY
+    profileRequest.fromLon = request.from.getX
+    profileRequest.fromLat = request.from.getY
+    profileRequest.toLon = request.to.getX
+    profileRequest.toLat = request.to.getY
     profileRequest.maxWalkTime = 3 * 60
     profileRequest.maxCarTime = 4 * 60
     profileRequest.maxBikeTime = 4 * 60
@@ -103,14 +105,14 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
     profileRequest.zoneId = transportNetwork.getTimeZone
-    profileRequest.fromTime = time.fromTime
-    profileRequest.toTime = time.toTime
+    profileRequest.fromTime = request.time.fromTime
+    profileRequest.toTime = request.time.toTime
     profileRequest.date = beamServices.dates.localBaseDate
-    profileRequest.directModes = util.EnumSet.of(directMode)
-    if (transitModes.nonEmpty) {
-      profileRequest.transitModes = util.EnumSet.copyOf(transitModes.asJavaCollection)
-      profileRequest.accessModes = util.EnumSet.of(accessMode)
-      profileRequest.egressModes = util.EnumSet.of(egressMode)
+    profileRequest.directModes = util.EnumSet.of(request.directMode)
+    if (request.transitModes.nonEmpty) {
+      profileRequest.transitModes = util.EnumSet.copyOf(request.transitModes.asJavaCollection)
+      profileRequest.accessModes = util.EnumSet.of(request.accessMode)
+      profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
     log.debug(profileRequest.toString)
     val result = try {
@@ -165,7 +167,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
           val transitModes = Nil
-          val profileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
+          val profileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
           if (profileResponse.options.isEmpty) {
             return Nil // Cannot walk to vehicle, so no options from this vehicle.
           }
@@ -197,7 +199,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val accessMode = vehicle.mode.r5Mode.get.left.get
         val egressMode = LegMode.WALK
         val transitModes = Nil
-        val profileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
+        val profileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
@@ -234,7 +236,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         case time: WindowTime => WindowTime(time.atTime + walkToVehicleDuration, 0)
       }
       val transitModes: Vector[TransitModes] = routingRequestTripInfo.transitModes.map(_.r5Mode.get.right.get)
-      val profileResponse: ProfileResponse = getPlanFromR5(from, to, time, directMode, accessMode, transitModes, egressMode)
+      val profileResponse: ProfileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
           * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
