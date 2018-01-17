@@ -4,6 +4,7 @@ import java.lang.Double
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated}
+import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.events.EventsSubscriber._
@@ -11,6 +12,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.sim.config.BeamConfig
 import com.google.common.collect.TreeMultimap
 
+import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -73,6 +75,8 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  private var started = false
+
   private var triggerQueue: mutable.PriorityQueue[ScheduledTrigger] = new mutable.PriorityQueue[ScheduledTrigger]()
   private var awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap.create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
   private val triggerIdToTick: mutable.Map[Long, Double] = scala.collection.mutable.Map[Long, java.lang.Double]()
@@ -110,47 +114,17 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
     }
   }
 
-  def receive: Receive = {
+  def receive: Receive = LoggingReceive {
     case StartSchedule(it) =>
       log.info(s"starting scheduler at iteration $it")
       this.startSender = sender()
       this.currentIter = it
-      self ! DoSimStep(0.0)
+      started = true
+      doSimStep(0.0)
 
-    case DoSimStep(newNow: Double) if newNow <= stopTick =>
-      nowInSeconds = newNow
-
-      if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse.keySet().first() + 1 < maxWindow) {
-        while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= nowInSeconds) {
-          val scheduledTrigger = this.triggerQueue.dequeue
-          val triggerWithId = scheduledTrigger.triggerWithId
-          //log.info(s"dispatching $triggerWithId")
-          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
-          triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
-          scheduledTrigger.agent ! triggerWithId
-        }
-        if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
-          System.gc()
-          log.info("Hour " + nowInSeconds / 3600.0 + " completed. "+math.round(10*(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/(Math.pow(1000,3)))/10.0+"(GB)")
-        }
-        if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
-          self ! DoSimStep(nowInSeconds + 1.0)
-        } else {
-          context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
-        }
-      } else {
-        context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
-      }
-
-    case DoSimStep(newNow: Double) if newNow > stopTick =>
-      nowInSeconds = newNow
-      if (awaitingResponse.isEmpty) {
-        log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
-        triggerQueue.dequeueAll.foreach(scheduledTrigger => scheduledTrigger.agent ! Finish)
-        startSender ! CompletionNotice(0L)
-      } else {
-        context.system.scheduler.scheduleOnce(FiniteDuration(10, TimeUnit.MILLISECONDS), self, DoSimStep(nowInSeconds))
-      }
+    case DoSimStep(newNow: Double) => {
+      doSimStep(newNow)
+    }
 
     case notice@CompletionNotice(triggerId: Long, newTriggers: Seq[ScheduleTrigger]) =>
       newTriggers.foreach {
@@ -164,10 +138,12 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         triggerIdToScheduledTrigger -= triggerId
       }
       triggerIdToTick -= triggerId
+      if (started) doSimStep(nowInSeconds)
 
     case triggerToSchedule: ScheduleTrigger =>
       context.watch(triggerToSchedule.agent)
       scheduleTrigger(triggerToSchedule)
+      if (started) doSimStep(nowInSeconds)
 
     case Terminated(actor) =>
       awaitingResponse.values().stream()
@@ -200,7 +176,41 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
         })
       }
       previousTotalAwaitingRespone = currentTotalAwaitingResponse
+      if (started) doSimStep(nowInSeconds)
 
+  }
+
+  @tailrec
+  private def doSimStep(newNow: Double): Unit = {
+    if (newNow <= stopTick) {
+      nowInSeconds = newNow
+
+      if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse.keySet().first() + 1 < maxWindow) {
+        while (triggerQueue.nonEmpty && triggerQueue.head.triggerWithId.trigger.tick <= nowInSeconds) {
+          val scheduledTrigger = this.triggerQueue.dequeue
+          val triggerWithId = scheduledTrigger.triggerWithId
+          //log.info(s"dispatching $triggerWithId")
+          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
+          triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
+          scheduledTrigger.agent ! triggerWithId
+        }
+        if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse.keySet().first() + 1 < maxWindow) {
+          if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
+            log.info("Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(10 * (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (Math.pow(1000, 3))) / 10.0 + "(GB)")
+          }
+          doSimStep(nowInSeconds + 1.0)
+        }
+      }
+
+    } else {
+      nowInSeconds = newNow
+      if (awaitingResponse.isEmpty) {
+        log.info(s"Stopping BeamAgentScheduler @ tick $nowInSeconds")
+        triggerQueue.dequeueAll.foreach(scheduledTrigger => scheduledTrigger.agent ! Finish)
+        startSender ! CompletionNotice(0L)
+      }
+
+    }
   }
 
   override def postStop(): Unit = {

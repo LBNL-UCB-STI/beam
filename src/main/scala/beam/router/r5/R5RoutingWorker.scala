@@ -24,6 +24,7 @@ import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.google.common.cache.{CacheBuilder, CacheLoader}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -37,8 +38,18 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447; // 1 mile per hour
 
+  var nRequests = 0
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
+
+  val cache = CacheBuilder.newBuilder().recordStats().build(new CacheLoader[RoutingRequestTripInfo, RoutingResponse] {
+    override def load(key: RoutingRequestTripInfo) = {
+      val time = System.nanoTime()
+      val response = calcRoute(key)
+      log.debug("{} {}", (System.nanoTime() - time) / (1000*1000), key.toString)
+      response
+    }
+  })
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
@@ -49,10 +60,15 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       transitSchedule = newTransitSchedule
     case RoutingRequest(params: RoutingRequestTripInfo) =>
       val eventualResponse = Future {
-        calcRoute(params)
+        cache(params)
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
+      nRequests = nRequests+1
+      if (nRequests % 100 == 0) {
+        val stats = cache.stats()
+        log.info(stats.toString)
+      }
     case UpdateTravelTime(travelTime) =>
       this.maybeTravelTime = Some(travelTime)
   }
