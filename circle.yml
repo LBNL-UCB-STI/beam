@@ -1,0 +1,4 @@
+dependencies:
+  override:
+    - bundle install:
+        timeout: 1800
