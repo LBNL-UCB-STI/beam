@@ -257,17 +257,9 @@ object BeamRouter {
     * @param departureTime          time in seconds from base midnight
     * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
-    * @param personId
     * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
     */
-  case class RoutingRequestTripInfo(personId: Id[PersonAgent],
-                                    origin: Location,
-                                    destination: Location,
-                                    departureTime: BeamTime,
-                                    transitModes: Vector[BeamMode],
-                                    streetVehicles: Vector[StreetVehicle],
-                                    streetVehiclesAsAccess: Boolean = true
-                                   )
+  case class RoutingRequestTripInfo(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true)
 
   /**
     * Message to request a route plan
@@ -284,8 +276,8 @@ object BeamRouter {
   case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
 
   object RoutingRequest {
-    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], personId: Id[PersonAgent], streetVehiclesAsAccess: Boolean = true): RoutingRequest = {
-      new RoutingRequest(RoutingRequestTripInfo(personId, fromActivity.getCoord, toActivity.getCoord, departureTime, Modes.filterForTransit(transitModes), streetVehicles, streetVehiclesAsAccess))
+    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): RoutingRequest = {
+      new RoutingRequest(RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime, Modes.filterForTransit(transitModes), streetVehicles, streetVehiclesAsAccess))
     }
 
     def apply(params: RoutingRequestTripInfo): RoutingRequest = {

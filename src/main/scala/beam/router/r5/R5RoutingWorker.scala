@@ -46,7 +46,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     override def load(key: RoutingRequestTripInfo) = {
       val time = System.nanoTime()
       val response = calcRoute(key)
-      log.debug("{} {}", (System.nanoTime() - time) / (1000*1000), key.toString)
+      log.info("{} {}", (System.nanoTime() - time) / (1000*1000), key.toString)
       response
     }
   })

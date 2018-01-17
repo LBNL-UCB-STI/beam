@@ -301,7 +301,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
-        val req = RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, id, streetVehiclesAsAccess)
+        val req = RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, streetVehiclesAsAccess)
         beamServices.beamRouter ! req
       }
 

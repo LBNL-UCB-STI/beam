@@ -273,11 +273,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
     //TODO: Error handling. In the (unlikely) event of a timeout, this RideHailingManager will silently be
     //TODO: restarted, and probably someone will wait forever for its reply.
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-    val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(personId, rideHailingLocation
-      .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin)))
+    val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(rideHailingLocation
+          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin)))
     //XXXX: customer trip request might be redundant... possibly pass in info
-    val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(personId, customerPickUp, destination, departAt,
-      Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup)))
+    val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup)))
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 
