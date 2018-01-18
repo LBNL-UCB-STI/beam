@@ -8,7 +8,7 @@ dependencies:
   pre:
     - git lfs pull
   post:
-    - gradle assemble
+    - ./gradlew assemble
 
 test:
   timeout: 1800
