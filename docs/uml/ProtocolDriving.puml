@@ -1,12 +1,19 @@
 @startuml
+DriverDeterminer -> Driver: BecomeDriver(vehicle,\nmanager,determinerMode)
+Driver -> DriverManager: AwaitingInstruction
+Passengers --> DriverManager: ReadyToBoard(origin,dest,time)
+DriverManager --> Passengers: CanAccomodate|CannotAccomodate
+DriverManager -> Driver: DriveInstruction(Leg,Manifest)
+Driver -> Scheduler: ScheduleStartLegTrigger
 Scheduler -> Driver: StartLegTrigger
-Driver --> Scheduler: ScheduleNotifyStartLegTrigger if Passengers
-Scheduler --> Passengers: NotifyStartLegTrigger
+Driver --> Scheduler: ScheduleBoardNotificationTrigger
+Scheduler --> Passengers: BoardNotificationTrigger
 Passengers --> Driver: BoardVehicle
 Driver -> Scheduler: ScheduleEndLegTrigger
 Scheduler -> Driver: EndLegTrigger
-Driver --> Scheduler: ScheduleNotifyEndLegTrigger if Passengers
-Scheduler --> Passengers: NotifyEndLegTrigger
+Driver --> Scheduler: ScheduleAlightNotifyTrigger
+Scheduler --> Passengers: NotifyAlightTrigger
 Passengers --> Driver: AlightVehicle
-Driver -> Scheduler: ScheduleStartLegTrigger|PassengerScheduleEmptyTrigger
+Driver --> DriverDeterminer: AwaitingDriverDetermination
+DriverDeterminer --> Driver: BecomeDriver|UnbecomeDriver
 @enduml

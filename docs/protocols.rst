@@ -93,22 +93,29 @@ Driver
    :width: 300 px
 .. image:: _static/uml/ProtocolDriving.png
 
+*Becoming Driver*
+
+1. A DriverDeterminer is responsible for notifying the driver that she is now driving a particular vehicle with a particular DriverManager. The DeterminerMode specifies whether this driver should seek a DriverDetermination after each leg or whether the driver should assume she is indefinitely driving the vehicle.
+
+*Managing Driver*
+
+1. A driver that has either recieved a BecomeDriver message or is an Indefinite DeterminerMode and has just completed a BeamLeg will send an AwaitingInstruction message to is DriverManager.
+2. The DriverManager sends back a DriverInstruction message containing a BeamLeg and a Manifest.
+
 *Starting Leg*
 
-1. The Driver receives a StartLegTrigger from the Waiting state.
-2. The Driver schedules NotifyLegStartTriggers for each rider in the PassengerSchedule associated with the current BeamLeg.
-3. The Driver creates a list of borders from the PassengerSchedule associated with the BeamLeg to track which agents have yet to board the vehicle.
+1. After recieving a DriverInstruction, the Driver schedules a StartLegTrigger with the BeamAgentScheduler and transitions to Waiting.
+2. The Driver receives a StartLegTrigger from the Waiting state.
+3. The Driver schedules NotifyLegStartTriggers for each boarder in the Manifest associated with the current BeamLeg.
 4. When all expected BoardVehicle messages are recieved by the Driver, the Driver schedules an EndLegTrigger and transitions to the Moving state.
 
 *Ending Leg*
 
 1. The Driver receives an EndLegTrigger from the Moving state.
-2. The Driver schedules NotifyLegEndTriggers for all riders in the PassengerSchedule associated with the current BeamLeg.
-3. The Driver creates a list of alighters from the PassengerSchedule associated with the BeamLeg to track which agents have yet to alight the vehicle.
-4. When all expected AlightingConfirmation messages are recieved from the vehicle, the Driver publishes a PathTraversalEvent and proceeds with the following steps.
-5. If the Driver has more legs in the PassengerSchedule, she schedules a StartLegTrigger based on the start time of that BeamLeg.
-6. Else the Driver schedules a PassengerScheduleEmptyTrigger to execute in the current tick.
-7. The Driver transitions to the Waiting state.
+2. The Driver schedules NotifyLegEndTriggers for all alighters in the Manifest associated with the current BeamLeg.
+3. When all expected AlightVehicles messages are recieved by the Driver, the Driver publishes a PathTraversalEvent and proceeds with the following steps.
+4. If the Driver's DeterminerMode is Indefinite, the driver immediately sends an AwaitingInstruction message to the DriverManager and goes into the AwaitingInstruction state.
+5. Else the Driver sends an AwaitingDriverDetermination message to its DriverDeterminer and goes into an AwaitingDriverDetermination state.
 
 Traveler
 ~~~~~~~~

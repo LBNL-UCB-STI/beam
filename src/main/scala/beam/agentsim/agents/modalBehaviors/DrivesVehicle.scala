@@ -136,17 +136,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         stay()
       }
 
-    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
-      _currentVehicleUnderControl = Some(beamServices.vehicles(assignedVehicle))
-      newPassengerSchedule match {
-        case Some(passSched) =>
-          passengerSchedule = passSched
-        case None =>
-          passengerSchedule = PassengerSchedule()
-      }
-      self ! BecomeDriverSuccessAck
-      stay()
-
     case Event(req: CancelReservation, _) =>
       _currentVehicleUnderControl.foreach { vehicleIdAndRef =>
         val vehiclePersonId = VehiclePersonId(vehicleIdAndRef.id, req.passengerId)
@@ -226,10 +215,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stay()
 
   }
-  def setPassengerSchedule(newPassengerSchedule: PassengerSchedule) = {
-    passengerSchedule = newPassengerSchedule
-  }
-
   def modifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule)={
     var errorFlag = false
     if (!passengerSchedule.isEmpty) {
@@ -264,6 +249,16 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicleId))
       })
   }
+  def completeBecomingDriver(newPassengerSchedule: Option[PassengerSchedule], vehicleId: Id[Vehicle]): Unit = {
+    _currentVehicleUnderControl = Some(beamServices.vehicles(vehicleId))
+    newPassengerSchedule match {
+      case Some(passSched) =>
+        passengerSchedule = passSched
+      case None =>
+        passengerSchedule = PassengerSchedule()
+    }
+  }
+
 
   def resumeControlOfVehcile(vehicleId: Id[Vehicle]) = {
     _currentVehicleUnderControl = Some(beamServices.vehicles(vehicleId))
@@ -291,6 +286,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     pathLinks
   }
 
+  def passengerScheduleEmptyActions(triggerId: Long, tick: Double): State
+
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
@@ -307,8 +304,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       beamServices.schedulerRef ! completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
       goto(Waiting)
     } else {
-      beamServices.schedulerRef ! completed(theTriggerId, schedule[PassengerScheduleEmptyTrigger](theTick, self))
-      goto(Waiting)
+      passengerScheduleEmptyActions(theTriggerId,theTick)
     }
   }
 

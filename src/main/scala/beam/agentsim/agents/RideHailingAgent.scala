@@ -7,9 +7,8 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, PassengerScheduleEmptyTrigger, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.RideHailingManager.RideAvailableAck
-import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.TriggerUtils.{completed, _}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, ModifyPassengerScheduleAck, PassengerSchedule, ReservationResponse}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -73,26 +72,20 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], vehicle: BeamVehic
       vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"RideHailingAgent $self attempted to become driver of vehicle ${vehicle.id} " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        holdTickAndTriggerId(tick,triggerId)
-        vehicle.driver.get ! BecomeDriverSuccess(None, vehicle.id)
+        completeBecomingDriver(None, vehicle.id)
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(PersonAgent.Waiting)
+        goto(PersonAgent.Waiting) replying completed(triggerId)
       })
   }
 
-  chainedWhen (Waiting) {
-    case Event (TriggerWithId (PassengerScheduleEmptyTrigger (tick), triggerId), info) =>
-      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
-      stay replying completed(triggerId)
+  override def passengerScheduleEmptyActions(triggerId: Long, tick: Double): State = {
+    vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+    stay replying completed(triggerId)
   }
 
   chainedWhen (AnyState) {
     case Event (ModifyPassengerScheduleAck (Some (msgId) ), _) =>
-      stay
-    case Event(BecomeDriverSuccessAck, _) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      beamServices.schedulerRef ! completed(triggerId)
       stay
     case Event (Finish, _) =>
       stop
