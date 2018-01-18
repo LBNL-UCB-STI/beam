@@ -9,6 +9,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.WALK
 import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
@@ -22,6 +23,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.mockito.Matchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -46,8 +48,10 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamCo
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+    val fareCalculator = mock[FareCalculator]
+    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
+    val tollCalculator = mock[TollCalculator]
+    when(tollCalculator.calcToll(any())).thenReturn(0.0)
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
 
     within(60 seconds) { // Router can take a while to initialize

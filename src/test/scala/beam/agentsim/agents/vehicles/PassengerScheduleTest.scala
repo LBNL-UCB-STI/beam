@@ -1,10 +1,6 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestFSMRef, TestKit}
-import beam.agentsim.agents.PersonAgent
-import org.scalatest._
-import beam.agentsim.util.MockAgents._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.RoutingModel.{BeamLeg, EmptyBeamPath}
@@ -13,7 +9,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FunSpecLike, Matchers}
+import org.scalatest.{FunSpecLike, Matchers, _}
 
 /**
   *
