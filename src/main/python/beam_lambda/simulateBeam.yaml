@@ -5,7 +5,7 @@ Resources:
   simulateBeam:
     Type: 'AWS::Serverless::Function'
     Properties:
-      Handler: BeamSimLambda.lambda_handler
+      Handler: lambda_function.lambda_handler
       Runtime: python2.7
       CodeUri: .
       Description: BEAM Sim
@@ -21,8 +21,11 @@ Resources:
       Environment:
         Variables:
           IAM_ROLE: BeamCodeDeployEC2
-          IMAGE_ID: ami-9c0923f9
-          SECURITY_GROUP: sg-bb469dd3
           INSTANCE_TYPE: t2.small
-          KEY_NAME: beam-box01
+          us_west_2_KEY_NAME: beambox-oregon
+          us_east_2_IMAGE_ID: ami-9c0923f9
+          us_east_2_SECURITY_GROUP: sg-bb469dd3
           REGION: us-east-2
+          us_east_2_KEY_NAME: beam-box01
+          us_west_2_IMAGE_ID: ami-a044f4d8
+          us_west_2_SECURITY_GROUP: sg-017c717d
