@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -119,7 +119,7 @@ class PersonAgent(val beamServices: BeamServices,
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
-  HasServices with ChoosesMode with DrivesVehicle[PersonData] {
+  HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
@@ -328,15 +328,13 @@ class PersonAgent(val beamServices: BeamServices,
           warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, isStart = false)
       }
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
+      stash()
+      stay
+  }
 
-      _currentEmbodiedLeg match {
-        case Some(leg) =>
-          // Driver is still traveling to pickup point, reschedule this trigger
-          warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg)
-        case None =>
-          stop(Failure(s"Going to Error: NotifyLegStartTrigger from state Moving but no _currentEmbodiedLeg " +
-            s"defined, beamLeg: $beamLeg"))
-      }
+  onTransition {
+    case Moving -> Waiting =>
+      unstashAll()
   }
 
   /*
