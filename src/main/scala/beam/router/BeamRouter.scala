@@ -226,7 +226,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
       if (transportNetwork.transitLayer.streetVertexForStop.get(stopIdx) >= 0) {
         val stopVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer
           .streetVertexForStop.get(stopIdx))
-        val split = transportNetwork.streetLayer.findSplit(stopVertex.getLat, stopVertex.getLon, 1000, StreetMode.CAR)
+        val split = transportNetwork.streetLayer.findSplit(stopVertex.getLat, stopVertex.getLon, 10000, StreetMode.CAR)
         if (split != null) {
           split.edge
         } else {
