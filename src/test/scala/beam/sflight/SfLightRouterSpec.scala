@@ -52,7 +52,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
     networkCoordinator.loadNetwork()
 
     val fareCalculator = mock[FareCalculator]
-    when(fareCalculator.getFareSegments(any(), any(), any(),any())).thenReturn(Vector[BeamFareSegment]())
+    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcToll(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
