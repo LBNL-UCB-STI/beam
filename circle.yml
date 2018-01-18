@@ -7,9 +7,8 @@ machine:
 dependencies:
   pre:
     - git lfs pull
-  post:
-    - export TERM="dumb"
-    - if [ -e ./gradlew ]; then ./gradlew assemble;else gradle assemble;fi
+#  post:
+#    - export TERM="dumb" if [ -e ./gradlew ]; then ./gradlew assemble;else gradle assemble;fi
 
 test:
   timeout: 1800
