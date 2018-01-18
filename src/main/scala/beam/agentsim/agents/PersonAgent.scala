@@ -14,11 +14,9 @@ import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes
-import beam.router.Modes.BeamMode.DRIVE_TRANSIT
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
@@ -111,8 +109,6 @@ object PersonAgent {
 
   case class CompleteDrivingMissionTrigger(tick: Double) extends Trigger
 
-  case class PassengerScheduleEmptyTrigger(tick: Double) extends Trigger
-
 }
 
 class PersonAgent(val beamServices: BeamServices,
@@ -134,6 +130,10 @@ class PersonAgent(val beamServices: BeamServices,
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var _household: Id[Household] = householdId
   var _numReschedules: Int = 0
+
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
+    processNextLegOrStartActivity(triggerId, tick)
+  }
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg) else Right(_experiencedBeamPlan.activities(ind))
@@ -238,11 +238,6 @@ class PersonAgent(val beamServices: BeamServices,
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       _currentTripMode = Some(_currentRoute.tripClassifier)
       eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,_currentRoute.tripClassifier.value))
-      processNextLegOrStartActivity(triggerId, tick)
-    /*
-     * Complete leg(s) as driver
-     */
-    case Event(TriggerWithId(PassengerScheduleEmptyTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Learn as passenger that leg is starting
@@ -417,7 +412,8 @@ class PersonAgent(val beamServices: BeamServices,
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
             _currentEmbodiedLeg = None
-            goto(Waiting) replying completed(triggerId)
+            beamServices.schedulerRef ! completed(triggerId)
+            goto(Waiting)
           }
         case None =>
           stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
@@ -429,7 +425,8 @@ class PersonAgent(val beamServices: BeamServices,
       nextActivity match {
         case Left(msg) =>
           logDebug(msg)
-          stop replying completed(triggerId)
+          beamServices.schedulerRef ! completed(triggerId)
+          stop
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
@@ -457,7 +454,8 @@ class PersonAgent(val beamServices: BeamServices,
           _currentTripMode = None
           eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity
             .getFacilityId, activity.getType))
-          goto(PerformingActivity) replying completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
+          beamServices.schedulerRef ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
+          goto(PerformingActivity)
       }
     }
   }
@@ -516,8 +514,8 @@ class PersonAgent(val beamServices: BeamServices,
       stop(Failure(s"It is $tick and I am trying to schedule the start of my " +
         s"leg for $newTriggerTime. I can't do that."))
     }
-    goto(Waiting) replying completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self,
-      _currentEmbodiedLeg.get.beamLeg))
+    beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
+    goto(Waiting)
   }
 
   override def logPrefix(): String
