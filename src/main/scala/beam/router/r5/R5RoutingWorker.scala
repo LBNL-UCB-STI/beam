@@ -1,6 +1,6 @@
 package beam.router.r5
 
-import java.time.ZonedDateTime
+import java.time.{ZoneId, ZonedDateTime}
 import java.time.temporal.ChronoUnit
 import java.util
 
@@ -21,8 +21,8 @@ import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
-import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
-import com.conveyal.r5.streets.EdgeStore
+import com.conveyal.r5.profile._
+import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import org.matsim.api.core.v01.network.Network
@@ -31,6 +31,7 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.language.postfixOps
 
@@ -80,18 +81,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val maxStreetTime = 2 * 60
     // If we already have observed travel times, probably from the previous iteration,
     // let R5 use those. Otherwise, let R5 use its own travel time estimates.
-    val pointToPointQuery = maybeTravelTime match {
-      case Some(travelTime) => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
-        if (edge.getOSMID < 0) {
-          // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
-          // MATSim network.
-          (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
-        } else {
-          travelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
-        }
-      })
-      case None => new BeamPointToPointQuery(beamServices.beamConfig, transportNetwork, new EdgeStore.DefaultTravelTimeCalculator)
-    }
     val profileRequest = new ProfileRequest()
     profileRequest.fromLon = request.from.getX
     profileRequest.fromLat = request.from.getY
@@ -116,7 +105,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     }
     log.debug(profileRequest.toString)
     val result = try {
-      pointToPointQuery.getPlan(profileRequest)
+      getPlan(profileRequest)
     } catch {
       case e: IllegalStateException =>
         new ProfileResponse
@@ -450,6 +439,164 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
+
+  def getTimezone: ZoneId = this.transportNetwork.getTimeZone
+
+  private def travelTimeCalculator: TravelTimeCalculator = maybeTravelTime match {
+    case Some(travelTime) => (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+      if (edge.getOSMID < 0) {
+        // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
+        // MATSim network.
+        (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
+      } else {
+        travelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(edge.getEdgeIndex)), durationSeconds, null, null).asInstanceOf[Float]
+      }
+    }
+    case None => new EdgeStore.DefaultTravelTimeCalculator
+  }
+
+  //Does point to point routing with data from request
+  def getPlan(request: ProfileRequest): ProfileResponse = {
+    val startRouting = System.currentTimeMillis
+    request.zoneId = transportNetwork.getTimeZone
+    //Do the query and return result
+    val profileResponse = new ProfileResponse
+    val option = new ProfileOption
+    request.reverseSearch = false
+    //For direct modes
+    import scala.collection.JavaConversions._
+    for (mode <- request.directModes) {
+      var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      var streetPath: StreetPath = null
+      streetRouter.profileRequest = request
+      streetRouter.streetMode = StreetMode.valueOf(mode.toString)
+      streetRouter.timeLimitSeconds = request.streetTime * 60
+      if (streetRouter.setOrigin(request.fromLat, request.fromLon)) {
+        if (streetRouter.setDestination(request.toLat, request.toLon)) {
+          streetRouter.route()
+          val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
+          if (lastState != null) {
+            streetPath = new StreetPath(lastState, transportNetwork, false)
+            val streetSegment = new StreetSegment(streetPath, mode, transportNetwork.streetLayer)
+            option.addDirect(streetSegment, request.getFromTimeDateZD)
+          } else {
+            log.debug("Direct mode {} last state wasn't found", mode)
+          }
+        } else {
+          log.debug("Direct mode {} destination wasn't found!", mode)
+        }
+      } else {
+        log.debug("Direct mode {} origin wasn't found!", mode)
+      }
+    }
+    option.summary = option.generateSummary
+    profileResponse.addOption(option)
+    if (request.hasTransit) {
+      val accessRouter = findAccessPaths(request)
+      val egressRouter = findEgressPaths(request)
+      import scala.collection.JavaConverters._
+
+      val router = new McRaptorSuboptimalPathProfileRouter(transportNetwork, request, accessRouter.mapValues(_.getReachedStops).asJava, egressRouter.mapValues(_.getReachedStops).asJava)
+      router.NUMBER_OF_SEARCHES = beamServices.beamConfig.beam.routing.r5.numberOfSamples
+      val usefullpathList = new util.ArrayList[PathWithTimes]
+      // getPaths actually returns a set, which is important so that things are deduplicated. However we need a list
+      // so we can sort it below.
+      usefullpathList.addAll(router.getPaths)
+      //This sort is necessary only for text debug output so it will be disabled when it is finished
+      /**
+        * Orders first no transfers then one transfers 2 etc
+        * - then orders according to first trip:
+        *   - board stop
+        *   - alight stop
+        *   - alight time
+        * - same for one transfer trip
+        */
+      usefullpathList.sort((o1: PathWithTimes, o2: PathWithTimes) => {
+        def foo(o1: PathWithTimes, o2: PathWithTimes) = {
+          var c = 0
+          c = Integer.compare(o1.patterns.length, o2.patterns.length)
+          if (c == 0) c = Integer.compare(o1.boardStops(0), o2.boardStops(0))
+          if (c == 0) c = Integer.compare(o1.alightStops(0), o2.alightStops(0))
+          if (c == 0) c = Integer.compare(o1.alightTimes(0), o2.alightTimes(0))
+          if (c == 0 && o1.patterns.length == 2) {
+            c = Integer.compare(o1.boardStops(1), o2.boardStops(1))
+            if (c == 0) c = Integer.compare(o1.alightStops(1), o2.alightStops(1))
+            if (c == 0) c = Integer.compare(o1.alightTimes(1), o2.alightTimes(1))
+          }
+          c
+        }
+
+        foo(o1, o2)
+      })
+      log.debug("Usefull paths:{}", usefullpathList.size)
+      for (path <- usefullpathList) {
+        profileResponse.addTransitPath(accessRouter, egressRouter, path, transportNetwork, request.getFromTimeDateZD)
+      }
+      profileResponse.generateStreetTransfers(transportNetwork, request)
+    }
+    profileResponse.recomputeStats(request)
+    log.debug("Returned {} options", profileResponse.getOptions.size)
+    log.debug("Took {} ms", System.currentTimeMillis - startRouting)
+    profileResponse
+  }
+
+  /**
+    * Finds all egress paths from to coordinate to end stop and adds routers to egressRouter
+    *
+    * @param request
+    */
+  private def findEgressPaths(request: ProfileRequest) = {
+    val egressRouter = mutable.Map[LegMode, StreetRouter]()
+    //For egress
+    //TODO: this must be reverse search
+    request.reverseSearch = true
+    import scala.collection.JavaConversions._
+    for (mode <- request.egressModes) {
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      streetRouter.transitStopSearch = true
+      streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
+      streetRouter.streetMode = StreetMode.valueOf(mode.toString)
+      streetRouter.profileRequest = request
+      streetRouter.timeLimitSeconds = request.getTimeLimit(mode)
+      if (streetRouter.setOrigin(request.toLat, request.toLon)) {
+        streetRouter.route()
+        val stops = streetRouter.getReachedStops
+        egressRouter.put(mode, streetRouter)
+        log.debug("Added {} edgres stops for mode {}", stops.size, mode)
+      }
+      else log.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode)
+    }
+    egressRouter
+  }
+
+  /**
+    * Finds access paths from from coordinate in request and adds all routers with paths to accessRouter map
+    *
+    * @param request
+    */
+  private def findAccessPaths(request: ProfileRequest) = {
+    request.reverseSearch = false
+    // Routes all access modes
+    val accessRouter = mutable.Map[LegMode, StreetRouter]()
+    import scala.collection.JavaConversions._
+    for (mode <- request.accessModes) {
+      var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      streetRouter.profileRequest = request
+      streetRouter.streetMode = StreetMode.valueOf(mode.toString)
+      //Gets correct maxCar/Bike/Walk time in seconds for access leg based on mode since it depends on the mode
+      streetRouter.timeLimitSeconds = request.getTimeLimit(mode)
+      streetRouter.transitStopSearch = true
+      streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
+      if (streetRouter.setOrigin(request.fromLat, request.fromLon)) {
+        streetRouter.route()
+        //Searching for access paths
+        accessRouter.put(mode, streetRouter)
+      }
+      else log.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode)
+    }
+    accessRouter
+  }
+
 }
 
 object R5RoutingWorker {
