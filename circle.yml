@@ -15,4 +15,4 @@ test:
 
 notify:
   webhooks:
-    - url: https://hooks.glip.com/webhook/d238705c-0001-4d98-81c1-3402db81911b
+    - url: https://hooks.glip.com/webhook/6ce6971f-d577-4905-8bf2-fd0ed9fafb4c
