@@ -1,2 +1,6 @@
 test:
   timeout: 1800
+
+notify:
+  webhooks:
+    - url: https://hooks.glip.com/webhook/d238705c-0001-4d98-81c1-3402db81911b
