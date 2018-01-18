@@ -346,7 +346,9 @@ run {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run ExperimentGenerator from Command line
-//  gradle execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+//  gradle :execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+// Run R5 GUI server
+//  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {
