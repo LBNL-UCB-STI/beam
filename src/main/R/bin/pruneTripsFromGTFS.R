@@ -55,8 +55,11 @@ for(the.agency in u(to.prune$agency)){
     stops <- stops[!trip_id %in% to.prune[agency==the.agency]$trip]
     trips <- trips[!trip_id %in% to.prune[agency==the.agency]$trip]
 
-    stops[,arrival_time:=str_pad(str_trim(arrival_time),8,pad='0')]
-    stops[,departure_time:=str_pad(str_trim(departure_time),8,pad='0')]
+    # Clean up time stamps (remove bad data and zero pad single digit hours)
+    stops[arrival_time=='00000000',arrival_time:=' ']
+    stops[departure_time=='00000000',departure_time:=' ']
+    stops[str_length(str_trim(arrival_time))>0,arrival_time:=str_pad(str_trim(arrival_time),8,pad='0')]
+    stops[str_length(str_trim(departure_time))>0,departure_time:=str_pad(str_trim(departure_time),8,pad='0')]
     stops[,stop_id:=str_trim(stop_id)]
 
     pickup_type.i <- which(names(stops)=='pickup_type')
@@ -67,6 +70,8 @@ for(the.agency in u(to.prune$agency)){
     direction_id.i <- which(names(trips)=='direction_id')
     trip.inds <- (1:ncol(trips))[-direction_id.i]
     
+    print(sample(stops$arrival_time,50))
+
     write.csv(stops,file=pp(tmp.dir,'/stop_times.txt'),na = "",row.names =F,quote=stop.inds)
     write.csv(trips,file=pp(tmp.dir,'/trips.txt'),na = "",row.names =F,quote=trip.inds)
 

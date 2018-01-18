@@ -87,7 +87,12 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         inputData.put(mct.mode.value, altData)
       }
 
-      val chosenMode = model.makeRandomChoice(inputData, new Random())
+      val chosenMode = try{
+        model.makeRandomChoice(inputData, new Random())
+      }catch{
+        case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
+          "walk"
+      }
       expectedMaximumUtility = model.getExpectedMaximumUtility
       model.clear()
       val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))

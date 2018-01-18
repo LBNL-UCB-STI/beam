@@ -151,8 +151,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           rideHailingAgents :+= rideHailingAgentRef
         }
 
-        log.info(s"Initialized ${beamServices.households.size} households")
-        log.info(s"Initialized ${beamServices.persons.size} people")
+        log.info(s"Initialized ${beamServices.householdRefs.size} households")
+        log.info(s"Initialized ${beamServices.personRefs.size} people")
         log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
         log.info(s"Initialized ${numRideHailAgents} ride hailing agents")
         population
