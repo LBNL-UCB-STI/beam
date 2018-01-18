@@ -129,7 +129,6 @@ class PersonAgent(val beamServices: BeamServices,
   var _currentTripMode: Option[Modes.BeamMode] = None
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var _household: Id[Household] = householdId
-  var _numReschedules: Int = 0
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
     processNextLegOrStartActivity(triggerId, tick)
@@ -212,26 +211,7 @@ class PersonAgent(val beamServices: BeamServices,
       )
   }
 
-  private def warnAndRescheduleNotifyLeg(tick: Double, triggerId: Long, beamLeg: BeamLeg, isStart: Boolean = true) = {
-    _numReschedules = _numReschedules + 1
-    if (_numReschedules > 500) {
-      val thisLeg: Vector[EmbodiedBeamLeg] = _currentEmbodiedLeg match{ case Some(leg) => Vector(leg) case None => Vector()}
-      cancelTrip(_currentRoute.legs ++ thisLeg, _currentVehicle)
-      stop(Failure(s"Too many reschedule attempts."))
-    } else {
-      val toSchedule = if (isStart) {
-        schedule[NotifyLegStartTrigger](tick, self, beamLeg)
-      } else {
-        schedule[NotifyLegEndTrigger](tick, self, beamLeg)
-      }
-      logDebug(s"Rescheduling: $toSchedule")
-      stay() replying completed(triggerId, toSchedule)
-    }
-  }
-
   chainedWhen(Waiting) {
-
-
     /*
      * Starting Trip
      */
@@ -252,7 +232,8 @@ class PersonAgent(val beamServices: BeamServices,
          * Solution for now is to re-send this to self, but this could get expensive...
          */
         case Some(_) =>
-          warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg)
+          stash()
+          stay
         case None =>
           val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_currentRoute, tick)
           processedDataOpt match {
@@ -260,7 +241,8 @@ class PersonAgent(val beamServices: BeamServices,
               if (processedData.nextLeg.beamLeg != beamLeg || processedData.nextLeg.asDriver) {
                 // We've recevied this leg out of order from 2 different drivers or we haven't our
                 // personDepartureTrigger
-                warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg)
+                stash()
+                stay
               } else if (processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
                 logDebug(s"Already on vehicle: ${_currentVehicle.outermostVehicle()}")
                 _currentRoute = processedData.restTrip
@@ -293,7 +275,8 @@ class PersonAgent(val beamServices: BeamServices,
 
 
     case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) =>
-      warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, false)
+      stash()
+      stay
   }
 
   chainedWhen(Moving) {
@@ -325,7 +308,8 @@ class PersonAgent(val beamServices: BeamServices,
               stop(Failure(s"Expected a non-empty BeamTrip but found ${_currentRoute}"))
           }
         case _ =>
-          warnAndRescheduleNotifyLeg(tick, triggerId, beamLeg, isStart = false)
+          stash()
+          stay
       }
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
       stash()
@@ -334,6 +318,8 @@ class PersonAgent(val beamServices: BeamServices,
 
   onTransition {
     case Moving -> Waiting =>
+      unstashAll()
+    case Waiting -> Moving =>
       unstashAll()
   }
 
@@ -516,13 +502,9 @@ class PersonAgent(val beamServices: BeamServices,
     goto(Waiting)
   }
 
-  override def logPrefix(): String
+  override def logPrefix(): String = s"PersonAgent:$id "
 
-  = s"PersonAgent:$id "
-
-  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip, tick: Double): Option[ProcessedData]
-
-  = {
+  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip, tick: Double): Option[ProcessedData] = {
     if (trip.legs.isEmpty) {
       None
     } else {
