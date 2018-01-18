@@ -368,7 +368,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       None,
       SpaceTime(segment.geometry.getStartPoint.getX, segment.geometry.getStartPoint.getY, tripStartTime),
       SpaceTime(segment.geometry.getEndPoint.getX, segment.geometry.getEndPoint.getY, tripStartTime + segment.duration),
-      segment.distance.toDouble / 1000)
+      segment.distance.toDouble / 10000)
   }
 
   /**
