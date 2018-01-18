@@ -55,22 +55,8 @@ for(run.i in 1:nrow(exp)){
 }
 ev <- rbindlist(evs)
 
-# Clean and relabel
-ev[vehicle_type=="bus",vehicle_type:="Bus"]
-ev[vehicle_type=="CAR" | substr(vehicle_id,1,5)=="rideH",vehicle_type:="TNC"]
-ev[vehicle_type=="subway",vehicle_type:="BART"]
-ev[vehicle_type=="SUV",vehicle_type:="Car"]
-ev[vehicle_type=="cable_car",vehicle_type:="Cable_Car"]
-ev[vehicle_type=="tram",vehicle_type:="Muni"]
-ev[vehicle_type=="rail",vehicle_type:="Rail"]
-ev[vehicle_type=="ferry",vehicle_type:="Ferry"]
-ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car'),'transit',as.character(mode))]
-ev[,hour:=time/3600]
-ev[,hr:=round(hour)]
-setkey(ev,vehicle_type)
-#ev[vehicle_type%in%c('BART','Ferry','Muni','Rail') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
-#ev[,pmt:=num_passengers*length/1609]
-#ev[is.na(pmt),pmt:=0]
+ev <- clean.and.relabel(ev)
+
 setkey(ev,type)
 
 ## Prep data needed to do quick version of energy calc
@@ -126,7 +112,6 @@ for(fact in factors){
   toplot[vehicle_type%in%c('Car','TNC'),numVehicles:=numVehicles*factor.to.scale.personal.back]
   toplot[,pmt:=pmt*factor.to.scale.personal.back]
   toplot[vehicle_type%in%c('Car','TNC'),numberOfPassengers:=numVehicles]
-  toplot[vehicle_type%in%c('BART','Bus','Cable_Car','Muni','Rail','TNC'),numberOfPassengers:=numberOfPassengers*factor.to.scale.personal.back]
   toplot[,ag.mode:=tripmode]
   toplot[tolower(ag.mode)%in%c('bart','bus','cable_car','muni','rail','tram','transit'),ag.mode:='Transit']
   toplot[ag.mode=='car',ag.mode:='Car']
