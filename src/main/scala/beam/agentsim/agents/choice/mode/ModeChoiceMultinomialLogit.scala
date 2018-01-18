@@ -91,7 +91,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         model.makeRandomChoice(inputData, new Random())
       }catch{
         case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
-          "None"
+          "walk"
       }
       expectedMaximumUtility = model.getExpectedMaximumUtility
       model.clear()
