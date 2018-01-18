@@ -74,7 +74,7 @@ trait GeoUtils extends HasServices  {
   }
 
   def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
-    var radius = 100.0
+    var radius = 10.0
     var theSplit: Split = null
     while(theSplit == null && radius <= maxRadius) {
       theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode);
