@@ -15,11 +15,12 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with
   EventsFileHandlingCommon with IntegrationSpecCommon {
 
-  val beamConfig = BeamConfig(config)
   private val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
     .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
     .resolve()
+
+  val beamConfig = BeamConfig(config)
   var matsimConfig: org.matsim.core.config.Config = null
 
   override protected def beforeAll(): Unit = {
