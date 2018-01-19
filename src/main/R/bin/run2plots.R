@@ -18,8 +18,8 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-17_15-46-24/beam.conf'
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-18_15-40-15/beam.conf'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-17_15-46-24/beam.conf'
+  #args<-'/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/beam.conf'
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T)
@@ -37,6 +37,7 @@ make.dir(plots.dir)
 
 evs <- list()
 vehs <- list()
+accesses <- list()
 iter <- tail(list.dirs(pp(run.dir,'ITERS/'),full.names=F),-1)[1]
 for(iter in tail(list.dirs(pp(run.dir,'ITERS/'),full.names=F),-1)){
   my.cat(iter)
@@ -47,15 +48,24 @@ for(iter in tail(list.dirs(pp(run.dir,'ITERS/'),full.names=F),-1)){
   ev[,iter:=iter.i]
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
   vehs[[length(evs)+1]] <- ev[type%in%c('PersonEntersVehicle','PersonLeavesVehicle')]
+
+  access.csv <- pp(run.dir,'ITERS/',iter,'/',iter.i,'.expectedMaxUtilityHeatMap.csv')
+  access <- csv2rdata(access.csv)
+  access[,iter:=iter.i]
+  accesses[[length(accesses)+1]] <- access
 }
 ev <- rbindlist(evs)
 veh <- rbindlist(vehs)
+access <- rbindlist(accesses)
 rm('evs')
 rm('vehs')
+rm('accesses')
 
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
-veh[,is.transit:=grepl(":",vehicle)]
+veh[,is.transit:=grepl(":",vehicle_id)]
+access[,hour:=floor(time/3600)]
+access[,expectedMaximumUtility:=expectedMaximumUtility-min(expectedMaximumUtility)]
 
 setkey(ev,type,iter,hr,vehicle_type)
 
@@ -104,6 +114,10 @@ toplot <- toplot[,.(numPassengers=sum(num_passengers),pmt=sum(num_passengers*len
 write.csv(toplot,file=pp(plots.dir,'transit-use-by-trip.csv'))
 write.csv(toplot[pmt<=10],file=pp(plots.dir,'transit-trips-low-ridership.csv'))
 
+
+p <- ggplot(access[,.(expMaxUtil=mean(expectedMaximumUtility)),by=c('iter','hour')],aes(x=hour,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~iter)+labs(x="Hour",y="Avg. Accessibility Score",title=to.title(run.name))
+pdf.scale <- .8
+ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 
 
