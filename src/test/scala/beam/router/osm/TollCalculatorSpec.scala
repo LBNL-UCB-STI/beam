@@ -6,13 +6,32 @@ import org.scalatest.WordSpecLike
 
 import scala.language.postfixOps
 
+//Tolls on osm ids: 79,87,109,147,155,163,1003,1005
 class TollCalculatorSpec extends WordSpecLike {
   "Using beamville as input" when {
     val beamvillePath: Path = Paths.get("test", "input", "beamville", "r5")
     val beamvilleTollCalc = new TollCalculator(beamvillePath.toString)
-    "calsulate toll , it" should {
-      "return value 0." in {
-        assert(beamvilleTollCalc.calcToll(Vector(1,2)) == 0)
+    "calculate toll for a single trunk road, it" should {
+      "return value $1." in {
+        assert(beamvilleTollCalc.calcToll(Vector(109)) == 3)
+      }
+    }
+
+    "calculate toll for a three trunk road, it" should {
+      "return value 3." in {
+        assert(beamvilleTollCalc.calcToll(Vector(109, 155, 163)) == 3)
+      }
+    }
+
+    "calculate toll for a highway, it" should {
+      "return value 6." in {
+        assert(beamvilleTollCalc.calcToll(Vector(1003)) == 6)
+      }
+    }
+
+    "calculate toll for a highway and a trunk road, it" should {
+      "return value 7." in {
+        assert(beamvilleTollCalc.calcToll(Vector(1003, 79)) == 7)
       }
     }
   }
