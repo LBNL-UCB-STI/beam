@@ -19,7 +19,7 @@ option_list <- list(
 if(interactive()){
   #setwd('~/downs/')
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-17_15-46-24/beam.conf'
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-18_15-40-15/beam.conf'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/beam.conf'
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T)
