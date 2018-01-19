@@ -1,12 +1,8 @@
 package beam.agentsim.util
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{TestFSMRef, TestKit}
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.PersonAgent.PersonData
-import beam.sim.BeamServices
-import org.matsim.core.population.PopulationUtils
 import org.matsim.api.core.v01.Id
+import org.matsim.core.population.PopulationUtils
 
 /**
   * BEAM

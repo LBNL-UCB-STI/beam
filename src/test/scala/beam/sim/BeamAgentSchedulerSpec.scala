@@ -26,7 +26,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Be
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 10.0))
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
       beamAgentRef.stateName should be(Uninitialized)
-      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), beamAgentRef)
       beamAgentRef.stateName should be(Uninitialized)
       beamAgentSchedulerRef ! StartSchedule(0)
       beamAgentRef.stateName should be(Initialized)
@@ -38,7 +38,7 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Be
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 10.0, maxWindow = 0.0))
       val beamAgentRef = TestFSMRef(new TestBeamAgent(Id.createPersonId(0)))
       watch(beamAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(-1),beamAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(-1), beamAgentRef)
       expectTerminated(beamAgentRef)
     }
 
@@ -77,15 +77,14 @@ object BeamAgentSchedulerSpec {
 
   case class ReportState(val tick: Double) extends Trigger
 
-  case object Reporting extends BeamAgentState
-
   class TestBeamAgent(override val id: Id[Person]) extends BeamAgent[NoData] {
     val eventsManager = new EventsManagerImpl
+
     override def data = NoData()
 
     override def logPrefix(): String = "TestBeamAgent"
 
-    chainedWhen(Uninitialized){
+    chainedWhen(Uninitialized) {
       case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
         goto(Initialized) replying completed(triggerId, Vector())
     }
@@ -100,5 +99,7 @@ object BeamAgentSchedulerSpec {
         stop
     }
   }
+
+  case object Reporting extends BeamAgentState
 
 }

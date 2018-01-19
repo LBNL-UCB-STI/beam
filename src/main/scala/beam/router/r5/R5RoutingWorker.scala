@@ -1,7 +1,7 @@
 package beam.router.r5
 
-import java.time.{ZoneId, ZonedDateTime}
 import java.time.temporal.ChronoUnit
+import java.time.{ZoneId, ZonedDateTime}
 import java.util
 
 import akka.actor._
@@ -25,6 +25,7 @@ import com.conveyal.r5.profile._
 import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
+import kamon.Kamon
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -39,15 +40,16 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447; // 1 mile per hour
 
-  var nRequests = 0
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
-  val cache = CacheBuilder.newBuilder().recordStats().build(new CacheLoader[R5Request, ProfileResponse] {
+  val routingTimeHistogram = Kamon.metrics.histogram("routing-time")
+
+  val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
       val time = System.nanoTime()
       val response = getPlanFromR5(key)
-      log.debug("{} {}", (System.nanoTime() - time) / (1000*1000), key.toString)
+      routingTimeHistogram.record((System.nanoTime() - time) / (1000*1000))
       response
     }
   })
@@ -65,11 +67,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
-      nRequests = nRequests+1
-      if (nRequests % 100 == 0) {
-        val stats = cache.stats()
-        log.debug(stats.toString)
-      }
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
@@ -113,7 +110,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         new ProfileResponse
     }
     log.debug(s"# options found = ${result.options.size()}")
-    return result
+    result
   }
 
 
@@ -444,7 +441,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
   private def travelTimeCalculator: TravelTimeCalculator = maybeTravelTime match {
     case Some(travelTime) => (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
-      if (edge.getOSMID < 0) {
+      if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
         // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
         // MATSim network.
         (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat

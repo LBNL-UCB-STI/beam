@@ -11,7 +11,7 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, WALK}
 import beam.router.RoutingModel.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.gtfs.FareCalculator
-import beam.router.gtfs.FareCalculator.{BeamFare, BeamFareSegment}
+import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
@@ -102,10 +102,10 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       val destination = new BeamRouter.Location(552065.6882372601, 4180855.582994787)
       val time = RoutingModel.DiscreteTime(19740)
       router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(
-              StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
-              StreetVehicle(Id.createVehicleId("body-17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true),
-              StreetVehicle(Id.createVehicleId("17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)
-            )))
+        StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
+        StreetVehicle(Id.createVehicleId("body-17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true),
+        StreetVehicle(Id.createVehicleId("17673-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)
+      )))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
@@ -122,10 +122,10 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       val destination = geo.wgs2Utm(new Coord(-122.3712, 37.815819))
       val time = RoutingModel.DiscreteTime(27840)
       router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(
-              StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
-              StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
-              StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
-            )))
+        StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
+        StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
+        StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
+      )))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
@@ -151,10 +151,10 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
           val destination = pair(1).getCoord
           val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
           router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(
-                      StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
-                      StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
-                      StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
-                    )))
+            StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
+            StreetVehicle(Id.createVehicleId("rideHailingVehicle-person=116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = false),
+            StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
+          )))
           val response = expectMsgType[RoutingResponse]
           assert(response.itineraries.exists(_.tripClassifier == WALK))
           assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))

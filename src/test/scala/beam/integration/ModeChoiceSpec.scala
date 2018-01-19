@@ -1,9 +1,7 @@
 package beam.integration
 
-import java.io.File
-
 import beam.sim.BeamHelper
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
@@ -33,9 +31,9 @@ class ModeChoiceSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         baseConfig.withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef
         ("ModeChoiceTransitIfAvailable"))
       )
-      val testModeCount = theRun.groupedCount.getOrElse("walk_transit", 0) + theRun.groupedCount.getOrElse("drive_transit",0)
+      val testModeCount = theRun.groupedCount.getOrElse("walk_transit", 0) + theRun.groupedCount.getOrElse("drive_transit", 0)
       val otherModesCount = theRun.groupedCount.getOrElse("ride_hailing", 0)
-        theRun.groupedCount.getOrElse("bike", 0)
+      theRun.groupedCount.getOrElse("bike", 0)
       testModeCount should be >= otherModesCount
     }
   }

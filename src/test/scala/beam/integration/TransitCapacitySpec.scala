@@ -1,17 +1,15 @@
 package beam.integration
 
-import java.io.File
-
 import beam.sim.BeamHelper
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
   * Created by fdariasm on 29/08/2017
-  * 
+  *
   */
 
-class TransitCapacitySpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon{
+class TransitCapacitySpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceTransitIfAvailable and increasing transitCapacity value" must {
     "create more entries for mode choice transit as value increases" in {
