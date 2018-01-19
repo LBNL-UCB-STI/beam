@@ -11,8 +11,8 @@ import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.r5.NetworkCoordinator
-import beam.sim.config.BeamConfig
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
@@ -32,7 +32,8 @@ import scala.concurrent.duration._
 /**
   * Created by sfeygin on 2/7/17.
   */
-class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString("""
+class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
+  """
   akka.loggers = ["akka.testkit.TestEventListener"]
   """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
@@ -41,7 +42,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
   val config = BeamConfig(system.settings.config)
   val eventsManager = new EventsManagerImpl()
   val services: BeamServices = {
-    val theServices  = mock[BeamServices]
+    val theServices = mock[BeamServices]
     when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.modeChoiceCalculator).thenReturn(mock[ModeChoiceCalculator])
@@ -53,25 +54,25 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
   describe("A PersonAgent FSM") {
 
     it("should allow scheduler to set the first activity") {
-      val houseIdDummy = Id.create("dummy",classOf[Household])
+      val houseIdDummy = Id.create("dummy", classOf[Household])
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]),PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), houseIdDummy, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
 
       watch(personAgentRef)
-      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0),personAgentRef)
+      beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
       beamAgentSchedulerRef ! StartSchedule(0)
       expectTerminated(personAgentRef)
-      expectMsg(CompletionNotice(0,Vector()))
+      expectMsg(CompletionNotice(0, Vector()))
     }
 
     it("should publish events that can be received by a MATSim EventsManager") {
-      within(10 seconds){
+      within(10 seconds) {
         val houseIdDummy = Id.create("dummy", classOf[Household])
         eventsManager.addHandler(new ActivityEndEventHandler {
           override def handleEvent(event: ActivityEndEvent): Unit = {

@@ -107,9 +107,9 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
         val destination = pair(1).getCoord
         val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
         router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
-                  StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
-                  StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
-                )))
+          StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
+          StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
+        )))
         val response = expectMsgType[RoutingResponse]
         if (response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)) numDriveTransitFound = numDriveTransitFound + 1
         if (response.itineraries.exists(_.tripClassifier == WALK_TRANSIT)) numWalkTransitFound = numWalkTransitFound + 1

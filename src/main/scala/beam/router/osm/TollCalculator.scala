@@ -73,7 +73,6 @@ class TollCalculator(val directory: String) {
   def calcToll(osmIds: Vector[Long]): Double = {
     // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
     ways.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
-
   }
 
   def main(args: Array[String]): Unit = {

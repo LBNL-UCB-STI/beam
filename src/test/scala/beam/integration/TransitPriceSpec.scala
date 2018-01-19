@@ -1,14 +1,12 @@
 package beam.integration
 
-import java.io.File
-
 import beam.sim.BeamHelper
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
   * Created by fdariasm on 29/08/2017
-  * 
+  *
   */
 
 class TransitPriceSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
@@ -27,15 +25,15 @@ class TransitPriceSpec extends WordSpecLike with Matchers with BeamHelper with B
         .filter(_.isDefined)
         .map(_.get)
 
-//      val z1 = tc.drop(1)
-//      val z2 = tc.dropRight(1)
-//      val zip = z2 zip z1
+      //      val z1 = tc.drop(1)
+      //      val z2 = tc.dropRight(1)
+      //      val zip = z2 zip z1
 
-//      println("Transit")
-//      println(tc)
-//      println(z1)
-//      println(z2)
-//      println(zip)
+      //      println("Transit")
+      //      println(tc)
+      //      println(z1)
+      //      println(z2)
+      //      println(zip)
 
       isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
