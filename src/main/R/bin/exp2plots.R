@@ -17,12 +17,14 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/network/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/vot/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
 }
 ######################################################################################################
+
+factor.to.scale.personal.back <- 32
 
 ######################################################################################################
 # Load the exp config
@@ -55,7 +57,7 @@ for(run.i in 1:nrow(exp)){
 }
 ev <- rbindlist(evs)
 
-ev <- clean.and.relabel(ev)
+ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
 setkey(ev,type)
 
@@ -63,7 +65,6 @@ setkey(ev,type)
 en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/energy/energy-consumption.csv'))
 setkey(en,vehicleType)
 en <- u(en)
-factor.to.scale.personal.back <- 32
 ## Energy Density in MJ/liter or MJ/kWh
 en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c(34.2,35.8,3.6))
 ev[tripmode%in%c('car') & vehicle_type=='Car',':='(num_passengers=1)]
@@ -112,7 +113,7 @@ for(fact in factors){
   toplot[vehicle_type=='TNC',tripmode:='TNC']
   toplot[vehicle_type%in%c('Car','TNC'),energy:=energy*factor.to.scale.personal.back]
   toplot[vehicle_type%in%c('Car','TNC'),numVehicles:=numVehicles*factor.to.scale.personal.back]
-  toplot[,pmt:=pmt*factor.to.scale.personal.back]
+  toplot[vehicle_type%in%c('Car','TNC'),pmt:=pmt*factor.to.scale.personal.back]
   toplot[vehicle_type%in%c('Car','TNC'),numberOfPassengers:=numVehicles]
   toplot[,ag.mode:=tripmode]
   toplot[tolower(ag.mode)%in%c('bart','bus','cable_car','muni','rail','tram','transit'),ag.mode:='Transit']
