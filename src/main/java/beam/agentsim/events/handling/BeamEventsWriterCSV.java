@@ -9,6 +9,7 @@ import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static beam.agentsim.events.LoggerLevels.OFF;
@@ -19,7 +20,7 @@ import static beam.agentsim.events.LoggerLevels.VERBOSE;
  * BEAM
  */
 public class BeamEventsWriterCSV extends BeamEventsWriterBase{
-    IntegerValueHashMap<String> attributeToColumnIndexMapping = new IntegerValueHashMap<>();
+    LinkedHashMap<String,Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
     public BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, eventLogger, beamServices, eventTypeToLog);
@@ -37,11 +38,11 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
     @Override
     public void writeHeaders(){
         int counter = 0;
-        for (String attribute : attributeToColumnIndexMapping.getKeySet()) {
-            attributeToColumnIndexMapping.set(attribute, counter++);
+        for (String attribute : attributeToColumnIndexMapping.keySet()) {
+            attributeToColumnIndexMapping.put(attribute, counter++);
             try {
                 this.out.append(attribute);
-                if (counter < attributeToColumnIndexMapping.getKeySet().size()) {
+                if (counter < attributeToColumnIndexMapping.keySet().size()) {
                     this.out.append(",");
                 } else {
                     this.out.append("\n");
@@ -69,7 +70,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
     protected void writeEvent(Event event) {
         if(beamEventLogger.getLoggingLevel(event) == OFF)return;
 
-        String[] row = new String[attributeToColumnIndexMapping.getKeySet().size()];
+        String[] row = new String[attributeToColumnIndexMapping.keySet().size()];
 
         Map<String, String> attributes = this.beamEventLogger.getAttributes(event);
         for (String attribute : attributes.keySet()) {
@@ -117,7 +118,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase{
                             (level == VERBOSE && field.getName().startsWith("VERBOSE_") && (this.eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
                             ) {
                         try {
-                            attributeToColumnIndexMapping.set(field.get(null).toString(), 0);
+                            attributeToColumnIndexMapping.put(field.get(null).toString(), 0);
                         } catch (IllegalArgumentException e) {
                             e.printStackTrace();
                         } catch (IllegalAccessException e) {

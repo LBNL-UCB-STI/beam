@@ -9,7 +9,7 @@
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)
-load.libraries(c('maptools','sp'))
+load.libraries(c('maptools','sp','stringr','ggplot2'))
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
@@ -18,6 +18,7 @@ option_list <- list(
 if(interactive()){
   #setwd('~/downs/')
   args<-'/Users/critter/Documents/beam/beam-output/experiments/vot/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -107,7 +108,7 @@ for(fact in factors){
 
   toplot <- ev[J('PathTraversal')][,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
-  toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
+  toplot <- join.on(toplot,en[vehicle %in% c('SUBWAY-DEFAULT','BUS-DEFAULT','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT','CABLE_CAR-DEFAULT','CAR')],'vehicle_type','vehicleType','fuelType')
   toplot <- join.on(toplot,en.density,'fuelType','fuelType')
   toplot[,energy:=fuel*density]
   toplot[vehicle_type=='TNC',tripmode:='TNC']

@@ -19,6 +19,7 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   if(is.factor(ev$end.y[1]))ev[,end.y:=as.numeric(as.character(end.y))]
   if(is.factor(ev$num_passengers[1]))ev[,num_passengers:=as.numeric(as.character(num_passengers))]
   if(is.factor(ev$capacity[1]))ev[,capacity:=as.numeric(as.character(capacity))]
+  if(is.factor(ev$expectedMaximumUtility[1]))ev[,expectedMaximumUtility:=as.numeric(as.character(expectedMaximumUtility))]
   ev[start.y<=0.003 | end.y <=0.003,':='(start.x=NA,start.y=NA,end.x=NA,end.y=NA)]
   ev[length==Inf,length:=NA]
   ev[vehicle_type%in%c('BART','Ferry','Muni','Rail','Cable_Car') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
