@@ -24,7 +24,7 @@ import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
-import com.conveyal.r5.streets.StreetRouter
+import com.conveyal.r5.streets.{StreetRouter, VertexStore}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
@@ -41,6 +41,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 
   private val config = services.beamConfig.beam.routing
   private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
+  private var numStopsNotFound = 0
 
   override def receive = {
     case InitTransit =>
@@ -230,15 +231,35 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         if (split != null) {
           split.edge
         } else {
-          log.warning(s"Stop ${stopIdx} not linked to street network.")
-          -1
+          limitedWarn(stopIdx)
+          createDummyEdgeFromVertex(stopVertex)
         }
       } else {
-        log.warning(s"Stop ${stopIdx} not linked to street network.")
-        -1
+        limitedWarn(stopIdx)
+        createDummyEdge
       }
     }.toVector.distinct
     edgeIds
+  }
+
+  private def limitedWarn(stopIdx: Int): Unit ={
+    if(numStopsNotFound<5){
+      log.warning(s"Stop ${stopIdx} not linked to street network.")
+      numStopsNotFound = numStopsNotFound + 1
+    }else if (numStopsNotFound==5){
+      log.warning(s"Stop ${stopIdx} not linked to street network. Further warnings messages will be suppressed")
+      numStopsNotFound = numStopsNotFound + 1
+    }
+  }
+
+  private def createDummyEdge(): Int = {
+    val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(0.001,0.001)
+    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(0.002,0.002)
+    transportNetwork.streetLayer.edgeStore.addStreetPair(fromVert,toVert,1000,-1).getEdgeIndex
+  }
+  private def createDummyEdgeFromVertex(stopVertex: VertexStore#Vertex): Int = {
+    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(stopVertex.getLat+0.001,stopVertex.getLon+0.001)
+    transportNetwork.streetLayer.edgeStore.addStreetPair(stopVertex.index,toVert,1000,-1).getEdgeIndex
   }
 
 }

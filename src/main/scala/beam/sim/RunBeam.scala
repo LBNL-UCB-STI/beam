@@ -22,10 +22,10 @@ object RunBeam extends BeamHelper with App {
     }.toMap
   }
 
-  Kamon.start()
+//  Kamon.start()
   val argsMap = parseArgs()
 
   runBeamWithConfigFile(argsMap.get("config"))
   print("Exiting BEAM")
-  Kamon.shutdown()
+//  Kamon.shutdown()
 }
