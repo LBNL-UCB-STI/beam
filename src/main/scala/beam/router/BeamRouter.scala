@@ -22,6 +22,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
@@ -98,7 +99,8 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
                 Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                 SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
                 SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
-                Double.PositiveInfinity
+                services.geo.distLatLon2Meters(new Coord(startEdge.getGeometry.getStartPoint.getX,startEdge.getGeometry.getStartPoint.getY),
+                  new Coord(endEdge.getGeometry.getEndPoint.getX,endEdge.getGeometry.getEndPoint.getY))
               )
           }
         } else {
@@ -110,7 +112,8 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
             Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
             SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
             SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
-            Double.PositiveInfinity
+            services.geo.distLatLon2Meters(new Coord(startEdge.getGeometry.getStartPoint.getX,startEdge.getGeometry.getStartPoint.getY),
+              new Coord(endEdge.getGeometry.getEndPoint.getX,endEdge.getGeometry.getEndPoint.getY))
           )
         }
       }.toSeq
@@ -253,8 +256,8 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   }
 
   private def createDummyEdge(): Int = {
-    val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(0.001,0.001)
-    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(0.002,0.002)
+    val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(38,-122)
+    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(38.001,-122.001)
     transportNetwork.streetLayer.edgeStore.addStreetPair(fromVert,toVert,1000,-1).getEdgeIndex
   }
   private def createDummyEdgeFromVertex(stopVertex: VertexStore#Vertex): Int = {
