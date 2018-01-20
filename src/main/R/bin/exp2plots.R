@@ -17,7 +17,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/vot/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/network/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -90,7 +90,9 @@ for(fact in factors){
   pdf.scale <- .6
   ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
-  target <- data.frame(tripmode=rep(c('car','walk','drive_transit','ride_hailing','walk_transit'),length(u(toplot$the.factor))),perc=rep(c(79,4,8,5,5),length(u(toplot$the.factor))),the.factor=rep(u(toplot$the.factor),each=length(u(toplot$tripmode))))
+  target <- data.frame(tripmode=rep(c('Car','Walk','Transit','TNC'),length(u(toplot$the.factor))),
+                       perc=rep(c(79,4,13,5),length(u(toplot$the.factor))),
+                       the.factor=rep(u(toplot$the.factor),each=4))
   p <- ggplot(toplot,aes(x=tripmode,y=frac*100))+geom_bar(stat='identity')+facet_wrap(~the.factor)+geom_point(data=target,aes(y=perc),colour='red')
   ggsave(pp(plots.dir,'mode-split-lines-by-',fact,'.pdf'),p,width=15*pdf.scale,height=8*pdf.scale,units='in')
 }

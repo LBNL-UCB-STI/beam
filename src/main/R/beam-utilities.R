@@ -13,6 +13,10 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[,hour:=time/3600]
   ev[,hr:=round(hour)]
   setkey(ev,vehicle_type)
+  if(is.factor(ev$start.x[1]))ev[,start.x:=as.numeric(as.character(start.x))]
+  if(is.factor(ev$end.x[1]))ev[,end.x:=as.numeric(as.character(end.x))]
+  if(is.factor(ev$start.y[1]))ev[,start.y:=as.numeric(as.character(start.y))]
+  if(is.factor(ev$end.y[1]))ev[,end.y:=as.numeric(as.character(end.y))]
   ev[start.y<=0.003 | end.y <=0.003,':='(start.x=NA,start.y=NA,end.x=NA,end.y=NA)]
   ev[length==Inf,length:=NA]
   ev[vehicle_type%in%c('BART','Ferry','Muni','Rail','Cable_Car') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
