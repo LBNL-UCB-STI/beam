@@ -66,7 +66,7 @@ setkey(ev,type,iter,hr,vehicle_type)
 ############################
 
 ## VMT by time and mode
-toplot <- ev[J('PathTraversal')][,.(vmt=sum(length/1609)),by=c('hr','iter','vehicle_type')]
+toplot <- ev[J('PathTraversal')][,.(vmt=sum(length/1609,na.rm=T)),by=c('hr','iter','vehicle_type')]
 toplot[vehicle_type%in%c('Car','TNC'),vmt:=vmt*factor.to.scale.personal.back]
 p <- ggplot(toplot,aes(x=hr,y=vmt,fill=vehicle_type))+geom_bar(stat='identity',position='stack')+facet_wrap(~iter)+labs(x="Hour",y="Vehicle Miles Traveled",fill="Vehicle Type",title=to.title(run.name))
 pdf.scale <- .6
