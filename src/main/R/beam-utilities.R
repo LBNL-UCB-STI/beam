@@ -161,3 +161,7 @@ repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
     if (!forward) x = rev(x)           # second reversion
     x
 }
+
+dir.slash <- function(the.dirs){
+  sapply(the.dirs,function(the.dir){ ifelse(strtail(the.dir)=="/",the.dir,pp(the.dir,"/")) })
+}
