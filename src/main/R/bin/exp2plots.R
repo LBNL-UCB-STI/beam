@@ -56,7 +56,7 @@ for(run.i in 1:nrow(exp)){
   }
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
 }
-ev <- rbindlist(evs)
+ev <- rbindlist(evs,use.names=T)
 
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
@@ -108,7 +108,7 @@ for(fact in factors){
 
   toplot <- ev[J('PathTraversal')][,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
-  toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
+  toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
   toplot <- join.on(toplot,en.density,'fuelType','fuelType')
   toplot[,energy:=fuel*density]
   toplot[vehicle_type=='TNC',tripmode:='TNC']
