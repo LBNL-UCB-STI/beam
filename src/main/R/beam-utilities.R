@@ -9,7 +9,7 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[vehicle_type=="tram",vehicle_type:="Muni"]
   ev[vehicle_type=="rail",vehicle_type:="Rail"]
   ev[vehicle_type=="ferry",vehicle_type:="Ferry"]
-  ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car'),'transit',as.character(mode))]
+  ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car','ferry'),'transit',as.character(mode))]
   ev[,hour:=time/3600]
   ev[,hr:=round(hour)]
   setkey(ev,vehicle_type)

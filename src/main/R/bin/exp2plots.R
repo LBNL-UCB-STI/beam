@@ -17,7 +17,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/vot/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
@@ -108,7 +108,8 @@ for(fact in factors){
 
   toplot <- ev[J('PathTraversal')][,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
-  toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
+  #toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
+  toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
   toplot <- join.on(toplot,en.density,'fuelType','fuelType')
   toplot[,energy:=fuel*density]
   toplot[vehicle_type=='TNC',tripmode:='TNC']
@@ -120,6 +121,7 @@ for(fact in factors){
   toplot[tolower(ag.mode)%in%c('bart','bus','cable_car','muni','rail','tram','transit'),ag.mode:='Transit']
   toplot[ag.mode=='car',ag.mode:='Car']
   toplot.ag <- toplot[,.(energy=sum(energy),pmt=sum(pmt)),by=c('the.factor','ag.mode')]
+  pdf.scale <- .6
   setkey(toplot.ag,the.factor,ag.mode)
   p <- ggplot(toplot.ag,aes(x=the.factor,y=energy/1e6,fill=ag.mode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (TJ)",title=to.title(fact),fill="Trip Mode")+
       scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot.ag$ag.mode)),mode.colors$key)]))
