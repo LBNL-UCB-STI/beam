@@ -18,6 +18,7 @@ option_list <- list(
 if(interactive()){
   #setwd('~/downs/')
   args<-'/Users/critter/Documents/beam/beam-output/experiments/vot'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/transit-prices-25k'
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
@@ -116,6 +117,8 @@ for(fact in factors){
   ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
   p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
   ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+labs(x=fact,y="Avg. Accessibility Score",title='Overall Accessibility')
+  ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 }
 rm('mc')
 
