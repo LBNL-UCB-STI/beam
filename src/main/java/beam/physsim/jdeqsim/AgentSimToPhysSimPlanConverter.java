@@ -37,6 +37,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import beam.analysis.physsim.LinkStats;
 
 
 /**
@@ -44,7 +45,7 @@ import java.util.List;
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
-
+    private static LinkStats linkStats;
     public static final String CAR = "car";
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
@@ -80,6 +81,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         }
 
         preparePhysSimForNewIteration();
+
+        linkStats=new LinkStats(agentSimScenario.getNetwork(),controlerIO);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -118,7 +121,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
 
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
+
+        linkStats.notifyIterationStarts(jdeqsimEvents);
         jdeqSimulation.run();
+        linkStats.notifyIterationEnds(iterationNumber,travelTimeCalculator.getLinkTravelTimes());
 
         if (writePhysSimEvents(iterationNumber)){
             eventsWriterXML.closeFile();
