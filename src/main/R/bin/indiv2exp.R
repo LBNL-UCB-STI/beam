@@ -19,7 +19,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-c('test-exp','/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-17_15-46-24/','/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/')
+  args<-c('pruning-1','/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-19_21-23-36 2/','/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/')
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "indiv2exp.R [exp-name] [run-directories]"),positional_arguments=T,args=args)
 }else{
@@ -40,13 +40,13 @@ make.dir(pp(exp.dir,'runs'))
 all.runs <- list()
 for(run.dir in run.dirs){
   run.name <- head(tail(str_split(run.dir,"/")[[1]],2),1)
-  new.run.dir <- pp(exp.dir,'runs/',run.name)
+  new.run.dir <- pp(exp.dir,'runs/run.runName_',run.name)
   make.dir(new.run.dir)
   file.copy(run.dir, new.run.dir, recursive=TRUE)
   file.rename(pp(new.run.dir,'/',run.name),pp(new.run.dir,'/output'))
-  all.runs[[length(all.runs)+1]] <- data.table(experimentalGroup=run.name,run=run.name)
+  all.runs[[length(all.runs)+1]] <- data.table(experimentalGroup=run.name,runName=run.name)
 }
 all.runs <- rbindlist(all.runs)
-all.runs[,experimentalGroup:=pp('run_',experimentalGroup)]
-write.csv(all.runs,file=pp(exp.dir,'runs/experiment.csv'))
+all.runs[,experimentalGroup:=pp('runName_',experimentalGroup)]
+write.csv(all.runs,file=pp(exp.dir,'runs/experiments.csv'),row.names=F)
 

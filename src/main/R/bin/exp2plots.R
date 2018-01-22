@@ -56,7 +56,7 @@ for(run.i in 1:nrow(exp)){
   }
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
 }
-ev <- rbindlist(evs,use.names=T)
+ev <- rbindlist(evs,use.names=T,fill=T)
 
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
