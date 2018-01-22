@@ -17,7 +17,8 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/vot'
+  #args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
@@ -111,9 +112,9 @@ for(fact in factors){
 
   # Accessibility
   pdf.scale <- .8
-  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x="Vehicle Available?",y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
+  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
   ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x="Vehicle Available?",y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
+  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
   ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 }
 rm('mc')
@@ -134,7 +135,7 @@ for(fact in factors){
     streval(pp('pt[,the.factor:=factor(the.factor,levels=exp$',fact,')]'))
   }
 
-  toplot <- [,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
+  toplot <- pt[,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
   #toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
   toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
