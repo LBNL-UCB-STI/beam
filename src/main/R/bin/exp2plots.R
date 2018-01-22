@@ -9,7 +9,7 @@
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)
-load.libraries(c('maptools','sp'))
+load.libraries(c('maptools','sp','stringr','ggplot2'))
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
@@ -18,11 +18,14 @@ option_list <- list(
 if(interactive()){
   #setwd('~/downs/')
   args<-'/Users/critter/Documents/beam/beam-output/experiments/vot/'
+  #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
 }
 ######################################################################################################
+
+factor.to.scale.personal.back <- 32
 
 ######################################################################################################
 # Load the exp config
@@ -53,9 +56,9 @@ for(run.i in 1:nrow(exp)){
   }
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
 }
-ev <- rbindlist(evs)
+ev <- rbindlist(evs,use.names=T)
 
-ev <- clean.and.relabel(ev)
+ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
 setkey(ev,type)
 
@@ -63,7 +66,6 @@ setkey(ev,type)
 en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/energy/energy-consumption.csv'))
 setkey(en,vehicleType)
 en <- u(en)
-factor.to.scale.personal.back <- 32
 ## Energy Density in MJ/liter or MJ/kWh
 en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c(34.2,35.8,3.6))
 ev[tripmode%in%c('car') & vehicle_type=='Car',':='(num_passengers=1)]
@@ -90,7 +92,9 @@ for(fact in factors){
   pdf.scale <- .6
   ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
-  target <- data.frame(tripmode=rep(c('car','walk','drive_transit','ride_hailing','walk_transit'),length(u(toplot$the.factor))),perc=rep(c(79,4,8,5,5),length(u(toplot$the.factor))),the.factor=rep(u(toplot$the.factor),each=length(u(toplot$tripmode))))
+  target <- data.frame(tripmode=rep(c('Car','Walk','Transit','TNC'),length(u(toplot$the.factor))),
+                       perc=rep(c(79,4,13,5),length(u(toplot$the.factor))),
+                       the.factor=rep(u(toplot$the.factor),each=4))
   p <- ggplot(toplot,aes(x=tripmode,y=frac*100))+geom_bar(stat='identity')+facet_wrap(~the.factor)+geom_point(data=target,aes(y=perc),colour='red')
   ggsave(pp(plots.dir,'mode-split-lines-by-',fact,'.pdf'),p,width=15*pdf.scale,height=8*pdf.scale,units='in')
 }
@@ -104,13 +108,13 @@ for(fact in factors){
 
   toplot <- ev[J('PathTraversal')][,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
-  toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
+  toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
   toplot <- join.on(toplot,en.density,'fuelType','fuelType')
   toplot[,energy:=fuel*density]
   toplot[vehicle_type=='TNC',tripmode:='TNC']
   toplot[vehicle_type%in%c('Car','TNC'),energy:=energy*factor.to.scale.personal.back]
   toplot[vehicle_type%in%c('Car','TNC'),numVehicles:=numVehicles*factor.to.scale.personal.back]
-  toplot[,pmt:=pmt*factor.to.scale.personal.back]
+  toplot[vehicle_type%in%c('Car','TNC'),pmt:=pmt*factor.to.scale.personal.back]
   toplot[vehicle_type%in%c('Car','TNC'),numberOfPassengers:=numVehicles]
   toplot[,ag.mode:=tripmode]
   toplot[tolower(ag.mode)%in%c('bart','bus','cable_car','muni','rail','tram','transit'),ag.mode:='Transit']

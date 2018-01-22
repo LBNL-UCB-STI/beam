@@ -47,15 +47,17 @@ for(iter in tail(list.dirs(pp(run.dir,'ITERS/'),full.names=F),-1)){
   ev[,iter:=iter.i]
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
   vehs[[length(evs)+1]] <- ev[type%in%c('PersonEntersVehicle','PersonLeavesVehicle')]
+
 }
 ev <- rbindlist(evs)
-veh <- rbindlist(vehs)
+veh <- rbindlist(vehs,fill=T)
 rm('evs')
 rm('vehs')
 
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
 veh[,is.transit:=grepl(":",vehicle)]
+ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
 
 setkey(ev,type,iter,hr,vehicle_type)
 
@@ -64,7 +66,7 @@ setkey(ev,type,iter,hr,vehicle_type)
 ############################
 
 ## VMT by time and mode
-toplot <- ev[J('PathTraversal')][,.(vmt=sum(length/1609)),by=c('hr','iter','vehicle_type')]
+toplot <- ev[J('PathTraversal')][,.(vmt=sum(length/1609,na.rm=T)),by=c('hr','iter','vehicle_type')]
 toplot[vehicle_type%in%c('Car','TNC'),vmt:=vmt*factor.to.scale.personal.back]
 p <- ggplot(toplot,aes(x=hr,y=vmt,fill=vehicle_type))+geom_bar(stat='identity',position='stack')+facet_wrap(~iter)+labs(x="Hour",y="Vehicle Miles Traveled",fill="Vehicle Type",title=to.title(run.name))
 pdf.scale <- .6
@@ -86,13 +88,18 @@ toplot[,agency:=unlist(lapply(str_split(vehicle,":"),function(x){ x[1] }))]
 toplot[,transitTrip:=unlist(lapply(str_split(vehicle,":"),function(x){ x[2] }))]
 toplot[,hour:=floor(time/3600)]
 
-p <- ggplot(toplot[type=='PersonEntersVehicle',.(n=length(time)*factor.to.scale.personal.back),by=c('hour','agency')],aes(x=hour,y=n,fill=agency))+geom_bar(stat='identity')+facet_wrap(~agency)+labs(x="Hour",y="# Boarding Passengers",title=to.title(run.name),fill="Transit Agency")
+p <- ggplot(toplot[type=='PersonEntersVehicle',.(n=length(time)*factor.to.scale.personal.back),by=c('hour','agency','iter')],aes(x=hour,y=n,fill=agency))+geom_bar(stat='identity')+facet_wrap(iter~agency)+labs(x="Hour",y="# Boarding Passengers",title=to.title(run.name),fill="Transit Agency")
 pdf.scale <- .8
 ggsave(pp(plots.dir,'transit-boarding.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
-p <- ggplot(toplot[type=='PersonEntersVehicle' & agency%in%c('SF','AC','BA','VT'),.(n=length(time)*factor.to.scale.personal.back),by=c('hour','agency')],aes(x=hour,y=n,fill=agency))+geom_bar(stat='identity')+facet_wrap(~agency)+labs(x="Hour",y="# Boarding Passengers",title=to.title(run.name),fill="Transit Agency")
+p <- ggplot(toplot[type=='PersonEntersVehicle' & agency%in%c('SF','AC','BA','VT'),.(n=length(time)*factor.to.scale.personal.back),by=c('hour','agency','iter')],aes(x=hour,y=n,fill=agency))+geom_bar(stat='identity')+facet_wrap(iter~agency)+labs(x="Hour",y="# Boarding Passengers",title=to.title(run.name),fill="Transit Agency")
 pdf.scale <- .8
 ggsave(pp(plots.dir,'transit-boarding-big-4.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
+p <- ggplot(ev[J('ModeChoice'),.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('iter','hr')],aes(x=hr,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~iter)+labs(x="Hour",y="Avg. Accessibility Score",title=to.title(run.name))
+pdf.scale <- .8
+ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
 
 
 ### Transit analysis, group transit trips (i.e. vehicles) and agencies by ridership
@@ -103,7 +110,5 @@ toplot <- toplot[,.(numPassengers=sum(num_passengers),pmt=sum(num_passengers*len
 
 write.csv(toplot,file=pp(plots.dir,'transit-use-by-trip.csv'))
 write.csv(toplot[pmt<=10],file=pp(plots.dir,'transit-trips-low-ridership.csv'))
-
-
 
 

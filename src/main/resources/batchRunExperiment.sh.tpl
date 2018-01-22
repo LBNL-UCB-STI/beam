@@ -4,5 +4,5 @@ experiment_dir="{{ EXPERIMENT_PATH }}"
 for dir in ${experiment_dir//\\//}/*/; do
     echo $dir
     $dir/runBeam.sh $1 > $dir/console.log 2>&1
-    grep ModeChoice $dir/output/ITERS/it.0/0.events.csv | grep -Eo "ModeChoice,,\w*" | sort | uniq -c
+    #grep ModeChoice $dir/output/ITERS/it.0/0.events.csv | grep -Eo "ModeChoice,,\w*" | sort | uniq -c
 done
