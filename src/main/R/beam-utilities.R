@@ -28,6 +28,9 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[num_passengers > capacity,num_passengers:=capacity]
   ev[,pmt:=num_passengers*length/1609]
   ev[is.na(pmt),pmt:=0]
+  #ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
+  ev[,expectedMaximumUtility:=expectedMaximumUtility-mean(ev$expectedMaximumUtility,na.rm=T)]
+  ev[expectedMaximumUtility==-Inf,expectedMaximumUtility:=NA]
   ev
 }
 

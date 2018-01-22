@@ -76,14 +76,25 @@ setkey(ev,type)
 scale_fill_manual(values = colours)
 
 
-# Mode splits 
+#########################
+# Mode Choice Plots
+#########################
+mc <- ev[J('ModeChoice')]
+setkey(mc,run,time)
+mc[,tripIndex:=1:length(time),by=c('run','person','tourIndex')]
 for(fact in factors){
-  streval(pp('ev[,the.factor:=',fact,']'))
-  if(all(c('low','base','high') %in% u(ev$the.factor)))ev[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
-  if(all(c('Low','Base','High') %in% u(ev$the.factor)))ev[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
+  streval(pp('mc[,the.factor:=',fact,']'))
+  if(all(c('low','base','high') %in% u(ev$the.factor))){
+    mc[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
+  }else if(all(c('Low','Base','High') %in% u(mc$the.factor))){
+    mc[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
+  }else{
+    streval(pp('mc[,the.factor:=factor(the.factor,levels=exp$',fact,')]'))
+  }
   
-  toplot <- ev[J('ModeChoice')][,.(tot=length(time)),by=the.factor]
-  toplot <- join.on(ev[J('ModeChoice')][,.(num=length(time)),by=c('the.factor','tripmode')],toplot,'the.factor','the.factor')
+  # Modal splits 
+  toplot <- mc[tripIndex==1,.(tot=length(time)),by=the.factor]
+  toplot <- join.on(mc[tripIndex==1,.(num=length(time)),by=c('the.factor','tripmode')],toplot,'the.factor','the.factor')
   toplot[,frac:=num/tot]
   toplot[,tripmode:=pretty.modes(tripmode)]
   setkey(toplot,the.factor,tripmode)
@@ -97,16 +108,33 @@ for(fact in factors){
                        the.factor=rep(u(toplot$the.factor),each=4))
   p <- ggplot(toplot,aes(x=tripmode,y=frac*100))+geom_bar(stat='identity')+facet_wrap(~the.factor)+geom_point(data=target,aes(y=perc),colour='red')
   ggsave(pp(plots.dir,'mode-split-lines-by-',fact,'.pdf'),p,width=15*pdf.scale,height=8*pdf.scale,units='in')
+
+  # Accessibility
+  pdf.scale <- .8
+  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x="Vehicle Available?",y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
+  ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x="Vehicle Available?",y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
+  ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 }
+rm('mc')
 
 
-# Energy by Mode
+#########################
+# Path Traversal Plots
+#########################
+pt <- ev[J('PathTraversal')]
 for(fact in factors){
-  streval(pp('ev[,the.factor:=',fact,']'))
-  if(all(c('low','base','high') %in% u(ev$the.factor)))ev[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
-  if(all(c('Low','Base','High') %in% u(ev$the.factor)))ev[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
+  # Energy by Mode
+  streval(pp('pt[,the.factor:=',fact,']'))
+  if(all(c('low','base','high') %in% u(ev$the.factor))){
+    pt[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
+  }else if(all(c('Low','Base','High') %in% u(ev$the.factor))){
+    pt[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
+  }else{
+    streval(pp('pt[,the.factor:=factor(the.factor,levels=exp$',fact,')]'))
+  }
 
-  toplot <- ev[J('PathTraversal')][,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
+  toplot <- [,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
   #toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
   toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
@@ -134,9 +162,16 @@ for(fact in factors){
   p <- ggplot(per.pmt[energy<Inf],aes(x=the.factor,y=energy,fill=tripmode))+geom_bar(stat='identity',position='dodge')+labs(x="Scenario",y="Energy Consumption (MJ/passenger mile)",title=to.title(fact),fill="Trip Mode")+
       scale_fill_manual(values=as.character(mode.colors$color.hex[match(levels(per.pmt$tripmode),mode.colors$key)]))
   ggsave(pp(plots.dir,'energy-per-pmt-by-vehicle-type-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+
+  # Deadheading 
+  toplot <- pt[vehicle_type=='TNC',.(dead=num_passengers==0,miles=length/1609,hr,the.factor)]
+  setkey(toplot,hr,dead)
+  dead.frac <- toplot[,.(dead.frac=pp(roundC(100*sum(miles[dead==T])/sum(miles[dead==F]),1),"% Empty")),by=c('the.factor')]
+  toplot <- toplot[,.(miles=sum(miles)),by=c('dead','hr','the.factor')]
+  p <- ggplot(toplot,aes(x=hr,y=miles,fill=dead))+geom_bar(stat='identity')+labs(x="Hour",y="Vehicle Miles Traveled",fill="Empty",title=pp("TNC Deadheading"))+geom_text(data=dead.frac,aes(x=20,y=max(toplot$miles),label=dead.frac,fill=NA))+facet_wrap(~the.factor)
+  pdf.scale <- .6
+  ggsave(pp(plots.dir,'dead-heading.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 }
-
-
 
 
 
@@ -193,14 +228,6 @@ for(fact in factors){
   #pdf.scale <- .8
   #ggsave(pp(outs.dir,'mode-split-by-hour.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
-  ## Deadheading
-  #toplot <- ev[J('PathTraversal')][vehicle_type=='TNC',.(dead=num_passengers==0,miles=length/1609,hr,level)]
-  #setkey(toplot,hr,dead)
-  #dead.frac <- toplot[,.(dead.frac=pp(roundC(100*sum(miles[dead==T])/sum(miles[dead==F]),0),"% Deadhead")),by=c('level')]
-  #toplot <- toplot[,.(miles=sum(miles)),by=c('dead','hr','level')]
-  #p <- ggplot(toplot,aes(x=hr,y=miles,fill=dead))+geom_bar(stat='identity')+labs(x="Hour",y="VMT",fill="Empty",title=pp("TNC Price"))+geom_text(data=dead.frac,aes(x=20,y=max(toplot$miles),label=dead.frac,fill=NA))+facet_wrap(~level)
-  #pdf.scale <- .6
-  #ggsave(pp(outs.dir,'dead-heading.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
 #}
 
