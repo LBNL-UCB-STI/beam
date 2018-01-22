@@ -92,7 +92,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
       assertMakesSense(transitOption)
-      assert(transitOption.legs.head.beamLeg.startTime == 26004)
+      assert(transitOption.legs.head.beamLeg.startTime == 25990)
     }
   }
 
