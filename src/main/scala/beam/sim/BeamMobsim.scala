@@ -66,7 +66,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           log.debug("Scheduler is finished.")
           cleanupRideHailingAgents()
           cleanupVehicle()
-          cleanupHouseHolder()
           population ! Finish
           context.stop(beamServices.rideHailingManager)
           context.stop(beamServices.schedulerRef)
@@ -99,20 +98,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         }
       }
 
-      private def cleanupHouseHolder(): Unit = {
-        for ((_, householdAgent) <- beamServices.householdRefs) {
-          log.debug(s"Stopping ${householdAgent.path.name} ")
-          householdAgent ! PoisonPill
-        }
-      }
-
       def initializePopulation(): ActorRef = {
         val population = context.actorOf(Population.props(scenario, beamServices, transportNetwork, eventsManager), "population")
         Await.result(population ? Identify(0), timeout.duration)
-
-
-        // Init households before RHA.... RHA vehicles will initially be managed by households
-        initHouseholds()
 
         beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices))
         context.watch(beamServices.rideHailingManager)
@@ -154,61 +142,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         population
       }
 
-      private def initHouseholds(iterId: Option[String] = None)(implicit ev: Id[Vehicle] => Id[BeamVehicle]): Unit = {
-        val householdAttrs = scenario.getHouseholds.getHouseholdAttributes
-
-        scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
-            //TODO a good example where projection should accompany the data
-            if (householdAttrs.getAttribute(householdId.toString, "homecoordx") == null) {
-              log.error(s"Cannot find homeCoordX for household $householdId which will be interpreted at 0.0")
-            }
-            if (householdAttrs.getAttribute(householdId.toString.toLowerCase(), "homecoordy") == null) {
-              log.error(s"Cannot find homeCoordY for household $householdId which will be interpreted at 0.0")
-            }
-            val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homecoordx").asInstanceOf[Double],
-              householdAttrs.getAttribute(householdId.toString, "homecoordy").asInstanceOf[Double]
-            )
-
-            val membersActors = matSimHousehold.getMemberIds.asScala.map { personId =>
-              (personId, beamServices.personRefs.get(personId))
-            }.collect {
-              case (personId, Some(personAgent)) => (personId, personAgent)
-            }.toMap
-
-            val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
-              .collectionAsScalaIterable(matSimHousehold.getVehicleIds)
-              .map({ id =>
-                val matsimVehicle = JavaConverters.mapAsScalaMap(
-                  scenario.getVehicles.getVehicles)(
-                  id)
-                val information = Option(matsimVehicle.getType.getEngineInformation)
-                val vehicleAttribute = Option(
-                  scenario.getVehicles.getVehicleAttributes)
-                val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-                  information
-                    .map(_.getGasConsumption)
-                    .getOrElse(Powertrain.AverageMilesPerGallon))
-                agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(
-                  powerTrain,
-                  matsimVehicle,
-                  vehicleAttribute,
-                  CarVehicle)
-              }).toMap
-
-            houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
-
-            val props = HouseholdActor.props(beamServices, eventsManager, scenario.getPopulation, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord)
-
-            val householdActor = context.actorOf(
-              props,
-              HouseholdActor.buildActorName(householdId, iterId))
-
-            houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
-
-
-            beamServices.householdRefs.put(householdId, householdActor)
-        }
-      }
     }))
     Await.result(iteration ? "Run!", timeout.duration)
     log.info("Agentsim finished.")

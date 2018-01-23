@@ -102,6 +102,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     }
 
     // Finishing this test requires giving the agent a mock router,
+    // a household,
     // and verifying that the expected events are thrown.
     ignore("should demonstrate a simple complete daily activity pattern") {
       within(10 seconds) {
