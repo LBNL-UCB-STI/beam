@@ -23,7 +23,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
-import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
@@ -216,7 +216,8 @@ class PersonAgent(val beamServices: BeamServices,
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       _currentTripMode = Some(_currentRoute.tripClassifier)
-      eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId,_currentRoute.tripClassifier.value))
+      assert(currentActivity.getLinkId != null)
+      eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, _currentRoute.tripClassifier.value))
       processNextLegOrStartActivity(triggerId, tick)
     /*
      * Learn as passenger that leg is starting
@@ -432,6 +433,7 @@ class PersonAgent(val beamServices: BeamServices,
             //TODO consider ending the day here to match MATSim convention for start/end activity
             tick + 60 * 10
           }
+          assert(activity.getLinkId != null)
           eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTripMode
             .get.value))
           _currentTripMode = None

@@ -186,15 +186,16 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     val (tick, theTriggerId) = releaseTickAndTriggerId()
 
-    val location = if (chosenTrip.legs.nonEmpty && chosenTrip.legs.head.beamLeg.travelPath.linkIds.nonEmpty) {
-      chosenTrip.legs.head.beamLeg.travelPath.linkIds.head.toString
-    } else {
-      ""
-    }
-    eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      location, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get)))
+    // Write start and end links of chosen route into Activities.
+    // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
+    val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
+    _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(links.head))
+    _experiencedBeamPlan.activities(_currentActivityIndex+1).setLinkId(Id.createLinkId(links.last))
 
-    _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]) match {
+    eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+      links.head.toString, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get)))
+
+    _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(_currentActivityIndex+1), classOf[ModeChoiceStrategy]) match {
       case None =>
         _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(chosenTrip.tripClassifier))
       case _ =>
