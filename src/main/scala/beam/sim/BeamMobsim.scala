@@ -102,7 +102,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         val population = context.actorOf(Population.props(scenario, beamServices, transportNetwork, eventsManager), "population")
         Await.result(population ? Identify(0), timeout.duration)
 
-        beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices))
+        val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
+        envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
+        beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, envelopeInUTM))
         context.watch(beamServices.rideHailingManager)
 
         val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,scenario.getPopulation.getPersons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt

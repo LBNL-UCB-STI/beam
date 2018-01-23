@@ -25,6 +25,7 @@ import beam.router.RoutingModel.{BeamTime, BeamTrip}
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -78,15 +79,15 @@ object RideHailingManager {
   case object RideAvailableAck
 
 
-  def props(name: String, services: BeamServices) = {
-    Props(classOf[RideHailingManager], name, services)
+  def props(name: String, services: BeamServices, boundingBox: Envelope) = {
+    Props(classOf[RideHailingManager], name, services, boundingBox)
   }
 }
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
 case class RideHailingManagerData() extends BeamAgentData
 
-class RideHailingManager(val name: String, val beamServices: BeamServices) extends VehicleManager with HasServices {
+class RideHailingManager(val name: String, val beamServices: BeamServices, val boundingBox: Envelope) extends VehicleManager with HasServices {
 
   import scala.collection.JavaConverters._
 
@@ -99,17 +100,17 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
     new QuadTree[RideHailingAgentLocation](
-      beamServices.geo.utmbbox.minX,
-      beamServices.geo.utmbbox.minY,
-      beamServices.geo.utmbbox.maxX,
-      beamServices.geo.utmbbox.maxY)
+      boundingBox.getMinX,
+      boundingBox.getMinY,
+      boundingBox.getMaxX,
+      boundingBox.getMaxY)
   }
   private val inServiceRideHailingAgentSpatialIndex = {
     new QuadTree[RideHailingAgentLocation](
-      beamServices.geo.utmbbox.minX,
-      beamServices.geo.utmbbox.minY,
-      beamServices.geo.utmbbox.maxX,
-      beamServices.geo.utmbbox.maxY)
+      boundingBox.getMinX,
+      boundingBox.getMinY,
+      boundingBox.getMaxX,
+      boundingBox.getMaxY)
   }
   private val availableRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
   private val inServiceRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
