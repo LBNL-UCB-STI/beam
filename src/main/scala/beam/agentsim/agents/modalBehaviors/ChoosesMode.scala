@@ -395,11 +395,16 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       hasReceivedCompleteChoiceTrigger = true
       completeChoiceIfReady()
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg),theTriggerId),_) =>
-      // We've received this leg too early... reschedule
-      logDebug(s"Rescheduling: ${NotifyLegStartTrigger(tick, beamLeg)}")
-      stay() replying completed(theTriggerId, schedule[NotifyLegStartTrigger](tick,self,beamLeg))
-
+      // We've received this leg too early...
+      stash()
+      stay()
   }
+
+  onTransition {
+    case ChoosingMode -> Waiting =>
+      unstashAll()
+  }
+
   chainedWhen(AnyState) {
     case Event(res@ReservationResponse(_, _), _) =>
       stay()
