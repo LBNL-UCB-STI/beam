@@ -27,6 +27,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import beam.sim.HasServices
+import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
@@ -188,12 +189,20 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
+    // Our aim should be that every transition from a link to another link be accounted for.
     val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
-    _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(links.head))
-    _experiencedBeamPlan.activities(_currentActivityIndex+1).setLinkId(Id.createLinkId(links.last))
+    if (links.nonEmpty) {
+      _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(links.head))
+      _experiencedBeamPlan.activities(_currentActivityIndex+1).setLinkId(Id.createLinkId(links.last))
+    } else {
+      val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex).getCoord)
+      val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex+1).getCoord)
+      _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 1000.0, StreetMode.WALK).edge))
+      _experiencedBeamPlan.activities(_currentActivityIndex+1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
+    }
 
     eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      links.head.toString, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get)))
+      _experiencedBeamPlan.activities(_currentActivityIndex).getLinkId.toString, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get)))
 
     _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(_currentActivityIndex+1), classOf[ModeChoiceStrategy]) match {
       case None =>
