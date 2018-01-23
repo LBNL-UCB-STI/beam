@@ -59,7 +59,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
-    beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
       eventsManager,
       transportNetwork,

@@ -39,9 +39,9 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], householdId: Id[Household], plan: Plan,
+  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(services, transportNetwork, eventsManager, personId, householdId, plan, humanBodyVehicleId))
+    Props(new PersonAgent(services, transportNetwork, eventsManager, personId, household, plan, humanBodyVehicleId))
   }
 
   def buildActorName(personId: Id[Person]): String = {
@@ -115,7 +115,7 @@ class PersonAgent(val beamServices: BeamServices,
                   val transportNetwork: TransportNetwork,
                   val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
-                  val householdId: Id[Household],
+                  val household: Household,
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
@@ -414,7 +414,7 @@ class PersonAgent(val beamServices: BeamServices,
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
             case Some(personalVeh) =>
-              val householdRef = beamServices.householdRefs(householdId)
+              val householdRef = beamServices.householdRefs(household.getId)
               if (currentActivity.getType.equals("Home")) {
                 householdRef ! ReleaseVehicleReservation(id, personalVeh)
                 householdRef ! CheckInResource(personalVeh, None)

@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle._
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
@@ -17,7 +17,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 
-class Population(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val eventsManager: EventsManager) extends Actor with ActorLogging {
+class Population(val scenario: Scenario, val beamServices: BeamServices, val transportNetwork: TransportNetwork, val eventsManager: EventsManager) extends Actor with ActorLogging {
 
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.
@@ -28,8 +28,7 @@ class Population(val beamServices: BeamServices, val transportNetwork: Transport
   }
 
   private var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
-  beamServices.households.foreach {
-    case (householdId, matSimHousehold) =>
+  scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
       personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => personId -> householdId)
   }
 
@@ -42,7 +41,7 @@ class Population(val beamServices: BeamServices, val transportNetwork: Transport
     //let's put here human body vehicle too, it should be clean up on each iteration
 
 
-    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, personId, personToHouseholdId(personId), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
+    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, personId, scenario.getHouseholds.getHouseholds.get(personToHouseholdId(personId)), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
     context.watch(personRef)
     val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
     newBodyVehicle.registerResource(personRef)
@@ -72,7 +71,7 @@ class Population(val beamServices: BeamServices, val transportNetwork: Transport
 }
 
 object Population {
-  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager) = {
-    Props(new Population(services, transportNetwork, eventsManager))
+  def props(scenario: Scenario, services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager) = {
+    Props(new Population(scenario, services, transportNetwork, eventsManager))
   }
 }

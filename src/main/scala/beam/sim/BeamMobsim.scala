@@ -108,10 +108,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       def initializePopulation(): ActorRef = {
         beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
-        beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
 
 
-        val population = context.actorOf(Population.props(beamServices, transportNetwork, eventsManager), "population")
+        val population = context.actorOf(Population.props(scenario, beamServices, transportNetwork, eventsManager), "population")
         Await.result(population ? Identify(0), timeout.duration)
 
 
@@ -161,8 +160,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private def initHouseholds(iterId: Option[String] = None)(implicit ev: Id[Vehicle] => Id[BeamVehicle]): Unit = {
         val householdAttrs = scenario.getHouseholds.getHouseholdAttributes
 
-        beamServices.households.foreach {
-          case (householdId, matSimHousehold) =>
+        scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
             //TODO a good example where projection should accompany the data
             if (householdAttrs.getAttribute(householdId.toString, "homecoordx") == null) {
               log.error(s"Cannot find homeCoordX for household $householdId which will be interpreted at 0.0")
