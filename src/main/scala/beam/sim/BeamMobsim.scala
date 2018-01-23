@@ -93,7 +93,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       private def cleanupVehicle(): Unit = {
         // FIXME XXXX (VR): Probably no longer necessarylog.info(s"Removing Humanbody vehicles")
-        for (personId <- beamServices.persons.keys) {
+        scenario.getPopulation.getPersons.keySet().forEach { personId =>
           val bodyVehicleId = HumanBodyVehicle.createId(personId)
           beamServices.vehicles -= bodyVehicleId
         }
@@ -107,9 +107,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       }
 
       def initializePopulation(): ActorRef = {
-        beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
-
-
         val population = context.actorOf(Population.props(scenario, beamServices, transportNetwork, eventsManager), "population")
         Await.result(population ? Identify(0), timeout.duration)
 
@@ -120,16 +117,16 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices))
         context.watch(beamServices.rideHailingManager)
 
-        val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,beamServices.persons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
+        val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,scenario.getPopulation.getPersons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
         val rideHailingVehicleType = scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType]))
 
-        for ((k, v) <- beamServices.persons.take(numRideHailAgents)) {
-          val personInitialLocation: Coord = v.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
+        scenario.getPopulation.getPersons.values().forEach { person =>
+          val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
           //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
           val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
-          val rideHailingName = s"rideHailingAgent-${k}"
+          val rideHailingName = s"rideHailingAgent-${person.getId}"
           val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
-          val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=$k") // XXXX: for now identifier will just be initial location (assumed unique)
+          val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=${person.getId}") // XXXX: for now identifier will just be initial location (assumed unique)
           val rideHailVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(rideHailVehicleId, rideHailingVehicleType)
           val rideHailingAgentPersonId: Id[RideHailingAgent] = Id.createPersonId(rideHailingName)
           val information = Option(rideHailVehicle.getType.getEngineInformation)

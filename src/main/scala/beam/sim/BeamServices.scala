@@ -40,7 +40,6 @@ trait BeamServices extends ActorInject {
   var physSim: ActorRef
   var schedulerRef: ActorRef
   var rideHailingManager: ActorRef
-  val persons: TrieMap[Id[Person], Person]
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
   val householdRefs: TrieMap[Id[Household], ActorRef]
@@ -62,14 +61,12 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var physSim: ActorRef = _
   var schedulerRef: ActorRef = _
   var rideHailingManager: ActorRef = _
-  val persons: TrieMap[Id[Person], Person] = TrieMap[Id[Person], Person]()
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
   val householdRefs: TrieMap[Id[Household], ActorRef] = TrieMap[Id[Household], ActorRef]()
   val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
 
   def clearAll = {
-    persons.clear()
     personRefs.clear
     vehicles.clear()
     householdRefs.clear()

@@ -34,20 +34,20 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
 
   // Every Person gets a HumanBodyVehicle
 
-  for ((personId, matsimPerson) <- beamServices.persons.take(beamServices.beamConfig.beam.agentsim.numAgents)) { // if personId.toString.startsWith("9607-") ){
-    val bodyVehicleIdFromPerson = createId(personId)
+  scenario.getPopulation.getPersons.values().stream().limit(beamServices.beamConfig.beam.agentsim.numAgents).forEach { matsimPerson =>
+    val bodyVehicleIdFromPerson = createId(matsimPerson.getId)
     val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
     // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
     //let's put here human body vehicle too, it should be clean up on each iteration
 
 
-    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, personId, scenario.getHouseholds.getHouseholds.get(personToHouseholdId(personId)), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(personId))
+    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, matsimPerson.getId, scenario.getHouseholds.getHouseholds.get(personToHouseholdId(matsimPerson.getId)), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(matsimPerson.getId))
     context.watch(personRef)
     val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
     newBodyVehicle.registerResource(personRef)
     beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
     beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
-    beamServices.personRefs += ((personId, personRef))
+    beamServices.personRefs += ((matsimPerson.getId, personRef))
   }
 
   override def receive = {
