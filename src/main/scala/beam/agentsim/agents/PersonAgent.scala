@@ -128,7 +128,6 @@ class PersonAgent(val beamServices: BeamServices,
   var _currentRoute: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
   var _currentTripMode: Option[Modes.BeamMode] = None
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
-  var _household: Id[Household] = householdId
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
     processNextLegOrStartActivity(triggerId, tick)
@@ -415,7 +414,7 @@ class PersonAgent(val beamServices: BeamServices,
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
             case Some(personalVeh) =>
-              val householdRef = beamServices.householdRefs(_household)
+              val householdRef = beamServices.householdRefs(householdId)
               if (currentActivity.getType.equals("Home")) {
                 householdRef ! ReleaseVehicleReservation(id, personalVeh)
                 householdRef ! CheckInResource(personalVeh, None)

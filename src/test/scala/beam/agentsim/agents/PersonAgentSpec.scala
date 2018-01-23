@@ -35,6 +35,7 @@ import scala.concurrent.duration._
 class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
   """
   akka.loggers = ["akka.testkit.TestEventListener"]
+  akka.log-dead-letters = 10
   """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
@@ -102,7 +103,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     // Finishing this test requires giving the agent a mock router,
     // and verifying that the expected events are thrown.
-    ignore("should demonstrate a simple complete daily activity pattern") {
+    it("should demonstrate a simple complete daily activity pattern") {
       within(10 seconds) {
         val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
         val houseIdDummy = Id.create("dummy", classOf[Household])

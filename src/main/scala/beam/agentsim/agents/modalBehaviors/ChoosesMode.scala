@@ -62,12 +62,12 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   //TODO source these attributes from pop input data
   lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(beamServices.households
-  (_household).getIncome.getIncome,
-    beamServices.households(_household).getMemberIds.size(),
+  (householdId).getIncome.getIncome,
+    beamServices.households(householdId).getMemberIds.size(),
     new Random().nextBoolean(),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
+    beamServices.households(householdId).getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
       .getDescription.toLowerCase.contains("car")),
-    beamServices.households(_household).getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
+    beamServices.households(householdId).getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
       .getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
@@ -211,7 +211,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       currentTourPersonalVehicle = Some(personalVehicleUsed(0))
       availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed(0))
     }
-    val householdRef: ActorRef = beamServices.householdRefs(_household)
+    val householdRef: ActorRef = beamServices.householdRefs(householdId)
     availablePersonalStreetVehicles.foreach { veh =>
       householdRef ! ReleaseVehicleReservation(id, veh.id)
       householdRef ! CheckInResource(veh.id, None)
@@ -254,9 +254,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       modeChoiceStrategy match {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
-          beamServices.householdRefs.get(_household).foreach(_ ! mobilityStatusInquiry(id))
+          beamServices.householdRefs.get(householdId).foreach(_ ! mobilityStatusInquiry(id))
         case None =>
-          beamServices.householdRefs.get(_household).foreach(_ ! mobilityStatusInquiry(id))
+          beamServices.householdRefs.get(householdId).foreach(_ ! mobilityStatusInquiry(id))
         case _ =>
           // Otherwise, send empty list to self
           self ! MobilityStatusReponse(Vector())
