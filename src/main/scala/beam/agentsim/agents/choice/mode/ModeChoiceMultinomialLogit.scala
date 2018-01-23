@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.File
+import java.io.{ByteArrayInputStream, File, FileInputStream, InputStream}
 import java.util
 import java.util.Random
 
@@ -118,23 +118,42 @@ object ModeChoiceMultinomialLogit {
     new ModeChoiceMultinomialLogit(beamServices,ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
   }
 
-  def parseInputForMNL(beamServices: BeamServices): MultinomialLogit = {
-    val modeChoiceParametersFile = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
+  def parseFromInputStream(is: InputStream): Option[MultinomialLogit] = {
     val builder: SAXBuilder = new SAXBuilder()
-    val document: Document = builder.build(new File(modeChoiceParametersFile))
+    val document: Document = builder.build(is).asInstanceOf[Document]
     var theModelOpt: Option[MultinomialLogit] = None
 
     document.getRootElement.getChildren.asScala.foreach{child =>
       if(child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")){
-        val rootNode = child.asInstanceOf[Element].getChild("parameters").getChild("multinomialLogit")
+        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
         theModelOpt = Some(MultinomialLogit.multinomialLogitFactory(rootNode))
       }
     }
+
+    theModelOpt
+  }
+
+  def parseInputForMNL(beamServices: BeamServices): MultinomialLogit = {
+    val modeChoiceParametersFile = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
+
+    val theModelOpt = parseFromInputStream(new FileInputStream(new File(modeChoiceParametersFile)))
+
     theModelOpt match {
       case Some(theModel) =>
         theModel
       case None =>
-        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: $modeChoiceParametersFile")
+        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: ${modeChoiceParametersFile}")
+    }
+  }
+
+  def fromContentString(beamServices: BeamServices, content: String): ModeChoiceMultinomialLogit = {
+    val is = new ByteArrayInputStream(content.getBytes("UTF-8"))
+
+    parseFromInputStream(is) match {
+      case Some(theModel) =>
+        new ModeChoiceMultinomialLogit(beamServices, theModel)
+      case None =>
+        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in content: ${content}")
     }
   }
 
