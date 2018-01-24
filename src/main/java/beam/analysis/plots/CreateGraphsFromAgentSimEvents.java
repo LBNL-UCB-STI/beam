@@ -1,10 +1,8 @@
 package beam.analysis.plots;
 
-import akka.actor.ActorRef;
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.sim.common.GeoUtils;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -16,14 +14,10 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.api.core.v01.population.Person;
-import org.matsim.api.core.v01.population.PopulationFactory;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
@@ -50,14 +44,11 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
 
     private Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
-    Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
+    private Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
 
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
 
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
-
-    /*private Map<Integer, Map<Integer, Integer>> carDeadHeadings = new HashMap<>();
-    private Map<Integer, Map<Integer, Integer>> busDeadHeadings = new HashMap<>();*/
 
     private Set<String> modesChosen = new TreeSet<>();
     private Set<String> modesFuel = new TreeSet<>();
@@ -80,11 +71,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         colors.add(Color.BLACK);
         colors.add(Color.YELLOW);
         colors.add(Color.CYAN);
-
-
     }
-
-
 
     // No Arg Constructor
     public CreateGraphsFromAgentSimEvents() {
@@ -94,8 +81,6 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     public CreateGraphsFromAgentSimEvents(EventsManager eventsManager, OutputDirectoryHierarchy controlerIO, Scenario scenario) {
         eventsManager.addHandler(this);
         this.controlerIO = controlerIO;
-
-        // initialize transit vehicles for fuel energy consumption calculations
         PathTraversalSpatialTemporalTableGenerator.setVehicles(scenario.getTransitVehicles());
     }
 
@@ -122,15 +107,15 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     @Override
     public void handleEvent(Event event) {
 
-        if (event instanceof ModeChoiceEvent) {
+        if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
 
             processModeChoice(event);
-        } else if (event instanceof PathTraversalEvent) {
+        } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
 
-            processFuelUsage((PathTraversalEvent) event);
+            processFuelUsage(event);
 
-            processDeadHeading((PathTraversalEvent) event);
-        } else if (event instanceof PersonDepartureEvent) {
+            processDeadHeading(event);
+        } else if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE)) {
 
             PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
 
@@ -141,7 +126,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             }
             departureEvents.put(((PersonDepartureEvent) event).getPersonId(), personDepartureEvent);
             personLastDepartureEvents.put(mode, departureEvents);
-        } else if (event instanceof PersonArrivalEvent) {
+        } else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE)) {
 
             String mode = ((PersonArrivalEvent) event).getLegMode();
 
@@ -186,110 +171,419 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
 
     ///
-    public void createGraphs(IterationEndsEvent event) {
+    public void createGraphs(IterationEndsEvent event) throws IOException {
 
-        //
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDataset();
+        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
         createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
-        //
-        CategoryDataset modesFuelageDataset = buildModesFuelageDataset();
+        CategoryDataset modesFuelageDataset = buildModesFuelageGraphDataset();
         createModesFuelageGraph(modesFuelageDataset, event.getIteration());
 
-
-        CategoryDataset tnc0DeadHeadingDataset = buildDeadHeadingDatasetTnc0(deadHeadingsTnc0Map, "tnc_deadheading_distance");
+        CategoryDataset tnc0DeadHeadingDataset = buildDeadHeadingDatasetTnc0ForGraph();
         createDeadHeadingGraphTnc0(tnc0DeadHeadingDataset, event.getIteration(), "tnc_deadheading_distance");
 
-        //
-        List<String> graphNamesList = new ArrayList<>(deadHeadingsMap.keySet());
-        Collections.sort(graphNamesList);
-
+        List<String> graphNamesList = getSortedDeadHeadingMapList();
         for (String graphName : graphNamesList) {
-
-            CategoryDataset tncDeadHeadingDataset = buildDeadHeadingDataset(deadHeadingsMap.get(graphName), graphName);
+            CategoryDataset tncDeadHeadingDataset = buildDeadHeadingDataForGraph(graphName);
             createDeadHeadingGraph(tncDeadHeadingDataset, event.getIteration(), graphName);
         }
-
         for (String mode : hourlyPersonTravelTimes.keySet()) {
-
-            CategoryDataset averageDataset = buildAverageTimesDataset(hourlyPersonTravelTimes.get(mode), mode);
+            CategoryDataset averageDataset = buildAverageTimesDatasetGraph( mode);
             createAverageTimesGraph(averageDataset, event.getIteration(), mode);
         }
-        //
     }
+    private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-    private CategoryDataset buildAverageTimesDataset(Map<Integer, List<Double>> times, String mode) {
+        String graphTitle = "Mode Choice Histogram";
+        String xAxisTitle = "Hour";
+        String yAxisTitle = "# mode chosen";
+        String fileName = "mode_choice.png";
 
-        java.util.List<Integer> hoursList = new ArrayList<>();
-        hoursList.addAll(times.keySet());
-        Collections.sort(hoursList);
+        boolean legend = true;
+        final JFreeChart chart = createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        List<String> modesChosenList = new ArrayList<>();
+        modesChosenList.addAll(modesChosen);
+        Collections.sort(modesChosenList);
+        processAndPlotLegendItems(plot,modesChosenList,dataset.getRowCount());
+        saveJFreeChartAsPNG(chart,iterationNumber,fileName);
 
-        int maxHour = hoursList.get(hoursList.size() - 1);
-        double[][] dataset = new double[1][maxHour + 1];
-
-        double[] travelTimes = new double[maxHour + 1];
-        for (int i = 0; i < maxHour; i++) {
-
-            List<Double> hourData = times.get(i);
-            Double average = 0d;
-            if (hourData != null) {
-                average = hourData.stream().mapToDouble(val -> val).average().getAsDouble();
-            }
-            travelTimes[i] = average;
-        }
-
-        dataset[0] = travelTimes;
-
-        return DatasetUtilities.createCategoryDataset(mode, "", dataset);
     }
+    private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
-    private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) {
+        String graphTitle = "Energy Use by Mode";
+        String xAxisTitle = "Hour";
+        String yAxisTitle = "Energy Use [MJ]";
+        String fileName = "energy_use.png";
+
+        boolean legend = true;
+        final JFreeChart chart = createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        List<String> modesFuelList = new ArrayList<>();
+        modesFuelList.addAll(modesFuel);
+        Collections.sort(modesFuelList);
+        processAndPlotLegendItems(plot,modesFuelList,dataset.getRowCount());
+        saveJFreeChartAsPNG(chart,iterationNumber,fileName);
+    }
+    private void createDeadHeadingGraphTnc0(CategoryDataset dataset, int iterationNumber, String graphName) throws IOException {
+
+        String fileName = getGraphFileName(graphName);
+        String graphTitle = getTitle(graphName);
+        String xAxisTitle = "Hour";
+        String yAxisTitle = "Distance in kilometers";
+        boolean legend = true;
+        final JFreeChart chart = createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        processAndPlotLegendItems(plot,graphName,dataset.getRowCount());
+        saveJFreeChartAsPNG(chart,iterationNumber,fileName);
+
+    }
+    private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String graphName) throws IOException{
+
+
+        String fileName = getGraphFileName(graphName);
+        String graphTitle = getTitle(graphName);
+        String xAxisTitle = "Hour";
+        String yAxisTitle = "# trips";
+        boolean legend = true;
+        final JFreeChart chart = createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        processAndPlotLegendItems(plot,graphName,dataset.getRowCount());
+        saveJFreeChartAsPNG(chart,iterationNumber,fileName);
+
+    }
+    private void createAverageTimesGraph(CategoryDataset dataset, int iterationNumber, String mode) throws IOException {
 
         String fileName = "average_travel_times_" + mode + ".png";
-        String plotTitle = "Average Travel Time [" + mode + "]";
-        String xaxis = "Hour";
-        String yaxis = "Average Travel Time [min]";
-        int width = 800;
-        int height = 600;
-        boolean showLegend = false;
+        String graphTitle = "Average Travel Time [" + mode + "]";
+        String xAxisTitle = "Hour";
+        String yAxisTitle = "Average Travel Time [min]";
+        boolean legend = false;
+
+        final JFreeChart chart = createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        processAndPlotLegendItems(plot,dataset.getRowCount());
+        saveJFreeChartAsPNG(chart,iterationNumber,fileName);
+    }
+    private JFreeChart createStackedBarChart(CategoryDataset dataset,String graphTitle,String xAxisTitle,String yAxisTitle,String fileName,boolean legend){
+
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;
-        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
-
         final JFreeChart chart = ChartFactory.createStackedBarChart(
-                plotTitle, xaxis, yaxis,
-                dataset, orientation, showLegend, toolTips, urls);
-
+                graphTitle, xAxisTitle, yAxisTitle,
+                dataset, orientation, legend, toolTips, urls);
         chart.setBackgroundPaint(new Color(255, 255, 255));
-        CategoryPlot plot = chart.getCategoryPlot();
 
-
-        for (int i = 0; i < dataset.getRowCount(); i++) {
-
-
+        return chart;
+    }
+    private void processAndPlotLegendItems(CategoryPlot plot,List<String> legendItemName,int dataSetRowCount){
+        LegendItemCollection legendItems = new LegendItemCollection();
+        for (int i = 0; i < dataSetRowCount; i++) {
+            legendItems.add(new LegendItem(legendItemName.get(i), colors.get(i)));
             plot.getRenderer().setSeriesPaint(i, colors.get(i));
-
         }
-
-
-        try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
-        } catch (IOException e) {
-
-            e.printStackTrace();
+        plot.setFixedLegendItems(legendItems);
+    }
+    private void processAndPlotLegendItems(CategoryPlot plot,String graphName,int dataSetRowCount){
+        LegendItemCollection legendItems = new LegendItemCollection();
+        for (int i = 0; i < dataSetRowCount; i++) {
+            Color color = getBarAndLegendColor(i);
+            legendItems.add(new LegendItem(getLegendText(graphName, i), color));
+            plot.getRenderer().setSeriesPaint(i, colors.get(i));
         }
+        plot.setFixedLegendItems(legendItems);
+    }
+    private void processAndPlotLegendItems(CategoryPlot plot,int dataSetRowCount){
+        LegendItemCollection legendItems = new LegendItemCollection();
+        for (int i = 0; i < dataSetRowCount; i++) {
+            plot.getRenderer().setSeriesPaint(i, colors.get(i));
+        }
+        plot.setFixedLegendItems(legendItems);
+    }
+    private void saveJFreeChartAsPNG(final JFreeChart chart,int iterationNumber,String fileName) throws IOException{
+        int width = 800;
+        int height = 600;
+        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
+        ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
     }
 
-    ////
-    // Mode Choice Event graph
-    private void processModeChoice(Event event) {
+    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
+        double count = 0;
+        double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
+        for(int i =0 ;i < modeOccurrencePerHour.length;i++){
+            count=  count+modeOccurrencePerHour[i];
+        }
+        return (int)count;
+    }
+    public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour,int hour){
+        double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
+        return (int)Math.ceil(modeOccurrencePerHour[hour]);
+    }
+    public List<Integer> getSortedHourModeFrequencyList(){
+        List<Integer> hoursList = new ArrayList<>();
+        hoursList.addAll(hourModeFrequency.keySet());
+        Collections.sort(hoursList);
+        return hoursList;
+    }
+    private List<String> getSortedChosenModeList(){
+        List<String> modesChosenList = new ArrayList<>();
+        modesChosenList.addAll(modesChosen);
+        Collections.sort(modesChosenList);
+        return modesChosenList;
+    }
+    private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour){
+        double[] modeOccurrencePerHour = new double[maxHour + 1];
+        int index = 0;
+        for (int hour = 0; hour <= maxHour; hour++) {
+            Map<String, Integer> hourData = hourModeFrequency.get(hour);
+            if (hourData != null) {
+                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+            } else {
+                modeOccurrencePerHour[index] = 0;
+            }
+            index = index + 1;
+        }
+        return modeOccurrencePerHour;
+    }
+    private double[][] buildModesFrequencyDataset() {
 
+        List<Integer> hoursList = getSortedHourModeFrequencyList();
+        List<String> modesChosenList = getSortedChosenModeList();
+
+        int maxHour = hoursList.get(hoursList.size() - 1);
+        double[][] dataset = new double[modesChosen.size()][maxHour + 1];
+        for (int i = 0; i < modesChosenList.size(); i++) {
+            String modeChosen = modesChosenList.get(i);
+            dataset[i] = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
+        }
+        return dataset;
+    }
+    private CategoryDataset buildModesFrequencyDatasetForGraph(){
+        double [][] dataset= buildModesFrequencyDataset();
+        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+
+    public List<Integer> getSortedHourModeFuelageList(){
+        List<Integer> hours = new ArrayList<>();
+        hours.addAll(hourModeFuelage.keySet());
+        Collections.sort(hours);
+        return hours;
+    }
+    public int getFuelageHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
+        double count = 0;
+        double[] modeOccurrencePerHour = getFuelageHourDataAgainstMode(modeChosen,maxHour);
+        for(int i =0 ;i < modeOccurrencePerHour.length;i++){
+            count=  count+modeOccurrencePerHour[i];
+        }
+        return (int)Math.ceil(count);
+    }
+    private List<String> getSortedModeFuleList(){
+        List<String> modesFuelList = new ArrayList<>();
+        modesFuelList.addAll(modesFuel);
+        Collections.sort(modesFuelList);
+        return modesFuelList;
+    }
+    private double[] getFuelageHourDataAgainstMode(String modeChosen,int maxHour){
+        double[] modeOccurrencePerHour = new double[maxHour + 1];
+        int index = 0;
+        for (int hour = 0; hour <= maxHour; hour++) {
+            Map<String, Double> hourData = hourModeFuelage.get(hour);
+            if (hourData != null) {
+                modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
+            } else {
+                modeOccurrencePerHour[index] = 0;
+            }
+            index = index + 1;
+        }
+        return modeOccurrencePerHour;
+    }
+    private CategoryDataset buildModesFuelageGraphDataset() {
+
+        List<Integer> hours = getSortedHourModeFuelageList();
+        List<String> modesFuelList = getSortedModeFuleList();
+        int maxHour = hours.get(hours.size() - 1);
+        double[][] dataset = new double[modesFuel.size()][maxHour + 1];
+        for (int i = 0; i < modesFuelList.size(); i++) {
+            String modeChosen = modesFuelList.get(i);
+            dataset[i] = getFuelageHourDataAgainstMode(modeChosen,maxHour);
+        }
+        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+
+
+
+    public int getDeadHeadingTnc0HourDataCount(int hourIndex){
+        double[][] dataset=buildDeadHeadingDatasetTnc0();
+        double [] hoursData = dataset[hourIndex];
+        double count = 0;
+        for (double hourData:hoursData){
+            count = count + hourData;
+        }
+        return (int)Math.ceil(count);
+    }
+    public int getDeadHeadingTnc0HourDataCount(int hourIndex,int hour){
+        double[][] dataset=buildDeadHeadingDatasetTnc0();
+        double [] hoursData = dataset[hourIndex];
+        return (int)Math.ceil(hoursData[hour]);
+    }
+    private List<Integer> getSortedDeadHeadingsTnc0Map(){
+        List<Integer> hours = new ArrayList<>();
+        hours.addAll(deadHeadingsTnc0Map.keySet());
+        Collections.sort(hours);
+        return hours;
+    }
+    private double[] getDeadHeadingDatasetTnc0ModeOccurrencePerHour(int maxHour,int outerLoopIndex){
+        double[] modeOccurrencePerHour = new double[maxHour + 1];
+        //String passengerCount = "p" + i;
+        int index = 0;
+        for (int hour = 0; hour <= maxHour; hour++) {
+            Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
+            if (hourData != null) {
+                modeOccurrencePerHour[index] = hourData.get(outerLoopIndex) == null ? 0 : hourData.get(outerLoopIndex) / METERS_IN_KM;
+            } else {
+                modeOccurrencePerHour[index] = 0;
+            }
+            index = index + 1;
+        }
+        return modeOccurrencePerHour;
+    }
+    private double[][] buildDeadHeadingDatasetTnc0(){
+        List<Integer> hours = getSortedDeadHeadingsTnc0Map();
+
+        int maxHour = 0;
+        if (hours.size() > 0) {
+            maxHour = hours.get(hours.size() - 1);
+        }
+
+        Integer maxPassengers = TNC_MAX_PASSENGERS;
+
+        double dataset[][] = new double[maxPassengers + 1][maxHour + 1];
+
+        for (int i = 0; i <= maxPassengers; i++) {
+            dataset[i] = getDeadHeadingDatasetTnc0ModeOccurrencePerHour(maxHour,i);
+        }
+        return dataset;
+    }
+    private CategoryDataset buildDeadHeadingDatasetTnc0ForGraph() {
+
+        double[][] dataset=buildDeadHeadingDatasetTnc0();
+        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+
+    public int getBucketCountAgainstMode(int bucketIndex,String mode){
+        double[][] dataset=buildDeadHeadingDataset(this.deadHeadingsMap.get(mode),mode);
+        double[] hoursData = dataset[bucketIndex];
+        double count = 0;
+        for(double hourData:hoursData){
+            count = count + hourData;
+        }
+        return (int)Math.ceil(count);
+    }
+    public int getPassengerPerTripCountForSpecificHour(int bucketIndex,String mode,int hour){
+        double[][] dataset=buildDeadHeadingDataset(this.deadHeadingsMap.get(mode),mode);
+        double[] hoursData = dataset[bucketIndex];
+        return (int)Math.ceil(hoursData[hour]);
+    }
+    private double[] getModeOccurrencePerHourAgainstMode(Map<Integer, Map<Integer, Integer>> data,int maxHour,int outerLoopIndex){
+        double[] modeOccurrencePerHour = new double[maxHour + 1];
+        //String passengerCount = "p" + i;
+        int index = 0;
+        for (int hour = 0; hour <= maxHour; hour++) {
+            Map<Integer, Integer> hourData = data.get(hour);
+            if (hourData != null) {
+                modeOccurrencePerHour[index] = hourData.get(outerLoopIndex) == null ? 0 : hourData.get(outerLoopIndex);
+            } else {
+                modeOccurrencePerHour[index] = 0;
+            }
+            index = index + 1;
+        }
+        return modeOccurrencePerHour;
+    }
+    private double[] getModeOccurrenceOfPassengerWithBucketSize(Map<Integer, Map<Integer, Integer>> data,double[] modeOccurrencePerHour,int maxHour,int outerLoopIndex){
+        int index = 0;
+        for (int hour = 0; hour <= maxHour; hour++) {
+            Map<Integer, Integer> hourData = data.get(hour);
+            if (hourData != null) {
+                modeOccurrencePerHour[index] += hourData.get(outerLoopIndex) == null ? 0 : hourData.get(outerLoopIndex);
+            } else {
+                modeOccurrencePerHour[index] += 0;
+            }
+            index = index + 1;
+        }
+        return modeOccurrencePerHour;
+    }
+    private List<String> getSortedDeadHeadingMapList(){
+        List<String> graphNamesList = new ArrayList<>(deadHeadingsMap.keySet());
+        Collections.sort(graphNamesList);
+        return graphNamesList;
+    }
+    private double[][] buildDeadHeadingDataset(Map<Integer, Map<Integer, Integer>> data, String graphName) {
+
+        List<Integer> hours = new ArrayList<>();
+        hours.addAll(data.keySet());
+        Collections.sort(hours);
+
+        int maxHour = hours.get(hours.size() - 1);
+
+        Integer maxPassengers = null;
+        if (graphName.equalsIgnoreCase("car")) {
+            maxPassengers = CAR_MAX_PASSENGERS;
+        } else if (graphName.equalsIgnoreCase("tnc")) {
+            maxPassengers = TNC_MAX_PASSENGERS;
+        } else {
+            maxPassengers = maxPassengersSeenOnGenericCase;
+        }
+
+        double dataset[][] = null;
+
+        if (graphName.equalsIgnoreCase("tnc") || graphName.equalsIgnoreCase("car")) {
+
+            dataset = new double[maxPassengers + 1][maxHour + 1];
+
+            for (int i = 0; i <= maxPassengers; i++) {
+                dataset[i] = getModeOccurrencePerHourAgainstMode(data,maxHour,i);
+            }
+        } else {
+
+            // This loop gives the loop over all the different passenger groups, which is 1 in other cases.
+            // In this case we have to group 0, 1 to 5, 6 to 10
+
+            int bucketSize = getBucketSize();
+
+            dataset = new double[5][maxHour + 1];
+
+
+            // We need only 5 buckets
+            // The modeOccurrentPerHour array index will not go beyond 5 as all the passengers will be
+            // accomodated within the 4 buckets because the index will not be incremented until all
+            // passengers falling in one bucket are added into that index of modeOccurrencePerHour
+            double[] modeOccurrencePerHour = new double[maxHour + 1];
+            int bucket = 0;
+
+            for (int i = 0; i <= maxPassengers; i++) {
+
+                modeOccurrencePerHour = getModeOccurrenceOfPassengerWithBucketSize(data,modeOccurrencePerHour,maxHour,i);
+                if (i == 0 || (i % bucketSize == 0) || i == maxPassengers) {
+
+                    dataset[bucket] = modeOccurrencePerHour;
+                    modeOccurrencePerHour = new double[maxHour + 1];
+                    bucket = bucket + 1;
+                }
+            }
+        }
+        return dataset;
+    }
+    private CategoryDataset buildDeadHeadingDataForGraph(String mode){
+        double[][] dataset=buildDeadHeadingDataset(this.deadHeadingsMap.get(mode),mode);
+        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    }
+
+
+    private void processModeChoice(Event event) {
         int hour = getEventHour(event.getTime());
         String mode = event.getAttributes().get("mode");
         modesChosen.add(mode);
-
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
         Integer frequency = 1;
         if (hourData != null) {
@@ -302,97 +596,10 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         } else {
             hourData = new HashMap<>();
         }
-
         hourData.put(mode, frequency);
         hourModeFrequency.put(hour, hourData);
     }
-
-    private int getEventHour(double time) {
-
-        return (int) time / SECONDS_IN_HOUR;
-    }
-
-    private CategoryDataset buildModesFrequencyDataset() {
-
-        java.util.List<Integer> hoursList = new ArrayList<>();
-        hoursList.addAll(hourModeFrequency.keySet());
-        Collections.sort(hoursList);
-
-        java.util.List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(modesChosen);
-        Collections.sort(modesChosenList);
-
-        int maxHour = hoursList.get(hoursList.size() - 1);
-        double[][] dataset = new double[modesChosen.size()][maxHour + 1];
-
-        for (int i = 0; i < modesChosenList.size(); i++) {
-            double[] modeOccurrencePerHour = new double[maxHour + 1];
-            String modeChosen = modesChosenList.get(i);
-            int index = 0;
-            for (int hour = 0; hour <= maxHour; hour++) {
-                Map<String, Integer> hourData = hourModeFrequency.get(hour);
-                if (hourData != null) {
-                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
-                } else {
-                    modeOccurrencePerHour[index] = 0;
-                }
-                index = index + 1;
-            }
-            dataset[i] = modeOccurrencePerHour;
-        }
-
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
-    }
-
-    private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) {
-
-        String plotTitle = "Mode Choice Histogram";
-        String xaxis = "Hour";
-        String yaxis = "# mode chosen";
-        int width = 800;
-        int height = 600;
-        boolean show = true;
-        boolean toolTips = false;
-        boolean urls = false;
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
-        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, "mode_choice.png");
-
-        final JFreeChart chart = ChartFactory.createStackedBarChart(
-                plotTitle, xaxis, yaxis,
-                dataset, orientation, show, toolTips, urls);
-
-        chart.setBackgroundPaint(new Color(255, 255, 255));
-        CategoryPlot plot = chart.getCategoryPlot();
-
-        LegendItemCollection legendItems = new LegendItemCollection();
-
-        java.util.List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(modesChosen);
-        Collections.sort(modesChosenList);
-
-
-        for (int i = 0; i < dataset.getRowCount(); i++) {
-
-            legendItems.add(new LegendItem(modesChosenList.get(i), colors.get(i)));
-
-            plot.getRenderer().setSeriesPaint(i, colors.get(i));
-
-        }
-        plot.setFixedLegendItems(legendItems);
-
-
-        try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
-        } catch (IOException e) {
-
-            e.printStackTrace();
-        }
-    }
-
-    ////
-    // fuel usage graph
-    private void processFuelUsage(PathTraversalEvent event) {
+    private void processFuelUsage(Event event) {
 
         int hour = getEventHour(event.getTime());
 
@@ -434,83 +641,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             e.printStackTrace();
         }
     }
-
-    private CategoryDataset buildModesFuelageDataset() {
-
-        java.util.List<Integer> hours = new ArrayList<>();
-        hours.addAll(hourModeFuelage.keySet());
-        Collections.sort(hours);
-
-        java.util.List<String> modesFuelList = new ArrayList<>();
-        modesFuelList.addAll(modesFuel);
-        Collections.sort(modesFuelList);
-
-
-        int maxHour = hours.get(hours.size() - 1);
-        double[][] dataset = new double[modesFuel.size()][maxHour + 1];
-
-        for (int i = 0; i < modesFuelList.size(); i++) {
-            double[] modeOccurrencePerHour = new double[maxHour + 1];
-            String modeChosen = modesFuelList.get(i);
-            int index = 0;
-            for (int hour = 0; hour <= maxHour; hour++) {
-                Map<String, Double> hourData = hourModeFuelage.get(hour);
-                if (hourData != null) {
-                    modeOccurrencePerHour[index] = hourData.get(modeChosen) == null ? 0 : hourData.get(modeChosen);
-                } else {
-                    modeOccurrencePerHour[index] = 0;
-                }
-                index = index + 1;
-            }
-            dataset[i] = modeOccurrencePerHour;
-        }
-
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
-    }
-
-    private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) {
-
-        String plotTitle = "Energy Use by Mode";
-        String xaxis = "Hour";
-        String yaxis = "Energy Use [MJ]";
-        int width = 800;
-        int height = 600;
-        boolean show = true;
-        boolean toolTips = false;
-        boolean urls = false;
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
-        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, "energy_use.png");
-
-        final JFreeChart chart = ChartFactory.createStackedBarChart(
-                plotTitle, xaxis, yaxis,
-                dataset, orientation, show, toolTips, urls);
-
-        chart.setBackgroundPaint(new Color(255, 255, 255));
-        CategoryPlot plot = chart.getCategoryPlot();
-
-        LegendItemCollection legendItems = new LegendItemCollection();
-
-        java.util.List<String> modesFuelList = new ArrayList<>();
-        modesFuelList.addAll(modesFuel);
-        Collections.sort(modesFuelList);
-
-        for (int i = 0; i < dataset.getRowCount(); i++) {
-
-            legendItems.add(new LegendItem(modesFuelList.get(i), colors.get(i)));
-            plot.getRenderer().setSeriesPaint(i, colors.get(i));
-        }
-        plot.setFixedLegendItems(legendItems);
-
-        try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
-        } catch (IOException e) {
-
-            e.printStackTrace();
-        }
-    }
-
-
-    private void processDeadHeading(PathTraversalEvent event) {
+    private void processDeadHeading(Event event) {
 
         int hour = getEventHour(event.getTime());
         String mode = event.getAttributes().get("mode");
@@ -588,210 +719,13 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         }
     }
 
-    //
-    private CategoryDataset buildDeadHeadingDataset(Map<Integer, Map<Integer, Integer>> data, String graphName) {
-
-        java.util.List<Integer> hours = new ArrayList<>();
-        hours.addAll(data.keySet());
-        Collections.sort(hours);
-
-        int maxHour = hours.get(hours.size() - 1);
-
-        Integer maxPassengers = null;
-        if (graphName.equalsIgnoreCase("car")) {
-            maxPassengers = CAR_MAX_PASSENGERS;
-        } else if (graphName.equalsIgnoreCase("tnc")) {
-            maxPassengers = TNC_MAX_PASSENGERS;
-        } else {
-            maxPassengers = maxPassengersSeenOnGenericCase;
-        }
-
-        double dataset[][] = null;
-
-        if (graphName.equalsIgnoreCase("tnc") || graphName.equalsIgnoreCase("car")) {
-
-            dataset = new double[maxPassengers + 1][maxHour + 1];
-
-            for (int i = 0; i <= maxPassengers; i++) {
-                double[] modeOccurrencePerHour = new double[maxHour + 1];
-                //String passengerCount = "p" + i;
-                int index = 0;
-                for (int hour = 0; hour <= maxHour; hour++) {
-                    Map<Integer, Integer> hourData = data.get(hour);
-                    if (hourData != null) {
-                        modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i);
-                    } else {
-                        modeOccurrencePerHour[index] = 0;
-                    }
-                    index = index + 1;
-                }
-                dataset[i] = modeOccurrencePerHour;
-            }
-        } else {
-
-            // This loop gives the loop over all the different passenger groups, which is 1 in other cases.
-            // In this case we have to group 0, 1 to 5, 6 to 10
-
-            int bucketSize = getBucketSize();
-
-            dataset = new double[5][maxHour + 1];
-
-
-            // We need only 5 buckets
-            // The modeOccurrentPerHour array index will not go beyond 5 as all the passengers will be
-            // accomodated within the 4 buckets because the index will not be incremented until all
-            // passengers falling in one bucket are added into that index of modeOccurrencePerHour
-            double[] modeOccurrencePerHour = new double[maxHour + 1];
-            int bucket = 0;
-
-            for (int i = 0; i <= maxPassengers; i++) {
-
-                //String passengerCount = "p" + i;
-                int index = 0;
-                for (int hour = 0; hour <= maxHour; hour++) {
-                    Map<Integer, Integer> hourData = data.get(hour);
-                    if (hourData != null) {
-                        modeOccurrencePerHour[index] += hourData.get(i) == null ? 0 : hourData.get(i);
-                    } else {
-                        modeOccurrencePerHour[index] += 0;
-                    }
-                    index = index + 1;
-                }
-
-                if (i == 0 || (i % bucketSize == 0) || i == maxPassengers) {
-
-                    dataset[bucket] = modeOccurrencePerHour;
-
-                    modeOccurrencePerHour = new double[maxHour + 1];
-                    bucket = bucket + 1;
-                }
-            }
-        }
-
-
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+    // helper methods
+    private int getEventHour(double time) {
+        return (int) time / SECONDS_IN_HOUR;
     }
-
-    private CategoryDataset buildDeadHeadingDatasetTnc0(Map<Integer, Map<Integer, Double>> data, String graphName) {
-
-        java.util.List<Integer> hours = new ArrayList<>();
-        hours.addAll(data.keySet());
-        Collections.sort(hours);
-
-        int maxHour = 0;
-        if (hours.size() > 0) {
-            maxHour = hours.get(hours.size() - 1);
-        }
-
-        Integer maxPassengers = TNC_MAX_PASSENGERS;
-
-        double dataset[][] = new double[maxPassengers + 1][maxHour + 1];
-
-        for (int i = 0; i <= maxPassengers; i++) {
-            double[] modeOccurrencePerHour = new double[maxHour + 1];
-            //String passengerCount = "p" + i;
-            int index = 0;
-            for (int hour = 0; hour <= maxHour; hour++) {
-                Map<Integer, Double> hourData = data.get(hour);
-                if (hourData != null) {
-                    modeOccurrencePerHour[index] = hourData.get(i) == null ? 0 : hourData.get(i) / METERS_IN_KM;
-                } else {
-                    modeOccurrencePerHour[index] = 0;
-                }
-                index = index + 1;
-            }
-            dataset[i] = modeOccurrencePerHour;
-        }
-
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
-    }
-
     private int getBucketSize() {
         return (int) Math.ceil(maxPassengersSeenOnGenericCase / 4.0);
     }
-
-    private void createDeadHeadingGraph(CategoryDataset dataset, int iterationNumber, String graphName) {
-
-        String fileName = getGraphFileName(graphName);
-        String plotTitle = getTitle(graphName);
-        String xaxis = "Hour";
-        String yaxis = "# trips";
-        int width = 800;
-        int height = 600;
-        boolean show = true;
-        boolean toolTips = false;
-        boolean urls = false;
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
-
-        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
-
-        final JFreeChart chart = ChartFactory.createStackedBarChart(
-                plotTitle, xaxis, yaxis,
-                dataset, orientation, show, toolTips, urls);
-
-        chart.setBackgroundPaint(new Color(255, 255, 255));
-        CategoryPlot plot = chart.getCategoryPlot();
-
-        LegendItemCollection legendItems = new LegendItemCollection();
-
-        for (int i = 0; i < dataset.getRowCount(); i++) {
-
-            Color color = getBarAndLegendColor(i);
-            legendItems.add(new LegendItem(getLegendText(graphName, i), color));
-            plot.getRenderer().setSeriesPaint(i, color);
-        }
-        plot.setFixedLegendItems(legendItems);
-
-        try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
-        } catch (IOException e) {
-
-            e.printStackTrace();
-        }
-    }
-
-    private void createDeadHeadingGraphTnc0(CategoryDataset dataset, int iterationNumber, String graphName) {
-
-        String fileName = getGraphFileName(graphName);
-        String plotTitle = getTitle(graphName);
-        String xaxis = "Hour";
-        String yaxis = "Distance in kilometers";
-        int width = 800;
-        int height = 600;
-        boolean show = true;
-        boolean toolTips = false;
-        boolean urls = false;
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
-
-        String graphImageFile = controlerIO.getIterationFilename(iterationNumber, fileName);
-
-        final JFreeChart chart = ChartFactory.createStackedBarChart(
-                plotTitle, xaxis, yaxis,
-                dataset, orientation, show, toolTips, urls);
-
-        chart.setBackgroundPaint(new Color(255, 255, 255));
-        CategoryPlot plot = chart.getCategoryPlot();
-
-        LegendItemCollection legendItems = new LegendItemCollection();
-
-        for (int i = 0; i < dataset.getRowCount(); i++) {
-
-            Color color = getBarAndLegendColor(i);
-            legendItems.add(new LegendItem(getLegendText(graphName, i), color));
-            plot.getRenderer().setSeriesPaint(i, color);
-        }
-        plot.setFixedLegendItems(legendItems);
-
-        try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
-        } catch (IOException e) {
-
-            e.printStackTrace();
-        }
-    }
-
-
-    // helper methods
     private boolean isValidCase(String graphName, int numPassengers) {
         boolean validCase = false;
 
@@ -809,14 +743,13 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
         return validCase;
     }
-
     private String getLegendText(String graphName, int i) {
 
         int bucketSize = getBucketSize();
         if (graphName.equalsIgnoreCase("car")
                 || graphName.equalsIgnoreCase("tnc")
                 || graphName.equalsIgnoreCase("tnc_deadheading_distance")
-        ) {
+                ) {
             return Integer.toString(i);
         } else {
             if (i == 0) {
@@ -828,7 +761,6 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             }
         }
     }
-
     private String getGraphFileName(String graphName) {
         if (graphName.equalsIgnoreCase("tnc")) {
             return "tnc_passenger_per_trip.png";
@@ -837,9 +769,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         } else {
             return "passenger_per_trip_" + graphName + ".png" ;
         }
-
     }
-
     private String getTitle(String graphName) {
         if (graphName.equalsIgnoreCase("tnc")) {
             return "Number of Passengers per Trip [TNC]";
@@ -851,7 +781,6 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             return "Number of Passengers per Trip [" + graphName + "]";
         }
     }
-
     private Color getBarAndLegendColor(int i) {
         if (i < colors.size()) {
             return colors.get(i);
@@ -859,19 +788,47 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             return getRandomColor();
         }
     }
-
     private Color getRandomColor() {
-
-
         Random rand = new Random();
-
-// Java 'Color' class takes 3 floats, from 0 to 1.
+        // Java 'Color' class takes 3 floats, from 0 to 1.
         float r = rand.nextFloat();
         float g = rand.nextFloat();
         float b = rand.nextFloat();
-
         Color randomColor = new Color(r, g, b);
         return randomColor;
+    }
+
+    public int getAvgCountForSpecificHour(String mode,int hour){
+        double[][] dataset = buildAverageTimesDataset(mode);
+        return (int)Math.ceil(dataset[0][hour]);
+    }
+    private CategoryDataset buildAverageTimesDatasetGraph(String mode){
+        double[][] dataset = buildAverageTimesDataset(mode);
+        return DatasetUtilities.createCategoryDataset(mode, "", dataset);
+
+    }
+    private double[][] buildAverageTimesDataset(String mode) {
+        Map<Integer, List<Double>> times = hourlyPersonTravelTimes.get(mode);
+        List<Integer> hoursList = new ArrayList<>();
+        hoursList.addAll(times.keySet());
+        Collections.sort(hoursList);
+
+        int maxHour = hoursList.get(hoursList.size() - 1);
+        double[][] dataset = new double[1][maxHour + 1];
+
+        double[] travelTimes = new double[maxHour + 1];
+        for (int i = 0; i < maxHour; i++) {
+
+            List<Double> hourData = times.get(i);
+            Double average = 0d;
+            if (hourData != null) {
+                average = hourData.stream().mapToDouble(val -> val).average().getAsDouble();
+            }
+            travelTimes[i] = average;
+        }
+
+        dataset[0] = travelTimes;
+        return dataset;
     }
 
 }
