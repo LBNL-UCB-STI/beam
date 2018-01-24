@@ -258,15 +258,14 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
      * Then we reply with a completion notice and schedule the finalize choice trigger.
      */
     case Event(TriggerWithId(BeginModeChoiceTrigger(tick), triggerId), _: BeamAgentInfo[PersonData]) =>
-      logDebug(s"inside ChoosesMode @ $tick")
       holdTickAndTriggerId(tick, triggerId)
       val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
       modeChoiceStrategy match {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
-          beamServices.householdRefs.get(household.getId).foreach(_ ! mobilityStatusInquiry(id))
+          beamServices.householdRefs(household.getId) ! mobilityStatusInquiry(id)
         case None =>
-          beamServices.householdRefs.get(household.getId).foreach(_ ! mobilityStatusInquiry(id))
+          beamServices.householdRefs(household.getId) ! mobilityStatusInquiry(id)
         case _ =>
           // Otherwise, send empty list to self
           self ! MobilityStatusReponse(Vector())

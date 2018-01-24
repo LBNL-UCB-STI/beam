@@ -36,6 +36,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
   """
   akka.loggers = ["akka.testkit.TestEventListener"]
   akka.log-dead-letters = 10
+  akka.actor.debug.fsm = true
   """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
