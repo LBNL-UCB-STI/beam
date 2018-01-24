@@ -45,7 +45,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
   val eventsManager = new EventsManagerImpl()
   val services: BeamServices = {
     val theServices = mock[BeamServices]
-    when(theServices.householdRefs).thenReturn(collection.concurrent.TrieMap[Id[Household], ActorRef]())
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.modeChoiceCalculator).thenReturn(mock[ModeChoiceCalculator])
     theServices

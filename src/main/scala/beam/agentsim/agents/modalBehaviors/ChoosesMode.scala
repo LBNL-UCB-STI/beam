@@ -220,10 +220,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       currentTourPersonalVehicle = Some(personalVehicleUsed(0))
       availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed(0))
     }
-    val householdRef: ActorRef = beamServices.householdRefs(household.getId)
     availablePersonalStreetVehicles.foreach { veh =>
-      householdRef ! ReleaseVehicleReservation(id, veh.id)
-      householdRef ! CheckInResource(veh.id, None)
+      context.parent ! ReleaseVehicleReservation(id, veh.id)
+      context.parent ! CheckInResource(veh.id, None)
     }
     if (chosenTrip.tripClassifier != RIDE_HAIL && rideHailingResult.get.proposals.nonEmpty) {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head
@@ -263,9 +262,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       modeChoiceStrategy match {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
-          beamServices.householdRefs(household.getId) ! mobilityStatusInquiry(id)
+          context.parent ! mobilityStatusInquiry(id)
         case None =>
-          beamServices.householdRefs(household.getId) ! mobilityStatusInquiry(id)
+          context.parent ! mobilityStatusInquiry(id)
         case _ =>
           // Otherwise, send empty list to self
           self ! MobilityStatusReponse(Vector())

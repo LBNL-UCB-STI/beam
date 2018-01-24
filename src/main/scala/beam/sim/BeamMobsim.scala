@@ -107,12 +107,11 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         beamServices.rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, envelopeInUTM))
         context.watch(beamServices.rideHailingManager)
 
-        val numRideHailAgents = math.round(math.min(beamServices.beamConfig.beam.agentsim.numAgents,scenario.getPopulation.getPersons.size) * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation).toInt
+        val numRideHailAgents = math.round(scenario.getPopulation.getPersons.size * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation)
         val rideHailingVehicleType = scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType]))
 
-        scenario.getPopulation.getPersons.values().forEach { person =>
+        scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents).forEach { person =>
           val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-          //      val rideInitialLocation: Coord = new Coord(personInitialLocation.getX + initialLocationJitter * 2.0 * (1 - 0.5), personInitialLocation.getY + initialLocationJitter * 2.0 * (1 - 0.5))
           val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
           val rideHailingName = s"rideHailingAgent-${person.getId}"
           val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
@@ -137,7 +136,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           rideHailingAgents :+= rideHailingAgentRef
         }
 
-        log.info(s"Initialized ${beamServices.householdRefs.size} households")
         log.info(s"Initialized ${beamServices.personRefs.size} people")
         log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
         log.info(s"Initialized ${numRideHailAgents} ride hailing agents")

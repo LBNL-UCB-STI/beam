@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory
   */
 object PersonAgent {
 
-  private val ActorPrefixName = "person-"
   val timeToChooseMode: Double = 0.0
   val minActDuration: Double = 0.0
   val teleportWalkDuration = 0.0
@@ -41,10 +40,6 @@ object PersonAgent {
   def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
     Props(new PersonAgent(services, transportNetwork, eventsManager, personId, household, plan, humanBodyVehicleId))
-  }
-
-  def buildActorName(personId: Id[Person]): String = {
-    s"$ActorPrefixName${personId.toString}"
   }
 
   case class PersonData() extends BeamAgentData {}
@@ -405,10 +400,9 @@ class PersonAgent(val beamServices: BeamServices,
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
             case Some(personalVeh) =>
-              val householdRef = beamServices.householdRefs(household.getId)
               if (currentActivity.getType.equals("Home")) {
-                householdRef ! ReleaseVehicleReservation(id, personalVeh)
-                householdRef ! CheckInResource(personalVeh, None)
+                context.parent ! ReleaseVehicleReservation(id, personalVeh)
+                context.parent ! CheckInResource(personalVeh, None)
                 currentTourPersonalVehicle = None
               }
             case None =>
