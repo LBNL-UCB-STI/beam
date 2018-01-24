@@ -5,10 +5,13 @@ import java.io.File
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
+import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+
+import scala.collection.JavaConverters._
 
 /**
   * Created by fdariasm on 29/08/2017
@@ -89,6 +92,11 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     scenario.getPopulation.getPersons.values().forEach { person =>
       val experiencedPlan = person.getPlans.get(0)
       assert(experiencedPlan.getPlanElements.size() > 1)
+      experiencedPlan.getPlanElements.asScala.sliding(2).foreach {
+        case Seq(activity: Activity, leg: Leg) =>
+          assert(activity.getEndTime == leg.getDepartureTime)
+        case Seq(_: Leg, _: Activity) =>
+      }
     }
   }
 

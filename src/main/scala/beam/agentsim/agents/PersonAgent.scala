@@ -16,7 +16,6 @@ import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.router.Modes
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
@@ -179,32 +178,23 @@ class PersonAgent(val beamServices: BeamServices,
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
       goto(Initialized) replying completed(triggerId, schedule[ActivityStartTrigger](0.0, self))
-
-
   }
 
   chainedWhen(Initialized) {
-
-
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val currentAct = currentActivity
-      logDebug(s"starting at ${currentAct.getType} @ $tick")
-      goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentAct
-        .getEndTime, self))
+      logDebug(s"starting at ${currentActivity.getType} @ $tick")
+      goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime, self))
   }
 
   chainedWhen(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
-      val currentAct = currentActivity
       nextActivity.fold(
         msg => {
           logDebug(s"didn't get nextActivity because $msg")
           stop replying completed(triggerId)
         },
         nextAct => {
-          logDebug(s"going to ${nextAct.getType} @ $tick")
-          eventsManager.processEvent(new ActivityEndEvent(tick, id, currentAct.getLinkId,
-            currentAct.getFacilityId, currentAct.getType))
+          logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           goto(ChoosingMode) replying completed(triggerId, schedule[BeginModeChoiceTrigger](tick, self))
         }
       )
@@ -215,6 +205,9 @@ class PersonAgent(val beamServices: BeamServices,
      * Starting Trip
      */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+      // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
+      // hail a ride. We stay at the party until our Uber is there.
+      eventsManager.processEvent(new ActivityEndEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType))
       assert(currentActivity.getLinkId != null)
       eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, _restOfCurrentTrip.tripClassifier.value))
       processNextLegOrStartActivity(triggerId, tick)
