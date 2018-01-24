@@ -230,7 +230,8 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
         .rideHailingAgentLocation.vehicleId)
     }
     availablePersonalStreetVehicles = Vector()
-    _currentRoute = chosenTrip
+    _currentTrip = Some(chosenTrip)
+    _restOfCurrentTrip = chosenTrip
     routingResponse = None
     rideHailingResult = None
     if(awaitingReservationConfirmation.nonEmpty){

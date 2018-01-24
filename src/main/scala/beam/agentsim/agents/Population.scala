@@ -62,7 +62,6 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
     case Terminated(_) =>
       // Do nothing
     case Finish =>
-      cleanupHouseHolder()
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
       context.become {
@@ -132,13 +131,6 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
 
       beamServices.householdRefs.put(householdId, householdActor)
       context.watch(householdActor)
-    }
-  }
-
-  private def cleanupHouseHolder(): Unit = {
-    for ((_, householdAgent) <- beamServices.householdRefs) {
-      log.debug(s"Stopping ${householdAgent.path.name} ")
-      householdAgent ! PoisonPill
     }
   }
 
