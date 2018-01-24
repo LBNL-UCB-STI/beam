@@ -22,7 +22,6 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtils
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
@@ -94,27 +93,29 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
               val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
               val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
               val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
-              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(
-                edgeIds,
-                Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
-                SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
-                services.geo.distLatLon2Meters(new Coord(startEdge.getGeometry.getStartPoint.getX,startEdge.getGeometry.getStartPoint.getY),
-                  new Coord(endEdge.getGeometry.getEndPoint.getX,endEdge.getGeometry.getEndPoint.getY))
-              )
+              (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
+                BeamPath(
+                  edgeIds,
+                  Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+                  SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
+                  SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
+                  services.geo.distLatLon2Meters(new Coord(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY),
+                    new Coord(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY))
+                )
           }
         } else {
           val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)
           val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.head)
           val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edgeIds.last)
-          (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) => BeamPath(
-            edgeIds,
-            Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-            SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
-            SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
-            services.geo.distLatLon2Meters(new Coord(startEdge.getGeometry.getStartPoint.getX,startEdge.getGeometry.getStartPoint.getY),
-              new Coord(endEdge.getGeometry.getEndPoint.getX,endEdge.getGeometry.getEndPoint.getY))
-          )
+          (departureTime: Long, duration: Int, vehicleId: Id[Vehicle]) =>
+            BeamPath(
+              edgeIds,
+              Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+              SpaceTime(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY, departureTime),
+              SpaceTime(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY, departureTime + duration),
+              services.geo.distLatLon2Meters(new Coord(startEdge.getGeometry.getStartPoint.getX, startEdge.getGeometry.getStartPoint.getY),
+                new Coord(endEdge.getGeometry.getEndPoint.getX, endEdge.getGeometry.getEndPoint.getY))
+            )
         }
       }.toSeq
       tripPattern.tripSchedules.asScala
@@ -123,7 +124,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
           // First create a unique for this trip which will become the transit agent and vehicle ids
           val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
           var legs: Seq[BeamLeg] = Nil
-          tripSchedule.departures.zipWithIndex.sliding(2).foreach { case Array((departureTimeFrom, from), (depatureTimeTo, to)) =>
+          tripSchedule.departures.zipWithIndex.sliding(2).foreach { case Array((departureTimeFrom, from), (departureTimeTo, to)) =>
             val duration = tripSchedule.arrivals(to) - departureTimeFrom
             legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
           }
@@ -188,8 +189,8 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 
     val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
     val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
-    var fromPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer, new Coord(fromVertex.getLon, fromVertex.getLat), 100E3, StreetMode.WALK)
-    var toPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer, new Coord(toVertex.getLon, toVertex.getLat), 100E3, StreetMode.WALK)
+    val fromPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer, new Coord(fromVertex.getLon, fromVertex.getLat), 100E3, StreetMode.WALK)
+    val toPosTransformed = services.geo.snapToR5Edge(transportNetwork.streetLayer, new Coord(toVertex.getLon, toVertex.getLat), 100E3, StreetMode.WALK)
 
     profileRequest.fromLon = fromPosTransformed.getX
     profileRequest.fromLat = fromPosTransformed.getY
@@ -204,7 +205,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     profileRequest.accessModes = profileRequest.directModes
     profileRequest.egressModes = null
 
-    var streetRouter = new StreetRouter(transportNetwork.streetLayer)
+    val streetRouter = new StreetRouter(transportNetwork.streetLayer)
     streetRouter.profileRequest = profileRequest
     streetRouter.streetMode = StreetMode.valueOf("CAR")
     streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -245,24 +246,25 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     edgeIds
   }
 
-  private def limitedWarn(stopIdx: Int): Unit ={
-    if(numStopsNotFound<5){
-      log.warning(s"Stop ${stopIdx} not linked to street network.")
+  private def limitedWarn(stopIdx: Int): Unit = {
+    if (numStopsNotFound < 5) {
+      log.warning(s"Stop $stopIdx not linked to street network.")
       numStopsNotFound = numStopsNotFound + 1
-    }else if (numStopsNotFound==5){
-      log.warning(s"Stop ${stopIdx} not linked to street network. Further warnings messages will be suppressed")
+    } else if (numStopsNotFound == 5) {
+      log.warning(s"Stop $stopIdx not linked to street network. Further warnings messages will be suppressed")
       numStopsNotFound = numStopsNotFound + 1
     }
   }
 
   private def createDummyEdge(): Int = {
-    val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(38,-122)
-    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(38.001,-122.001)
-    transportNetwork.streetLayer.edgeStore.addStreetPair(fromVert,toVert,1000,-1).getEdgeIndex
+    val fromVert = transportNetwork.streetLayer.vertexStore.addVertex(38, -122)
+    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(38.001, -122.001)
+    transportNetwork.streetLayer.edgeStore.addStreetPair(fromVert, toVert, 1000, -1).getEdgeIndex
   }
+
   private def createDummyEdgeFromVertex(stopVertex: VertexStore#Vertex): Int = {
-    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(stopVertex.getLat+0.001,stopVertex.getLon+0.001)
-    transportNetwork.streetLayer.edgeStore.addStreetPair(stopVertex.index,toVert,1000,-1).getEdgeIndex
+    val toVert = transportNetwork.streetLayer.vertexStore.addVertex(stopVertex.getLat + 0.001, stopVertex.getLon + 0.001)
+    transportNetwork.streetLayer.edgeStore.addStreetPair(stopVertex.index, toVert, 1000, -1).getEdgeIndex
   }
 
 }

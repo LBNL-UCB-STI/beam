@@ -54,7 +54,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   private def availableAlternatives = {
     val theModes = routingResponse.get.itineraries.map(_.tripClassifier).distinct
     if (rideHailingResult.isDefined && rideHailingResult.get.error.isEmpty) {
-      theModes :+ RIDEHAIL
+      theModes :+ RIDE_HAIL
     } else {
       theModes
     }
@@ -215,7 +215,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       householdRef ! ReleaseVehicleReservation(id, veh.id)
       householdRef ! CheckInResource(veh.id, None)
     }
-    if (chosenTrip.tripClassifier != RIDEHAIL && rideHailingResult.get.proposals.nonEmpty) {
+    if (chosenTrip.tripClassifier != RIDE_HAIL && rideHailingResult.get.proposals.nonEmpty) {
       beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head
         .rideHailingAgentLocation.vehicleId)
     }
@@ -291,7 +291,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
       // Mark rideHailingResult as None if we need to request a new one, or fake a result if we don't need to make a request
       modeChoiceStrategy match {
-        case Some(ModeChoiceStrategy(mode)) if mode == RIDEHAIL =>
+        case Some(ModeChoiceStrategy(mode)) if mode == RIDE_HAIL =>
           rideHailingResult = None
         case None =>
           rideHailingResult = None
@@ -339,7 +339,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
           }
-        case Some(ModeChoiceStrategy(mode)) if mode == RIDEHAIL =>
+        case Some(ModeChoiceStrategy(mode)) if mode == RIDE_HAIL =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
       }
@@ -368,7 +368,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     case Event(ReservationResponse(requestId, Left(error)), _) =>
 
       pendingChosenTrip.get.tripClassifier match {
-        case RIDEHAIL =>
+        case RIDE_HAIL =>
           awaitingReservationConfirmation = awaitingReservationConfirmation - requestId
           rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(), error = Some(error)))
         case _ =>

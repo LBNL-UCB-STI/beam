@@ -177,7 +177,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val maybeUseVehicleOnEgress: Option[BeamLeg] = if (mainRouteToVehicle) {
         // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
         val estimateDurationToGetToVeh: Int = math.round(beamServices.geo.distInMeters(routingRequestTripInfo.origin, vehicle.location.loc) / 5.8).intValue()
-        var time = routingRequestTripInfo.departureTime match {
+        val time = routingRequestTripInfo.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime + estimateDurationToGetToVeh, beamServices.beamConfig.beam.routing.r5.departureWindow)
           case time: WindowTime => time.copy(time.atTime + estimateDurationToGetToVeh)
         }
@@ -464,7 +464,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     //For direct modes
 
     for (mode <- request.directModes.asScala) {
-      var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
       var streetPath: StreetPath = null
       streetRouter.profileRequest = request
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)
@@ -572,7 +572,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
       streetRouter.profileRequest = request
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)
-      //Gets correct maxCar/Bike/Walk time in seconds for access leg based on mode since it depends on the mode
+      //Gets correct maxCar/Bike/Walk time in seconds for leg based on mode since it depends on the mode
       streetRouter.timeLimitSeconds = request.getTimeLimit(mode)
       streetRouter.transitStopSearch = true
       streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
