@@ -96,9 +96,9 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
 
       val transformer1 = new RuleTransformer(
         new MultinomialCustomConfigSpec.CustomAlternative("car", Seq(
-          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
+          MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100.0"),
+          MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100.0"),
+          MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100.0")
         ))
       )
 

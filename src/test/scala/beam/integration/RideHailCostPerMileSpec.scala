@@ -14,7 +14,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing defaultCostPerMinute value" must {
-    "create less entries for mode choice rideHail as value increases" ignore {
+    "create less entries for mode choice rideHail as value increases" in {
       val inputCostPerMile = Seq(0.1, 1.0)
       val modeChoice = inputCostPerMile.map(tc => new StartWithCustomConfig(
         baseConfig
