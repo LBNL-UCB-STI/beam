@@ -8,6 +8,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
@@ -20,6 +21,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.VehicleUtils
+import org.mockito.Matchers.any
 import org.mockito.Mockito.when
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -44,8 +46,10 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+    val fareCalculator = mock[FareCalculator]
+    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
+    val tollCalculator = mock[TollCalculator]
+    when(tollCalculator.calcToll(any())).thenReturn(0.0)
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
 
     within(60 seconds) { // Router can take a while to initialize
@@ -62,7 +66,7 @@ class MultiModalRoutingSpec extends TestKit(ActorSystem("router-test")) with Wor
       val origin = new BeamRouter.Location(552788, 4179300) // -122.4007,37.7595
       val destination = new BeamRouter.Location(548918, 4182749) // -122.4444,37.7908
       val time = RoutingModel.WindowTime(100, 200)
-      router ! RoutingRequest(RoutingRequestTripInfo(Id.createPersonId("667520-0"), origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true))))
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true))))
       val response = expectMsgType[RoutingResponse]
       val routedStartTime = response.itineraries.head.beamLegs().head.startTime
       assert(routedStartTime >= 100 && routedStartTime <= 200)

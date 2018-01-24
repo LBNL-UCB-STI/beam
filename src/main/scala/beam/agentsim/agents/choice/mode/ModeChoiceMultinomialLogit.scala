@@ -10,7 +10,7 @@ import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeT
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.jdom.{Document, Element}
@@ -46,7 +46,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         val totalCost = altAndIdx._1.tripClassifier match {
           case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
             (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2)
-          case RIDEHAIL =>
+          case RIDE_HAIL =>
             altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
           case CAR =>
             altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
@@ -87,7 +87,12 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         inputData.put(mct.mode.value, altData)
       }
 
-      val chosenMode = model.makeRandomChoice(inputData, new Random())
+      val chosenMode = try{
+        model.makeRandomChoice(inputData, new Random())
+      }catch{
+        case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
+          "walk"
+      }
       expectedMaximumUtility = model.getExpectedMaximumUtility
       model.clear()
       val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
@@ -108,7 +113,7 @@ object ModeChoiceMultinomialLogit {
   val defaultAlternatives = Vector(
     ModeCostTimeTransfer(BeamMode.WALK,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.CAR,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.RIDEHAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.RIDE_HAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.BIKE,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.DRIVE_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.WALK_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue)

@@ -12,6 +12,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
@@ -24,6 +25,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.mockito.Matchers.any
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -59,8 +61,10 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+    val fareCalculator = mock[FareCalculator]
+    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
+    val tollCalculator = mock[TollCalculator]
+    when(tollCalculator.calcToll(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
@@ -82,40 +86,32 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val origin = geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
       val destination = geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = RoutingModel.DiscreteTime(25740)
-      router ! RoutingRequest(RoutingRequestTripInfo(Id.createPersonId("667520-0"), origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true))))
+      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true))))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
       assertMakesSense(transitOption)
-      assert(transitOption.legs.head.beamLeg.startTime == 26004)
+      assert(transitOption.legs.head.beamLeg.startTime == 25990)
     }
   }
 
   "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
-    var totalRoutesCalculated: Int = 0
-    var numDriveTransitFound: Int = 0
-    var numWalkTransitFound: Int = 0
     scenario.getPopulation.getPersons.values().forEach(person => {
       val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
       activities.sliding(2).foreach(pair => {
         val origin = pair(0).getCoord
         val destination = pair(1).getCoord
         val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
-        router ! RoutingRequest(RoutingRequestTripInfo(Id.createPersonId("116378-2"), origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
+        router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
           StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
           StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
         )))
         val response = expectMsgType[RoutingResponse]
-        if (response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)) numDriveTransitFound = numDriveTransitFound + 1
-        if (response.itineraries.exists(_.tripClassifier == WALK_TRANSIT)) numWalkTransitFound = numWalkTransitFound + 1
-        totalRoutesCalculated = totalRoutesCalculated + 1
-        //        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
-        //        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
+        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       })
     })
-    assert(totalRoutesCalculated - numDriveTransitFound < 10)
-    assert(totalRoutesCalculated - numWalkTransitFound < 10)
   }
 
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {

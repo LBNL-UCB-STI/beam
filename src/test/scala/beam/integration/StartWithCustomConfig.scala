@@ -3,7 +3,7 @@ package beam.integration
 import java.io.File
 
 import beam.sim.BeamHelper
-import beam.sim.config.{BeamConfig}
+import beam.sim.config.BeamConfig
 import com.typesafe.config.Config
 
 class StartWithCustomConfig(val config: Config) extends
@@ -21,5 +21,5 @@ class StartWithCustomConfig(val config: Config) extends
 
   val groupedCount = listValueTagEventFile
     .groupBy(s => s)
-    .map{case (k, v) => (k, v.size)}
+    .map { case (k, v) => (k, v.size) }
 }

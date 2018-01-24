@@ -180,6 +180,11 @@ dependencies {
 
 
 
+    compile("io.kamon:kamon-core_${scalaBinaryVersion}:0.6.7")
+//    compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:0.6.7")
+//    compile("io.kamon:kamon-annotation_${scalaBinaryVersion}:0.6.7")
+//    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:0.6.7")
+    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:0.6.7")
 
 
     /////////////
@@ -346,7 +351,7 @@ run {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run ExperimentGenerator from Command line
-//  gradle execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+//  gradle :execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 task execute(type:JavaExec) {

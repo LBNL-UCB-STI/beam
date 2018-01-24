@@ -1,6 +1,5 @@
 package beam.integration
 
-import beam.sim.BeamHelper
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigValueFactory}
 
@@ -16,7 +15,7 @@ trait IntegrationSpecCommon {
     val z2 = s.dropRight(1)
     val zip = z2 zip z1
 
-    zip.forall{case (a, b) => cf(a, b)}
+    zip.forall { case (a, b) => cf(a, b) }
   }
 
 }

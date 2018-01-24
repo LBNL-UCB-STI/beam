@@ -8,7 +8,7 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
   */
 object TestUtils {
 
-  trait StopSystemAfterAll extends BeforeAndAfterAll{
+  trait StopSystemAfterAll extends BeforeAndAfterAll {
     this: TestKit with Suite =>
     override protected def afterAll(): Unit = {
       super.afterAll()

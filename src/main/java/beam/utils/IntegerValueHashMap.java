@@ -71,13 +71,4 @@ public class IntegerValueHashMap<KeyClass> {
         incrementBy(id, -1 * decValue);
     }
 
-    public void printToConsole() {
-        CollectionLib.printHashmapToConsole(hm);
-    }
-
-    public void addToLog() {
-        CollectionLib.logHashmap(hm);
-    }
-
-
 }

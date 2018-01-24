@@ -1,14 +1,12 @@
 package beam.integration
 
-import java.io.File
-
 import beam.sim.BeamHelper
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigValueFactory
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
 /**
   * Created by fdariasm on 29/08/2017
-  * 
+  *
   */
 
 class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {

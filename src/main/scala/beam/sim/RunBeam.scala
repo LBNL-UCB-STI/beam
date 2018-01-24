@@ -1,5 +1,7 @@
 package beam.sim
 
+import kamon.Kamon
+
 object RunBeam extends BeamHelper with App {
   print("""
   ________
@@ -20,8 +22,10 @@ object RunBeam extends BeamHelper with App {
     }.toMap
   }
 
+//  Kamon.start()
   val argsMap = parseArgs()
 
   runBeamWithConfigFile(argsMap.get("config"))
   print("Exiting BEAM")
+//  Kamon.shutdown()
 }

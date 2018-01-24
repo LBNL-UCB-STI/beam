@@ -3,6 +3,7 @@ package beam.agentsim.agents.household
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -164,9 +165,9 @@ class HouseholdActor(services: BeamServices,
       }
       sender() ! MobilityStatusReponse(availableStreetVehicles)
 
+    case Finish =>
+      context.stop(self)
 
-    case msg@_ =>
-      log.warning(s"Unrecognized message $msg")
   }
 
   def lookupMemberRank(member: Id[Person]): Option[Int] = {

@@ -45,7 +45,6 @@ trait BeamHelper {
           override def run(): Unit = {}
         }) // Nothing to do
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
-//        bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
 
         // Beam -> MATSim Wirings
         bindMobsim().to(classOf[BeamMobsim])
@@ -98,12 +97,6 @@ trait BeamHelper {
     val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(config, scenario, networkCoordinator.transportNetwork))
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
-
-    val envelopeInUTM = beamServices.geo.wgs2Utm(networkCoordinator.transportNetwork.streetLayer.envelope)
-    beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.maxY = envelopeInUTM.getMaxY + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.minX = envelopeInUTM.getMinX - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
 
     beamServices.controler.run()
     (matsimConfig, outputDirectory)

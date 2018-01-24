@@ -43,7 +43,7 @@ class ReadEventsBeam extends ReadEvents{
     reader.readFile(filePath)
 
     val events = basicEventHandler.events
-    val filteredEvents = events.filter{ event =>
+    val filteredEvents = events.filter { event =>
       val attributes = event.getAttributes.asScala
       eventType.map(_.equals(event.getEventType)).getOrElse(true) &&
         mkeyValue.map{case (key, value) => attributes.get(key).filter(_.contains(value)).isDefined}.getOrElse(true)
