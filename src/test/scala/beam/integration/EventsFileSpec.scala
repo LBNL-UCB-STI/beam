@@ -27,7 +27,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     .resolve()
 
   val beamConfig = BeamConfig(config)
-  var matsimConfig: org.matsim.core.config.Config = null
+  var matsimConfig: org.matsim.core.config.Config = _
 
   override protected def beforeAll(): Unit = {
     matsimConfig = runBeamWithConfig(config)._1
@@ -95,7 +95,8 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       experiencedPlan.getPlanElements.asScala.sliding(2).foreach {
         case Seq(activity: Activity, leg: Leg) =>
           assert(activity.getEndTime == leg.getDepartureTime)
-        case Seq(_: Leg, _: Activity) =>
+        case Seq(leg: Leg, activity: Activity) =>
+          assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
       }
     }
   }
