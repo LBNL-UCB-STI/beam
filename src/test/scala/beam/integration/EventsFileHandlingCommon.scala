@@ -23,7 +23,6 @@ trait EventsFileHandlingCommon {
   }
 
   def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {
-    val route = s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension"
-    new File(route)
+    new File(s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension")
   }
 }
