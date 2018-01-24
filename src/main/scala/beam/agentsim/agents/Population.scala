@@ -6,17 +6,17 @@ import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle._
+import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
@@ -33,7 +33,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
 
   private var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
   scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
-      personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => personId -> householdId)
+    personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => personId -> householdId)
   }
 
   // Every Person gets a HumanBodyVehicle
@@ -57,10 +57,19 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
   // Init households before RHA.... RHA vehicles will initially be managed by households
   initHouseholds()
 
+  def lookupMemberRank(member: Id[Person]): Option[Int] = {
+    scenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank")
+    match {
+      case rank: Integer =>
+        Some(rank)
+      case _ =>
+        None
+    }
+  }
 
   override def receive = {
     case Terminated(_) =>
-      // Do nothing
+    // Do nothing
     case Finish =>
       cleanupHouseHolder()
       context.children.foreach(_ ! Finish)
@@ -124,7 +133,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
       houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
 
       val householdActor = context.actorOf(
-        HouseholdActor.props(beamServices, eventsManager, scenario.getPopulation, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord),
+        HouseholdActor.props(eventsManager, lookupMemberRank, householdId, houseHoldVehicles, membersActors, homeCoord),
         HouseholdActor.buildActorName(householdId, iterId))
 
       houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
@@ -143,6 +152,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
   }
 
 }
+
 
 object Population {
   def props(scenario: Scenario, services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager) = {
