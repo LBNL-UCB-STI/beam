@@ -37,9 +37,9 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
+  def props(scheduler: ActorRef, services: BeamServices, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(services, transportNetwork, eventsManager, personId, household, plan, humanBodyVehicleId))
+    Props(new PersonAgent(scheduler, services, transportNetwork, router, rideHailingManager, eventsManager, personId, household, plan, humanBodyVehicleId))
   }
 
   case class PersonData() extends BeamAgentData {}
@@ -105,8 +105,11 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val beamServices: BeamServices,
+class PersonAgent(val scheduler: ActorRef,
+                  val beamServices: BeamServices,
                   val transportNetwork: TransportNetwork,
+                  val router: ActorRef,
+                  val rideHailingManager: ActorRef,
                   val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
                   val household: Household,
@@ -383,7 +386,7 @@ class PersonAgent(val beamServices: BeamServices,
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
             _currentEmbodiedLeg = None
-            beamServices.schedulerRef ! completed(triggerId)
+            scheduler ! completed(triggerId)
             goto(Waiting)
           }
         case None =>
@@ -394,7 +397,7 @@ class PersonAgent(val beamServices: BeamServices,
       nextActivity match {
         case Left(msg) =>
           logDebug(msg)
-          beamServices.schedulerRef ! completed(triggerId)
+          scheduler ! completed(triggerId)
           stop
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
@@ -427,7 +430,7 @@ class PersonAgent(val beamServices: BeamServices,
           _currentEmbodiedLeg = None
           _currentTrip = None
           eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
-          beamServices.schedulerRef ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
+          scheduler ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
           goto(PerformingActivity)
       }
     }
@@ -487,7 +490,7 @@ class PersonAgent(val beamServices: BeamServices,
       stop(Failure(s"It is $tick and I am trying to schedule the start of my " +
         s"leg for $newTriggerTime. I can't do that."))
     }
-    beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
+    scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
     goto(Waiting)
   }
 

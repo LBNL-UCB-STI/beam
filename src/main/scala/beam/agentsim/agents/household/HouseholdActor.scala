@@ -32,10 +32,10 @@ import scala.collection.mutable
 
 object HouseholdActor {
 
-  def props(beamServices: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, population: Population, householdId: Id[Household], matSimHousehold: Household,
+  def props(beamServices: BeamServices, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, population: Population, householdId: Id[Household], matSimHousehold: Household,
             houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], members: Seq[Person],
             homeCoord: Coord): Props = {
-    Props(new HouseholdActor(beamServices, transportNetwork, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, members, homeCoord))
+    Props(new HouseholdActor(beamServices, schedulerRef, transportNetwork, router, rideHailingManager, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, members, homeCoord))
   }
 
   case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
@@ -58,7 +58,10 @@ object HouseholdActor {
 }
 
 class HouseholdActor(beamServices: BeamServices,
+                     schedulerRef: ActorRef,
                      transportNetwork: TransportNetwork,
+                     router: ActorRef,
+                     rideHailingManager: ActorRef,
                      eventsManager: EventsManager,
                      population: Population,
                      id: Id[households.Household],
@@ -75,13 +78,13 @@ class HouseholdActor(beamServices: BeamServices,
     val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
     // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
     //let's put here human body vehicle too, it should be clean up on each iteration
-    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, person.getId, matSimHouseHold, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
+    val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, transportNetwork, router, rideHailingManager, eventsManager, person.getId, matSimHouseHold, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
     context.watch(personRef)
     // Every Person gets a HumanBodyVehicle
     val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
     newBodyVehicle.registerResource(personRef)
     beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
-    beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
+    schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
     beamServices.personRefs += ((person.getId, personRef))
   }
 

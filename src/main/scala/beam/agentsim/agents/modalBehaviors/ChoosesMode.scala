@@ -126,7 +126,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     if (rideHailingLeg.nonEmpty) {
       val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
       val rideHailingId = Id.create(rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
-      beamServices.rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId, VehiclePersonId
+      rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId, VehiclePersonId
       (_humanBodyVehicle, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
       awaitingReservationConfirmation = awaitingReservationConfirmation + (rideHailingId -> None)
     } else {
@@ -225,7 +225,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       context.parent ! CheckInResource(veh.id, None)
     }
     if (chosenTrip.tripClassifier != RIDE_HAIL && rideHailingResult.get.proposals.nonEmpty) {
-      beamServices.rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head
+      rideHailingManager ! ReleaseVehicleReservation(id, rideHailingResult.get.proposals.head
         .rideHailingAgentLocation.vehicleId)
     }
     availablePersonalStreetVehicles = Vector()
@@ -238,7 +238,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     }
     hasReceivedCompleteChoiceTrigger = false
     pendingChosenTrip = None
-    beamServices.schedulerRef ! completed(triggerId = theTriggerId, triggersToSchedule ++
+    scheduler ! completed(triggerId = theTriggerId, triggersToSchedule ++
       schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
     goto(Waiting)
   }
@@ -309,12 +309,11 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
-        val req = RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, streetVehiclesAsAccess)
-        beamServices.beamRouter ! req
+        router ! RoutingRequest(currentActivity, nextAct, departTime, transitModes, vehicles, streetVehiclesAsAccess)
       }
 
       def makeRideHailRequest(): Unit = {
-        beamServices.rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
+        rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
       }
 
       def filterStreetVehiclesForQuery(streetVehicles: Vector[StreetVehicle], byMode: BeamMode): Vector[StreetVehicle] = {
@@ -353,7 +352,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           makeRideHailRequest()
       }
 
-      beamServices.schedulerRef ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
+      scheduler ! completed(theTriggerId, schedule[FinalizeModeChoiceTrigger](tick, self))
       stay()
     /*
      * Receive and store data needed for choice.

@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, OneForOneStrategy, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
@@ -19,7 +19,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 
-class Population(val scenario: Scenario, val beamServices: BeamServices, val transportNetwork: TransportNetwork, val eventsManager: EventsManager) extends Actor with ActorLogging {
+class Population(val scenario: Scenario, val beamServices: BeamServices, val scheduler: ActorRef, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager) extends Actor with ActorLogging {
 
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.
@@ -98,7 +98,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
 
       val members = household.getMemberIds.asScala.map(scenario.getPopulation.getPersons.get(_))
       val householdActor = context.actorOf(
-        HouseholdActor.props(beamServices, transportNetwork, eventsManager, scenario.getPopulation, householdId, household, houseHoldVehicles, members, homeCoord),
+        HouseholdActor.props(beamServices, scheduler, transportNetwork, router, rideHailingManager, eventsManager, scenario.getPopulation, householdId, household, houseHoldVehicles, members, homeCoord),
         householdId.toString)
 
       houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
@@ -111,7 +111,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
 }
 
 object Population {
-  def props(scenario: Scenario, services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager) = {
-    Props(new Population(scenario, services, transportNetwork, eventsManager))
+  def props(scenario: Scenario, services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager) = {
+    Props(new Population(scenario, services, scheduler, transportNetwork, router, rideHailingManager, eventsManager))
   }
 }

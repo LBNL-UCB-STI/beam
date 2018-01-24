@@ -57,6 +57,7 @@ case class InitializeTrigger(tick: Double) extends Trigger
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
 
+  val scheduler: ActorRef
   val eventsManager: EventsManager
 
   def id: Id[_]
