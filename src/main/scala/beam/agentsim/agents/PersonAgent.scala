@@ -5,6 +5,7 @@ import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.Population.AttributesOfIndividual
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
@@ -24,7 +25,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
 
@@ -39,9 +39,9 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
+  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], attributesOfIndividual: AttributesOfIndividual, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(services, transportNetwork, eventsManager, personId, household, plan, humanBodyVehicleId))
+    Props(new PersonAgent(services, transportNetwork, eventsManager, personId, attributesOfIndividual, plan, humanBodyVehicleId))
   }
 
   def buildActorName(personId: Id[Person]): String = {
@@ -115,7 +115,7 @@ class PersonAgent(val beamServices: BeamServices,
                   val transportNetwork: TransportNetwork,
                   val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
-                  val household: Household,
+                  val attributesOfIndividual: AttributesOfIndividual,
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
@@ -414,7 +414,7 @@ class PersonAgent(val beamServices: BeamServices,
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
             case Some(personalVeh) =>
-              val householdRef = beamServices.householdRefs(household.getId)
+              val householdRef = beamServices.householdRefs(attributesOfIndividual.householdId)
               if (currentActivity.getType.equals("Home")) {
                 householdRef ! ReleaseVehicleReservation(id, personalVeh)
                 householdRef ! CheckInResource(personalVeh, None)

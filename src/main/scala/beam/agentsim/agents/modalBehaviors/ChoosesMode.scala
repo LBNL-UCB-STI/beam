@@ -14,7 +14,6 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -31,9 +30,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.Random
 
 /**
   * BEAM
@@ -60,14 +57,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     }
   }
 
-  //TODO source these attributes from pop input data
-  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(household.getIncome.getIncome,
-    household.getMemberIds.size(),
-    new Random().nextBoolean(),
-    household.getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
-      .getDescription.toLowerCase.contains("car")),
-    household.getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
-      .getDescription.toLowerCase.contains("bike")))
 
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
@@ -75,7 +64,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       var predefinedMode: Option[BeamMode] = None
       var combinedItinerariesForChoice = rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
         routingResponse.get.itineraries
-
 
       if (modeAlreadyDefined) {
         predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
@@ -210,7 +198,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       currentTourPersonalVehicle = Some(personalVehicleUsed(0))
       availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed(0))
     }
-    val householdRef: ActorRef = beamServices.householdRefs(household.getId)
+    val householdRef: ActorRef = beamServices.householdRefs(attributesOfIndividual.householdId)
     availablePersonalStreetVehicles.foreach { veh =>
       householdRef ! ReleaseVehicleReservation(id, veh.id)
       householdRef ! CheckInResource(veh.id, None)
@@ -250,12 +238,13 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       logDebug(s"inside ChoosesMode @ $tick")
       holdTickAndTriggerId(tick, triggerId)
       val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
+      // Send request to household
       modeChoiceStrategy match {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
-          beamServices.householdRefs.get(household.getId).foreach(_ ! mobilityStatusInquiry(id))
+          beamServices.householdRefs.get(attributesOfIndividual.householdId).foreach(_ ! mobilityStatusInquiry(id))
         case None =>
-          beamServices.householdRefs.get(household.getId).foreach(_ ! mobilityStatusInquiry(id))
+          beamServices.householdRefs.get(attributesOfIndividual.householdId).foreach(_ ! mobilityStatusInquiry(id))
         case _ =>
           // Otherwise, send empty list to self
           self ! MobilityStatusReponse(Vector())

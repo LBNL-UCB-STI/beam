@@ -3,11 +3,11 @@ package beam.agentsim.agents.choice.mode
 import java.util
 import java.util.Random
 
+import beam.agentsim.agents.Population.AttributesOfIndividual
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Nonmandatory, TourType}
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
@@ -96,15 +96,15 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
       attributesOfIndividual match {
         case Some(theAttributes) =>
-          altData.put("income", theAttributes.householdIncome)
-          altData.put("householdSize", theAttributes.householdSize.toDouble)
+          altData.put("income", theAttributes.householdAttributes.householdIncome)
+          altData.put("householdSize", theAttributes.householdAttributes.householdSize.toDouble)
           altData.put("male", if (theAttributes.isMale) {
             1.0
           } else {
             0.0
           })
-          altData.put("numCars", theAttributes.numCars.toDouble)
-          altData.put("numBikes", theAttributes.numBikes.toDouble)
+          altData.put("numCars", theAttributes.householdAttributes.numCars.toDouble)
+          altData.put("numBikes", theAttributes.householdAttributes.numBikes.toDouble)
         case None =>
       }
 

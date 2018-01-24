@@ -5,6 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, PoisonPill,
 import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
+import beam.agentsim.agents.household.HouseholdActor.HouseholdAttributes
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle._
 import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
@@ -20,9 +21,11 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
+import scala.util.Random
 
 class Population(val scenario: Scenario, val beamServices: BeamServices, val transportNetwork: TransportNetwork, val eventsManager: EventsManager) extends Actor with ActorLogging {
-
+  import Population._
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.
   override val supervisorStrategy: OneForOneStrategy =
@@ -44,8 +47,11 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
     // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
     //let's put here human body vehicle too, it should be clean up on each iteration
 
+    val personHousehold = scenario.getHouseholds.getHouseholds.get(personToHouseholdId(matsimPerson.getId))
 
-    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, matsimPerson.getId, scenario.getHouseholds.getHouseholds.get(personToHouseholdId(matsimPerson.getId)), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(matsimPerson.getId))
+    val personAttributes = AttributesOfIndividual(personHousehold, beamServices.vehicles)
+
+    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, matsimPerson.getId, personAttributes, matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(matsimPerson.getId))
     context.watch(personRef)
     val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
     newBodyVehicle.registerResource(personRef)
@@ -57,6 +63,12 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
   // Init households before RHA.... RHA vehicles will initially be managed by households
   initHouseholds()
 
+
+  /**
+    * Used for rank computations within household.
+    * @param member the identifier of the household member.
+    * @return the rank of the member (if it exists). The client is responsible for dealing with the default case.
+    */
   def lookupMemberRank(member: Id[Person]): Option[Int] = {
     scenario.getPopulation.getPersonAttributes.getAttribute(member.toString, "rank")
     match {
@@ -67,7 +79,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
     }
   }
 
-  override def receive = {
+  override def receive: Receive = {
     case Terminated(_) =>
     // Do nothing
     case Finish =>
@@ -80,7 +92,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
       }
   }
 
-  def dieIfNoChildren() = {
+  def dieIfNoChildren(): Unit = {
     if (context.children.isEmpty) {
       context.stop(self)
     } else {
@@ -155,7 +167,15 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
 
 
 object Population {
-  def props(scenario: Scenario, services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager) = {
+  def props(scenario: Scenario, services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager): Props = {
     Props(new Population(scenario, services, transportNetwork, eventsManager))
   }
+
+  case class AttributesOfIndividual(householdAttributes:HouseholdAttributes,householdId: Id[Household], isMale: Boolean)
+
+  object AttributesOfIndividual {
+    def apply(household:Household, vehicles:TrieMap[Id[Vehicle],BeamVehicle]): AttributesOfIndividual =
+      new AttributesOfIndividual(HouseholdAttributes(household:Household, vehicles),household.getId, new Random().nextBoolean())
+  }
+
 }

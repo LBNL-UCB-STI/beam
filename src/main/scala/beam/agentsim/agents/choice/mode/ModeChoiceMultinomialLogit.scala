@@ -4,17 +4,16 @@ import java.io.File
 import java.util
 import java.util.Random
 
+import beam.agentsim.agents.Population.AttributesOfIndividual
 import beam.agentsim.agents.choice.logit.MultinomialLogit
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
-import org.jdom.{Document, Element}
 import org.jdom.input.SAXBuilder
+import org.jdom.{Document, Element}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 

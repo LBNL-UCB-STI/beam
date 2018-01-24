@@ -7,6 +7,7 @@ import akka.testkit.{EventFilter, ImplicitSender, TestActorRef, TestFSMRef, Test
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.Population.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
@@ -62,7 +63,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), household, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+      val personAttributes = AttributesOfIndividual(household, services.vehicles)
+      val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), personAttributes, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
       val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
 
       watch(personAgentRef)
@@ -88,8 +90,8 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
         workActivity.setEndTime(61200) //5:00:00 PM
         plan.addActivity(workActivity)
-
-        val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), household, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+        val personAttributes = AttributesOfIndividual(household, services.vehicles)
+        val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), personAttributes, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
         val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
         beamAgentSchedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
 
@@ -108,6 +110,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       within(10 seconds) {
         val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
         val household = new HouseholdImpl(Id.create("dummy", classOf[Household]))
+        val personAttributes = AttributesOfIndividual(household, services.vehicles)
 
         val plan = PopulationUtils.getFactory.createPlan()
         val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -124,7 +127,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         plan.addActivity(workActivity)
         plan.addActivity(backHomeActivity)
 
-        val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), household, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+        val personAgentRef = TestFSMRef(new PersonAgent(services, networkCoordinator.transportNetwork, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), personAttributes, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
         watch(personAgentRef)
         val beamAgentSchedulerRef = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 200.0, maxWindow = 10.0))
 

@@ -17,8 +17,9 @@ import org.matsim.households
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-
 
 object HouseholdActor {
 
@@ -52,6 +53,18 @@ object HouseholdActor {
 
   case class InitializeRideHailAgent(b: Id[Person])
 
+  case class HouseholdAttributes(householdIncome: Double, householdSize: Int, numCars: Int, numBikes: Int)
+
+  object HouseholdAttributes {
+    def apply(household: Household,
+              vehicles: TrieMap[Id[Vehicle], BeamVehicle]) = new HouseholdAttributes(
+      household.getIncome.getIncome,
+      household.getMemberIds.size(),
+      household.getVehicleIds.asScala.map(vehicles).count(_.getType.getDescription.toLowerCase.contains("car")),
+      household.getVehicleIds.asScala.map(vehicles).count(_.getType.getDescription.toLowerCase.contains("bike"))
+    )
+  }
+
 }
 
 /**
@@ -66,8 +79,7 @@ object HouseholdActor {
   * @author dserdiuk/sfeygin
   * @param lookupMemberRank ranking function used to assign the priority to household members.
   * @param id               this [[Household]]'s unique identifier.
-  * @param vehicles the [[BeamVehicle]]s managed by this [[Household]].
-  *
+  * @param vehicles         the [[BeamVehicle]]s managed by this [[Household]].
   * @see [[ChoosesMode]]
   */
 class HouseholdActor(eventsManager: EventsManager,
