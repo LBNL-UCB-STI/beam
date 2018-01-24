@@ -12,7 +12,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 class TollPriceSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing tollPrice value" must {
-    "create less entries for mode choice car as value increases" ignore {
+    "create less entries for mode choice car as value increases" in {
       val inputTollPrice = Seq(0.1, 1.0)
       val modeChoice = inputTollPrice.map(tc => new StartWithCustomConfig(
         baseConfig
