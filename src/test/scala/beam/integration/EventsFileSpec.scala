@@ -5,7 +5,13 @@ import java.io.File
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
+import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.core.config.ConfigUtils
+import org.matsim.core.population.io.PopulationReader
+import org.matsim.core.scenario.ScenarioUtils
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+
+import scala.collection.JavaConverters._
 
 /**
   * Created by fdariasm on 29/08/2017
@@ -21,7 +27,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     .resolve()
 
   val beamConfig = BeamConfig(config)
-  var matsimConfig: org.matsim.core.config.Config = null
+  var matsimConfig: org.matsim.core.config.Config = _
 
   override protected def beforeAll(): Unit = {
     matsimConfig = runBeamWithConfig(config)._1
@@ -77,6 +83,22 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   it should "also be available as csv file" in {
     assert(getEventsFilePath(matsimConfig, "csv").exists())
+  }
+
+  it should "also produce experienced plans which make sense" in {
+    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+    new PopulationReader(scenario).readFile(s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.0/0.experienced_plans.xml.gz")
+    assert(scenario.getPopulation.getPersons.size() == 50)
+    scenario.getPopulation.getPersons.values().forEach { person =>
+      val experiencedPlan = person.getPlans.get(0)
+      assert(experiencedPlan.getPlanElements.size() > 1)
+      experiencedPlan.getPlanElements.asScala.sliding(2).foreach {
+        case Seq(activity: Activity, leg: Leg) =>
+          assert(activity.getEndTime == leg.getDepartureTime)
+        case Seq(leg: Leg, activity: Activity) =>
+          assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
+      }
+    }
   }
 
 }
