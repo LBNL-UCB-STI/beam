@@ -6,18 +6,23 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{MatsimHumanBodyVehicleType, createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode.CAR
 import beam.router.RoutingModel.BeamPath
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.BeamServices
+import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.mutable
 
@@ -32,10 +37,10 @@ object HouseholdActor {
     s"household-${id.toString}" + iterationName.map(i => s"_iter-$i").getOrElse("")
   }
 
-  def props(beamServices: BeamServices, eventsManager: EventsManager, population: Population, householdId: Id[Household], matSimHousehold: Household,
-            houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], membersActors: Map[Id[Person], ActorRef],
+  def props(beamServices: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, population: Population, householdId: Id[Household], matSimHousehold: Household,
+            houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], members: Seq[Person],
             homeCoord: Coord): Props = {
-    Props(new HouseholdActor(beamServices, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord))
+    Props(new HouseholdActor(beamServices, transportNetwork, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, members, homeCoord))
   }
 
   case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
@@ -57,18 +62,35 @@ object HouseholdActor {
 
 }
 
-class HouseholdActor(services: BeamServices,
+class HouseholdActor(beamServices: BeamServices,
+                     transportNetwork: TransportNetwork,
                      eventsManager: EventsManager,
                      population: Population,
                      id: Id[households.Household],
                      matSimHouseHold: org.matsim.households.Household,
                      vehicles: Map[Id[BeamVehicle], BeamVehicle],
-                     memberActors: Map[Id[Person], ActorRef],
+                     members: Seq[Person],
                      homeCoord: Coord
                     )
-  extends VehicleManager with ActorLogging with HasServices {
+  extends VehicleManager with ActorLogging {
 
-  override val beamServices: BeamServices = services
+
+  members.foreach { person =>
+    val bodyVehicleIdFromPerson = createId(person.getId)
+    val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
+    // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
+    //let's put here human body vehicle too, it should be clean up on each iteration
+    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, person.getId, matSimHouseHold, person.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(person.getId))
+    context.watch(personRef)
+    // Every Person gets a HumanBodyVehicle
+    val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
+    newBodyVehicle.registerResource(personRef)
+    beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
+    beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
+    beamServices.personRefs += ((person.getId, personRef))
+  }
+
+
   override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] = collection.mutable.Map[Id[BeamVehicle],BeamVehicle]()
   resources ++ vehicles
 
@@ -80,8 +102,8 @@ class HouseholdActor(services: BeamServices,
   /**
     * Household members sorted by rank
     */
-  val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(memb => MemberWithRank(memb, lookupMemberRank
-  (memb)))
+  val _members: Vector[MemberWithRank] = members.toVector.map(memb => MemberWithRank(memb.getId, lookupMemberRank
+  (memb.getId)))
 
   /**
     * Concurrent inquiries

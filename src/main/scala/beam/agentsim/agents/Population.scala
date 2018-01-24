@@ -36,23 +36,6 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
       personToHouseholdId = personToHouseholdId ++ matSimHousehold.getMemberIds.asScala.map(personId => personId -> householdId)
   }
 
-  // Every Person gets a HumanBodyVehicle
-
-  scenario.getPopulation.getPersons.values().stream().limit(beamServices.beamConfig.beam.agentsim.numAgents).forEach { matsimPerson =>
-    val bodyVehicleIdFromPerson = createId(matsimPerson.getId)
-    val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
-    // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
-    //let's put here human body vehicle too, it should be clean up on each iteration
-
-
-    val personRef: ActorRef = context.actorOf(PersonAgent.props(beamServices, transportNetwork, eventsManager, matsimPerson.getId, scenario.getHouseholds.getHouseholds.get(personToHouseholdId(matsimPerson.getId)), matsimPerson.getSelectedPlan, bodyVehicleIdFromPerson), PersonAgent.buildActorName(matsimPerson.getId))
-    context.watch(personRef)
-    val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
-    newBodyVehicle.registerResource(personRef)
-    beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
-    beamServices.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
-    beamServices.personRefs += ((matsimPerson.getId, personRef))
-  }
 
   // Init households before RHA.... RHA vehicles will initially be managed by households
   initHouseholds()
@@ -94,11 +77,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
         householdAttrs.getAttribute(householdId.toString, "homecoordy").asInstanceOf[Double]
       )
 
-      val membersActors = matSimHousehold.getMemberIds.asScala.map { personId =>
-        (personId, beamServices.personRefs.get(personId))
-      }.collect {
-        case (personId, Some(personAgent)) => (personId, personAgent)
-      }.toMap
+      val members = matSimHousehold.getMemberIds.asScala.map(scenario.getPopulation.getPersons.get(_))
 
       val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
         .collectionAsScalaIterable(matSimHousehold.getVehicleIds)
@@ -123,7 +102,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val tra
       houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
 
       val householdActor = context.actorOf(
-        HouseholdActor.props(beamServices, eventsManager, scenario.getPopulation, householdId, matSimHousehold, houseHoldVehicles, membersActors, homeCoord),
+        HouseholdActor.props(beamServices, transportNetwork, eventsManager, scenario.getPopulation, householdId, matSimHousehold, houseHoldVehicles, members, homeCoord),
         HouseholdActor.buildActorName(householdId, iterId))
 
       houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
