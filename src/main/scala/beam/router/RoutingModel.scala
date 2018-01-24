@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -46,7 +46,7 @@ object RoutingModel {
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
           if((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
             (legs.size>1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle"))){
-            theMode = RIDEHAIL
+            theMode = RIDE_HAIL
           }else{
             theMode = CAR
           }
