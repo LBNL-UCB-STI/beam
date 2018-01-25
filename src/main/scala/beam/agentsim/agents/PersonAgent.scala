@@ -9,7 +9,7 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
-import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
+import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.agents.vehicles.VehicleProtocol._
@@ -31,20 +31,15 @@ import org.slf4j.LoggerFactory
   */
 object PersonAgent {
 
-  private val ActorPrefixName = "person-"
   val timeToChooseMode: Double = 0.0
   val minActDuration: Double = 0.0
   val teleportWalkDuration = 0.0
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
+  def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(services, transportNetwork, eventsManager, personId, household, plan, humanBodyVehicleId))
-  }
-
-  def buildActorName(personId: Id[Person]): String = {
-    s"$ActorPrefixName${personId.toString}"
+    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, household, plan, humanBodyVehicleId))
   }
 
   case class PersonData() extends BeamAgentData {}
@@ -110,8 +105,12 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val beamServices: BeamServices,
+class PersonAgent(val scheduler: ActorRef,
+                  val beamServices: BeamServices,
+                  val modeChoiceCalculator: ModeChoiceCalculator,
                   val transportNetwork: TransportNetwork,
+                  val router: ActorRef,
+                  val rideHailingManager: ActorRef,
                   val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
                   val household: Household,
@@ -388,7 +387,7 @@ class PersonAgent(val beamServices: BeamServices,
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
             _currentEmbodiedLeg = None
-            beamServices.schedulerRef ! completed(triggerId)
+            scheduler ! completed(triggerId)
             goto(Waiting)
           }
         case None =>
@@ -399,16 +398,15 @@ class PersonAgent(val beamServices: BeamServices,
       nextActivity match {
         case Left(msg) =>
           logDebug(msg)
-          beamServices.schedulerRef ! completed(triggerId)
+          scheduler ! completed(triggerId)
           stop
         case Right(activity) =>
           _currentActivityIndex = _currentActivityIndex + 1
           currentTourPersonalVehicle match {
             case Some(personalVeh) =>
-              val householdRef = beamServices.householdRefs(household.getId)
               if (currentActivity.getType.equals("Home")) {
-                householdRef ! ReleaseVehicleReservation(id, personalVeh)
-                householdRef ! CheckInResource(personalVeh, None)
+                context.parent ! ReleaseVehicleReservation(id, personalVeh)
+                context.parent ! CheckInResource(personalVeh, None)
                 currentTourPersonalVehicle = None
               }
             case None =>
@@ -433,7 +431,7 @@ class PersonAgent(val beamServices: BeamServices,
           _currentEmbodiedLeg = None
           _currentTrip = None
           eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
-          beamServices.schedulerRef ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
+          scheduler ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
           goto(PerformingActivity)
       }
     }
@@ -493,7 +491,7 @@ class PersonAgent(val beamServices: BeamServices,
       stop(Failure(s"It is $tick and I am trying to schedule the start of my " +
         s"leg for $newTriggerTime. I can't do that."))
     }
-    beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
+    scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
     goto(Waiting)
   }
 

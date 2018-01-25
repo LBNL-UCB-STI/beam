@@ -57,7 +57,6 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
-    when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
@@ -72,7 +71,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)
       expectMsgType[ActorIdentity]
-      router ! InitTransit
+      router ! InitTransit(new TestProbe(system).ref)
       expectMsgType[Success]
     }
   }
