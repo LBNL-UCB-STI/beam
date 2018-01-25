@@ -24,8 +24,8 @@ public class PhyssimCalcLinkStats {
     private Network network;
     private OutputDirectoryHierarchy controlerIO;
 
-    public static int noOfBins = 24;
-    public static int binSize = 3600;
+    public static int noOfBins = 96;
+    public static int binSize = 900;
 
 
     public static final List<Color> colors = new ArrayList<>();
@@ -112,19 +112,19 @@ public class PhyssimCalcLinkStats {
         relativeSpeedsCategoriesList.addAll(relativeSpeedFrequenciesPerBin.keySet());
         Collections.sort(relativeSpeedsCategoriesList);
 
-        int maxHour = 24;
-        double[][] dataset = new double[relativeSpeedsCategoriesList.size()][maxHour];
+
+        double[][] dataset = new double[relativeSpeedsCategoriesList.size()][noOfBins];
 
         for (int i = 0; i < relativeSpeedsCategoriesList.size(); i++) {
 
             Double relativeSpeedCategory = relativeSpeedsCategoriesList.get(i);
             Map<Integer, Integer> relativeSpeedBins = relativeSpeedFrequenciesPerBin.get(relativeSpeedCategory);
 
-            double[] relativeSpeedFrequencyPerHour = new double[maxHour];
+            double[] relativeSpeedFrequencyPerHour = new double[noOfBins];
             int index = 0;
 
-            for (int hour = 0; hour < maxHour; hour++) {
-                Integer hourFrequency = relativeSpeedBins.get(hour);
+            for (int binIndex = 0; binIndex < noOfBins; binIndex++) {
+                Integer hourFrequency = relativeSpeedBins.get(binIndex);
                 if (hourFrequency != null) {
                     relativeSpeedFrequencyPerHour[index] = hourFrequency;
                 } else {
