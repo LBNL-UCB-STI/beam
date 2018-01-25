@@ -88,8 +88,7 @@ public class PhyssimCalcLinkStats {
 
                 double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
 
-                DecimalFormat df = new DecimalFormat("#.#");
-                double relativeSpeed = Double.valueOf(df.format(averageSpeedToFreeSpeedRatio));
+                double relativeSpeed = Math.round(averageSpeedToFreeSpeedRatio * 10) / 10;
 
                 Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeed);
 
