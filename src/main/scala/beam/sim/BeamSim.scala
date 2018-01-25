@@ -39,7 +39,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    beamServices.modeChoiceCalculator = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
+    beamServices.modeChoiceCalculatorFactory = () => ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
     import scala.collection.JavaConverters._
     // Before we initialize router we need to scale the transit vehicle capacities
@@ -58,8 +58,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-    beamServices.persons ++= scala.collection.JavaConverters.mapAsScalaMap(scenario.getPopulation.getPersons)
-    beamServices.households ++= scenario.getHouseholds.getHouseholds.asScala.toMap
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
       eventsManager,
       transportNetwork,

@@ -175,7 +175,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val maybeUseVehicleOnEgress: Option[BeamLeg] = if (mainRouteToVehicle) {
         // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
         val estimateDurationToGetToVeh: Int = math.round(beamServices.geo.distInMeters(routingRequestTripInfo.origin, vehicle.location.loc) / 5.8).intValue()
-        var time = routingRequestTripInfo.departureTime match {
+        val time = routingRequestTripInfo.departureTime match {
           case time: DiscreteTime => WindowTime(time.atTime + estimateDurationToGetToVeh, beamServices.beamConfig.beam.routing.r5.departureWindow)
           case time: WindowTime => time.copy(time.atTime + estimateDurationToGetToVeh)
         }
@@ -251,7 +251,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val tripStartTime = beamServices.dates.toBaseMidnightSeconds(itinerary.startTime, transportNetwork.transitLayer.routes.size() == 0)
           val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
           //        legFares += legs.size -> toll
-          legsWithFares :+= (BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access, tripStartTime)), 0.0)
+          legsWithFares :+= (BeamLeg(tripStartTime, mapLegMode(access.mode), access.duration, travelPath = buildStreetPath(access, tripStartTime)), toll)
 
           //add a Dummy walk BeamLeg to the end of that trip
           if (isRouteForPerson && access.mode != LegMode.WALK) {
@@ -395,7 +395,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val toTime = getPattern(t._2.last._1, t._2.last._2).toArrivalTime.get(t._2.last._2.time)
       val duration = ChronoUnit.SECONDS.between(fromTime, toTime)
 
-
       val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
 
       var rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, t._2.head._2.pattern, duration))
@@ -463,7 +462,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     //For direct modes
     import scala.collection.JavaConversions._
     for (mode <- request.directModes) {
-      var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
       var streetPath: StreetPath = null
       streetRouter.profileRequest = request
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)

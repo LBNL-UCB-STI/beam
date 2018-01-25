@@ -8,7 +8,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{CAR, RIDEHAIL, WALK}
+import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, WALK}
 import beam.router.RoutingModel.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
@@ -108,7 +108,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       )))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
+      assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
       assert(response.itineraries.exists(_.tripClassifier == CAR))
 
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
@@ -128,7 +128,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       )))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
+      assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
       assert(response.itineraries.exists(_.tripClassifier == CAR))
 
       val walkTrip = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip()
@@ -157,7 +157,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
           )))
           val response = expectMsgType[RoutingResponse]
           assert(response.itineraries.exists(_.tripClassifier == WALK))
-          assert(response.itineraries.exists(_.tripClassifier == RIDEHAIL))
+          assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
           assert(response.itineraries.exists(_.tripClassifier == CAR))
 
           val walkTrip = response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip()

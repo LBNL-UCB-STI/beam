@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
@@ -25,8 +25,8 @@ import org.matsim.vehicles.Vehicle
 object RideHailingAgent {
   val idPrefix: String = "rideHailingAgent"
 
-  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
-    Props(new RideHailingAgent(rideHailingAgentId, vehicle, location, eventsManager, services, transportNetwork))
+  def props(services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
+    Props(new RideHailingAgent(rideHailingAgentId, scheduler, vehicle, location, eventsManager, services, transportNetwork))
 
   case class RideHailingAgentData() extends BeamAgentData
 
@@ -55,7 +55,7 @@ object RideHailingAgent {
 
 }
 
-class RideHailingAgent(override val id: Id[RideHailingAgent], vehicle: BeamVehicle, initialLocation: Coord,
+class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: ActorRef, vehicle: BeamVehicle, initialLocation: Coord,
                        val eventsManager: EventsManager, val beamServices: BeamServices, val transportNetwork: TransportNetwork)
   extends BeamAgent[RideHailingAgentData]
     with HasServices
@@ -78,7 +78,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], vehicle: BeamVehic
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long) = {
     vehicle.checkInResource(Some(lastVisited),context.dispatcher)
-    beamServices.schedulerRef ! completed(triggerId)
+    scheduler ! completed(triggerId)
     stay
   }
 
@@ -87,7 +87,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], vehicle: BeamVehic
       stay
     case Event(BecomeDriverSuccessAck, _) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      beamServices.schedulerRef ! completed(triggerId)
+      scheduler ! completed(triggerId)
       stay
     case Event (Finish, _) =>
       stop

@@ -2,7 +2,7 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamServices, BoundingBox, HasServices}
+import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
@@ -21,7 +21,6 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 trait GeoUtils extends HasServices  {
   lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
   lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326",beamServices.beamConfig.beam.spatial.localCRS)
-  lazy val utmbbox: BoundingBox = new BoundingBox(beamServices.beamConfig.beam.spatial.localCRS)
 
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc),spacetime.time)
 
@@ -58,19 +57,6 @@ trait GeoUtils extends HasServices  {
     val dist = earthRadius * c
     dist
 
-  }
-
-  //TODO if we want to dynamically determined BBox extents, this should be updated to be generic to CRS of the BBox
-  def observeCoord(coord: Coord, boundingBox: BoundingBox): Unit = {
-//    val posTransformed = if (boundingBox.crs == "EPSG:4326" && coord.getX <= 180.0 & coord.getX >= -180.0 & coord.getY > -90.0 & coord.getY < 90.0) {
-//      wgs2utm.transform(coord)
-//    }else{
-//      coord
-//    }
-//    if (posTransformed.getX < boundingBox.minX) boundingBox.minX = posTransformed.getX
-//    if (posTransformed.getY < boundingBox.minY) boundingBox.minY = posTransformed.getY
-//    if (posTransformed.getX > boundingBox.maxX) boundingBox.maxX = posTransformed.getX
-//    if (posTransformed.getY > boundingBox.maxY) boundingBox.maxY = posTransformed.getY
   }
 
   def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {

@@ -25,6 +25,7 @@ import beam.router.RoutingModel.{BeamTime, BeamTrip}
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -51,7 +52,7 @@ object RideHailingManager {
                             estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration],
                             responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
 
-  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Vector[TravelProposal],
+  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Seq[TravelProposal],
                                         error: Option[ReservationError] = None)
 
   case class ReserveRide(inquiryId: Id[RideHailingInquiry], customerIds: VehiclePersonId, pickUpLocation: Location,
@@ -78,15 +79,15 @@ object RideHailingManager {
   case object RideAvailableAck
 
 
-  def props(name: String, services: BeamServices) = {
-    Props(classOf[RideHailingManager], name, services)
+  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope) = {
+    Props(new RideHailingManager(name, services, router, boundingBox))
   }
 }
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
 case class RideHailingManagerData() extends BeamAgentData
 
-class RideHailingManager(val name: String, val beamServices: BeamServices) extends VehicleManager with HasServices {
+class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope) extends VehicleManager with HasServices {
 
   import scala.collection.JavaConverters._
 
@@ -99,17 +100,17 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
     new QuadTree[RideHailingAgentLocation](
-      beamServices.geo.utmbbox.minX,
-      beamServices.geo.utmbbox.minY,
-      beamServices.geo.utmbbox.maxX,
-      beamServices.geo.utmbbox.maxY)
+      boundingBox.getMinX,
+      boundingBox.getMinY,
+      boundingBox.getMaxX,
+      boundingBox.getMaxY)
   }
   private val inServiceRideHailingAgentSpatialIndex = {
     new QuadTree[RideHailingAgentLocation](
-      beamServices.geo.utmbbox.minX,
-      beamServices.geo.utmbbox.minY,
-      beamServices.geo.utmbbox.maxX,
-      beamServices.geo.utmbbox.maxY)
+      boundingBox.getMinX,
+      boundingBox.getMinY,
+      boundingBox.getMaxX,
+      boundingBox.getMaxY)
   }
   private val availableRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
   private val inServiceRideHailVehicles = collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]()
@@ -180,8 +181,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
 
 
       val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
-      val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
-      val itins2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDEHAIL))
+      val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
+      val itins2Dest = rideHailing2DestinationResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
       if (timeToCustomer < Long.MaxValue && customerPlans2Costs.nonEmpty && itins2Cust.nonEmpty && itins2Dest.nonEmpty) {
         val (customerTripPlan, cost) = customerPlans2Costs.minBy(_._2)
 
@@ -273,10 +274,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices) exten
     //TODO: Error handling. In the (unlikely) event of a timeout, this RideHailingManager will silently be
     //TODO: restarted, and probably someone will wait forever for its reply.
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-    val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(rideHailingLocation
+    val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(RoutingRequestTripInfo(rideHailingLocation
           .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin)))
     //XXXX: customer trip request might be redundant... possibly pass in info
-    val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup)))
+    val futureRideHailing2DestinationResponse = router ? RoutingRequest(RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup)))
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 

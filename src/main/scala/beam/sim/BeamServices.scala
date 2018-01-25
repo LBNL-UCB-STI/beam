@@ -33,18 +33,14 @@ trait BeamServices extends ActorInject {
   val registry: ActorRef
 
   val geo: GeoUtils
-  var modeChoiceCalculator: ModeChoiceCalculator
+  var modeChoiceCalculatorFactory: () ⇒ ModeChoiceCalculator
   val dates: DateUtils
 
   var beamRouter: ActorRef
   var physSim: ActorRef
   var schedulerRef: ActorRef
-  var rideHailingManager: ActorRef
-  val persons: TrieMap[Id[Person], Person]
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
-  val households: TrieMap[Id[Household], Household]
-  val householdRefs: TrieMap[Id[Household], ActorRef]
   val agentRefs: TrieMap[String, ActorRef]
 
   def clearAll
@@ -58,24 +54,17 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
   val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
 
-  var modeChoiceCalculator: ModeChoiceCalculator = _
+  var modeChoiceCalculatorFactory: () ⇒ ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
   var physSim: ActorRef = _
   var schedulerRef: ActorRef = _
-  var rideHailingManager: ActorRef = _
-  val persons: TrieMap[Id[Person], Person] = TrieMap[Id[Person], Person]()
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-  val households: TrieMap[Id[Household], Household] = TrieMap[Id[Household], Household]()
-  val householdRefs: TrieMap[Id[Household], ActorRef] = TrieMap[Id[Household], ActorRef]()
   val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
 
   def clearAll = {
-    persons.clear()
     personRefs.clear
     vehicles.clear()
-    households.clear()
-    householdRefs.clear()
     agentRefs.clear()
   }
 }

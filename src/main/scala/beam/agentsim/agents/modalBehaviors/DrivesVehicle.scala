@@ -71,7 +71,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
               logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-              beamServices.schedulerRef ! scheduleOne[NotifyLegEndTrigger](tick, personRef, completedLeg)
+              scheduler ! scheduleOne[NotifyLegEndTrigger](tick, personRef, completedLeg)
             }
           }
           if (manifest.alighters.isEmpty) {
@@ -111,7 +111,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           _currentLeg = Some(newLeg)
           manifest.riders.foreach { personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
-            beamServices.schedulerRef ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs
+            scheduler ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs
             (personVehicle.personId), newLeg)
           }
           if (manifest.boarders.isEmpty) {
@@ -278,7 +278,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
     val (_, theTriggerId) = releaseTickAndTriggerId()
-    beamServices.schedulerRef ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self,
+    scheduler ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self,
       _currentLeg.get))
     goto(Moving)
   }
@@ -306,7 +306,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
     if (passengerSchedule.schedule.nonEmpty) {
       val nextLeg = passengerSchedule.schedule.firstKey
-      beamServices.schedulerRef ! completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
+      scheduler ! completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
       goto(Waiting)
     } else {
       passengerScheduleEmpty(theTick, theTriggerId)
