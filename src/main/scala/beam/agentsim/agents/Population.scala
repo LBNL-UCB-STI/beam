@@ -1,7 +1,9 @@
 package beam.agentsim.agents
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
 import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
@@ -18,6 +20,9 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
+import scala.concurrent.{Await, Future}
+import akka.pattern._
+import akka.util.Timeout
 
 class Population(val scenario: Scenario, val beamServices: BeamServices, val scheduler: ActorRef, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager) extends Actor with ActorLogging {
 
@@ -28,6 +33,8 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
     case _: Exception => Stop
     case _: AssertionError => Stop
   }
+  private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+  import context.dispatcher
 
   private var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
   scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
@@ -60,18 +67,17 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
   }
 
   private def initHouseholds(iterId: Option[String] = None)(implicit ev: Id[Vehicle] => Id[BeamVehicle]): Unit = {
-    val householdAttrs = scenario.getHouseholds.getHouseholdAttributes
-
-    scenario.getHouseholds.getHouseholds.forEach { (householdId, household) =>
+    // Have to wait for households to create people so they can send their first trigger to the scheduler
+    val houseHoldsInitialized = Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
       //TODO a good example where projection should accompany the data
-      if (householdAttrs.getAttribute(householdId.toString, "homecoordx") == null) {
-        log.error(s"Cannot find homeCoordX for household $householdId which will be interpreted at 0.0")
+      if (scenario.getHouseholds.getHouseholdAttributes.getAttribute(household.getId.toString, "homecoordx") == null) {
+        log.error(s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0")
       }
-      if (householdAttrs.getAttribute(householdId.toString.toLowerCase(), "homecoordy") == null) {
-        log.error(s"Cannot find homeCoordY for household $householdId which will be interpreted at 0.0")
+      if (scenario.getHouseholds.getHouseholdAttributes.getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
+        log.error(s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0")
       }
-      val homeCoord = new Coord(householdAttrs.getAttribute(householdId.toString, "homecoordx").asInstanceOf[Double],
-        householdAttrs.getAttribute(householdId.toString, "homecoordy").asInstanceOf[Double]
+      val homeCoord = new Coord(scenario.getHouseholds.getHouseholdAttributes.getAttribute(household.getId.toString, "homecoordx").asInstanceOf[Double],
+        scenario.getHouseholds.getHouseholdAttributes.getAttribute(household.getId.toString, "homecoordy").asInstanceOf[Double]
       )
 
       val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
@@ -98,13 +104,15 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
 
       val members = household.getMemberIds.asScala.map(scenario.getPopulation.getPersons.get(_))
       val householdActor = context.actorOf(
-        HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork, router, rideHailingManager, eventsManager, scenario.getPopulation, householdId, household, houseHoldVehicles, members, homeCoord),
-        householdId.toString)
+        HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork, router, rideHailingManager, eventsManager, scenario.getPopulation, household.getId, household, houseHoldVehicles, members, homeCoord),
+        household.getId.toString)
 
       houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
 
       context.watch(householdActor)
-    }
+      householdActor ? Identify(0)
+    })
+    Await.result(houseHoldsInitialized, timeout.duration)
     log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
   }
 
