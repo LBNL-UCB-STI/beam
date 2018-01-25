@@ -24,13 +24,13 @@ public class PhyssimCalcLinkStats {
     private Network network;
     private OutputDirectoryHierarchy controlerIO;
 
+    public static int noOfBins = 24;
+    public static int binSize = 3600;
+
+
     public static final List<Color> colors = new ArrayList<>();
 
 
-    //Map<Id<Link>, Double> linkAvgSpeedToFreeSpeedRatios = new TreeMap<>();
-
-    // Map of categories to hourly bins.
-    // Categories are relative speeds in double
     Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
 
 
@@ -59,33 +59,17 @@ public class PhyssimCalcLinkStats {
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
 
         processData(iteration, travelTimeCalculator);
-
-        //drawGraph();
         CategoryDataset dataset = buildModesFrequencyDataset();
         createModesFrequencyGraph(dataset, iteration);
     }
 
     private void processData(int iteration, TravelTimeCalculator travelTimeCalculator) {
 
-        System.out.println(getClass().getName() + " iteration -> " + iteration);
 
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
 
-        //int noOfBins = travelTimeCalculator.getNumSlots();
-
-        int noOfBins = 24;
-        int binSize = 3600;
-
         for(int idx = 0; idx < noOfBins; idx++) {
 
-            Map<Double, Integer> relativeSpeeds = new HashMap<>();
-
-            /*Map<Double, Integer> relativeSpeeds = relativeSpeedFrequenciesPerBin.get(idx);
-            if (relativeSpeeds == null) {
-                relativeSpeeds = new HashMap<>();
-            }*/
-
-            System.out.println("Bin " + idx);
 
             for (Link link : this.network.getLinks().values()) {
 
@@ -101,21 +85,7 @@ public class PhyssimCalcLinkStats {
                 double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
 
                 DecimalFormat df = new DecimalFormat("#.#");
-                //Double relativeSpeed = df.format(averageSpeedToFreeSpeedRatio);
                 double relativeSpeed = Double.valueOf(df.format(averageSpeedToFreeSpeedRatio));
-
-                System.out.println("linkId => " + link.getId() + " linkLength => " + linkLength +
-                        " averageTime => " + averageTime +
-                        " averageSpeed => " + averageSpeed +
-                        " freeflowspeed => " + freeSpeed +
-                        " relativeSpeed => " + relativeSpeed);
-
-                /*
-                1. Get the data for the relative speed
-                2. If null create new map and set frequency to 1 for the idx (hour in case 3600 is used)
-                3. If not null retrieve the value for the hour and increment it and put it back.
-                4. put the inner map back
-                 */
 
                 Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeed);
 
@@ -168,41 +138,11 @@ public class PhyssimCalcLinkStats {
         return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataset);
     }
 
-    private void drawGraph(){
-
-        //List<Id<Link>> linkIds = new ArrayList<>(linkAvgSpeedToFreeSpeedRatios.keySet());
-
-        /*Collections.sort(linkIds, new Comparator<Id<Link>>() {
-            @Override
-            public int compare(Id<Link> o1, Id<Link> o2) {
-                return Integer.parseInt(o1.toString()) - Integer.parseInt(o2.toString());
-            }
-        });*/
-
-        /*for(Id<Link> linkId : linkIds){
-            System.out.println("[ " +linkId.toString() + ", " + linkAvgSpeedToFreeSpeedRatios.get(linkId) + " ]");
-        }*/
-
-        /*for(int i : relativeSpeedFrequenciesPerBin.keySet()){
-
-            System.out.println("i = " + i);
-
-            Map<Double, Integer> data = relativeSpeedFrequenciesPerBin.get(i);
-
-            for(Double cat : data.keySet()){
-
-                System.out.println("[" + cat + " -> " + data.get(cat) + "]");
-            }
-        }*/
-
-
-    }
-
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) {
 
-        String plotTitle = "Relative Speeds Histogram";
+        String plotTitle = "Relative Network Link Speeds";
         String xaxis = "Hour";
-        String yaxis = "# of events by category";
+        String yaxis = "# of network links";
         int width = 800;
         int height = 600;
         boolean show = true;
@@ -247,22 +187,9 @@ public class PhyssimCalcLinkStats {
         }
     }
 
-    /*public double getAverageLinkTravelTime(TravelTime travelTime, int noOfBins, Link link, Person person, Vehicle vehicle){
-
-        int noOfSecondsPerHour = 3600;
-        double linkSumOfTravelTimes = 0d;
-
-        for (int idx = 0; idx < noOfBins; idx++) {
-
-            double ttime = travelTime.getLinkTravelTime(link, idx * noOfBins, person, vehicle);
-
-            linkSumOfTravelTimes += ttime;
-        }
-
-        return linkSumOfTravelTimes/noOfHours;
-    }*/
 
     public void notifyIterationStarts(EventsManager eventsManager) {
 
+        this.relativeSpeedFrequenciesPerBin.clear();
     }
 }
