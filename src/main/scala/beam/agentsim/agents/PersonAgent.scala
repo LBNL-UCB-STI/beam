@@ -9,7 +9,7 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
-import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle}
+import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.BeamVehicleType._
 import beam.agentsim.agents.vehicles.VehicleProtocol._
@@ -37,9 +37,9 @@ object PersonAgent {
 
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
-  def props(scheduler: ActorRef, services: BeamServices, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
+  def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(scheduler, services, transportNetwork, router, rideHailingManager, eventsManager, personId, household, plan, humanBodyVehicleId))
+    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, household, plan, humanBodyVehicleId))
   }
 
   case class PersonData() extends BeamAgentData {}
@@ -107,6 +107,7 @@ object PersonAgent {
 
 class PersonAgent(val scheduler: ActorRef,
                   val beamServices: BeamServices,
+                  val modeChoiceCalculator: ModeChoiceCalculator,
                   val transportNetwork: TransportNetwork,
                   val router: ActorRef,
                   val rideHailingManager: ActorRef,

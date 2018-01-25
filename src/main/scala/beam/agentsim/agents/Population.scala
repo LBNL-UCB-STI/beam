@@ -98,7 +98,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
 
       val members = household.getMemberIds.asScala.map(scenario.getPopulation.getPersons.get(_))
       val householdActor = context.actorOf(
-        HouseholdActor.props(beamServices, scheduler, transportNetwork, router, rideHailingManager, eventsManager, scenario.getPopulation, householdId, household, houseHoldVehicles, members, homeCoord),
+        HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork, router, rideHailingManager, eventsManager, scenario.getPopulation, householdId, household, houseHoldVehicles, members, homeCoord),
         householdId.toString)
 
       houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }

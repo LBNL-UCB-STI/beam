@@ -49,7 +49,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
   var pendingChosenTrip: Option[EmbodiedBeamTrip] = None
   var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
   var availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector()
-  var modeChoiceCalculator: ModeChoiceCalculator = _
   var expectedMaxUtilityOfLatestChoice: Option[Double] = None
 
   private def availableAlternatives = {
@@ -245,7 +244,6 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(_), _), _) =>
-      modeChoiceCalculator = beamServices.modeChoiceCalculator.clone()
       goto(Initialized)
   }
 

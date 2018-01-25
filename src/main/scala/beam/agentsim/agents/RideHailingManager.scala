@@ -52,7 +52,7 @@ object RideHailingManager {
                             estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration],
                             responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
 
-  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Vector[TravelProposal],
+  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Seq[TravelProposal],
                                         error: Option[ReservationError] = None)
 
   case class ReserveRide(inquiryId: Id[RideHailingInquiry], customerIds: VehiclePersonId, pickUpLocation: Location,

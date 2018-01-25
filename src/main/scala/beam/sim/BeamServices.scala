@@ -33,7 +33,7 @@ trait BeamServices extends ActorInject {
   val registry: ActorRef
 
   val geo: GeoUtils
-  var modeChoiceCalculator: ModeChoiceCalculator
+  var modeChoiceCalculatorFactory: () ⇒ ModeChoiceCalculator
   val dates: DateUtils
 
   var beamRouter: ActorRef
@@ -54,7 +54,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
   val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
 
-  var modeChoiceCalculator: ModeChoiceCalculator = _
+  var modeChoiceCalculatorFactory: () ⇒ ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
   var physSim: ActorRef = _
   var schedulerRef: ActorRef = _
