@@ -17,9 +17,12 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/vot'
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/transit-prices-25k'
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
+  #args<-'/Users/critter/Documents/beam/beam-output/experiments/vot'
+  #args<-'/Users/critter/Documents/beam/beam-output/experiments/transit-price'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/ridehail-price'
+  #args<-'/Users/critter/Documents/beam/beam-output/experiments/transit-capacity'
+  #args<-'/Users/critter/Documents/beam/beam-output/experiments/ridehail-capacity'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
@@ -27,8 +30,9 @@ if(interactive()){
 }
 ######################################################################################################
 
-factor.to.scale.personal.back <- 32
-plot.congestion <- T
+factor.to.scale.personal.back <- 20
+factor.to.scale.transit.back <- 2
+plot.congestion <- F
 
 ######################################################################################################
 # Load the exp config
@@ -90,7 +94,6 @@ en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c
 ev[tripmode%in%c('car') & vehicle_type=='Car',':='(num_passengers=1)]
 ev[,pmt:=num_passengers*length/1609]
 ev[is.na(pmt),pmt:=0]
-setkey(ev,type)
 
 scale_fill_manual(values = colours)
 
@@ -130,11 +133,11 @@ for(fact in factors){
 
   # Accessibility
   pdf.scale <- .8
-  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
+  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
   ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
+  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
   ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-  p <- ggplot(mc[tripIndex==1,.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('the.factor')],aes(x=the.factor,y=expMaxUtil))+geom_bar(stat='identity')+labs(x=fact,y="Avg. Accessibility Score",title='Overall Accessibility')
+  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+labs(x=fact,y="Avg. Accessibility Score",title='Overall Accessibility')
   ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 }
 rm('mc')
@@ -157,8 +160,11 @@ for(fact in factors){
 
   toplot <- pt[,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
-  #toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
-  toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
+  if(nrow(en)>30){
+    toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
+  }else{
+    toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
+  }
   toplot <- join.on(toplot,en.density,'fuelType','fuelType')
   toplot[,energy:=fuel*density]
   toplot[vehicle_type=='TNC',tripmode:='TNC']
@@ -189,7 +195,7 @@ for(fact in factors){
   setkey(toplot,hr,dead)
   dead.frac <- toplot[,.(dead.frac=pp(roundC(100*sum(miles[dead==T])/sum(miles[dead==F]),1),"% Empty")),by=c('the.factor')]
   toplot <- toplot[,.(miles=sum(miles)),by=c('dead','hr','the.factor')]
-  p <- ggplot(toplot,aes(x=hr,y=miles,fill=dead))+geom_bar(stat='identity')+labs(x="Hour",y="Vehicle Miles Traveled",fill="Empty",title=pp("TNC Deadheading"))+geom_text(data=dead.frac,aes(x=20,y=max(toplot$miles),label=dead.frac,fill=NA))+facet_wrap(~the.factor)
+  p <- ggplot(toplot,aes(x=hr,y=miles,fill=dead))+geom_bar(stat='identity')+labs(x="Hour",y="Vehicle Miles Traveled",fill="Empty",title=pp("TNC Deadheading"))+geom_text(data=dead.frac,hjust=1,aes(x=24,y=max(toplot$miles),label=dead.frac,fill=NA))+facet_wrap(~the.factor)
   pdf.scale <- .6
   ggsave(pp(plots.dir,'dead-heading.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 }

@@ -18,7 +18,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning-1/runs/run.runName_base_2018-01-19_21-23-36'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning/runs/run.runName_base'
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T,args=args)
 }else{
@@ -58,7 +58,6 @@ rm('vehs')
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
 veh[,is.transit:=grepl(":",vehicle)]
-ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
 
 setkey(ev,type,iter,hr,vehicle_type)
 
@@ -97,23 +96,23 @@ p <- ggplot(toplot[type=='PersonEntersVehicle' & agency%in%c('SF','AC','BA','VT'
 pdf.scale <- .8
 ggsave(pp(plots.dir,'transit-boarding-big-4.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
-p <- ggplot(ev[J('ModeChoice'),.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('iter','hr')],aes(x=hr,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~iter)+labs(x="Hour",y="Avg. Accessibility Score",title=to.title(run.name))
+p <- ggplot(ev[J('ModeChoice'),.(expMaxUtil=mean(access,na.rm=T)),by=c('iter','hr')],aes(x=hr,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~iter)+labs(x="Hour",y="Avg. Accessibility Score",title=to.title(run.name))
 pdf.scale <- .8
 ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 
 
 ### Transit analysis, group transit trips (i.e. vehicles) and agencies by ridership
-toplot<-ev[J('PathTraversal')][tripmode=='transit']
+toplot<-ev[J('PathTraversal')][tripmode=='transit' & iter==0]
 toplot[,agency:=unlist(lapply(str_split(vehicle_id,":"),function(x){ x[1] }))]
 toplot[,transitTrip:=unlist(lapply(str_split(vehicle_id,":"),function(x){ x[2] }))]
 toplot <- toplot[,.(numPassengers=sum(num_passengers),pmt=sum(num_passengers*length/1609)),by=c('agency','transitTrip')]
 
 write.csv(toplot,file=pp(plots.dir,'transit-use-by-trip.csv'))
-write.csv(toplot[pmt<=300],file=pp(plots.dir,'transit-trips-low-ridership.csv'))
+write.csv(toplot[pmt<=20],file=pp(plots.dir,'transit-trips-below-20-pmt.csv'))
+write.csv(toplot[pmt<=60],file=pp(plots.dir,'transit-trips-below-60-pmt.csv'))
 
 toplot <- data.table(numPassengers=toplot$numPassengers,pmt=toplot$pmt)
-
 toplot[,type:='# Passengers']
 setkey(toplot,numPassengers)
 toplot[,i:=1:nrow(toplot)]
@@ -122,15 +121,11 @@ toplot2[,type:='PMT']
 setkey(toplot2,pmt)
 toplot2[,i:=1:nrow(toplot)]
 pdf.scale <- .8
-p<-ggplot(toplot,aes(x=numPassengers,y=cumsum(toplot$numPassengers)/sum(toplot$numPassengers)))+geom_line()+geom_line(data=toplot2,aes(x=pmt,y=cumsum(toplot$pmt)/sum(toplot$pmt)))+facet_wrap(~type,scale='free_x')+labs(x='# Passengers (left), PMT (right)',y='Cumulative Fraction',title='Transit Fleet Utilization')
+p<-ggplot(toplot,aes(x=numPassengers,y=cumsum(toplot$numPassengers)/sum(toplot$numPassengers)))+geom_line()+geom_line(data=toplot2,aes(x=pmt,y=cumsum(toplot2$pmt)/sum(toplot2$pmt)))+facet_wrap(~type,scale='free_x')+labs(x='# Passengers (left), PMT (right)',y='Cumulative Fraction',title='Transit Fleet Utilization')
 ggsave(pp(plots.dir,'cumul-transit-v-metric.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-p<-ggplot(toplot,aes(x=i,y=cumsum(toplot$numPassengers)/sum(toplot$numPassengers)))+geom_line()+geom_line(data=toplot2,aes(x=i,y=cumsum(toplot$pmt)/sum(toplot$pmt)))+facet_wrap(~type,scale='free_x')+labs(x='Trip #',y='Cumulative Fraction',title='Transit Fleet Utilization')
+p<-ggplot(toplot,aes(x=i,y=cumsum(toplot$numPassengers)/sum(toplot$numPassengers)))+geom_line()+geom_line(data=toplot2,aes(x=i,y=cumsum(toplot2$pmt)/sum(toplot2$pmt)))+facet_wrap(~type,scale='free_x')+labs(x='Trip #',y='Cumulative Fraction',title='Transit Fleet Utilization')
 ggsave(pp(plots.dir,'cumul-transit-v-trip.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 
-setkey(toplot,numPassengers)
-plot(toplot$numPassengers,cumsum(toplot$numPassengers)/sum(toplot$numPassengers),type='l')
-plot(toplot$pmt,cumsum(toplot$pmt)/sum(toplot$pmt),pch='.',col=factor(toplot$agency))
-plot(1:nrow(toplot),cumsum(toplot$numPassengers)/sum(toplot$numPassengers),pch='.')
 
 

@@ -1,5 +1,5 @@
 
-clean.and.relabel <- function(ev,factor.to.scale.personal.back){
+clean.and.relabel <- function(ev,factor.to.scale.personal.back,val.of.time=16.9){
   # Clean and relabel
   ev[vehicle_type=="bus",vehicle_type:="Bus"]
   ev[vehicle_type=="CAR" | substr(vehicle_id,1,5)=="rideH",vehicle_type:="TNC"]
@@ -29,8 +29,12 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[,pmt:=num_passengers*length/1609]
   ev[is.na(pmt),pmt:=0]
   #ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
-  ev[,expectedMaximumUtility:=expectedMaximumUtility-mean(ev$expectedMaximumUtility,na.rm=T)]
+  #ev[,expectedMaximumUtility:=expectedMaximumUtility-mean(ev$expectedMaximumUtility,na.rm=T)]
+  ev[,numAlternatives:=0]
   ev[expectedMaximumUtility==-Inf,expectedMaximumUtility:=NA]
+  ev[type=='ModeChoice',numAlternatives:=str_count(availableAlternatives,":")+1]
+  ev[type=='ModeChoice',carSurplus:=log(exp(-length/1609/45*val.of.time))]
+  ev[type=='ModeChoice',access:=expectedMaximumUtility-carSurplus]
   ev
 }
 
