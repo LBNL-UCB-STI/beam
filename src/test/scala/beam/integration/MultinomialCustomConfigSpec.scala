@@ -92,7 +92,7 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
 
 
   "Running beam with Multinomial ModeChoice custom config" must {
-    "Prefer mode choice car type in positive values than negative values " in {
+    "Prefer mode choice car type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
         new MultinomialCustomConfigSpec.CustomAlternative("car", Seq(
@@ -140,7 +140,7 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice bike type in positive values than negative values " in {
+    "Prefer mode choice bike type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
         new MultinomialCustomConfigSpec.CustomAlternative("bike", Seq(
@@ -190,7 +190,7 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice ride hailing type in positive values than negative values " in {
+    "Prefer mode choice ride hailing type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
         new MultinomialCustomConfigSpec.CustomAlternative("ride_hailing", Seq(
@@ -238,7 +238,7 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice drive_transit type in positive values than negative values " in {
+    "Prefer mode choice drive_transit type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
         new MultinomialCustomConfigSpec.CustomAlternative("drive_transit", Seq(
@@ -287,7 +287,7 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice walk type in positive values than negative values " in {
+    "Prefer mode choice walk type in positive values than negative values " ignore {
 
       val transformer1 = new RuleTransformer(
         new MultinomialCustomConfigSpec.CustomAlternative("walk", Seq(

@@ -9,8 +9,8 @@ import beam.sim.BeamServices
   */
 object BridgeTollDefaults {
   val tollPricesBeamVille = Map[Int, Double](
-    1 -> 100,
-    2 -> 200
+    1 -> 1,
+    200 -> 1
   )
 
   // source: https://www.transit.wiki/
