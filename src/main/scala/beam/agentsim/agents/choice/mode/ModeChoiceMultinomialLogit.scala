@@ -97,7 +97,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       model.clear()
       val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
-      if (chosenModeCostTime.isEmpty) {
+      if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
         throw new RuntimeException("No choice was made.")
       } else {
         alternatives(chosenModeCostTime.head.index)
