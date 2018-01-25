@@ -137,7 +137,6 @@ dependencies {
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
     testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
     testCompile group: "org.mockito", name: "mockito-all", version: "1.9.5"
-    testCompile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
 
     /////////////////////////////////
@@ -158,7 +157,9 @@ dependencies {
     // 3rd Party Scala //
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
-    compile 'com.github.carueda:tscfg:v0.8.0'  // config
+    compile ('com.github.carueda:tscfg:v0.8.0'){ // config
+        exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
+    }
     // https://mvnrepository.com/artifact/org.scalaz/scalaz-core_2.12
     compile group: 'org.scalaz', name: "scalaz-core_${scalaBinaryVersion}", version: '7.3.0-M10'
     //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
