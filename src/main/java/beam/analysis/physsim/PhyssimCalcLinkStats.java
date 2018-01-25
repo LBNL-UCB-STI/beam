@@ -24,13 +24,17 @@ public class PhyssimCalcLinkStats {
     private Network network;
     private OutputDirectoryHierarchy controlerIO;
 
-    public static int noOfBins = 96;
-    public static int binSize = 900;
+    public static int noOfBins = 24;
+    public static int binSize = 3600;
 
 
     public static final List<Color> colors = new ArrayList<>();
 
 
+    /**
+     * The outer map contains the relativeSpeed a double value as the key that defines a relativeSpeed category.
+     * The inner map contains the bin id as the key and the frequency as the value for the particular relativeSpeed category.
+     */
     Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
 
 
