@@ -75,17 +75,6 @@ object RoutingModel {
   }
 
   object EmbodiedBeamTrip {
-
-    def beamModeToVehicleId(beamMode: BeamMode): Id[Vehicle] = {
-      if (beamMode == WALK) {
-        Id.create("body", classOf[Vehicle])
-      } else if (Modes.isR5TransitMode(beamMode)) {
-        Id.create("transit", classOf[Vehicle])
-      } else {
-        Id.create("", classOf[Vehicle])
-      }
-    }
-
     val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
   }
 
@@ -106,12 +95,8 @@ object RoutingModel {
   }
 
   object BeamLeg {
-    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x=>(x.startTime,x.duration))
-
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
   }
-
-  case class BeamLegWithNext(leg: BeamLeg, nextLeg: Option[BeamLeg])
 
   case class EmbodiedBeamLeg(beamLeg: BeamLeg,
                              beamVehicleId: Id[Vehicle],
@@ -141,8 +126,6 @@ object RoutingModel {
   object EmptyBeamPath {
     val path = BeamPath(Vector[Int](), None, null, null, 0)
   }
-
-  case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
 
   /**
     * Represent the time in seconds since midnight.
