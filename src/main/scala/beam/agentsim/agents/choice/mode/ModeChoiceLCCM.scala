@@ -51,7 +51,7 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
     } else {
       val transitFareDefaults: Seq[BigDecimal] = TransitFareDefaults.estimateTransitFares(alternatives)
       val gasolineCostDefaults: Seq[BigDecimal] = DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-      val bridgeTollsDefaults: Seq[BigDecimal] = BridgeTollDefaults.estimateBrdigeFares(alternatives, beamServices)
+      val bridgeTollsDefaults: Seq[BigDecimal] = BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
       val modeChoiceAlternatives: Seq[ModeChoiceData] = alternatives.zipWithIndex.map { altAndIdx =>
         val totalCost = altAndIdx._1.tripClassifier match {
           case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
