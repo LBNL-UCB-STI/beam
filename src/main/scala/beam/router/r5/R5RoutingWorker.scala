@@ -191,7 +191,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val streetSegment = profileResponse.options.get(0).access.get(0)
           Some(BeamLeg(time.atTime, vehicle.mode, travelTime, travelPath = buildStreetPath(streetSegment, time.atTime)))
         } else {
-          None
+          return Nil // Cannot go to destination with this vehicle, so no options from this vehicle.
         }
       } else {
         None
