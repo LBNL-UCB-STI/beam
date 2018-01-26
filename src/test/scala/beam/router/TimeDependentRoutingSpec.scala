@@ -69,21 +69,22 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamCo
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTime == 176)
+      println(carOption)
+      assert(carOption.totalTravelTime == 76)
 
       router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
       router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
       val response2 = expectMsgType[RoutingResponse]
       assert(response2.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption2.totalTravelTime < 82) // isn't exactly 0, probably some penalty for getting on the car?
+      assert(carOption2.totalTravelTime < 7) // isn't exactly 0, probably rounding errors?
 
       router ! UpdateTravelTime((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
       val response3 = expectMsgType[RoutingResponse]
       assert(response3.itineraries.exists(_.tripClassifier == CAR))
       val carOption3 = response3.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption3.totalTravelTime < 2091) // isn't exactly 2000, probably some penalty for getting on the car?
+      assert(carOption3.totalTravelTime < 2071) // isn't exactly 2000, probably rounding errors?
     }
   }
 

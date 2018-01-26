@@ -22,7 +22,7 @@ import beam.sim.BeamServices
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
-import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator}
+import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator, TurnCostCalculator}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import kamon.Kamon
@@ -451,6 +451,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     case None => new EdgeStore.DefaultTravelTimeCalculator
   }
 
+  private val turnCostCalculator: TurnCostCalculator = new TurnCostCalculator(transportNetwork.streetLayer, true) {
+    override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
+  }
+
   //Does point to point routing with data from request
   def getPlan(request: ProfileRequest): ProfileResponse = {
     val startRouting = System.currentTimeMillis
@@ -462,7 +466,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     //For direct modes
     import scala.collection.JavaConversions._
     for (mode <- request.directModes) {
-      val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator, turnCostCalculator)
       var streetPath: StreetPath = null
       streetRouter.profileRequest = request
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)
@@ -548,7 +552,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     request.reverseSearch = true
     import scala.collection.JavaConversions._
     for (mode <- request.egressModes) {
-      val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator, turnCostCalculator)
       streetRouter.transitStopSearch = true
       streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)
@@ -576,7 +580,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val accessRouter = mutable.Map[LegMode, StreetRouter]()
     import scala.collection.JavaConversions._
     for (mode <- request.accessModes) {
-      var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator)
+      var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator, turnCostCalculator)
       streetRouter.profileRequest = request
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)
       //Gets correct maxCar/Bike/Walk time in seconds for access leg based on mode since it depends on the mode
