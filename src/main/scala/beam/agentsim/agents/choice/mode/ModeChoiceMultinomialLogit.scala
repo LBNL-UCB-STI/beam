@@ -41,7 +41,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val transitFareDefaults = TransitFareDefaults.estimateTransitFares(alternatives)
       val gasolineCostDefaults = DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-      val bridgeTollsDefaults = BridgeTollDefaults.estimateBrdigeFares(alternatives, beamServices)
+      val bridgeTollsDefaults = BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
       val modeCostTimeTransfers = alternatives.zipWithIndex.map { altAndIdx =>
         val totalCost = altAndIdx._1.tripClassifier match {
           case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
