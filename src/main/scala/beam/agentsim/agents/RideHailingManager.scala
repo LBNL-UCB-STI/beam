@@ -18,7 +18,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
-import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
@@ -274,10 +274,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
     //TODO: Error handling. In the (unlikely) event of a timeout, this RideHailingManager will silently be
     //TODO: restarted, and probably someone will wait forever for its reply.
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-    val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(RoutingRequestTripInfo(rideHailingLocation
-          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin)))
+    val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(rideHailingLocation
+          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin))
     //XXXX: customer trip request might be redundant... possibly pass in info
-    val futureRideHailing2DestinationResponse = router ? RoutingRequest(RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup)))
+    val futureRideHailing2DestinationResponse = router ? RoutingRequest(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup))
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 

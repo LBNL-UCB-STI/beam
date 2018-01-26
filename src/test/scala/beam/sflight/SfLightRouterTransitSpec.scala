@@ -85,7 +85,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val origin = geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
       val destination = geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = RoutingModel.DiscreteTime(25740)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true))))
+      router ! RoutingRequest(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
@@ -102,10 +102,10 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
         val origin = pair(0).getCoord
         val destination = pair(1).getCoord
         val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
-        router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
+        router ! RoutingRequest(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
           StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
           StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
-        )))
+        ))
         val response = expectMsgType[RoutingResponse]
         assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
         assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))

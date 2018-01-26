@@ -288,14 +288,7 @@ object BeamRouter {
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
     */
-  case class RoutingRequestTripInfo(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true)
-
-  /**
-    * Message to request a route plan
-    *
-    * @param params route information that is needs a plan
-    */
-  case class RoutingRequest(params: RoutingRequestTripInfo)
+  case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true)
 
   /**
     * Message to respond a plan against a particular router request
@@ -303,16 +296,6 @@ object BeamRouter {
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
-
-  object RoutingRequest {
-    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): RoutingRequest = {
-      new RoutingRequest(RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime, Modes.filterForTransit(transitModes), streetVehicles, streetVehiclesAsAccess))
-    }
-
-    def apply(params: RoutingRequestTripInfo): RoutingRequest = {
-      new RoutingRequest(params)
-    }
-  }
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }
