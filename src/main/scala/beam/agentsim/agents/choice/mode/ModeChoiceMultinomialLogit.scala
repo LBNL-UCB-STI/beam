@@ -91,7 +91,13 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         model.makeRandomChoice(inputData, new Random())
       }catch{
         case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
-          "walk"
+          // FIXME: This seems to happen when there's a floating-point overflow somewhere.
+          // FIXME: Something to do with the "default" (i.e. never to be chosen) alternatives
+          // FIXME: and a bad real alternative, e.g. with a high toll.
+
+          // FIXME: I think this should all be way more direct. It should just be a formula, and it should be here.
+          // FIXME: Without filling out maps or creating dummy alternatives or anything.
+          return alternatives(chooseRandomAlternativeIndex(alternatives))
       }
       expectedMaximumUtility = model.getExpectedMaximumUtility
       model.clear()
