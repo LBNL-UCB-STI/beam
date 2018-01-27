@@ -5,7 +5,9 @@ import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -106,6 +108,23 @@ object RoutingModel {
                              unbecomeDriverOnCompletion: Boolean
                             ) {
     val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
+  }
+
+  def traverseStreetLeg(leg: EmbodiedBeamLeg, travelTimeByEnterTimeAndLinkId: (Long, Int) => Long): Iterator[Event] = {
+    if (leg.beamLeg.travelPath.linkIds.size >= 2) {
+      val fullyTraversedLinks = leg.beamLeg.travelPath.linkIds.drop(1).dropRight(1)
+      def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
+      val timesAtNodes = fullyTraversedLinks.scanLeft(leg.beamLeg.startTime)(exitTimeByEnterTimeAndLinkId)
+      leg.beamLeg.travelPath.linkIds.sliding(2).zip(timesAtNodes.iterator).flatMap {
+        case (Seq(from, to), timeAtNode) =>
+          Vector(
+            new LinkLeaveEvent(timeAtNode, leg.beamVehicleId, Id.createLinkId(from)),
+            new LinkEnterEvent(timeAtNode, leg.beamVehicleId, Id.createLinkId(to))
+          )
+      }
+    } else {
+      Iterator.empty
+    }
   }
 
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
