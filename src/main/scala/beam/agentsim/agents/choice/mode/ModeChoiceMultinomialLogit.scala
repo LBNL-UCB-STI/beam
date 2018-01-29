@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.File
+import java.io.{ByteArrayInputStream, File, FileInputStream, InputStream}
 import java.util
 import java.util.Random
 
@@ -9,7 +9,7 @@ import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.jdom.input.SAXBuilder
@@ -40,12 +40,12 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val transitFareDefaults = TransitFareDefaults.estimateTransitFares(alternatives)
       val gasolineCostDefaults = DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-      val bridgeTollsDefaults = BridgeTollDefaults.estimateBrdigeFares(alternatives, beamServices)
+      val bridgeTollsDefaults = BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
       val modeCostTimeTransfers = alternatives.zipWithIndex.map { altAndIdx =>
         val totalCost = altAndIdx._1.tripClassifier match {
           case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
             (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2)
-          case RIDEHAIL =>
+          case RIDE_HAIL =>
             altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
           case CAR =>
             altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(altAndIdx._2) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
@@ -90,13 +90,19 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         model.makeRandomChoice(inputData, new Random())
       }catch{
         case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
-          "walk"
+          // FIXME: This seems to happen when there's a floating-point overflow somewhere.
+          // FIXME: Something to do with the "default" (i.e. never to be chosen) alternatives
+          // FIXME: and a bad real alternative, e.g. with a high toll.
+
+          // FIXME: I think this should all be way more direct. It should just be a formula, and it should be here.
+          // FIXME: Without filling out maps or creating dummy alternatives or anything.
+          return alternatives(chooseRandomAlternativeIndex(alternatives))
       }
       expectedMaximumUtility = model.getExpectedMaximumUtility
       model.clear()
       val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
-      if (chosenModeCostTime.isEmpty) {
+      if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
         throw new RuntimeException("No choice was made.")
       } else {
         alternatives(chosenModeCostTime.head.index)
@@ -112,7 +118,7 @@ object ModeChoiceMultinomialLogit {
   val defaultAlternatives = Vector(
     ModeCostTimeTransfer(BeamMode.WALK,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.CAR,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.RIDEHAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.RIDE_HAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.BIKE,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.DRIVE_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
     ModeCostTimeTransfer(BeamMode.WALK_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue)
@@ -122,23 +128,42 @@ object ModeChoiceMultinomialLogit {
     new ModeChoiceMultinomialLogit(beamServices,ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
   }
 
-  def parseInputForMNL(beamServices: BeamServices): MultinomialLogit = {
-    val modeChoiceParametersFile = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
+  def parseFromInputStream(is: InputStream): Option[MultinomialLogit] = {
     val builder: SAXBuilder = new SAXBuilder()
-    val document: Document = builder.build(new File(modeChoiceParametersFile))
+    val document: Document = builder.build(is).asInstanceOf[Document]
     var theModelOpt: Option[MultinomialLogit] = None
 
     document.getRootElement.getChildren.asScala.foreach{child =>
       if(child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")){
-        val rootNode = child.asInstanceOf[Element].getChild("parameters").getChild("multinomialLogit")
+        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
         theModelOpt = Some(MultinomialLogit.multinomialLogitFactory(rootNode))
       }
     }
+
+    theModelOpt
+  }
+
+  def parseInputForMNL(beamServices: BeamServices): MultinomialLogit = {
+    val modeChoiceParametersFile = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
+
+    val theModelOpt = parseFromInputStream(new FileInputStream(new File(modeChoiceParametersFile)))
+
     theModelOpt match {
       case Some(theModel) =>
         theModel
       case None =>
-        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: $modeChoiceParametersFile")
+        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: ${modeChoiceParametersFile}")
+    }
+  }
+
+  def fromContentString(beamServices: BeamServices, content: String): ModeChoiceMultinomialLogit = {
+    val is = new ByteArrayInputStream(content.getBytes("UTF-8"))
+
+    parseFromInputStream(is) match {
+      case Some(theModel) =>
+        new ModeChoiceMultinomialLogit(beamServices, theModel)
+      case None =>
+        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in content: ${content}")
     }
   }
 

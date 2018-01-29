@@ -1,21 +1,29 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor._
-import beam.agentsim.agents.modalBehaviors.ChoosesMode
+import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{MatsimHumanBodyVehicleType, createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.{InitializeTrigger, PersonAgent, Population}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode.CAR
+import beam.router.RoutingModel.BeamPath
+import beam.sim.BeamServices
+import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -31,9 +39,10 @@ object HouseholdActor {
 
   def props(eventsManager: EventsManager, lookupMemberRank: RankAssignment, householdId: Id[Household],
             houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], membersActors: Map[Id[Person], ActorRef],
+  def props(beamServices: BeamServices, modeChoiceCalculator: () => ModeChoiceCalculator, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, population: Population, householdId: Id[Household], matSimHousehold: Household,
+            houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], members: Seq[Person],
             homeCoord: Coord): Props = {
-
-    Props(new HouseholdActor(eventsManager, lookupMemberRank, householdId, houseHoldVehicles, membersActors, homeCoord))
+    Props(new HouseholdActor(beamServices, modeChoiceCalculator, schedulerRef, transportNetwork, router, rideHailingManager, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, members, homeCoord))
   }
 
   case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
@@ -64,34 +73,55 @@ object HouseholdActor {
       household.getVehicleIds.asScala.map(vehicles).count(_.getType.getDescription.toLowerCase.contains("bike"))
     )
   }
-
-}
-
-/**
-  * Implementation of intra-household interaction in BEAM using actors.
-  *
-  * Households group together individual agents to support vehicle allocation, escort (ride-sharing), and
-  * joint travel decision-making.
-  *
-  * The [[HouseholdActor]] is the central arbiter for vehicle allocation during individual and joint mode choice events.
-  * Any agent in a mode choice situation must send a [[MobilityStatusInquiry]] to the [[HouseholdActor]]. The
-  *
-  * @author dserdiuk/sfeygin
-  * @param lookupMemberRank ranking function used to assign the priority to household members.
-  * @param id               this [[Household]]'s unique identifier.
-  * @param vehicles         the [[BeamVehicle]]s managed by this [[Household]].
-  * @see [[ChoosesMode]]
-  */
-class HouseholdActor(eventsManager: EventsManager,
-                     lookupMemberRank: RankAssignment,
-                     id: Id[Household],
+  /**
+    * Implementation of intra-household interaction in BEAM using actors.
+    *
+    * Households group together individual agents to support vehicle allocation, escort (ride-sharing), and
+    * joint travel decision-making.
+    *
+    * The [[HouseholdActor]] is the central arbiter for vehicle allocation during individual and joint mode choice events.
+    * Any agent in a mode choice situation must send a [[MobilityStatusInquiry]] to the [[HouseholdActor]]. The
+    *
+    * @author dserdiuk/sfeygin
+    * @param id               this [[Household]]'s unique identifier.
+    * @param vehicles         the [[BeamVehicle]]s managed by this [[Household]].
+    * @see [[ChoosesMode]]
+    */
+class HouseholdActor(beamServices: BeamServices,
+                     modeChoiceCalculatorFactory: () => ModeChoiceCalculator,
+                     schedulerRef: ActorRef,
+                     transportNetwork: TransportNetwork,
+                     router: ActorRef,
+                     rideHailingManager: ActorRef,
+                     eventsManager: EventsManager,
+                     population: Population,
+                     id: Id[households.Household],
+                     matSimHouseHold: org.matsim.households.Household,
                      vehicles: Map[Id[BeamVehicle], BeamVehicle],
-                     memberActors: Map[Id[Person], ActorRef],
-                     homeCoord: Coord)
-
+                     members: Seq[Person],
+                     homeCoord: Coord
+                    )
   extends VehicleManager with ActorLogging {
 
-  override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] = collection.mutable.Map[Id[BeamVehicle], BeamVehicle]()
+
+  members.foreach { person =>
+    val bodyVehicleIdFromPerson = createId(person.getId)
+    val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
+    // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
+    //let's put here human body vehicle too, it should be clean up on each iteration
+    val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(), transportNetwork, router, rideHailingManager, eventsManager, person.getId, matSimHouseHold, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
+    context.watch(personRef)
+    // Every Person gets a HumanBodyVehicle
+    val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
+    newBodyVehicle.registerResource(personRef)
+    beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
+    schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
+    beamServices.personRefs += ((person.getId, personRef))
+  }
+
+
+  override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] = collection.mutable.Map[Id[BeamVehicle],BeamVehicle]()
+  resources ++ vehicles
 
   /**
     * Available [[Vehicle]]s in [[Household]].
@@ -101,8 +131,8 @@ class HouseholdActor(eventsManager: EventsManager,
   /**
     * [[Household]] members sorted by rank.
     */
-  val _members: Vector[MemberWithRank] = memberActors.keys.toVector.map(member =>
-    MemberWithRank(member, lookupMemberRank(member)))
+  val _members: Vector[MemberWithRank] = members.toVector.map(memb => MemberWithRank(memb.getId, lookupMemberRank
+  (memb.getId)))
 
   /**
     * Concurrent [[MobilityStatusInquiry]]s that must receive responses before completing vehicle assignment.
@@ -182,9 +212,24 @@ class HouseholdActor(eventsManager: EventsManager,
       }
       sender() ! MobilityStatusReponse(availableStreetVehicles)
 
+    case Finish =>
+      context.children.foreach(_ ! Finish)
+      dieIfNoChildren()
+      context.become {
+        case Terminated(_) =>
+          dieIfNoChildren()
+      }
 
-    case msg@_ =>
-      log.warning(s"Unrecognized message $msg")
+    case Terminated(_) =>
+      // Do nothing
+  }
+
+  def dieIfNoChildren() = {
+    if (context.children.isEmpty) {
+      context.stop(self)
+    } else {
+      log.debug("Remaining: {}", context.children)
+    }
   }
 
   private def checkInVehicleResource(vehicleId: Id[Vehicle]): Unit = {

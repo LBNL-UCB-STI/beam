@@ -57,7 +57,6 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
     when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
-    when(services.schedulerRef).thenReturn(TestProbe("scheduler").ref)
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
@@ -72,7 +71,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     within(5 minutes) { // Router can take a while to initialize
       router ! Identify(0)
       expectMsgType[ActorIdentity]
-      router ! InitTransit
+      router ! InitTransit(new TestProbe(system).ref)
       expectMsgType[Success]
     }
   }
@@ -86,7 +85,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val origin = geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
       val destination = geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = RoutingModel.DiscreteTime(25740)
-      router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true))))
+      router ! RoutingRequest(origin, destination, time, Vector(Modes.BeamMode.WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), Modes.BeamMode.WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
@@ -97,29 +96,21 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
   }
 
   "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
-    var totalRoutesCalculated: Int = 0
-    var numDriveTransitFound: Int = 0
-    var numWalkTransitFound: Int = 0
     scenario.getPopulation.getPersons.values().forEach(person => {
       val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
       activities.sliding(2).foreach(pair => {
         val origin = pair(0).getCoord
         val destination = pair(1).getCoord
         val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
-        router ! RoutingRequest(RoutingRequestTripInfo(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
+        router ! RoutingRequest(origin, destination, time, Vector(Modes.BeamMode.TRANSIT), Vector(
           StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), Modes.BeamMode.CAR, asDriver = true),
           StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.WALK, asDriver = true)
-        )))
+        ))
         val response = expectMsgType[RoutingResponse]
-        if (response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)) numDriveTransitFound = numDriveTransitFound + 1
-        if (response.itineraries.exists(_.tripClassifier == WALK_TRANSIT)) numWalkTransitFound = numWalkTransitFound + 1
-        totalRoutesCalculated = totalRoutesCalculated + 1
-        //        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
-        //        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
+        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       })
     })
-    assert(totalRoutesCalculated - numDriveTransitFound < 10)
-    assert(totalRoutesCalculated - numWalkTransitFound < 10)
   }
 
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {

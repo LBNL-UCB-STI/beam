@@ -10,7 +10,7 @@ import scala.util.Random
 /**
   * BEAM
   */
-trait ModeChoiceCalculator extends HasServices with Cloneable {
+trait ModeChoiceCalculator extends HasServices {
   def apply(alternatives: Seq[EmbodiedBeamTrip], extraAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip
 
   def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
@@ -23,10 +23,6 @@ trait ModeChoiceCalculator extends HasServices with Cloneable {
     } else {
       throw new IllegalArgumentException("Cannot choose from an empty choice set.")
     }
-  }
-
-  override def clone(): ModeChoiceCalculator = {
-    this.clone()
   }
 }
 
@@ -45,6 +41,9 @@ object ModeChoiceCalculator {
         new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
         ModeChoiceMultinomialLogit(beamServices)
+      case "ModeChoiceMultinomialLogitTest" =>
+        ModeChoiceMultinomialLogit.fromContentString(beamServices,
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
     }
   }
 

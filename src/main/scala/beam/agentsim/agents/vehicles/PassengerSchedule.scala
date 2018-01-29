@@ -79,7 +79,7 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
 
 
 object PassengerSchedule {
-  def apply(): PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, Manifest]()(BeamLeg.beamLegOrdering))
+  def apply(): PassengerSchedule = new PassengerSchedule(mutable.TreeMap[BeamLeg, Manifest]()(Ordering.by(x=>(x.startTime,x.duration))))
 }
 
 case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
