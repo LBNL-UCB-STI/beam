@@ -283,16 +283,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     goto(Moving)
   }
 
-  private def getLinks: Vector[Int] = {
-    val pathLinks: Vector[Int] = _currentLeg match {
-      case Some(leg) =>
-        leg.travelPath.linkIds
-      case None =>
-        Vector()
-    }
-    pathLinks
-  }
-
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
 
