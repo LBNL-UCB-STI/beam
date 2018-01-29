@@ -16,7 +16,7 @@ import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
+import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
@@ -71,6 +71,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
         stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
         vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle.id)
+        eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(PersonAgent.Waiting)
       })

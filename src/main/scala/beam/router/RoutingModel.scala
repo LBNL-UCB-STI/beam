@@ -110,16 +110,16 @@ object RoutingModel {
     val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
   }
 
-  def traverseStreetLeg(leg: EmbodiedBeamLeg, travelTimeByEnterTimeAndLinkId: (Long, Int) => Long): Iterator[Event] = {
-    if (leg.beamLeg.travelPath.linkIds.size >= 2) {
-      val fullyTraversedLinks = leg.beamLeg.travelPath.linkIds.drop(1).dropRight(1)
+  def traverseStreetLeg(leg: BeamLeg, vehicleId: Id[Vehicle], travelTimeByEnterTimeAndLinkId: (Long, Int) => Long): Iterator[Event] = {
+    if (leg.travelPath.linkIds.size >= 2) {
+      val fullyTraversedLinks = leg.travelPath.linkIds.drop(1).dropRight(1)
       def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
-      val timesAtNodes = fullyTraversedLinks.scanLeft(leg.beamLeg.startTime)(exitTimeByEnterTimeAndLinkId)
-      leg.beamLeg.travelPath.linkIds.sliding(2).zip(timesAtNodes.iterator).flatMap {
+      val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
+      leg.travelPath.linkIds.sliding(2).zip(timesAtNodes.iterator).flatMap {
         case (Seq(from, to), timeAtNode) =>
           Vector(
-            new LinkLeaveEvent(timeAtNode, leg.beamVehicleId, Id.createLinkId(from)),
-            new LinkEnterEvent(timeAtNode, leg.beamVehicleId, Id.createLinkId(to))
+            new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)),
+            new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
           )
       }
     } else {

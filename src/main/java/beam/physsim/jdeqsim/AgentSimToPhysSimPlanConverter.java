@@ -16,14 +16,18 @@ import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.api.core.v01.population.*;
+import org.matsim.api.core.v01.population.Activity;
+import org.matsim.api.core.v01.population.Leg;
+import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Plan;
+import org.matsim.api.core.v01.population.Population;
+import org.matsim.api.core.v01.population.PopulationWriter;
+import org.matsim.api.core.v01.population.Route;
 import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
-import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
@@ -98,7 +102,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     public void setupActorsAndRunPhysSim(int iterationNumber) {
-        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
         jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
         EventsManager jdeqsimEvents = new EventsManagerImpl();
@@ -106,9 +110,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         jdeqsimEvents.addHandler(travelTimeCalculator);
 
 
-        if (beamConfig.beam().physsim().writeMATSimNetwork()){
-            createNetworkFile(jdeqSimScenario.getNetwork());
-        }
+//        if (beamConfig.beam().physsim().writeMATSimNetwork()){
+//            createNetworkFile(jdeqSimScenario.getNetwork());
+//        }
 
         EventWriterXML_viaCompatible eventsWriterXML=null;
         if (writePhysSimEvents(iterationNumber)) {
@@ -118,11 +122,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         }
 
 
-        JDEQSimConfigGroup config=new JDEQSimConfigGroup();
-        config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
-        config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
-
-        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(jdeqSimScenario.getConfig().jdeqSim(), jdeqSimScenario, jdeqsimEvents);
 
         linkStats.notifyIterationStarts(jdeqsimEvents);
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
@@ -142,11 +142,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
 
     private boolean writePhysSimEvents(int iterationNumber) {
-        return writeInIteration(iterationNumber,beamConfig.beam().physsim().writeEventsInterval());
+        return writeInIteration(iterationNumber, agentSimScenario.getConfig().controler().getWriteEventsInterval());
     }
 
     private boolean writePlans(int iterationNumber) {
-        return writeInIteration(iterationNumber,beamConfig.beam().physsim().writePlansInterval());
+        return writeInIteration(iterationNumber, agentSimScenario.getConfig().controler().getWritePlansInterval());
     }
 
     private boolean writeInIteration(int iterationNumber, int interval) {
