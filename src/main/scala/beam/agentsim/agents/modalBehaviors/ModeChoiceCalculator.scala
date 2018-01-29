@@ -1,7 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
-import beam.agentsim.agents.Population.AttributesOfIndividual
 import beam.agentsim.agents.choice.mode._
+import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 

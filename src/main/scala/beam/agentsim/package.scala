@@ -19,6 +19,10 @@ package object agentsim {
 
   implicit def beamVehicleId2VehicleId(id: Id[BeamVehicle]): Id[Vehicle] = Id.createVehicleId(id)
 
+  implicit def beamVehicleMaptoMatsimVehicleMap(beamVehicleMap:Map[Id[BeamVehicle],BeamVehicle]):Map[Id[Vehicle],Vehicle]={
+    beamVehicleMap.map({ case (vid, veh) => (Id.createVehicleId(vid), veh.matSimVehicle) })
+  }
+
   implicit def personId2RideHailAgentId(id: Id[Person]): Id[RideHailingAgent] = {
     Id.create(s"${RideHailingAgent.idPrefix}${prefixStrip(id)}", classOf[RideHailingAgent])
   }

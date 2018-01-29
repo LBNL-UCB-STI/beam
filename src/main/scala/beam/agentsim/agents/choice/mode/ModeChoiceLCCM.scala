@@ -3,10 +3,10 @@ package beam.agentsim.agents.choice.mode
 import java.util
 import java.util.Random
 
-import beam.agentsim.agents.Population.AttributesOfIndividual
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Nonmandatory, TourType}
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
+import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}

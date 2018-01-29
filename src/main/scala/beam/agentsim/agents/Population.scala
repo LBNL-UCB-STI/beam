@@ -4,9 +4,12 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
+import akka.pattern._
+import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
+import beam.agentsim.agents.household.HouseholdActor.HouseholdAttributes
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -20,12 +23,8 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
-import scala.concurrent.{Await, Future}
-import akka.pattern._
-import akka.util.Timeout
-import beam.agentsim.agents.household.HouseholdActor.HouseholdAttributes
-
 import scala.collection.concurrent.TrieMap
+import scala.concurrent.{Await, Future}
 import scala.util.Random
 
 class Population(val scenario: Scenario, val beamServices: BeamServices, val scheduler: ActorRef, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager) extends Actor with ActorLogging {
@@ -38,6 +37,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
     case _: AssertionError => Stop
   }
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
+
   import context.dispatcher
 
   private var personToHouseholdId: Map[Id[Person], Id[Household]] = Map()
@@ -108,7 +108,8 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
 
       val members = household.getMemberIds.asScala.map(scenario.getPopulation.getPersons.get(_))
       val householdActor = context.actorOf(
-        HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork, router, rideHailingManager, eventsManager, scenario.getPopulation, household.getId, household, houseHoldVehicles, members, homeCoord),
+        HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork,
+          router, rideHailingManager, eventsManager, scenario.getPopulation, household.getId, household, houseHoldVehicles, members, homeCoord),
         household.getId.toString)
 
       houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
@@ -120,6 +121,8 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
     log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
   }
 
+
+
 }
 
 
@@ -128,11 +131,7 @@ object Population {
     Props(new Population(scenario, services, scheduler, transportNetwork, router, rideHailingManager, eventsManager))
   }
 
-  case class AttributesOfIndividual(householdAttributes:HouseholdAttributes,householdId: Id[Household], isMale: Boolean)
 
-  object AttributesOfIndividual {
-    def apply(household:Household, vehicles:TrieMap[Id[Vehicle],BeamVehicle]): AttributesOfIndividual =
-      new AttributesOfIndividual(HouseholdAttributes(household:Household, vehicles),household.getId, new Random().nextBoolean())
-  }
+
 
 }

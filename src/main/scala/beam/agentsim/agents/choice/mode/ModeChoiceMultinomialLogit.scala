@@ -4,9 +4,9 @@ import java.io.{ByteArrayInputStream, File, FileInputStream, InputStream}
 import java.util
 import java.util.Random
 
-import beam.agentsim.agents.Population.AttributesOfIndividual
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
+import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK_TRANSIT}
@@ -23,13 +23,13 @@ import scala.collection.JavaConverters._
 /**
   * BEAM
   */
-class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit ) extends ModeChoiceCalculator {
+class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit) extends ModeChoiceCalculator {
 
   var expectedMaximumUtility: Double = 0.0
 
   override def clone(): ModeChoiceCalculator = {
-    val  mnl: MultinomialLogit = this.model.clone()
-    new ModeChoiceMultinomialLogit(beamServices,mnl)
+    val mnl: MultinomialLogit = this.model.clone()
+    new ModeChoiceMultinomialLogit(beamServices, mnl)
   }
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip = {
@@ -80,15 +80,15 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
         altData.put("cost", mct.cost.toDouble)
         altData.put("time", mct.time)
-        if (mct.mode.isTransit()){
+        if (mct.mode.isTransit()) {
           altData.put("transfer", mct.numTransfers.toDouble)
         }
         inputData.put(mct.mode.value, altData)
       }
 
-      val chosenMode = try{
+      val chosenMode = try {
         model.makeRandomChoice(inputData, new Random())
-      }catch{
+      } catch {
         case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
           // FIXME: This seems to happen when there's a floating-point overflow somewhere.
           // FIXME: Something to do with the "default" (i.e. never to be chosen) alternatives
@@ -113,19 +113,20 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 }
 
 object ModeChoiceMultinomialLogit {
+
   case class ModeCostTimeTransfer(mode: BeamMode, cost: BigDecimal, time: Double, numTransfers: Int, index: Int = -1)
 
   val defaultAlternatives = Vector(
-    ModeCostTimeTransfer(BeamMode.WALK,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.CAR,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.RIDE_HAIL,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.BIKE,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.DRIVE_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.WALK_TRANSIT,BigDecimal(Double.MaxValue),Double.PositiveInfinity, Int.MaxValue)
+    ModeCostTimeTransfer(BeamMode.WALK, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.CAR, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.RIDE_HAIL, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.BIKE, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.DRIVE_TRANSIT, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
+    ModeCostTimeTransfer(BeamMode.WALK_TRANSIT, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue)
   )
 
   def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
-    new ModeChoiceMultinomialLogit(beamServices,ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
+    new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
   }
 
   def parseFromInputStream(is: InputStream): Option[MultinomialLogit] = {
@@ -133,8 +134,8 @@ object ModeChoiceMultinomialLogit {
     val document: Document = builder.build(is).asInstanceOf[Document]
     var theModelOpt: Option[MultinomialLogit] = None
 
-    document.getRootElement.getChildren.asScala.foreach{child =>
-      if(child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")){
+    document.getRootElement.getChildren.asScala.foreach { child =>
+      if (child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")) {
         val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
         theModelOpt = Some(MultinomialLogit.multinomialLogitFactory(rootNode))
       }
