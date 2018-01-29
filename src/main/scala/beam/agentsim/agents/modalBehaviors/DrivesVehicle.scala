@@ -31,7 +31,7 @@ object DrivesVehicle {
 
   case class StartLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
 
-  case class EndLegTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
+  case class EndLegTrigger(tick: Double) extends Trigger
 
   case class NotifyLegEndTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
 
@@ -55,25 +55,25 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   def passengerScheduleEmpty(tick: Double, triggerId: Long): State
 
   chainedWhen(Moving) {
-    case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _) =>
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
       //we have just completed a leg
       //      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for
       // beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
-      lastVisited = beamServices.geo.wgs2Utm(completedLeg.travelPath.endPoint)
+      lastVisited = beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
           // If no manager is set, we ignore
-          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(completedLeg.travelPath.endPoint)))
+          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)))
         case None =>
-          throw new RuntimeException(s"Driver $id just ended a leg ${completedLeg} but had no vehicle under control")
+          throw new RuntimeException(s"Driver $id just ended a leg ${_currentLeg.get} but had no vehicle under control")
       }
-      passengerSchedule.schedule.get(completedLeg) match {
+      passengerSchedule.schedule.get(_currentLeg.get) match {
         case Some(manifest) =>
           holdTickAndTriggerId(tick, triggerId)
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
               logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-              scheduler ! scheduleOne[NotifyLegEndTrigger](tick, personRef, completedLeg)
+              scheduler ! scheduleOne[NotifyLegEndTrigger](tick, personRef, _currentLeg.get)
             }
           }
           if (manifest.alighters.isEmpty) {
@@ -160,8 +160,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         vehicleIdAndRef.driver.get ! CancelReservationWithVehicle(vehiclePersonId)
       }
       stay()
-    case Event(TriggerWithId(EndLegTrigger(tick, completedLeg), triggerId), _) =>
-      stop(Failure(s"Received EndLegTrigger while in state Waiting. 'completedLeg': $completedLeg passenger schedule $passengerSchedule"))
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
+      stop(Failure(s"Received EndLegTrigger while in state Waiting. passenger schedule $passengerSchedule"))
   }
 
   chainedWhen(AnyState) {
@@ -281,8 +281,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, _currentVehicleUnderControl.get.id, "car", 1.0))
-    scheduler ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self,
-      _currentLeg.get))
+    scheduler ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self))
     goto(Moving)
   }
 
