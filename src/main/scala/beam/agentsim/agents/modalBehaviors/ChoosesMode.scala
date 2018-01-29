@@ -14,6 +14,7 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{BeginModeChoiceTrigger, FinalizeModeChoiceTrigger, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
 import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -32,7 +33,9 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.Random
 
 /**
   * BEAM
@@ -58,6 +61,15 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     }
   }
 
+  //TODO source these attributes from pop input data
+  lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(household.getIncome.getIncome,
+    household.getMemberIds.size(),
+    new Random().nextBoolean(),
+    household.getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
+      .getDescription.toLowerCase.contains("car")),
+    household.getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
+      .getDescription.toLowerCase.contains("bike")))
+
   def completeChoiceIfReady(): State = {
     if (hasReceivedCompleteChoiceTrigger && routingResponse.isDefined && rideHailingResult.isDefined) {
       val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).isDefined
@@ -69,9 +81,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       if (modeAlreadyDefined) {
         predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
         if (predefinedMode.get != WALK) {
-          val itinsWithoutWalk = if (predefinedMode.get == DRIVE_TRANSIT) {
+          val itinsWithoutWalk = if(predefinedMode.get == DRIVE_TRANSIT){
             combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
-          } else {
+          }else{
             combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
           }
           if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
@@ -181,18 +193,18 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
     if (links.nonEmpty) {
       _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(links.head))
-      _experiencedBeamPlan.activities(_currentActivityIndex + 1).setLinkId(Id.createLinkId(links.last))
+      _experiencedBeamPlan.activities(_currentActivityIndex+1).setLinkId(Id.createLinkId(links.last))
     } else {
       val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex).getCoord)
-      val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex + 1).getCoord)
+      val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex+1).getCoord)
       _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 1000.0, StreetMode.WALK).edge))
-      _experiencedBeamPlan.activities(_currentActivityIndex + 1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
+      _experiencedBeamPlan.activities(_currentActivityIndex+1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
     }
 
     eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       _experiencedBeamPlan.activities(_currentActivityIndex).getLinkId.toString, availableAlternatives.mkString(":"), availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get)))
 
-    _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(_currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
+    _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(_currentActivityIndex+1), classOf[ModeChoiceStrategy]) match {
       case None =>
         _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(chosenTrip.tripClassifier))
       case _ =>
@@ -221,7 +233,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
     _restOfCurrentTrip = chosenTrip
     routingResponse = None
     rideHailingResult = None
-    if (awaitingReservationConfirmation.nonEmpty) {
+    if(awaitingReservationConfirmation.nonEmpty){
       awaitingReservationConfirmation.clear()
     }
     hasReceivedCompleteChoiceTrigger = false
@@ -327,9 +339,9 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
           makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
         case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
           currentTour.tripIndexOfElement(nextAct) match {
-            case ind if ind == 0 =>
+            case ind if ind==0 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
-            case ind if ind == currentTour.trips.size - 1 =>
+            case ind if ind == currentTour.trips.size-1 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
@@ -388,7 +400,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       holdTickAndTriggerId(tick, theTriggerId)
       hasReceivedCompleteChoiceTrigger = true
       completeChoiceIfReady()
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), theTriggerId), _) =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg),theTriggerId),_) =>
       // We've received this leg too early...
       stash()
       stay()

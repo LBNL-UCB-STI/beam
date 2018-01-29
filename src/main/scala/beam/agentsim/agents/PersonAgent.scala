@@ -6,7 +6,7 @@ import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResour
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.BeginModeChoiceTrigger
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -38,8 +38,8 @@ object PersonAgent {
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
-            humanBodyVehicleId: Id[Vehicle], attributesOfIndividual: AttributesOfIndividual): Props = {
-    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId, attributesOfIndividual))
+            humanBodyVehicleId: Id[Vehicle]): Props = {
+    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, household, plan, humanBodyVehicleId))
   }
 
   case class PersonData() extends BeamAgentData {}
@@ -113,9 +113,9 @@ class PersonAgent(val scheduler: ActorRef,
                   val rideHailingManager: ActorRef,
                   val eventsManager: EventsManager,
                   override val id: Id[PersonAgent],
+                  val household: Household,
                   val matsimPlan: Plan,
                   humanBodyVehicleId: Id[Vehicle],
-                  val attributesOfIndividual: AttributesOfIndividual,
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
 
@@ -134,9 +134,7 @@ class PersonAgent(val scheduler: ActorRef,
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg) else Right(_experiencedBeamPlan.activities(ind))
   }
-
   def currentActivity: Activity = _experiencedBeamPlan.activities(_currentActivityIndex)
-
   def nextActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex + 1, "plan finished")
   }
@@ -144,7 +142,6 @@ class PersonAgent(val scheduler: ActorRef,
   def prevActivity: Either[String, Activity] = {
     activityOrMessage(_currentActivityIndex - 1, "at start")
   }
-
   def currentTour: Tour = {
     stateName match {
       case PerformingActivity =>
@@ -335,9 +332,9 @@ class PersonAgent(val scheduler: ActorRef,
     _currentEmbodiedLeg match {
       case Some(embodiedBeamLeg) =>
         if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
-          unbecomeDriverOfVehicle(_currentVehicle.outermostVehicle(), tick)
+          unbecomeDriverOfVehicle(_currentVehicle.outermostVehicle(),tick)
           _currentVehicle = _currentVehicle.pop()
-          if (!_currentVehicle.isEmpty) resumeControlOfVehcile(_currentVehicle.outermostVehicle())
+          if(!_currentVehicle.isEmpty)resumeControlOfVehcile(_currentVehicle.outermostVehicle())
         }
       case None =>
     }
@@ -365,20 +362,20 @@ class PersonAgent(val scheduler: ActorRef,
             if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehiclePersonId.vehicleId) {
               // We are already in vehicle from before, so update schedule
               //XXXX (VR): Easy refactor => send directly to driver
-              //              beamServices.vehicles(vehiclePersonId.vehicleId).driver.foreach(_ ! ModifyPassengerSchedule
-              //              (passengerSchedule))
+//              beamServices.vehicles(vehiclePersonId.vehicleId).driver.foreach(_ ! ModifyPassengerSchedule
+//              (passengerSchedule))
               modifyPassengerSchedule(passengerSchedule)
             } else {
-              //              //XXXX (VR): Our first time entering this vehicle, so become driver directly
-              //              val vehicle = beamServices.vehicles(vehiclePersonId.vehicleId)
-              //              vehicle.becomeDriver(self).fold(fa =>
-              //                stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
-              //                  s"but driver ${vehicle.driver.get} already assigned.")),
-              //                fb => {
-              //                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehiclePersonId.vehicleId)
-              //                  eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-              //                })
-              becomeDriverOfVehicle(vehiclePersonId.vehicleId, tick)
+//              //XXXX (VR): Our first time entering this vehicle, so become driver directly
+//              val vehicle = beamServices.vehicles(vehiclePersonId.vehicleId)
+//              vehicle.becomeDriver(self).fold(fa =>
+//                stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
+//                  s"but driver ${vehicle.driver.get} already assigned.")),
+//                fb => {
+//                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehiclePersonId.vehicleId)
+//                  eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+//                })
+              becomeDriverOfVehicle(vehiclePersonId.vehicleId,tick)
               setPassengerSchedule(passengerSchedule)
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
@@ -468,18 +465,18 @@ class PersonAgent(val scheduler: ActorRef,
   override def postStop(): Unit = {
     val legs = _currentEmbodiedLeg ++: _restOfCurrentTrip.legs
     if (legs.nonEmpty) {
-      //      logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
+//      logWarn(s"Agent $id stopped. Sending RemovePassengerFromTrip request.")
       cancelTrip(legs, _currentVehicle)
     }
     super.postStop()
   }
 
   chainedWhen(AnyState) {
-    case Event(NotifyResourceInUse(_, _), _) =>
+    case Event(NotifyResourceInUse(_,_), _) =>
       stay()
     case Event(RegisterResource(_), _) =>
       stay()
-    case Event(NotifyResourceIdle(_, _), _) =>
+    case Event(NotifyResourceIdle(_,_), _) =>
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
