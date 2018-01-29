@@ -96,7 +96,8 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamCo
       val travelTimeCalculator = new TravelTimeCalculator(networkCoordinator.network, ConfigUtils.createConfig().travelTimeCalculator())
       eventsForTravelTimeCalculator.addHandler(travelTimeCalculator)
       router ! UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes)
-      router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
+      val vehicleId = Id.createVehicleId("car")
+      router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(vehicleId, new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
       var carOption = expectMsgType[RoutingResponse].itineraries.find(_.tripClassifier == CAR).get
 
       // Now feed the TravelTimeCalculator events resulting from me traversing the proposed route,
@@ -110,7 +111,7 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamCo
       def gap = estimatedTotalTravelTime - experiencedTotalTravelTime
 
       for (i <- 1 to 5) {
-        RoutingModel.traverseStreetLeg(carOption.legs(0), longerTravelTimes).foreach(eventsForTravelTimeCalculator.processEvent)
+        RoutingModel.traverseStreetLeg(carOption.legs(0).beamLeg, vehicleId, longerTravelTimes).foreach(eventsForTravelTimeCalculator.processEvent)
 
         // Now send the router the travel times resulting from that, and try again.
         router ! UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes)

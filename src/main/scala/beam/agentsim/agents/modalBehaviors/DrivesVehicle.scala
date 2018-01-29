@@ -13,10 +13,12 @@ import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.router.RoutingModel.BeamLeg
+import beam.router.RoutingModel
+import beam.router.RoutingModel.{BeamLeg, EmbodiedBeamLeg}
 import beam.sim.HasServices
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
+import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
@@ -277,7 +279,8 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
 
   private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
-    val (_, theTriggerId) = releaseTickAndTriggerId()
+    val (tick, theTriggerId) = releaseTickAndTriggerId()
+    eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, _currentVehicleUnderControl.get.id, "car", 1.0))
     scheduler ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self,
       _currentLeg.get))
     goto(Moving)
@@ -285,7 +288,12 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   private def processNextLegOrCompleteMission() = {
     val (theTick, theTriggerId) = releaseTickAndTriggerId()
-
+    // Produce link events for this trip (the same ones as in PathTraversalEvent).
+    // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
+    // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+    RoutingModel.traverseStreetLeg(_currentLeg.get, _currentVehicleUnderControl.get.id, (_,_) => 0L)
+      .foreach(eventsManager.processEvent)
+    eventsManager.processEvent(new VehicleLeavesTrafficEvent(theTick, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
     eventsManager.processEvent(new PathTraversalEvent(theTick, _currentVehicleUnderControl.get.id,
       _currentVehicleUnderControl.get.getType,
       passengerSchedule.curTotalNumPassengers(_currentLeg.get),

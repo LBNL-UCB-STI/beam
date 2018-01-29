@@ -15,7 +15,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1,2,3,4,5), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13), true, None, BigDecimal.valueOf(0), true
     )
-    RoutingModel.traverseStreetLeg(leg, travelTime).toStream should contain theSameElementsAs Vector(
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, travelTime).toStream should contain theSameElementsAs Vector(
       new LinkLeaveEvent(0.0, Id.createVehicleId(13), Id.createLinkId(1)),
       new LinkEnterEvent(0.0, Id.createVehicleId(13), Id.createLinkId(2)),
       new LinkLeaveEvent(1000.0, Id.createVehicleId(13), Id.createLinkId(2)),
@@ -33,7 +33,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1,2,3,4,5), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13), true, None, BigDecimal.valueOf(0), true
     )
-    RoutingModel.traverseStreetLeg(leg, travelTime).toStream should contain theSameElementsAs Vector(
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, travelTime).toStream should contain theSameElementsAs Vector(
       new LinkLeaveEvent(0.0, Id.createVehicleId(13), Id.createLinkId(1)),
       new LinkEnterEvent(0.0, Id.createVehicleId(13), Id.createLinkId(2)),
       new LinkLeaveEvent(1000.0, Id.createVehicleId(13), Id.createLinkId(2)),
@@ -51,7 +51,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1,2), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13), true, None, BigDecimal.valueOf(0), true
     )
-    RoutingModel.traverseStreetLeg(leg, travelTime).toStream should contain theSameElementsAs Vector(
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, travelTime).toStream should contain theSameElementsAs Vector(
       new LinkLeaveEvent(0.0, Id.createVehicleId(13), Id.createLinkId(1)),
       new LinkEnterEvent(0.0, Id.createVehicleId(13), Id.createLinkId(2))
     )
@@ -63,7 +63,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13), true, None, BigDecimal.valueOf(0), true
     )
-    RoutingModel.traverseStreetLeg(leg, travelTime).toStream should be ('empty)
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, travelTime).toStream should be ('empty)
   }
 
   it should "produce an empty sequence of link events from a car leg which is empty" in {
@@ -72,7 +72,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13), true, None, BigDecimal.valueOf(0), true
     )
-    RoutingModel.traverseStreetLeg(leg, travelTime).toStream should be ('empty)
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, travelTime).toStream should be ('empty)
   }
 
 }
