@@ -8,6 +8,7 @@ import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
+import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.ScenarioUtils
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
@@ -97,6 +98,10 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
           assert(activity.getEndTime == leg.getDepartureTime)
         case Seq(leg: Leg, activity: Activity) =>
           assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
+          if (leg.getMode == "car") {
+            // All car-routes are non-trivial
+            assert(leg.getRoute.asInstanceOf[NetworkRoute].getLinkIds.size() >= 3)
+          }
       }
     }
   }
