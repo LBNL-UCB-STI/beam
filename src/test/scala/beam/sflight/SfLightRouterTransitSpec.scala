@@ -122,12 +122,9 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val time = RoutingModel.DiscreteTime(65220)
       router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
-
+      assert(response.itineraries.exists(_.costEstimate == 11.0))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
-      val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
-      assertMakesSense(transitOption)
-      assert(transitOption.costEstimate == 11.0)
     }
   }
 
