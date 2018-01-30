@@ -22,7 +22,24 @@ trait EventsFileHandlingCommon {
 
   }
 
+  def getListOfSubDirectories(dir: File): String = {
+    val simName = beamConfig.beam.agentsim.simulationName
+    val prefix = s"${simName}_"
+    dir.listFiles
+      .filter(s => s.isDirectory && s.getName.startsWith(prefix))
+      .map(_.getName)
+      .toList
+      .sorted
+      .reverse
+      .head
+  }
+
   def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {
     new File(s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.$iteration/$iteration.events.$extension")
+  }
+
+  def getRouteFile(route_output: String, extension: String): File = {
+    val route = s"$route_output/${getListOfSubDirectories(new File(route_output))}/ITERS/it.0/0.events.$extension"
+    new File(route)
   }
 }

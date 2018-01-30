@@ -13,7 +13,7 @@ class StartWithCustomConfig(val config: Config) extends
 
   val (matsimConfig, _) = runBeamWithConfig(config)
 
-  val file: File = getEventsFilePath(matsimConfig, beamConfig.beam.outputs.events.fileOutputFormats)
+  val file: File = getRouteFile(beamConfig.beam.outputs.baseOutputDirectory , beamConfig.beam.outputs.events.fileOutputFormats)
 
   val eventsReader: ReadEvents = new ReadEventsBeam
 
