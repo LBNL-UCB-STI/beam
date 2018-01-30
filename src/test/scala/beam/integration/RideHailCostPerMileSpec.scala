@@ -24,7 +24,7 @@ class RideHailCostPerMileSpec extends WordSpecLike with Matchers with BeamHelper
         .map(_.get("ride_hailing"))
         .filter(_.isDefined)
         .map(_.get)
-
+      
       isOrdered(tc)((a, b) => a >= b) shouldBe true
     }
   }
