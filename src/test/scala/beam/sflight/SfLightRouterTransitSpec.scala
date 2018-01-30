@@ -85,35 +85,36 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val time = RoutingModel.DiscreteTime(25740)
       router ! RoutingRequest(origin, destination, time, Vector(WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.map(_.costEstimate).sum == 2.75)
+
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
       assertMakesSense(transitOption)
+      assert(transitOption.costEstimate == 2.75)
       assert(transitOption.legs.head.beamLeg.startTime == 25990)
     }
-  }
 
-  "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
-    scenario.getPopulation.getPersons.values().forEach(person => {
-      val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
-      activities.sliding(2).foreach(pair => {
-        val origin = pair(0).getCoord
-        val destination = pair(1).getCoord
-        val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
-        router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(
-          StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), CAR, asDriver = true),
-          StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), WALK, asDriver = true)
-        ))
-        val response = expectMsgType[RoutingResponse]
-//        response.itineraries.foreach(it => { println(Vector("itinerary ->", it.tripClassifier,it.costEstimate, it.legs.map(_.beamLeg.mode))); })
+    "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
+      scenario.getPopulation.getPersons.values().forEach(person => {
+        val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
+        activities.sliding(2).foreach(pair => {
+          val origin = pair(0).getCoord
+          val destination = pair(1).getCoord
+          val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
+          router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(
+            StreetVehicle(Id.createVehicleId("116378-2"), new SpaceTime(origin, 0), CAR, asDriver = true),
+            StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), WALK, asDriver = true)
+          ))
+          val response = expectMsgType[RoutingResponse]
+          //        response.itineraries.foreach(it => { println(Vector("itinerary ->",origin, destination, time, it.tripClassifier,it.costEstimate, it.legs.map(_.beamLeg.mode))); })
 
-        assert(response.itineraries.exists(_.costEstimate > 0))
-        assert(response.itineraries.filter(_.tripClassifier.isTransit()).forall(_.costEstimate > 0))
-        assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
-        assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+          assert(response.itineraries.exists(_.costEstimate > 0))
+          assert(response.itineraries.filter(_.tripClassifier.isTransit()).forall(_.costEstimate > 0))
+          assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
+          assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+        })
       })
-    })
+    }
   }
 
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
