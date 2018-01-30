@@ -65,7 +65,7 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamCo
   "A time-dependent router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
     val destination = new BeamRouter.Location(167138.4, 1117)
-    val time = RoutingModel.DiscreteTime(0)
+    val time = RoutingModel.DiscreteTime(3000)
 
     "take given link traversal times into account" in {
       router ! RoutingRequest(origin, destination, time, Vector(), Vector(StreetVehicle(Id.createVehicleId("car"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), Modes.BeamMode.CAR, asDriver = true)))
