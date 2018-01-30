@@ -114,14 +114,13 @@ class PersonAgent(val scheduler: ActorRef,
                   override val id: Id[PersonAgent],
                   val household: Household,
                   val matsimPlan: Plan,
-                  humanBodyVehicleId: Id[Vehicle],
+                  val bodyId: Id[Vehicle],
                   override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentVehicle: VehicleStack = VehicleStack()
-  var _humanBodyVehicle: Id[Vehicle] = humanBodyVehicleId
   var _currentTrip: Option[EmbodiedBeamTrip] = None
   var _restOfCurrentTrip: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
@@ -349,7 +348,7 @@ class PersonAgent(val scheduler: ActorRef,
              */
             val passengerSchedule = PassengerSchedule()
             val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)) {
-              VehiclePersonId(_humanBodyVehicle, id)
+              VehiclePersonId(bodyId, id)
             } else {
               VehiclePersonId(processedData.nextLeg.beamVehicleId, id)
             }

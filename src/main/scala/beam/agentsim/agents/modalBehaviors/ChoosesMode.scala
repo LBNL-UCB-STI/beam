@@ -126,7 +126,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
       val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
       val rideHailingId = Id.create(rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
       rideHailingManager ! ReserveRide(rideHailingResult.get.inquiryId, VehiclePersonId
-      (_humanBodyVehicle, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
+      (bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
       awaitingReservationConfirmation = awaitingReservationConfirmation + (rideHailingId -> None)
     } else {
       var prevLeg = chosenTrip.legs.head
@@ -265,7 +265,7 @@ trait ChoosesMode extends BeamAgent[PersonData] with HasServices {
 
   chainedWhen(ChoosingMode) {
     case Event(MobilityStatusReponse(streetVehicles), _: BeamAgentInfo[PersonData]) =>
-      val bodyStreetVehicle = StreetVehicle(_humanBodyVehicle, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong),
+      val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong),
         WALK, asDriver = true)
       availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
 
