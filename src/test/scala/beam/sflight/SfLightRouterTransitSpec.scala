@@ -115,6 +115,20 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
         })
       })
     }
+
+    "respond with a route having cost 11 USD." in {
+      val origin = new Coord(554413.5055508229, 4176933.7295036125)
+      val destination = new Coord(551010.1423040839, 4184361.3484820053)
+      val time = RoutingModel.DiscreteTime(65220)
+      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
+      val response = expectMsgType[RoutingResponse]
+
+      assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+      val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
+      assertMakesSense(transitOption)
+      assert(transitOption.costEstimate == 11.0)
+    }
   }
 
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
