@@ -12,7 +12,6 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.gtfs.FareCalculator
-import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
 import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, RoutingModel}
@@ -86,6 +85,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val time = RoutingModel.DiscreteTime(25740)
       router ! RoutingRequest(origin, destination, time, Vector(WALK_TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.map(_.costEstimate).sum == 2.75)
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
