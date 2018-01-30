@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.agentsim.events.ModeChoiceEvent;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -13,26 +14,33 @@ import java.util.*;
 public class ModeChosenStats implements IGraphStats{
     private static Set<String> modesChosen = new TreeSet<>();
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+    private static final String graphTitle = "Mode Choice Histogram";
+    private static final String xAxisTitle = "Hour";
+    private static final String yAxisTitle = "# mode chosen";
+    private static final String fileName = "mode_choice.png";
 
-    private void processModeChoice(Event event) {
-        int hour = CreateGraphsFromAgentSimEvents.getEventHour(event.getTime());
-        String mode = event.getAttributes().get("mode");
-        modesChosen.add(mode);
-        Map<String, Integer> hourData = hourModeFrequency.get(hour);
-        Integer frequency = 1;
-        if (hourData != null) {
-            frequency = hourData.get(mode);
-            if (frequency != null) {
-                frequency++;
-            }else{
-                frequency = 1;
-            }
-        } else {
-            hourData = new HashMap<>();
-        }
-        hourData.put(mode, frequency);
-        hourModeFrequency.put(hour, hourData);
+    @Override
+    public void processStats(Event event) {
+        processModeChoice(event);
     }
+
+    @Override
+    public void createGraph(IterationEndsEvent event) throws IOException {
+        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
+        createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+    }
+
+    @Override
+    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
+
+    }
+
+    @Override
+    public void resetStats() {
+        hourModeFrequency.clear();
+        modesChosen.clear();
+    }
+
     public int getHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
         double count = 0;
         double[] modeOccurrencePerHour = getHoursDataPerOccurrenceAgainstMode(modeChosen,maxHour);
@@ -51,6 +59,27 @@ public class ModeChosenStats implements IGraphStats{
         Collections.sort(hoursList);
         return hoursList;
     }
+
+    private void processModeChoice(Event event) {
+        int hour = CreateGraphsFromAgentSimEvents.getEventHour(event.getTime());
+        String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
+        modesChosen.add(mode);
+        Map<String, Integer> hourData = hourModeFrequency.get(hour);
+        Integer frequency = 1;
+        if (hourData != null) {
+            frequency = hourData.get(mode);
+            if (frequency != null) {
+                frequency++;
+            }else{
+                frequency = 1;
+            }
+        } else {
+            hourData = new HashMap<>();
+        }
+        hourData.put(mode, frequency);
+        hourModeFrequency.put(hour, hourData);
+    }
+
     private List<String> getSortedChosenModeList(){
         List<String> modesChosenList = new ArrayList<>();
         modesChosenList.addAll(modesChosen);
@@ -89,12 +118,6 @@ public class ModeChosenStats implements IGraphStats{
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-
-        String graphTitle = "Mode Choice Histogram";
-        String xAxisTitle = "Hour";
-        String yAxisTitle = "# mode chosen";
-        String fileName = "mode_choice.png";
-
         boolean legend = true;
         final JFreeChart chart = CreateGraphsFromAgentSimEvents.createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
         CategoryPlot plot = chart.getCategoryPlot();
@@ -106,26 +129,4 @@ public class ModeChosenStats implements IGraphStats{
 
     }
 
-    @Override
-    public void processStats(Event event) {
-        processModeChoice(event);
-    }
-
-    public void createGraph(IterationEndsEvent event) throws IOException {
-        CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
-
-    }
-
-    @Override
-    public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
-
-    }
-
-    @Override
-    public void resetStats() {
-        hourModeFrequency.clear();
-        modesChosen.clear();
-
-    }
 }

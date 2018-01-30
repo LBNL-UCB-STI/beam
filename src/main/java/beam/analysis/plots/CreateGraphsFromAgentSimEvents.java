@@ -33,6 +33,11 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     private static final int SECONDS_IN_HOUR = 3600;
     public static final List<Color> colors = new ArrayList<>();
     public static final String CAR = "car";
+    public static final String RIDE = "ride";
+    public static final String TNC = "tnc";
+    public static final String WALK="walk";
+    public static final String TNC_DEAD_HEADING_DISTANCE="tnc_deadheading_distance";
+
     private static OutputDirectoryHierarchy controlerIO;
     // Static Initializer
     static {
@@ -143,9 +148,9 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
     }
     public static String getLegendText(String graphName, int i,int bucketSize) {
 
-        if (graphName.equalsIgnoreCase("car")
-                || graphName.equalsIgnoreCase("tnc")
-                || graphName.equalsIgnoreCase("tnc_deadheading_distance")
+        if (graphName.equalsIgnoreCase(CAR)
+                || graphName.equalsIgnoreCase(TNC)
+                || graphName.equalsIgnoreCase(TNC_DEAD_HEADING_DISTANCE)
                 ) {
             return Integer.toString(i);
         } else {
