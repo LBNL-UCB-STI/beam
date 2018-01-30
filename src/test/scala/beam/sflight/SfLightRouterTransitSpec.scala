@@ -36,7 +36,7 @@ import scala.language.postfixOps
 class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
   """
   akka.loglevel="OFF"
-  akka.test.timefactor=10
+  akka.test.timefactor=1200
   """))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll with Inside {
 
@@ -126,8 +126,19 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
-  }
 
+    "respond with a multi transfer route having cost 8.25 USD." in {
+      val origin = new Coord(549598.9574660371, 4176177.2431860007)
+      val destination = new Coord(544417.3891361314, 4177016.733758491)
+      val time = RoutingModel.DiscreteTime(64080)
+      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
+      val response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.exists(_.costEstimate == 8.25))
+      assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+    }
+  }
+//  Vector(itinerary ->, [x=549598.9574660371][y=4176177.2431860007], [x=544417.3891361314][y=4177016.733758491], DiscreteTime(64080), WALK_TRANSIT, 8.25
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
     var time = trip.legs.head.beamLeg.startTime
     trip.legs.foreach(leg => {
