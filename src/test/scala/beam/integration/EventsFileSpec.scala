@@ -99,8 +99,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
         case Seq(leg: Leg, activity: Activity) =>
           assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
           if (leg.getMode == "car") {
-            // All car-routes are non-trivial
-            assert(leg.getRoute.asInstanceOf[NetworkRoute].getLinkIds.size() >= 2)
+            assert(leg.getRoute.isInstanceOf[NetworkRoute])
           }
       }
     }
