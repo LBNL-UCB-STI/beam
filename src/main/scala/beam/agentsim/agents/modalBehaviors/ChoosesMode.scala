@@ -1,7 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
-import akka.actor.{ActorRef, FSM}
 import akka.actor.FSM.Failure
+import akka.actor.{ActorRef, FSM}
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -20,7 +20,6 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes
@@ -34,8 +33,8 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.Random
 import scala.concurrent.duration._
+import scala.util.Random
 
 
 /**
@@ -43,7 +42,6 @@ import scala.concurrent.duration._
   */
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-
 
   //TODO source these attributes from pop input data
   lazy val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(household.getIncome.getIncome,
@@ -54,94 +52,20 @@ trait ChoosesMode {
     household.getVehicleIds.asScala.map(beamServices.vehicles).count(_.getType
       .getDescription.toLowerCase.contains("bike")))
 
-  def sendReservationRequests(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData): State = {
-
-    var inferredVehicle: VehicleStack = VehicleStack()
-    var exitNextVehicle = false
-    var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
-    val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
-    var awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation
-    if (rideHailingLeg.nonEmpty) {
-      val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
-      val rideHailingId = Id.create(choosesModeData.rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
-      rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId
-      (bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
-      awaitingReservationConfirmation = awaitingReservationConfirmation + (rideHailingId -> None)
-    } else {
-      var prevLeg = chosenTrip.legs.head
-      for (leg <- chosenTrip.legs) {
-        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle =
-          inferredVehicle.pop()
-        //        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
-
-        if (inferredVehicle.nestedVehicles.nonEmpty) {
-          val passengerVeh: Id[Vehicle] = if (inferredVehicle.outermostVehicle() == leg.beamVehicleId) {
-            if (inferredVehicle.nestedVehicles.size < 2) {
-              // In this case, we are changing into a WALK leg
-              Id.create("dummy", classOf[Vehicle])
-            } else {
-              inferredVehicle.penultimateVehicle()
-            }
-          } else {
-            inferredVehicle.outermostVehicle()
-          }
-          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
-        }
-        inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-        exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
-        prevLeg = leg
+  onTransition {
+    case PerformingActivity -> ChoosingMode =>
+      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
+      modeChoiceStrategy match {
+        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+          // Only need to get available street vehicles from household if our mode requires such a vehicle
+          context.parent ! mobilityStatusInquiry(id)
+        case None =>
+          context.parent ! mobilityStatusInquiry(id)
+        case _ =>
+          // Otherwise, send empty list to self
+          self ! MobilityStatusReponse(Vector())
       }
-      val ungroupedLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit()).toList
-      var runningVehId = ungroupedLegs.head.leg.beamVehicleId
-      var groupedLegs = List[List[LegWithPassengerVehicle]]()
-      var currentSegmentList = List[LegWithPassengerVehicle]()
-      ungroupedLegs.foreach { legwithpass =>
-        if (legwithpass.leg.beamVehicleId == runningVehId) {
-          currentSegmentList = currentSegmentList :+ legwithpass
-        } else {
-          groupedLegs = groupedLegs :+ currentSegmentList
-          currentSegmentList = List(legwithpass)
-          runningVehId = legwithpass.leg.beamVehicleId
-        }
-        groupedLegs = groupedLegs.slice(0, groupedLegs.size - 1) :+ currentSegmentList
-      }
-      if (groupedLegs.nonEmpty) {
-        groupedLegs.foreach { legSegment =>
-          val legs = legSegment.sortBy(_.leg.beamLeg.startTime)
-          val vehId = legSegment.head.leg.beamVehicleId
-          val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg
-            .beamLeg, VehiclePersonId(legs.head.passengerVehicle, id)), vehId)
-          TransitDriverAgent.selectByVehicleId(vehId) ! resRequest
-          awaitingReservationConfirmation = awaitingReservationConfirmation + (resRequest.request.requestId -> None)
-        }
-      }
-    }
-    val newPersonData = stateData.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(awaitingReservationConfirmation = awaitingReservationConfirmation)))
-    goto(WaitingForReservationConfirmation) using stateData.copy(data = newPersonData)
   }
-
-  chainedWhen(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(_), _), _) =>
-      goto(Initialized)
-  }
-
-  def chooseMode(tick: Double, triggerId: Long): State = {
-    holdTickAndTriggerId(tick, triggerId)
-    val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
-    modeChoiceStrategy match {
-      case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
-        // Only need to get available street vehicles from household if our mode requires such a vehicle
-        context.parent ! mobilityStatusInquiry(id)
-      case None =>
-        context.parent ! mobilityStatusInquiry(id)
-      case _ =>
-        // Otherwise, send empty list to self
-        self ! MobilityStatusReponse(Vector())
-    }
-    val newPersonData = stateData.data.copy(maybeModeChoiceData = Some(ChoosesModeData()))
-    goto(ChoosingMode) using stateData.copy(data = newPersonData)
-  }
-
 
   when(ChoosingMode, stateTimeout = 3 seconds) ( transform {
     case Event(MobilityStatusReponse(streetVehicles), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
@@ -322,6 +246,71 @@ trait ChoosesMode {
       } else {
         goto(Waiting) using info.copy(data = newPersonData)
       }
+  }
+
+  def sendReservationRequests(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData): State = {
+    var inferredVehicle: VehicleStack = VehicleStack()
+    var exitNextVehicle = false
+    var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
+    val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
+    var awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation
+    if (rideHailingLeg.nonEmpty) {
+      val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
+      val rideHailingId = Id.create(choosesModeData.rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
+      rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId
+      (bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
+      awaitingReservationConfirmation = awaitingReservationConfirmation + (rideHailingId -> None)
+    } else {
+      var prevLeg = chosenTrip.legs.head
+      for (leg <- chosenTrip.legs) {
+        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle =
+          inferredVehicle.pop()
+        //        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+
+        if (inferredVehicle.nestedVehicles.nonEmpty) {
+          val passengerVeh: Id[Vehicle] = if (inferredVehicle.outermostVehicle() == leg.beamVehicleId) {
+            if (inferredVehicle.nestedVehicles.size < 2) {
+              // In this case, we are changing into a WALK leg
+              Id.create("dummy", classOf[Vehicle])
+            } else {
+              inferredVehicle.penultimateVehicle()
+            }
+          } else {
+            inferredVehicle.outermostVehicle()
+          }
+          legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
+        }
+        inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
+        exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
+        prevLeg = leg
+      }
+      val ungroupedLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit()).toList
+      var runningVehId = ungroupedLegs.head.leg.beamVehicleId
+      var groupedLegs = List[List[LegWithPassengerVehicle]]()
+      var currentSegmentList = List[LegWithPassengerVehicle]()
+      ungroupedLegs.foreach { legwithpass =>
+        if (legwithpass.leg.beamVehicleId == runningVehId) {
+          currentSegmentList = currentSegmentList :+ legwithpass
+        } else {
+          groupedLegs = groupedLegs :+ currentSegmentList
+          currentSegmentList = List(legwithpass)
+          runningVehId = legwithpass.leg.beamVehicleId
+        }
+        groupedLegs = groupedLegs.slice(0, groupedLegs.size - 1) :+ currentSegmentList
+      }
+      if (groupedLegs.nonEmpty) {
+        groupedLegs.foreach { legSegment =>
+          val legs = legSegment.sortBy(_.leg.beamLeg.startTime)
+          val vehId = legSegment.head.leg.beamVehicleId
+          val resRequest = ReservationRequestWithVehicle(new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg
+            .beamLeg, VehiclePersonId(legs.head.passengerVehicle, id)), vehId)
+          TransitDriverAgent.selectByVehicleId(vehId) ! resRequest
+          awaitingReservationConfirmation = awaitingReservationConfirmation + (resRequest.request.requestId -> None)
+        }
+      }
+    }
+    val newPersonData = stateData.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(awaitingReservationConfirmation = awaitingReservationConfirmation)))
+    goto(WaitingForReservationConfirmation) using stateData.copy(data = newPersonData)
   }
 
   onTransition {

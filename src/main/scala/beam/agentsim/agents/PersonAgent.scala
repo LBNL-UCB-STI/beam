@@ -197,7 +197,8 @@ class PersonAgent(val scheduler: ActorRef,
         },
         nextAct => {
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
-          chooseMode(tick, triggerId)
+          holdTickAndTriggerId(tick, triggerId)
+          goto(ChoosingMode) using info.copy(data = PersonData(Some(ChoosesModeData())))
         }
       )
   }
