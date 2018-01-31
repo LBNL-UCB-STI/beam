@@ -365,17 +365,16 @@ trait ChoosesMode {
           case _ =>
             modeChoiceCalculator(combinedItinerariesForChoice)
         }
-
+        val newPersonData = info.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(pendingChosenTrip = Some(chosenTrip), expectedMaxUtilityOfLatestChoice = modeChoiceCalculator match {
+          case logit: ModeChoiceMultinomialLogit =>
+            Some(logit.expectedMaximumUtility)
+          case _ =>
+            None
+        })))
         if (chosenTrip.requiresReservationConfirmation) {
-          val newPersonData = info.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(pendingChosenTrip = Some(chosenTrip), expectedMaxUtilityOfLatestChoice = modeChoiceCalculator match {
-            case logit: ModeChoiceMultinomialLogit =>
-              Some(logit.expectedMaximumUtility)
-            case _ =>
-              None
-          })))
           sendReservationRequests(chosenTrip, choosesModeData) using info.copy(data = newPersonData)
         } else {
-          scheduleDepartureWithValidatedTrip(chosenTrip, info.data.maybeModeChoiceData.get)
+          scheduleDepartureWithValidatedTrip(chosenTrip, info.data.maybeModeChoiceData.get) using info.copy(data = newPersonData)
         }
       } else {
         stay() using info
