@@ -60,10 +60,10 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     listTripsEventFile shouldBe listTrips
   }
 
-  it should "contain same pathTraversal defined at stop times file for bus input file" ignore {
+  it should "contain same pathTraversal defined at stop times file for bus input file" in {
     val listTrips = getListIDsWithTag(new File("test/input/beamville/r5/bus/stop_times.txt"), "trip_id", 0).sorted
     val grouped = listTrips.groupBy(identity)
-    val groupedWithCount = grouped.map { case (k, v) => (k, v.size) }
+    val groupedWithCount = grouped.map { case (k, v) => (k, v.size - 1) }
     val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "bus"), "vehicle_id", Some("PathTraversal"))
     val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1))
     val groupedXml = listTripsEventFile.groupBy(identity)
@@ -71,10 +71,10 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     groupedXmlWithCount should contain theSameElementsAs groupedWithCount
   }
 
-  it should "contain same pathTraversal defined at stop times file for train input file" ignore {
+  it should "contain same pathTraversal defined at stop times file for train input file" in {
     val listTrips = getListIDsWithTag(new File("test/input/beamville/r5/train/stop_times.txt"), "trip_id", 0).sorted
     val grouped = listTrips.groupBy(identity)
-    val groupedWithCount = grouped.map { case (k, v) => (k, v.size) }
+    val groupedWithCount = grouped.map { case (k, v) => (k, v.size - 1) }
     val listValueTagEventFile = new ReadEventsBeam().getListTagsFromFile(getEventsFilePath(matsimConfig, "xml"), Some("vehicle_type", "subway"), "vehicle_id", Some("PathTraversal"))
     val listTripsEventFile = listValueTagEventFile.map(e => e.split(":")(1)).sorted
     val groupedXml = listTripsEventFile.groupBy(identity)
