@@ -33,7 +33,6 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.concurrent.duration._
 import scala.util.Random
 
 
@@ -67,7 +66,7 @@ trait ChoosesMode {
       }
   }
 
-  when(ChoosingMode, stateTimeout = 3 seconds) ( transform {
+  when(ChoosingMode) ( transform {
     case Event(MobilityStatusReponse(streetVehicles), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong),
         WALK, asDriver = true)
@@ -166,7 +165,7 @@ trait ChoosesMode {
       stay()
   } using completeChoiceIfReady)
 
-  when(WaitingForReservationConfirmation, stateTimeout = 3 seconds) (transform {
+  when(WaitingForReservationConfirmation) (transform {
     case Event(ReservationResponse(requestId, Right(reservationConfirmation)), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
       val awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation + (requestId -> Some(sender()))
       if (awaitingReservationConfirmation.values.forall(x => x.isDefined)) {
