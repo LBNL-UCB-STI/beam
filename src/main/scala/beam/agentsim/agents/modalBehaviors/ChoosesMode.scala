@@ -175,7 +175,7 @@ trait ChoosesMode {
           (choosesModeData.pendingChosenTrip.get))))
       }
       cancelTrip(choosesModeData.pendingChosenTrip.get.legs, _currentVehicle)
-      awaitingReservationConfirmation.clear()
+      awaitingReservationConfirmation = Map()
       if (choosesModeData.routingResponse.get.itineraries.isEmpty & choosesModeData.rideHailingResult.get.error.isDefined) {
         // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
         // if more agents could be hailed.
@@ -195,7 +195,7 @@ trait ChoosesMode {
       val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).isDefined
       var predefinedMode: Option[BeamMode] = None
       var combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
-
+      var newChoosesModeData = choosesModeData
 
       if (modeAlreadyDefined) {
         predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
@@ -222,15 +222,16 @@ trait ChoosesMode {
         case _ =>
           modeChoiceCalculator(combinedItinerariesForChoice)
       }
-      val newPersonData = info.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(pendingChosenTrip = Some(chosenTrip), expectedMaxUtilityOfLatestChoice = modeChoiceCalculator match {
+      newChoosesModeData = newChoosesModeData.copy(pendingChosenTrip = Some(chosenTrip), expectedMaxUtilityOfLatestChoice = modeChoiceCalculator match {
         case logit: ModeChoiceMultinomialLogit =>
           Some(logit.expectedMaximumUtility)
         case _ =>
           None
-      })))
+      })
       if (chosenTrip.requiresReservationConfirmation) {
-        sendReservationRequests(chosenTrip, choosesModeData) using info.copy(data = newPersonData)
+        sendReservationRequests(chosenTrip, newChoosesModeData)
       } else {
+        val newPersonData = info.data.copy(maybeModeChoiceData = Some(newChoosesModeData))
         goto(Waiting) using info.copy(data = newPersonData)
       }
   }
@@ -240,7 +241,7 @@ trait ChoosesMode {
     var exitNextVehicle = false
     var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
     val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
-    var awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation
+    var awaitingReservationConfirmation = Map[Id[ReservationRequest], Option[ActorRef]]()
     if (rideHailingLeg.nonEmpty) {
       val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
       val rideHailingId = Id.create(choosesModeData.rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
@@ -309,11 +310,6 @@ trait ChoosesMode {
       scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
   }
 
-  chainedWhen(AnyState) {
-    case Event(res@ReservationResponse(_, _), _) =>
-      stay()
-  }
-
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     var availablePersonalStreetVehicles = choosesModeData.availablePersonalStreetVehicles
@@ -379,7 +375,7 @@ object ChoosesMode {
   case class ChoosesModeData(pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
                              routingResponse: Option[RoutingResponse] = None,
                              rideHailingResult: Option[RideHailingInquiryResponse] = None,
-                             awaitingReservationConfirmation: mutable.Map[Id[ReservationRequest], Option[ActorRef]] = mutable.Map(),
+                             awaitingReservationConfirmation: Map[Id[ReservationRequest], Option[ActorRef]] = Map(),
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends BeamAgentData
 
