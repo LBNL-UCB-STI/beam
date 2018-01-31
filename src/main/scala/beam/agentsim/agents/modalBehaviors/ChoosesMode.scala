@@ -351,14 +351,9 @@ trait ChoosesMode {
     case Event(ReservationResponse(requestId, Right(reservationConfirmation)), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
       val awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation + (requestId -> Some(sender()))
       if (awaitingReservationConfirmation.values.forall(x => x.isDefined)) {
-        log.info(awaitingReservationConfirmation.toString())
         reservationConfirmation.triggersToSchedule.foreach(scheduler ! _)
         goto(Waiting)
-
-        //        scheduleDepartureWithValidatedTrip(choosesModeData.pendingChosenTrip.get, choosesModeData, reservationConfirmation.triggersToSchedule)
       } else {
-        log.error("pups")
-        log.info(awaitingReservationConfirmation.toString())
         stay()
       } using info.copy(data = PersonData(Some(choosesModeData.copy(awaitingReservationConfirmation = awaitingReservationConfirmation))))
     case Event(ReservationResponse(requestId, Left(error)), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
