@@ -309,6 +309,11 @@ trait ChoosesMode {
       scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
   }
 
+  chainedWhen(AnyState) {
+    case Event(res@ReservationResponse(_, _), _) =>
+      stay()
+  }
+
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     var availablePersonalStreetVehicles = choosesModeData.availablePersonalStreetVehicles
