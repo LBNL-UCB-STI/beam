@@ -28,6 +28,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
@@ -110,9 +111,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         jdeqsimEvents.addHandler(travelTimeCalculator);
 
 
-//        if (beamConfig.beam().physsim().writeMATSimNetwork()){
-//            createNetworkFile(jdeqSimScenario.getNetwork());
-//        }
+        if (beamConfig.beam().physsim().writeMATSimNetwork()){
+            createNetworkFile(jdeqSimScenario.getNetwork());
+        }
 
         EventWriterXML_viaCompatible eventsWriterXML=null;
         if (writePhysSimEvents(iterationNumber)) {
@@ -121,8 +122,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
 
-
-        JDEQSimulation jdeqSimulation = new JDEQSimulation(jdeqSimScenario.getConfig().jdeqSim(), jdeqSimScenario, jdeqsimEvents);
+        JDEQSimConfigGroup config=new JDEQSimConfigGroup();
+        config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
+        config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStats.notifyIterationStarts(jdeqsimEvents);
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
@@ -142,11 +145,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
 
     private boolean writePhysSimEvents(int iterationNumber) {
-        return writeInIteration(iterationNumber, agentSimScenario.getConfig().controler().getWriteEventsInterval());
+        return writeInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
     }
 
     private boolean writePlans(int iterationNumber) {
-        return writeInIteration(iterationNumber, agentSimScenario.getConfig().controler().getWritePlansInterval());
+        return writeInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
     }
 
     private boolean writeInIteration(int iterationNumber, int interval) {

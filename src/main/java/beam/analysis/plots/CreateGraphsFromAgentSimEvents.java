@@ -190,7 +190,9 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
 
         //
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDataset();
-        createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        if(null != modesFrequencyDataset) {
+            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        }
 
         //
         CategoryDataset modesFuelageDataset = buildModesFuelageDataset();
@@ -216,6 +218,7 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
             createAverageTimesGraph(averageDataset, event.getIteration(), mode);
         }
         //
+
     }
 
     private CategoryDataset buildAverageTimesDataset(Map<Integer, List<Double>> times, String mode) {
@@ -321,6 +324,9 @@ public class CreateGraphsFromAgentSimEvents implements BasicEventHandler {
         java.util.List<String> modesChosenList = new ArrayList<>();
         modesChosenList.addAll(modesChosen);
         Collections.sort(modesChosenList);
+
+        if(0 == hoursList.size())
+            return null;
 
         int maxHour = hoursList.get(hoursList.size() - 1);
         double[][] dataset = new double[modesChosen.size()][maxHour + 1];

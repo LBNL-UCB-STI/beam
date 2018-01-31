@@ -305,14 +305,14 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val embodiedLegs: Vector[EmbodiedBeamLeg] = for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
           val cost = tripWithFares.legFares.getOrElse(index, 0.0) // FIXME this value is never used.
           if (Modes.isR5TransitMode(beamLeg.mode)) {
-            EmbodiedBeamLeg(beamLeg, beamLeg.travelPath.transitStops.get.vehicleId, false, None, 0.0, false)
+            EmbodiedBeamLeg(beamLeg, beamLeg.travelPath.transitStops.get.vehicleId, false, None, cost, false)
           } else {
             val unbecomeDriverAtComplete = Modes.isR5LegMode(beamLeg.mode) && (beamLeg.mode != WALK || beamLeg == tripWithFares.trip.legs.last)
             if (beamLeg.mode == WALK) {
               val body = routingRequest.streetVehicles.find(_.mode == WALK).get
               EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, None, 0.0, unbecomeDriverAtComplete)
             } else {
-              EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, None, 0.0, unbecomeDriverAtComplete)
+              EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, None, cost, unbecomeDriverAtComplete)
             }
           }
         }
