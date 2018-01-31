@@ -35,7 +35,7 @@ object BeamAgent {
   trait BeamAgentData
 
   case class BeamAgentInfo[T <: BeamAgentData](id: Id[_],
-                                               implicit val data: T,
+                                               data: T,
                                                triggerId: Option[Long] = None,
                                                tick: Option[Double] = None,
                                                errorReason: Option[String] = None) extends Info
