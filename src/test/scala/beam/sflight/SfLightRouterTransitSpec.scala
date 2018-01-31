@@ -36,7 +36,7 @@ import scala.language.postfixOps
 class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
   """
   akka.loglevel="OFF"
-  akka.test.timefactor=1200
+  akka.test.timefactor=10
   """))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll with Inside {
 
@@ -106,7 +106,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
             StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), WALK, asDriver = true)
           ))
           val response = expectMsgType[RoutingResponse]
-          //        response.itineraries.foreach(it => { println(Vector("itinerary ->",origin, destination, time, it.tripClassifier,it.costEstimate, it.legs.map(_.beamLeg.mode))); })
+//          response.itineraries.foreach(it => { println(Vector("itinerary ->",origin, destination, time, it.tripClassifier,it.costEstimate, it.legs.map(_.beamLeg.mode))); })
 
           assert(response.itineraries.exists(_.costEstimate > 0))
           assert(response.itineraries.filter(_.tripClassifier.isTransit()).forall(_.costEstimate > 0))
@@ -122,6 +122,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val time = RoutingModel.DiscreteTime(65220)
       router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
+
       assert(response.itineraries.exists(_.costEstimate == 11.0))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
@@ -133,12 +134,25 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       val time = RoutingModel.DiscreteTime(64080)
       router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
+
       assert(response.itineraries.exists(_.costEstimate == 8.25))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
+
+    "respond with a BART route having cost 1.95 USD." in {
+      val origin = geo.wgs2Utm(new Coord(-122.41969, 37.76506)) // 16th St. Mission
+      val destination = geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
+      val time = RoutingModel.DiscreteTime(51840)
+      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
+      val response = expectMsgType[RoutingResponse]
+
+      assert(response.itineraries.exists(_.costEstimate == 1.95))
+      assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+    }
   }
-//  Vector(itinerary ->, [x=549598.9574660371][y=4176177.2431860007], [x=544417.3891361314][y=4177016.733758491], DiscreteTime(64080), WALK_TRANSIT, 8.25
+
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
     var time = trip.legs.head.beamLeg.startTime
     trip.legs.foreach(leg => {
