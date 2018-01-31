@@ -19,9 +19,9 @@ import java.io.File;
 public class PhyssimCalcLinkStatsTest {
 
     private static String BASE_PATH = new File("").getAbsolutePath();;
-    private static String OUTPUT_DIR_PATH = BASE_PATH+"/test/input/beamville/test-relative-speeds/output";
-    private static String EVENTS_FILE_PATH = BASE_PATH+"/test/input/beamville/test-relative-speeds/physsim.events.xml";
-    private static String NETWORK_FILE_PATH = BASE_PATH+"/test/input/beamville/physsim-network.xml";
+    private static String OUTPUT_DIR_PATH = BASE_PATH+"/test/input/equil-square/test-data/output";
+    private static String EVENTS_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimEvents.relative-speeds.xml";
+    private static String NETWORK_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimNetwork.relative-speeds.xml";
     private static int iteration = 0;
     private static PhyssimCalcLinkStats physsimCalcLinkStats;
 
@@ -33,7 +33,9 @@ public class PhyssimCalcLinkStatsTest {
 
         Config _config = ConfigUtils.createConfig();
 
-        OutputDirectoryHierarchy outputDirectoryHierarchy = new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles);
+        OutputDirectoryHierarchy.OverwriteFileSetting overwriteExistingFiles = OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles;
+
+        OutputDirectoryHierarchy outputDirectoryHierarchy = new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles);
 
         Scenario sc = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         MatsimNetworkReader nwr= new MatsimNetworkReader(sc.getNetwork());

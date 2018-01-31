@@ -15,12 +15,13 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.text.DecimalFormat;
 import java.util.*;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class PhyssimCalcLinkStats {
 
+    private Logger logger = Logger.getLogger(PhyssimCalcLinkStats.class.getName()) ;
     private Network network;
     private OutputDirectoryHierarchy controlerIO;
 
@@ -173,9 +174,9 @@ public class PhyssimCalcLinkStats {
         for (int i = 0; i < dataset.getRowCount(); i++) {
 
 
-            legendItems.add(new LegendItem(relativeSpeedsCategoriesList.get(i).toString(), colors.get(i)));
+            legendItems.add(new LegendItem(relativeSpeedsCategoriesList.get(i).toString(), getColor(i)));
 
-            plot.getRenderer().setSeriesPaint(i, colors.get(i));
+            plot.getRenderer().setSeriesPaint(i, getColor(i));
 
         }
         plot.setFixedLegendItems(legendItems);
@@ -190,6 +191,25 @@ public class PhyssimCalcLinkStats {
         }
     }
 
+    private Color getColor(int i) {
+        if (i < colors.size()) {
+            return colors.get(i);
+        } else {
+            return getRandomColor();
+        }
+    }
+
+    private Color getRandomColor() {
+
+        Random rand = new Random();
+
+        float r = rand.nextFloat();
+        float g = rand.nextFloat();
+        float b = rand.nextFloat();
+
+        Color randomColor = new Color(r, g, b);
+        return randomColor;
+    }
 
     public void notifyIterationStarts(EventsManager eventsManager) {
 
