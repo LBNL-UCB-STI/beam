@@ -279,15 +279,6 @@ trait ChoosesMode {
       stay()
   } using completeChoiceIfReady)
 
-  onTransition {
-    case ChoosingMode -> Waiting =>
-      unstashAll()
-      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
-    case WaitingForReservationConfirmation -> Waiting =>
-      unstashAll()
-      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
-  }
-
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case s @ FSM.State(stateName, info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData @ ChoosesModeData(None, Some(routingResponse), Some(rideHailingResult), _, _, _))),_,_,_), timeout, stopReason, replies) =>
       val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).isDefined
@@ -331,6 +322,15 @@ trait ChoosesMode {
       } else {
         goto(Waiting) using info.copy(data = newPersonData)
       }
+  }
+
+  onTransition {
+    case ChoosingMode -> Waiting =>
+      unstashAll()
+      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
+    case WaitingForReservationConfirmation -> Waiting =>
+      unstashAll()
+      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
   }
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
