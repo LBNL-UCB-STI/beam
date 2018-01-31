@@ -62,6 +62,8 @@ object PersonAgent {
 
   case object ChoosingMode extends Traveling
 
+  case object WaitingForReservationConfirmation extends Traveling
+
   case object Waiting extends Traveling
 
   case object Moving extends Traveling

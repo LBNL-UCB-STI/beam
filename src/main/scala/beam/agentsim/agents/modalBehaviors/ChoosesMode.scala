@@ -35,6 +35,8 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
+import scala.concurrent.duration._
+
 
 /**
   * BEAM
@@ -115,11 +117,11 @@ trait ChoosesMode {
       }
     }
     val newPersonData = stateData.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(awaitingReservationConfirmation = awaitingReservationConfirmation)))
-    stay() using stateData.copy(data = newPersonData)
+    goto(WaitingForReservationConfirmation) using stateData.copy(data = newPersonData)
   }
 
 
-  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData, triggersToSchedule: Vector[ScheduleTrigger] = Vector()): State = {
+  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     var availablePersonalStreetVehicles = choosesModeData.availablePersonalStreetVehicles
     // Write start and end links of chosen route into Activities.
@@ -175,9 +177,7 @@ trait ChoosesMode {
     availablePersonalStreetVehicles = Vector()
     _currentTrip = Some(chosenTrip)
     _restOfCurrentTrip = chosenTrip
-    scheduler ! completed(triggerId = theTriggerId, triggersToSchedule ++
-      schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
-    goto(Waiting) using stateData.copy(data = stateData.data.copy(maybeModeChoiceData = None))
+    scheduler ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
   }
 
   chainedWhen(Uninitialized) {
@@ -203,7 +203,7 @@ trait ChoosesMode {
   }
 
 
-  when(ChoosingMode) ( transform {
+  when(ChoosingMode, stateTimeout = 3 seconds) ( transform {
     case Event(MobilityStatusReponse(streetVehicles), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong),
         WALK, asDriver = true)
@@ -296,13 +296,71 @@ trait ChoosesMode {
       val newPersonData = stateData.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(rideHailingResult = Some(theRideHailingResult))))
       stay() using info.copy(data = newPersonData)
 
-    case Event(ReservationResponse(requestId, Right(reservationConfirmation)), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
-      if (choosesModeData.awaitingReservationConfirmation.values.forall(x => x.isDefined)) {
-        scheduleDepartureWithValidatedTrip(choosesModeData.pendingChosenTrip.get, choosesModeData, reservationConfirmation.triggersToSchedule)
-      } else {
-        stay()
-      } using info.copy(data = PersonData(Some(choosesModeData.copy(awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation + (requestId -> Some(sender()))))))
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), theTriggerId), _) =>
+      // We've received this leg too early...
+      stash()
+      stay()
+  } using completeChoiceIfReady)
 
+  def completeChoiceIfReady: PartialFunction[State, State] = {
+    case s @ FSM.State(stateName, info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData @ ChoosesModeData(None, Some(routingResponse), Some(rideHailingResult), _, _, _))),_,_,_), timeout, stopReason, replies) =>
+      val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).isDefined
+      var predefinedMode: Option[BeamMode] = None
+      var combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
+
+
+      if (modeAlreadyDefined) {
+        predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
+        if (predefinedMode.get != WALK) {
+          val itinsWithoutWalk = if(predefinedMode.get == DRIVE_TRANSIT){
+            combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
+          }else{
+            combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
+          }
+          if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
+        }
+      }
+      if (combinedItinerariesForChoice.isEmpty) {
+        assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
+      }
+
+      val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
+        case logit: ModeChoiceLCCM =>
+          val tourType: TourType = Mandatory
+          logit(combinedItinerariesForChoice, Some(attributesOfIndividual), tourType)
+        case logit: ModeChoiceMultinomialLogit =>
+          val trip = logit(combinedItinerariesForChoice)
+          trip
+        case _ =>
+          modeChoiceCalculator(combinedItinerariesForChoice)
+      }
+      val newPersonData = info.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(pendingChosenTrip = Some(chosenTrip), expectedMaxUtilityOfLatestChoice = modeChoiceCalculator match {
+        case logit: ModeChoiceMultinomialLogit =>
+          Some(logit.expectedMaximumUtility)
+        case _ =>
+          None
+      })))
+      if (chosenTrip.requiresReservationConfirmation) {
+        sendReservationRequests(chosenTrip, choosesModeData) using info.copy(data = newPersonData)
+      } else {
+        goto(Waiting) using info.copy(data = newPersonData)
+      }
+  }
+
+  when(WaitingForReservationConfirmation, stateTimeout = 3 seconds) (transform {
+    case Event(ReservationResponse(requestId, Right(reservationConfirmation)), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
+      val awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation + (requestId -> Some(sender()))
+      if (awaitingReservationConfirmation.values.forall(x => x.isDefined)) {
+        log.info(awaitingReservationConfirmation.toString())
+        reservationConfirmation.triggersToSchedule.foreach(scheduler ! _)
+        goto(Waiting)
+
+        //        scheduleDepartureWithValidatedTrip(choosesModeData.pendingChosenTrip.get, choosesModeData, reservationConfirmation.triggersToSchedule)
+      } else {
+        log.error("pups")
+        log.info(awaitingReservationConfirmation.toString())
+        stay()
+      } using info.copy(data = PersonData(Some(choosesModeData.copy(awaitingReservationConfirmation = awaitingReservationConfirmation))))
     case Event(ReservationResponse(requestId, Left(error)), info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_)) =>
       var awaitingReservationConfirmation = choosesModeData.awaitingReservationConfirmation
       var rideHailingResult = choosesModeData.rideHailingResult
@@ -323,67 +381,21 @@ trait ChoosesMode {
         stop(Failure(error.errorCode.toString))
       } else {
         val newPersonData = info.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(pendingChosenTrip = None, awaitingReservationConfirmation = awaitingReservationConfirmation, rideHailingResult = rideHailingResult, routingResponse = routingResponse)))
-        stay using info.copy(data = newPersonData)
+        goto(ChoosingMode) using info.copy(data = newPersonData)
       }
-    case Event(ReservationResponse(_, _), _) =>
-      stop(Failure("unknown res response"))
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), theTriggerId), _) =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg),theTriggerId),_) =>
       // We've received this leg too early...
       stash()
       stay()
-  } using {
-    case s @ FSM.State(stateName, info @ BeamAgentInfo(_ , PersonData(Some(choosesModeData)),_,_,_), timeout, stopReason, replies) =>
-      if (choosesModeData.routingResponse.isDefined && choosesModeData.rideHailingResult.isDefined) {
-        val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).isDefined
-        var predefinedMode: Option[BeamMode] = None
-        var combinedItinerariesForChoice = choosesModeData.rideHailingResult.get.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
-          choosesModeData.routingResponse.get.itineraries
-
-
-        if (modeAlreadyDefined) {
-          predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
-          if (predefinedMode.get != WALK) {
-            val itinsWithoutWalk = if(predefinedMode.get == DRIVE_TRANSIT){
-              combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
-            }else{
-              combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
-            }
-            if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
-          }
-        }
-        if (combinedItinerariesForChoice.isEmpty) {
-          assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
-        }
-
-        var chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
-          case logit: ModeChoiceLCCM =>
-            val tourType: TourType = Mandatory
-            logit(combinedItinerariesForChoice, Some(attributesOfIndividual), tourType)
-          case logit: ModeChoiceMultinomialLogit =>
-            val trip = logit(combinedItinerariesForChoice)
-            trip
-          case _ =>
-            modeChoiceCalculator(combinedItinerariesForChoice)
-        }
-        val newPersonData = info.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(pendingChosenTrip = Some(chosenTrip), expectedMaxUtilityOfLatestChoice = modeChoiceCalculator match {
-          case logit: ModeChoiceMultinomialLogit =>
-            Some(logit.expectedMaximumUtility)
-          case _ =>
-            None
-        })))
-        if (chosenTrip.requiresReservationConfirmation) {
-          sendReservationRequests(chosenTrip, choosesModeData) using info.copy(data = newPersonData)
-        } else {
-          scheduleDepartureWithValidatedTrip(chosenTrip, info.data.maybeModeChoiceData.get) using info.copy(data = newPersonData)
-        }
-      } else {
-        stay() using info
-      }
-  })
+  } using completeChoiceIfReady)
 
   onTransition {
     case ChoosingMode -> Waiting =>
       unstashAll()
+      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
+    case WaitingForReservationConfirmation -> Waiting =>
+      unstashAll()
+      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
   }
 
   chainedWhen(AnyState) {
@@ -394,10 +406,10 @@ trait ChoosesMode {
 }
 
 object ChoosesMode {
-  case class ChoosesModeData(routingResponse: Option[RoutingResponse] = None,
+  case class ChoosesModeData(pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
+                             routingResponse: Option[RoutingResponse] = None,
                              rideHailingResult: Option[RideHailingInquiryResponse] = None,
                              awaitingReservationConfirmation: mutable.Map[Id[ReservationRequest], Option[ActorRef]] = mutable.Map(),
-                             pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends BeamAgentData
 
