@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{MatsimHumanBodyVehicleType, createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.{InitializeTrigger, PersonAgent, Population}
+import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode.CAR
@@ -20,7 +20,8 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
-import org.matsim.households.Household
+import org.matsim.households.Income.IncomePeriod
+import org.matsim.households.{Household, IncomeImpl}
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
 
 import scala.collection.JavaConverters._
@@ -67,7 +68,7 @@ object HouseholdActor {
   object HouseholdAttributes {
     def apply(household: Household,
               vehicles: Map[Id[Vehicle], Vehicle]) = new HouseholdAttributes(
-      household.getIncome.getIncome,
+      Option(household.getIncome).getOrElse(new IncomeImpl(0,IncomePeriod.year)).getIncome,
       household.getMemberIds.size(),
       household.getVehicleIds.asScala.map(vehicles).count(_.getType.getDescription.toLowerCase.contains("car")),
       household.getVehicleIds.asScala.map(vehicles).count(_.getType.getDescription.toLowerCase.contains("bike"))

@@ -30,7 +30,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.population.PopulationUtils
 import org.matsim.facilities.ActivityFacility
-import org.matsim.households.{Household, HouseholdImpl}
+import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactoryImpl}
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
@@ -53,8 +53,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
   val eventsManager = new EventsManagerImpl()
+  val dummyAgentId = Id.createPersonId("dummyAgent")
   val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
   val personRefs = TrieMap[Id[Person], ActorRef]()
+  val householdsFactory:HouseholdsFactoryImpl= new HouseholdsFactoryImpl()
+
   val services: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
@@ -75,7 +78,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     it("should allow scheduler to set the first activity") {
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
-      val household = new HouseholdImpl(Id.create("dummy", classOf[Household]))
+      val household:HouseholdImpl = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
@@ -93,7 +96,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     it("should publish events that can be received by a MATSim EventsManager") {
       within(10 seconds) {
-        val household = new HouseholdImpl(Id.create("dummy", classOf[Household]))
+        val household:HouseholdImpl = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
         eventsManager.addHandler(new ActivityEndEventHandler {
           override def handleEvent(event: ActivityEndEvent): Unit = {
             system.log.error("events-subscriber received actend event!")
@@ -114,7 +117,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
         val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
 
-        val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, modeChoiceCalculatorFactory, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), Vector(person), new Coord(0.0,0.0)))
+        val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, modeChoiceCalculatorFactory, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), Vector(person), new Coord(0.0, 0.0)))
         val personActor = householdActor.getSingleChild(person.getId.toString)
 
         // We want an ActivityEndEvent from this agent, but we have to help him a bit..
@@ -123,7 +126,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
           // The agent will ask for a route, and we provide it.
           expectMsgType[RoutingRequest]
-          personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 100, BeamPath(Vector(1,2), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), true)))))
+          personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 100, BeamPath(Vector(1, 2), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), true)))))
 
           // The agent will ask for a ride, and we will answer.
           val inquiry = expectMsgType[RideHailingInquiry]
@@ -140,7 +143,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 200.0, maxWindow = 10.0))
 
         val actEndDummy = new ActivityEndEvent(0, Id.createPersonId(0), Id.createLinkId(0), Id.create(0, classOf[ActivityFacility]), "dummy")
-        val household = new HouseholdImpl(Id.create("dummy", classOf[Household]))
+        val household:HouseholdImpl = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
 
         val plan = PopulationUtils.getFactory.createPlan()
         val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -157,7 +160,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         plan.addActivity(workActivity)
         plan.addActivity(backHomeActivity)
 
-        val attributesOfIndividual = AttributesOfIndividual(household,vehicles.map({case(vid,veh)=>(Id.createVehicleId(vid),veh.matSimVehicle)}).toMap)
+        val attributesOfIndividual = AttributesOfIndividual(household, vehicles.map({ case (vid, veh) => (Id.createVehicleId(vid), veh.matSimVehicle) }).toMap)
         val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculatorFactory(), networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle]), attributesOfIndividual, PersonData()))
 
         watch(personAgentRef)
@@ -169,6 +172,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     }
 
   }
+
 
   override def afterAll: Unit = {
     shutdown()
