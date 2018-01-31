@@ -82,7 +82,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
 
-      val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculatorFactory(), networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), household, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+      val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculatorFactory(), networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), household, plan, Id.create("dummyBody", classOf[Vehicle])))
 
       watch(personAgentRef)
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
@@ -156,7 +156,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         plan.addActivity(workActivity)
         plan.addActivity(backHomeActivity)
 
-        val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculatorFactory(), networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), household, plan, Id.create("dummyBody", classOf[Vehicle]), PersonData()))
+        val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculatorFactory(), networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), household, plan, Id.create("dummyBody", classOf[Vehicle])))
         watch(personAgentRef)
 
         scheduler ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)

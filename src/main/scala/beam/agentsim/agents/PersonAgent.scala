@@ -7,6 +7,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
@@ -41,7 +42,7 @@ object PersonAgent {
     Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, household, plan, humanBodyVehicleId))
   }
 
-  case class PersonData() extends BeamAgentData {}
+  case class PersonData(maybeModeChoiceData: Option[ChoosesModeData]) extends BeamAgentData {}
 
   object PersonData {
 
@@ -114,16 +115,18 @@ class PersonAgent(val scheduler: ActorRef,
                   override val id: Id[PersonAgent],
                   val household: Household,
                   val matsimPlan: Plan,
-                  val bodyId: Id[Vehicle],
-                  override val data: PersonData = PersonData()) extends BeamAgent[PersonData] with
+                  val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
-
+  override def data: PersonData = PersonData(maybeModeChoiceData = None)
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentVehicle: VehicleStack = VehicleStack()
   var _currentTrip: Option[EmbodiedBeamTrip] = None
   var _restOfCurrentTrip: EmbodiedBeamTrip = EmbodiedBeamTrip.empty
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
+  var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
+
+  override def logDepth: Int = 12
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
     processNextLegOrStartActivity(triggerId, tick)
