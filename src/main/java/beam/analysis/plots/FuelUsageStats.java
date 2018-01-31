@@ -45,10 +45,7 @@ public class FuelUsageStats implements IGraphStats{
     }
 
     public List<Integer> getSortedHourModeFuelageList(){
-        List<Integer> hours = new ArrayList<>();
-        hours.addAll(hourModeFuelage.keySet());
-        Collections.sort(hours);
-        return hours;
+        return GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFuelage.keySet());
     }
     public int getFuelageHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour){
         double count = 0;
@@ -57,12 +54,6 @@ public class FuelUsageStats implements IGraphStats{
             count=  count+modeOccurrencePerHour[i];
         }
         return (int)Math.ceil(count);
-    }
-    private List<String> getSortedModeFuleList(){
-        List<String> modesFuelList = new ArrayList<>();
-        modesFuelList.addAll(modesFuel);
-        Collections.sort(modesFuelList);
-        return modesFuelList;
     }
     private double[] getFuelageHourDataAgainstMode(String modeChosen,int maxHour){
         double[] modeOccurrencePerHour = new double[maxHour + 1];
@@ -81,8 +72,8 @@ public class FuelUsageStats implements IGraphStats{
 
     private CategoryDataset buildModesFuelageGraphDataset() {
 
-        List<Integer> hours = getSortedHourModeFuelageList();
-        List<String> modesFuelList = getSortedModeFuleList();
+        List<Integer> hours = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFuelage.keySet());
+        List<String> modesFuelList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesFuel);
         int maxHour = hours.get(hours.size() - 1);
         double[][] dataset = new double[modesFuel.size()][maxHour + 1];
         for (int i = 0; i < modesFuelList.size(); i++) {
@@ -92,7 +83,7 @@ public class FuelUsageStats implements IGraphStats{
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
     }
     private void processFuelUsage(Event event) {
-        int hour = CreateGraphsFromAgentSimEvents.getEventHour(event.getTime());
+        int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String vehicleType = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
         String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
         String vehicleId = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
@@ -124,12 +115,13 @@ public class FuelUsageStats implements IGraphStats{
     private void createModesFuelageGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
 
         boolean legend = true;
-        final JFreeChart chart = CreateGraphsFromAgentSimEvents.createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesFuelList = new ArrayList<>();
         modesFuelList.addAll(modesFuel);
         Collections.sort(modesFuelList);
-        CreateGraphsFromAgentSimEvents.processAndPlotLegendItems(plot,modesFuelList,dataset.getRowCount());
-        CreateGraphsFromAgentSimEvents.saveJFreeChartAsPNG(chart,iterationNumber,fileName);
+        GraphUtils.plotLegendItems(plot,modesFuelList,dataset.getRowCount());
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 }

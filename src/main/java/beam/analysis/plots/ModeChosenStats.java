@@ -54,14 +54,11 @@ public class ModeChosenStats implements IGraphStats{
         return (int)Math.ceil(modeOccurrencePerHour[hour]);
     }
     public List<Integer> getSortedHourModeFrequencyList(){
-        List<Integer> hoursList = new ArrayList<>();
-        hoursList.addAll(hourModeFrequency.keySet());
-        Collections.sort(hoursList);
-        return hoursList;
+        return GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
     }
 
     private void processModeChoice(Event event) {
-        int hour = CreateGraphsFromAgentSimEvents.getEventHour(event.getTime());
+        int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
         modesChosen.add(mode);
         Map<String, Integer> hourData = hourModeFrequency.get(hour);
@@ -80,12 +77,6 @@ public class ModeChosenStats implements IGraphStats{
         hourModeFrequency.put(hour, hourData);
     }
 
-    private List<String> getSortedChosenModeList(){
-        List<String> modesChosenList = new ArrayList<>();
-        modesChosenList.addAll(modesChosen);
-        Collections.sort(modesChosenList);
-        return modesChosenList;
-    }
     private double[] getHoursDataPerOccurrenceAgainstMode(String modeChosen, int maxHour){
         double[] modeOccurrencePerHour = new double[maxHour + 1];
         int index = 0;
@@ -102,8 +93,8 @@ public class ModeChosenStats implements IGraphStats{
     }
     private double[][] buildModesFrequencyDataset() {
 
-        List<Integer> hoursList = getSortedHourModeFrequencyList();
-        List<String> modesChosenList = getSortedChosenModeList();
+        List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
+        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
 
         int maxHour = hoursList.get(hoursList.size() - 1);
         double[][] dataset = new double[modesChosen.size()][maxHour + 1];
@@ -119,14 +110,14 @@ public class ModeChosenStats implements IGraphStats{
     }
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
         boolean legend = true;
-        final JFreeChart chart = CreateGraphsFromAgentSimEvents.createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> modesChosenList = new ArrayList<>();
         modesChosenList.addAll(modesChosen);
         Collections.sort(modesChosenList);
-        CreateGraphsFromAgentSimEvents.processAndPlotLegendItems(plot,modesChosenList,dataset.getRowCount());
-        CreateGraphsFromAgentSimEvents.saveJFreeChartAsPNG(chart,iterationNumber,fileName);
-
+        GraphUtils.plotLegendItems(plot,modesChosenList,dataset.getRowCount());
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
 }

@@ -1,9 +1,8 @@
 package beam.analysis.plot.graph;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.analysis.plots.CreateGraphsFromAgentSimEvents;
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.analysis.plots.DeadHeadingStats;
-import beam.analysis.plots.FuelUsageStats;
 import org.junit.Test;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
@@ -15,7 +14,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 public class DeadHeadingGraphTest {
-    static CreateGraphsFromAgentSimEvents graphsFromAgentSimEvents = new CreateGraphsFromAgentSimEvents();
+    static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener();
     private DeadHeadingStats deadHeadingStats = new DeadHeadingStats();
     private static String BASE_PATH = new File("").getAbsolutePath();;
     private static String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH+"/test/input/beamville/transitVehicles.xml";

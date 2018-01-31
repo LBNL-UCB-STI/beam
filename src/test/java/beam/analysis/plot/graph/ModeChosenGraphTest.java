@@ -1,7 +1,7 @@
 package beam.analysis.plot.graph;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.analysis.plots.CreateGraphsFromAgentSimEvents;
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.analysis.plots.ModeChosenStats;
 import org.junit.Test;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -14,7 +14,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 public class ModeChosenGraphTest {
-    static CreateGraphsFromAgentSimEvents graphsFromAgentSimEvents = new CreateGraphsFromAgentSimEvents();
+    static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener();
     private ModeChosenStats modeChosenStats = new ModeChosenStats();
     private static String BASE_PATH = new File("").getAbsolutePath();;
     private static String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH+"/test/input/beamville/transitVehicles.xml";

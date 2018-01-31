@@ -65,7 +65,7 @@ public class PersonTravelTimeStats implements IGraphStats{
             Id<Person> personId = personArrivalEvent.getPersonId();
             PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
             if (personDepartureEvent != null) {
-                int basketHour = CreateGraphsFromAgentSimEvents.getEventHour(personDepartureEvent.getTime());
+                int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
                 Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
                 Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
                 if (hourlyPersonTravelTimesPerMode == null) {
@@ -103,10 +103,11 @@ public class PersonTravelTimeStats implements IGraphStats{
         fileName = "average_travel_times_" + mode + ".png";
         graphTitle = "Average Travel Time [" + mode + "]";
         boolean legend = false;
-        final JFreeChart chart = CreateGraphsFromAgentSimEvents.createStackedBarChart(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisTitle,yAxisTitle,fileName,legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        CreateGraphsFromAgentSimEvents.processAndPlotLegendItems(plot,dataset.getRowCount());
-        CreateGraphsFromAgentSimEvents.saveJFreeChartAsPNG(chart,iterationNumber,fileName);
+        GraphUtils.plotLegendItems(plot,dataset.getRowCount());
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
     private CategoryDataset buildAverageTimesDatasetGraph(String mode){
