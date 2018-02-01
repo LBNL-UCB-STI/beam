@@ -1,7 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
 import beam.agentsim.agents.choice.mode._
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
+import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 
@@ -14,7 +14,7 @@ trait ModeChoiceCalculator extends HasServices {
   def apply(alternatives: Seq[EmbodiedBeamTrip], extraAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip
 
   def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
-    this(alternatives, None)
+    this (alternatives, None)
   }
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
@@ -47,7 +47,6 @@ object ModeChoiceCalculator {
     }
   }
 
-  case class AttributesOfIndividual(householdIncome: Double, householdSize: Int, isMale: Boolean, numCars: Int, numBikes: Int)
 
 }
 
