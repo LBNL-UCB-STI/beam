@@ -417,7 +417,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val duration = ChronoUnit.SECONDS.between(fromTime, pattern.toArrivalTime.get(transitJourneyID.time))
 
     var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
-    if (fr.nonEmpty)
+    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex))
       fr = Vector(fr.minBy(_.fare.price))
     fr
   }
