@@ -15,6 +15,7 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 
 import java.io.File;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
@@ -24,7 +25,6 @@ public class PhyssimCalcLinkStatsTest{
     private static String OUTPUT_DIR_PATH = BASE_PATH+"/test/input/equil-square/test-data/output";
     private static String EVENTS_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimEvents.relative-speeds.xml";
     private static String NETWORK_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimNetwork.relative-speeds.xml";
-    private static int iteration = 0;
     private static PhyssimCalcLinkStats physsimCalcLinkStats;
 
     static {
@@ -47,7 +47,7 @@ public class PhyssimCalcLinkStatsTest{
         Network network = sc.getNetwork();
         TravelTimeCalculatorConfigGroup ttccg = _config.travelTimeCalculator();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(network, ttccg);
-        //
+
 
         EventsManager events = EventsUtils.createEventsManager();
         events.addHandler(travelTimeCalculator);
@@ -58,17 +58,31 @@ public class PhyssimCalcLinkStatsTest{
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
         reader.readFile(EVENTS_FILE_PATH);
-
-
         physsimCalcLinkStats.notifyIterationEnds(0, travelTimeCalculator);
     }
 
 
     @Test
-    public void testRelativeSpeeds(){
-
-
-        System.out.println("Test to be executed here.");
-        assertEquals(1, 1);
+    public void test_Should_Pass_Should_Return_COUNT_OF_SPECIFIC_HOUR(){
+        Double expectedResult=10.0;
+        Double actualResult =  physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(0,7);
+        assertEquals(expectedResult, actualResult);
     }
+    @Test
+    public void test_Should_Pass_Should_Return_COUNT_OF_ALL_RELATIVE_SPEED_CATEGORY_FOR_SPECIFIC_HOUR(){
+        List<Double> relativeSpeedCategoryList=physsimCalcLinkStats.getSortedListRelativeSpeedCategoryList();
+        Double expectedResult=260.0;
+        Double actualResult = 0.0;
+        for(Double category:relativeSpeedCategoryList){
+            actualResult = actualResult + physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(category.intValue(),7);
+        }
+        assertEquals(expectedResult, actualResult);
+    }
+    @Test
+    public void test_Should_Pass_Should_Return_SUM_OF_RELATIVE_SPEED_CATEGORY_FOR_ALL_HOUR(){
+        Double expectedResult=148.0;
+        Double actualResult=physsimCalcLinkStats.getRelativeSpeedCountOfSpecificCategory(0);
+        assertEquals(expectedResult, actualResult);
+    }
+
 }
