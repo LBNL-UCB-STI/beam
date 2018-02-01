@@ -1,5 +1,6 @@
 package beam.analysis.physsim;
 
+import beam.utils.BeamCalcLinkStats;
 import org.matsim.analysis.CalcLinkStats;
 import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.TransportMode;
@@ -22,13 +23,13 @@ import java.util.Map;
 public class LinkStats {
 
     private final Network network;
-    private CalcLinkStats linkStats;
+    private BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
     private OutputDirectoryHierarchy controlerIO;
 
     public LinkStats(Network network, OutputDirectoryHierarchy controlerIO) {
         this.network = network;
-        linkStats = new CalcLinkStats(network);
+        linkStats = new BeamCalcLinkStats(network);
         this.controlerIO = controlerIO;
     }
 
