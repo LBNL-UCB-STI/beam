@@ -397,10 +397,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
       val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
 
-      var rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
+      var rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
 
       if (rules.isEmpty)
-        rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
+        rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
 
       rules
     }).toVector
