@@ -190,6 +190,8 @@ object FareCalculator {
     def apply(fare: BeamFare, agencyId: String): BeamFareSegment = new BeamFareSegment(fare, agencyId, 0, 0)
 
     def apply(fareSegment: BeamFareSegment, patternIndex: Int, segmentDuration: Long): BeamFareSegment = new BeamFareSegment(fareSegment.fare, fareSegment.agencyId, patternIndex, segmentDuration)
+
+    def apply(fareSegment: BeamFareSegment, segmentDuration: Long): BeamFareSegment = new BeamFareSegment(fareSegment.fare, fareSegment.agencyId, fareSegment.patternIndex, segmentDuration)
   }
 
 
