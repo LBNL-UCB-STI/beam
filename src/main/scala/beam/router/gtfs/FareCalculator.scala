@@ -269,7 +269,7 @@ object FareCalculator {
         // or transfer limit exceeded
         trans match {
           case 0 => lhs
-          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.zipWithIndex.filter(fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans).map(s => BeamFareSegment(s._1, s._1.segmentDuration-lhs.head.segmentDuration)))
+          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.zipWithIndex.filter(fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans).map(s => BeamFareSegment(s._1, s._1.segmentDuration - lhs.head.segmentDuration)))
         }
       }
 
