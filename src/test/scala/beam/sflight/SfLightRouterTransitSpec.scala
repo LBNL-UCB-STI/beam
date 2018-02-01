@@ -1,5 +1,6 @@
 package beam.sflight
 
+import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 import java.time.ZonedDateTime
 
 import akka.actor.Status.Success
@@ -106,7 +107,8 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
             StreetVehicle(Id.createVehicleId("body-116378-2"), new SpaceTime(new Coord(origin.getX, origin.getY), time.atTime), WALK, asDriver = true)
           ))
           val response = expectMsgType[RoutingResponse]
-//          response.itineraries.foreach(it => { println(Vector("itinerary ->",origin, destination, time, it.tripClassifier,it.costEstimate, it.legs.map(_.beamLeg.mode))); })
+
+//          writeResponseToFile(origin, destination, time, response)
 
           assert(response.itineraries.exists(_.costEstimate > 0))
           assert(response.itineraries.filter(_.tripClassifier.isTransit()).forall(_.costEstimate > 0))
@@ -116,31 +118,32 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       })
     }
 
-    "respond with a route having cost 11 USD." in {
+    "respond with a multi transfer route having cost 9.75 USD." in {
       val origin = new Coord(554413.5055508229, 4176933.7295036125)
       val destination = new Coord(551010.1423040839, 4184361.3484820053)
       val time = RoutingModel.DiscreteTime(65220)
       router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
 
-      assert(response.itineraries.exists(_.costEstimate == 11.0))
+//      printResponse(origin, destination, time, response)
+      assert(response.itineraries.exists(_.costEstimate == 9.75))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
 
-    "respond with a multi transfer route having cost 8.25 USD." in {
+    "respond with a unlimited transfer route having cost 2.75 USD." in {
       val origin = new Coord(549598.9574660371, 4176177.2431860007)
       val destination = new Coord(544417.3891361314, 4177016.733758491)
       val time = RoutingModel.DiscreteTime(64080)
       router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
 
-      assert(response.itineraries.exists(_.costEstimate == 8.25))
+      assert(response.itineraries.exists(_.costEstimate == 2.75))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
 
-    "respond with a BART route having cost 1.95 USD." in {
+    "respond with a BART route without transfer having cost 1.95 USD." in {
       val origin = geo.wgs2Utm(new Coord(-122.41969, 37.76506)) // 16th St. Mission
       val destination = geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
       val time = RoutingModel.DiscreteTime(51840)
@@ -151,6 +154,16 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
+  }
+
+  private def printResponse(origin: Location, destination: Location, time: RoutingModel.DiscreteTime, response: RoutingResponse) = {
+    response.itineraries.foreach(it => println(Vector("itinerary ->", origin, destination, time, it.tripClassifier, it.costEstimate, it.legs.zipWithIndex.map(t => (t._1.beamLeg.mode, it.legs.zipWithIndex.filter(_._2 < t._2).map(_._1.beamLeg.duration).sum)))))
+  }
+
+  private def writeResponseToFile(origin: Location, destination: Location, time: RoutingModel.DiscreteTime, response: RoutingResponse) = {
+    val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
+    response.itineraries.foreach(it => writer.append(Vector("itinerary ->", origin, destination, time, it.tripClassifier, it.costEstimate, it.legs.zipWithIndex.map(t => (t._1.beamLeg.mode, it.legs.zipWithIndex.filter(_._2 < t._2).map(_._1.beamLeg.duration).sum))).toString() + "\n"))
+    writer.close()
   }
 
   def assertMakesSense(trip: RoutingModel.EmbodiedBeamTrip): Unit = {
