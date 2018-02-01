@@ -273,7 +273,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
               //              val tripPattern = transportNetwork.transitLayer.tripPatterns.get(segmentPattern.patternIdx)
               val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
               //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
-              val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
+              val fs = fares.filter(_.patternIndex == segmentPattern.patternIdx).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
               val segmentLegs = transitSchedule(Id.createVehicleId(tripId))._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.zipWithIndex.map(beamLeg => (beamLeg._1, if (beamLeg._2 == 0) fare else 0.0))
@@ -397,7 +397,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
       val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
 
-      var rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, t._2.head._2.pattern, duration))
+      var rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
 
       if (rules.isEmpty)
         rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
@@ -416,7 +416,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val toStopId = getStopId(transitSegment.to)
     val duration = ChronoUnit.SECONDS.between(fromTime, pattern.toArrivalTime.get(transitJourneyID.time))
 
-    var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(f => BeamFareSegment(f, transitJourneyID.pattern, duration))
+    var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
     if (fr.nonEmpty)
       fr = Vector(fr.minBy(_.fare.price))
     fr
