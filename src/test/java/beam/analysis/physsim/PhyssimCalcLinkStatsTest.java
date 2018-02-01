@@ -16,7 +16,9 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 
 import java.io.File;
 
-public class PhyssimCalcLinkStatsTest {
+import static org.junit.Assert.assertEquals;
+
+public class PhyssimCalcLinkStatsTest{
 
     private static String BASE_PATH = new File("").getAbsolutePath();;
     private static String OUTPUT_DIR_PATH = BASE_PATH+"/test/input/equil-square/test-data/output";
@@ -63,16 +65,10 @@ public class PhyssimCalcLinkStatsTest {
 
 
     @Test
-    public static void testRelativeSpeeds(){
+    public void testRelativeSpeeds(){
 
 
         System.out.println("Test to be executed here.");
+        assertEquals(1, 1);
     }
-
-    public static void main(String args[]){
-
-
-        //runJdeqSimulation();
-    }
-
 }
