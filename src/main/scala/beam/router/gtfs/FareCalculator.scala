@@ -227,11 +227,7 @@ object FareCalculator {
         case (Vector(), Vector()) => Vector()
         case (Vector(), rhs) => iterateTransfers(rhs, next)
         case (lhs, Vector()) => applyTransfer(lhs)
-        case (lhs, rhs) => applyTransfer(lhs) ++ (trans match {
-          case 0 => iterateTransfers(rhs, next)
-          case 1 | 2 => val sf = rhs.span(t => t.segmentDuration <= lhs(lhs.size - (lhs.size % (trans + 1))).fare.transferDuration); iterateTransfers(sf._1.splitAt((trans + 1) - lhs.size % (trans + 1))._2 ++ sf._2, trans)
-          case _ => rhs.span(t => t.segmentDuration <= lhs.head.fare.transferDuration)._2
-        })
+        case (lhs, rhs) => applyTransfer(lhs) ++ iterateTransfers(rhs, next)
       }
     }
 
