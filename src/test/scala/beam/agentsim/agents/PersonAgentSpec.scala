@@ -24,6 +24,7 @@ import beam.utils.BeamConfigUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.events.handler.ActivityEndEventHandler
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
@@ -31,6 +32,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.routes.RouteUtils
 import org.matsim.facilities.ActivityFacility
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactoryImpl}
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
@@ -150,6 +152,57 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       expectMsgType[CompletionNotice]
     }
+
+    it("should know how to take a trip when it's already in its plan") {
+      val household:HouseholdImpl = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      eventsManager.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          self ! event
+        }
+      })
+
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      val plan = PopulationUtils.getFactory.createPlan()
+      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      homeActivity.setEndTime(28800) // 8:00:00 AM
+      plan.addActivity(homeActivity)
+      val leg = PopulationUtils.createLeg("car")
+      leg.setRoute(RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(1), Array[Id[Link]](), Id.createLinkId(2)))
+      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
+      workActivity.setEndTime(61200) //5:00:00 PM
+      plan.addActivity(workActivity)
+      person.addPlan(plan)
+      population.addPerson(person)
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
+
+      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, modeChoiceCalculatorFactory, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), Vector(person), new Coord(0.0, 0.0)))
+      val personActor = householdActor.getSingleChild(person.getId.toString)
+
+      scheduler ! StartSchedule(0)
+
+      // The agent will ask nothing and just go ahead
+
+      expectMsgType[ActivityEndEvent]
+      expectMsgType[PersonDepartureEvent]
+
+      expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+
+      expectMsgType[PathTraversalEvent]
+      expectMsgType[PersonLeavesVehicleEvent]
+      expectMsgType[TeleportationArrivalEvent]
+
+      expectMsgType[PersonArrivalEvent]
+      expectMsgType[ActivityStartEvent]
+
+      expectMsgType[CompletionNotice]
+    }
+
 
   }
 
