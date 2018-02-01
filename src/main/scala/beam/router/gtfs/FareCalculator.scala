@@ -214,8 +214,6 @@ object FareCalculator {
     */
   def filterFaresOnTransfers(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
 
-    val result = groupFaresByAgencyAndProceed(fareSegments)
-
     /**
       * Apply filter on fare segments, agency by agency in order
       *
@@ -241,15 +239,6 @@ object FareCalculator {
       * @return processed collection of @BeamFareSegment
       */
     def iterateTransfers(fareSegments: Vector[BeamFareSegment], trans: Int = 0): Vector[BeamFareSegment] = {
-
-      // separate fare segments with current transfer number as lhs then apply transfer rules
-      // and reiterate for rest of the fare segments (rhs) with next iteration number
-      val processedSegments = fareSegments.span(_.fare.transfers == trans) match {
-        case (Vector(), Vector()) => Vector()
-        case (Vector(), rhs) => iterateTransfers(rhs, next)
-        case (lhs, Vector()) => applyTransferRules(lhs)
-        case (lhs, rhs) => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
-      }
 
       /**
         * Generate a next transfer number /option
@@ -280,13 +269,21 @@ object FareCalculator {
         // or transfer limit exceeded
         trans match {
           case 0 => lhs
-          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.filter(_.segmentDuration > lhs.head.fare.transferDuration).map(s => BeamFareSegment(s, s.segmentDuration-lhs.head.segmentDuration)))
+          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.zipWithIndex.filter(fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans).map(s => BeamFareSegment(s._1, s._1.segmentDuration-lhs.head.segmentDuration)))
         }
       }
 
-      processedSegments
+      // separate fare segments with current transfer number as lhs then apply transfer rules
+      // and reiterate for rest of the fare segments (rhs) with next iteration number
+      fareSegments.span(_.fare.transfers == trans) match {
+        case (Vector(), Vector()) => Vector()
+        case (Vector(), rhs) => iterateTransfers(rhs, next)
+        case (lhs, Vector()) => applyTransferRules(lhs)
+        case (lhs, rhs) => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
+      }
     }
-    result
+
+    groupFaresByAgencyAndProceed(fareSegments)
   }
 
   def sumFares(rules: Vector[BeamFareSegment]): Double = {
