@@ -11,7 +11,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.HouseholdAttributes
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.CarVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -101,7 +101,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
             powerTrain,
             matsimVehicle,
             vehicleAttribute,
-            CarVehicle)
+            Car)
         }).toMap
 
       houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
