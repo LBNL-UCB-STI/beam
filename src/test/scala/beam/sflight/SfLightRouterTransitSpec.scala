@@ -1,6 +1,6 @@
 package beam.sflight
 
-import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+import java.io.{BufferedWriter, File, FileWriter}
 import java.time.ZonedDateTime
 
 import akka.actor.Status.Success
@@ -108,7 +108,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
           ))
           val response = expectMsgType[RoutingResponse]
 
-//          writeResponseToFile(origin, destination, time, response)
+          // writeResponseToFile(origin, destination, time, response)
 
           assert(response.itineraries.exists(_.costEstimate > 0))
           assert(response.itineraries.filter(_.tripClassifier.isTransit()).forall(_.costEstimate > 0))
@@ -125,7 +125,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
 
-//      printResponse(origin, destination, time, response)
+      // printResponse(origin, destination, time, response)
       assert(response.itineraries.exists(_.costEstimate == 9.75))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))

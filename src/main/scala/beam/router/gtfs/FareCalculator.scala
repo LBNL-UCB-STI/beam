@@ -119,10 +119,6 @@ class FareCalculator(directory: String) {
   def calcFare(agencyId: String, routeId: String, fromId: String, toId: String, containsIds: Set[String] = null): Double = {
     sumFares(getFareSegments(agencyId, routeId, fromId, toId, containsIds))
   }
-
-  def sumFares(rules: Vector[BeamFareSegment]): Double = {
-    filterTransferFares(rules).map(_.fare.price).sum
-  }
 }
 
 object FareCalculator {
@@ -209,39 +205,91 @@ object FareCalculator {
     t._2.map(_.routeId).distinct.forall(id => id == routeId || id == null) &&
       t._2.map(_.containsId).toSet.equals(containsIds)
 
-  def filterTransferFares(rules: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
-    def iterateTransfers(rules: Vector[BeamFareSegment], trans: Int = 0): Vector[BeamFareSegment] = {
+  /**
+    * Take an itinerary specific collection of @BeamFareSegment and apply transfer rules
+    * across segment fares based of GTFS specs (https://developers.google.com/transit/gtfs/reference/#fare_attributestxt)
+    *
+    * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
+    * @return collection of @BeamFareSegment for an itinerary after applying transfer rules
+    */
+  def filterFaresOnTransfers(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+
+    val result = groupFaresByAgencyAndProceed(fareSegments)
+
+    /**
+      * Apply filter on fare segments, agency by agency in order
+      *
+      * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
+      * @return a resultant collection of @BeamFareSegment
+      */
+    def groupFaresByAgencyAndProceed(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+      if (fareSegments.isEmpty)
+        Vector()
+      else {
+        val agencyRules = fareSegments.span(_.agencyId == fareSegments.head.agencyId)
+        // for first agency fare/rules start filter iteration
+        // and for rest of fares continue grouping and processing
+        iterateTransfers(agencyRules._1) ++ groupFaresByAgencyAndProceed(agencyRules._2)
+      }
+    }
+
+    /**
+      * A helper method to iterate different parts of fare segment collection
+      *
+      * @param fareSegments collection of @BeamFareSegment to apply transfer rule/filter
+      * @param trans transfer number under processing
+      * @return processed collection of @BeamFareSegment
+      */
+    def iterateTransfers(fareSegments: Vector[BeamFareSegment], trans: Int = 0): Vector[BeamFareSegment] = {
+
+      // separate fare segments with current transfer number as lhs then apply transfer rules
+      // and reiterate for rest of the fare segments (rhs) with next iteration number
+      val processedSegments = fareSegments.span(_.fare.transfers == trans) match {
+        case (Vector(), Vector()) => Vector()
+        case (Vector(), rhs) => iterateTransfers(rhs, next)
+        case (lhs, Vector()) => applyTransferRules(lhs)
+        case (lhs, rhs) => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
+      }
+
+      /**
+        * Generate a next transfer number /option
+        *
+        * 0 - No transfers permitted on this fare.
+        * 1 - Passenger may transfer once.
+        * 2 - Passenger may transfer twice.
+        * (empty) - If this field is empty, unlimited transfers are permitted
+        * Int.MaxValue is used to represent empty
+        *
+        * @return next transfer option
+        */
       def next: Int = if (trans == Int.MaxValue) 0 else trans match {
         case 0 | 1 => trans + 1
         case 2 => Int.MaxValue
         case _ => 0
       }
 
-      def applyTransfer(lhs: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+      /**
+        * Apply transfer rules on fare segments
+        * @param lhs takes fare segments
+        * @return
+        */
+      def applyTransferRules(lhs: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+        // when permitted transfers are 0, then return as is
+        // otherwise take the first segment and reiterate for the rest
+        // having higher segment duration from permitted transfer duration
+        // or transfer limit exceeded
         trans match {
           case 0 => lhs
-//          case 1 | 2 => lhs.zipWithIndex.filter(t => (t._2 + 1) % (trans + 1) == 1 || t._1.segmentDuration > t._1.fare.transferDuration).map(_._1)
-          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.filter(_.segmentDuration > lhs.head.fare.transferDuration).map(s => BeamFareSegment(s, s.segmentDuration-lhs.head.segmentDuration)))//|| t._1.segmentDuration > t._1.fare.transferDuration
+          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.filter(_.segmentDuration > lhs.head.fare.transferDuration).map(s => BeamFareSegment(s, s.segmentDuration-lhs.head.segmentDuration)))
         }
       }
 
-      rules.span(_.fare.transfers == trans) match {
-        case (Vector(), Vector()) => Vector()
-        case (Vector(), rhs) => iterateTransfers(rhs, next)
-        case (lhs, Vector()) => applyTransfer(lhs)
-        case (lhs, rhs) => applyTransfer(lhs) ++ iterateTransfers(rhs, next)
-      }
+      processedSegments
     }
+    result
+  }
 
-    def spanAgency(rules: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
-      if (rules.isEmpty)
-        Vector()
-      else {
-        val agencyRules = rules.span(_.agencyId == rules.head.agencyId)
-        iterateTransfers(agencyRules._1) ++ spanAgency(agencyRules._2)
-      }
-    }
-
-    spanAgency(rules)
+  def sumFares(rules: Vector[BeamFareSegment]): Double = {
+    filterFaresOnTransfers(rules).map(_.fare.price).sum
   }
 }

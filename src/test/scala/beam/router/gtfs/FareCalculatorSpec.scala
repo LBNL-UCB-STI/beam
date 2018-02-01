@@ -90,7 +90,7 @@ class FareCalculatorSpec extends WordSpecLike {
           testFareCalc.getFareSegments("CE", "ACE", "55643", "55644").map(BeamFareSegment(_, 0, 3800)) ++
           testFareCalc.getFareSegments("CE", "ACE", "55644", "55645").map(BeamFareSegment(_, 0, 4300)) ++
           testFareCalc.getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
-        val fsf = filterTransferFares(fr)
+        val fsf = filterFaresOnTransfers(fr)
         assert(fsf.nonEmpty)
         assert(fsf.size == 3)
         assert(fsf.head.fare.transferDuration == 3800)

@@ -266,7 +266,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
              */
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
             val fareSegments = getFareSegments(segments.toVector)
-            val fares = filterTransferFares(fareSegments)
+            val fares = filterFaresOnTransfers(fareSegments)
 
             segments.foreach { case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
@@ -384,24 +384,25 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   private def getFareSegments(segments: Vector[(TransitSegment, TransitJourneyID)]): Vector[BeamFareSegment] = {
     segments.groupBy(s => getRoute(s._1, s._2).agency_id).flatMap(t => {
       val pattern = getPattern(t._2.head._1, t._2.head._2)
-      val route = getRoute(pattern)
-      val agencyId = route.agency_id
-      val routeId = route.route_id
-
-      val fromId = getStopId(t._2.head._1.from)
-      val toId = getStopId(t._2.last._1.to)
-
       val fromTime = pattern.fromDepartureTime.get(t._2.head._2.time)
-      val toTime = getPattern(t._2.last._1, t._2.last._2).toArrivalTime.get(t._2.last._2.time)
-      val duration = ChronoUnit.SECONDS.between(fromTime, toTime)
-
-      val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
 
       var rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
 
-      if (rules.isEmpty)
-        rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
+      if (rules.isEmpty) {
+        val route = getRoute(pattern)
+        val agencyId = route.agency_id
+        val routeId = route.route_id
 
+        val fromId = getStopId(t._2.head._1.from)
+        val toId = getStopId(t._2.last._1.to)
+
+        val toTime = getPattern(t._2.last._1, t._2.last._2).toArrivalTime.get(t._2.last._2.time)
+        val duration = ChronoUnit.SECONDS.between(fromTime, toTime)
+
+        val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
+
+        rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
+      }
       rules
     }).toVector
   }
