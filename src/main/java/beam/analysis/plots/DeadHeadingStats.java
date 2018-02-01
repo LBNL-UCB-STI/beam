@@ -25,7 +25,7 @@ public class DeadHeadingStats implements IGraphStats {
     private static int maxPassengersSeenOnGenericCase = 0;
     private String fileName = null;
     private String graphTitle = null;
-
+    private static final int DEFAULT_OCCURRENCE=1;
 
     @Override
     public void processStats(Event event) {
@@ -88,66 +88,83 @@ public class DeadHeadingStats implements IGraphStats {
         double[] hoursData = dataset[bucketIndex];
         return (int) Math.ceil(hoursData[hour]);
     }
-
     private void processDeadHeading(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         String mode = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
         String vehicle_id = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        String num_passengers = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
-        String graphName = mode;
-        Map<Integer, Map<Integer, Integer>> deadHeadings = null;
-        if (mode.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR) && vehicle_id.contains(GraphsStatsAgentSimEventsListener.RIDE)) {
-            graphName = GraphsStatsAgentSimEventsListener.TNC;
+        String graphName = getGraphNameAgainstModeAndVehicleId(mode,vehicle_id);
+        Integer _num_passengers = getPathTraversalEventNumOfPassengers(event);
+        boolean validCase = isValidCase(graphName, _num_passengers);
+        if (validCase) {
+            updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
         }
-        Integer _num_passengers = null;
+
+        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
+            Double length = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+            updateDeadHeadingTNCMap(length,hour,_num_passengers);
+        }
+    }
+    private boolean updateDeadHeadingTNCMap(double length,int hour,Integer _num_passengers){
+        Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
+
+        if (hourData == null) {
+            hourData = new HashMap<>();
+            hourData.put(_num_passengers, length);
+        } else {
+            Double distance = hourData.get(_num_passengers);
+            if (distance == null) {
+                distance = length;
+            } else {
+                distance = distance + length;
+            }
+            hourData.put(_num_passengers, distance);
+        }
+
+        deadHeadingsTnc0Map.put(hour, hourData);
+        return true;
+    }
+    private Integer getPathTraversalEventNumOfPassengers(Event event){
+        String num_passengers = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
+        Integer _num_passengers =null;
         try {
             _num_passengers = Integer.parseInt(num_passengers);
         } catch (NumberFormatException nfe) {
             nfe.printStackTrace();
         }
-        boolean validCase = isValidCase(graphName, _num_passengers);
-        if (validCase) {
-            deadHeadings = deadHeadingsMap.get(graphName);
-            Map<Integer, Integer> hourData = null;
-            if (deadHeadings != null)
-                hourData = deadHeadings.get(hour);
+        return _num_passengers;
+    }
+    public boolean updateNumPassengerInDeadHeadingsMap(int hour,String graphName,Integer _num_passengers){
 
-            if (hourData == null) {
-                hourData = new HashMap<>();
-                hourData.put(_num_passengers, 1);
-            } else {
-                Integer occurrence = hourData.get(_num_passengers);
-                if (occurrence == null) {
-                    occurrence = 1;
-                } else {
-                    occurrence = occurrence + 1;
-                }
-                hourData.put(_num_passengers, occurrence);
-            }
-            if (deadHeadings == null) {
-                deadHeadings = new HashMap<>();
-            }
-            deadHeadings.put(hour, hourData);
-            deadHeadingsMap.put(graphName, deadHeadings);
+        Map<Integer, Map<Integer, Integer>> deadHeadings = deadHeadingsMap.get(graphName);
+        Map<Integer, Integer> hourData = null;
+        if (deadHeadings != null)
+            hourData = deadHeadings.get(hour);
+        else{
+            deadHeadings = new HashMap<>();
         }
-        if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            Double length = Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-            Map<Integer, Double> hourData = deadHeadingsTnc0Map.get(hour);
-            if (hourData == null) {
-                hourData = new HashMap<>();
-                hourData.put(_num_passengers, length);
+        if (hourData == null) {
+            hourData = new HashMap<>();
+            hourData.put(_num_passengers, 1);
+        } else {
+            Integer occurrence = hourData.get(_num_passengers);
+            if (occurrence == null) {
+                occurrence = DEFAULT_OCCURRENCE;
             } else {
-                Double distance = hourData.get(_num_passengers);
-                if (distance == null) {
-                    distance = length;
-                } else {
-                    distance = distance + length;
-                }
-                hourData.put(_num_passengers, distance);
+                occurrence = occurrence + DEFAULT_OCCURRENCE;
             }
+            hourData.put(_num_passengers, occurrence);
+        }
+        deadHeadings.put(hour, hourData);
+        deadHeadingsMap.put(graphName, deadHeadings);
+        return true;
+    }
 
-            deadHeadingsTnc0Map.put(hour, hourData);
+    private String getGraphNameAgainstModeAndVehicleId(String mode,String vehicle_id){
+        String graphName = mode;
+        if (mode.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR) && vehicle_id.contains(GraphsStatsAgentSimEventsListener.RIDE)) {
+            graphName = GraphsStatsAgentSimEventsListener.TNC;
         }
+        return graphName;
     }
 
     private void createDeadHeadingGraphTnc0(CategoryDataset dataset, int iterationNumber, String graphName) throws IOException {
