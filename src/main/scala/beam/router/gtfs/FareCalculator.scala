@@ -220,8 +220,8 @@ object FareCalculator {
       def applyTransfer(lhs: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
         trans match {
           case 0 => lhs
-          case 1 | 2 => lhs.zipWithIndex.filter(t => (t._2 + 1) % (trans + 1) == 1 || t._1.segmentDuration > t._1.fare.transferDuration).map(_._1)
-          case _ => lhs.zipWithIndex.filter(t => t._2 == 0 || t._1.segmentDuration > t._1.fare.transferDuration).map(_._1)
+//          case 1 | 2 => lhs.zipWithIndex.filter(t => (t._2 + 1) % (trans + 1) == 1 || t._1.segmentDuration > t._1.fare.transferDuration).map(_._1)
+          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.filter(_.segmentDuration > lhs.head.fare.transferDuration).map(s => BeamFareSegment(s, s.segmentDuration-lhs.head.segmentDuration)))//|| t._1.segmentDuration > t._1.fare.transferDuration
         }
       }
 
