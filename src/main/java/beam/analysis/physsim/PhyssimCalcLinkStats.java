@@ -64,7 +64,7 @@ public class PhyssimCalcLinkStats {
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
 
         processData(iteration, travelTimeCalculator);
-        CategoryDataset dataset = buildModesFrequencyDataset();
+        CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         createModesFrequencyGraph(dataset, iteration);
     }
 
@@ -109,12 +109,34 @@ public class PhyssimCalcLinkStats {
             }
         }
     }
+    public double getRelativeSpeedOfSpecificHour(int relativeSpeedCategoryIndex,int hour){
+        double[][] dataset = buildModesFrequencyDataset();
+        double[] hoursData = dataset[relativeSpeedCategoryIndex];
+        return hoursData[hour];
+    }
+    public double getRelativeSpeedCountOfSpecificCategory(int relativeSpeedCategoryIndex){
+        double[][] dataset = buildModesFrequencyDataset();
+        double[] hoursData = dataset[relativeSpeedCategoryIndex];
+        double count = 0;
+        for(double hourCount:hoursData){
+            count = count + hourCount;
+        }
+        return count;
+    }
 
-    private CategoryDataset buildModesFrequencyDataset() {
 
-        java.util.List<Double> relativeSpeedsCategoriesList = new ArrayList<>();
-        relativeSpeedsCategoriesList.addAll(relativeSpeedFrequenciesPerBin.keySet());
+    private CategoryDataset buildAndGetGraphCategoryDataset(){
+        double[][] dataset = buildModesFrequencyDataset();
+        return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataset);
+    }
+    public List<Double> getSortedListRelativeSpeedCategoryList(){
+        List<Double> relativeSpeedsCategoriesList = new ArrayList<>(relativeSpeedFrequenciesPerBin.keySet());
         Collections.sort(relativeSpeedsCategoriesList);
+        return relativeSpeedsCategoriesList;
+    }
+    private double[][] buildModesFrequencyDataset() {
+
+        List<Double> relativeSpeedsCategoriesList = getSortedListRelativeSpeedCategoryList();
 
 
         double[][] dataset = new double[relativeSpeedsCategoriesList.size()][noOfBins];
@@ -139,7 +161,7 @@ public class PhyssimCalcLinkStats {
             dataset[i] = relativeSpeedFrequencyPerHour;
         }
 
-        return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataset);
+        return  dataset;
     }
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) {
