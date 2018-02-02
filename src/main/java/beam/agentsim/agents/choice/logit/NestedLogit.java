@@ -121,16 +121,22 @@ public class NestedLogit implements AbstractLogit{
 		}
 	}
 
-	//FIXME: Side-effecting... This should really return void, but it sets important of the data structures for this class.
+	//FIXME: Side-effecting...
 	public double getExpOfExpectedMaximumUtility(LinkedHashMap<String,LinkedHashMap<String,Double>> inputData, LinkedHashMap<NestedLogit,Double> conditionalProbs){
 		if(this.isAlternative()){
+			// Default is -Inf which renders this alternative empty if no input data found
+			double utilOfAlternative = Double.NEGATIVE_INFINITY;
+			double expOfUtil = 0.0;
 			if(inputData.containsKey(this.data.getNestName())) {
-				double utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName()));
-				this.data.setExpectedMaxUtility(utilOfAlternative);
-				return Math.exp(utilOfAlternative / this.data.getElasticity());
-			}else{
-				throw new RuntimeException("Logit model expects nest '"+this.data.getNestName()+"' but not found in input data.");
+				utilOfAlternative = this.data.getUtility().evaluateFunction(inputData.get(this.data.getNestName()));
+				// At this point if we see -Inf, set to very negative number but keep probability of this alternative non-zero
+				if(utilOfAlternative == Double.NEGATIVE_INFINITY){
+					utilOfAlternative = -Double.MAX_VALUE;
+				}
+				expOfUtil = Math.max(Double.MIN_VALUE,Math.exp(utilOfAlternative / this.data.getElasticity()));
 			}
+            this.data.setExpectedMaxUtility(utilOfAlternative);
+            return expOfUtil;
 		}else{
 			double sumOfExpOfExpMaxUtil = 0.0;
 			for(NestedLogit child : this.children){
