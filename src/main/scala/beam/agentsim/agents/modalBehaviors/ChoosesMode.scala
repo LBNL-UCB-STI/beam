@@ -14,7 +14,7 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobil
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{ChoosesModeData, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
-import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}

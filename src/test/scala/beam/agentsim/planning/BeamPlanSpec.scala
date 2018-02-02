@@ -1,7 +1,7 @@
 package beam.agentsim.planning
 
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamHelper
 import org.matsim.api.core.v01.Coord
