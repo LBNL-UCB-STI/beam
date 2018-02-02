@@ -6,6 +6,7 @@ import java.util
 import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.replanning.GrabExperiencedPlan
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
@@ -42,7 +43,7 @@ trait BeamHelper {
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
-        // Override MATSim Defaults
+        bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
         bind(classOf[PrepareForSim]).toInstance(new PrepareForSim {
           override def run(): Unit = {
             scenario.getPopulation.getPersons.values().forEach(person => {
@@ -61,14 +62,12 @@ trait BeamHelper {
               cleanedPlans.foreach(person.addPlan)
             })
           }
-        }) // Nothing to do
-        bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
-
-        // Beam -> MATSim Wirings
-        bindMobsim().to(classOf[BeamMobsim])
+        })
         addControlerListenerBinding().to(classOf[BeamSim])
+        bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
+        addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
+        bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
 
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
       }
@@ -97,6 +96,7 @@ trait BeamHelper {
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
+    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     val beamConfig = BeamConfig(config)
 
