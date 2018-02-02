@@ -154,7 +154,23 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
+
+    "respond with a CABLE_CAR route having multiple transfers but without transfer permission of cost 18.70 USD." in {
+      val origin = new Coord(550046.6183707184, 4173684.1312090624)
+      val destination = new Coord(551010.1423040839, 4184361.3484820053)
+      val time = RoutingModel.DiscreteTime(54960)
+      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
+      val response = expectMsgType[RoutingResponse]
+
+      printResponse(origin, destination, time, response)
+
+      assert(response.itineraries.exists(_.costEstimate == 18.70))
+      assert(response.itineraries.exists(_.tripClassifier == WALK))
+      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+    }
   }
+
+//  Vector(itinerary ->, [x=550046.6183707184][y=4173684.1312090624], [x=551010.1423040839][y=4184361.3484820053], DiscreteTime(54960), WALK_TRANSIT, 18.70
 
   private def printResponse(origin: Location, destination: Location, time: RoutingModel.DiscreteTime, response: RoutingResponse) = {
     response.itineraries.foreach(it => println(Vector("itinerary ->", origin, destination, time, it.tripClassifier, it.costEstimate, it.legs.zipWithIndex.map(t => (t._1.beamLeg.mode, it.legs.zipWithIndex.filter(_._2 < t._2).map(_._1.beamLeg.duration).sum)))))

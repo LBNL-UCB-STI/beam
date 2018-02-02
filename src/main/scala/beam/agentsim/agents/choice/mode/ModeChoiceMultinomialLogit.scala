@@ -69,7 +69,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         assert(numTransfers >= 0)
         ModeCostTimeTransfer(altAndIdx._1.tripClassifier, totalCost, altAndIdx._1.totalTravelTime, numTransfers, altAndIdx._2)
       }
-      val groupedByMode = (modeCostTimeTransfers ++ ModeChoiceMultinomialLogit.defaultAlternatives).sortBy(_.mode.value).groupBy(_.mode)
+      val groupedByMode = modeCostTimeTransfers.sortBy(_.mode.value).groupBy(_.mode)
 
       val bestInGroup = groupedByMode.map { case (mode, modeCostTimeSegment) =>
         // Which dominates at $18/hr
@@ -90,12 +90,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         model.makeRandomChoice(inputData, new Random())
       } catch {
         case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
-          // FIXME: This seems to happen when there's a floating-point overflow somewhere.
-          // FIXME: Something to do with the "default" (i.e. never to be chosen) alternatives
-          // FIXME: and a bad real alternative, e.g. with a high toll.
-
-          // FIXME: I think this should all be way more direct. It should just be a formula, and it should be here.
-          // FIXME: Without filling out maps or creating dummy alternatives or anything.
+          // This should be fixed (see issue #202) and never throw, but leaving this catch just in case
           return alternatives(chooseRandomAlternativeIndex(alternatives))
       }
       expectedMaximumUtility = model.getExpectedMaximumUtility
@@ -115,15 +110,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 object ModeChoiceMultinomialLogit {
 
   case class ModeCostTimeTransfer(mode: BeamMode, cost: BigDecimal, time: Double, numTransfers: Int, index: Int = -1)
-
-  val defaultAlternatives = Vector(
-    ModeCostTimeTransfer(BeamMode.WALK, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.CAR, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.RIDE_HAIL, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.BIKE, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.DRIVE_TRANSIT, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue),
-    ModeCostTimeTransfer(BeamMode.WALK_TRANSIT, BigDecimal(Double.MaxValue), Double.PositiveInfinity, Int.MaxValue)
-  )
 
   def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
     new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
