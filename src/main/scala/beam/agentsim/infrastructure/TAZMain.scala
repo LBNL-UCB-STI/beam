@@ -29,7 +29,7 @@ object TAZCreatorSctript extends App {
   val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp";
   val taz=new TAZTreeMap(shapeFile, "TAZCE10")
 
-// TODO: attriutes or xml from config file
+// TODO: attriutes or xml from config file - allow specifying multiple files
 
 
   val tazinfrastructureAttributesFilePath="Y:\\tmp\\beam\\infrastructure\\tazParkingAndChargingInfrastructureAttributes.xml"
@@ -37,8 +37,8 @@ object TAZCreatorSctript extends App {
   tazParkingAndChargingInfrastructureAttributes.putAttribute("FileInterpreter", "className", "BayAreaParkingAndChargingInfrastructure")
 
   for (tazVal:TAZ <-taz.tazQuadTree.values()){
-    tazParkingAndChargingInfrastructureAttributes.putAttribute(tazVal.tazId.toString, "streetParkingCapacity", 1.toString)
-    tazParkingAndChargingInfrastructureAttributes.putAttribute(tazVal.tazId.toString, "offStreetParkingCapacity", 1.toString)
+    tazParkingAndChargingInfrastructureAttributes.putAttribute(tazVal.tazId.toString, Parking.STREET_PARKING_CAPACITY, 1.toString)
+    tazParkingAndChargingInfrastructureAttributes.putAttribute(tazVal.tazId.toString, Parking.OFF_STREET_PARKING_HOURLY_RATE, 1.0.toString)
   }
 
   val tazParkingAndChargingInfrastructureAttributes: ObjectAttributes =new ObjectAttributes()
