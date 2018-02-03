@@ -1,15 +1,34 @@
 package beam.agentsim.infrastructure
 
 object Parking {
+  val PARKING_MANAGER = "PARKING_MANAGER"
+  val PARKING_TYPE = "PARKING_TYPE"
+  val PARKING_CAPACITY = "PARKING_CAPACITY"
+  val HOURLY_RATE = "HOURLY_RATE"
+  val CHARGING_LEVEL = "CHARGING_LEVEL"
+}
 
-  val PARKING_INFRASTRUCTURE_MANAGER = "PARKING_INFRASTRUCTURE_MANAGER"
-  val STREET_PARKING_CAPACITY = "STREET_PARKING_CAPACITY"
-  val STREET_PARKING_HOURLY_RATE = "STREET_PARKING_HOURLY_RATE"
-  val OFF_STREET_PARKING_CAPACITY = "OFF_STREET_PARKING_CAPACITY"
-  val OFF_STREET_PARKING_HOURLY_RATE = "OFF_STREET_PARKING_HOURLY_RATE"
-  val PARKING_WITH_CHARGING_L2_CAPACITY = "PARKING_WITH_CHARGING_L2_CAPACITY"
-  val PARKING_WITH_CHARGING_L2_HOURLY_RATE = "PARKING_WITH_CHARGING_L2_HOURLY_RATE"
-  val PARKING_WITH_CHARGING_L3_CAPACITY = "PARKING_WITH_CHARGING_L2_CAPACITY"
-  val PARKING_WITH_CHARGING_L3_HOURLY_RATE = "PARKING_WITH_CHARGING_L2_HOURLY_RATE"
+object ParkingType {
+  val OFF_STREET_PARKING = "OFF_STREET_PARKING"
+  val ON_STREET_PARKING = "STREET_PARKING"
+  val PARKING_WITH_CHARGER = "PARKING_WITH_CHARGER"
+}
 
+// TODO: refactor this away from strings to classes/objects/enums?
+// TODO: refine levels as needed by current main application
+object ChargerLevel {
+  val L2 = "L2"
+  val L3 = "L3"
+}
+
+// TODO: refine levels as needed by current main application
+object ChargerPower {
+  def getChargingPowerInkW(chargerLevel: String): Double ={
+    chargerLevel match {
+    case ChargerLevel.L2 => 3.3
+    case ChargerLevel.L3 => 120.0
+    case _ => - 1.0
+    throw new IllegalArgumentException ("unknown charger level")
+  }
+  }
 }

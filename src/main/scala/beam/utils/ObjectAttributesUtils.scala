@@ -3,7 +3,6 @@ package beam.utils
 import java.util
 import java.util.Collection
 
-import beam.agentsim.infrastructure.TAZCreatorSctript.tazinfrastructureAttributesFilePath
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlReader, ObjectAttributesXmlWriter}
 
 
