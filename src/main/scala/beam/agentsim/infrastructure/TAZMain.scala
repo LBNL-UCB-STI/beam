@@ -6,7 +6,7 @@ import java.util.ArrayList
 
 import beam.agentsim.agents.PersonAgent
 import beam.utils.scripts.HasXY.wgs2Utm
-import beam.utils.scripts.PlansSampler.shapeFileReader
+import beam.utils.scripts.PlansSampler._
 import beam.utils.scripts.QuadTreeExtent
 import com.vividsolutions.jts.geom.Geometry
 import org.geotools.data.simple.SimpleFeatureIterator
@@ -18,20 +18,52 @@ import org.matsim.core.utils.misc.Counter
 import org.opengis.feature.simple.SimpleFeature
 import util.HashMap
 
+import beam.utils.ObjectAttributesUtils
+import beam.utils.scripts.HouseholdAttrib.HousingType
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
+
 import scala.collection.JavaConverters._
 
 
-object TAZMain extends App {
+object TAZCreatorSctript extends App {
   val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp";
-  println(shapeFile)
   val taz=new TAZTreeMap(shapeFile, "TAZCE10")
+
+// TODO: attriutes or xml from config file
+
+
+  val tazinfrastructureAttributesFilePath="Y:\\tmp\\beam\\infrastructure\\tazParkingAndChargingInfrastructureAttributes.xml"
+
+  tazParkingAndChargingInfrastructureAttributes.putAttribute("FileInterpreter", "className", "BayAreaParkingAndChargingInfrastructure")
+
+  for (tazVal:TAZ <-taz.tazQuadTree.values()){
+    tazParkingAndChargingInfrastructureAttributes.putAttribute(tazVal.tazId.toString, "streetParkingCapacity", 1.toString)
+    tazParkingAndChargingInfrastructureAttributes.putAttribute(tazVal.tazId.toString, "offStreetParkingCapacity", 1.toString)
+  }
+
+  val tazParkingAndChargingInfrastructureAttributes: ObjectAttributes =new ObjectAttributes()
+
+
+  ObjectAttributesUtils.writeObjectAttributesToCSV(tazParkingAndChargingInfrastructureAttributes,tazinfrastructureAttributesFilePath)
+
+  println(shapeFile)
+
+
+
+
   println(taz.getId(-120.8043534,+35.5283106))
+
+
+
+
+
 }
 
 class TAZTreeMap(shapeFilePath: String, tazIDFieldName: String) {
   val tazQuadTree: QuadTree[TAZ] = initQuadTree()
 
   def getId(x: Double, y: Double): TAZ={
+    // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getClosest(x,y)
   }
 
