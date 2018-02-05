@@ -110,6 +110,11 @@ public class MultinomialLogit implements AbstractLogit, Cloneable {
         return tree.getExpectedMaximumUtility();
     }
 
+    @Override
+    public Double getUtilityOfAlternative(LinkedHashMap<String, Double> inputData){
+       return tree.data.utility.evaluateFunction(inputData);
+    }
+
     public LinkedList<String> getAlternativeNames(){
         LinkedList<String> names = new LinkedList<>();
         for(NestedLogit child : tree.children){

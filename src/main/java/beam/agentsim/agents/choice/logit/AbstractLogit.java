@@ -13,5 +13,7 @@ public interface AbstractLogit {
 
     Double getExpectedMaximumUtility();
 
+    Double getUtilityOfAlternative(LinkedHashMap<String, Double> inputData);
+
     void clear(); // Delete any state stored for use in evaluating distribution of given inputs
 }

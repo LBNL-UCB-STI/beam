@@ -100,6 +100,10 @@ public class NestedLogit implements AbstractLogit{
 		return cdf.sample(rand);
 	}
 	@Override
+	public Double getUtilityOfAlternative(LinkedHashMap<String, Double> inputData){
+		return this.data.getUtility().evaluateFunction(inputData);
+	}
+	@Override
 	public void clear() {
 		cdf = null;
 	}
