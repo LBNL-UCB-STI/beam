@@ -17,6 +17,10 @@ trait ModeChoiceCalculator extends HasServices {
     this (alternatives, None)
   }
 
+  def utilityOf(alternative: EmbodiedBeamTrip): Double = {
+    0.0
+  }
+
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
       Random.nextInt(alternatives.size)

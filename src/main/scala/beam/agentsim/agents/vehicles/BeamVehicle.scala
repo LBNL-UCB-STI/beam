@@ -3,18 +3,16 @@ package beam.agentsim.agents.vehicles
 import akka.actor.ActorRef
 import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.SeatAssignmentRule.RandomSeatAssignmentRule
 import beam.agentsim.agents.vehicles.VehicleOccupancyAdministrator.DefaultVehicleOccupancyAdministrator
 import beam.agentsim.agents.vehicles.VehicleProtocol._
-import beam.agentsim.events.resources.ReservationError
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.{Vehicle, VehicleType}
 
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.{Random, Try}
 
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
@@ -31,17 +29,12 @@ import scala.util.{Failure, Random, Success, Try}
 
 // TODO: safety for
 class BeamVehicle(powerTrain: Powertrain,
-                  initialMatsimVehicle: Vehicle,
+                  val matSimVehicle: Vehicle,
                   initialMatsimAttributes: Option[ObjectAttributes],
-                  beamVehicleType: BeamVehicleType,
-                 )
+  beamVehicleType: BeamVehicleType,
+  )
   extends Resource[BeamVehicle] {
-  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
-
-  /**
-    * MATSim vehicle delegate container (should be instantiated with all properties at creation).
-    */
-  val matSimVehicle: Vehicle = initialMatsimVehicle
+    val log: Logger = Logger.getLogger(classOf[BeamVehicle])
 
   /**
     * Manages the functionality to add or remove passengers from the vehicle according

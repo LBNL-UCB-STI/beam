@@ -14,22 +14,25 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobil
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{ChoosesModeData, LegWithPassengerVehicle}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
-import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.TriggerWithId
-import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.population.{Leg, Person}
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 
@@ -63,7 +66,11 @@ trait ChoosesMode {
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(_currentTick.get.toInt)
 
-      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextAct, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
+      val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
+        case l: Leg => Some(l)
+        case _ => None
+      }
+      val modeChoiceStrategy = maybeLeg.map(l => ModeChoiceStrategy(BeamMode.withValue(l.getMode)))
       modeChoiceStrategy match {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
           // In these cases, a personal vehicle will be involved
@@ -121,7 +128,19 @@ trait ChoosesMode {
         case Some(ModeChoiceStrategy(mode)) if mode == WALK_TRANSIT =>
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE =>
-          makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
+          maybeLeg.map(l => (l, l.getRoute)) match {
+            case Some((l, r: NetworkRoute)) =>
+              val maybeVehicle = filterStreetVehiclesForQuery(streetVehicles, mode).headOption
+              maybeVehicle match {
+                case Some(vehicle) =>
+                  val leg = BeamLeg(departTime.atTime, mode, l.getTravelTime.toLong, BeamPath((r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId).map(id => id.toString.toInt).toVector, None, SpaceTime.zero, SpaceTime.zero, 0.0))
+                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
+                case _ =>
+                  makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
+              }
+            case _ =>
+              makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
+          }
         case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
           currentTour.tripIndexOfElement(nextAct) match {
             case ind if ind == 0 =>
