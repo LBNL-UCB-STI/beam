@@ -111,8 +111,13 @@ public class MultinomialLogit implements AbstractLogit, Cloneable {
     }
 
     @Override
-    public Double getUtilityOfAlternative(LinkedHashMap<String, Double> inputData){
-       return tree.data.utility.evaluateFunction(inputData);
+    public Double getUtilityOfAlternative(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData){
+        for(NestedLogit child : tree.children){
+            if(inputData.containsKey(child.getName())){
+                return child.data.utility.evaluateFunction(inputData.get(child.getName()));
+            }
+        }
+        return Double.NaN;
     }
 
     public LinkedList<String> getAlternativeNames(){

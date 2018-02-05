@@ -76,15 +76,30 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     }
   }
 
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
+    val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
+    val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
+    altData.put("cost", cost)
+    altData.put("time", time)
+    if (mode.isTransit()) {
+      altData.put("transfer", numTransfers.toDouble)
+    }
+    inputData.put(mode.value, altData)
+    model.getUtilityOfAlternative(inputData)
+  }
+
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
     val modeCostTimeTransfer = altsToModeCostTimeTransfers(Seq(alternative)).head
+
+    val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
     val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
     altData.put("cost", modeCostTimeTransfer.cost.toDouble)
     altData.put("time", modeCostTimeTransfer.time)
     if (modeCostTimeTransfer.mode.isTransit()) {
       altData.put("transfer", modeCostTimeTransfer.numTransfers.toDouble)
     }
-    model.getUtilityOfAlternative(altData)
+    inputData.put(modeCostTimeTransfer.mode.value, altData)
+    model.getUtilityOfAlternative(inputData)
   }
 
   def altsToModeCostTimeTransfers(alternatives: Seq[EmbodiedBeamTrip]): Seq[ModeCostTimeTransfer] = {
