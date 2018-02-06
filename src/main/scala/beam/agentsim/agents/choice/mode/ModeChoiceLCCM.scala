@@ -134,9 +134,9 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
     }
   }
 
-  override def clone(): ModeChoiceCalculator = {
-    val lccmClone: LatentClassChoiceModel = lccm.clone()
-    new ModeChoiceLCCM(beamServices,lccmClone)
+  def utilityOf(mode: BeamMode, conditionedOnModalityStyle: String, tourType: TourType, cost: Double, time: Double): Double = {
+    val theParams = Map(("cost"->cost.toDouble),("time"->time))
+    lccm.modeChoiceModels(tourType)(conditionedOnModalityStyle).getUtilityOfAlternative(AlternativeAttributes(mode.value,theParams))
   }
 
 }
