@@ -4,7 +4,7 @@ import java.io.{ByteArrayInputStream, File, FileInputStream, InputStream}
 import java.util
 import java.util.Random
 
-import beam.agentsim.agents.choice.logit.MultinomialLogit
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
@@ -27,10 +27,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   var expectedMaximumUtility: Double = 0.0
 
-  override def clone(): ModeChoiceCalculator = {
-    val mnl: MultinomialLogit = this.model.clone()
-    new ModeChoiceMultinomialLogit(beamServices, mnl)
-  }
+//  override def clone(): ModeChoiceCalculator = {
+//    val mnl: MultinomialLogit = this.model.clone()
+//    new ModeChoiceMultinomialLogit(beamServices, mnl)
+//  }
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip = {
     if (alternatives.isEmpty) {
@@ -46,26 +46,23 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         modeCostTimeSegment.map { mct => (mct.time / 3600 * 18 + mct.cost.toDouble, mct) }.minBy(_._1)._2
       }
 
-      val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
-      bestInGroup.foreach { mct =>
-        val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
-        altData.put("cost", mct.cost.toDouble)
-        altData.put("time", mct.time)
-        if (mct.mode.isTransit()) {
-          altData.put("transfer", mct.numTransfers.toDouble)
-        }
-        inputData.put(mct.mode.value, altData)
-      }
+      val inputData = bestInGroup.map{ mct =>
+        val theParams = if (mct.mode.isTransit()) {
+          Map("transfer" -> mct.numTransfers.toDouble)
+        }else{
+          Map()
+        } ++ Map(("cost"->mct.cost.toDouble),("time"->mct.time))
+        AlternativeAttributes(mct.mode.value,theParams)
+      }.toVector
 
       val chosenMode = try {
-        model.makeRandomChoice(inputData, new Random())
+        model.sampleAlternative(inputData, new Random())
       } catch {
         case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
           // This should be fixed (see issue #202) and never throw, but leaving this catch just in case
           return alternatives(chooseRandomAlternativeIndex(alternatives))
       }
-      expectedMaximumUtility = model.getExpectedMaximumUtility
-      model.clear()
+      expectedMaximumUtility = model.getExpectedMaximumUtility(inputData)
       val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
       if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
@@ -77,29 +74,17 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
-    val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
-    val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
-    altData.put("cost", cost)
-    altData.put("time", time)
-    if (mode.isTransit()) {
-      altData.put("transfer", numTransfers.toDouble)
-    }
-    inputData.put(mode.value, altData)
-    model.getUtilityOfAlternative(inputData)
+    val theParams = if (mode.isTransit()) {
+      Map("transfer" -> numTransfers.toDouble)
+    }else{
+      Map()
+    } ++ Map(("cost"->cost.toDouble),("time"->time))
+    model.getUtilityOfAlternative(AlternativeAttributes(mode.value,theParams))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
     val modeCostTimeTransfer = altsToModeCostTimeTransfers(Seq(alternative)).head
-
-    val inputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
-    val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
-    altData.put("cost", modeCostTimeTransfer.cost.toDouble)
-    altData.put("time", modeCostTimeTransfer.time)
-    if (modeCostTimeTransfer.mode.isTransit()) {
-      altData.put("transfer", modeCostTimeTransfer.numTransfers.toDouble)
-    }
-    inputData.put(modeCostTimeTransfer.mode.value, altData)
-    model.getUtilityOfAlternative(inputData)
+    utilityOf(modeCostTimeTransfer.mode,modeCostTimeTransfer.cost.toDouble,modeCostTimeTransfer.time,modeCostTimeTransfer.numTransfers)
   }
 
   def altsToModeCostTimeTransfers(alternatives: Seq[EmbodiedBeamTrip]): Seq[ModeCostTimeTransfer] = {
@@ -151,12 +136,12 @@ object ModeChoiceMultinomialLogit {
     val document: Document = builder.build(is).asInstanceOf[Document]
     var theModelOpt: Option[MultinomialLogit] = None
 
-    document.getRootElement.getChildren.asScala.foreach { child =>
-      if (child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")) {
-        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
-        theModelOpt = Some(MultinomialLogit.multinomialLogitFactory(rootNode))
-      }
-    }
+//    document.getRootElement.getChildren.asScala.foreach { child =>
+//      if (child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")) {
+//        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
+//        theModelOpt = Some(MultinomialLogit.multinomialLogitFactory(rootNode))
+//      }
+//    }
 
     theModelOpt
   }

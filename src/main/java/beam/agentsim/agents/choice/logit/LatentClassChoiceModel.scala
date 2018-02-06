@@ -55,7 +55,8 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
       theAlternatives.addAll(theData.map(_.alternative).asJava)
       theVariables.addAll(theData.map(_.variable).asJava)
       theValues.addAll(theData.map { theRow => java.lang.Double.valueOf(theRow.value) }.asJava)
-      theTourType -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables, theAlternatives, theValues)
+//      theTourType -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables, theAlternatives, theValues)
+      theTourType -> MultinomialLogit(Vector())
     }.toMap
   }
 
@@ -72,7 +73,8 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
         theAlternatives.addAll(theData.map(_.alternative).asJava)
         theVariables.addAll(theData.map(_.variable).asJava)
         theValues.addAll(theData.map { theRow => java.lang.Double.valueOf(theRow.value) }.asJava)
-        theLatentClass -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables, theAlternatives, theValues)
+//        theLatentClass -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables, theAlternatives, theValues)
+        theLatentClass -> MultinomialLogit(Vector())
       }.toMap
     }.toMap
   }

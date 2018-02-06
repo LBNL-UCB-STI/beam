@@ -108,26 +108,28 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
         case None =>
       }
 
-      lccm.classMembershipModels.head._2.getAlternativeNames.asScala.foreach { theClassName =>
-        lccm.modeChoiceModels(tourType)(theClassName).evaluateProbabilities(modeChoiceInputData)
-        val modeChoiceExpectedMaxUtility = lccm.modeChoiceModels(tourType)(theClassName).getExpectedMaximumUtility
-        altData.put("surplus", modeChoiceExpectedMaxUtility)
-        classMembershipInputData.put(theClassName, altData)
-      }
+//      lccm.classMembershipModels.head._2.getAlternativeNames.asScala.foreach { theClassName =>
+//        lccm.modeChoiceModels(tourType)(theClassName).evaluateProbabilities(modeChoiceInputData)
+//        val modeChoiceExpectedMaxUtility = lccm.modeChoiceModels(tourType)(theClassName).getExpectedMaximumUtility
+//        altData.put("surplus", modeChoiceExpectedMaxUtility)
+//        classMembershipInputData.put(theClassName, altData)
+//      }
 
       /*
        * Evaluate and sample from classmembership, then sample from corresponding mode choice model
        */
-      val probDistrib = lccm.classMembershipModels(tourType).evaluateProbabilities(classMembershipInputData)
-      probDistrib.getProbabilityDensityMap.asScala.foreach { case (className, prob) =>
-        classMembershipDistribution = classMembershipDistribution + (className -> prob)
-      }
-      val chosenClass = lccm.classMembershipModels(tourType).makeRandomChoice(classMembershipInputData, new Random())
-      val chosenMode = lccm.modeChoiceModels(tourType)(chosenClass).makeRandomChoice(modeChoiceInputData, new Random())
+//      val probDistrib = lccm.classMembershipModels(tourType).evaluateProbabilities(classMembershipInputData)
+//      probDistrib.getProbabilityDensityMap.asScala.foreach { case (className, prob) =>
+//        classMembershipDistribution = classMembershipDistribution + (className -> prob)
+//      }
+//      val chosenClass = lccm.classMembershipModels(tourType).makeRandomChoice(classMembershipInputData, new Random())
+//      val chosenMode = lccm.modeChoiceModels(tourType)(chosenClass).makeRandomChoice(modeChoiceInputData, new Random())
+//
+//      expectedMaximumUtility = lccm.modeChoiceModels(tourType)(chosenClass).getExpectedMaximumUtility
+//      lccm.modeChoiceModels(tourType)(chosenClass).clear()
+//      lccm.classMembershipModels(tourType).clear()
 
-      expectedMaximumUtility = lccm.modeChoiceModels(tourType)(chosenClass).getExpectedMaximumUtility
-      lccm.modeChoiceModels(tourType)(chosenClass).clear()
-      lccm.classMembershipModels(tourType).clear()
+      val chosenMode = "CAR"
 
       val chosenAlt = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
