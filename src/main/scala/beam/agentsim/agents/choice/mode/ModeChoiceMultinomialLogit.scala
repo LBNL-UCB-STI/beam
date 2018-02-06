@@ -1,10 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
-import java.io.{ByteArrayInputStream, File, FileInputStream, InputStream}
-import java.util
 import java.util.Random
 
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
+import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit, UtilityParam}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
@@ -12,12 +11,10 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
-import org.jdom.input.SAXBuilder
-import org.jdom.{Document, Element}
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
 
 
 /**
@@ -26,11 +23,6 @@ import scala.collection.JavaConverters._
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit) extends ModeChoiceCalculator {
 
   var expectedMaximumUtility: Double = 0.0
-
-//  override def clone(): ModeChoiceCalculator = {
-//    val mnl: MultinomialLogit = this.model.clone()
-//    new ModeChoiceMultinomialLogit(beamServices, mnl)
-//  }
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip = {
     if (alternatives.isEmpty) {
@@ -47,12 +39,13 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       }
 
       val inputData = bestInGroup.map{ mct =>
-        val theParams = if (mct.mode.isTransit()) {
+        val theParams = Map("cost"->mct.cost.toDouble,"time"->mct.time)
+        val transferParam = if (mct.mode.isTransit()) {
           Map("transfer" -> mct.numTransfers.toDouble)
         }else{
           Map()
-        } ++ Map(("cost"->mct.cost.toDouble),("time"->mct.time))
-        AlternativeAttributes(mct.mode.value,theParams)
+        }
+        AlternativeAttributes(mct.mode.value,theParams ++ transferParam)
       }.toVector
 
       val chosenMode = try {
@@ -128,46 +121,23 @@ object ModeChoiceMultinomialLogit {
   case class ModeCostTimeTransfer(mode: BeamMode, cost: BigDecimal, time: Double, numTransfers: Int, index: Int = -1)
 
   def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
-    new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
+    new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit))
   }
 
-  def parseFromInputStream(is: InputStream): Option[MultinomialLogit] = {
-    val builder: SAXBuilder = new SAXBuilder()
-    val document: Document = builder.build(is).asInstanceOf[Document]
-    var theModelOpt: Option[MultinomialLogit] = None
-
-//    document.getRootElement.getChildren.asScala.foreach { child =>
-//      if (child.asInstanceOf[Element].getName.equalsIgnoreCase("mnl")) {
-//        val rootNode = child.asInstanceOf[Element].getChild("parameters").asInstanceOf[Element].getChild("multinomialLogit").asInstanceOf[Element]
-//        theModelOpt = Some(MultinomialLogit.multinomialLogitFactory(rootNode))
-//      }
-//    }
-
-    theModelOpt
-  }
-
-  def parseInputForMNL(beamServices: BeamServices): MultinomialLogit = {
-    val modeChoiceParametersFile = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile
-
-    val theModelOpt = parseFromInputStream(new FileInputStream(new File(modeChoiceParametersFile)))
-
-    theModelOpt match {
-      case Some(theModel) =>
-        theModel
-      case None =>
-        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in file: ${modeChoiceParametersFile}")
-    }
-  }
-
-  def fromContentString(beamServices: BeamServices, content: String): ModeChoiceMultinomialLogit = {
-    val is = new ByteArrayInputStream(content.getBytes("UTF-8"))
-
-    parseFromInputStream(is) match {
-      case Some(theModel) =>
-        new ModeChoiceMultinomialLogit(beamServices, theModel)
-      case None =>
-        throw new RuntimeException(s"Cannot find a mode choice model of type ModeChoiceMultinomialLogit in content: ${content}")
-    }
+  def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit = {
+    val mnlData: Vector[MnlData] = Vector(
+      new MnlData("COMMON",         "cost",       "multiplier", mnlConfig.params.cost),
+      new MnlData("COMMON",         "time",       "multiplier", mnlConfig.params.time),
+      new MnlData("car",            "intercept",  "intercept",  mnlConfig.params.car_intercept),
+      new MnlData("walk",           "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("ride_hailing",   "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("bike",           "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("walk_transit",   "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("walk_transit",   "transfer",   "multiplier", mnlConfig.params.transfer),
+      new MnlData("drive_transit",  "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("drive_transit",  "transfer",   "multiplier", mnlConfig.params.transfer)
+    )
+    MultinomialLogit(mnlData)
   }
 
 }

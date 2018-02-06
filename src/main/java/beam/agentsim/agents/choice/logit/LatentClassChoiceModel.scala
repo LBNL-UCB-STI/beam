@@ -20,7 +20,7 @@ import scala.xml.XML
   */
 class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices with Cloneable {
 
-  val lccmData: Vector[LccmData] = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
+  val lccmData: Vector[LccmData] = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
 
   val classMembershipModels: Map[TourType, MultinomialLogit] = extractClassMembershipModels(lccmData)
   val modeChoiceModels: Map[TourType, Map[String, MultinomialLogit]] = {

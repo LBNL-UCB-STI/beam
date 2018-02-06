@@ -17,7 +17,7 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
     val sumExpV = expV.sum
     val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
     val randDraw = random.nextDouble()
-    val chosenIdx = (for(prob <- cumulProbs if prob._1 > randDraw)yield prob._2).head
+    val chosenIdx = (for(prob <- cumulProbs if prob._1 > randDraw)yield prob._2).head - 1
     alternatives(chosenIdx).alternativeName
   }
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
