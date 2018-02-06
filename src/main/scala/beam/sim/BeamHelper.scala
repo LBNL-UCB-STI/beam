@@ -8,6 +8,7 @@ import java.util.Properties
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.replanning.GrabExperiencedPlan
 import beam.router.r5.NetworkCoordinator
+import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
@@ -48,6 +49,7 @@ trait BeamHelper {
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
+        bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory]);
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
 
