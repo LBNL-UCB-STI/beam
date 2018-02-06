@@ -16,7 +16,7 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
 
   private val BASE_PATH = new File("").getAbsolutePath
   private val OUTPUT_DIR_PATH = BASE_PATH + "/test/input/beamville/output"
-  private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/output/beamville_2018-02-05_18-01-35/ITERS/it.0/0.events.xml"
+  private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/output/beamville_2018-02-06_10-59-01/ITERS/it.0/0.events.xml"
   private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/physsim-network.xml"
 
   private var beamCalcLinkStats: BeamCalcLinkStats = null
@@ -26,11 +26,11 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
     val overwriteExistingFiles = OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
     val outputDirectoryHierarchy = new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
 
-    val sc = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    val nwr= new MatsimNetworkReader(sc.getNetwork())
+    val sc = ScenarioUtils.createScenario(_config)
+    val network = sc.getNetwork()
+    val nwr= new MatsimNetworkReader(network)
     nwr.readFile(NETWORK_FILE_PATH)
 
-    val network = sc.getNetwork()
     val ttccg = _config.travelTimeCalculator()
     val travelTimeCalculator = new TravelTimeCalculator(network, ttccg)
 
@@ -38,6 +38,7 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
     events.addHandler(travelTimeCalculator)
 
     beamCalcLinkStats = new BeamCalcLinkStats(network)
+    beamCalcLinkStats.reset()
     val volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network)
     events.addHandler(volumes)
 
