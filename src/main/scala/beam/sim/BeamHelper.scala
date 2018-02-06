@@ -7,6 +7,7 @@ import java.util.Properties
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.replanning.{GrabExperiencedPlan, UtilityBasedModeChoice}
 import beam.router.r5.NetworkCoordinator
+import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.reflection.ReflectionUtils
@@ -43,28 +44,11 @@ trait BeamHelper {
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
-        bind(classOf[PrepareForSim]).toInstance(new PrepareForSim {
-          override def run(): Unit = {
-            scenario.getPopulation.getPersons.values().forEach(person => {
-              var cleanedPlans: Vector[Plan] = Vector()
-              person.getPlans.forEach(plan => {
-                val cleanedPlan = scenario.getPopulation.getFactory.createPlan()
-                plan.getPlanElements.forEach {
-                  case activity: Activity =>
-                    cleanedPlan.addActivity(activity)
-                  case _ => // don't care for legs just now
-                }
-                cleanedPlans = cleanedPlans :+ cleanedPlan
-              })
-              person.setSelectedPlan(null)
-              person.getPlans.clear()
-              cleanedPlans.foreach(person.addPlan)
-            })
-          }
-        })
+        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
+        bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory]);
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         addPlanStrategyBinding("UtilityBasedModeChoice").to(classOf[UtilityBasedModeChoice])
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
