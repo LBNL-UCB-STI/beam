@@ -44,25 +44,7 @@ trait BeamHelper {
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
-        bind(classOf[PrepareForSim]).toInstance(new PrepareForSim {
-          override def run(): Unit = {
-            scenario.getPopulation.getPersons.values().forEach(person => {
-              var cleanedPlans: Vector[Plan] = Vector()
-              person.getPlans.forEach(plan => {
-                val cleanedPlan = scenario.getPopulation.getFactory.createPlan()
-                plan.getPlanElements.forEach {
-                  case activity: Activity =>
-                    cleanedPlan.addActivity(activity)
-                  case _ => // don't care for legs just now
-                }
-                cleanedPlans = cleanedPlans :+ cleanedPlan
-              })
-              person.setSelectedPlan(null)
-              person.getPlans.clear()
-              cleanedPlans.foreach(person.addPlan)
-            })
-          }
-        })
+        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
