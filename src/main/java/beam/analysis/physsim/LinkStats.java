@@ -20,29 +20,29 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import java.util.Map;
 
-public class LinkStats {
+    public class LinkStats {
 
-    private final Network network;
-    private BeamCalcLinkStats linkStats;
-    private VolumesAnalyzer volumes;
-    private OutputDirectoryHierarchy controlerIO;
+        private final Network network;
+        private BeamCalcLinkStats linkStats;
+        private VolumesAnalyzer volumes;
+        private OutputDirectoryHierarchy controlerIO;
 
-    public LinkStats(Network network, OutputDirectoryHierarchy controlerIO) {
-        this.network = network;
-        linkStats = new BeamCalcLinkStats(network);
-        this.controlerIO = controlerIO;
+        public LinkStats(Network network, OutputDirectoryHierarchy controlerIO) {
+            this.network = network;
+            linkStats = new BeamCalcLinkStats(network);
+            this.controlerIO = controlerIO;
+        }
+
+        public void notifyIterationEnds(int iteration, TravelTime travelTime) {
+            linkStats.addData(volumes, travelTime);
+            linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
+        }
+
+        public void notifyIterationStarts(EventsManager eventsManager) {
+            this.linkStats.reset();
+            volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network);
+            eventsManager.addHandler(volumes);
+        }
+
+
     }
-
-    public void notifyIterationEnds(int iteration, TravelTime travelTime) {
-        linkStats.addData(volumes, travelTime);
-        linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
-    }
-
-    public void notifyIterationStarts(EventsManager eventsManager) {
-        this.linkStats.reset();
-        volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network);
-        eventsManager.addHandler(volumes);
-    }
-
-
-}

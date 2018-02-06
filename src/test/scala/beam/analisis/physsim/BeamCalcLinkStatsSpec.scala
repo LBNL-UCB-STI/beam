@@ -26,14 +26,17 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
     val overwriteExistingFiles = OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
     val outputDirectoryHierarchy = new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
 
+    //Read network
     val sc = ScenarioUtils.createScenario(_config)
     val network = sc.getNetwork()
     val nwr= new MatsimNetworkReader(network)
     nwr.readFile(NETWORK_FILE_PATH)
 
+    //Start traveltime calculator
     val ttccg = _config.travelTimeCalculator()
     val travelTimeCalculator = new TravelTimeCalculator(network, ttccg)
 
+    //Start eventsmanager
     val events = EventsUtils.createEventsManager()
     events.addHandler(travelTimeCalculator)
 
