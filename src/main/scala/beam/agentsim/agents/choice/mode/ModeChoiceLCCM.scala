@@ -3,7 +3,7 @@ package beam.agentsim.agents.choice.mode
 import java.util
 import java.util.Random
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Nonmandatory, TourType}
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
@@ -69,7 +69,7 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
         val vehicleTime = altAndIdx._1.legs.filter(_.beamLeg.mode != WALK).filter(_.beamLeg.mode != BIKE).map(_.beamLeg.duration).sum
         val waitTime = altAndIdx._1.totalTravelTime - walkTime - vehicleTime
         ModeChoiceData(altAndIdx._1.tripClassifier, tourType, vehicleTime, walkTime, waitTime, bikeTime, totalCost.toDouble, altAndIdx._2)
-      } ++ ModeChoiceLCCM.defaultAlternatives(tourType)
+      }
 
       val groupedByMode = modeChoiceAlternatives.sortBy(_.mode.value).groupBy(_.mode)
       val bestInGroup = groupedByMode.map { case (_, alts) =>
@@ -80,56 +80,49 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       /*
        * Fill out the input data structures required by the MNL models
        */
-      val modeChoiceInputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
-      val classMembershipInputData: util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]] = new util.LinkedHashMap[java.lang.String, util.LinkedHashMap[java.lang.String, java.lang.Double]]()
+      val modeChoiceInputData = bestInGroup.map{ alt =>
+        val theParams = Map(
+          "cost"-> alt.cost,
+          "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
+        )
+        AlternativeAttributes(alt.mode.value, theParams)
+      }.toVector
 
-      bestInGroup.foreach { alt =>
-        val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
-        altData.put("cost", alt.cost)
-        altData.put("walkTime", alt.walkTime)
-        altData.put("bikeTime", alt.bikeTime)
-        altData.put("waitTime", alt.waitTime)
-        altData.put("vehicleTime", alt.vehicleTime)
-        modeChoiceInputData.put(alt.mode.value, altData)
-      }
 
-      val altData: util.LinkedHashMap[java.lang.String, java.lang.Double] = new util.LinkedHashMap[java.lang.String, java.lang.Double]()
-      attributesOfIndividual match {
+      val attribIndivData: AlternativeAttributes = attributesOfIndividual match {
         case Some(theAttributes) =>
-          altData.put("income", theAttributes.householdAttributes.householdIncome)
-          altData.put("householdSize", theAttributes.householdAttributes.householdSize.toDouble)
-          altData.put("male", if (theAttributes.isMale) {
-            1.0
-          } else {
-            0.0
-          })
-          altData.put("numCars", theAttributes.householdAttributes.numCars.toDouble)
-          altData.put("numBikes", theAttributes.householdAttributes.numBikes.toDouble)
+          val theParams = Map(
+            "income"-> theAttributes.householdAttributes.householdIncome,
+            "householdSize" -> theAttributes.householdAttributes.householdSize.toDouble,
+            "male" -> (if (theAttributes.isMale) {
+                        1.0
+                      } else {
+                        0.0
+                      }),
+            "numCars" -> theAttributes.householdAttributes.numCars.toDouble,
+            "numBikes" -> theAttributes.householdAttributes.numBikes.toDouble
+          )
+          AlternativeAttributes("dummy", theParams)
         case None =>
+          AlternativeAttributes("dummy",Map())
       }
 
-//      lccm.classMembershipModels.head._2.getAlternativeNames.asScala.foreach { theClassName =>
-//        lccm.modeChoiceModels(tourType)(theClassName).evaluateProbabilities(modeChoiceInputData)
-//        val modeChoiceExpectedMaxUtility = lccm.modeChoiceModels(tourType)(theClassName).getExpectedMaximumUtility
-//        altData.put("surplus", modeChoiceExpectedMaxUtility)
-//        classMembershipInputData.put(theClassName, altData)
-//      }
+      val classMembershipInputData = lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>
+        if(theClassName.equalsIgnoreCase("class4")){
+          val i = 0
+        }
+        val modeChoiceExpectedMaxUtility = lccm.modeChoiceModels(tourType)(theClassName).getExpectedMaximumUtility(modeChoiceInputData)
+        val surplusAttrib = Map("surplus" -> modeChoiceExpectedMaxUtility)
+        AlternativeAttributes(theClassName, attribIndivData.attributes ++ surplusAttrib)
+      }.toVector
 
       /*
        * Evaluate and sample from classmembership, then sample from corresponding mode choice model
        */
-//      val probDistrib = lccm.classMembershipModels(tourType).evaluateProbabilities(classMembershipInputData)
-//      probDistrib.getProbabilityDensityMap.asScala.foreach { case (className, prob) =>
-//        classMembershipDistribution = classMembershipDistribution + (className -> prob)
-//      }
-//      val chosenClass = lccm.classMembershipModels(tourType).makeRandomChoice(classMembershipInputData, new Random())
-//      val chosenMode = lccm.modeChoiceModels(tourType)(chosenClass).makeRandomChoice(modeChoiceInputData, new Random())
-//
-//      expectedMaximumUtility = lccm.modeChoiceModels(tourType)(chosenClass).getExpectedMaximumUtility
-//      lccm.modeChoiceModels(tourType)(chosenClass).clear()
-//      lccm.classMembershipModels(tourType).clear()
+      val chosenClass = lccm.classMembershipModels(tourType).sampleAlternative(classMembershipInputData, new Random())
+      val chosenMode = lccm.modeChoiceModels(tourType)(chosenClass).sampleAlternative(modeChoiceInputData, new Random())
 
-      val chosenMode = "CAR"
+      expectedMaximumUtility = lccm.modeChoiceModels(tourType)(chosenClass).getExpectedMaximumUtility(modeChoiceInputData)
 
       val chosenAlt = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
@@ -155,22 +148,4 @@ object ModeChoiceLCCM{
   case class ModeChoiceData(mode: BeamMode,tourType: TourType, vehicleTime: Double, walkTime: Double, waitTime: Double, bikeTime: Double, cost: Double, index: Int = -1)
   case class ClassMembershipData(tourType: TourType, surplus: Double, income: Double, householdSize: Double, isMale: Double, numCars: Double, numBikes: Double)
 
-  val defaultAlternatives : Map[TourType, Vector[ModeChoiceData]] = Map(
-    Mandatory -> Vector(
-      ModeChoiceData(BeamMode.WALK, Mandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.CAR, Mandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.WALK_TRANSIT, Mandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.DRIVE_TRANSIT, Mandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.BIKE, Mandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.RIDE_HAIL, Mandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity)
-    ),
-    Nonmandatory -> Vector(
-      ModeChoiceData(BeamMode.WALK, Nonmandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.CAR, Nonmandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.WALK_TRANSIT, Nonmandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.DRIVE_TRANSIT, Nonmandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.BIKE, Nonmandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity),
-      ModeChoiceData(BeamMode.RIDE_HAIL, Nonmandatory, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity)
-    )
-  )
 }

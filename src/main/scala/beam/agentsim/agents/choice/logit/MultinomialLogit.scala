@@ -17,29 +17,42 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
     val sumExpV = expV.sum
     val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
     val randDraw = random.nextDouble()
-    val chosenIdx = (for(prob <- cumulProbs if prob._1 > randDraw)yield prob._2).head - 1
+    val idxAboveDraw = (for(prob <- cumulProbs if prob._1 > randDraw)yield prob._2)
+    if(idxAboveDraw.length == 0){
+      val i = 0
+    }
+    val chosenIdx = idxAboveDraw.head - 1
     alternatives(chosenIdx).alternativeName
   }
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
-    if(!alternativeParams.contains(alternative.alternativeName)){
+    val util = if(!alternativeParams.contains(alternative.alternativeName)){
       Double.NaN
     }else{
-      (alternativeParams("COMMON").params ++ alternativeParams(alternative.alternativeName).params).map{ theParam =>
+      (alternativeParams.get("COMMON").getOrElse(AlternativeParams.empty).params ++ alternativeParams(alternative.alternativeName).params).map{ theParam =>
         if(alternative.attributes.contains(theParam._1)){
           theParam._2.paramType match {
             case Multiplier =>
               theParam._2.paramValue * alternative.attributes(theParam._1)
           }
-        }else if(theParam._1.equalsIgnoreCase("intercept")){
+        }else if(theParam._1.equalsIgnoreCase("intercept") || theParam._1.equalsIgnoreCase("asc")){
           theParam._2.paramValue
         }else{
           Double.NaN
         }
       }.toVector.sum
     }
+    if(util == Double.NaN){
+      val i = 0
+    }
+    util
   }
   def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
-    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+//    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+    val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+    if(util == Double.NaN){
+      val i = 0
+    }
+    util
   }
 }
 object MultinomialLogit{
@@ -76,6 +89,9 @@ object MultinomialLogit{
 
 // Params for model
 case class AlternativeParams(alternativeName: String, params: Map[String,UtilityParam])
+object AlternativeParams{
+  def empty: AlternativeParams = AlternativeParams("",Map())
+}
 case class UtilityParam(paramName: String, paramValue: Double, paramType: UtilityParamType)
 
 // Alternative attributes
