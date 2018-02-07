@@ -16,7 +16,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
   override def createNewScoringFunction(person: Person): ScoringFunction = {
     new ScoringFunction {
 
-      val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory()
+      val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(null)
       var accumulatedScore = 0.0
 
       override def handleEvent(event: Event): Unit = {

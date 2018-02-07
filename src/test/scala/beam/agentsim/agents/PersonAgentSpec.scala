@@ -74,9 +74,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     when(theServices.geo).thenReturn(geo)
     theServices
   }
-  val modeChoiceCalculatorFactory = () => new ModeChoiceCalculator {
-    override def apply(alternatives: Seq[EmbodiedBeamTrip], extraAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip = alternatives.head
+  val modeChoiceCalculator = new ModeChoiceCalculator {
+    override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = alternatives.head
     override val beamServices: BeamServices = services
+    override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
   }
   private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
   networkCoordinator.loadNetwork()
@@ -92,7 +93,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
       val attributesOfIndividual = AttributesOfIndividual(household,vehicles.map({case(vid,veh)=>(Id.createVehicleId(vid),veh.matSimVehicle)}).toMap)
-      val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculatorFactory(), networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle]), attributesOfIndividual))
+      val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculator, networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle])))
 
       watch(personAgentRef)
       scheduler ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
@@ -118,7 +119,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
 
-      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, modeChoiceCalculatorFactory, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), Vector(person), new Coord(0.0, 0.0)))
+      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), Vector(person), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)
@@ -177,7 +178,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
 
-      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, modeChoiceCalculatorFactory, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(beamVehicle.getId -> beamVehicle), Vector(person), new Coord(0.0, 0.0)))
+      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(beamVehicle.getId -> beamVehicle), Vector(person), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)

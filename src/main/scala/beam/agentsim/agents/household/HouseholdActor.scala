@@ -37,7 +37,7 @@ object HouseholdActor {
   }
 
 
-  def props(beamServices: BeamServices, modeChoiceCalculator: () => ModeChoiceCalculator, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, population: org.matsim.api.core.v01.population.Population, householdId: Id[Household], matSimHousehold: Household,
+  def props(beamServices: BeamServices, modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, population: org.matsim.api.core.v01.population.Population, householdId: Id[Household], matSimHousehold: Household,
             houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], members: Seq[Person],
             homeCoord: Coord): Props = {
     Props(new HouseholdActor(beamServices, modeChoiceCalculator, schedulerRef, transportNetwork, router, rideHailingManager, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, members, homeCoord))
@@ -97,7 +97,7 @@ object HouseholdActor {
     * @see [[ChoosesMode]]
     */
   class HouseholdActor(beamServices: BeamServices,
-                       modeChoiceCalculatorFactory: () => ModeChoiceCalculator,
+                       modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
                        schedulerRef: ActorRef,
                        transportNetwork: TransportNetwork,
                        router: ActorRef,
@@ -118,9 +118,8 @@ object HouseholdActor {
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-      val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(),
-        transportNetwork, router, rideHailingManager, eventsManager, person.getId, matSimHouseHold, person.getSelectedPlan, bodyVehicleIdFromPerson,
-        AttributesOfIndividual(matSimHouseHold, vehicles)), person.getId.toString)
+      val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(AttributesOfIndividual(matSimHouseHold, vehicles)),
+        transportNetwork, router, rideHailingManager, eventsManager, person.getId, matSimHouseHold, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)

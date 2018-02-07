@@ -1,9 +1,11 @@
 package beam.agentsim.agents.modalBehaviors
 
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.api.core.v01.population.Person
 
 import scala.util.Random
 
@@ -11,15 +13,10 @@ import scala.util.Random
   * BEAM
   */
 trait ModeChoiceCalculator extends HasServices {
-  def apply(alternatives: Seq[EmbodiedBeamTrip], extraAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip
 
-  def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
-    this (alternatives, None)
-  }
+  def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip
 
-  def utilityOf(alternative: EmbodiedBeamTrip): Double = {
-    0.0
-  }
+  def utilityOf(alternative: EmbodiedBeamTrip): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
@@ -31,22 +28,22 @@ trait ModeChoiceCalculator extends HasServices {
 }
 
 object ModeChoiceCalculator {
-  def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculator = {
+  def apply(classname: String, beamServices: BeamServices): AttributesOfIndividual => ModeChoiceCalculator = {
     classname match {
       case "ModeChoiceLCCM" =>
-        ModeChoiceLCCM(beamServices)
+        (attributesOfIndividual: AttributesOfIndividual) => new ModeChoiceLCCM(beamServices, new LatentClassChoiceModel(beamServices), Some(attributesOfIndividual))
       case "ModeChoiceTransitIfAvailable" =>
-        new ModeChoiceTransitIfAvailable(beamServices)
+        (_) => new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        new ModeChoiceDriveIfAvailable(beamServices)
+        (_) => new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        new ModeChoiceRideHailIfAvailable(beamServices)
+        (_) => new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        new ModeChoiceUniformRandom(beamServices)
+        (_) => new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
-        ModeChoiceMultinomialLogit(beamServices)
+        (_) => ModeChoiceMultinomialLogit(beamServices)
       case "ModeChoiceMultinomialLogitTest" =>
-        ModeChoiceMultinomialLogit(beamServices)
+        (_) => ModeChoiceMultinomialLogit(beamServices)
     }
   }
 

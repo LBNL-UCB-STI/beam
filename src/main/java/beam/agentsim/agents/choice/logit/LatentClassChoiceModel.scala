@@ -70,10 +70,6 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     }.toMap
   }
 
-  //TODO actually clone this
-  override def clone(): LatentClassChoiceModel = {
-    new LatentClassChoiceModel(beamServices)
-  }
 }
 
 object LatentClassChoiceModel {

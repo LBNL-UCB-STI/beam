@@ -3,9 +3,8 @@ package beam.agentsim.agents.choice.mode
 import java.util.Random
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit, UtilityParam}
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK_TRANSIT}
@@ -24,7 +23,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   var expectedMaximumUtility: Double = 0.0
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip = {
+  override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
     if (alternatives.isEmpty) {
       throw new IllegalArgumentException("Empty choice set.")
     } else {
