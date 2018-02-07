@@ -30,6 +30,7 @@ object TAZCreatorScript extends App {
   val taz=new TAZTreeMap(shapeFile, "TAZCE10")
 
 // TODO: attriutes or xml from config file - allow specifying multiple files
+    // create test attributes data for starting
 
 
   val tazParkingAttributesFilePath="Y:\\tmp\\beam\\infrastructure\\tazParkingAttributes.xml"

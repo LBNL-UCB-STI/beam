@@ -1,17 +1,15 @@
 package beam.agentsim.infrastructure
 
-object Parking {
-  val PARKING_MANAGER = "PARKING_MANAGER"
-  val PARKING_TYPE = "PARKING_TYPE"
-  val PARKING_CAPACITY = "PARKING_CAPACITY"
+class ParkingCapacity {
+  val PARKING_CAPACITY = "CAPACITY"
   val HOURLY_RATE = "HOURLY_RATE"
   val CHARGING_LEVEL = "CHARGING_LEVEL"
 }
 
 object ParkingType {
-  val OFF_STREET_PARKING = "OFF_STREET_PARKING"
-  val ON_STREET_PARKING = "STREET_PARKING"
-  val PARKING_WITH_CHARGER = "PARKING_WITH_CHARGER"
+  val OFF_STREET_PARKING = "OP"
+  val ON_STREET_PARKING = "SP"
+  val PARKING_WITH_CHARGER = "EP"
 }
 
 // TODO: refactor this away from strings to classes/objects/enums?
