@@ -67,12 +67,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
-    val theParams = if (mode.isTransit()) {
-      Map("transfer" -> numTransfers.toDouble)
-    }else{
-      Map()
-    } ++ Map(("cost"->cost.toDouble),("time"->time))
-    model.getUtilityOfAlternative(AlternativeAttributes(mode.value,theParams))
+    val parameters = Map("transfer" -> numTransfers.toDouble, "cost" -> cost.toDouble, "time" -> time)
+    model.getUtilityOfAlternative(AlternativeAttributes(mode.value, parameters))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
