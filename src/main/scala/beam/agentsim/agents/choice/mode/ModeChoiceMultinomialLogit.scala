@@ -146,6 +146,8 @@ object ModeChoiceMultinomialLogit {
     new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.parseInputForMNL(beamServices))
   }
 
+  def unapply(arg: ModeChoiceMultinomialLogit): Option[(BeamServices, MultinomialLogit)] = Option(arg.beamServices,arg.model)
+
   def parseFromInputStream(is: InputStream): Option[MultinomialLogit] = {
     val builder: SAXBuilder = new SAXBuilder()
     val document: Document = builder.build(is).asInstanceOf[Document]

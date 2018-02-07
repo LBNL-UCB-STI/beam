@@ -5,7 +5,9 @@ import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.replanning.{GrabExperiencedPlan, UtilityBasedModeChoice}
+import beam.replanning.BeamReplanningStrategy.UtilityBasedModeChoiceStrategy
+import beam.replanning.GrabExperiencedPlan
+import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -15,7 +17,6 @@ import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Scenario
-import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
@@ -48,9 +49,10 @@ trait BeamHelper {
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory]);
+        bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
-        addPlanStrategyBinding("UtilityBasedModeChoice").to(classOf[UtilityBasedModeChoice])
+        addPlanStrategyBinding(UtilityBasedModeChoiceStrategy.entryName).toProvider(classOf[UtilityBasedModeChoice])
+        //                        ^^ We use the default selector from change single trip mode
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
 
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
@@ -72,7 +74,7 @@ trait BeamHelper {
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
     props.setProperty("configFile", cfgFile)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
-    props.store(out, "Simulation out put props.")
+    props.store(out, "Simulation output props.")
     Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile), Paths.get(outputDirectory, "modeChoiceParameters.xml"))
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
   }
