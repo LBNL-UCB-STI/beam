@@ -46,8 +46,7 @@ object ModeChoiceCalculator {
       case "ModeChoiceMultinomialLogit" =>
         ModeChoiceMultinomialLogit(beamServices)
       case "ModeChoiceMultinomialLogitTest" =>
-        ModeChoiceMultinomialLogit.fromContentString(beamServices,
-          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
+        ModeChoiceMultinomialLogit(beamServices)
     }
   }
 
