@@ -3,6 +3,7 @@ package beam.agentsim.agents.choice.logit
 import java.util
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
+import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.cellprocessor.constraint.NotNull
@@ -19,8 +20,7 @@ import scala.xml.XML
   * BEAM
   */
 class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices with Cloneable {
-
-  val lccmData: Vector[LccmData] = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
+  val lccmData: Vector[LccmData] = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
 
   val classMembershipModels: Map[TourType, MultinomialLogit] = extractClassMembershipModels(lccmData)
   val modeChoiceModels: Map[TourType, Map[String, MultinomialLogit]] = {
@@ -28,11 +28,8 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     mods
   }
 
-  def parseModeChoiceParams(modeChoiceParamsFilePath: String): Vector[LccmData] = {
-    val params = XML.loadFile(modeChoiceParamsFilePath)
-    val paramsFile = s"${beamServices.beamConfig.beam.inputDirectory}/${(params \\ "modeChoices" \\ "lccm" \\ "parameters").text}"
-
-    val beanReader = new CsvBeanReader(IOUtils.getBufferedReader(paramsFile), CsvPreference.STANDARD_PREFERENCE)
+  def parseModeChoiceParams(lccmParamsFileFile: String): Vector[LccmData] = {
+    val beanReader = new CsvBeanReader(IOUtils.getBufferedReader(lccmParamsFileFile), CsvPreference.STANDARD_PREFERENCE)
     val header = beanReader.getHeader(true)
     val processors: Array[CellProcessor] = LatentClassChoiceModel.getProcessors
 
@@ -49,13 +46,12 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     val classMemData = lccmData.filter(_.model == "classMembership")
     Vector[TourType](Mandatory, Nonmandatory).map { theTourType =>
       val theData = classMemData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
-      val theAlternatives = new util.LinkedList[String]()
-      val theVariables = new util.LinkedList[String]()
-      val theValues = new util.LinkedList[java.lang.Double]()
-      theAlternatives.addAll(theData.map(_.alternative).asJava)
-      theVariables.addAll(theData.map(_.variable).asJava)
-      theValues.addAll(theData.map { theRow => java.lang.Double.valueOf(theRow.value) }.asJava)
-      theTourType -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables, theAlternatives, theValues)
+
+      val mnlData = theData.map{ theDat =>
+          new MnlData(theDat.alternative, theDat.variable, if(theDat.variable.equalsIgnoreCase("asc")){ "intercept"}else{"multiplier"},theDat.value)
+      }
+
+      theTourType -> MultinomialLogit(mnlData)
     }.toMap
   }
 
@@ -66,13 +62,10 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
       val theTourTypeData = modeChoiceData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
       theTourType -> uniqueClasses.map { theLatentClass =>
         val theData = theTourTypeData.filter(_.latentClass.equalsIgnoreCase(theLatentClass))
-        val theAlternatives = new util.LinkedList[String]()
-        val theVariables = new util.LinkedList[String]()
-        val theValues = new util.LinkedList[java.lang.Double]()
-        theAlternatives.addAll(theData.map(_.alternative).asJava)
-        theVariables.addAll(theData.map(_.variable).asJava)
-        theValues.addAll(theData.map { theRow => java.lang.Double.valueOf(theRow.value) }.asJava)
-        theLatentClass -> MultinomialLogit.multinomialLogitFactory(theTourType.toString, theVariables, theAlternatives, theValues)
+        val mnlData = theData.map{ theDat =>
+          new MnlData(theDat.alternative, theDat.variable, if(theDat.variable.equalsIgnoreCase("asc")){ "intercept"}else{"multiplier"},theDat.value)
+        }
+        theLatentClass -> MultinomialLogit(mnlData)
       }.toMap
     }.toMap
   }
