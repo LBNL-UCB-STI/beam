@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.router.RoutingModel.EmbodiedBeamTrip
@@ -31,7 +32,12 @@ object ModeChoiceCalculator {
   def apply(classname: String, beamServices: BeamServices): AttributesOfIndividual => ModeChoiceCalculator = {
     classname match {
       case "ModeChoiceLCCM" =>
-        (attributesOfIndividual: AttributesOfIndividual) => new ModeChoiceLCCM(beamServices, new LatentClassChoiceModel(beamServices), Some(attributesOfIndividual))
+        (attributesOfIndividual: AttributesOfIndividual) =>
+          attributesOfIndividual match {
+            case AttributesOfIndividual(_,_,_,Some(modalityStyle),_) =>
+              val lccm = new LatentClassChoiceModel(beamServices)
+              new ModeChoiceMultinomialLogit(beamServices, lccm.modeChoiceModels(Mandatory)(modalityStyle))
+          }
       case "ModeChoiceTransitIfAvailable" =>
         (_) => new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
@@ -41,9 +47,9 @@ object ModeChoiceCalculator {
       case "ModeChoiceUniformRandom" =>
         (_) => new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
-        (_) => ModeChoiceMultinomialLogit(beamServices)
+        (_) => new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit))
       case "ModeChoiceMultinomialLogitTest" =>
-        (_) => ModeChoiceMultinomialLogit(beamServices)
+        (_) => new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit))
     }
   }
 

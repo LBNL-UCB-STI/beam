@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
-import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, HouseholdActor}
+import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
@@ -92,7 +92,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
       plan.addActivity(homeActivity)
-      val attributesOfIndividual = AttributesOfIndividual(household,vehicles.map({case(vid,veh)=>(Id.createVehicleId(vid),veh.matSimVehicle)}).toMap)
       val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculator, networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle])))
 
       watch(personAgentRef)

@@ -115,10 +115,6 @@ object ModeChoiceMultinomialLogit {
 
   case class ModeCostTimeTransfer(mode: BeamMode, cost: BigDecimal, time: Double, numTransfers: Int, index: Int = -1)
 
-  def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
-    new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit))
-  }
-
   def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit = {
     val mnlData: Vector[MnlData] = Vector(
       new MnlData("COMMON",         "cost",       "multiplier", mnlConfig.params.cost),

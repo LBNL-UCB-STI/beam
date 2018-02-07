@@ -10,6 +10,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
 
   override def run(): Unit = {
     keepOnlyActivities()
+    assignInitialModalityStyles()
   }
 
   private def keepOnlyActivities(): Unit = {
@@ -28,6 +29,12 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
       person.setSelectedPlan(null)
       person.getPlans.clear()
       cleanedPlans.foreach(person.addPlan)
+    })
+  }
+
+  def assignInitialModalityStyles(): Unit = {
+    scenario.getPopulation.getPersons.values().forEach(person => {
+      person.getCustomAttributes.put("modality-style", "class1")
     })
   }
 
