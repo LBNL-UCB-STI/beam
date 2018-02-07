@@ -22,6 +22,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
             cleanedPlan.addActivity(activity)
           case _ => // don't care for legs just now
         }
+        cleanedPlan.setScore(null)
         cleanedPlans = cleanedPlans :+ cleanedPlan
       })
       person.setSelectedPlan(null)
