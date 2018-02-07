@@ -23,17 +23,20 @@ object ObjectAttributesUtils {
     objectAttributes
   }
 
-  def writeObjectAttributesToXML(objAttr:ObjectAttributes,xmlFilePath: String)={
-    new ObjectAttributesXmlWriter(ObjectAttributes).writeFile(xmlFilePath)
+  def writeObjectAttributesToXML(objAttr:ObjectAttributes,xmlFilePath: String):Unit={
+   // new ObjectAttributesXmlWriter(ObjectAttributes).writeFile(xmlFilePath)
+
   }
 
   def merge(objectIds:util.Collection[String],objAttrA:ObjectAttributes,objAttrB:ObjectAttributes):ObjectAttributes={
     val result=new ObjectAttributes()
 
+    /*
     for (objectId <- objectIds){
       org.matsim.utils.objectattributes.ObjectAttributesUtils.copyAllAttributes(objAttrA,result,objectId)
       org.matsim.utils.objectattributes.ObjectAttributesUtils.copyAllAttributes(objAttrB,result,objectId)
     }
+    */
 
     result
   }

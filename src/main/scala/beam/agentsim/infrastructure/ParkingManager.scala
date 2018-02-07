@@ -20,9 +20,9 @@ abstract class ParkingManager(tazTreeMap:TAZTreeMap, parkingAttributes: ObjectAt
 
 // TODO: tnc surge prices is separate from this.
 
-  abstract def calcCost(parkingType:String,arrivalTime:Double, parkingDuration:String)
+ // abstract def calcCost(parkingType:String,arrivalTime:Double, parkingDuration:String)
 
-  def getCheapestParkingInSameTAZ()
+  //def getCheapestParkingInSameTAZ()
 
-  def getParkingAttribute(parkingType: ParkingType,parkingAttibute:ParkingAttribute,taz:TAZ)
+  //def getParkingAttribute(parkingType: ParkingType,parkingAttibute:ParkingAttribute,taz:TAZ)
 }
