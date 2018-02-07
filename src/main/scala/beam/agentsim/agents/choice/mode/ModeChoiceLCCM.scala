@@ -148,7 +148,7 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
     }.toVector
     lccm.modeChoiceModels(tourType)(conditionedOnModalityStyle).sampleAlternative(modeChoiceInputData, new Random())
   }
-  
+
   def utilityOf(mode: BeamMode, conditionedOnModalityStyle: String, tourType: TourType, cost: Double, time: Double): Double = {
     val theParams = Map(("cost"->cost.toDouble),("time"->time))
     lccm.modeChoiceModels(tourType)(conditionedOnModalityStyle).getUtilityOfAlternative(AlternativeAttributes(mode.value,theParams))

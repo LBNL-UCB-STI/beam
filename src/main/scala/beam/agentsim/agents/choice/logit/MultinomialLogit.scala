@@ -14,15 +14,22 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
 
   def sampleAlternative(alternatives: Vector[AlternativeAttributes], random: Random): String = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
-    val sumExpV = expV.sum
-    val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
-    val randDraw = random.nextDouble()
-    val idxAboveDraw = (for(prob <- cumulProbs if prob._1 > randDraw)yield prob._2)
-    if(idxAboveDraw.length == 0){
-      val i = 0
+    // If any is +Inf then choose that as the certain alternative
+    val indsOfPosInf = for(theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity) yield theExpV._2
+    if(!indsOfPosInf.isEmpty){
+      // Take the first
+      alternatives(indsOfPosInf.head).alternativeName
+    }else{
+      val sumExpV = expV.sum
+      val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
+      val randDraw = random.nextDouble()
+      val idxAboveDraw = (for(prob <- cumulProbs if prob._1 > randDraw)yield prob._2)
+      if(idxAboveDraw.length == 0){
+        val i = 0
+      }
+      val chosenIdx = idxAboveDraw.head - 1
+      alternatives(chosenIdx).alternativeName
     }
-    val chosenIdx = idxAboveDraw.head - 1
-    alternatives(chosenIdx).alternativeName
   }
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
     val util = if(!alternativeParams.contains(alternative.alternativeName)){
