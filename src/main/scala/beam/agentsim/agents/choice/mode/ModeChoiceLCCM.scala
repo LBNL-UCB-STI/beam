@@ -148,6 +148,16 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
     }.toVector
     lccm.modeChoiceModels(tourType)(conditionedOnModalityStyle).sampleAlternative(modeChoiceInputData, new Random())
   }
+  
+  def utilityAcrossModalityStyles(embodiedBeamTrip: EmbodiedBeamTrip, tourType: TourType): Map[String,Double] = {
+    lccm.classMembershipModels(tourType).alternativeParams.keySet.map( theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType))).toMap
+  }
+
+  def utilityOf(embodiedBeamTrip: EmbodiedBeamTrip, conditionedOnModalityStyle: String, tourType: TourType): Double = {
+    val best = altsToBestInGroup(Vector(embodiedBeamTrip), tourType).head
+
+    utilityOf(best.mode, conditionedOnModalityStyle, tourType, best.cost, best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime)
+  }
 
   def utilityOf(mode: BeamMode, conditionedOnModalityStyle: String, tourType: TourType, cost: Double, time: Double): Double = {
     val theParams = Map(("cost"->cost.toDouble),("time"->time))
