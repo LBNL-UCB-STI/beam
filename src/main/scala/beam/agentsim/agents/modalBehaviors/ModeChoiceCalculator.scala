@@ -17,6 +17,10 @@ trait ModeChoiceCalculator extends HasServices {
     this (alternatives, None)
   }
 
+  def utilityOf(alternative: EmbodiedBeamTrip): Double = {
+    0.0
+  }
+
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
       Random.nextInt(alternatives.size)
@@ -42,8 +46,7 @@ object ModeChoiceCalculator {
       case "ModeChoiceMultinomialLogit" =>
         ModeChoiceMultinomialLogit(beamServices)
       case "ModeChoiceMultinomialLogitTest" =>
-        ModeChoiceMultinomialLogit.fromContentString(beamServices,
-          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile)
+        ModeChoiceMultinomialLogit(beamServices)
     }
   }
 

@@ -13,7 +13,7 @@ import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
-class TwoIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
+class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for two iterations without exceptions" in {
     val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve
@@ -21,7 +21,7 @@ class TwoIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
-    matsimConfig.controler().setLastIteration(1)
+    matsimConfig.controler().setLastIteration(2)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
@@ -38,7 +38,7 @@ class TwoIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
     })
     val controler = injector.getInstance(classOf[BeamServices]).controler
     controler.run()
-    verify(iterationCounter, times(2)).notifyIterationEnds(any())
+    verify(iterationCounter, times(3)).notifyIterationEnds(any())
   }
 
 }
