@@ -6,6 +6,8 @@ import beam.utils.gis.Plans2Shapefile
 import beam.utils.scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.scripts.PopulationAttrib.Rank
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
+import enumeratum.EnumEntry._
+import enumeratum._
 import org.apache.log4j.Logger
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
@@ -23,7 +25,8 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
-import org.matsim.households.{Household, Households, HouseholdsFactory, HouseholdsWriterV10}
+import org.matsim.households.Income.IncomePeriod.year
+import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
@@ -34,10 +37,7 @@ import scala.collection.{JavaConverters, immutable}
 import scala.io.Source
 import scala.util.Random
 
-import enumeratum.EnumEntry._
-import enumeratum._
-
-case class SynthHousehold(householdId: Id[Household], numPersons: Integer, cars: Integer, coord: Coord)
+case class SynthHousehold(householdId: Id[Household], numPersons: Int, cars: Int, hhIncome: Double, coord: Coord)
 
 sealed trait HouseholdAttrib extends EnumEntry
 
@@ -188,14 +188,14 @@ object SynthHouseholdParser {
   private val hhIdIdx: Int = 0
   private val hhNumIdx: Int = 1
   private val carNumIdx: Int = 2
-  //  private val incomeIdx: Int =  3
-  private val homeCoordXIdx: Int = 3
-  private val homeCoordYIdx: Int = 4
+  private val hhIncomeIdx: Int = 3
+  private val homeCoordXIdx: Int = 4
+  private val homeCoordYIdx: Int = 5
 
   /**
     *
     * @param synthFileName : synthetic households filename
-    * @return the [[Vector]] of [[SynthHousehold]] s
+    * @return the [[Vector]] of [[SynthHousehold]]s
     */
   def parseFile(synthFileName: String): Vector[SynthHousehold] = {
     var res = Vector[SynthHousehold]()
@@ -204,10 +204,10 @@ object SynthHouseholdParser {
       val pt = wgs2Utm.transform(new Coord(sl(homeCoordXIdx).toDouble, sl(homeCoordYIdx).toDouble))
 
       val householdId = Id.create(sl(hhIdIdx), classOf[Household])
-      val numCars = sl(carNumIdx).toDouble.toInt
-      val numPeople = sl(hhNumIdx).toDouble.toInt
-      //      val income = sl(incomeIdx).toDouble.toInt
-      res ++= Vector(SynthHousehold(householdId, numPeople, numCars, pt))
+      val numCars = sl(carNumIdx).toInt
+      val numPeople = sl(hhNumIdx).toInt
+      val hhIncome = sl(hhIncomeIdx).toInt
+      res ++= Vector(SynthHousehold(householdId, numPeople, numCars, hhIncome, pt))
     }
     res
   }
@@ -228,9 +228,9 @@ object PlansSampler {
   val newPop: Population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
   val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
-  val newHH: Households = sc.getHouseholds
-  val newHHFac: HouseholdsFactory = newHH.getFactory
-  val newHHAttributes: ObjectAttributes = sc.getHouseholds.getHouseholdAttributes
+  val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  val newHH: HouseholdsImpl = new HouseholdsImpl()
+  val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
 
   private var synthHouseholds = Vector[SynthHousehold]()
@@ -337,6 +337,10 @@ object PlansSampler {
 
       // Add household to households and increment counter now
       newHH.getHouseholds.put(hhId, spHH)
+
+      // Set hh income
+      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
+
       counter.incCounter()
 
       // Create and add car identifiers
