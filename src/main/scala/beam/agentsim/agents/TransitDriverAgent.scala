@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorContext, Props}
+import akka.actor.{ActorContext, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
@@ -16,7 +16,7 @@ import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
+import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
@@ -24,9 +24,9 @@ import org.matsim.vehicles.Vehicle
   * BEAM
   */
 object TransitDriverAgent {
-  def props(services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager,  transitDriverId: Id[TransitDriverAgent], vehicle: BeamVehicle,
+  def props(scheduler: ActorRef, services: BeamServices, transportNetwork: TransportNetwork, eventsManager: EventsManager,  transitDriverId: Id[TransitDriverAgent], vehicle: BeamVehicle,
             legs: Seq[BeamLeg]): Props = {
-    Props(new TransitDriverAgent(services, transportNetwork, eventsManager, transitDriverId, vehicle, legs))
+    Props(new TransitDriverAgent(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs))
   }
 
   case class TransitDriverData() extends BeamAgentData
@@ -40,7 +40,7 @@ object TransitDriverAgent {
   }
 }
 
-class TransitDriverAgent(val beamServices: BeamServices,
+class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices,
                          val transportNetwork: TransportNetwork,
                          val eventsManager: EventsManager,
                          val transitDriverId: Id[TransitDriverAgent],
@@ -71,6 +71,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
         stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
         vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle.id)
+        eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(PersonAgent.Waiting)
       })
@@ -79,7 +80,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
   chainedWhen(AnyState) {
     case Event(BecomeDriverSuccessAck, _) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      beamServices.schedulerRef ! completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey
+      scheduler ! completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey
         .startTime, self, passengerSchedule.schedule.firstKey))
       stay
     case Event(IllegalTriggerGoToError(reason), _)  =>
@@ -89,7 +90,7 @@ class TransitDriverAgent(val beamServices: BeamServices,
   }
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
-    beamServices.schedulerRef ! completed(triggerId)
+    scheduler ! completed(triggerId)
     stop
   }
 

@@ -5,7 +5,7 @@ import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, Props, Stash}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
@@ -44,14 +44,12 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   private var numStopsNotFound = 0
 
   override def receive = {
-    case InitTransit =>
-      val transitSchedule = initTransit()
+    case InitTransit(scheduler) =>
+      val transitSchedule = initTransit(scheduler)
       routerWorker ! TransitInited(transitSchedule)
       sender ! Success("success")
-    case updateRequest: UpdateTravelTime =>
-      routerWorker.forward(updateRequest)
-    case w: RoutingRequest =>
-      routerWorker.forward(w)
+    case other =>
+      routerWorker.forward(other)
   }
 
 
@@ -66,7 +64,42 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 * be used to decide what type of vehicle to assign
 *
 */
-  private def initTransit() = {
+  private def initTransit(scheduler: ActorRef) = {
+    def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, legs: Seq[BeamLeg]): Unit = {
+
+      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+      val vehicleTypeId = Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
+
+      val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
+        transitVehicles.getVehicleTypes.get(vehicleTypeId)
+      } else {
+        log.debug(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
+        transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]))
+      }
+
+      mode match {
+        case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY) if vehicleType != null =>
+          val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
+          matSimTransitVehicle.getType.setDescription(mode.value)
+          val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain
+            .AverageMilesPerGallon)
+          //        val transitVehProps = TransitVehicle.props(services, matSimTransitVehicle.getId, TransitVehicleData
+          // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
+          //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
+          val vehicle: BeamVehicle = new BeamVehicle(Powertrain.PowertrainFromMilesPerGallon(consumption),
+            matSimTransitVehicle, None, TransitVehicle)
+          services.vehicles += (transitVehId -> vehicle)
+          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
+          val transitDriverAgentProps = TransitDriverAgent.props(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs)
+          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          services.agentRefs += (transitDriverId.toString -> transitDriver)
+          scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
+
+        case _ =>
+          log.error(mode + " is not supported yet")
+      }
+    }
+
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
     val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
@@ -137,41 +170,6 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     }
     log.info(s"Finished Transit initialization trips, ${transitData.length}")
     transitScheduleToCreate
-  }
-
-  private def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, legs: Seq[BeamLeg]): Unit = {
-
-    val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-    val vehicleTypeId = Id.create(mode.toString.toUpperCase + "-" + route.agency_id, classOf[VehicleType])
-
-    val vehicleType = if (transitVehicles.getVehicleTypes.containsKey(vehicleTypeId)) {
-      transitVehicles.getVehicleTypes.get(vehicleTypeId)
-    } else {
-      log.debug(s"no specific vehicleType available for mode and transit agency pair '${vehicleTypeId.toString})', using default vehicleType instead")
-      transitVehicles.getVehicleTypes.get(Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[VehicleType]))
-    }
-
-    mode match {
-      case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY) if vehicleType != null =>
-        val matSimTransitVehicle = VehicleUtils.getFactory.createVehicle(transitVehId, vehicleType)
-        matSimTransitVehicle.getType.setDescription(mode.value)
-        val consumption = Option(vehicleType.getEngineInformation).map(_.getGasConsumption).getOrElse(Powertrain
-          .AverageMilesPerGallon)
-        //        val transitVehProps = TransitVehicle.props(services, matSimTransitVehicle.getId, TransitVehicleData
-        // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
-        //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
-        val vehicle: BeamVehicle = new BeamVehicle(Powertrain.PowertrainFromMilesPerGallon(consumption),
-          matSimTransitVehicle, None, TransitVehicle)
-        services.vehicles += (transitVehId -> vehicle)
-        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(services, transportNetwork, eventsManager, transitDriverId, vehicle, legs)
-        val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-        services.agentRefs += (transitDriverId.toString -> transitDriver)
-        services.schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
-
-      case _ =>
-        log.error(mode + " is not supported yet")
-    }
   }
 
   /**
@@ -272,9 +270,11 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 object BeamRouter {
   type Location = Coord
 
-  case object InitTransit
+  case class InitTransit(scheduler: ActorRef)
 
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
+
+  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle])
 
   case class UpdateTravelTime(travelTime: TravelTime)
 
@@ -288,14 +288,7 @@ object BeamRouter {
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
     */
-  case class RoutingRequestTripInfo(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true)
-
-  /**
-    * Message to request a route plan
-    *
-    * @param params route information that is needs a plan
-    */
-  case class RoutingRequest(params: RoutingRequestTripInfo)
+  case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true)
 
   /**
     * Message to respond a plan against a particular router request
@@ -303,16 +296,6 @@ object BeamRouter {
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
-
-  object RoutingRequest {
-    def apply(fromActivity: Activity, toActivity: Activity, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): RoutingRequest = {
-      new RoutingRequest(RoutingRequestTripInfo(fromActivity.getCoord, toActivity.getCoord, departureTime, Modes.filterForTransit(transitModes), streetVehicles, streetVehiclesAsAccess))
-    }
-
-    def apply(params: RoutingRequestTripInfo): RoutingRequest = {
-      new RoutingRequest(params)
-    }
-  }
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }

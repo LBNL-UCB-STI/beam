@@ -18,7 +18,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
-import beam.router.BeamRouter.{Location, RoutingRequest, RoutingRequestTripInfo, RoutingResponse}
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTime, BeamTrip}
@@ -52,7 +52,7 @@ object RideHailingManager {
                             estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration],
                             responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
 
-  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Vector[TravelProposal],
+  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Seq[TravelProposal],
                                         error: Option[ReservationError] = None)
 
   case class ReserveRide(inquiryId: Id[RideHailingInquiry], customerIds: VehiclePersonId, pickUpLocation: Location,
@@ -79,15 +79,15 @@ object RideHailingManager {
   case object RideAvailableAck
 
 
-  def props(name: String, services: BeamServices, boundingBox: Envelope) = {
-    Props(classOf[RideHailingManager], name, services, boundingBox)
+  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope) = {
+    Props(new RideHailingManager(name, services, router, boundingBox))
   }
 }
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
 case class RideHailingManagerData() extends BeamAgentData
 
-class RideHailingManager(val name: String, val beamServices: BeamServices, val boundingBox: Envelope) extends VehicleManager with HasServices {
+class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope) extends VehicleManager with HasServices {
 
   import scala.collection.JavaConverters._
 
@@ -274,10 +274,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val b
     //TODO: Error handling. In the (unlikely) event of a timeout, this RideHailingManager will silently be
     //TODO: restarted, and probably someone will wait forever for its reply.
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-    val futureRideHailingAgent2CustomerResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(rideHailingLocation
-          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin)))
+    val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(rideHailingLocation
+          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin))
     //XXXX: customer trip request might be redundant... possibly pass in info
-    val futureRideHailing2DestinationResponse = beamServices.beamRouter ? RoutingRequest(RoutingRequestTripInfo(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup)))
+    val futureRideHailing2DestinationResponse = router ? RoutingRequest(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup))
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 

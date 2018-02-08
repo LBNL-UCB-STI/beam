@@ -2,11 +2,12 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.physsim.LinkStats;
+import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
-import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -15,9 +16,14 @@ import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.api.core.v01.population.*;
+import org.matsim.api.core.v01.population.Activity;
+import org.matsim.api.core.v01.population.Leg;
+import org.matsim.api.core.v01.population.Person;
+import org.matsim.api.core.v01.population.Plan;
+import org.matsim.api.core.v01.population.Population;
+import org.matsim.api.core.v01.population.PopulationWriter;
+import org.matsim.api.core.v01.population.Route;
 import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.EventsManagerImpl;
@@ -37,7 +43,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import beam.analysis.physsim.LinkStats;
 
 
 /**
@@ -46,6 +51,7 @@ import beam.analysis.physsim.LinkStats;
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     private static LinkStats linkStats;
+    private static PhyssimCalcLinkStats linkStatsGraph;
     public static final String CAR = "car";
     public static final String BUS = "bus";
     public static final String DUMMY_ACTIVITY = "DummyActivity";
@@ -83,6 +89,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         preparePhysSimForNewIteration();
 
         linkStats=new LinkStats(agentSimScenario.getNetwork(),controlerIO);
+        linkStatsGraph=new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO);
     }
 
     private void preparePhysSimForNewIteration() {
@@ -96,7 +103,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     public void setupActorsAndRunPhysSim(int iterationNumber) {
-        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
         jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
         EventsManager jdeqsimEvents = new EventsManagerImpl();
@@ -115,16 +122,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
 
-
         JDEQSimConfigGroup config=new JDEQSimConfigGroup();
         config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
-
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStats.notifyIterationStarts(jdeqsimEvents);
+        linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
         jdeqSimulation.run();
+
+
         linkStats.notifyIterationEnds(iterationNumber,travelTimeCalculator.getLinkTravelTimes());
+        linkStatsGraph.notifyIterationEnds(iterationNumber,travelTimeCalculator);
 
         if (writePhysSimEvents(iterationNumber)){
             eventsWriterXML.closeFile();
@@ -133,12 +142,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
 
+
+
     private boolean writePhysSimEvents(int iterationNumber) {
-        return writeInIteration(iterationNumber,beamConfig.beam().physsim().writeEventsInterval());
+        return writeInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
     }
 
     private boolean writePlans(int iterationNumber) {
-        return writeInIteration(iterationNumber,beamConfig.beam().physsim().writePlansInterval());
+        return writeInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
     }
 
     private boolean writeInIteration(int iterationNumber, int interval) {

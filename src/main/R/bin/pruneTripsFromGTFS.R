@@ -25,7 +25,8 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-c('/Users/critter/Documents/beam/beam-output/experiments/pruning-1/transit-trips-low-ridership-300.csv','/Users/critter/Dropbox/ucb/vto/beam-all/beam-octagon/beam/production/application-sfbay/r5-pruned-high')
+  #args<-c('/Users/critter/Documents/beam/beam-output/experiments/pruning/runs/run.runName_base/plots/transit-trips-below-60-pmt.csv','/Users/critter/Dropbox/ucb/vto/beam-all/beam-octagon/beam/production/application-sfbay/r5-pruned-high')
+  args<-c('/Users/critter/Documents/beam/beam-output/experiments/pruning/runs/run.runName_base/plots/transit-trips-below-20-pmt.csv','/Users/critter/Dropbox/ucb/vto/beam-all/beam-octagon/beam/production/application-sfbay/r5-pruned-low')
   args <- parse_args(OptionParser(option_list = option_list,usage = "pruneTripsFromGTFS.R [csv-with-trips-to-delete] [path-to-gtfs-archives]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "pruneTripsFromGTFS.R [csv-with-trips-to-delete] [path-to-gtfs-archives]"),positional_arguments=T)
