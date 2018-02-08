@@ -4,11 +4,14 @@ import javax.inject.Inject
 
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.ModeChoiceEvent
+import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
+
+import scala.collection.mutable
 
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
 
@@ -20,6 +23,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
       val modalityStyle = Option(person.getCustomAttributes.get("modality-style")).map(_.asInstanceOf[String])
       private val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(AttributesOfIndividual(person, null, null, modalityStyle, true))
       private var accumulatedScore = 0.0
+      private var trips = mutable.ListBuffer[EmbodiedBeamTrip]()
 
       override def handleEvent(event: Event): Unit = {
         event match {
@@ -28,7 +32,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
             // instead of just one.
             val score = modeChoiceCalculator.utilityOf(modeChoiceEvent.chosenTrip)
             log.trace(person.getId, modeChoiceEvent.chosenTrip, score)
-            accumulatedScore += score
+            trips.append(modeChoiceEvent.chosenTrip)
           case _ =>
         }
       }
@@ -39,7 +43,9 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
       override def handleLeg(leg: Leg): Unit = {}
 
-      override def finish(): Unit = {}
+      override def finish(): Unit = {
+        trips.foreach(trip => accumulatedScore += modeChoiceCalculator.utilityOf(trip))
+      }
 
       override def handleActivity(activity: Activity): Unit = {}
 
