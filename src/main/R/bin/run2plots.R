@@ -2,7 +2,7 @@
 ##############################################################################################################################################
 # Script to process results of a single BEAM run and create some default plots analyzing the result
 # 
-# Argument: the path to the config file contained in the run output directory.
+# Argument: the path to the run output directory.
 ##############################################################################################################################################
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
@@ -29,20 +29,21 @@ if(interactive()){
 ######################################################################################################
 # Load the exp config
 
-run.dir <- pp(pp(head(str_split(args$args,"/")[[1]],-1),collapse="/"),"/")
-run.name <- tail(head(str_split(args$args,"/")[[1]],-1),1)
-conf.file <- tail(str_split(args$args,"/")[[1]],1)
+run.dir <- dir.slash(args$args)
+run.name <- tail(head(str_split(run.dir,"/")[[1]],-1),1)
+iter.dir <- ifelse("ITERS"%in%list.dirs(run.dir,recur=F,full.names=F),pp(run.dir,'ITERS/'),pp(run.dir,'output/ITERS/'))
+conf.file <- pp(iter.dir,'../beam.conf')
 plots.dir <- pp(run.dir,'plots/')
 make.dir(plots.dir)
 
 evs <- list()
 vehs <- list()
-iter <- tail(list.dirs(pp(run.dir,'ITERS/'),full.names=F),-1)[1]
-for(iter in tail(list.dirs(pp(run.dir,'ITERS/'),full.names=F),-1)){
+iter <- tail(list.dirs(iter.dir,full.names=F),-1)[1]
+for(iter in tail(list.dirs(iter.dir,full.names=F),-1)){
   my.cat(iter)
   iter.i <- as.numeric(tail(str_split(iter,'\\.')[[1]],1))
 
-  events.csv <- pp(run.dir,'ITERS/',iter,'/',iter.i,'.events.csv')
+  events.csv <- pp(iter.dir,iter,'/',iter.i,'.events.csv')
   ev <- csv2rdata(events.csv)
   ev[,iter:=iter.i]
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
@@ -57,7 +58,6 @@ rm('vehs')
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
 veh[,is.transit:=grepl(":",vehicle)]
-ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
 
 setkey(ev,type,iter,hr,vehicle_type)
 
@@ -96,19 +96,36 @@ p <- ggplot(toplot[type=='PersonEntersVehicle' & agency%in%c('SF','AC','BA','VT'
 pdf.scale <- .8
 ggsave(pp(plots.dir,'transit-boarding-big-4.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
-p <- ggplot(ev[J('ModeChoice'),.(expMaxUtil=mean(expectedMaximumUtility,na.rm=T)),by=c('iter','hr')],aes(x=hr,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~iter)+labs(x="Hour",y="Avg. Accessibility Score",title=to.title(run.name))
+p <- ggplot(ev[J('ModeChoice'),.(expMaxUtil=mean(access,na.rm=T)),by=c('iter','hr')],aes(x=hr,y=expMaxUtil))+geom_bar(stat='identity')+facet_wrap(~iter)+labs(x="Hour",y="Avg. Accessibility Score",title=to.title(run.name))
 pdf.scale <- .8
 ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
 
 
 ### Transit analysis, group transit trips (i.e. vehicles) and agencies by ridership
-toplot<-ev[J('PathTraversal')][tripmode=='transit']
+toplot<-ev[J('PathTraversal')][tripmode=='transit' & iter==0]
 toplot[,agency:=unlist(lapply(str_split(vehicle_id,":"),function(x){ x[1] }))]
 toplot[,transitTrip:=unlist(lapply(str_split(vehicle_id,":"),function(x){ x[2] }))]
 toplot <- toplot[,.(numPassengers=sum(num_passengers),pmt=sum(num_passengers*length/1609)),by=c('agency','transitTrip')]
 
 write.csv(toplot,file=pp(plots.dir,'transit-use-by-trip.csv'))
-write.csv(toplot[pmt<=10],file=pp(plots.dir,'transit-trips-low-ridership.csv'))
+write.csv(toplot[pmt<=20],file=pp(plots.dir,'transit-trips-below-20-pmt.csv'))
+write.csv(toplot[pmt<=60],file=pp(plots.dir,'transit-trips-below-60-pmt.csv'))
+
+toplot <- data.table(numPassengers=toplot$numPassengers,pmt=toplot$pmt)
+toplot[,type:='# Passengers']
+setkey(toplot,numPassengers)
+toplot[,i:=1:nrow(toplot)]
+toplot2 <- copy(toplot)
+toplot2[,type:='PMT']
+setkey(toplot2,pmt)
+toplot2[,i:=1:nrow(toplot)]
+pdf.scale <- .8
+p<-ggplot(toplot,aes(x=numPassengers,y=cumsum(toplot$numPassengers)/sum(toplot$numPassengers)))+geom_line()+geom_line(data=toplot2,aes(x=pmt,y=cumsum(toplot2$pmt)/sum(toplot2$pmt)))+facet_wrap(~type,scale='free_x')+labs(x='# Passengers (left), PMT (right)',y='Cumulative Fraction',title='Transit Fleet Utilization')
+ggsave(pp(plots.dir,'cumul-transit-v-metric.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+p<-ggplot(toplot,aes(x=i,y=cumsum(toplot$numPassengers)/sum(toplot$numPassengers)))+geom_line()+geom_line(data=toplot2,aes(x=i,y=cumsum(toplot2$pmt)/sum(toplot2$pmt)))+facet_wrap(~type,scale='free_x')+labs(x='Trip #',y='Cumulative Fraction',title='Transit Fleet Utilization')
+ggsave(pp(plots.dir,'cumul-transit-v-trip.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
+
 
 

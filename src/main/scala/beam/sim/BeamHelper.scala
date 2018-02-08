@@ -2,10 +2,13 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
+import java.util
 import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.replanning.{GrabExperiencedPlan, SwitchModalityStyle}
 import beam.router.r5.NetworkCoordinator
+import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
@@ -13,6 +16,7 @@ import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
@@ -40,18 +44,15 @@ trait BeamHelper {
       }
     }).asJava, new AbstractModule() {
       override def install(): Unit = {
-        // Override MATSim Defaults
-        bind(classOf[PrepareForSim]).toInstance(new PrepareForSim {
-          override def run(): Unit = {}
-        }) // Nothing to do
-        bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
-//        bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
-
-        // Beam -> MATSim Wirings
-        bindMobsim().to(classOf[BeamMobsim])
-        addControlerListenerBinding().to(classOf[BeamSim])
-        bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
+        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+        addControlerListenerBinding().to(classOf[BeamSim])
+        bindMobsim().to(classOf[BeamMobsim])
+        bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
+        bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
+        addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
+        addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+        bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
 
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
       }
@@ -73,13 +74,16 @@ trait BeamHelper {
     props.setProperty("configFile", cfgFile)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
-    Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile), Paths.get(outputDirectory, "modeChoiceParameters.xml"))
+    if(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equalsIgnoreCase("ModeChoiceLCCM")){
+      Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
+    }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
+    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     val beamConfig = BeamConfig(config)
 
@@ -98,12 +102,6 @@ trait BeamHelper {
     val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(config, scenario, networkCoordinator.transportNetwork))
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
-
-    val envelopeInUTM = beamServices.geo.wgs2Utm(networkCoordinator.transportNetwork.streetLayer.envelope)
-    beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.maxY = envelopeInUTM.getMaxY + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.minX = envelopeInUTM.getMinX - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
 
     beamServices.controler.run()
     (matsimConfig, outputDirectory)

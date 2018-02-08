@@ -1,5 +1,5 @@
 
-clean.and.relabel <- function(ev,factor.to.scale.personal.back){
+clean.and.relabel <- function(ev,factor.to.scale.personal.back,val.of.time=16.9){
   # Clean and relabel
   ev[vehicle_type=="bus",vehicle_type:="Bus"]
   ev[vehicle_type=="CAR" | substr(vehicle_id,1,5)=="rideH",vehicle_type:="TNC"]
@@ -9,7 +9,7 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[vehicle_type=="tram",vehicle_type:="Muni"]
   ev[vehicle_type=="rail",vehicle_type:="Rail"]
   ev[vehicle_type=="ferry",vehicle_type:="Ferry"]
-  ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car'),'transit',as.character(mode))]
+  ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car','ferry'),'transit',as.character(mode))]
   ev[,hour:=time/3600]
   ev[,hr:=round(hour)]
   setkey(ev,vehicle_type)
@@ -28,6 +28,13 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[num_passengers > capacity,num_passengers:=capacity]
   ev[,pmt:=num_passengers*length/1609]
   ev[is.na(pmt),pmt:=0]
+  #ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
+  #ev[,expectedMaximumUtility:=expectedMaximumUtility-mean(ev$expectedMaximumUtility,na.rm=T)]
+  ev[,numAlternatives:=0]
+  ev[expectedMaximumUtility==-Inf,expectedMaximumUtility:=NA]
+  ev[type=='ModeChoice',numAlternatives:=str_count(availableAlternatives,":")+1]
+  ev[type=='ModeChoice',carSurplus:=log(exp(-length/1609/45*val.of.time))]
+  ev[type=='ModeChoice',access:=expectedMaximumUtility-carSurplus]
   ev
 }
 
@@ -62,6 +69,28 @@ pretty.modes <- function(ugly){
       the.ugly
     }
   })
+}
+
+parse.link.stats <- function(link.stats.file,net.file=NA){
+  file.rdata <- pp(link.stats.file,'.Rdata')
+  if(file.exists(file.rdata)){
+    load(file.rdata)
+  }else{
+    stats <- data.table(read.table(link.stats.file,header=T,sep='\t'))
+    stats <- melt(stats,id.vars=c("LINK","ORIG_ID","FROM","TO","LENGTH","FREESPEED","CAPACITY"))
+    stats[,type:=ifelse(grepl('HRS',variable),'volume','traveltime')]
+    stats[,stat:=ifelse(grepl('min',variable),'min',ifelse(grepl('max',variable),'max','avg'))]
+    stats[,hour:=-1]
+    stats[type=='volume',hour:=as.numeric(unlist(lapply(str_split(unlist(lapply(str_split(variable,"HRS"),function(ll){ ll[2] })),"\\."),function(lll){ lll[1] })))]
+    stats[type=='traveltime',hour:=as.numeric(unlist(lapply(str_split(unlist(lapply(str_split(variable,"TRAVELTIME"),function(ll){ ll[2] })),"\\."),function(lll){ lll[1] })))]
+    stats[,variable:=NULL]
+    stats <- join.on(stats[type=='volume'],stats[type=='traveltime'],c('LINK','hour','stat'),c('LINK','hour','stat'),'value','tt.')
+    stats[,':='(volume=value,traveltime=tt.value,value=NULL,tt.value=NULL,type=NULL)]
+    setkey(stats,LINK,stat,hour)
+    stats <- unique(stats)
+    save(stats,file=file.rdata)
+  }
+  stats
 }
 
 my.colors <- c(blue='#377eb8',green='#227222',orange='#C66200',purple='#470467',red='#B30C0C',yellow='#C6A600',light.green='#C0E0C0',magenta='#D0339D',dark.blue='#23128F',brown='#542D06',grey='#8A8A8A',dark.grey='#2D2D2D',light.yellow='#FFE664',light.purple='#9C50C0',light.orange='#FFB164',black='#000000')

@@ -35,7 +35,7 @@ object BeamAgent {
   trait BeamAgentData
 
   case class BeamAgentInfo[T <: BeamAgentData](id: Id[_],
-                                               implicit val data: T,
+                                               data: T,
                                                triggerId: Option[Long] = None,
                                                tick: Option[Double] = None,
                                                errorReason: Option[String] = None) extends Info
@@ -57,12 +57,12 @@ case class InitializeTrigger(tick: Double) extends Trigger
   */
 trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
 
+  val scheduler: ActorRef
   val eventsManager: EventsManager
 
   def id: Id[_]
 
   def data: T
-  override def logDepth = 12
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None

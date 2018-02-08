@@ -87,10 +87,10 @@ class FareCalculatorSpec extends WordSpecLike {
     "filterTransferFares with four segments" should {
       "return 3 segments within transfer duration" in {
         val fr = testFareCalc.getFareSegments("CE", "ACE", null, null, Set("55448", "55449", "55643")).map(BeamFareSegment(_, 0, 3200)) ++
-          testFareCalc.getFareSegments("CE", "ACE", "55643", "55644").map(BeamFareSegment(_, 0, 3800)) ++
+//          testFareCalc.getFareSegments("CE", "ACE", "55643", "55644").map(BeamFareSegment(_, 0, 3800)) ++
           testFareCalc.getFareSegments("CE", "ACE", "55644", "55645").map(BeamFareSegment(_, 0, 4300)) ++
           testFareCalc.getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
-        val fsf = filterTransferFares(fr)
+        val fsf = filterFaresOnTransfers(fr)
         assert(fsf.nonEmpty)
         assert(fsf.size == 3)
         assert(fsf.head.fare.transferDuration == 3800)

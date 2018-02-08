@@ -25,7 +25,8 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-c('/Users/critter/Documents/beam/beam-output/experiments/base_2018-01-17_15-46-24/plots/transit-trips-low-ridership.csv','/Users/critter/Dropbox/ucb/vto/beam-all/beam-octagon/beam/production/application-sfbay/r5-pruned-low-ridership')
+  #args<-c('/Users/critter/Documents/beam/beam-output/experiments/pruning/runs/run.runName_base/plots/transit-trips-below-60-pmt.csv','/Users/critter/Dropbox/ucb/vto/beam-all/beam-octagon/beam/production/application-sfbay/r5-pruned-high')
+  args<-c('/Users/critter/Documents/beam/beam-output/experiments/pruning/runs/run.runName_base/plots/transit-trips-below-20-pmt.csv','/Users/critter/Dropbox/ucb/vto/beam-all/beam-octagon/beam/production/application-sfbay/r5-pruned-low')
   args <- parse_args(OptionParser(option_list = option_list,usage = "pruneTripsFromGTFS.R [csv-with-trips-to-delete] [path-to-gtfs-archives]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "pruneTripsFromGTFS.R [csv-with-trips-to-delete] [path-to-gtfs-archives]"),positional_arguments=T)
@@ -52,8 +53,8 @@ for(the.agency in u(to.prune$agency)){
     stops <- data.table(read.csv(pp(tmp.dir,'/stop_times.txt'),colClasses='character'))
     trips <- data.table(read.csv(pp(tmp.dir,'/trips.txt'),colClasses='character'))
 
-    stops <- stops[!trip_id %in% to.prune[agency==the.agency]$trip]
-    trips <- trips[!trip_id %in% to.prune[agency==the.agency]$trip]
+    stops <- stops[!trip_id %in% to.prune[agency==the.agency]$transitTrip]
+    trips <- trips[!trip_id %in% to.prune[agency==the.agency]$transitTrip]
 
     # Clean up time stamps (remove bad data and zero pad single digit hours)
     stops[arrival_time=='00000000',arrival_time:=' ']
@@ -70,8 +71,6 @@ for(the.agency in u(to.prune$agency)){
     direction_id.i <- which(names(trips)=='direction_id')
     trip.inds <- (1:ncol(trips))[-direction_id.i]
     
-    print(sample(stops$arrival_time,50))
-
     write.csv(stops,file=pp(tmp.dir,'/stop_times.txt'),na = "",row.names =F,quote=stop.inds)
     write.csv(trips,file=pp(tmp.dir,'/trips.txt'),na = "",row.names =F,quote=trip.inds)
 

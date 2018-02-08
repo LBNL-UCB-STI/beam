@@ -22,43 +22,25 @@ import java.util.Map;
 public class LinkStats {
 
     private final Network network;
-    @Inject
     private CalcLinkStats linkStats;
-    @Inject
     private VolumesAnalyzer volumes;
-    @Inject
     private OutputDirectoryHierarchy controlerIO;
-    @Inject
-    private Map<String, TravelTime> travelTime222;
-    private int iterationsUsed = 0;
-    private boolean doReset = false;
 
     public LinkStats(Network network, OutputDirectoryHierarchy controlerIO) {
-
-        this.network=network;
+        this.network = network;
         linkStats = new CalcLinkStats(network);
         this.controlerIO = controlerIO;
     }
 
-
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
-        this.iterationsUsed++;
         linkStats.addData(volumes, travelTime);
-
         linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
-        this.doReset = true;
-
     }
 
     public void notifyIterationStarts(EventsManager eventsManager) {
+        this.linkStats.reset();
         volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network);
         eventsManager.addHandler(volumes);
-
-        if (this.doReset) {
-            // resetting at the beginning of an iteration, to allow others to use the data until the very end of the previous iteration
-            this.linkStats.reset();
-            this.doReset = false;
-        }
     }
 
 

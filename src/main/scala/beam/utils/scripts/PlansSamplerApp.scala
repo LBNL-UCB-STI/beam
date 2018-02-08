@@ -25,7 +25,6 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.core.utils.misc.Counter
-import org.matsim.households.Income.IncomePeriod.year
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
@@ -342,7 +341,7 @@ object PlansSampler {
       spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
 
       counter.incCounter()
-
+      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
       // Create and add car identifiers
       (0 to sh.cars).foreach(x => {
         val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")

@@ -4,8 +4,10 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDEHAIL, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -46,7 +48,7 @@ object RoutingModel {
         } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
           if((legs.size == 1 && legs(0).beamVehicleId.toString.contains("rideHailingVehicle")) ||
             (legs.size>1 && legs(1).beamVehicleId.toString.contains("rideHailingVehicle"))){
-            theMode = RIDEHAIL
+            theMode = RIDE_HAIL
           }else{
             theMode = CAR
           }
@@ -75,17 +77,6 @@ object RoutingModel {
   }
 
   object EmbodiedBeamTrip {
-
-    def beamModeToVehicleId(beamMode: BeamMode): Id[Vehicle] = {
-      if (beamMode == WALK) {
-        Id.create("body", classOf[Vehicle])
-      } else if (Modes.isR5TransitMode(beamMode)) {
-        Id.create("transit", classOf[Vehicle])
-      } else {
-        Id.create("", classOf[Vehicle])
-      }
-    }
-
     val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
   }
 
@@ -106,12 +97,8 @@ object RoutingModel {
   }
 
   object BeamLeg {
-    val beamLegOrdering: Ordering[BeamLeg] = Ordering.by(x=>(x.startTime,x.duration))
-
     def dummyWalk(startTime: Long): BeamLeg = new BeamLeg(startTime, WALK, 0, BeamPath(Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
   }
-
-  case class BeamLegWithNext(leg: BeamLeg, nextLeg: Option[BeamLeg])
 
   case class EmbodiedBeamLeg(beamLeg: BeamLeg,
                              beamVehicleId: Id[Vehicle],
@@ -121,6 +108,23 @@ object RoutingModel {
                              unbecomeDriverOnCompletion: Boolean
                             ) {
     val isHumanBodyVehicle: Boolean = HumanBodyVehicle.isHumanBodyVehicle(beamVehicleId)
+  }
+
+  def traverseStreetLeg(leg: BeamLeg, vehicleId: Id[Vehicle], travelTimeByEnterTimeAndLinkId: (Long, Int) => Long): Iterator[Event] = {
+    if (leg.travelPath.linkIds.size >= 2) {
+      val fullyTraversedLinks = leg.travelPath.linkIds.drop(1).dropRight(1)
+      def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
+      val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
+      leg.travelPath.linkIds.sliding(2).zip(timesAtNodes.iterator).flatMap {
+        case (Seq(from, to), timeAtNode) =>
+          Vector(
+            new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)),
+            new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
+          )
+      }
+    } else {
+      Iterator.empty
+    }
   }
 
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
@@ -141,8 +145,6 @@ object RoutingModel {
   object EmptyBeamPath {
     val path = BeamPath(Vector[Int](), None, null, null, 0)
   }
-
-  case class EdgeModeTime(fromVertexLabel: String, mode: BeamMode, time: Long, fromCoord: Coord, toCoord: Coord)
 
   /**
     * Represent the time in seconds since midnight.
