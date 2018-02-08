@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import java.io.{File, FileReader}
+import java.io.{File, FileReader, FileWriter}
 import java.util
 import java.util.ArrayList
 
@@ -22,10 +22,14 @@ import beam.utils.ObjectAttributesUtils
 import beam.utils.scripts.HouseholdAttrib.HousingType
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.supercsv.cellprocessor.ParseDouble
+import org.supercsv.cellprocessor.FmtBool
+import org.supercsv.cellprocessor.FmtDate
+import org.supercsv.cellprocessor.constraint.LMinMax
+import org.supercsv.cellprocessor.constraint.UniqueHashCode
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.util.CsvContext
 import org.supercsv.cellprocessor.constraint.NotNull
-import org.supercsv.io.{CsvMapReader, ICsvListWriter, ICsvMapReader}
+import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
@@ -71,8 +75,25 @@ object TAZCreatorScript extends App {
 
   println(taz.getId(-120.8043534,+35.5283106))
 */
+  /**
+  println("HELLO WORLD")
+  val path = "C:\\Users\\Felipe\\Desktop\\Ori\\taz\\list_taz.csv"
+  val mapTaz = TAZTreeMap.fromCsv(path)
+  print(mapTaz)
+    */
+  //Test Write File
+  if (3 > args.size){
+    val pathFileShape = args(0)
+    val tazIdName = args(1)
+    val destination = args(2)
 
-  print()
+    println("Process Started")
+    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
+    println("Process Terminate...")
+  }
+
+
+
 }
 
 class TAZTreeMap(tazQuadTree: QuadTree[TAZ]) {
@@ -163,13 +184,14 @@ object TAZTreeMap {
     try{
       mapReader = new CsvMapReader(new FileReader(filePath), CsvPreference.STANDARD_PREFERENCE)
       val header = mapReader.getHeader(true)
-      var line: java.util.Map[String, String] = null
-
-      while((line = mapReader.read(header:_*)) != null){
+      var flag = true
+      var line: java.util.Map[String, String] = mapReader.read(header:_*)
+      while(null != line){
         val id = line.get("taz")
         val coordX = line.get("coord-x")
         val coordY = line.get("coord-y")
         res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble))
+        line = mapReader.read(header:_*)
       }
 
     } finally{
@@ -177,6 +199,52 @@ object TAZTreeMap {
         mapReader.close()
     }
     res
+  }
+
+  def shapeFileToCsv(shapeFilePath: String, tazIDFieldName: String , writeDestinationPath: String): Unit = {
+    val shapeFileReader: ShapeFileReader = new ShapeFileReader
+    shapeFileReader.readFileAndInitialize(shapeFilePath)
+    val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
+
+    var mapWriter: ICsvMapWriter   = null;
+    try {
+
+      mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath),
+        CsvPreference.STANDARD_PREFERENCE);
+
+
+      val processors = getProcessors
+      val header = Array[String]("taz", "coord-x", "coord-y")
+      mapWriter.writeHeader(header:_*)
+
+      for (f <- features.asScala) {
+        f.getDefaultGeometry match {
+          case g: Geometry =>
+            val taz = new HashMap[String, Object]();
+            taz.put(header(0), f.getAttribute(tazIDFieldName).asInstanceOf[String])
+            taz.put(header(1), g.getCoordinate.x.toString)
+            taz.put(header(2), g.getCoordinate.y.toString)
+            mapWriter.write(taz, header, processors);
+          case _ =>
+        }
+      }
+    }
+    finally {
+      if( mapWriter != null ) {
+        mapWriter.close()
+      }
+    }
+
+
+  }
+
+
+
+  private def getProcessors: Array[CellProcessor]  = {
+    Array[CellProcessor](
+      new NotNull(), // Id (must be unique)
+      new NotNull(), // Coord X
+      new NotNull()) // Coord Y
   }
 
 }
