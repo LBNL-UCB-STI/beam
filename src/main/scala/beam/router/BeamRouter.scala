@@ -48,10 +48,8 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
       val transitSchedule = initTransit(scheduler)
       routerWorker ! TransitInited(transitSchedule)
       sender ! Success("success")
-    case updateRequest: UpdateTravelTime =>
-      routerWorker.forward(updateRequest)
-    case w: RoutingRequest =>
-      routerWorker.forward(w)
+    case other =>
+      routerWorker.forward(other)
   }
 
 
@@ -275,6 +273,8 @@ object BeamRouter {
   case class InitTransit(scheduler: ActorRef)
 
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
+
+  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle])
 
   case class UpdateTravelTime(travelTime: TravelTime)
 

@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
-import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -81,7 +81,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           information
             .map(_.getGasConsumption)
             .getOrElse(Powertrain.AverageMilesPerGallon))
-        val rideHailBeamVehicle = new BeamVehicle(powerTrain, rideHailVehicle, vehicleAttribute, CarVehicle)
+        val rideHailBeamVehicle = new BeamVehicle(powerTrain, rideHailVehicle, vehicleAttribute, Car)
         beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
         rideHailBeamVehicle.registerResource(rideHailingManager)
         val rideHailingAgentProps = RideHailingAgent.props(beamServices, scheduler, transportNetwork, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)
