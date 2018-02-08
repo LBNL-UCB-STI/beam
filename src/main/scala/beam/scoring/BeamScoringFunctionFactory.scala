@@ -20,18 +20,12 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
   override def createNewScoringFunction(person: Person): ScoringFunction = {
     new ScoringFunction {
 
-      val modalityStyle = Option(person.getCustomAttributes.get("modality-style")).map(_.asInstanceOf[String])
-      private val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(AttributesOfIndividual(person, null, null, modalityStyle, true))
       private var accumulatedScore = 0.0
       private var trips = mutable.ListBuffer[EmbodiedBeamTrip]()
 
       override def handleEvent(event: Event): Unit = {
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
-            // Here, if ModeChoiceCalculator is LCCM, I need to get a vector of utilities (one for each modality style)
-            // instead of just one.
-            val score = modeChoiceCalculator.utilityOf(modeChoiceEvent.chosenTrip)
-            log.trace(person.getId, modeChoiceEvent.chosenTrip, score)
             trips.append(modeChoiceEvent.chosenTrip)
           case _ =>
         }
@@ -44,7 +38,16 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
       override def handleLeg(leg: Leg): Unit = {}
 
       override def finish(): Unit = {
-        trips.foreach(trip => accumulatedScore += modeChoiceCalculator.utilityOf(trip))
+        val modalityStyle = Option(person.getCustomAttributes.get("modality-style")).map(_.asInstanceOf[String])
+        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(AttributesOfIndividual(person, null, null, modalityStyle, true))
+        accumulatedScore = trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
+
+        // Compute and log all-day score w.r.t. all modality styles
+        // One of them has many suspicious-looking 0.0 values. Probably something which
+        // should be minus infinity or exception instead.
+        log.debug(List("class1", "class2", "class3", "class4", "class5", "class6")
+          .map(style => beamServices.modeChoiceCalculatorFactory(AttributesOfIndividual(person, null, null, Some(style), true)))
+          .map(modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum))
       }
 
       override def handleActivity(activity: Activity): Unit = {}
