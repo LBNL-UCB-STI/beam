@@ -6,7 +6,7 @@ import java.util
 import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.replanning.{GrabExperiencedPlan, SwitchModalityStyle}
+import beam.replanning.{GrabExperiencedPlan}
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -51,7 +51,7 @@ trait BeamHelper {
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
-        addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+//        addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
         bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
 
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
