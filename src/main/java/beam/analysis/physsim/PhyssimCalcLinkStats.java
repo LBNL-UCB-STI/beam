@@ -5,9 +5,12 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.matsim.analysis.CalcLinkStats;
+import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
@@ -17,13 +20,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
-import java.util.logging.Logger;
 
 public class PhyssimCalcLinkStats {
 
-    private Logger logger = Logger.getLogger(PhyssimCalcLinkStats.class.getName()) ;
     private Network network;
     private OutputDirectoryHierarchy controlerIO;
+
+    private CalcLinkStats linkStats;
+    private VolumesAnalyzer volumes;
 
     public static int noOfBins = 24;
     public static int binSize = 3600;
@@ -58,10 +62,15 @@ public class PhyssimCalcLinkStats {
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO) {
         this.network = network;
         this.controlerIO = controlerIO;
+
+        linkStats = new CalcLinkStats(network);
     }
 
 
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
+
+        linkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes());
+        linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
 
         processData(iteration, travelTimeCalculator);
         CategoryDataset dataset = buildAndGetGraphCategoryDataset();
@@ -234,6 +243,10 @@ public class PhyssimCalcLinkStats {
     }
 
     public void notifyIterationStarts(EventsManager eventsManager) {
+
+        this.linkStats.reset();
+        volumes = new VolumesAnalyzer(3600, 24 * 3600 - 1, network);
+        eventsManager.addHandler(volumes);
 
         this.relativeSpeedFrequenciesPerBin.clear();
     }
