@@ -38,7 +38,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
       override def handleLeg(leg: Leg): Unit = {}
 
       override def finish(): Unit = {
-        val modalityStyle = Option(person.getCustomAttributes.get("modality-style")).map(_.asInstanceOf[String])
+        val modalityStyle = Option(person.getSelectedPlan.getCustomAttributes.get("modality-style")).map(_.asInstanceOf[String])
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(AttributesOfIndividual(person, null, null, modalityStyle, true))
         accumulatedScore = trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
 

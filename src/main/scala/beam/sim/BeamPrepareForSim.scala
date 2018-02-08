@@ -34,7 +34,9 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
 
   def assignInitialModalityStyles(): Unit = {
     scenario.getPopulation.getPersons.values().forEach(person => {
-      person.getCustomAttributes.put("modality-style", "class1")
+      person.getPlans.forEach(plan => {
+        plan.getCustomAttributes.put("modality-style", "class1")
+      })
     })
   }
 

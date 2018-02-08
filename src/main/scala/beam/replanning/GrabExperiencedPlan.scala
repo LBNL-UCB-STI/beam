@@ -28,6 +28,7 @@ class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
       case (plannedActivity: Activity, experiencedActivity: Activity) =>
         experiencedActivity.setCoord(plannedActivity.getCoord)
     }
+    experiencedPlan.getCustomAttributes.put("modality-style", person.getSelectedPlan.getCustomAttributes.get("modality-style"))
     assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
     person.addPlan(experiencedPlan)
   }
