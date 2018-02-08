@@ -2,7 +2,8 @@ package beam.agentsim.agents.planning
 
 import java.{lang, util}
 
-import beam.agentsim.agents.planning.Startegy.Strategy
+import beam.agentsim.agents.planning.Strategy.{ModeChoiceStrategy, Strategy}
+import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.population._
 import org.matsim.utils.objectattributes.attributable.Attributes
 
@@ -82,6 +83,11 @@ class BeamPlan extends Plan{
     }
     if(nextTour.trips.nonEmpty)tours = tours :+ nextTour
     indexBeamPlan
+    actsLegs.foreach {
+      case l: Leg =>
+        putStrategy(actsLegToTrip(l), ModeChoiceStrategy(BeamMode.withValue(l.getMode)))
+      case _ =>
+    }
   }
 
   def indexTrip(trip: Trip)= {

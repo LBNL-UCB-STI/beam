@@ -1,15 +1,17 @@
 package beam.agentsim.events;
 
+import beam.router.RoutingModel;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
+import org.matsim.core.api.internal.HasPersonId;
 
 import java.util.Map;
 
 /**
  * BEAM
  */
-public class ModeChoiceEvent extends Event {
+public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "ModeChoice";
     public final static String ATTRIBUTE_MODE = "mode";
     public final static String ATTRIBUTE_PERSON_ID = "person";
@@ -21,7 +23,7 @@ public class ModeChoiceEvent extends Event {
     public final static String ATTRIBUTE_PERSONAL_VEH_AVAILABLE = "personalVehicleAvailable";
     public final static String ATTRIBUTE_TRIP_LENGTH= "length";
     public final static String ATTRIBUTE_TOUR_INDEX= "tourIndex";
-    private final String personId;
+    private final Id<Person> personId;
     private final String mode;
     private final String expectedMaxUtility;
     private final String location;
@@ -29,13 +31,14 @@ public class ModeChoiceEvent extends Event {
     private final String vehAvailable;
     private final Double length;
     private final Integer tourIndex;
+    public final RoutingModel.EmbodiedBeamTrip chosenTrip;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
-                           Integer tourIndex) {
+                           Integer tourIndex, RoutingModel.EmbodiedBeamTrip chosenTrip) {
         super(time);
 
-        this.personId = personId.toString();
+        this.personId = personId;
         this.mode = chosenMode;
         this.expectedMaxUtility = expectedMaxUtility.toString();
         this.location = linkId;
@@ -43,13 +46,14 @@ public class ModeChoiceEvent extends Event {
         this.vehAvailable = vehAvailable == null ? "" : vehAvailable.toString();
         this.length = length;
         this.tourIndex = tourIndex;
+        this.chosenTrip = chosenTrip;
     }
 
     @Override
     public Map<String, String> getAttributes() {
         Map<String, String> attr = super.getAttributes();
 
-        attr.put(ATTRIBUTE_PERSON_ID, personId);
+        attr.put(ATTRIBUTE_PERSON_ID, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_EXP_MAX_UTILITY, expectedMaxUtility);
         attr.put(ATTRIBUTE_LOCATION, location);
@@ -71,5 +75,10 @@ public class ModeChoiceEvent extends Event {
     @Override
     public String getEventType() {
         return EVENT_TYPE;
+    }
+
+    @Override
+    public Id<Person> getPersonId() {
+        return personId;
     }
 }

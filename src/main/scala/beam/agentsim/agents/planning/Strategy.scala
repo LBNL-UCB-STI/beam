@@ -5,7 +5,7 @@ import beam.router.Modes.BeamMode
 /**
   * BEAM
   */
-object Startegy{
+object Strategy{
   sealed trait Strategy
 
   case class ModeChoiceStrategy(mode: BeamMode) extends Strategy

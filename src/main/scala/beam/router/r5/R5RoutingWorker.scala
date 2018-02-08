@@ -9,7 +9,7 @@ import akka.pattern._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes
+import beam.router.{Modes, RoutingModel}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
@@ -70,6 +70,17 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
+    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
+      val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
+        case Some(matsimTravelTime) =>
+          matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
+        case None =>
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+          (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString))).toLong
+      }
+      val duration = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map(e => e.getTime).max - leg.startTime
+
+      sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))))
   }
 
   case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
@@ -266,14 +277,14 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
              */
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
             val fareSegments = getFareSegments(segments.toVector)
-            val fares = filterTransferFares(fareSegments)
+            val fares = filterFaresOnTransfers(fareSegments)
 
             segments.foreach { case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
               //              val tripPattern = transportNetwork.transitLayer.tripPatterns.get(segmentPattern.patternIdx)
               val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
               //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
-              val fs = fares.filter(_.patternIndex == transitJourneyID.pattern).map(_.fare.price)
+              val fs = fares.filter(_.patternIndex == segmentPattern.patternIdx).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
               val segmentLegs = transitSchedule(Id.createVehicleId(tripId))._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.zipWithIndex.map(beamLeg => (beamLeg._1, if (beamLeg._2 == 0) fare else 0.0))
@@ -384,24 +395,25 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   private def getFareSegments(segments: Vector[(TransitSegment, TransitJourneyID)]): Vector[BeamFareSegment] = {
     segments.groupBy(s => getRoute(s._1, s._2).agency_id).flatMap(t => {
       val pattern = getPattern(t._2.head._1, t._2.head._2)
-      val route = getRoute(pattern)
-      val agencyId = route.agency_id
-      val routeId = route.route_id
-
-      val fromId = getStopId(t._2.head._1.from)
-      val toId = getStopId(t._2.last._1.to)
-
       val fromTime = pattern.fromDepartureTime.get(t._2.head._2.time)
-      val toTime = getPattern(t._2.last._1, t._2.last._2).toArrivalTime.get(t._2.last._2.time)
-      val duration = ChronoUnit.SECONDS.between(fromTime, toTime)
 
-      val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
+      var rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
 
-      var rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, t._2.head._2.pattern, duration))
+      if (rules.isEmpty) {
+        val route = getRoute(pattern)
+        val agencyId = route.agency_id
+        val routeId = route.route_id
 
-      if (rules.isEmpty)
-        rules = t._2.flatMap(s => getFareSegments(s._1, s._2, fromTime))
+        val fromId = getStopId(t._2.head._1.from)
+        val toId = getStopId(t._2.last._1.to)
 
+        val toTime = getPattern(t._2.last._1, t._2.last._2).toArrivalTime.get(t._2.last._2.time)
+        val duration = ChronoUnit.SECONDS.between(fromTime, toTime)
+
+        val containsIds = t._2.flatMap(s => Vector(getStopId(s._1.from), getStopId(s._1.to))).toSet
+
+        rules = getFareSegments(agencyId, routeId, fromId, toId, containsIds).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
+      }
       rules
     }).toVector
   }
@@ -416,8 +428,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val toStopId = getStopId(transitSegment.to)
     val duration = ChronoUnit.SECONDS.between(fromTime, pattern.toArrivalTime.get(transitJourneyID.time))
 
-    var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(f => BeamFareSegment(f, transitJourneyID.pattern, duration))
-    if (fr.nonEmpty)
+    var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(f => BeamFareSegment(f, pattern.patternIdx, duration))
+    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex))
       fr = Vector(fr.minBy(_.fare.price))
     fr
   }
