@@ -33,53 +33,48 @@ public class PhyssimCalcLinkStatsTest{
 
     private synchronized static void createDummySimWithXML(){
 
-        Config _config = ConfigUtils.createConfig();
-
+        Config config = ConfigUtils.createConfig();
         OutputDirectoryHierarchy.OverwriteFileSetting overwriteExistingFiles = OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles;
-
         OutputDirectoryHierarchy outputDirectoryHierarchy = new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles);
+        Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
+        Network network = scenario.getNetwork();
+        MatsimNetworkReader matsimNetworkReader= new MatsimNetworkReader(network);
+        matsimNetworkReader.readFile(NETWORK_FILE_PATH);
 
-        Scenario sc = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-        MatsimNetworkReader nwr= new MatsimNetworkReader(sc.getNetwork());
-        // Point to the metwork of the beamville scenrio
-        nwr.readFile(NETWORK_FILE_PATH);
+        TravelTimeCalculatorConfigGroup defaultTravelTimeCalculator= config.travelTimeCalculator();
+        TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(network, defaultTravelTimeCalculator);
 
-        Network network = sc.getNetwork();
-        TravelTimeCalculatorConfigGroup ttccg = _config.travelTimeCalculator();
-        TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(network, ttccg);
-
-
-        EventsManager events = EventsUtils.createEventsManager();
-        events.addHandler(travelTimeCalculator);
+        EventsManager eventsManager = EventsUtils.createEventsManager();
+        eventsManager.addHandler(travelTimeCalculator);
 
         physsimCalcLinkStats = new PhyssimCalcLinkStats(network, outputDirectoryHierarchy);
 
-        physsimCalcLinkStats.notifyIterationStarts(events);
+        physsimCalcLinkStats.notifyIterationStarts(eventsManager);
 
-        MatsimEventsReader reader = new MatsimEventsReader(events);
-        reader.readFile(EVENTS_FILE_PATH);
+        MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
+        matsimEventsReader.readFile(EVENTS_FILE_PATH);
         physsimCalcLinkStats.notifyIterationEnds(0, travelTimeCalculator);
     }
 
 
     @Test
-    public void test_Should_Pass_Should_Return_COUNT_OF_SPECIFIC_HOUR(){
+    public void testShouldPassShouldReturnCountRelativeSpeedOfSpecificHour(){
         Double expectedResult=10.0;
         Double actualResult =  physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(0,7);
         assertEquals(expectedResult, actualResult);
     }
     @Test
-    public void test_Should_Pass_Should_Return_COUNT_OF_ALL_RELATIVE_SPEED_CATEGORY_FOR_SPECIFIC_HOUR(){
+    public void testShouldPassShouldReturnCountOfAllRelativeSpeedCategoryForSpecificHour(){
         List<Double> relativeSpeedCategoryList=physsimCalcLinkStats.getSortedListRelativeSpeedCategoryList();
         Double expectedResult=260.0;
-        Double actualResult = 0.0;
+        Double actualRelativeSpeedSum = 0.0;
         for(Double category:relativeSpeedCategoryList){
-            actualResult = actualResult + physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(category.intValue(),7);
+            actualRelativeSpeedSum = actualRelativeSpeedSum + physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(category.intValue(),7);
         }
-        assertEquals(expectedResult, actualResult);
+        assertEquals(expectedResult, actualRelativeSpeedSum);
     }
     @Test
-    public void test_Should_Pass_Should_Return_SUM_OF_RELATIVE_SPEED_CATEGORY_FOR_ALL_HOUR(){
+    public void testShouldPassShouldReturnSumOfRelativeSpeedForSpecificHour(){
         Double expectedResult=148.0;
         Double actualResult=physsimCalcLinkStats.getRelativeSpeedCountOfSpecificCategory(0);
         assertEquals(expectedResult, actualResult);
