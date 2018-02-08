@@ -8,8 +8,6 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.mockito.Matchers._
-import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
@@ -22,7 +20,8 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
-    matsimConfig.controler().setLastIteration(10)
+    matsimConfig.controler().setLastIteration(2)
+//    matsimConfig.controler().setLastIteration(100)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
@@ -39,7 +38,13 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
     })
     val controler = injector.getInstance(classOf[BeamServices]).controler
     controler.run()
-//    verify(iterationCounter, times(3)).notifyIterationEnds(any())
+//
+//    import scala.collection.JavaConverters._
+//    val stringToPersons = scenario.getPopulation.getPersons.values().asScala.groupBy(p => p.getSelectedPlan.getCustomAttributes.get("modality-style").toString)
+//
+//    stringToPersons.foreach {
+//      case (style, people) => println(style, people.size)
+//    }
   }
 
 }
