@@ -27,7 +27,8 @@ public class ModeChosenStats implements IGraphStats{
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
         CategoryDataset modesFrequencyDataset = buildModesFrequencyDatasetForGraph();
-        createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
+        if(modesFrequencyDataset!=null)
+            createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
     }
 
     @Override
@@ -95,7 +96,8 @@ public class ModeChosenStats implements IGraphStats{
 
         List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
         List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(modesChosen);
-
+        if(0 == hoursList.size())
+            return null;
         int maxHour = hoursList.get(hoursList.size() - 1);
         double[][] dataset = new double[modesChosen.size()][maxHour + 1];
         for (int i = 0; i < modesChosenList.size(); i++) {
@@ -105,8 +107,11 @@ public class ModeChosenStats implements IGraphStats{
         return dataset;
     }
     private CategoryDataset buildModesFrequencyDatasetForGraph(){
+        CategoryDataset categoryDataset = null;
         double [][] dataset= buildModesFrequencyDataset();
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+        if(dataset != null)
+            categoryDataset = DatasetUtilities.createCategoryDataset("Mode ", "", dataset);
+        return categoryDataset;
     }
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
         boolean legend = true;
