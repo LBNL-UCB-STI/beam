@@ -51,8 +51,9 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
         // One of them has many suspicious-looking 0.0 values. Probably something which
         // should be minus infinity or exception instead.
         val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6")
-          .map(style => beamServices.modeChoiceCalculatorFactory(attributes.copy(modalityStyle = Some(style))))
-          .map(modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum)
+          .map(style => style -> beamServices.modeChoiceCalculatorFactory(attributes.copy(modalityStyle = Some(style))))
+          .toMap
+          .mapValues(modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum)
         log.debug(vectorOfUtilities)
         person.getSelectedPlan.getAttributes.putAttribute("scores", vectorOfUtilities.toString)
 
