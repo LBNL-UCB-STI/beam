@@ -5,7 +5,7 @@ import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.replanning.{GrabExperiencedPlan, SwitchModalityStyle}
+import beam.replanning.{GrabExperiencedPlan, SwitchModalityStyle, TryToKeepOneOfEachClass}
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -20,6 +20,8 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.utils.objectattributes.AttributeConverter
 
@@ -53,6 +55,9 @@ trait BeamHelper {
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
+        if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
+          bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
+        }
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
         addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
@@ -60,6 +65,19 @@ trait BeamHelper {
           override def convert(value: String): MapStringDouble = MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
         })
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
+
+        addControlerListenerBinding().toInstance(new IterationEndsListener {
+          override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+
+                import scala.collection.JavaConverters._
+                val stringToPersons = scenario.getPopulation.getPersons.values().asScala.groupBy(p => p.getSelectedPlan.getAttributes.getAttribute("modality-style").toString)
+
+                println(stringToPersons.map {
+                  case (style, people) => (style, people.size)
+                }.toList.sorted.mkString(","))
+
+          }
+        })
       }
     })
 
