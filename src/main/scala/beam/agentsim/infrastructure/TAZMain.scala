@@ -233,7 +233,6 @@ object TAZTreeMap {
               case e: Exception => println(cont + " ) e: -> " + e.getMessage)
                 cont  = cont +1
             }
-
           case _ =>
         }
       }
@@ -242,14 +241,9 @@ object TAZTreeMap {
     finally {
       if( mapWriter != null ) {
         mapWriter.close()
-
       }
     }
-
-
   }
-
-
 
   private def getProcessors: Array[CellProcessor]  = {
     Array[CellProcessor](
@@ -258,6 +252,18 @@ object TAZTreeMap {
       new NotNull()) // Coord Y
   }
 
+  def groupTaz(features: util.Collection[SimpleFeature], tazIDFieldName: String): Map[String, Array[CsvTaz]] = {
+    val featuresArray = features.toArray(Array[SimpleFeature]())
+    val csvSeq = featuresArray.map{ f =>
+      f.getDefaultGeometry match {
+        case g: Geometry =>
+          Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[String], g.getCoordinate.x, g.getCoordinate.y))
+        case _ => None
+      }
+    } filter(_.isDefined) map(_.get)
+
+    csvSeq.groupBy(_.id)
+  }
 }
 
 case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
