@@ -82,7 +82,7 @@ object TAZCreatorScript extends App {
   print(mapTaz)
     */
   //Test Write File
-  if (3 > args.size){
+  if (3 >= args.size){
     val pathFileShape = args(0)
     val tazIdName = args(1)
     val destination = args(2)
@@ -216,22 +216,34 @@ object TAZTreeMap {
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")
       mapWriter.writeHeader(header:_*)
+      var cont = 1
+      var cont2 = 1
 
       for (f <- features.asScala) {
         f.getDefaultGeometry match {
           case g: Geometry =>
-            val taz = new HashMap[String, Object]();
-            taz.put(header(0), f.getAttribute(tazIDFieldName).asInstanceOf[String])
-            taz.put(header(1), g.getCoordinate.x.toString)
-            taz.put(header(2), g.getCoordinate.y.toString)
-            mapWriter.write(taz, header, processors);
+            try {
+              val taz = new HashMap[String, Object]();
+              taz.put(header(0), f.getAttribute(tazIDFieldName).asInstanceOf[String])
+              taz.put(header(1), g.getCoordinate.x.toString)
+              taz.put(header(2), g.getCoordinate.y.toString)
+              mapWriter.write(taz, header, processors);
+              cont2 = cont2 + 1
+            }
+            catch {
+              case e: Exception => println(cont + " ) e: -> " + e.getMessage)
+                cont  = cont +1
+            }
+
           case _ =>
         }
       }
+      println("TOTAL RECORDS -> " + cont2)
     }
     finally {
       if( mapWriter != null ) {
         mapWriter.close()
+
       }
     }
 
@@ -242,7 +254,7 @@ object TAZTreeMap {
 
   private def getProcessors: Array[CellProcessor]  = {
     Array[CellProcessor](
-      new NotNull(), // Id (must be unique)
+      new UniqueHashCode(), // Id (must be unique)
       new NotNull(), // Coord X
       new NotNull()) // Coord Y
   }
