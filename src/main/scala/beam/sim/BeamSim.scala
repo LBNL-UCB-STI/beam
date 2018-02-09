@@ -35,8 +35,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
-  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
+  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _;
+  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
