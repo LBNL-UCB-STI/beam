@@ -24,11 +24,9 @@ import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlW
 import org.supercsv.cellprocessor.ParseDouble
 import org.supercsv.cellprocessor.FmtBool
 import org.supercsv.cellprocessor.FmtDate
-import org.supercsv.cellprocessor.constraint.LMinMax
-import org.supercsv.cellprocessor.constraint.UniqueHashCode
+import org.supercsv.cellprocessor.constraint.{LMinMax, NotNull, Unique, UniqueHashCode}
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.util.CsvContext
-import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
 
@@ -82,7 +80,8 @@ object TAZCreatorScript extends App {
   print(mapTaz)
     */
   //Test Write File
-  if (3 >= args.size){
+  if (null != args && 3 == args.size){
+    println("Running conversion")
     val pathFileShape = args(0)
     val tazIdName = args(1)
     val destination = args(2)
@@ -90,9 +89,9 @@ object TAZCreatorScript extends App {
     println("Process Started")
     TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
     println("Process Terminate...")
+  } else {
+    println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
   }
-
-
 
 }
 
