@@ -26,6 +26,7 @@ import org.supercsv.cellprocessor.FmtBool
 import org.supercsv.cellprocessor.FmtDate
 import org.supercsv.cellprocessor.constraint.{LMinMax, NotNull, Unique, UniqueHashCode}
 import org.supercsv.cellprocessor.ift.CellProcessor
+import org.supercsv.exception.SuperCsvConstraintViolationException
 import org.supercsv.util.CsvContext
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
@@ -215,8 +216,7 @@ object TAZTreeMap {
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")
       mapWriter.writeHeader(header:_*)
-      var cont = 1
-      var cont2 = 1
+      var duplicatedValues = false
 
       for (f <- features.asScala) {
         f.getDefaultGeometry match {
@@ -226,17 +226,22 @@ object TAZTreeMap {
               taz.put(header(0), f.getAttribute(tazIDFieldName).asInstanceOf[String])
               taz.put(header(1), g.getCoordinate.x.toString)
               taz.put(header(2), g.getCoordinate.y.toString)
-              mapWriter.write(taz, header, processors);
-              cont2 = cont2 + 1
+              mapWriter.write(taz, header, processors)
             }
             catch {
-              case e: Exception => println(cont + " ) e: -> " + e.getMessage)
-                cont  = cont +1
+              case e: SuperCsvConstraintViolationException => duplicatedValues = true
             }
           case _ =>
         }
       }
-      println("TOTAL RECORDS -> " + cont2)
+      if (duplicatedValues) {
+        println("DUPLICATED TAZ VALUES")
+        groupTaz(features,tazIDFieldName)
+          .filter(i => i._2.length >1)foreach (x =>{ println ( "ID TAZ : "+x._1 + "------------------")
+            x._2 foreach(x => println("\t -> Coordinate X -> " + x.coordX.toString + "\t Y -> " + x.coordY.toString))
+        } )
+
+      }
     }
     finally {
       if( mapWriter != null ) {
