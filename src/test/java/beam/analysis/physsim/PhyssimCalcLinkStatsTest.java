@@ -23,8 +23,8 @@ public class PhyssimCalcLinkStatsTest{
 
     private static String BASE_PATH = new File("").getAbsolutePath();
     private static String OUTPUT_DIR_PATH = BASE_PATH+"/test/input/equil-square/test-data/output"; // TODO: do we need to point this to some standard test output folder?
-    private static String EVENTS_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimEvents.relative-speeds.xml";
-    private static String NETWORK_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimNetwork.relative-speeds.xml";
+    private static String EVENTS_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimEvents-relative-speeds.xml";
+    private static String NETWORK_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml";
     private static PhyssimCalcLinkStats physsimCalcLinkStats;
 
     static {
