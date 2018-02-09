@@ -20,7 +20,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
-    matsimConfig.controler().setLastIteration(10)
+    matsimConfig.controler().setLastIteration(2)
 //    matsimConfig.controler().setLastIteration(100)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)

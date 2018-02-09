@@ -2,17 +2,18 @@ package beam.scoring
 
 import javax.inject.Inject
 
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.RoutingModel.EmbodiedBeamTrip
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, MapStringDouble}
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
@@ -55,7 +56,14 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
           .toMap
           .mapValues(modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum)
         log.debug(vectorOfUtilities)
-        person.getSelectedPlan.getAttributes.putAttribute("scores", vectorOfUtilities.toString)
+        person.getSelectedPlan.getAttributes.putAttribute("scores", MapStringDouble(vectorOfUtilities))
+
+        // TODO: Start writing something like a scala API for MATSim, so that uglinesses like that vv don't have to be in user code, but only in one place.
+
+        val logsum = math.log(person.getPlans().asScala
+          .map(plan => plan.getAttributes.getAttribute("scores").asInstanceOf[MapStringDouble].data(attributes.modalityStyle.get))
+          .map(score => math.exp(score))
+          .sum)
 
         val scoreOfBeingInClassGivenThisOutcome = lccm.classMembershipModels(Mandatory).getUtilityOfAlternative(AlternativeAttributes(attributes.modalityStyle.get, Map(
           "income" -> attributes.householdAttributes.householdIncome,
@@ -67,7 +75,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
           }),
           "numCars" -> attributes.householdAttributes.numCars.toDouble,
           "numBikes" -> attributes.householdAttributes.numBikes.toDouble,
-          "surplus" -> scoreOfThisOutcomeGivenMyClass   // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
+          "surplus" -> logsum   // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
         )))
 
         finalScore = scoreOfBeingInClassGivenThisOutcome
