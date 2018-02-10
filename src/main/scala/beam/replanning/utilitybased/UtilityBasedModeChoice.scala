@@ -20,8 +20,7 @@ class UtilityBasedModeChoice @Inject()(config: Config, beamServices: BeamService
 
   override def get(): PlanStrategy = {
     val strategy = new PlanStrategyImpl.Builder(new RandomPlanSelector())
-    strategy.addStrategyModule(new UtilityBasedModeChoiceModule(config.global(),beamServices))
-
+    strategy.addStrategyModule(new UtilityBasedModeChoiceModule(config.global(), beamServices))
     strategy.build()
   }
 }

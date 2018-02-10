@@ -9,5 +9,5 @@ sealed trait BeamReplanningStrategy extends EnumEntry
 object BeamReplanningStrategy extends Enum[BeamReplanningStrategy] {
   val values: immutable.IndexedSeq[BeamReplanningStrategy] = findValues
 
-  case object UtilityBasedModeChoiceStrategy extends BeamReplanningStrategy
+  case object UtilityBasedModeChoice extends BeamReplanningStrategy
 }
