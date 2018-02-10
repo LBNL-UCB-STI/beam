@@ -201,6 +201,14 @@ object TAZTreeMap {
     res
   }
 
+  def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String) = {
+    f.getDefaultGeometry match {
+      case g: Geometry =>
+        Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[String], g.getCoordinate.x, g.getCoordinate.y))
+      case _ => None
+    }
+  }
+
   def shapeFileToCsv(shapeFilePath: String, tazIDFieldName: String , writeDestinationPath: String): Unit = {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
@@ -208,42 +216,38 @@ object TAZTreeMap {
 
     var mapWriter: ICsvMapWriter   = null;
     try {
-
       mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath),
         CsvPreference.STANDARD_PREFERENCE);
-
 
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")
       mapWriter.writeHeader(header:_*)
-      var duplicatedValues = false
 
-      for (f <- features.asScala) {
-        f.getDefaultGeometry match {
-          case g: Geometry =>
-            try {
-              val taz = new HashMap[String, Object]();
-              taz.put(header(0), f.getAttribute(tazIDFieldName).asInstanceOf[String])
-              taz.put(header(1), g.getCoordinate.x.toString)
-              taz.put(header(2), g.getCoordinate.y.toString)
-              mapWriter.write(taz, header, processors)
-            }
-            catch {
-              case e: SuperCsvConstraintViolationException => duplicatedValues = true
-            }
-          case _ =>
-        }
-      }
-      if (duplicatedValues) {
-        println("DUPLICATED TAZ VALUES")
-        groupTaz(features,tazIDFieldName)
-          .filter(i => i._2.length >1)foreach (x =>{ println ( "ID TAZ : "+x._1 + "------------------")
-            x._2 foreach(x => println("\t -> Coordinate X -> " + x.coordX.toString + "\t Y -> " + x.coordY.toString))
-        } )
+      val tazs = features.asScala.map(featureToCsvTaz(_, tazIDFieldName))
+        .filter(_.isDefined)
+        .map(_.get).toArray
+      println(s"Total TAZ ${tazs.size}")
+      val groupedTazs = groupTaz(tazs)
+      println(s"Total grouped TAZ ${groupedTazs.size}")
+      val (repeatedTaz, nonRepeatedMap) = groupedTazs.partition(i => i._2.length > 1)
+      println(s"Total repeatedMap TAZ ${repeatedTaz.size}")
+      println(s"Total nonRepeatedMap TAZ ${nonRepeatedMap.size}")
+      val clearedTaz = clearRepeatedTaz(repeatedTaz)
+      println(s"Total repeated cleared TAZ ${clearedTaz.size}")
+      val nonRepeated = nonRepeatedMap.map(_._2.head).toArray
+      println(s"Total non repeated TAZ ${nonRepeated.size}")
 
+      val allNonRepeatedTaz = clearedTaz ++ nonRepeated
+      println(s"Total all TAZ ${allNonRepeatedTaz.size}")
+
+      for(t <- allNonRepeatedTaz){
+        val tazTowrite = new HashMap[String, Object]();
+        tazTowrite.put(header(0), t.id)
+        tazTowrite.put(header(1), t.coordX.toString)
+        tazTowrite.put(header(2), t.coordY.toString)
+        mapWriter.write(tazTowrite, header, processors)
       }
-    }
-    finally {
+    } finally {
       if( mapWriter != null ) {
         mapWriter.close()
       }
@@ -257,17 +261,22 @@ object TAZTreeMap {
       new NotNull()) // Coord Y
   }
 
-  def groupTaz(features: util.Collection[SimpleFeature], tazIDFieldName: String): Map[String, Array[CsvTaz]] = {
-    val featuresArray = features.toArray(Array[SimpleFeature]())
-    val csvSeq = featuresArray.map{ f =>
-      f.getDefaultGeometry match {
-        case g: Geometry =>
-          Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[String], g.getCoordinate.x, g.getCoordinate.y))
-        case _ => None
-      }
-    } filter(_.isDefined) map(_.get)
-
+  private def groupTaz(csvSeq: Array[CsvTaz]): Map[String, Array[CsvTaz]] = {
     csvSeq.groupBy(_.id)
+  }
+
+  private def clearRepeatedTaz(groupedRepeteadTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
+    val referencePoint = 37.810604
+    groupedRepeteadTaz.map(i => closestToPoint(referencePoint, i._2)).toArray
+  }
+
+  private def closestToPoint(referencePoint: Double, elems: Array[CsvTaz]): CsvTaz = {
+    elems.reduce{ (a, b) =>
+      val comparison1 = (a, Math.abs(referencePoint - a.coordY))
+      val comparison2 = (b, Math.abs(referencePoint - b.coordY))
+      val closest = Seq(comparison1, comparison2) minBy(_._2)
+      closest._1
+    }
   }
 }
 
