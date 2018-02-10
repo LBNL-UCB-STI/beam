@@ -31,7 +31,7 @@ public class PhyssimCalcLinkStatsTest{
         createDummySimWithXML();
     }
 
-    private synchronized static void createDummySimWithXML(){
+    private static void createDummySimWithXML(){
 
         Config config = ConfigUtils.createConfig();
         OutputDirectoryHierarchy.OverwriteFileSetting overwriteExistingFiles = OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles;
