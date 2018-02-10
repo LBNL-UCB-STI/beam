@@ -193,7 +193,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         nextAct => {
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
-          goto(ChoosingMode) using info.copy(data = ChoosesModeData())
+          goto(ChoosingMode) using info.copy(data = ChoosesModeData(), triggersToSchedule = Vector())
         }
       )
   }
