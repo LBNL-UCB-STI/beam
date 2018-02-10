@@ -37,7 +37,7 @@ object HouseholdActor {
   }
 
 
-  def props(beamServices: BeamServices, modeChoiceCalculator: () => ModeChoiceCalculator, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, population: org.matsim.api.core.v01.population.Population, householdId: Id[Household], matSimHousehold: Household,
+  def props(beamServices: BeamServices, modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator, schedulerRef: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, population: org.matsim.api.core.v01.population.Population, householdId: Id[Household], matSimHousehold: Household,
             houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle], members: Seq[Person],
             homeCoord: Coord): Props = {
     Props(new HouseholdActor(beamServices, modeChoiceCalculator, schedulerRef, transportNetwork, router, rideHailingManager, eventsManager, population, householdId, matSimHousehold, houseHoldVehicles, members, homeCoord))
@@ -63,7 +63,7 @@ object HouseholdActor {
 
   case class HouseholdAttributes(householdIncome: Double, householdSize: Int, numCars: Int, numBikes: Int)
 
-  case class AttributesOfIndividual(householdAttributes: HouseholdAttributes, householdId: Id[Household], isMale: Boolean)
+  case class AttributesOfIndividual(person: Person, householdAttributes: HouseholdAttributes, householdId: Id[Household], modalityStyle: Option[String], isMale: Boolean)
 
   object HouseholdAttributes {
     def apply(household: Household,
@@ -74,13 +74,6 @@ object HouseholdActor {
       household.getVehicleIds.asScala.map(vehicles).count(_.getType.getDescription.toLowerCase.contains("bike"))
     )
   }
-
-  object AttributesOfIndividual {
-    def apply(household: Household, vehicles: Map[Id[Vehicle], Vehicle]): AttributesOfIndividual =
-      new AttributesOfIndividual(HouseholdAttributes(household: Household, vehicles), household.getId,
-        new Random().nextBoolean())
-  }
-
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -97,7 +90,7 @@ object HouseholdActor {
     * @see [[ChoosesMode]]
     */
   class HouseholdActor(beamServices: BeamServices,
-                       modeChoiceCalculatorFactory: () => ModeChoiceCalculator,
+                       modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
                        schedulerRef: ActorRef,
                        transportNetwork: TransportNetwork,
                        router: ActorRef,
@@ -105,7 +98,7 @@ object HouseholdActor {
                        eventsManager: EventsManager,
                        population: org.matsim.api.core.v01.population.Population,
                        id: Id[households.Household],
-                       matSimHouseHold: org.matsim.households.Household,
+                       household: org.matsim.households.Household,
                        vehicles: Map[Id[BeamVehicle], BeamVehicle],
                        members: Seq[Person],
                        homeCoord: Coord
@@ -118,9 +111,11 @@ object HouseholdActor {
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-      val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(),
-        transportNetwork, router, rideHailingManager, eventsManager, person.getId, matSimHouseHold, person.getSelectedPlan, bodyVehicleIdFromPerson,
-        AttributesOfIndividual(matSimHouseHold, vehicles)), person.getId.toString)
+      val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
+      val attributes = AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean())
+      person.getCustomAttributes.put("beam-attributes", attributes)
+      val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(attributes),
+        transportNetwork, router, rideHailingManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
       val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)

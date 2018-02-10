@@ -37,15 +37,15 @@ import scala.collection.JavaConverters._
   * implementation only the Mandatory models is used...
   * TODO pass TourType so correct model can be applied
   */
-class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoiceModel) extends ModeChoiceCalculator {
+class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoiceModel, attributesOfIndividual: Option[AttributesOfIndividual]) extends ModeChoiceCalculator {
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip], attributesOfIndividual: Option[AttributesOfIndividual]): EmbodiedBeamTrip = {
-    this(alternatives,attributesOfIndividual,Mandatory)
+  override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
+    choose(alternatives,attributesOfIndividual,Mandatory)
   }
 
-  def apply(alternatives: Seq[EmbodiedBeamTrip], attributesOfIndividual: Option[AttributesOfIndividual], tourType: TourType): EmbodiedBeamTrip = {
+  private def choose(alternatives: Seq[EmbodiedBeamTrip], attributesOfIndividual: Option[AttributesOfIndividual], tourType: TourType): EmbodiedBeamTrip = {
     if (alternatives.isEmpty) {
       throw new IllegalArgumentException("Choice set was empty.")
     } else {
@@ -53,13 +53,13 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       /*
        * Fill out the input data structures required by the MNL models
        */
-      val modeChoiceInputData = bestInGroup.map{ alt =>
+      val modeChoiceInputData = bestInGroup.map { alt =>
         val theParams = Map(
-          "cost"-> alt.cost,
+          "cost" -> alt.cost,
           "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
         )
         AlternativeAttributes(alt.mode.value, theParams)
-      }.toVector
+      }
 
       val attribIndivData: AlternativeAttributes = attributesOfIndividual match {
         case Some(theAttributes) =>
@@ -164,12 +164,10 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
     lccm.modeChoiceModels(tourType)(conditionedOnModalityStyle).getUtilityOfAlternative(AlternativeAttributes(mode.value,theParams))
   }
 
+  override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+
 }
 object ModeChoiceLCCM{
-  def apply(beamServices: BeamServices): ModeChoiceLCCM ={
-    val lccm = new LatentClassChoiceModel(beamServices)
-    new ModeChoiceLCCM(beamServices,lccm)
-  }
   case class ModeChoiceData(mode: BeamMode,tourType: TourType, vehicleTime: Double, walkTime: Double, waitTime: Double, bikeTime: Double, cost: Double, index: Int = -1)
   case class ClassMembershipData(tourType: TourType, surplus: Double, income: Double, householdSize: Double, isMale: Double, numCars: Double, numBikes: Double)
 

@@ -3,9 +3,8 @@ package beam.agentsim.agents.choice.mode
 import java.util.Random
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit, UtilityParam}
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK_TRANSIT}
@@ -24,7 +23,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   var expectedMaximumUtility: Double = 0.0
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip], choiceAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip = {
+  override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
     if (alternatives.isEmpty) {
       throw new IllegalArgumentException("Empty choice set.")
     } else {
@@ -67,12 +66,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   }
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
-    val theParams = if (mode.isTransit()) {
-      Map("transfer" -> numTransfers.toDouble)
-    }else{
-      Map()
-    } ++ Map(("cost"->cost.toDouble),("time"->time))
-    model.getUtilityOfAlternative(AlternativeAttributes(mode.value,theParams))
+    val parameters = Map("transfer" -> numTransfers.toDouble, "cost" -> cost.toDouble, "time" -> time)
+    model.getUtilityOfAlternative(AlternativeAttributes(mode.value, parameters))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
@@ -119,10 +114,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 object ModeChoiceMultinomialLogit {
 
   case class ModeCostTimeTransfer(mode: BeamMode, cost: BigDecimal, time: Double, numTransfers: Int, index: Int = -1)
-
-  def apply(beamServices: BeamServices): ModeChoiceMultinomialLogit = {
-    new ModeChoiceMultinomialLogit(beamServices, ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit))
-  }
 
   def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit = {
     val mnlData: Vector[MnlData] = Vector(

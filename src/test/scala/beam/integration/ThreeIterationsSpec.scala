@@ -15,7 +15,7 @@ import org.scalatest.mockito.MockitoSugar
 
 class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
-  it should "be able to run for two iterations without exceptions" in {
+  it should "be able to run for three iterations without exceptions" in {
     val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .resolve()

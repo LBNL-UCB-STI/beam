@@ -8,8 +8,6 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
-import beam.agentsim.agents.choice.mode.{ModeChoiceLCCM, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{ChoosesModeData, LegWithPassengerVehicle}
@@ -227,22 +225,8 @@ trait ChoosesMode {
         assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
       }
 
-      val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator match {
-        case logit: ModeChoiceLCCM =>
-          val tourType: TourType = Mandatory
-          logit(combinedItinerariesForChoice, Some(attributesOfIndividual), tourType)
-        case logit: ModeChoiceMultinomialLogit =>
-          val trip = logit(combinedItinerariesForChoice)
-          trip
-        case _ =>
-          modeChoiceCalculator(combinedItinerariesForChoice)
-      }
-      newChoosesModeData = newChoosesModeData.copy(pendingChosenTrip = Some(chosenTrip), expectedMaxUtilityOfLatestChoice = modeChoiceCalculator match {
-        case logit: ModeChoiceMultinomialLogit =>
-          Some(logit.expectedMaximumUtility)
-        case _ =>
-          None
-      })
+      val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator(combinedItinerariesForChoice)
+      newChoosesModeData = newChoosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
       if (chosenTrip.requiresReservationConfirmation) {
         sendReservationRequests(chosenTrip, newChoosesModeData, info)
       } else {
