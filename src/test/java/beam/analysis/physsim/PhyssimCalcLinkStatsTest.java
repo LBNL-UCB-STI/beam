@@ -1,5 +1,6 @@
 package beam.analysis.physsim;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Network;
@@ -22,20 +23,14 @@ import static org.junit.Assert.assertEquals;
 public class PhyssimCalcLinkStatsTest{
 
     private static String BASE_PATH = new File("").getAbsolutePath();
-    private static String OUTPUT_DIR_PATH = BASE_PATH+"/test/input/equil-square/test-data/output"; // TODO: do we need to point this to some standard test output folder?
     private static String EVENTS_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimEvents-relative-speeds.xml";
     private static String NETWORK_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml";
     private static PhyssimCalcLinkStats physsimCalcLinkStats;
 
-    static {
-        createDummySimWithXML();
-    }
-
-    private static void createDummySimWithXML(){
+    @BeforeClass
+    public static void createDummySimWithXML(){
 
         Config config = ConfigUtils.createConfig();
-        OutputDirectoryHierarchy.OverwriteFileSetting overwriteExistingFiles = OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles;
-        OutputDirectoryHierarchy outputDirectoryHierarchy = new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles);
         Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         Network network = scenario.getNetwork();
         MatsimNetworkReader matsimNetworkReader= new MatsimNetworkReader(network);
@@ -43,11 +38,10 @@ public class PhyssimCalcLinkStatsTest{
 
         TravelTimeCalculatorConfigGroup defaultTravelTimeCalculator= config.travelTimeCalculator();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(network, defaultTravelTimeCalculator);
-
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 
-        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, outputDirectoryHierarchy);
+        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null);
 
         physsimCalcLinkStats.notifyIterationStarts(eventsManager);
 

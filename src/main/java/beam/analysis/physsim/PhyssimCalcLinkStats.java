@@ -70,11 +70,12 @@ public class PhyssimCalcLinkStats {
     public void notifyIterationEnds(int iteration, TravelTimeCalculator travelTimeCalculator) {
 
         linkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes());
-        linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
-
         processData(iteration, travelTimeCalculator);
         CategoryDataset dataset = buildAndGetGraphCategoryDataset();
-        createModesFrequencyGraph(dataset, iteration);
+        if(this.controlerIO != null) {
+            linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
+            createModesFrequencyGraph(dataset, iteration);
+        }
     }
 
     private void processData(int iteration, TravelTimeCalculator travelTimeCalculator) {
