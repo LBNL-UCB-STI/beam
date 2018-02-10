@@ -227,13 +227,17 @@ object TAZTreeMap {
         .filter(_.isDefined)
         .map(_.get).toArray
       println(s"Total TAZ ${tazs.size}")
+
       val groupedTazs = groupTaz(tazs)
       println(s"Total grouped TAZ ${groupedTazs.size}")
+
       val (repeatedTaz, nonRepeatedMap) = groupedTazs.partition(i => i._2.length > 1)
       println(s"Total repeatedMap TAZ ${repeatedTaz.size}")
       println(s"Total nonRepeatedMap TAZ ${nonRepeatedMap.size}")
+
       val clearedTaz = clearRepeatedTaz(repeatedTaz)
       println(s"Total repeated cleared TAZ ${clearedTaz.size}")
+
       val nonRepeated = nonRepeatedMap.map(_._2.head).toArray
       println(s"Total non repeated TAZ ${nonRepeated.size}")
 
@@ -241,11 +245,11 @@ object TAZTreeMap {
       println(s"Total all TAZ ${allNonRepeatedTaz.size}")
 
       for(t <- allNonRepeatedTaz){
-        val tazTowrite = new HashMap[String, Object]();
-        tazTowrite.put(header(0), t.id)
-        tazTowrite.put(header(1), t.coordX.toString)
-        tazTowrite.put(header(2), t.coordY.toString)
-        mapWriter.write(tazTowrite, header, processors)
+        val tazToWrite = new HashMap[String, Object]();
+        tazToWrite.put(header(0), t.id)
+        tazToWrite.put(header(1), t.coordX.toString)
+        tazToWrite.put(header(2), t.coordY.toString)
+        mapWriter.write(tazToWrite, header, processors)
       }
     } finally {
       if( mapWriter != null ) {
