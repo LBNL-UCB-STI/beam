@@ -7,6 +7,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
@@ -57,6 +58,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     val tollCalculator = new TollCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
+
+    if(null != beamServices.beamConfig.beam.agentsim.taz.file && beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
+      beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)
 
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
       eventsManager,
