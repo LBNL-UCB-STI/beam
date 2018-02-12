@@ -16,7 +16,7 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
 
   private val BASE_PATH = new File("").getAbsolutePath
   private val OUTPUT_DIR_PATH = BASE_PATH + "/test/input/beamville/output"
-  private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/output/beamville_2018-02-06_10-59-01/ITERS/it.0/0.events.xml"
+  private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/0.events_linkStatsTest.xml"
   private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/physsim-network.xml"
 
   private var beamCalcLinkStats: BeamCalcLinkStats = null

@@ -163,7 +163,7 @@ public class BeamCalcLinkStats {
             out = IOUtils.getBufferedWriter(filename);
 
             // write header
-            out.write("LINK\tORIG_ID\tFROM\tTO\tLENGTH\tFREESPEED\tCAPACITY\tHOUR\tSTAT.TYPE\tVOLUME\tTRAVELTIME");
+            out.write("LINK\tFROM\tTO\tHOUR\tLENGTH\tFREESPEED\tCAPACITY\tSTAT.TYPE\tVOLUME\tTRAVELTIME");
 
             out.write("\n");
 
@@ -177,12 +177,8 @@ public class BeamCalcLinkStats {
                         Link link = this.network.getLinks().get(linkId);
 
                         out.write(linkId.toString());
-                        out.write("\t"); // origId, no longer supported
                         out.write("\t" + link.getFromNode().getId().toString());
                         out.write("\t" + link.getToNode().getId().toString());
-                        out.write("\t" + Double.toString(link.getLength()));
-                        out.write("\t" + Double.toString(link.getFreespeed()));
-                        out.write("\t" + Double.toString(link.getCapacity()));
 
                         //WRITE HOUR
                         if (i < this.nofHours){
@@ -192,6 +188,10 @@ public class BeamCalcLinkStats {
                         {
                             out.write("\t" + Double.toString(0) +" - "+ Double.toString(this.nofHours));
                         }
+
+                        out.write("\t" + Double.toString(link.getLength()));
+                        out.write("\t" + Double.toString(link.getFreespeed()));
+                        out.write("\t" + Double.toString(link.getCapacity()));
 
                         //WRITE STAT_TYPE
                         out.write("\t" + statType[j]);
