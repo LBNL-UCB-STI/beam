@@ -14,7 +14,7 @@ class SwitchModalityStyle extends Provider[PlanStrategy] {
       .addStrategyModule(new PlanStrategyModule {
         override def prepareReplanning(replanningContext: ReplanningContext): Unit = {}
         override def handlePlan(plan: Plan): Unit = {
-          plan.getCustomAttributes.put("modality-style", getRandomElement(List("class1", "class2", "class3", "class4", "class5", "class6"), new Random))
+          plan.getAttributes.putAttribute("modality-style", getRandomElement(List("class1", "class2", "class3", "class4", "class5", "class6"), new Random))
         }
         override def finishReplanning(): Unit = {}
       })

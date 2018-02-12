@@ -111,7 +111,7 @@ object HouseholdActor {
       val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
-      val modalityStyle = Option(person.getSelectedPlan.getCustomAttributes.get("modality-style")).map(_.asInstanceOf[String])
+      val modalityStyle = Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style")).map(_.asInstanceOf[String])
       val attributes = AttributesOfIndividual(person, HouseholdAttributes(household, vehicles), household.getId, modalityStyle, new Random().nextBoolean())
       person.getCustomAttributes.put("beam-attributes", attributes)
       val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(attributes),
