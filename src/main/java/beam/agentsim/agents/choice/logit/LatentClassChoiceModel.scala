@@ -1,7 +1,5 @@
 package beam.agentsim.agents.choice.logit
 
-import java.util
-
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
 import beam.sim.{BeamServices, HasServices}
@@ -13,13 +11,11 @@ import org.supercsv.io.CsvBeanReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.beans.BeanProperty
-import scala.collection.JavaConverters._
-import scala.xml.XML
 
 /**
   * BEAM
   */
-class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices with Cloneable {
+class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices {
   val lccmData: Vector[LccmData] = parseModeChoiceParams(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
 
   val classMembershipModels: Map[TourType, MultinomialLogit] = extractClassMembershipModels(lccmData)
@@ -70,10 +66,6 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     }.toMap
   }
 
-  //TODO actually clone this
-  override def clone(): LatentClassChoiceModel = {
-    new LatentClassChoiceModel(beamServices)
-  }
 }
 
 object LatentClassChoiceModel {

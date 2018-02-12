@@ -10,6 +10,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
 
   override def run(): Unit = {
     keepOnlyActivities()
+    assignInitialModalityStyles()
   }
 
   private def keepOnlyActivities(): Unit = {
@@ -22,11 +23,20 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
             cleanedPlan.addActivity(activity)
           case _ => // don't care for legs just now
         }
+        cleanedPlan.setScore(null)
         cleanedPlans = cleanedPlans :+ cleanedPlan
       })
       person.setSelectedPlan(null)
       person.getPlans.clear()
       cleanedPlans.foreach(person.addPlan)
+    })
+  }
+
+  def assignInitialModalityStyles(): Unit = {
+    scenario.getPopulation.getPersons.values().forEach(person => {
+      person.getPlans.forEach(plan => {
+        plan.getAttributes.putAttribute("modality-style", "class1")
+      })
     })
   }
 

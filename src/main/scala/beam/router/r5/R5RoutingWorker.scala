@@ -19,13 +19,14 @@ import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.sim.BeamServices
+import beam.sim.metrics.Metrics.MetricLevel
+import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator, TurnCostCalculator}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import kamon.Kamon
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -36,20 +37,21 @@ import scala.collection.mutable
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging {
+class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447; // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
-  val routingTimeHistogram = Kamon.metrics.histogram("routing-time")
+  override def metricLevel: MetricLevel = Metrics.levelForOrOff(beamServices.beamConfig.beam.metrics.level)
 
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
-      val time = System.nanoTime()
-      val response = getPlanFromR5(key)
-      routingTimeHistogram.record((System.nanoTime() - time) / (1000*1000))
+      val response = latency("routing-latency", Metrics.RegularLevel) {
+        getPlanFromR5(key)
+      }
+      countOccurrence("routing-count", Metrics.VerboseLevel)
       response
     }
   })
@@ -63,7 +65,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       transitSchedule = newTransitSchedule
     case request: RoutingRequest =>
       val eventualResponse = Future {
-        calcRoute(request)
+        countOccurrence("request-count", Metrics.VerboseLevel)
+        latency("request-latency", Metrics.RegularLevel) {
+          calcRoute(request)
+        }
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
@@ -276,8 +281,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
              assuming that: For each transit in option there is a TransitJourneyID in connection
              */
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
-            val fareSegments = getFareSegments(segments.toVector)
-            val fares = filterFaresOnTransfers(fareSegments)
+            val fares = latency("fare", Metrics.VerboseLevel) {
+              val fareSegments = getFareSegments(segments.toVector)
+              filterFaresOnTransfers(fareSegments)
+            }
+
 
             segments.foreach { case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)

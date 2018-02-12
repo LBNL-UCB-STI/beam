@@ -2,7 +2,6 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
-import beam.analysis.physsim.LinkStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
@@ -16,13 +15,7 @@ import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.api.core.v01.population.Activity;
-import org.matsim.api.core.v01.population.Leg;
-import org.matsim.api.core.v01.population.Person;
-import org.matsim.api.core.v01.population.Plan;
-import org.matsim.api.core.v01.population.Population;
-import org.matsim.api.core.v01.population.PopulationWriter;
-import org.matsim.api.core.v01.population.Route;
+import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
@@ -50,7 +43,6 @@ import java.util.List;
  */
 public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
-    private static LinkStats linkStats;
     private static PhyssimCalcLinkStats linkStatsGraph;
     public static final String CAR = "car";
     public static final String BUS = "bus";
@@ -88,7 +80,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
         preparePhysSimForNewIteration();
 
-        linkStats=new LinkStats(agentSimScenario.getNetwork(),controlerIO);
         linkStatsGraph=new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO);
     }
 
@@ -127,12 +118,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
-        linkStats.notifyIterationStarts(jdeqsimEvents);
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
         jdeqSimulation.run();
 
 
-        linkStats.notifyIterationEnds(iterationNumber,travelTimeCalculator.getLinkTravelTimes());
         linkStatsGraph.notifyIterationEnds(iterationNumber,travelTimeCalculator);
 
         if (writePhysSimEvents(iterationNumber)){
