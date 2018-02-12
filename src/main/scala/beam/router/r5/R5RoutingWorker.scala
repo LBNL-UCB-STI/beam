@@ -44,7 +44,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
-  override def metricLevel: MetricLevel = Metrics.RegularLevel
+  override def metricLevel: MetricLevel = Metrics.levelForOrOff(beamServices.beamConfig.beam.metrics.level)
 
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
