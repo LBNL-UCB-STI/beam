@@ -17,6 +17,7 @@ import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import kamon.Kamon
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
