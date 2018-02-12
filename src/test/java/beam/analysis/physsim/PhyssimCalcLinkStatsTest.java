@@ -50,13 +50,13 @@ public class PhyssimCalcLinkStatsTest{
         physsimCalcLinkStats.notifyIterationEnds(0, travelTimeCalculator);
     }
 
-
     @Test
     public void testShouldPassShouldReturnCountRelativeSpeedOfSpecificHour(){
         Double expectedResult=10.0;
         Double actualResult =  physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(0,7);
         assertEquals(expectedResult, actualResult);
     }
+
     @Test
     public void testShouldPassShouldReturnCountOfAllRelativeSpeedCategoryForSpecificHour(){
         List<Double> relativeSpeedCategoryList=physsimCalcLinkStats.getSortedListRelativeSpeedCategoryList();
@@ -67,6 +67,7 @@ public class PhyssimCalcLinkStatsTest{
         }
         assertEquals(expectedResult, actualRelativeSpeedSum);
     }
+
     @Test
     public void testShouldPassShouldReturnSumOfRelativeSpeedForSpecificHour(){
         Double expectedResult=148.0;
