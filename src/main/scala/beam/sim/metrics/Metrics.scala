@@ -46,7 +46,16 @@ object Metrics {
     case _ ⇒ None
   }
 
+  /**
+    * Returns the MetricLevel associated with the given string,
+    * valid inputs are upper or lowercase (not mixed) versions of:
+    * "short", "regular" and "verbose", in case of invalid input it
+    * return @OffLevel
+    */
   def levelForOrOff(s: String): MetricLevel = levelFor(s).getOrElse(OffLevel)
 
+  /**
+    * Returns true if associated string is a valid level else false
+    */
   def isMetricsEnable(s: String): Boolean = levelForOrOff(s) != OffLevel
 }
