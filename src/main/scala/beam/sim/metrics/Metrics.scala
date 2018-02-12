@@ -47,4 +47,6 @@ object Metrics {
   }
 
   def levelForOrOff(s: String): MetricLevel = levelFor(s).getOrElse(OffLevel)
+
+  def isMetricsEnable(s: String): Boolean = levelForOrOff(s) != OffLevel
 }
