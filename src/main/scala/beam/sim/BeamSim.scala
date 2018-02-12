@@ -7,7 +7,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.analysis.plots.CreateGraphsFromAgentSimEvents
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -35,11 +35,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var createGraphsFromEvents: CreateGraphsFromAgentSimEvents = _;
-  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
+  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
+  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
 
   override def notifyStartup(event: StartupEvent): Unit = {
-    beamServices.modeChoiceCalculatorFactory = () => ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
+    beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
 
     import scala.collection.JavaConverters._
     // Before we initialize router we need to scale the transit vehicle capacities
@@ -67,7 +67,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamRouter,
       beamServices.beamConfig)
 
-    createGraphsFromEvents = new CreateGraphsFromAgentSimEvents(eventsManager, event.getServices.getControlerIO, scenario)
+    createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario)
 
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
   }

@@ -38,8 +38,8 @@ object PersonAgent {
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
-            humanBodyVehicleId: Id[Vehicle], attributesOfIndividual: AttributesOfIndividual): Props = {
-    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId, attributesOfIndividual))
+            humanBodyVehicleId: Id[Vehicle]): Props = {
+    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId))
   }
 
   case class PersonData(maybeModeChoiceData: Option[ChoosesModeData]) extends BeamAgentData {}
@@ -107,17 +107,7 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val scheduler: ActorRef,
-                  val beamServices: BeamServices,
-                  val modeChoiceCalculator: ModeChoiceCalculator,
-                  val transportNetwork: TransportNetwork,
-                  val router: ActorRef,
-                  val rideHailingManager: ActorRef,
-                  val eventsManager: EventsManager,
-                  override val id: Id[PersonAgent],
-                  val matsimPlan: Plan,
-                  val bodyId: Id[Vehicle],
-                  val attributesOfIndividual: AttributesOfIndividual) extends BeamAgent[PersonData] with
+class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
   override def data: PersonData = PersonData(maybeModeChoiceData = None)
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
