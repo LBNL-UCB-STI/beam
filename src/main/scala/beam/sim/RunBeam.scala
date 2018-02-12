@@ -1,9 +1,8 @@
 package beam.sim
 
-import kamon.Kamon
-
 object RunBeam extends BeamHelper with App {
-  print("""
+  print(
+    """
   ________
   ___  __ )__________ _______ ___
   __  __  |  _ \  __ `/_  __ `__ \
@@ -13,6 +12,7 @@ object RunBeam extends BeamHelper with App {
  _____________________________________
 
  """)
+
   def parseArgs() = {
 
     args.sliding(2, 1).toList.collect {
@@ -22,10 +22,8 @@ object RunBeam extends BeamHelper with App {
     }.toMap
   }
 
-//  Kamon.start()
   val argsMap = parseArgs()
 
   runBeamWithConfigFile(argsMap.get("config"))
   print("Exiting BEAM")
-//  Kamon.shutdown()
 }

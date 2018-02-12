@@ -5,17 +5,19 @@ import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.replanning.{GrabExperiencedPlan, SwitchModalityStyle, TryToKeepOneOfEachClass}
+import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle}
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
+import beam.sim.metrics.Metrics
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import kamon.Kamon
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -48,6 +50,7 @@ trait BeamHelper {
     }).asJava, new AbstractModule() {
       private val mapper = new ObjectMapper()
       mapper.registerModule(DefaultScalaModule)
+
       override def install(): Unit = {
         bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
@@ -60,8 +63,10 @@ trait BeamHelper {
         }
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+        addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString).toProvider(classOf[UtilityBasedModeChoice])
         addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
           override def convertToString(o: scala.Any): String = mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
+
           override def convert(value: String): MapStringDouble = MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
         })
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
@@ -89,18 +94,23 @@ trait BeamHelper {
         throw new InvalidPathException("null", "invalid configuration file.")
     }
 
-    val (_, outputDirectory) = runBeamWithConfig(config)
     val beamConfig = BeamConfig(config)
+    val enableMetrics = Metrics.isMetricsEnable(beamConfig.beam.metrics.level)
+    if (enableMetrics) Kamon.start()
+
+    val (_, outputDirectory) = runBeamWithConfig(config)
 
     val props = new Properties()
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
     props.setProperty("configFile", cfgFile)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
-    if(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equalsIgnoreCase("ModeChoiceLCCM")){
+    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
     }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
+
+    if (enableMetrics) Kamon.shutdown()
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
