@@ -59,7 +59,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-    if(null != beamServices.beamConfig.beam.agentsim.taz.file && beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
+    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
       beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)
 
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
