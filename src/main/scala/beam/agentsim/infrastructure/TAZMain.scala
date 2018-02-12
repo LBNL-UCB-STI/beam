@@ -74,25 +74,26 @@ object TAZCreatorScript extends App {
 
   println(taz.getId(-120.8043534,+35.5283106))
 */
-  /**
+
   println("HELLO WORLD")
-  val path = "C:\\Users\\Felipe\\Desktop\\Ori\\taz\\list_taz.csv"
+  val path = "d:/shape_out.csv"
   val mapTaz = TAZTreeMap.fromCsv(path)
   print(mapTaz)
-    */
-  //Test Write File
-  if (null != args && 3 == args.size){
-    println("Running conversion")
-    val pathFileShape = args(0)
-    val tazIdName = args(1)
-    val destination = args(2)
 
-    println("Process Started")
-    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
-    println("Process Terminate...")
-  } else {
-    println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
-  }
+
+  //Test Write File
+//  if (null != args && 3 == args.size){
+//    println("Running conversion")
+//    val pathFileShape = args(0)
+//    val tazIdName = args(1)
+//    val destination = args(2)
+//
+//    println("Process Started")
+//    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
+//    println("Process Terminate...")
+//  } else {
+//    println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
+//  }
 
 }
 
@@ -269,9 +270,16 @@ object TAZTreeMap {
     csvSeq.groupBy(_.id)
   }
 
-  private def clearRepeatedTaz(groupedRepeteadTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
-    val referencePoint = 37.810604
-    groupedRepeteadTaz.map(i => closestToPoint(referencePoint, i._2)).toArray
+  private def clearRepeatedTaz(groupedRepeatedTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
+    groupedRepeatedTaz.map(i => addSuffix(i._1, i._2))
+      .flatten
+      .toArray
+  }
+
+  private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {
+    (1 to elems.size) zip elems map {
+      case (index, elem) => elem.copy(id = s"${id}_$index")
+    } toArray
   }
 
   private def closestToPoint(referencePoint: Double, elems: Array[CsvTaz]): CsvTaz = {
