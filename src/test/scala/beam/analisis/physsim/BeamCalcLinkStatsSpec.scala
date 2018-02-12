@@ -49,7 +49,7 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
     reader.readFile(EVENTS_FILE_PATH)
 
     beamCalcLinkStats.addData(volumes,  travelTimeCalculator.getLinkTravelTimes())
-    beamCalcLinkStats.writeFile(outputDirectoryHierarchy.getIterationFilename(0, Controler.FILENAME_LINKSTATS))
+    //beamCalcLinkStats.writeFile(outputDirectoryHierarchy.getIterationFilename(0, Controler.FILENAME_LINKSTATS))
   }
 
   "BeamCalcLinksStats" must {
