@@ -59,7 +59,7 @@ object RideHailingManager {
                          departAt: BeamTime, destination: Location)
 
   private case class RoutingResponses(customerAgent: ActorRef, inquiryId: Id[RideHailingInquiry],
-                                      personId: Id[PersonAgent], rideHailingLocation: RideHailingAgentLocation,
+                                      personId: Id[PersonAgent], customerPickUp: Location,departAt:BeamTime, rideHailingLocation: RideHailingAgentLocation,
                                       shortDistanceToRideHailingAgent: Double,
                                       rideHailingAgent2CustomerResponse: RoutingResponse,
                                       rideHailing2DestinationResponse: RoutingResponse)
@@ -97,6 +97,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   // val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
+
+  val rideHailSurgePricingManager=new RideHailSurgePricingManager(beamServices.beamConfig, beamServices.taz)
 
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
@@ -165,22 +167,21 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
             rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
           } {
             // TODO: could we just call the code, instead of sending the message here?
-            self ! RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
+            self ! RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
           }
         case None =>
           // no rides to hail
           customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
       }
 
-    case RoutingResponses(customerAgent, inquiryId, personId, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
+    case RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
       val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
       // TODO: Find better way of doing this error checking than sentry value
       val timeToCustomer = if (timesToCustomer.nonEmpty) {
         timesToCustomer.min
       } else Long.MaxValue
       // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
-      val rideHailingFare = DefaultCostPerMinute / 60.0
-
+      val rideHailingFare = DefaultCostPerMinute / 60.0 * rideHailSurgePricingManager.getCostSurgeLevel(customerPickUp,departAt.atTime.toDouble)
 
       val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
       val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
@@ -226,6 +227,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         closestRHA match {
           case Some((closestRideHailingAgent)) =>
             val travelProposal = travelPlanOpt.get._1
+            rideHailSurgePricingManager.addRideCost(departAt.atTime, travelProposal.estimatedPrice.doubleValue(),customerPickUp)
+
             val tripPlan = travelPlanOpt.map(_._2)
             handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent,
               closestRideHailingAgent, travelProposal, tripPlan)
