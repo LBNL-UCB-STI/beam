@@ -16,6 +16,7 @@ import scala.collection.JavaConverters
 class UtilityBasedModeChoiceModule @Inject()(config: GlobalConfigGroup, beamServices: BeamServices) extends AbstractMultithreadedModule(config) {
 
 
+
   override def getPlanAlgoInstance: PlanAlgorithm = {
     val modeChoiceClass = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
     val planAlgo: PlanAlgorithm = modeChoiceClass match {
@@ -50,4 +51,8 @@ class UtilityBasedModeChoiceModule @Inject()(config: GlobalConfigGroup, beamServ
     }
     planAlgo
   }
+}
+
+object UtilityBasedModeChoiceModule {
+
 }
