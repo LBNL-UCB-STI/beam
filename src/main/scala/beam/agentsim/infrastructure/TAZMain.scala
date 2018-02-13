@@ -97,7 +97,7 @@ object TAZCreatorScript extends App {
 
 }
 
-class TAZTreeMap(tazQuadTree: QuadTree[TAZ]) {
+class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
   def getId(x: Double, y: Double): TAZ = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getClosest(x,y)
