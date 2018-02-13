@@ -57,13 +57,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
       isFirstIteration=false
     } else {
       // TODO: move surge price by step in direction of positive movement
-      iterate over all items
+   //   iterate over all items
 
-      if current > previous revenue, then increase surgelevel +surgeLevelAdaptionStep
+   //   if current > previous revenue, then increase surgelevel +surgeLevelAdaptionStep
 
 
-      else
-      surgelevel-surgeLevelAdaptionStep
+   //   else
+   //   surgelevel-surgeLevelAdaptionStep
     }
 
     updatePreviousIterationRevenuesAndResetCurrent
