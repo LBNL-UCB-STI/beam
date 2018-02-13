@@ -1,10 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
-import java.util
 import java.util.Random
 
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Nonmandatory, TourType}
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
@@ -12,8 +11,6 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
-
-import scala.collection.JavaConverters._
 
 /**
   * ModeChoiceLCCM
@@ -105,6 +102,8 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       }
     }
   }
+
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = 0.0
 
   def altsToBestInGroup(alternatives: Seq[EmbodiedBeamTrip], tourType: TourType): Vector[ModeChoiceData] = {
     val transitFareDefaults: Seq[BigDecimal] = TransitFareDefaults.estimateTransitFares(alternatives)

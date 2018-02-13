@@ -1,8 +1,8 @@
-package beam.agentsim.agents.household
+package beam.agentsim.agents.memberships
 
-import beam.agentsim.agents.household.Memberships.RankedGroup.MemberWithRank
-import org.matsim.api.core.v01.population.{Person, Population}
-import org.matsim.api.core.v01.{Id, Identifiable, Scenario}
+import beam.agentsim.agents.memberships.Memberships.RankedGroup.MemberWithRank
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Id, Identifiable}
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters
@@ -10,25 +10,9 @@ import scala.collection.JavaConverters
 object Memberships {
 
 
-  case class HouseholdMemberships(scenario: Scenario) {
-
-    val memberships: Map[Id[Person], Household] = allocateMembership()
-
-    implicit val population:Population = scenario.getPopulation
-
-    def allocateMembership(): Map[Id[Person], Household] = {
-      JavaConverters.mapAsScalaMap(scenario.getHouseholds.getHouseholds).flatMap({ case (_, hh) =>
-        JavaConverters.asScalaBuffer(hh.getMemberIds).map(personId =>
-          personId -> hh)
-      }).toMap
-    }
-
-  }
-
-
   trait RankedGroup[T <: Identifiable[T], G] {
 
-    def lookupMemberRank(value: Id[T]): Option[Int]
+    def lookupMemberRank(id: Id[T]): Option[Int]
 
     val members: Seq[T]
 
@@ -43,7 +27,7 @@ object Memberships {
   object RankedGroup {
     case class MemberWithRank[T <: Identifiable[T]](memberId: Id[T], rank: Option[Int])
 
-    implicit def rankedHousehold(household: Household)(implicit population: Population): RankedGroup[Person,Household] = new RankedGroup[Person,Household] {
+    implicit def rankedHousehold(household: Household)(implicit population: org.matsim.api.core.v01.population.Population): RankedGroup[Person,Household] = new RankedGroup[Person,Household] {
 
       override def lookupMemberRank(member: Id[Person]): Option[Int] = {
         population.getPersonAttributes.getAttribute(member.toString, "rank")

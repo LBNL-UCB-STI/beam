@@ -18,6 +18,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
+import org.matsim.vehicles.Vehicles
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
@@ -80,29 +81,10 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
         scenario.getHouseholds.getHouseholdAttributes.getAttribute(household.getId.toString, "homecoordy").asInstanceOf[Double]
       )
 
-      val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
-        .collectionAsScalaIterable(household.getVehicleIds)
-        .map({ id =>
-          val matsimVehicle = JavaConverters.mapAsScalaMap(
-            scenario.getVehicles.getVehicles)(
-            id)
-          val information = Option(matsimVehicle.getType.getEngineInformation)
-          val vehicleAttribute = Option(
-            scenario.getVehicles.getVehicleAttributes)
-          val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-            information
-              .map(_.getGasConsumption)
-              .getOrElse(Powertrain.AverageMilesPerGallon))
-          agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(
-            powerTrain,
-            matsimVehicle,
-            vehicleAttribute,
-            Car)
-        }).toMap
+      val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = Population.getVehiclesFromHousehold(household, scenario.getVehicles)
 
       houseHoldVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
 
-      val members = household.getMemberIds.asScala.map(scenario.getPopulation.getPersons.get(_))
       val householdActor = context.actorOf(
         HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork,
           router, rideHailingManager, eventsManager, scenario.getPopulation, household.getId, household, houseHoldVehicles, homeCoord),
@@ -118,7 +100,6 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
   }
 
 
-
 }
 
 
@@ -128,6 +109,27 @@ object Population {
   }
 
 
-
+  def getVehiclesFromHousehold(household: Household, matsimVehicles:Vehicles): Map[Id[BeamVehicle], BeamVehicle] = {
+    val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+      .collectionAsScalaIterable(household.getVehicleIds)
+      .map({ id =>
+        val matsimVehicle = JavaConverters.mapAsScalaMap(
+          matsimVehicles.getVehicles)(
+          id)
+        val information = Option(matsimVehicle.getType.getEngineInformation)
+        val vehicleAttribute = Option(
+          matsimVehicles.getVehicleAttributes)
+        val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
+          information
+            .map(_.getGasConsumption)
+            .getOrElse(Powertrain.AverageMilesPerGallon))
+        agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(
+          powerTrain,
+          matsimVehicle,
+          vehicleAttribute,
+          Car)
+      }).toMap
+    houseHoldVehicles
+  }
 
 }

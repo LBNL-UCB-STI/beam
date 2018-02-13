@@ -190,10 +190,14 @@ dependencies {
     compile 'com.hubspot.jinjava:jinjava:2.0.5'
     compile group: 'org.yaml', name: 'snakeyaml', version: '1.18'
 
+    // Scala maths
+//    compile group: 'org.scalanlp', name: 'breeze_2.12', version: '1.0-RC2'
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
 
-
+    ////////////////////////////////////
+    ///Performance Monitoring (Kamon)///
+    ////////////////////////////////////
 
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")

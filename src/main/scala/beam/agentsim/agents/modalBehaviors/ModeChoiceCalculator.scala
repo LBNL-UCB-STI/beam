@@ -4,6 +4,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
+import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 
@@ -18,6 +19,8 @@ trait ModeChoiceCalculator extends HasServices {
 
   def utilityOf(alternative: EmbodiedBeamTrip): Double
 
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
       Random.nextInt(alternatives.size)
@@ -31,14 +34,9 @@ object ModeChoiceCalculator {
   def apply(classname: String, beamServices: BeamServices): AttributesOfIndividual => ModeChoiceCalculator = {
     classname match {
       case "ModeChoiceLCCM" =>
-        val lccm = new LatentClassChoiceModel(beamServices)
-        (attributesOfIndividual: AttributesOfIndividual) =>
-          attributesOfIndividual match {
-            case AttributesOfIndividual(_, _, _, Some(modalityStyle), _) =>
-              new ModeChoiceMultinomialLogit(beamServices, lccm.modeChoiceModels(Mandatory)(modalityStyle))
-            case _ =>
-              throw new RuntimeException("LCCM needs people to have modality styles")
-          }
+        (attributesOfIndividual) => new ModeChoiceMultinomialLogit(beamServices,
+            new LatentClassChoiceModel(beamServices).modeChoiceModels(Mandatory)(attributesOfIndividual.modalityStyle.getOrElse(
+              throw new RuntimeException("LCCM needs people to have modality styles"))))
       case "ModeChoiceTransitIfAvailable" =>
         (_) => new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
