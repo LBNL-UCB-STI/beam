@@ -5,6 +5,9 @@ import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
 
 import scala.collection.mutable
+import scala.collection.mutable.ArraySeq
+import scala.collection.mutable.HashMap
+import scala.collection.JavaConverters._
 
 class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap) {
 
@@ -12,13 +15,27 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   val timeBinSize = 900;
   val numberOfTimeBins = 900*4*24;
   val surgeLevelAdaptionStep = 0.1;
+  var isFirstIteration=true
+
+  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
+
+
+  tazTreeMap.tazQuadTree.values().asScala.foreach{ i =>
+    val taz=i.tazId.toString
+    //val arr=ArrayBuffer[SurgePriceBin]()
+
+    for (j <- 0 to numberOfTimeBins){
+      //arra
+    }
+    surgePriceBins.put(taz,ArraySeq[SurgePriceBin]())
+  }
+
+
 
   // TODO: initialize all bins (price levels and iteration revenues)!
 
-  var revenueCurrentIteration: mutable.HashMap[String, Array[Double]] = new mutable.HashMap()
-  var revenuePreviousIteration: mutable.HashMap[String, Array[Double]] = new mutable.HashMap()
 
-  val surgePriceLevel: mutable.HashMap[String, Array[Double]] = new mutable.HashMap()
+
 
   def getEmptyDoubleArray(value:Double): Array[Double] ={
     val arr=Array[Double](numberOfTimeBins)
@@ -36,37 +53,52 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
 
       // TODO: randomly change surge price levels
+
+      isFirstIteration=false
     } else {
       // TODO: move surge price by step in direction of positive movement
+      iterate over all items
 
+      if current > previous revenue, then increase surgelevel +surgeLevelAdaptionStep
+
+
+      else
+      surgelevel-surgeLevelAdaptionStep
     }
 
     updatePreviousIterationRevenuesAndResetCurrent
   }
 
-  private def isFirstIteration = {
-    revenuePreviousIteration.size == 0
-  }
+
 
   private def updatePreviousIterationRevenuesAndResetCurrent = {
-    for (key <- revenueCurrentIteration.keySet) {
-      revenuePreviousIteration.put(key, revenueCurrentIteration.getOrElseUpdate(key, Array[Double]()))
+    surgePriceBins.values.foreach{ i =>
+      for (j <- 0 to i.size){
+
+        val surgePriceBin=i.apply(j)
+        val updatedPrevIterRevenue=surgePriceBin.currentIterationRevenue
+        val updatedBin=surgePriceBin.copy(previousIterationRevenue=updatedPrevIterRevenue,currentIterationRevenue = -1)
+        i.update(j,updatedBin)
+      }
     }
-    revenueCurrentIteration.clear()
   }
 
   def getCostSurgeLevel(location: Location, time: Double): Double = {
-  //  val taz = tazTreeMap.getId(location.getX, location.getY)
-  //  val timeBinIndex = Math.round(time / timeBinSize);
-  //  surgePriceLevel.get(taz.tazId.toString)(timeBinIndex)
-    50.0
+    val taz = tazTreeMap.getId(location.getX, location.getY)
+    val timeBinIndex = Math.round(time / timeBinSize);
+    surgePriceBins.get(taz.tazId.toString).map(i => i(timeBinIndex).surgePriceLevel).getOrElse(throw new Exception("no surge level found"))
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
-   // val taz = tazTreeMap.getId(pickupLocation.getX, pickupLocation.getY)
-   // val timeBinIndex = Math.round(time / timeBinSize);
-    //  revenueCurrentIteration.get(taz.tazId.toString)(timeBinIndex)=revenueCurrentIteration.get(taz.tazId.toString)(timeBinIndex)+cost;
-    // TODO: repair/refactor line above
+    val taz = tazTreeMap.getId(pickupLocation.getX, pickupLocation.getY)
+    val timeBinIndex = Math.round(time / timeBinSize).toInt;
+
+    surgePriceBins.get(taz.tazId.toString).foreach{ i =>
+      val surgePriceBin=i.apply(timeBinIndex)
+      val updatedCurrentIterRevenue=surgePriceBin.currentIterationRevenue+ cost
+      val updatedBin=surgePriceBin.copy(currentIterationRevenue=updatedCurrentIterRevenue)
+      i.update(timeBinIndex,updatedBin)
+    }
   }
 
 
@@ -74,3 +106,5 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
 
 }
+
+case class SurgePriceBin(previousIterationRevenue: Double, currentIterationRevenue: Double, surgePriceLevel:Double)
