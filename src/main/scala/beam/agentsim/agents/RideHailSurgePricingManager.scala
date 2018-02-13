@@ -28,6 +28,8 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   }
 
   // this should be invoked after each iteration
+
+  // TODO: initialize in BEAMSim and also reset there after each iteration?
   def updateSurgePriceLevels(): Unit = {
 
     if (isFirstIteration){
@@ -54,14 +56,15 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   }
 
   def getCostSurgeLevel(location: Location, time: Double): Double = {
-    val taz = tazTreeMap.getId(location.getX, location.getY)
-    val timeBinIndex = Math.round(time / timeBinSize);
-    surgePriceLevel.get(taz.tazId.toString)(timeBinIndex)
+  //  val taz = tazTreeMap.getId(location.getX, location.getY)
+  //  val timeBinIndex = Math.round(time / timeBinSize);
+  //  surgePriceLevel.get(taz.tazId.toString)(timeBinIndex)
+    50.0
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
-    val taz = tazTreeMap.getId(pickupLocation.getX, pickupLocation.getY)
-    val timeBinIndex = Math.round(time / timeBinSize);
+   // val taz = tazTreeMap.getId(pickupLocation.getX, pickupLocation.getY)
+   // val timeBinIndex = Math.round(time / timeBinSize);
     //  revenueCurrentIteration.get(taz.tazId.toString)(timeBinIndex)=revenueCurrentIteration.get(taz.tazId.toString)(timeBinIndex)+cost;
     // TODO: repair/refactor line above
   }

@@ -40,10 +40,13 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   */
 
 object RideHailingManager {
+  val RIDE_HAIL_MANAGER = "RideHailingManager";
   val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
     classOf[RideHailingInquiry])
+
+  case class NotifyIterationEnds()
 
   case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent],
                                 pickUpLocation: Location, departAt: BeamTime, destination: Location)
@@ -79,15 +82,16 @@ object RideHailingManager {
   case object RideAvailableAck
 
 
-  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope) = {
-    Props(new RideHailingManager(name, services, router, boundingBox))
+  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
+    Props(new RideHailingManager(name, services, router, boundingBox,surgePricingManager))
   }
 }
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
 case class RideHailingManagerData() extends BeamAgentData
 
-class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope) extends VehicleManager with HasServices {
+// TODO: remove name variable, as not used currently in the code anywhere?
+class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
 
   import scala.collection.JavaConverters._
 
@@ -97,8 +101,6 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   // val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
-
-  val rideHailSurgePricingManager=new RideHailSurgePricingManager(beamServices.beamConfig, beamServices.taz)
 
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
@@ -128,6 +130,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   private var lockedVehicles = Set[Id[Vehicle]]()
 
   override def receive: Receive = {
+    case NotifyIterationEnds() =>
+      surgePricingManager.updateSurgePriceLevels()
+      sender() ! ()  // return empty object to blocking caller
+
     case RegisterResource(vehId: Id[Vehicle]) =>
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
@@ -181,7 +187,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         timesToCustomer.min
       } else Long.MaxValue
       // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
-      val rideHailingFare = DefaultCostPerMinute / 60.0 * rideHailSurgePricingManager.getCostSurgeLevel(customerPickUp,departAt.atTime.toDouble)
+      val rideHailingFare = DefaultCostPerMinute / 60.0 * surgePricingManager.getCostSurgeLevel(customerPickUp,departAt.atTime.toDouble)
 
       val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
       val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
@@ -227,7 +233,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         closestRHA match {
           case Some((closestRideHailingAgent)) =>
             val travelProposal = travelPlanOpt.get._1
-            rideHailSurgePricingManager.addRideCost(departAt.atTime, travelProposal.estimatedPrice.doubleValue(),customerPickUp)
+            surgePricingManager.addRideCost(departAt.atTime, travelProposal.estimatedPrice.doubleValue(),customerPickUp)
 
             val tripPlan = travelPlanOpt.map(_._2)
             handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent,

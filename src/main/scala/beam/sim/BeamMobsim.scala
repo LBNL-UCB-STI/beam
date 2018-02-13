@@ -3,11 +3,12 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, DeadLetter, Identify, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, DeadLetter, Identify, PoisonPill, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents._
+import beam.agentsim.agents.RideHailingManager.NotifyIterationEnds
+import beam.agentsim.agents.{RideHailSurgePricingManager, _}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
@@ -27,6 +28,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.mutable
 import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
 
 /**
   * AgentSim.
@@ -40,6 +42,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
   var rideHailingAgents: Seq[ActorRef] = Nil
   val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
+  var rideHailSurgePricingManager: RideHailSurgePricingManager = new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);
 
   override def run() = {
     beamServices.clearAll
@@ -56,9 +59,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
       envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
-      private val rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, beamServices.beamRouter, envelopeInUTM))
+      private val rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager),RideHailingManager.RIDE_HAIL_MANAGER)
       context.watch(rideHailingManager)
-
       private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, eventsManager), "population")
       context.watch(population)
       Await.result(population ? Identify(0), timeout.duration)
@@ -105,6 +107,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           cleanupRideHailingAgents()
           cleanupVehicle()
           population ! Finish
+          val future=rideHailingManager.ask(NotifyIterationEnds())
+          Await.ready(future, timeout.duration).value
           context.stop(rideHailingManager)
           context.stop(scheduler)
           context.stop(errorListener)
