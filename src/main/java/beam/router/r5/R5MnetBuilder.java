@@ -62,9 +62,22 @@ public class R5MnetBuilder {
         while (cursor.advance()) {
             log.debug(cursor.getEdgeIndex());
             log.debug(cursor);
-            // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
-            // Check if we have already seen this OSM way. Skip if we have.
+
+            /*
+             The edge index of the R5 graph determines the directionality of the edge.
+             All edges are in pairs, with the forward link given an even index and the reverse direction given a
+             reversed one. So we want to establish whether the link is forward or backward based on its edge
+             index.
+              */
             Integer edgeIndex = cursor.getEdgeIndex();
+            boolean forward;
+
+            if( (edgeIndex & 1) == 0){ // even edge, forward direction
+                forward = true;
+            } else {
+                forward = false;
+            }
+            // Check if we have already seen this OSM way. Skip if we have.
             Long osmID = cursor.getOSMID();  // id of edge in the OSM db
             Way way = ways.get(osmID);
             Set<Integer> deezNodes = new HashSet<>(2);
@@ -98,11 +111,24 @@ public class R5MnetBuilder {
             // Make and add the link (only if way exists)
 
             if (way != null) {
+                boolean oneway = OTM.checkOneWay(way, false);
                 Link link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
-                mNetowrk.addLink(link);
-                log.debug("Created regular link: " + link);
-                this.lastProcessedOSMId = osmID;
-                this.lastProcessedNodes = deezNodes;
+                if(forward){
+                    // If forward, add link
+                    mNetowrk.addLink(link);
+                    log.debug("Created regular link: " + link);
+                    this.lastProcessedOSMId = osmID;
+                    this.lastProcessedNodes = deezNodes;
+                } else {
+                    // Backward only add for two-way
+                    //TODO: links with reversed topology need to be considered
+                    if(!oneway){
+                        mNetowrk.addLink(link);
+                        log.debug("Created regular link: " + link);
+                        this.lastProcessedOSMId = osmID;
+                        this.lastProcessedNodes = deezNodes;
+                    }
+                }
             } else {
                 // Made up numbers, this is a PT to road network connector or something
                 Link link = mNetowrk.getFactory().createLink(Id.create(edgeIndex, Link.class), fromNode, toNode);
