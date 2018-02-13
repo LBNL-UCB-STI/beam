@@ -3,6 +3,7 @@ package beam.replanning.utilitybased
 import beam.agentsim.agents.household.Memberships.HouseholdMemberships
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.replanning.utilitybased.ChangeModeForTour.TourModeIdentifier
+import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Plan
@@ -44,7 +45,7 @@ class ChangeModeForTour(val tourModeIdentifier: TourModeIdentifier, householdMem
 object ChangeModeForTour {
 
   case class TourModeIdentifier(tour: Tour, beamMode: BeamMode, priority: Int) extends Ordered[TourModeIdentifier] {
-    val isChainBasedTour: Boolean = beamMode.isChainBasedMode
+    val isChainBasedTour: Boolean = Modes.isChainBasedMode(beamMode)
 
     override def compare(that: TourModeIdentifier): Int =
       if (this.priority > that.priority) 1

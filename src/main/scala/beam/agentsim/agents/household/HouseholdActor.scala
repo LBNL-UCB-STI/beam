@@ -4,7 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.household.Memberships.RankedGroup._
+
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
@@ -104,6 +104,7 @@ object HouseholdActor {
                        homeCoord: Coord)
     extends VehicleManager with ActorLogging {
 
+    import beam.agentsim.agents.household.Memberships.RankedGroup._
     implicit val pop:org.matsim.api.core.v01.population.Population=population
 
     household.members.foreach { person =>

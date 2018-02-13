@@ -32,12 +32,7 @@ object Memberships {
 
     val members: Seq[T]
 
-    /**
-      * Members sorted by rank.
-      */
-    val rankedMembers: Vector[MemberWithRank[T]] = members.toVector.map(memb => MemberWithRank(memb.getId, lookupMemberRank
-    (memb.getId))).sortWith(sortByRank)
-
+    val rankedMembers: Vector[MemberWithRank[T]]
 
     def sortByRank(r2: MemberWithRank[T], r1: MemberWithRank[T]): Boolean = {
       r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
@@ -63,6 +58,13 @@ object Memberships {
       override val members: Seq[Person] = JavaConverters.asScalaBuffer(household.getMemberIds).map(population.getPersons
         .get(_))
 
+      /**
+        * Members sorted by rank.
+        */
+      override val rankedMembers: Vector[MemberWithRank[Person]] = members.toVector.map(memb => MemberWithRank(memb
+        .getId,
+        lookupMemberRank
+      (memb.getId))).sortWith(sortByRank)
 
     }
 

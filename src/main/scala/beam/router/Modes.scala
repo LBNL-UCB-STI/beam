@@ -1,6 +1,5 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.chainBasedModes
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode
@@ -17,9 +16,8 @@ import scala.collection.immutable
   */
 object Modes {
 
-  sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode, TransitModes]], val matsimMode: String) extends StringEnumEntry {
-    def isTransit: Boolean = isR5TransitMode(this)
-    val isChainBasedMode: Boolean = chainBasedModes.contains(this)
+  sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry {
+    def isTransit(): Boolean = isR5TransitMode(this)
   }
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
@@ -73,7 +71,7 @@ object Modes {
     val chainBasedModes = Seq(CAR, EV, BIKE)
   }
 
-
+  def isChainBasedMode(beamMode: BeamMode): Boolean =BeamMode.chainBasedModes.contains(beamMode)
 
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] = beamMode.r5Mode.get
 
