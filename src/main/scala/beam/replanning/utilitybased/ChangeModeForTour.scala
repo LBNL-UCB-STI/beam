@@ -26,7 +26,7 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
 
   val rng = new MersenneTwister(3004568) // Random.org
 
-  val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8), new Pair[BeamMode, java.lang.Double](SUBWAY, 1.5), new Pair[BeamMode, java.lang.Double](FERRY, 0.05), new Pair[BeamMode, java.lang.Double](RAIL, 0.45))))
+  val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8), new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15), new Pair[BeamMode, java.lang.Double](FERRY, 0.005), new Pair[BeamMode, java.lang.Double](RAIL, 0.045))))
 
   def findChainBasedModesPerPerson(person: Person): Vector[BeamMode] = {
     // Does person have access to chain-based modes at home for this plan?
@@ -51,7 +51,7 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
             modeChoiceCalculator.utilityOf(alt, timeDist._1, timeDist._2)
           }
           else {
-            0
+            Double.MinValue
           }
         }).sum
     }).toMap
@@ -61,7 +61,8 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
   : (Double, Double) = {
     val originCoord = origin.getCoord
     val destCoord = dest.getCoord
-    val tripDistanceInMeters = beamServices.geo.distLatLon2Meters(originCoord, destCoord)
+    val tripDistanceInMeters = beamServices.geo.distLatLon2Meters(beamServices.geo.utm2Wgs(originCoord), beamServices
+      .geo.utm2Wgs(destCoord))
     val cost = defaultCostPerMode(beamMode, tripDistanceInMeters)
     val time = defaultTimeScalingPerMode(beamMode, tripDistanceInMeters)
     (cost, time)
@@ -83,7 +84,7 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
       //Assume PT speed of 10 m/s
       tripDistanceInMeters / transitSpeedDefault
     } else {
-      transitSpeedDefault * transit2AutoRatio / transitSpeedDefault
+      tripDistanceInMeters  / (transitSpeedDefault* transit2AutoRatio)
     }
   }
 
