@@ -91,7 +91,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
   def getCostSurgeLevel(location: Location, time: Double): Double = {
     val taz = tazTreeMap.getId(location.getX, location.getY)
-    val timeBinIndex = Math.round(time / timeBinSize);
+    val timeBinIndex = Math.round(time / timeBinSize).toInt;
     surgePriceBins.get(taz.tazId.toString).map(i => i(timeBinIndex).surgePriceLevel).getOrElse(throw new Exception("no surge level found"))
   }
 
