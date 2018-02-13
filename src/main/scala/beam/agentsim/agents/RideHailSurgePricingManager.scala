@@ -5,8 +5,7 @@ import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
 
 import scala.collection.mutable
-import scala.collection.mutable.ArraySeq
-import scala.collection.mutable.HashMap
+import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
 import scala.collection.JavaConverters._
 
 class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap) {
@@ -19,20 +18,15 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
   var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
-
+  // TODO: initialize all bins (price levels and iteration revenues)!
   tazTreeMap.tazQuadTree.values().asScala.foreach{ i =>
     val taz=i.tazId.toString
-    //val arr=ArrayBuffer[SurgePriceBin]()
-
-    for (j <- 0 to numberOfTimeBins){
-      //arra
+    val arr = ArrayBuffer[SurgePriceBin]()
+    for (_ <- 0 to numberOfTimeBins){
+      arr.append(SurgePriceBin(0.0, 0.0, 1.0))
     }
-    surgePriceBins.put(taz,ArraySeq[SurgePriceBin]())
+    surgePriceBins.put(taz,ArraySeq[SurgePriceBin](arr.toArray :_*))
   }
-
-
-
-  // TODO: initialize all bins (price levels and iteration revenues)!
 
 
 
@@ -51,13 +45,25 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
     if (isFirstIteration){
 
-
       // TODO: randomly change surge price levels
 
       isFirstIteration=false
     } else {
       // TODO: move surge price by step in direction of positive movement
    //   iterate over all items
+      surgePriceBins.values.foreach{ binArray =>
+        for (j <- 0 to binArray.size){
+          val surgePriceBin = binArray.apply(j)
+          val updatedSurgeLevel = if(surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue){
+            surgePriceBin.surgePriceLevel + surgeLevelAdaptionStep
+          } else {
+            surgePriceBin.surgePriceLevel - surgeLevelAdaptionStep
+          }
+          val updatedBin=surgePriceBin.copy(surgePriceLevel = updatedSurgeLevel)
+          binArray.update(j,updatedBin)
+        }
+      }
+
 
    //   if current > previous revenue, then increase surgelevel +surgeLevelAdaptionStep
 
@@ -100,8 +106,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
       i.update(timeBinIndex,updatedBin)
     }
   }
-
-
   // TODO: print revenue each iteration out
 
 
