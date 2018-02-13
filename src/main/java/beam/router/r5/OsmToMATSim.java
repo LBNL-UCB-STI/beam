@@ -136,40 +136,8 @@ public class OsmToMATSim {
 		boolean oneway = defaults.oneway;
 		boolean onewayReverse = false;
 
-		// check if there are tags that overwrite defaults
-		// - check tag "junction"
-		if ("roundabout".equals(way.getTag(TAG_JUNCTION))) {
-			// if "junction" is not set in tags, get() returns null and equals() evaluates to false
-			oneway = true;
-		}
-
-		// check tag "oneway"
-		String onewayTag = way.getTag(TAG_ONEWAY);
-		if (onewayTag != null) {
-			if ("yes".equals(onewayTag)) {
-				oneway = true;
-			} else if ("true".equals(onewayTag)) {
-				oneway = true;
-			} else if ("1".equals(onewayTag)) {
-				oneway = true;
-			} else if ("-1".equals(onewayTag)) {
-				onewayReverse = true;
-				oneway = false;
-			} else if ("no".equals(onewayTag)) {
-				oneway = false; // may be used to overwrite defaults
-			}
-			else {
-				log.warn("Could not interpret oneway tag:" + onewayTag + ". Ignoring it.");
-			}
-		}
-
-		// In case trunks, primary and secondary roads are marked as oneway,
-		// the default number of lanes should be two instead of one.
-		if(highway.equalsIgnoreCase("trunk") || highway.equalsIgnoreCase("primary") || highway.equalsIgnoreCase("secondary")){
-			if((oneway || onewayReverse) && nofLanes == 1.0){
-				nofLanes = 2.0;
-			}
-		}
+		//Update oneway using way information
+		oneway = checkOneWay(way, oneway);
 
 		String maxspeedTag = way.getTag(TAG_MAXSPEED);
 		if (maxspeedTag != null) {
@@ -231,6 +199,39 @@ public class OsmToMATSim {
 		}
 	}
 
+	public static boolean checkOneWay(Way way, boolean defaultValue){
+		boolean oneway = defaultValue;
+
+		// check if there are tags that overwrite defaults
+		// - check tag "junction"
+		if ("roundabout".equals(way.getTag(TAG_JUNCTION))) {
+			// if "junction" is not set in tags, get() returns null and equals() evaluates to false
+			oneway = true;
+		}
+
+		// check tag "oneway"
+		String onewayTag = way.getTag(TAG_ONEWAY);
+		if (onewayTag != null) {
+			if ("yes".equals(onewayTag)) {
+				oneway = true;
+			} else if ("true".equals(onewayTag)) {
+				oneway = true;
+			} else if ("1".equals(onewayTag)) {
+				oneway = true;
+			} else if ("-1".equals(onewayTag)) {
+				oneway = true;
+			} else if ("no".equals(onewayTag)) {
+				oneway = false; // may be used to overwrite defaults
+			}
+			else {
+				log.warn("Could not interpret oneway tag:" + onewayTag + ". Ignoring it.");
+			}
+		}
+
+		return oneway;
+	}
+
+
 	/**
 	 * Takes the place of the private class OsmNetworkReader.OsmHighwayDefaults
 	 */
@@ -251,5 +252,10 @@ public class OsmToMATSim {
 			this.laneCapacity = laneCapacity;
 			this.oneway = oneway;
 		}
+	}
+
+	static void main(String[] args){
+
+
 	}
 }
