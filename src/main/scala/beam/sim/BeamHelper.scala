@@ -6,7 +6,7 @@ import java.util.Properties
 
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle}
+import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle, TryToKeepOneOfEachClass}
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -17,6 +17,7 @@ import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import kamon.Kamon
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config

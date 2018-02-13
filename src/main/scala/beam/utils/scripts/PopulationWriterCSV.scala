@@ -3,8 +3,9 @@ package beam.utils.scripts
 import java.io.BufferedWriter
 import java.io.IOException
 
+import beam.sim.MapStringDouble
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.{Activity, Person, Population, PopulationFactory}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population, PopulationFactory}
 import org.matsim.core.api.internal.MatsimWriter
 import org.matsim.core.population.io.PopulationWriterHandler
 import org.matsim.core.utils.geometry.CoordinateTransformation
@@ -28,7 +29,7 @@ class PopulationWriterCSV(val coordinateTransformation: CoordinateTransformation
     **/
 
     val handler = new PopulationWriterHandler {
-      override def writeHeaderAndStartElement(out: BufferedWriter): Unit = out.write("id,type,x,y,end.time\n")
+      override def writeHeaderAndStartElement(out: BufferedWriter): Unit = out.write("id,type,x,y,end.time,customAttributes\n")
 
       override def writeSeparator(out: BufferedWriter): Unit = out.flush()
 
@@ -37,10 +38,18 @@ class PopulationWriterCSV(val coordinateTransformation: CoordinateTransformation
       override def endPlans(out: BufferedWriter): Unit = out.flush()
 
       override def writePerson(person: Person, out: BufferedWriter): Unit = {
+        val planAttribs = person.getSelectedPlan.getAttributes
+        val modalityStyle = if(planAttribs.getAttribute("modality-style") != null){ planAttribs.getAttribute("modality-style")}else{""}
+        val modalityScores = if(planAttribs.getAttribute("scores") != null){
+          val scoreMap = planAttribs.getAttribute("scores").asInstanceOf[MapStringDouble].data
+          scoreMap.keySet.toVector.sorted.map(key => Vector(key,scoreMap(key).toString).mkString(",")).mkString(",")
+        }else{""}
+        var planAttribsString = s"$modalityStyle,$modalityScores"
         person.getSelectedPlan.getPlanElements.forEach { elem =>
           if (elem.isInstanceOf[Activity]) {
             val activity = elem.asInstanceOf[Activity]
-            out.write(s"${person.getId},${activity.getType},${activity.getCoord.getX},${activity.getCoord.getY},${activity.getEndTime}\n")
+            out.write(s"${person.getId},${activity.getType},${activity.getCoord.getX},${activity.getCoord.getY},${activity.getEndTime},${planAttribsString}\n")
+            planAttribsString = "" // only write for first activity to avoid dups
           }
         }
       }
