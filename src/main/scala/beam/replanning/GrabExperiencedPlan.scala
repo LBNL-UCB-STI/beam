@@ -19,8 +19,7 @@ class GrabExperiencedPlan @Inject()(config: Config) extends PlanStrategy {
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes.get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY).asInstanceOf[Plan]
-    assert(experiencedPlan != null)
-    if(experiencedPlan.getPlanElements.size() > 0){
+    if(experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0){
       // BeamMobsim needs activities with coords
       val plannedActivities = person.getSelectedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
       val experiencedActivities = experiencedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
