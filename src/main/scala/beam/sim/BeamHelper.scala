@@ -6,6 +6,7 @@ import java.util.Properties
 
 import beam.agentsim.agents.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle}
 import beam.router.r5.NetworkCoordinator
@@ -52,10 +53,15 @@ trait BeamHelper {
       mapper.registerModule(DefaultScalaModule)
 
       override def install(): Unit = {
-        val beamConfig=BeamConfig(typesafeConfig)
+        val beamConfig = BeamConfig(typesafeConfig)
+
+        val tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
+        bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
+
         bind(classOf[BeamConfig]).toInstance(beamConfig)
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig))
+        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(tazTreeMap))
+
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])

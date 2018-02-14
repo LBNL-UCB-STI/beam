@@ -3,28 +3,19 @@ package beam.agentsim.agents
 
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamRouter.Location
-import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
-import com.google.inject.{Inject, Provides, Singleton}
+import com.google.inject.Inject
 
-import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
 import scala.collection.JavaConverters._
+import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
 import scala.util.Random
 
-@Provides
-@Singleton
-class RideHailSurgePricingManager@Inject()(beamConfig: BeamConfig) {
+class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
 
-  // TODO: open taz gz files!
+  // TODO: open taz gz files! (Done)
 
-  // TODO: load following parameters directly from config (add them there)
+  // TODO: load following parameters directly from config (add them there)zz
 
-  var tazTreeMap: TAZTreeMap=null
-
-  // TODO: can we allow any other class to inject taz as well, without loading multiple times?
-  if(null != beamConfig.beam.agentsim.taz.file && !beamConfig.beam.agentsim.taz.file.isEmpty)
-    tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
+  // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
   val timeBinSize = 60*60; // TODO: does throw exception for 60min, if +1 missing below
   val numberOfTimeBins = 3600*24/timeBinSize +1;
