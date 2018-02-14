@@ -131,6 +131,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
+      print(surgePricingManager.getCurrentIterationRevenueSum)
       surgePricingManager.updateSurgePriceLevels()
       sender() ! ()  // return empty object to blocking caller
 

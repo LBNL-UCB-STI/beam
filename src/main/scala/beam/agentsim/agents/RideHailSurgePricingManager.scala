@@ -124,6 +124,18 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   // TODO: print revenue each iteration out
 
 
+  def getCurrentIterationRevenueSum():Double = {
+    var sum:Double=0
+    surgePriceBins.values.foreach{ i =>
+      for (j <- 0 to i.size-1){
+        val surgePriceBin=i.apply(j)
+        sum+=surgePriceBin.currentIterationRevenue
+      }
+    }
+    sum
+  }
+
+
 }
 
 
