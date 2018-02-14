@@ -7,6 +7,7 @@ import beam.sim.config.BeamConfig
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap) {
 
@@ -45,7 +46,20 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
     if (isFirstIteration){
 
-      // TODO: randomly change surge price levels
+      // TODO: seed following random to some config seed?
+      val rand=Random
+      surgePriceBins.values.foreach{ binArray =>
+        for (j <- 0 to binArray.size){
+          val surgePriceBin = binArray.apply(j)
+          val updatedSurgeLevel = if(rand.nextBoolean()){
+            surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
+          } else {
+            surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
+          }
+          val updatedBin=surgePriceBin.copy(currentIterationSurgePriceLevel = updatedSurgeLevel)
+          binArray.update(j,updatedBin)
+        }
+      }
 
       isFirstIteration=false
     } else {
@@ -54,12 +68,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
       surgePriceBins.values.foreach{ binArray =>
         for (j <- 0 to binArray.size){
           val surgePriceBin = binArray.apply(j)
+          val updatedPreviousSurgePriceLevel=surgePriceBin.currentIterationSurgePriceLevel;
           val updatedSurgeLevel = if(surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue){
-            surgePriceBin.previousIterationSurgePriceLevel + surgeLevelAdaptionStep
+            surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
           } else {
-            surgePriceBin.previousIterationSurgePriceLevel - surgeLevelAdaptionStep
+            surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
           }
-          val updatedBin=surgePriceBin.copy(previousIterationSurgePriceLevel = updatedSurgeLevel)
+          val updatedBin=surgePriceBin.copy(previousIterationSurgePriceLevel=updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = updatedSurgeLevel)
           binArray.update(j,updatedBin)
         }
       }
