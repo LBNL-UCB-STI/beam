@@ -11,7 +11,7 @@ import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BUS, CAR, FERRY, RAIL, SUBWAY}
+import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, SUBWAY, WALK_TRANSIT}
 import beam.sim.BeamServices
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
@@ -47,10 +47,15 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
   }
 
   def scoreTour(tour: Subtour, person: Person, modeChoiceCalculator: ModeChoiceCalculator): Map[BeamMode, Double] = {
-    (for {alt <- findAlternativesForTour(tour, person)} yield {
+    val alternativesForTour = findAlternativesForTour(tour, person)
+    (for {alt <- alternativesForTour} yield {
       alt -> JavaConverters.collectionAsScalaIterable(tour.getTrips).map(trip => {
         val timeDist = getCostAndTimeForMode(alt, trip.getOriginActivity, trip.getDestinationActivity)
-        modeChoiceCalculator.utilityOf(alt, timeDist._1, timeDist._2, numTransfers = rng.nextInt(4)+1)
+        if(alt.isTransit()){
+            modeChoiceCalculator.utilityOf(if(alternativesForTour.contains(CAR)) DRIVE_TRANSIT else WALK_TRANSIT, timeDist._1, timeDist._2, numTransfers = rng.nextInt(4) + 1)
+        }else{
+          modeChoiceCalculator.utilityOf(alt, timeDist._1, timeDist._2)
+        }
       }).sum
     }).toMap
   }
@@ -76,7 +81,7 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
 
   def defaultTimeScalingPerMode(beamMode: BeamMode, tripDistanceInMeters: Double): Double = {
     val transitSpeedDefault = 10 // m/s
-    val transit2AutoRatio = 1.7 // m/s
+    val transit2AutoRatio = 1.7 // car is 1.7 times faster than transit
 
     if (beamMode.isTransit()) {
       //Assume PT speed of 10 m/s
