@@ -1,18 +1,12 @@
 
 options(gsubfn.engine = "R")
 load.libraries(c('sqldf','R.utils'))
+setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
+source('./src/main/R/beam-utilities.R')
 
-run.names <- c('four'='development_2016-11-04_10-59-19','balanced'='development_2016-11-04_15-40-55')
-run.names <- c('no-time-mutation'='sf-bay_2016-12-01_21-16-04','time-mutation'='sf-bay_2016-12-01_21-22-27')
-run.names <- c('time-mutation'='sf-bay_2016-12-01_21-22-27')
+run.names <- c('noisy'='sf-light-25k_2018-02-13_08-48-21')
 
-read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
-  if(!is.na(header.word))match.words <- c(match.words,header.word)
-  match.string <- pp("'",pp(match.words,collapse="\\|"),"'")
-  return(data.table(read.csv.sql(filepath,filter=pp("grep ",match.string))))
-}
-
-update.exp.plans <- F
+update.exp.plans <- T
 update.events <- T
 temp.dir <- tempdir()
 all.tmp <- list()
@@ -27,37 +21,26 @@ for(run.name in run.names){
   iter.dir <- list.dirs(pp(run.dir,'/ITERS'),recursive=F)[1]
   for(iter.dir in list.dirs(pp(run.dir,'/ITERS'),recursive=F)){
     split.parts <- str_split(list.files(iter.dir)[1],'\\.')[[1]]
-    run.id <- split.parts[1]
-    iter.num <- split.parts[2]
-    the.file <- pp(iter.dir,'/',run.id,'.',iter.num,'.selectedEVDailyPlans.csv.gz')
-    the.file.Rdata <- pp(iter.dir,'/',run.id,'.',iter.num,'.selectedEVDailyPlans.Rdata')
+    iter.num <- split.parts[1]
+    the.file <- pp(iter.dir,'/',iter.num,'.population.csv.gz')
+    the.file.Rdata <- pp(iter.dir,'/',iter.num,'.population.Rdata')
     if(update.exp.plans & file.exists(the.file)){
       if(exists('dt'))rm(dt)
       do.or.load(the.file.Rdata,function(){
-        dt <- data.table(read.csv(gzfile(the.file)))
+        dt <- data.table(read.csv(gzfile(the.file),header=F))
         dt[,run:=run.code]
         dt[,iter:=as.numeric(iter.num)]
         return(list(dt=dt))
       })
       all.tmp[[length(all.tmp)+1]] <- dt 
     }
-    the.file <- pp(iter.dir,'/',run.id,'.',iter.num,'.events.csv.gz')
+    the.file <- pp(iter.dir,'/',iter.num,'.events.csv')
     if(update.events & file.exists(the.file)){
-      the.file.unzipped <- pp(iter.dir,'/',run.id,'.',iter.num,'.events.csv')
-      the.file.Rdata <- pp(iter.dir,'/',run.id,'.',iter.num,'.events.Rdata')
-      if(!file.exists(the.file.Rdata)){
-        gunzip(the.file,skip=T,remove=F)
-      }
-      if(exists('dt'))rm(dt)
-      do.or.load(the.file.Rdata,function(){
-        dt <- read.data.table.with.filter(the.file.unzipped,c('DepartureChargingDecisionEvent','ArrivalChargingDecisionEvent','ParkingScoreEvent','ChargingCostScoreEvent','RangeAnxietyScoreEvent','LegTravelTimeScoreEvent'),'choiceUtility')
-        dt[,run:=run.code]
-        dt[,iter:=as.numeric(iter.num)]
-        dt[,score:=as.numeric(score)]
-        return(list(dt=dt))
-      })
+      dt <- csv2rdata(the.file)
+      dt[,run:=run.code]
+      dt[,iter:=as.numeric(iter.num)]
+      dt[,score:=as.numeric(score)]
       all.events[[length(all.events)+1]] <- dt
-      if(file.exists(the.file.unzipped))unlink(the.file.unzipped)
     }
   }
 }

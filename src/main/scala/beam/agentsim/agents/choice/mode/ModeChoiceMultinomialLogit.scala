@@ -121,11 +121,11 @@ object ModeChoiceMultinomialLogit {
       new MnlData("COMMON",         "time",       "multiplier", mnlConfig.params.time),
       new MnlData("car",            "intercept",  "intercept",  mnlConfig.params.car_intercept),
       new MnlData("walk",           "intercept",  "intercept",  mnlConfig.params.walk_intercept),
-      new MnlData("ride_hailing",   "intercept",  "intercept",  mnlConfig.params.walk_intercept),
-      new MnlData("bike",           "intercept",  "intercept",  mnlConfig.params.walk_intercept),
-      new MnlData("walk_transit",   "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("ride_hailing",   "intercept",  "intercept",  mnlConfig.params.ride_hailing_intercept),
+      new MnlData("bike",           "intercept",  "intercept",  mnlConfig.params.bike_intercept),
+      new MnlData("walk_transit",   "intercept",  "intercept",  mnlConfig.params.walk_transit_intercept),
       new MnlData("walk_transit",   "transfer",   "multiplier", mnlConfig.params.transfer),
-      new MnlData("drive_transit",  "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("drive_transit",  "intercept",  "intercept",  mnlConfig.params.drive_transit_intercept),
       new MnlData("drive_transit",  "transfer",   "multiplier", mnlConfig.params.transfer)
     )
     MultinomialLogit(mnlData)
