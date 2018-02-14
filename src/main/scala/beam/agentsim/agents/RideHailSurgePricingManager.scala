@@ -1,23 +1,46 @@
 package beam.agentsim.agents
 
+
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import com.google.inject.{Inject, Provides, Singleton}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap) {
+@Provides
+@Singleton
+class RideHailSurgePricingManager@Inject()(beamConfig: BeamConfig) {
+
+  // TODO: open taz gz files!
 
   // TODO: load following parameters directly from config (add them there)
-  val timeBinSize = 60*60;
-  val numberOfTimeBins = 3600*24/timeBinSize + 1;
+
+  var tazTreeMap: TAZTreeMap=null
+
+  // TODO: can we allow any other class to inject taz as well, without loading multiple times?
+  if(null != beamConfig.beam.agentsim.taz.file && !beamConfig.beam.agentsim.taz.file.isEmpty)
+    tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
+
+  val timeBinSize = 60*60; // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfTimeBins = 3600*24/timeBinSize +1;
   val surgeLevelAdaptionStep = 0.1;
   var isFirstIteration=true
 
   var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
+
+  var rideHailingRevenue= ArrayBuffer[Double]()
+
+  // TODO: add system iteration revenue in class (add after each iteration), so that it can be accessed during graph generation!
+
+
+
+
+
 
   // TODO: initialize all bins (price levels and iteration revenues)!
 
@@ -43,7 +66,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
     if (isFirstIteration){
       // TODO: can we refactor the following two blocks of code to reduce duplication?
-
+      println()
       // TODO: seed following random to some config seed?
       val rand=Random
       surgePriceBins.values.foreach{ binArray =>
@@ -63,9 +86,11 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
       }
 
       isFirstIteration=false
+
     } else {
       // TODO: move surge price by step in direction of positive movement
    //   iterate over all items
+      print()
       surgePriceBins.values.foreach{ binArray =>
         for (j <- 0 to binArray.size-1){
           val surgePriceBin = binArray.apply(j)
@@ -102,7 +127,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
     if (tazTreeMap==null) return 1.0;
 
 
-    val taz = tazTreeMap.getId(location.getX, location.getY)
+    val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = Math.round(time / timeBinSize).toInt;
     surgePriceBins.get(taz.tazId.toString).map(i => i(timeBinIndex).previousIterationSurgePriceLevel).getOrElse(throw new Exception("no surge level found"))
   }
@@ -110,7 +135,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
     if (tazTreeMap==null) return;
 
-    val taz = tazTreeMap.getId(pickupLocation.getX, pickupLocation.getY)
+    val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = Math.round(time / timeBinSize).toInt;
 
     surgePriceBins.get(taz.tazId.toString).foreach{ i =>
@@ -121,6 +146,24 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
     }
   }
   // TODO: print revenue each iteration out
+
+
+  def updateRevenueStats()={
+    // TODO: is not functioning properly yet
+    rideHailingRevenue.append(getCurrentIterationRevenueSum)
+    rideHailingRevenue.foreach(println)
+  }
+
+  private def getCurrentIterationRevenueSum():Double = {
+    var sum:Double=0
+    surgePriceBins.values.foreach{ i =>
+      for (j <- 0 to i.size-1){
+        val surgePriceBin=i.apply(j)
+        sum+=surgePriceBin.currentIterationRevenue
+      }
+    }
+    sum
+  }
 
 
 }
