@@ -22,58 +22,42 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   val surgeLevelAdaptionStep = 0.1;
   var isFirstIteration=true
 
-  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
+//  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
   var rideHailingRevenue= ArrayBuffer[Double]()
 
   // TODO: add system iteration revenue in class (add after each iteration), so that it can be accessed during graph generation!
 
-
-
-
-
-
   // TODO: initialize all bins (price levels and iteration revenues)!
 
-  if (tazTreeMap!=null) {
-    tazTreeMap.tazQuadTree.values().asScala.foreach { i =>
-      val taz = i.tazId.toString
-      val arr = ArrayBuffer[SurgePriceBin]()
-      for (_ <- 0 to numberOfTimeBins - 1) {
-        arr.append(SurgePriceBin(0.0, 0.0, 1.0, 1.0))
+  //Scala like code
+  val surgePriceBins = tazTreeMap.tazQuadTree
+    .values
+    .asScala
+    .map{ v =>
+      val array = (0 to numberOfTimeBins - 1).foldLeft(new ArrayBuffer[SurgePriceBin]){ (arrayBuffer, _) =>
+        arrayBuffer.append(SurgePriceBin(0.0, 0.0, 1.0, 1.0))
+        arrayBuffer
       }
-      surgePriceBins.put(taz, ArraySeq[SurgePriceBin](arr.toArray: _*))
-    }
-  }
-
-
-//println()
-
+      (v.tazId.toString, array)
+    }.toMap
 
   // this should be invoked after each iteration
-
   // TODO: initialize in BEAMSim and also reset there after each iteration?
   def updateSurgePriceLevels(): Unit = {
-
     if (isFirstIteration){
       // TODO: can we refactor the following two blocks of code to reduce duplication?
       println()
+
       // TODO: seed following random to some config seed?
       val rand=Random
-      surgePriceBins.values.foreach{ binArray =>
-        for (j <- 0 to binArray.size-1){
-         // print(j+ "-")
-          val surgePriceBin = binArray.apply(j)
-          val updatedSurgeLevel = if(rand.nextBoolean()){
-            surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
-          } else {
-            surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
-          }
-          val updatedBin=surgePriceBin.copy(currentIterationSurgePriceLevel = updatedSurgeLevel)
-
-          binArray.update(j,updatedBin)
+      updateForAllElements(surgePriceBins) { surgePriceBin =>
+        val updatedSurgeLevel = if(rand.nextBoolean()){
+          surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
+        } else {
+          surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
         }
-       // println()
+        surgePriceBin.copy(currentIterationSurgePriceLevel = updatedSurgeLevel)
       }
 
       isFirstIteration=false
@@ -82,18 +66,14 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
       // TODO: move surge price by step in direction of positive movement
    //   iterate over all items
       print()
-      surgePriceBins.values.foreach{ binArray =>
-        for (j <- 0 to binArray.size-1){
-          val surgePriceBin = binArray.apply(j)
-          val updatedPreviousSurgePriceLevel=surgePriceBin.currentIterationSurgePriceLevel;
-          val updatedSurgeLevel = if(surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue){
-            surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
-          } else {
-            surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
-          }
-          val updatedBin=surgePriceBin.copy(previousIterationSurgePriceLevel=updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = updatedSurgeLevel)
-          binArray.update(j,updatedBin)
+      updateForAllElements(surgePriceBins){surgePriceBin =>
+        val updatedPreviousSurgePriceLevel=surgePriceBin.currentIterationSurgePriceLevel;
+        val updatedSurgeLevel = if(surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue){
+          surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
+        } else {
+          surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
         }
+        surgePriceBin.copy(previousIterationSurgePriceLevel=updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = updatedSurgeLevel)
       }
     }
 
@@ -101,39 +81,47 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   }
 
 
-
-  private def updatePreviousIterationRevenuesAndResetCurrent = {
-    surgePriceBins.values.foreach{ i =>
-      for (j <- 0 to i.size-1){
-
-        val surgePriceBin=i.apply(j)
-        val updatedPrevIterRevenue=surgePriceBin.currentIterationRevenue
-        val updatedBin=surgePriceBin.copy(previousIterationRevenue=updatedPrevIterRevenue,currentIterationRevenue = -1)
-        i.update(j,updatedBin)
+  //Method to avoid code duplication
+  private def updateForAllElements(surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]])(updateFn: SurgePriceBin => SurgePriceBin): Unit  = {
+    surgePriceBins.values.foreach{ binArray =>
+      for (j <- 0 to binArray.size - 1){
+        val surgePriceBin = binArray.apply(j)
+        val updatedBin = updateFn(surgePriceBin)
+        binArray.update(j,updatedBin)
       }
     }
   }
 
+  private def updatePreviousIterationRevenuesAndResetCurrent = {
+    updateForAllElements(surgePriceBins) { surgePriceBin =>
+      val updatedPrevIterRevenue=surgePriceBin.currentIterationRevenue
+      surgePriceBin.copy(previousIterationRevenue=updatedPrevIterRevenue,currentIterationRevenue = -1)
+    }
+  }
+
   def getSurgeLevel(location: Location, time: Double): Double = {
-    if (tazTreeMap==null) return 1.0;
-
-
-    val taz = tazTreeMap.getTAZ(location.getX, location.getY)
-    val timeBinIndex = Math.round(time / timeBinSize).toInt;
-    surgePriceBins.get(taz.tazId.toString).map(i => i(timeBinIndex).previousIterationSurgePriceLevel).getOrElse(throw new Exception("no surge level found"))
+    if (tazTreeMap==null) 1.0
+    else {
+      val taz = tazTreeMap.getTAZ(location.getX, location.getY)
+      val timeBinIndex = Math.round(time / timeBinSize).toInt;
+      surgePriceBins.get(taz.tazId.toString)
+        .map(i => i(timeBinIndex).previousIterationSurgePriceLevel)
+        .getOrElse(throw new Exception("no surge level found"))
+    }
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
-    if (tazTreeMap==null) return;
+    if (tazTreeMap != null) {
 
-    val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
-    val timeBinIndex = Math.round(time / timeBinSize).toInt;
+      val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
+      val timeBinIndex = Math.round(time / timeBinSize).toInt;
 
-    surgePriceBins.get(taz.tazId.toString).foreach{ i =>
-      val surgePriceBin=i.apply(timeBinIndex)
-      val updatedCurrentIterRevenue=surgePriceBin.currentIterationRevenue+ cost
-      val updatedBin=surgePriceBin.copy(currentIterationRevenue=updatedCurrentIterRevenue)
-      i.update(timeBinIndex,updatedBin)
+      surgePriceBins.get(taz.tazId.toString).foreach { i =>
+        val surgePriceBin = i.apply(timeBinIndex)
+        val updatedCurrentIterRevenue = surgePriceBin.currentIterationRevenue + cost
+        val updatedBin = surgePriceBin.copy(currentIterationRevenue = updatedCurrentIterRevenue)
+        i.update(timeBinIndex, updatedBin)
+      }
     }
   }
   // TODO: print revenue each iteration out
@@ -155,8 +143,6 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     }
     sum
   }
-
-
 }
 
 
