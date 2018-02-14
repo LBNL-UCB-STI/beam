@@ -31,3 +31,5 @@ class UtilityBasedModeChoice @Inject()(config: Config, beamServices: BeamService
     strategy.build()
   }
 }
+
+
