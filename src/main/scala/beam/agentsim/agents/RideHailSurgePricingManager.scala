@@ -20,6 +20,15 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
   var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
+  var rideHailingRevenue= ArrayBuffer[Double]()
+
+  // TODO: add system iteration revenue in class (add after each iteration), so that it can be accessed during graph generation!
+
+
+
+
+
+
   // TODO: initialize all bins (price levels and iteration revenues)!
 
   if (tazTreeMap!=null) {
@@ -124,7 +133,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   // TODO: print revenue each iteration out
 
 
-  def getCurrentIterationRevenueSum():Double = {
+  def updateRevenueStats()={
+    // TODO: is not functioning properly yet
+    rideHailingRevenue.append(getCurrentIterationRevenueSum)
+    rideHailingRevenue.foreach(println)
+  }
+
+  private def getCurrentIterationRevenueSum():Double = {
     var sum:Double=0
     surgePriceBins.values.foreach{ i =>
       for (j <- 0 to i.size-1){
