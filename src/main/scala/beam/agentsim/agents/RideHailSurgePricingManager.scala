@@ -13,7 +13,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
   // TODO: load following parameters directly from config (add them there)
   val timeBinSize = 900;
-  val numberOfTimeBins = 900*4*24;
+  val numberOfTimeBins = 3600*24/timeBinSize;
   val surgeLevelAdaptionStep = 0.1;
   var isFirstIteration=true
 
@@ -30,7 +30,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   }
 
 
-
+println()
 
 
   // this should be invoked after each iteration
