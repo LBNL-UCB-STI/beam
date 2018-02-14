@@ -187,7 +187,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         timesToCustomer.min
       } else Long.MaxValue
       // TODO: Do unit conversion elsewhere... use squants or homegrown unit conversions, but enforce
-      val rideHailingFare = DefaultCostPerMinute / 60.0 * surgePricingManager.getCostSurgeLevel(customerPickUp,departAt.atTime.toDouble)
+      val rideHailingFare = DefaultCostPerMinute / 60.0 * surgePricingManager.getSurgeLevel(customerPickUp,departAt.atTime.toDouble)
 
       val customerPlans2Costs: Map[RoutingModel.EmbodiedBeamTrip, BigDecimal] = rideHailing2DestinationResponse.itineraries.map(t => (t, rideHailingFare * t.totalTravelTime)).toMap
       val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))

@@ -20,13 +20,16 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
   // TODO: initialize all bins (price levels and iteration revenues)!
-  tazTreeMap.tazQuadTree.values().asScala.foreach{ i =>
-    val taz=i.tazId.toString
-    val arr = ArrayBuffer[SurgePriceBin]()
-    for (_ <- 0 to numberOfTimeBins-1){
-      arr.append(SurgePriceBin(0.0, 0.0, 1.0,1.0))
+
+  if (tazTreeMap!=null) {
+    tazTreeMap.tazQuadTree.values().asScala.foreach { i =>
+      val taz = i.tazId.toString
+      val arr = ArrayBuffer[SurgePriceBin]()
+      for (_ <- 0 to numberOfTimeBins - 1) {
+        arr.append(SurgePriceBin(0.0, 0.0, 1.0, 1.0))
+      }
+      surgePriceBins.put(taz, ArraySeq[SurgePriceBin](arr.toArray: _*))
     }
-    surgePriceBins.put(taz,ArraySeq[SurgePriceBin](arr.toArray :_*))
   }
 
 
@@ -95,13 +98,18 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
     }
   }
 
-  def getCostSurgeLevel(location: Location, time: Double): Double = {
+  def getSurgeLevel(location: Location, time: Double): Double = {
+    if (tazTreeMap==null) return 1.0;
+
+
     val taz = tazTreeMap.getId(location.getX, location.getY)
     val timeBinIndex = Math.round(time / timeBinSize).toInt;
     surgePriceBins.get(taz.tazId.toString).map(i => i(timeBinIndex).previousIterationSurgePriceLevel).getOrElse(throw new Exception("no surge level found"))
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
+    if (tazTreeMap==null) return;
+
     val taz = tazTreeMap.getId(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = Math.round(time / timeBinSize).toInt;
 
