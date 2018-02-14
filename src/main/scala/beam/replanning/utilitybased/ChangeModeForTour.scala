@@ -16,6 +16,7 @@ import beam.sim.BeamServices
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.algorithms.PlanAlgorithm
 import org.matsim.core.router.TripStructureUtils.{Subtour, Trip}
@@ -23,13 +24,14 @@ import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStru
 import org.matsim.vehicles.Vehicles
 
 import scala.collection.{JavaConverters, mutable}
-
+import scala.collection.JavaConverters._
 
 class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator: HouseholdMembershipAllocator, vehicles: Vehicles) extends PlanAlgorithm {
 
   val rng = new MersenneTwister(3004568) // Random.org
 
-  val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8), new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15), new Pair[BeamMode, java.lang.Double](FERRY, 0.005), new Pair[BeamMode, java.lang.Double](RAIL, 0.045))))
+  val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8),
+    new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15), new Pair[BeamMode, java.lang.Double](FERRY, 0.005), new Pair[BeamMode, java.lang.Double](RAIL, 0.045))))
 
   val stageActivitytypes = new CompositeStageActivityTypes()
 
@@ -112,12 +114,17 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
 
 
   def changeModeForTrip(trip: Trip, plan: Plan, mode: BeamMode): Unit = {
+
     val legs = JavaConverters.collectionAsScalaIterable(trip.getLegsOnly)
     if (legs.isEmpty) {
       insertEmptyTrip(plan,trip.getOriginActivity,trip.getDestinationActivity,mode.toString,
-        householdMembershipAllocator.population.getFactory)
+      householdMembershipAllocator.population.getFactory)
     } else {
-      legs.foreach(leg => leg.setMode(mode.value))
+      if(mode.isTransit()){
+        legs.foreach(leg => leg.setMode(WALK_TRANSIT.value))
+      }else{
+        legs.foreach(leg => leg.setMode(mode.value))
+      }
     }
   }
 
@@ -136,6 +143,13 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
 
   override def run(plan: Plan): Unit = {
     if(JavaConverters.collectionAsScalaIterable(TripStructureUtils.getLegs(plan)).isEmpty){addTripsBetweenActivities(plan)}
+    plan.getPlanElements.asScala.map{ pe =>
+      pe match {
+        case act: Activity =>
+          if(act.getLinkId == null)act.setLinkId(Id.createLinkId("dummy"))
+        case _ =>
+      }
+    }
     val person = plan.getPerson
     val household = householdMembershipAllocator.memberships(person.getId)
     val attributesOfIndividual = AttributesOfIndividual(person, household, Population.getVehiclesFromHousehold(household, vehicles))
