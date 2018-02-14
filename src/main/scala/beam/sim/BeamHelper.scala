@@ -4,6 +4,7 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
+import beam.agentsim.agents.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle}
@@ -51,8 +52,10 @@ trait BeamHelper {
       mapper.registerModule(DefaultScalaModule)
 
       override def install(): Unit = {
-        bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
+        val beamConfig=BeamConfig(typesafeConfig)
+        bind(classOf[BeamConfig]).toInstance(beamConfig)
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig))
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
