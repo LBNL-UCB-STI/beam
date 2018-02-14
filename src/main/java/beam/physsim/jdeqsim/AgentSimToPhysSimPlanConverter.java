@@ -80,7 +80,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
         preparePhysSimForNewIteration();
 
-        linkStatsGraph=new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO);
+        linkStatsGraph=new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
     }
 
     private void preparePhysSimForNewIteration() {
