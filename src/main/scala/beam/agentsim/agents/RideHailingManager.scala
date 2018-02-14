@@ -18,6 +18,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
+import beam.analysis.plots.GraphSurgePricing
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
@@ -132,6 +133,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   override def receive: Receive = {
     case NotifyIterationEnds() =>
       surgePricingManager.updateSurgePriceLevels()
+      GraphSurgePricing.createGraph(surgePricingManager)
       sender() ! ()  // return empty object to blocking caller
 
     case RegisterResource(vehId: Id[Vehicle]) =>
