@@ -30,7 +30,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   }
 
 
-println()
+//println()
 
 
   // this should be invoked after each iteration
@@ -44,7 +44,8 @@ println()
       // TODO: seed following random to some config seed?
       val rand=Random
       surgePriceBins.values.foreach{ binArray =>
-        for (j <- 0 to binArray.size){
+        for (j <- 0 to binArray.size-1){
+         // print(j+ "-")
           val surgePriceBin = binArray.apply(j)
           val updatedSurgeLevel = if(rand.nextBoolean()){
             surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
@@ -52,8 +53,10 @@ println()
             surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
           }
           val updatedBin=surgePriceBin.copy(currentIterationSurgePriceLevel = updatedSurgeLevel)
+
           binArray.update(j,updatedBin)
         }
+       // println()
       }
 
       isFirstIteration=false
@@ -61,7 +64,7 @@ println()
       // TODO: move surge price by step in direction of positive movement
    //   iterate over all items
       surgePriceBins.values.foreach{ binArray =>
-        for (j <- 0 to binArray.size){
+        for (j <- 0 to binArray.size-1){
           val surgePriceBin = binArray.apply(j)
           val updatedPreviousSurgePriceLevel=surgePriceBin.currentIterationSurgePriceLevel;
           val updatedSurgeLevel = if(surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue){
@@ -82,7 +85,7 @@ println()
 
   private def updatePreviousIterationRevenuesAndResetCurrent = {
     surgePriceBins.values.foreach{ i =>
-      for (j <- 0 to i.size){
+      for (j <- 0 to i.size-1){
 
         val surgePriceBin=i.apply(j)
         val updatedPrevIterRevenue=surgePriceBin.currentIterationRevenue
