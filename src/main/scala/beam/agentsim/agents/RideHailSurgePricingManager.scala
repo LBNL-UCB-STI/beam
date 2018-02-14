@@ -117,7 +117,7 @@ class RideHailSurgePricingManager@Inject()(beamConfig: BeamConfig) {
 
         val surgePriceBin=i.apply(j)
         val updatedPrevIterRevenue=surgePriceBin.currentIterationRevenue
-        val updatedBin=surgePriceBin.copy(previousIterationRevenue=updatedPrevIterRevenue,currentIterationRevenue = -1)
+        val updatedBin=surgePriceBin.copy(previousIterationRevenue=updatedPrevIterRevenue,currentIterationRevenue = 0)
         i.update(j,updatedBin)
       }
     }
