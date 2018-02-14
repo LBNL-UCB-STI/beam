@@ -23,7 +23,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   tazTreeMap.tazQuadTree.values().asScala.foreach{ i =>
     val taz=i.tazId.toString
     val arr = ArrayBuffer[SurgePriceBin]()
-    for (_ <- 0 to numberOfTimeBins){
+    for (_ <- 0 to numberOfTimeBins-1){
       arr.append(SurgePriceBin(0.0, 0.0, 1.0,1.0))
     }
     surgePriceBins.put(taz,ArraySeq[SurgePriceBin](arr.toArray :_*))
