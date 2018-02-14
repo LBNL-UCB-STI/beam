@@ -2,6 +2,7 @@ package beam.agentsim.agents
 
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 
 import scala.collection.mutable
@@ -102,7 +103,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
     if (tazTreeMap==null) return 1.0;
 
 
-    val taz = tazTreeMap.getId(location.getX, location.getY)
+    val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = Math.round(time / timeBinSize).toInt;
     surgePriceBins.get(taz.tazId.toString).map(i => i(timeBinIndex).previousIterationSurgePriceLevel).getOrElse(throw new Exception("no surge level found"))
   }
@@ -110,7 +111,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
     if (tazTreeMap==null) return;
 
-    val taz = tazTreeMap.getId(pickupLocation.getX, pickupLocation.getY)
+    val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = Math.round(time / timeBinSize).toInt;
 
     surgePriceBins.get(taz.tazId.toString).foreach{ i =>

@@ -75,10 +75,13 @@ object TAZCreatorScript extends App {
   println(taz.getId(-120.8043534,+35.5283106))
 */
 
-  println("HELLO WORLD")
-  val path = "d:/shape_out.csv"
-  val mapTaz = TAZTreeMap.fromCsv(path)
-  print(mapTaz)
+  TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
+
+
+ // println("HELLO WORLD")
+ // val path = "d:/shape_out.csv"
+ // val mapTaz = TAZTreeMap.fromCsv(path)
+ // print(mapTaz)
 
 
   //Test Write File
@@ -98,7 +101,7 @@ object TAZCreatorScript extends App {
 }
 
 class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
-  def getId(x: Double, y: Double): TAZ = {
+  def getTAZ(x: Double, y: Double): TAZ = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getClosest(x,y)
   }
@@ -248,8 +251,10 @@ object TAZTreeMap {
       for(t <- allNonRepeatedTaz){
         val tazToWrite = new HashMap[String, Object]();
         tazToWrite.put(header(0), t.id)
-        tazToWrite.put(header(1), t.coordX.toString)
-        tazToWrite.put(header(2), t.coordY.toString)
+       //
+       val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
+        tazToWrite.put(header(1), transFormedCoord.getX.toString)
+        tazToWrite.put(header(2), transFormedCoord.getY.toString)
         mapWriter.write(tazToWrite, header, processors)
       }
     } finally {
