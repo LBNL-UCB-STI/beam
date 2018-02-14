@@ -12,7 +12,7 @@ import scala.util.Random
 class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap) {
 
   // TODO: load following parameters directly from config (add them there)
-  val timeBinSize = 900;
+  val timeBinSize = 15*60;
   val numberOfTimeBins = 3600*24/timeBinSize;
   val surgeLevelAdaptionStep = 0.1;
   var isFirstIteration=true
@@ -125,4 +125,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
 }
 
+
+// TO
 case class SurgePriceBin(previousIterationRevenue: Double, currentIterationRevenue: Double, previousIterationSurgePriceLevel:Double, currentIterationSurgePriceLevel:Double)
