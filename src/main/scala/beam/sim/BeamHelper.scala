@@ -42,7 +42,6 @@ trait BeamHelper {
         install(new ControlerDefaultsModule)
         install(new ControlerDefaultCoreListenersModule)
 
-
         // Beam Inject below:
         install(new ConfigModule(typesafeConfig))
         install(new BeamAgentModule(BeamConfig(typesafeConfig)))
