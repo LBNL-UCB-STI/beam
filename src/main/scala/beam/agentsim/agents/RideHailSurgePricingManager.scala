@@ -95,7 +95,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   private def updatePreviousIterationRevenuesAndResetCurrent = {
     updateForAllElements(surgePriceBins) { surgePriceBin =>
       val updatedPrevIterRevenue=surgePriceBin.currentIterationRevenue
-      surgePriceBin.copy(previousIterationRevenue=updatedPrevIterRevenue,currentIterationRevenue = -1)
+      surgePriceBin.copy(previousIterationRevenue=updatedPrevIterRevenue,currentIterationRevenue = 0)
     }
   }
 
