@@ -32,12 +32,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
 
 
 
-  def getEmptyDoubleArray(value:Double): Array[Double] ={
-    val arr=Array[Double](numberOfTimeBins)
-  //   arr.fill[Double](value)
-    // TODO correct above line
-    arr
-  }
 
   // this should be invoked after each iteration
 
@@ -45,6 +39,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
   def updateSurgePriceLevels(): Unit = {
 
     if (isFirstIteration){
+      // TODO: can we refactor the following two blocks of code to reduce duplication?
 
       // TODO: seed following random to some config seed?
       val rand=Random
@@ -78,13 +73,6 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, val tazTreeMap: TAZTre
           binArray.update(j,updatedBin)
         }
       }
-
-
-   //   if current > previous revenue, then increase surgelevel +surgeLevelAdaptionStep
-
-
-   //   else
-   //   surgelevel-surgeLevelAdaptionStep
     }
 
     updatePreviousIterationRevenuesAndResetCurrent
