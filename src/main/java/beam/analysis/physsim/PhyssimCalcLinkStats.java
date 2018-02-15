@@ -1,5 +1,6 @@
 package beam.analysis.physsim;
 
+import beam.utils.BeamCalcLinkStats;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -26,7 +27,7 @@ public class PhyssimCalcLinkStats {
     private Network network;
     private OutputDirectoryHierarchy controlerIO;
 
-    private CalcLinkStats linkStats;
+    private BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
 
     public static int noOfBins = 24;
@@ -63,7 +64,7 @@ public class PhyssimCalcLinkStats {
         this.network = network;
         this.controlerIO = controlerIO;
 
-        linkStats = new CalcLinkStats(network);
+        linkStats = new BeamCalcLinkStats(network);
     }
 
 
