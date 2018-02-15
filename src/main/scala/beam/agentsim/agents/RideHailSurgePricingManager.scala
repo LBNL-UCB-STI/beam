@@ -112,7 +112,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     if (tazTreeMap == null || priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) 1.0
     else {
       val taz = tazTreeMap.getTAZ(location.getX, location.getY)
-      val timeBinIndex = Math.round(time / timeBinSize).toInt;
+      val timeBinIndex = getTimeBinIndex(time)
       surgePriceBins.get(taz.tazId.toString)
         .map(i => i(timeBinIndex).currentIterationSurgePriceLevel)
         .getOrElse(throw new Exception("no surge level found"))
@@ -123,7 +123,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     if (tazTreeMap != null) {
 
       val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
-      val timeBinIndex = Math.round(time / timeBinSize).toInt;
+      val timeBinIndex = getTimeBinIndex(time)
 
       surgePriceBins.get(taz.tazId.toString).foreach { i =>
         val surgePriceBin = i.apply(timeBinIndex)
@@ -153,6 +153,8 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     }
     sum
   }
+
+  private def getTimeBinIndex(time: Double): Int = Math.round(time / timeBinSize).toInt - 1
 
 }
 
