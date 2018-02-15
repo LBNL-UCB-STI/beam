@@ -16,7 +16,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
   val timeBinSize = 60 * 60; // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfTimeBins = 3600 * 24 / timeBinSize + 1;
+  val numberOfTimeBins = 3600 * 24 / timeBinSize
   val surgeLevelAdaptionStep = 0.1;
   val minimumSurgeLevel=0.1
   var isFirstIteration = true
@@ -40,7 +40,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     .values
     .asScala
     .map { v =>
-      val array = (0 to numberOfTimeBins - 1).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
+      val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
         arrayBuffer.append(SurgePriceBin(0.0, 0.0, 1.0, 1.0))
         arrayBuffer
       }
@@ -93,7 +93,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   //Method to avoid code duplication
   private def updateForAllElements(surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]])(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
     surgePriceBins.values.foreach { binArray =>
-      for (j <- 0 to binArray.size - 1) {
+      for (j <- 0 until binArray.size) {
         val surgePriceBin = binArray.apply(j)
         val updatedBin = updateFn(surgePriceBin)
         binArray.update(j, updatedBin)
@@ -146,7 +146,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   private def getCurrentIterationRevenueSum(): Double = {
     var sum: Double = 0
     surgePriceBins.values.foreach { i =>
-      for (j <- 0 to i.size - 1) {
+      for (j <- 0 until i.size - 1) {
         val surgePriceBin = i.apply(j)
         sum += surgePriceBin.currentIterationRevenue
       }
