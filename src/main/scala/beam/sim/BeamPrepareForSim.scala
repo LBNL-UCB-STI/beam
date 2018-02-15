@@ -42,7 +42,6 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
     scenario.getPopulation.getPersons.values().forEach(person => {
       person.getPlans.forEach(plan => {
         plan.getAttributes.putAttribute("modality-style",SwitchModalityStyle.getRandomElement(allStyles,rand))
-        plan.getAttributes.putAttribute("scores", MapStringDouble(allStyles.map(_ -> Double.NaN).toMap))
       })
     })
   }
