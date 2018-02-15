@@ -60,7 +60,7 @@ trait BeamHelper {
 
         bind(classOf[BeamConfig]).toInstance(beamConfig)
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(tazTreeMap))
+        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, tazTreeMap))
 
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])

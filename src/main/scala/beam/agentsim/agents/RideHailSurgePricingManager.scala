@@ -3,13 +3,14 @@ package beam.agentsim.agents
 
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamRouter.Location
+import beam.sim.config.BeamConfig
 import com.google.inject.Inject
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
 import scala.util.Random
 
-class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
+class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: TAZTreeMap) {
 
   // TODO: load following parameters directly from config (add them there)zz
 
