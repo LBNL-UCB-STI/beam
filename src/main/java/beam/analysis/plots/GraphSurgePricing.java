@@ -8,7 +8,6 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
-import scala.collection.mutable.ArraySeq;
 
 import java.io.IOException;
 import java.util.*;
@@ -131,7 +130,8 @@ public class GraphSurgePricing {
 
         List<String> categoriesStrings = new ArrayList<>();
         for(Double c : categoriesList){
-            categoriesStrings.add(c + "");
+            double _legend = Math.round(c * 100.0) / 100.0;
+            categoriesStrings.add(_legend + "");
         }
 
 
