@@ -26,6 +26,7 @@ import beam.router.RoutingModel._
 import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person}
+import org.matsim.core.controler.Controler
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 
@@ -112,6 +113,9 @@ trait ChoosesMode {
             // Otherwise, filter by mode
             streetVehicles.filter(_.mode == byMode)
         }
+      }
+      if(beamServices.matsimServices.getIterationNumber>0){
+        val i = 0
       }
 
       // Form and send requests

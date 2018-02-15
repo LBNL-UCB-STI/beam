@@ -4,6 +4,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
+import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.population.Person
@@ -18,6 +19,8 @@ trait ModeChoiceCalculator extends HasServices {
   def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip
 
   def utilityOf(alternative: EmbodiedBeamTrip): Double
+
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {

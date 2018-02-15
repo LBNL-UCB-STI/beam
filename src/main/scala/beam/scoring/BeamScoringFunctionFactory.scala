@@ -51,8 +51,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
         // Compute and log all-day score w.r.t. all modality styles
         // One of them has many suspicious-looking 0.0 values. Probably something which
         // should be minus infinity or exception instead.
-        val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6")
-          .map(style => style -> beamServices.modeChoiceCalculatorFactory(attributes.copy(modalityStyle = Some(style))))
+        val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6").map{style =>
+          style -> beamServices.modeChoiceCalculatorFactory(attributes.copy(modalityStyle = Some(style)))}
           .toMap
           .mapValues(modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum)
         log.debug(vectorOfUtilities)
@@ -63,7 +63,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
         val logsum = math.log(person.getPlans().asScala
           .map(plan => plan.getAttributes.getAttribute("scores").asInstanceOf[MapStringDouble].data(attributes.modalityStyle.get))
           .map(score => math.exp(score))
-          .sum)
+          .sum)/person.getPlans.size()
 
         val scoreOfBeingInClassGivenThisOutcome = lccm.classMembershipModels(Mandatory).getUtilityOfAlternative(AlternativeAttributes(attributes.modalityStyle.get, Map(
           "income" -> attributes.householdAttributes.householdIncome,

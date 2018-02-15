@@ -194,3 +194,9 @@ repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
 dir.slash <- function(the.dirs){
   sapply(the.dirs,function(the.dir){ ifelse(strtail(the.dir)=="/",the.dir,pp(the.dir,"/")) })
 }
+
+read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
+  if(!is.na(header.word))match.words <- c(match.words,header.word)
+  match.string <- pp("'",pp(match.words,collapse="\\|"),"'")
+  return(data.table(read.csv.sql(filepath,filter=pp("grep ",match.string))))
+}

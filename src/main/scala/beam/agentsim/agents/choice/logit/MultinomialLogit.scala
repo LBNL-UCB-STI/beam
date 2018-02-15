@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
+import beam.agentsim.agents.choice.logit.UtilityParam.{Multiplier, UtilityParamType}
 import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.{Optional, ParseDouble}
 
@@ -16,26 +16,27 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for(theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity) yield theExpV._2
-    if(!indsOfPosInf.isEmpty){
+    if(indsOfPosInf.nonEmpty){
       // Take the first
       alternatives(indsOfPosInf.head).alternativeName
     }else{
       val sumExpV = expV.sum
       val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
       val randDraw = random.nextDouble()
-      val idxAboveDraw = (for(prob <- cumulProbs if prob._1 > randDraw)yield prob._2)
-      if(idxAboveDraw.length == 0){
+      val idxAboveDraw = for (prob <- cumulProbs if prob._1 > randDraw) yield prob._2
+      if(idxAboveDraw.isEmpty){
         val i = 0
       }
       val chosenIdx = idxAboveDraw.head - 1
       alternatives(chosenIdx).alternativeName
     }
   }
+
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
     val util = if(!alternativeParams.contains(alternative.alternativeName)){
       Double.NaN
     }else{
-      (alternativeParams.get("COMMON").getOrElse(AlternativeParams.empty).params ++ alternativeParams(alternative.alternativeName).params).map{ theParam =>
+      (alternativeParams.getOrElse("COMMON", AlternativeParams.empty).params ++ alternativeParams(alternative.alternativeName).params).map{ theParam =>
         if(alternative.attributes.contains(theParam._1)){
           theParam._2.paramType match {
             case Multiplier =>
@@ -53,6 +54,7 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
     }
     util
   }
+
   def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
 //    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
     val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
@@ -65,12 +67,12 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
 object MultinomialLogit{
   def apply(theData: Vector[MnlData]): MultinomialLogit = {
     val theParams = theData.groupBy(_.alternative).map{ mnlData =>
-      (mnlData._1 -> mnlData._2.map{ paramData =>
-        UtilityParam(paramData.paramName,paramData.paramValue, UtilityParam.StringToUtilityParamType(paramData.paramType))
-      })
+      mnlData._1 -> mnlData._2.map { paramData =>
+        UtilityParam(paramData.paramName, paramData.paramValue, UtilityParam.StringToUtilityParamType(paramData.paramType))
+      }
     }
     MultinomialLogit(theParams.map{ case (altName, utilParams) =>
-      (altName -> AlternativeParams(altName, utilParams.map( utilParam => (utilParam.paramName -> utilParam) ).toMap))
+      altName -> AlternativeParams(altName, utilParams.map(utilParam => utilParam.paramName -> utilParam).toMap)
     }.toMap)
   }
 

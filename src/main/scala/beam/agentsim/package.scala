@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.{PersonAgent, RideHailingAgent}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
+import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 /**
