@@ -107,7 +107,7 @@ public class GraphSurgePricing {
         CategoryDataset ds = DatasetUtilities.createCategoryDataset("Categories ", "", buildDataset());
 
         try {
-            createModesFrequencyGraph(ds, iterationNumber);
+            createSurgePricingGraph(ds, iterationNumber);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -115,7 +115,7 @@ public class GraphSurgePricing {
         iterationNumber++;
     }
 
-    private static void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
+    private static void createSurgePricingGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
         boolean legend = true;
         String fileName = "surge_pricing.png";
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisLabel,yAxisLabel,fileName,legend);
