@@ -21,6 +21,12 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   val minimumSurgeLevel=0.1
   var isFirstIteration = true
 
+  // TODO: implement all cases for these surge prices properly
+  val CONTINUES_DEMAND_SUPPLY_MATCHING="CONTINUES_DEMAND_SUPPLY_MATCHING"
+  val KEEP_PRICE_LEVEL_FIXED_AT_ONE="KEEP_PRICE_LEVEL_FIXED_AT_ONE"
+
+  var priceAdjustmentStrategy=CONTINUES_DEMAND_SUPPLY_MATCHING
+
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
   var rideHailingRevenue = ArrayBuffer[Double]()
@@ -103,7 +109,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   }
 
   def getSurgeLevel(location: Location, time: Double): Double = {
-    if (tazTreeMap == null) 1.0
+    if (tazTreeMap == null || priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) 1.0
     else {
       val taz = tazTreeMap.getTAZ(location.getX, location.getY)
       val timeBinIndex = Math.round(time / timeBinSize).toInt;
