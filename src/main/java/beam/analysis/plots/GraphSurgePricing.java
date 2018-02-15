@@ -2,9 +2,12 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.RideHailSurgePricingManager;
 import beam.agentsim.agents.SurgePriceBin;
+import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
+import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
@@ -26,6 +29,7 @@ public class GraphSurgePricing {
     static String xAxisLabel = "hour";
     static String yAxisLabel = "price level";
 
+    public static double[] revenueDataSet;
 
     public static void createGraph(RideHailSurgePricingManager surgePricingManager){
 
@@ -34,6 +38,8 @@ public class GraphSurgePricing {
 
         binSize = surgePricingManager.timeBinSize();
         numberOfTimeBins = surgePricingManager.numberOfTimeBins();
+
+        revenueDataSet = new double[numberOfTimeBins];
 
         scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
 
@@ -61,6 +67,35 @@ public class GraphSurgePricing {
 
         //dumpTransformedBins();
         drawGraph();
+
+        drawRevenueGraph(revenueDataSet);
+
+        iterationNumber++;
+    }
+
+    public static void drawRevenueGraph(double[] data) {
+
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset( );
+
+
+        for(int i=0; i < data.length; i++){
+            Double revenue = data[i];
+            dataset.addValue(revenue, "revenue", "" + i);
+        }
+
+        JFreeChart chart = ChartFactory.createLineChart(
+                "Ride Hail Revenue",
+                "iteration","revenue",
+                dataset,
+                PlotOrientation.VERTICAL,
+                false,true,false);
+
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "revenue_graph.png");
+        try {
+            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 //    public static void dumpTransformedBins(){
@@ -112,7 +147,7 @@ public class GraphSurgePricing {
             e.printStackTrace();
         }
 
-        iterationNumber++;
+
     }
 
     private static void createSurgePricingGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
@@ -142,8 +177,12 @@ public class GraphSurgePricing {
 
     public static void processBin(int binNumber, SurgePriceBin surgePriceBin){
 
+        double revenue = surgePriceBin.currentIterationRevenue();
+        revenueDataSet[binNumber] += revenue;
+
+
         Double price = surgePriceBin.currentIterationSurgePriceLevel();
-        //Integer intPrice = price.intValue();
+
 
         Map<Integer, Integer> data = transformedBins.get(price);
 

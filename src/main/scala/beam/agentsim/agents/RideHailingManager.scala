@@ -132,10 +132,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
-      surgePricingManager.updateRevenueStats()
-      surgePricingManager.updateSurgePriceLevels()
       GraphSurgePricing.createGraph(surgePricingManager)
       GraphRideHailingRevenue.createGraph(surgePricingManager)
+      surgePricingManager.updateRevenueStats()
+      surgePricingManager.updateSurgePriceLevels()
       sender() ! ()  // return empty object to blocking caller
 
     case RegisterResource(vehId: Id[Vehicle]) =>
