@@ -16,17 +16,19 @@ import org.matsim.core.replanning.{PlanStrategy, PlanStrategyImpl}
 class UtilityBasedModeChoice @Inject()(config: Config, beamServices: BeamServices, scenario: Scenario) extends Provider[PlanStrategy] {
 
   private val log = Logger.getLogger(classOf[UtilityBasedModeChoice])
-  val householdMembershipAllocator = HouseholdMembershipAllocator(scenario)
+
+  val householdMembershipAllocator = HouseholdMembershipAllocator(scenario.getHouseholds,scenario.getPopulation)
+  val chainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(scenario.getVehicles,householdMembershipAllocator)
 
   if (!config.planCalcScore().isMemorizingExperiencedPlans) {
-    throw new RuntimeException("Must memorize experienced plans for this to work.")
+    throw new RuntimeException(s"Must memorize experienced plans for ${this.getClass.getSimpleName} to work.")
   }
 
   override def get(): PlanStrategy = {
     val strategy = new PlanStrategyImpl.Builder(new RandomPlanSelector())
     strategy.addStrategyModule(new AbstractMultithreadedModule(config.global()) {
       override def getPlanAlgoInstance: PlanAlgorithm =
-        new ChangeModeForTour(beamServices, householdMembershipAllocator,scenario.getVehicles)
+        new ChangeModeForTour(beamServices, chainBasedTourVehicleAllocator)
     })
     strategy.build()
   }
