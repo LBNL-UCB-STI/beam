@@ -1,0 +1,165 @@
+package beam.analysis.plots;
+
+import beam.agentsim.agents.RideHailSurgePricingManager;
+import beam.agentsim.agents.SurgePriceBin;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.CategoryPlot;
+import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.general.DatasetUtilities;
+import scala.collection.Iterator;
+import scala.collection.mutable.ArraySeq;
+
+import java.io.IOException;
+import java.util.*;
+
+public class GraphSurgePricing {
+
+    // The keys of the outer map represents binNumber
+    // The inner map consists of category index to number of occurrence for each category
+    // The categories are defined as buckets for occurrences of prices form 0-1, 1-2
+
+    public static Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
+    public static int binSize;
+    public static int numberOfTimeBins;
+    static int iterationNumber = 0;
+    static String graphTitle = "Surge Price Level";
+    static String xAxisLabel = "hour";
+    static String yAxisLabel = "price level";
+
+
+    public static void createGraph(RideHailSurgePricingManager surgePricingManager){
+
+        //iterationNumber = itNo;
+        transformedBins.clear();
+
+        binSize = surgePricingManager.timeBinSize();
+        numberOfTimeBins = surgePricingManager.numberOfTimeBins();
+
+        scala.collection.mutable.HashMap<String, scala.collection.mutable.ArraySeq<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
+
+
+
+        Iterator mapIter = surgePriceBinsMap.keysIterator();
+
+        //System.out.println("map keys size: " + mapIter.size());
+
+        while(mapIter.hasNext()) {
+
+
+            String key = mapIter.next().toString();
+            ArraySeq<SurgePriceBin> bins  = surgePriceBinsMap.get(key).get();
+
+            Iterator iter = bins.iterator();
+
+            for (int i = 0; iter.hasNext(); i++) {
+                SurgePriceBin bin = (SurgePriceBin) iter.next();
+                processBin(i, bin);
+                // System.out.println("CurrentIterationSurgePriceLevel for bin -> " + i + " _ " + bin.currentIterationSurgePriceLevel());
+            }
+
+
+        }
+
+        //dumpTransformedBins();
+        drawGraph();
+    }
+
+//    public static void dumpTransformedBins(){
+//
+//        for(Integer catId : transformedBins.keySet()){
+//            Map<Integer, Integer> data = transformedBins.get(catId);
+//            System.out.println("cat_number -> " + catId);
+//            for(Integer binNumber: data.keySet()){
+//                System.out.println("bin_number -> " + binNumber + ", occurrence -> " + data.get(binNumber));
+//            }
+//        }
+//    }
+
+
+    private static double[][] buildDataset() {
+
+        double[][] dataset = new double[transformedBins.keySet().size()][numberOfTimeBins];
+
+        List<Double> categoriesList = new ArrayList<>();
+        categoriesList.addAll(transformedBins.keySet());
+        Collections.sort(categoriesList);
+
+        int i=0;
+        for (double key : categoriesList) {
+
+            Map<Integer, Integer> data = transformedBins.get(key);
+            double arr[] = new double[numberOfTimeBins];
+            for(int j=0; j<numberOfTimeBins;j++){
+                Integer v = data.get(j);
+                if(v == null){
+                    arr[j] = 0;
+                }else{
+                    arr[j] = v;
+                }
+            }
+
+            dataset[i++] = arr;
+        }
+        return dataset;
+    }
+
+    public static void drawGraph(){
+
+        CategoryDataset ds = DatasetUtilities.createCategoryDataset("Categories ", "", buildDataset());
+
+        try {
+            createModesFrequencyGraph(ds, iterationNumber);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        iterationNumber++;
+    }
+
+    private static void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
+        boolean legend = true;
+        String fileName = "surge_pricing.png";
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisLabel,yAxisLabel,fileName,legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+        //List<String> modesChosenList = new ArrayList<>();
+        //modesChosenList.addAll(modesChosen);
+        //Collections.sort(modesChosenList);
+
+        List<Double> categoriesList = new ArrayList<>();
+        categoriesList.addAll(transformedBins.keySet());
+        Collections.sort(categoriesList);
+
+        List<String> categoriesStrings = new ArrayList<>();
+        for(Double c : categoriesList){
+            categoriesStrings.add(c + "");
+        }
+
+
+        GraphUtils.plotLegendItems(plot, categoriesStrings, dataset.getRowCount());
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    public static void processBin(int binNumber, SurgePriceBin surgePriceBin){
+
+        Double price = surgePriceBin.currentIterationSurgePriceLevel();
+        //Integer intPrice = price.intValue();
+
+        Map<Integer, Integer> data = transformedBins.get(price);
+
+        if(data == null){
+            data = new HashMap<>();
+            data.put(binNumber, 1);
+        }else{
+
+            Integer occurrence = data.get(binNumber);
+            if(occurrence == null){
+                data.put(binNumber, 1);
+            }else{
+                data.put(binNumber, occurrence + 1);
+            }
+        }
+
+        transformedBins.put(price, data);
+    }
+}
