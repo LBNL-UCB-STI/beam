@@ -20,7 +20,7 @@ public class ModalityStyleStats {
     private static Map<Integer, Map<String, Double>> iterationVsModalityClassCount = new HashMap<>();
     private static final String graphTile = "Modality Style";
     private static final String xAxisTitle = "Iteration";
-    private static final String yAxisTitle = "n";
+    private static final String yAxisTitle = "Number of Agents";
     private static final String fileName = "modality-style.png";
     private static final String attributeName = "modality-style";
 
