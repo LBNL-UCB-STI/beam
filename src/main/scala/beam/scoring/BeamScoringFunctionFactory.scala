@@ -63,7 +63,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
         val logsum = math.log(person.getPlans().asScala
           .map(plan => plan.getAttributes.getAttribute("scores").asInstanceOf[MapStringDouble].data(attributes.modalityStyle.get))
           .map(score => math.exp(score))
-          .sum)/person.getPlans.size()
+          .sum)
 
         val scoreOfBeingInClassGivenThisOutcome = lccm.classMembershipModels(Mandatory).getUtilityOfAlternative(AlternativeAttributes(attributes.modalityStyle.get, Map(
           "income" -> attributes.householdAttributes.householdIncome,
