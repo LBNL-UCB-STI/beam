@@ -77,7 +77,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     theServices
   }
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = alternatives.head
+    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = Some(alternatives.head)
     override val beamServices: BeamServices = services
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0

@@ -12,29 +12,30 @@ import scala.util.Random
   */
 case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
 
-  def sampleAlternative(alternatives: Vector[AlternativeAttributes], random: Random): String = {
+  def sampleAlternative(alternatives: Vector[AlternativeAttributes], random: Random): Option[String] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for(theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity) yield theExpV._2
     if(indsOfPosInf.nonEmpty){
       // Take the first
-      alternatives(indsOfPosInf.head).alternativeName
+      Some(alternatives(indsOfPosInf.head).alternativeName)
     }else{
       val sumExpV = expV.sum
       val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
       val randDraw = random.nextDouble()
       val idxAboveDraw = for (prob <- cumulProbs if prob._1 > randDraw) yield prob._2
       if(idxAboveDraw.isEmpty){
-        val i = 0
+        None
+      }else{
+        val chosenIdx = idxAboveDraw.head - 1
+        Some(alternatives(chosenIdx).alternativeName)
       }
-      val chosenIdx = idxAboveDraw.head - 1
-      alternatives(chosenIdx).alternativeName
     }
   }
 
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
     val util = if(!alternativeParams.contains(alternative.alternativeName)){
-      Double.NaN
+      Double.NegativeInfinity
     }else{
       (alternativeParams.getOrElse("COMMON", AlternativeParams.empty).params ++ alternativeParams(alternative.alternativeName).params).map{ theParam =>
         if(alternative.attributes.contains(theParam._1)){
