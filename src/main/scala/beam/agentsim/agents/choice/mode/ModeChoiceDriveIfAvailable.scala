@@ -11,7 +11,7 @@ import beam.sim.BeamServices
   */
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
-  def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
+  def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     var containsDriveAlt: Vector[Int] = Vector[Int]()
     alternatives.zipWithIndex.foreach { alt =>
       if (alt._1.tripClassifier == CAR) {
@@ -19,13 +19,12 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
       }
     }
 
-    alternatives(if (containsDriveAlt.nonEmpty) {
+    Some(alternatives(if (containsDriveAlt.nonEmpty) {
       containsDriveAlt.head
     }
     else {
       chooseRandomAlternativeIndex(alternatives)
-    })
-
+    }))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0

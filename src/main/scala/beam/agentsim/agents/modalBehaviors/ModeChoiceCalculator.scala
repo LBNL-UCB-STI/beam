@@ -16,7 +16,7 @@ import scala.util.Random
   */
 trait ModeChoiceCalculator extends HasServices {
 
-  def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip
+  def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
 
   def utilityOf(alternative: EmbodiedBeamTrip): Double
 

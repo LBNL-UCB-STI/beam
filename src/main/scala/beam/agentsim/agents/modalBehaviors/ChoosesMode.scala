@@ -225,18 +225,22 @@ trait ChoosesMode {
           if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
         }
       }
-      if (combinedItinerariesForChoice.isEmpty) {
-        assert(combinedItinerariesForChoice.nonEmpty, "Empty choice set.")
+      if(this.matsimPlan.getAttributes.getAttribute("modality-style").equals("class4")){
+        val i =0
       }
 
-      val chosenTrip: EmbodiedBeamTrip = modeChoiceCalculator(combinedItinerariesForChoice)
-      newChoosesModeData = newChoosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
-      if (chosenTrip.requiresReservationConfirmation) {
-        sendReservationRequests(chosenTrip, newChoosesModeData, info)
-      } else {
-
-        goto(Waiting) using info.copy(data = info.data.copy(maybeModeChoiceData = Some(newChoosesModeData)))
-      }
+      modeChoiceCalculator(combinedItinerariesForChoice) match{
+        case Some(chosenTrip) =>
+          newChoosesModeData = newChoosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
+          if (chosenTrip.requiresReservationConfirmation) {
+            sendReservationRequests(chosenTrip, newChoosesModeData, info)
+          } else {
+            goto(Waiting) using info.copy(data = info.data.copy(maybeModeChoiceData = Some(newChoosesModeData)))
+          }
+        case None =>
+          // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
+          goto(Waiting) using info.copy(data = info.data.copy(maybeModeChoiceData = Some(newChoosesModeData)))
+    }
   }
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData, info:BeamAgent.BeamAgentInfo[PersonAgent.PersonData]): State = {
@@ -303,13 +307,31 @@ trait ChoosesMode {
     goto(WaitingForReservationConfirmation) using info.copy(data = info.data.copy(maybeModeChoiceData = Some(choosesModeData.copy(awaitingReservationConfirmation = awaitingReservationConfirmation))))
   }
 
+
   onTransition {
     case ChoosingMode -> Waiting =>
       unstashAll()
-      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
+      val chosenTrip = nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip match {
+        case Some(pendingChosenTrip) =>
+          pendingChosenTrip
+        case None =>
+          createExpensiveWalkTrip(nextStateData.data.maybeModeChoiceData.get)
+      }
+      scheduleDepartureWithValidatedTrip(chosenTrip, nextStateData.data.maybeModeChoiceData.get)
     case WaitingForReservationConfirmation -> Waiting =>
       unstashAll()
-      scheduleDepartureWithValidatedTrip(nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip.get, nextStateData.data.maybeModeChoiceData.get)
+      val chosenTrip = nextStateData.data.maybeModeChoiceData.get.pendingChosenTrip match {
+        case Some(pendingChosenTrip) =>
+          pendingChosenTrip
+        case None =>
+          createExpensiveWalkTrip(nextStateData.data.maybeModeChoiceData.get)
+      }
+      scheduleDepartureWithValidatedTrip(chosenTrip, nextStateData.data.maybeModeChoiceData.get)
+  }
+
+  def createExpensiveWalkTrip(choosesModeData: ChoosesModeData): EmbodiedBeamTrip = {
+    val originalWalkTripLeg = choosesModeData.routingResponse.get.itineraries.filter(_.tripClassifier == WALK).head.legs.head
+    EmbodiedBeamTrip(Vector(originalWalkTripLeg.copy(cost = BigDecimal(100.0))))
   }
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
