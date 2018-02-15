@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.RideHailSurgePricingManager;
 import beam.agentsim.agents.SurgePriceBin;
+import beam.analysis.via.CSVWriter;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -12,6 +13,7 @@ import org.jfree.data.general.DatasetUtilities;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
 
@@ -137,9 +139,59 @@ public class GraphSurgePricing {
         return dataset;
     }
 
+    public static void writePriceSurgeCsv(double[][] dataset){
+
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "surge_pricing.csv");
+        CSVWriter writer = new CSVWriter(csvFileName);
+
+
+        try {
+            BufferedWriter out = writer.getBufferedWriter();
+            out.write("Categories");
+            out.write(",");
+
+            for(int i=0; i<dataset[0].length; i++){
+                out.write("bin_" + i);
+                out.write(",");
+            }
+            out.newLine();
+
+
+            List<Double> categoriesList = new ArrayList<>();
+            categoriesList.addAll(transformedBins.keySet());
+            Collections.sort(categoriesList);
+
+            List<String> categoriesStrings = new ArrayList<>();
+
+            int j = 0;
+            for(Double c : categoriesList){
+                double _legend = Math.round(c * 100.0) / 100.0;
+                out.write(_legend + "");
+                out.write(",");
+
+                for(int i=0; i < dataset[j].length; i++){
+                    out.write(dataset[j][i] + "");
+                    out.write(",");
+                }
+                out.newLine();
+                j++;
+
+            }
+
+            out.flush();
+            out.close();
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void drawGraph(){
 
-        CategoryDataset ds = DatasetUtilities.createCategoryDataset("Categories ", "", buildDataset());
+        double[][] dataset = buildDataset();
+        writePriceSurgeCsv(dataset);
+        CategoryDataset ds = DatasetUtilities.createCategoryDataset("Categories ", "", dataset);
 
         try {
             createSurgePricingGraph(ds, iterationNumber);
