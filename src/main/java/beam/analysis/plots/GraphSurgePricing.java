@@ -7,6 +7,7 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import scala.collection.Iterator;
+import scala.collection.mutable.ArrayBuffer;
 import scala.collection.mutable.ArraySeq;
 
 import java.io.IOException;
@@ -35,8 +36,7 @@ public class GraphSurgePricing {
         binSize = surgePricingManager.timeBinSize();
         numberOfTimeBins = surgePricingManager.numberOfTimeBins();
 
-        scala.collection.mutable.HashMap<String, scala.collection.mutable.ArraySeq<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
-
+        scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
 
 
         Iterator mapIter = surgePriceBinsMap.keysIterator();
@@ -47,7 +47,7 @@ public class GraphSurgePricing {
 
 
             String key = mapIter.next().toString();
-            ArraySeq<SurgePriceBin> bins  = surgePriceBinsMap.get(key).get();
+            ArrayBuffer<SurgePriceBin> bins  = surgePriceBinsMap.get(key).get();
 
             Iterator iter = bins.iterator();
 
