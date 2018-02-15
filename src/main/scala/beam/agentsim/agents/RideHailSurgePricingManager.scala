@@ -16,17 +16,18 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val timeBinSize = 60 * 60; // TODO: does throw exception for 60min, if +1 missing below
+  val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHailing
+  val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
   val numberOfTimeBins = 3600 * 24 / timeBinSize
-  val surgeLevelAdaptionStep = 0.1;
-  val minimumSurgeLevel=0.1
+  val surgeLevelAdaptionStep = rideHaillingConfig.surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
 
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING="CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE="KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy=CONTINUES_DEMAND_SUPPLY_MATCHING
+  var priceAdjustmentStrategy=rideHaillingConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
