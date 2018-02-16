@@ -73,19 +73,6 @@ trait BeamHelper {
           override def convert(value: String): MapStringDouble = MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
         })
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
-
-        addControlerListenerBinding().toInstance(new IterationEndsListener {
-          override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-
-                import scala.collection.JavaConverters._
-                val stringToPersons = scenario.getPopulation.getPersons.values().asScala.groupBy(p => p.getSelectedPlan.getAttributes.getAttribute("modality-style").toString)
-
-            val counts = stringToPersons.map {
-                  case (style, people) => (style, people.size)
-                }.toList.sorted.mkString(",")
-            log.info(s"Modality style counts: $counts")
-          }
-        })
       }
     })
 
