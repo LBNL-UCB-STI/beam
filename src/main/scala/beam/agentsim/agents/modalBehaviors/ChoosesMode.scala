@@ -222,9 +222,6 @@ trait ChoosesMode {
           if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
         }
       }
-      if(this.matsimPlan.getAttributes.getAttribute("modality-style").equals("class4")){
-        val i =0
-      }
 
       modeChoiceCalculator(combinedItinerariesForChoice) match{
         case Some(chosenTrip) =>
