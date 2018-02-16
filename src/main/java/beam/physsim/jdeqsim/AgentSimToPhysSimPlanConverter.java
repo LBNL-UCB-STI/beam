@@ -142,7 +142,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
     }
 
     private boolean writeInIteration(int iterationNumber, int interval) {
-        return interval == 1 || (interval > 0 && iterationNumber / interval == 0);
+        return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
     }
 
     private void createNetworkFile(Network network) {
