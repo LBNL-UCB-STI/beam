@@ -25,6 +25,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.core.utils.misc.Time
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -54,7 +55,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private val errorListener = context.actorOf(ErrorListener.props())
       context.watch(errorListener)
       context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
-      val scheduler = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, 3600 * 30.0, 300.0), "scheduler")
+      val scheduler = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) , 300.0), "scheduler")
       context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
       context.watch(scheduler)
 
