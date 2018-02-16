@@ -66,7 +66,8 @@ public class PhyssimCalcLinkStats {
         this.controlerIO = controlerIO;
         this.beamConfig = beamConfig;
 
-        this.binSize = this.beamConfig.beam().physsim().linkstatsBinSize();
+        if(isNotTestMode())
+            this.binSize = this.beamConfig.beam().physsim().linkstatsBinSize();
 
         linkStats = new BeamCalcLinkStats(network);
     }
@@ -78,12 +79,17 @@ public class PhyssimCalcLinkStats {
         processData(iteration, travelTimeCalculator);
         CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         if(this.controlerIO != null) {
-            if(writeLinkstats(iteration)) {
+            if(isNotTestMode() && writeLinkstats(iteration)) {
                 linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
             }
             createModesFrequencyGraph(dataset, iteration);
         }
     }
+
+    private boolean isNotTestMode() {
+        return beamConfig != null;
+    }
+
 
     private boolean writeLinkstats(int iterationNumber) {
         return writeInIteration(iterationNumber, beamConfig.beam().physsim().linkstatsWriteInterval());
