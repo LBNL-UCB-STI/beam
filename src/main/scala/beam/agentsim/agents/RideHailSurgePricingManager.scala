@@ -14,6 +14,11 @@ import scala.util.Random
 class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: TAZTreeMap) {
 
   // TODO:
+
+  // when ever turning around direction, make the step half as large after a certain iteration number, which is specified
+
+
+
   // max price define
   // slowing down price change according to revenue change?
   // fix the KEEP_PRICE_LEVEL_FIXED_AT_ONE price levels below
@@ -26,7 +31,7 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
 
   val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHailing
   val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfTimeBins = Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize
+  val numberOfTimeBins = Math.ceil(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt
   val surgeLevelAdaptionStep = rideHaillingConfig.surgePricing.surgeLevelAdaptionStep
   val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
