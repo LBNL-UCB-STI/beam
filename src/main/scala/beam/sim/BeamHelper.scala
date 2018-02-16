@@ -4,6 +4,7 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle, TryToKeepOneOfEachClass}
@@ -19,6 +20,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import kamon.Kamon
+import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -32,6 +34,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 trait BeamHelper {
+  val log: Logger = Logger.getLogger(classOf[BeamHelper])
 
   def module(typesafeConfig: com.typesafe.config.Config, scenario: Scenario, transportNetwork: TransportNetwork): com.google.inject.Module = AbstractModule.`override`(
     ListBuffer(new AbstractModule() {
@@ -77,10 +80,10 @@ trait BeamHelper {
                 import scala.collection.JavaConverters._
                 val stringToPersons = scenario.getPopulation.getPersons.values().asScala.groupBy(p => p.getSelectedPlan.getAttributes.getAttribute("modality-style").toString)
 
-                println(stringToPersons.map {
+            val counts = stringToPersons.map {
                   case (style, people) => (style, people.size)
-                }.toList.sorted.mkString(","))
-
+                }.toList.sorted.mkString(",")
+            log.info(s"Modality style counts: $counts")
           }
         })
       }
