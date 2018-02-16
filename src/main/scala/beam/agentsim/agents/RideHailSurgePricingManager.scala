@@ -3,29 +3,44 @@ package beam.agentsim.agents
 
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamRouter.Location
+import beam.sim.config.BeamConfig
 import com.google.inject.Inject
+import org.matsim.core.utils.misc.Time
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
 import scala.util.Random
 
-class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
+class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: TAZTreeMap) {
+
+  // TODO:
+
+  // when ever turning around direction, make the step half as large after a certain iteration number, which is specified
+
+
+
+  // max price define
+  // slowing down price change according to revenue change?
+  // fix the KEEP_PRICE_LEVEL_FIXED_AT_ONE price levels below
+  // define other strategies for this?
+
 
   // TODO: load following parameters directly from config (add them there)zz
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
 
-  val timeBinSize = 60 * 60; // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfTimeBins = 3600 * 24 / timeBinSize + 1;
-  val surgeLevelAdaptionStep = 0.1;
-  val minimumSurgeLevel=0.1
+  val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHailing
+  val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfTimeBins = Math.ceil(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt
+  val surgeLevelAdaptionStep = rideHaillingConfig.surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel
   var isFirstIteration = true
 
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING="CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE="KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy=CONTINUES_DEMAND_SUPPLY_MATCHING
+  var priceAdjustmentStrategy=rideHaillingConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
@@ -40,7 +55,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     .values
     .asScala
     .map { v =>
-      val array = (0 to numberOfTimeBins - 1).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
+      val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
         arrayBuffer.append(SurgePriceBin(0.0, 0.0, 1.0, 1.0))
         arrayBuffer
       }
@@ -52,7 +67,6 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   def updateSurgePriceLevels(): Unit = {
     if (isFirstIteration) {
       // TODO: can we refactor the following two blocks of code to reduce duplication?
-      println()
 
       // TODO: seed following random to some config seed?
       val rand = Random
@@ -70,7 +84,6 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     } else {
       // TODO: move surge price by step in direction of positive movement
       //   iterate over all items
-      print()
       updateForAllElements(surgePriceBins) { surgePriceBin =>
         val updatedPreviousSurgePriceLevel = surgePriceBin.currentIterationSurgePriceLevel;
         val updatedSurgeLevel = if (surgePriceBin.currentIterationRevenue == surgePriceBin.previousIterationRevenue) {
@@ -93,7 +106,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   //Method to avoid code duplication
   private def updateForAllElements(surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]])(updateFn: SurgePriceBin => SurgePriceBin): Unit = {
     surgePriceBins.values.foreach { binArray =>
-      for (j <- 0 to binArray.size - 1) {
+      for (j <- 0 until binArray.size) {
         val surgePriceBin = binArray.apply(j)
         val updatedBin = updateFn(surgePriceBin)
         binArray.update(j, updatedBin)
@@ -112,7 +125,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     if (tazTreeMap == null || priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) 1.0
     else {
       val taz = tazTreeMap.getTAZ(location.getX, location.getY)
-      val timeBinIndex = Math.round(time / timeBinSize).toInt;
+      val timeBinIndex = getTimeBinIndex(time)
       surgePriceBins.get(taz.tazId.toString)
         .map(i => i(timeBinIndex).currentIterationSurgePriceLevel)
         .getOrElse(throw new Exception("no surge level found"))
@@ -123,7 +136,7 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
     if (tazTreeMap != null) {
 
       val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
-      val timeBinIndex = Math.round(time / timeBinSize).toInt;
+      val timeBinIndex = getTimeBinIndex(time)
 
       surgePriceBins.get(taz.tazId.toString).foreach { i =>
         val surgePriceBin = i.apply(timeBinIndex)
@@ -140,19 +153,21 @@ class RideHailSurgePricingManager @Inject()(tazTreeMap: TAZTreeMap) {
   def updateRevenueStats() = {
     // TODO: is not functioning properly yet
     rideHailingRevenue.append(getCurrentIterationRevenueSum)
-    rideHailingRevenue.foreach(println)
+    //rideHailingRevenue.foreach(println)
   }
 
   private def getCurrentIterationRevenueSum(): Double = {
     var sum: Double = 0
     surgePriceBins.values.foreach { i =>
-      for (j <- 0 to i.size - 1) {
+      for (j <- 0 until i.size - 1) {
         val surgePriceBin = i.apply(j)
         sum += surgePriceBin.currentIterationRevenue
       }
     }
     sum
   }
+
+  private def getTimeBinIndex(time: Double): Int = Math.round(time / timeBinSize).toInt - 1
 
 }
 
