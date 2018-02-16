@@ -1,12 +1,12 @@
 package beam.analysis.physsim;
 
+import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
-import org.matsim.analysis.CalcLinkStats;
 import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
@@ -43,6 +43,7 @@ public class PhyssimCalcLinkStats {
      */
     Map<Double, Map<Integer, Integer>> relativeSpeedFrequenciesPerBin = new HashMap<>();
 
+    BeamConfig beamConfig;
 
     // Static Initializer
     static {
@@ -60,9 +61,13 @@ public class PhyssimCalcLinkStats {
 
     }
 
-    public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO) {
+    public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig) {
         this.network = network;
         this.controlerIO = controlerIO;
+        this.beamConfig = beamConfig;
+
+        if(isNotTestMode())
+            this.binSize = this.beamConfig.beam().physsim().linkstatsBinSize();
 
         linkStats = new BeamCalcLinkStats(network);
     }
@@ -74,9 +79,24 @@ public class PhyssimCalcLinkStats {
         processData(iteration, travelTimeCalculator);
         CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         if(this.controlerIO != null) {
-            linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
+            if(isNotTestMode() && writeLinkstats(iteration)) {
+                linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
+            }
             createModesFrequencyGraph(dataset, iteration);
         }
+    }
+
+    private boolean isNotTestMode() {
+        return beamConfig != null;
+    }
+
+
+    private boolean writeLinkstats(int iterationNumber) {
+        return writeInIteration(iterationNumber, beamConfig.beam().physsim().linkstatsWriteInterval());
+    }
+
+    private boolean writeInIteration(int iterationNumber, int interval) {
+        return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
     }
 
     private void processData(int iteration, TravelTimeCalculator travelTimeCalculator) {

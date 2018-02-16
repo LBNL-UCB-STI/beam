@@ -79,7 +79,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
             this.csvWriter.closeFile();
         }
 
-        writeDataInThisIteration=iteration / writeEventsInterval==0;
+        writeDataInThisIteration=iteration % writeEventsInterval==0;
 
         if (writeDataInThisIteration) {
             this.csvWriter = new CSVWriter(controlerIO.getIterationFilename(iteration, "expectedMaxUtilityHeatMap.csv"));

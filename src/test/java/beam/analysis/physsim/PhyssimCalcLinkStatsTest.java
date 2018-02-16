@@ -8,7 +8,6 @@ import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
-import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.network.io.MatsimNetworkReader;
@@ -41,7 +40,7 @@ public class PhyssimCalcLinkStatsTest{
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 
-        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null);
+        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, null);
 
         physsimCalcLinkStats.notifyIterationStarts(eventsManager);
 
