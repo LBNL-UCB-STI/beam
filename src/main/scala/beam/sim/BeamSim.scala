@@ -9,6 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
+import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
@@ -79,6 +80,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     agentSimToPhysSimPlanConverter.startPhysSim(event)
     createGraphsFromEvents.createGraphs(event);
+    ModalityStyleStats.processData(scenario.getPopulation(),event);
+    ModalityStyleStats.buildModalityStyleGraph();
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
