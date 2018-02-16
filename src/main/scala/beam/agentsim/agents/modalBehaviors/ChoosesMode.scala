@@ -114,9 +114,6 @@ trait ChoosesMode {
             streetVehicles.filter(_.mode == byMode)
         }
       }
-      if(beamServices.matsimServices.getIterationNumber>0){
-        val i = 0
-      }
 
       // Form and send requests
       modeChoiceStrategy match {
@@ -224,9 +221,6 @@ trait ChoosesMode {
           }
           if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
         }
-      }
-      if(this.matsimPlan.getAttributes.getAttribute("modality-style").equals("class4")){
-        val i =0
       }
 
       modeChoiceCalculator(combinedItinerariesForChoice) match{
