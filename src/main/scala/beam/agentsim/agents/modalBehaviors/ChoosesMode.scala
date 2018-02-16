@@ -114,9 +114,6 @@ trait ChoosesMode {
             streetVehicles.filter(_.mode == byMode)
         }
       }
-      if(beamServices.matsimServices.getIterationNumber>0){
-        val i = 0
-      }
 
       // Form and send requests
       modeChoiceStrategy match {
