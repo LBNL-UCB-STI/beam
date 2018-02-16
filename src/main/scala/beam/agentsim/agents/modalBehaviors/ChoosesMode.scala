@@ -200,6 +200,7 @@ trait ChoosesMode {
           // if more agents could be hailed.
           stop(Failure(firstErrorResponse.errorCode.toString))
         } else {
+          cancelTrip(stateData.data.asInstanceOf[WaitingForReservationConfirmationData].choosesModeData.pendingChosenTrip.get.legs, _currentVehicle)
           goto(ChoosingMode) using info.copy(
             data = choosesModeData.copy(pendingChosenTrip = None, rideHailingResult = rideHailingResult, routingResponse = routingResponse),
             triggersToSchedule = Vector()
@@ -312,10 +313,6 @@ trait ChoosesMode {
       nextStateData.triggersToSchedule.foreach(scheduler ! _)
       unstashAll()
       scheduleDepartureWithValidatedTrip(nextStateData.data.asInstanceOf[ChoosesModeData].pendingChosenTrip.get, nextStateData.data.asInstanceOf[ChoosesModeData])
-    case WaitingForReservationConfirmation -> ChoosingMode =>
-      // Going back from reserving to choosing means my choice couldn't be reserved
-      // Cancel the trip I was going to make
-      cancelTrip(stateData.data.asInstanceOf[WaitingForReservationConfirmationData].choosesModeData.pendingChosenTrip.get.legs, _currentVehicle)
   }
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
