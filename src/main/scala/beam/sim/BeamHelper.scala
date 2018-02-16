@@ -19,6 +19,7 @@ import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.typesafe.config.ConfigFactory
 import kamon.Kamon
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Scenario
@@ -86,7 +87,7 @@ trait BeamHelper {
 
     val beamConfig = BeamConfig(config)
     val enableMetrics = Metrics.isMetricsEnable(beamConfig.beam.metrics.level)
-    if (enableMetrics) Kamon.start()
+    if (enableMetrics) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val (_, outputDirectory) = runBeamWithConfig(config)
 
