@@ -203,10 +203,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         //TODO: we response with collection of TravelCost to be able to consolidate responses from different ride hailing companies
 
         val modRHA2Cust = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
-        val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = c.beamLeg.mode == WALK,
-          unbecomeDriverOnCompletion = c.beamLeg == l.legs(2).beamLeg,
-          beamLeg = c.beamLeg.copy(startTime = c.beamLeg.startTime + timeToCustomer),
-          cost = if (c.beamLeg == l.legs(1).beamLeg) {
+        val modRHA2Dest = itins2Dest.map(l => l.copy(legs = l.legs.zipWithIndex.map(c => c._1.copy(asDriver = c._1.beamLeg.mode == WALK,
+          unbecomeDriverOnCompletion = c._2 == 2,
+          beamLeg = c._1.beamLeg.copy(startTime = c._1.beamLeg.startTime + timeToCustomer),
+          cost = if (c._1.beamLeg == l.legs(1).beamLeg) {
             cost
           } else {
             0.0
