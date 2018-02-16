@@ -139,6 +139,10 @@ public class GraphSurgePricing {
         return dataset;
     }
 
+    public static Double getRoundedNumber(Double number){
+        return Math.round(number * 100.0) / 100.0;
+    }
+
     public static void writePriceSurgeCsv(double[][] dataset){
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "surge_pricing.csv");
@@ -216,9 +220,9 @@ public class GraphSurgePricing {
         Collections.sort(categoriesList);
 
         List<String> categoriesStrings = new ArrayList<>();
-        for(Double c : categoriesList){
-            double _legend = Math.round(c * 100.0) / 100.0;
-            categoriesStrings.add(_legend + "");
+        for(Double price : categoriesList){
+            //double _legend = Math.round(c * 100.0) / 100.0;
+            categoriesStrings.add(price + "");
         }
 
 
@@ -235,8 +239,9 @@ public class GraphSurgePricing {
 
         Double price = surgePriceBin.currentIterationSurgePriceLevel();
 
+        Double roundedPrice = getRoundedNumber(price);
 
-        Map<Integer, Integer> data = transformedBins.get(price);
+        Map<Integer, Integer> data = transformedBins.get(roundedPrice);
 
         if(data == null){
             data = new HashMap<>();
@@ -251,6 +256,6 @@ public class GraphSurgePricing {
             }
         }
 
-        transformedBins.put(price, data);
+        transformedBins.put(roundedPrice, data);
     }
 }
