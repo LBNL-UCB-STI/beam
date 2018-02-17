@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, ScheduledTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
@@ -34,11 +34,12 @@ object BeamAgent {
 
   trait BeamAgentData
 
-  case class BeamAgentInfo[T <: BeamAgentData](id: Id[_],
-                                               data: T,
-                                               triggerId: Option[Long] = None,
-                                               tick: Option[Double] = None,
-                                               errorReason: Option[String] = None) extends Info
+  case class BeamAgentInfo[+T <: BeamAgentData](id: Id[_],
+                                                data: T,
+                                                triggerId: Option[Long] = None,
+                                                tick: Option[Double] = None,
+                                                triggersToSchedule: Vector[ScheduleTrigger] = Vector.empty,
+                                                errorReason: Option[String] = None) extends Info
 
   case class NoData() extends BeamAgentData
 

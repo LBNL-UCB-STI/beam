@@ -7,7 +7,7 @@ import java.util.Properties
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle, TryToKeepOneOfEachClass}
+import beam.replanning._
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -67,6 +67,7 @@ trait BeamHelper {
         }
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+        addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
         addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString).toProvider(classOf[UtilityBasedModeChoice])
         addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
           override def convertToString(o: scala.Any): String = mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
