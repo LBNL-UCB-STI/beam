@@ -43,31 +43,8 @@ public class GraphSurgePricing {
 
         revenueDataSet = new double[numberOfTimeBins];
 
-        scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
+        processSurgePriceBinsMap(surgePricingManager);
 
-
-        Iterator mapIter = surgePriceBinsMap.keysIterator();
-
-        //System.out.println("map keys size: " + mapIter.size());
-
-        while(mapIter.hasNext()) {
-
-
-            String key = mapIter.next().toString();
-            ArrayBuffer<SurgePriceBin> bins  = surgePriceBinsMap.get(key).get();
-
-            Iterator iter = bins.iterator();
-
-            for (int i = 0; iter.hasNext(); i++) {
-                SurgePriceBin bin = (SurgePriceBin) iter.next();
-                processBin(i, bin);
-                // System.out.println("CurrentIterationSurgePriceLevel for bin -> " + i + " _ " + bin.currentIterationSurgePriceLevel());
-            }
-
-
-        }
-
-        //dumpTransformedBins();
         drawGraph();
 
         drawRevenueGraph(revenueDataSet);
@@ -75,42 +52,49 @@ public class GraphSurgePricing {
         iterationNumber++;
     }
 
-    public static void drawRevenueGraph(double[] data) {
+    public static void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager){
+        scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
+        Iterator mapIter = surgePriceBinsMap.keysIterator();
 
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset( );
+        while(mapIter.hasNext()) {
 
+            String key = mapIter.next().toString();
+            ArrayBuffer<SurgePriceBin> bins  = surgePriceBinsMap.get(key).get();
+            Iterator iter = bins.iterator();
 
-        for(int i=0; i < data.length; i++){
-            Double revenue = data[i];
-            dataset.addValue(revenue, "revenue", "" + i);
-        }
-
-        JFreeChart chart = ChartFactory.createLineChart(
-                "Ride Hail Revenue",
-                "iteration","revenue",
-                dataset,
-                PlotOrientation.VERTICAL,
-                false,true,false);
-
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "revenue_graph.png");
-        try {
-            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
-        } catch (IOException e) {
-            e.printStackTrace();
+            for (int i = 0; iter.hasNext(); i++) {
+                SurgePriceBin bin = (SurgePriceBin) iter.next();
+                processBin(i, bin);
+            }
         }
     }
 
-//    public static void dumpTransformedBins(){
-//
-//        for(Integer catId : transformedBins.keySet()){
-//            Map<Integer, Integer> data = transformedBins.get(catId);
-//            System.out.println("cat_number -> " + catId);
-//            for(Integer binNumber: data.keySet()){
-//                System.out.println("bin_number -> " + binNumber + ", occurrence -> " + data.get(binNumber));
-//            }
-//        }
-//    }
+    public static void processBin(int binNumber, SurgePriceBin surgePriceBin){
 
+        double revenue = surgePriceBin.currentIterationRevenue();
+        revenueDataSet[binNumber] += revenue;
+
+        Double price = surgePriceBin.currentIterationSurgePriceLevel();
+
+        Double roundedPrice = getRoundedNumber(price);
+
+        Map<Integer, Integer> data = transformedBins.get(roundedPrice);
+
+        if(data == null){
+            data = new HashMap<>();
+            data.put(binNumber, 1);
+        }else{
+
+            Integer occurrence = data.get(binNumber);
+            if(occurrence == null){
+                data.put(binNumber, 1);
+            }else{
+                data.put(binNumber, occurrence + 1);
+            }
+        }
+
+        transformedBins.put(roundedPrice, data);
+    }
 
     private static double[][] buildDataset() {
 
@@ -138,6 +122,67 @@ public class GraphSurgePricing {
         }
         return dataset;
     }
+
+    public static void drawGraph(){
+
+        double[][] dataset = buildDataset();
+        writePriceSurgeCsv(dataset);
+        CategoryDataset ds = DatasetUtilities.createCategoryDataset("Categories ", "", dataset);
+
+        try {
+            createSurgePricingGraph(ds, iterationNumber);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void createSurgePricingGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
+        boolean legend = true;
+        String fileName = "surge_pricing.png";
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisLabel,yAxisLabel,fileName,legend);
+        CategoryPlot plot = chart.getCategoryPlot();
+
+        List<Double> categoriesList = new ArrayList<>();
+        categoriesList.addAll(transformedBins.keySet());
+        Collections.sort(categoriesList);
+
+        List<String> categoriesStrings = new ArrayList<>();
+        for(Double price : categoriesList){
+            //double _legend = Math.round(c * 100.0) / 100.0;
+            categoriesStrings.add(price + "");
+        }
+
+
+        GraphUtils.plotLegendItems(plot, categoriesStrings, dataset.getRowCount());
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    public static void drawRevenueGraph(double[] data) {
+
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset( );
+
+
+        for(int i=0; i < data.length; i++){
+            Double revenue = data[i];
+            dataset.addValue(revenue, "revenue", "" + i);
+        }
+
+        JFreeChart chart = ChartFactory.createLineChart(
+                "Ride Hail Revenue",
+                "iteration","revenue",
+                dataset,
+                PlotOrientation.VERTICAL,
+                false,true,false);
+
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "revenue_graph.png");
+        try {
+            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public static Double getRoundedNumber(Double number){
         return Math.round(number * 100.0) / 100.0;
@@ -191,71 +236,19 @@ public class GraphSurgePricing {
         }
     }
 
-    public static void drawGraph(){
-
-        double[][] dataset = buildDataset();
-        writePriceSurgeCsv(dataset);
-        CategoryDataset ds = DatasetUtilities.createCategoryDataset("Categories ", "", dataset);
-
-        try {
-            createSurgePricingGraph(ds, iterationNumber);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
 
-    }
 
-    private static void createSurgePricingGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
-        boolean legend = true;
-        String fileName = "surge_pricing.png";
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisLabel,yAxisLabel,fileName,legend);
-        CategoryPlot plot = chart.getCategoryPlot();
-        //List<String> modesChosenList = new ArrayList<>();
-        //modesChosenList.addAll(modesChosen);
-        //Collections.sort(modesChosenList);
-
-        List<Double> categoriesList = new ArrayList<>();
-        categoriesList.addAll(transformedBins.keySet());
-        Collections.sort(categoriesList);
-
-        List<String> categoriesStrings = new ArrayList<>();
-        for(Double price : categoriesList){
-            //double _legend = Math.round(c * 100.0) / 100.0;
-            categoriesStrings.add(price + "");
-        }
+    ///////////////////////////////////////////////////////////
+    /*
+    Task 1 -
+        We have surgepricebins collection.
+        Each collection has bins of size binsize.
+        Each bin has a price.
+        We create a collection transformedbins
+        In transformedbins, the key is the price, the value is a map [bin, frequency]
+        This shows that for this price we have this frequency for this particular bin.
 
 
-        GraphUtils.plotLegendItems(plot, categoriesStrings, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
-        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
-    }
-
-    public static void processBin(int binNumber, SurgePriceBin surgePriceBin){
-
-        double revenue = surgePriceBin.currentIterationRevenue();
-        revenueDataSet[binNumber] += revenue;
-
-
-        Double price = surgePriceBin.currentIterationSurgePriceLevel();
-
-        Double roundedPrice = getRoundedNumber(price);
-
-        Map<Integer, Integer> data = transformedBins.get(roundedPrice);
-
-        if(data == null){
-            data = new HashMap<>();
-            data.put(binNumber, 1);
-        }else{
-
-            Integer occurrence = data.get(binNumber);
-            if(occurrence == null){
-                data.put(binNumber, 1);
-            }else{
-                data.put(binNumber, occurrence + 1);
-            }
-        }
-
-        transformedBins.put(roundedPrice, data);
-    }
+     */
 }
