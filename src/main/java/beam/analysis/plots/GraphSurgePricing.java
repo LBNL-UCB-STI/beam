@@ -13,8 +13,7 @@ import org.jfree.data.general.DatasetUtilities;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
 public class GraphSurgePricing {
@@ -391,10 +390,11 @@ public class GraphSurgePricing {
     public static void writePriceSurgeCsv(double[][] dataset){
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "surge_pricing.csv");
-        CSVWriter writer = new CSVWriter(csvFileName);
+
 
         try {
-            BufferedWriter out = writer.getBufferedWriter();
+            BufferedWriter out = new BufferedWriter(new FileWriter( new File(csvFileName)));
+            //BufferedWriter out = writer.getBufferedWriter();
             out.write("Categories");
             out.write(",");
 
@@ -456,7 +456,7 @@ public class GraphSurgePricing {
         CSVWriter writer = new CSVWriter(csvFileName);
 
         try {
-            BufferedWriter out = writer.getBufferedWriter();
+            BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)));
 
             out.write("TazId");
             out.write(",");
@@ -510,6 +510,7 @@ public class GraphSurgePricing {
 
             out.flush();
             out.close();
+
 
 
         } catch (IOException e) {
