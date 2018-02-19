@@ -42,7 +42,7 @@ public class GraphUtils {
         for (int i = 0; i < dataSetRowCount; i++) {
             Color color = getBarAndLegendColor(i);
             legendItems.add(new LegendItem(legendItemName.get(i), color));
-            plot.getRenderer().setSeriesPaint(i, colors.get(i));
+            plot.getRenderer().setSeriesPaint(i, color);
         }
         plot.setFixedLegendItems(legendItems);
     }

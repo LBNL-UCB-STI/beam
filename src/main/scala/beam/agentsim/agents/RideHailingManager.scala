@@ -132,8 +132,14 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
-      GraphSurgePricing.createGraph(surgePricingManager)
-      GraphRideHailingRevenue.createGraph(surgePricingManager)
+      try {
+        GraphSurgePricing.createGraph(surgePricingManager)
+        GraphRideHailingRevenue.createGraph(surgePricingManager)
+      } catch {
+        // print out exceptions, otherwise hidden, leads to difficult debugging
+        case e: Exception => e.printStackTrace()
+      }
+
       surgePricingManager.updateRevenueStats()
       surgePricingManager.updateSurgePriceLevels()
       sender() ! ()  // return empty object to blocking caller
