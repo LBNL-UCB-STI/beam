@@ -41,9 +41,12 @@ public class GraphSurgePricing {
 
     private static Set<String> tazIds = new TreeSet<>();
 
+    private static Map<String, double[][]> tazDataset = new TreeMap<>();
+
     public static void createGraph(RideHailSurgePricingManager surgePricingManager){
 
         //iterationNumber = itNo;
+        tazDataset.clear();
         transformedBins.clear();
         max = null;
         min = null;
@@ -68,6 +71,8 @@ public class GraphSurgePricing {
         drawGraph(dataset, categoriesKeys);
 
         drawRevenueGraph(revenueDataSet);
+
+        writeTazCsv(tazDataset);
 
         iterationNumber++;
     }
@@ -123,13 +128,29 @@ public class GraphSurgePricing {
 
             String key = mapIter.next().toString();
             tazIds.add(key);
+
+
+
             ArrayBuffer<SurgePriceBin> bins  = surgePriceBinsMap.get(key).get();
             Iterator iter = bins.iterator();
 
+            double[][] _tazDataset = new double[2][numberOfTimeBins];
+
             for (int i = 0; iter.hasNext(); i++) {
                 SurgePriceBin bin = (SurgePriceBin) iter.next();
+
+                double price = bin.currentIterationSurgePriceLevel();
+                double revenue = bin.currentIterationRevenue();
+
+                _tazDataset[0][i] = price;
+                _tazDataset[1][i] = revenue;
+
+
+
                 processBin(i, bin);
             }
+
+            tazDataset.put(key, _tazDataset);
         }
     }
 
@@ -376,10 +397,7 @@ public class GraphSurgePricing {
             BufferedWriter out = writer.getBufferedWriter();
             out.write("Categories");
             out.write(",");
-            out.write("DataType");
-            out.write(",");
-            out.write("TazId");
-            out.write(",");
+
 
 
             for(int i=0; i<dataset[0].length; i++){
@@ -409,10 +427,10 @@ public class GraphSurgePricing {
                 }
                 out.write(strFormat);
                 out.write(",");
-                out.write("price");
+                /*out.write("price");
                 out.write(",");
                 out.write(tazIds.toArray()[j].toString());
-                out.write(",");
+                out.write(",");*/
 
                 for(int i=0; i < dataset[j].length; i++){
                     out.write(dataset[j][i] + "");
@@ -420,6 +438,75 @@ public class GraphSurgePricing {
                 }
                 out.newLine();
             }
+
+
+
+            out.flush();
+            out.close();
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void writeTazCsv(Map<String, double[][]> dataset){
+
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "surge_price_level_bins_with_taz_info.csv");
+        CSVWriter writer = new CSVWriter(csvFileName);
+
+        try {
+            BufferedWriter out = writer.getBufferedWriter();
+
+            out.write("TazId");
+            out.write(",");
+
+            out.write("DataType");
+            out.write(",");
+
+
+            for(int i = 0; i < numberOfTimeBins; i++){
+                out.write("bin_" + i);
+                out.write(",");
+            }
+            out.newLine();
+
+
+
+            for(String tazId : dataset.keySet()){
+                double[][] data = dataset.get(tazId);
+
+                double[] prices = data[0];
+                double[] revenues = data[1];
+
+                out.write(tazId);
+                out.write(",");
+
+                out.write("pricelevel");
+                out.write(",");
+
+                for(int i = 0; i< numberOfTimeBins; i++){
+                    out.write(prices[i] + "");
+                    out.write(",");
+                }
+                out.newLine();
+
+                out.write(tazId);
+                out.write(",");
+
+                out.write("revenue");
+                out.write(",");
+
+                for(int i = 0; i< numberOfTimeBins; i++){
+                    out.write(revenues[i] + "");
+                    out.write(",");
+                }
+                out.newLine();
+
+
+            }
+
+
 
             out.flush();
             out.close();
