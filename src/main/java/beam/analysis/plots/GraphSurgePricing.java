@@ -2,7 +2,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.RideHailSurgePricingManager;
 import beam.agentsim.agents.SurgePriceBin;
-import beam.analysis.via.CSVWriter;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -13,7 +12,10 @@ import org.jfree.data.general.DatasetUtilities;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class GraphSurgePricing {
@@ -22,25 +24,32 @@ public class GraphSurgePricing {
     // The inner map consists of category index to number of occurrence for each category
     // The categories are defined as buckets for occurrences of prices form 0-1, 1-2
 
-    public static Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
-    public static int binSize;
-    public static int numberOfTimeBins;
-    static int iterationNumber = 0;
-    static String graphTitle = "Surge Price Level";
-    static String xAxisLabel = "hour";
-    static String yAxisLabel = "price level";
+    private static Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
+    private static int binSize;
+    private static int numberOfTimeBins;
+    private static int iterationNumber = 0;
+    private static String graphTitle = "Surge Price Level";
+    private static String xAxisLabel = "hour";
+    private static String yAxisLabel = "price level";
+    private static int noOfCategories = 6;
+    private static Double categorySize = null;
+    private  static Double max = null;
+    private  static Double min = null;
 
-    public static Double max = null;
-    public static Double min = null;
-
-    public static List<Double> categoryKeys;
+    private  static List<Double> categoryKeys;
 
 
-    public static double[] revenueDataSet;
+    private static double[] revenueDataSet;
 
     private static Set<String> tazIds = new TreeSet<>();
 
     private static Map<String, double[][]> tazDataset = new TreeMap<>();
+
+    private static String graphImageFile = "";
+    private static String surgePricingCsvFileName = "";
+    private static String surgePricingAndRevenueWithTaz = "";
+    private static String revenueGraphImageFile =  "";
+
 
     public static void createGraph(RideHailSurgePricingManager surgePricingManager){
 
@@ -50,6 +59,15 @@ public class GraphSurgePricing {
         max = null;
         min = null;
         finalCategories.clear();
+        tazIds.clear();
+
+
+        final int iNo = iterationNumber;
+        graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "surge_price.png");
+        surgePricingCsvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "surge_pricing.csv");
+        surgePricingAndRevenueWithTaz = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "surge_price_level_bins_with_taz_info.csv");
+        revenueGraphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "revenue_graph.png");
+
 
         binSize = surgePricingManager.timeBinSize();
         numberOfTimeBins = surgePricingManager.numberOfTimeBins();
@@ -184,8 +202,7 @@ public class GraphSurgePricing {
         transformedBins.put(roundedPrice, data);
     }
 
-    private static int noOfCategories = 6;
-    private static Double categorySize = null;
+
 
     public static void calculateCateogorySize(){
         categorySize = (max - min)/noOfCategories;
@@ -351,7 +368,8 @@ public class GraphSurgePricing {
 
 
             GraphUtils.plotLegendItems(plot, categoriesKeys, dataset.getRowCount());
-            String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+
+
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
             e.printStackTrace();
@@ -374,9 +392,8 @@ public class GraphSurgePricing {
                 PlotOrientation.VERTICAL,
                 false,true,false);
 
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "revenue_graph.png");
         try {
-            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+            GraphUtils.saveJFreeChartAsPNG(chart, revenueGraphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -389,11 +406,10 @@ public class GraphSurgePricing {
 
     public static void writePriceSurgeCsv(double[][] dataset){
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "surge_pricing.csv");
 
 
         try {
-            BufferedWriter out = new BufferedWriter(new FileWriter( new File(csvFileName)));
+            BufferedWriter out = new BufferedWriter(new FileWriter( new File(surgePricingCsvFileName)));
             //BufferedWriter out = writer.getBufferedWriter();
             out.write("Categories");
             out.write(",");
@@ -452,11 +468,10 @@ public class GraphSurgePricing {
 
     public static void writeTazCsv(Map<String, double[][]> dataset){
 
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "surge_price_level_bins_with_taz_info.csv");
-        CSVWriter writer = new CSVWriter(csvFileName);
+
 
         try {
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)));
+            BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingAndRevenueWithTaz)));
 
             out.write("TazId");
             out.write(",");
