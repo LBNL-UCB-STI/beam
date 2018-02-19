@@ -39,6 +39,8 @@ public class GraphSurgePricing {
 
     public static double[] revenueDataSet;
 
+    private static Set<String> tazIds = new TreeSet<>();
+
     public static void createGraph(RideHailSurgePricingManager surgePricingManager){
 
         //iterationNumber = itNo;
@@ -120,6 +122,7 @@ public class GraphSurgePricing {
         while(mapIter.hasNext()) {
 
             String key = mapIter.next().toString();
+            tazIds.add(key);
             ArrayBuffer<SurgePriceBin> bins  = surgePriceBinsMap.get(key).get();
             Iterator iter = bins.iterator();
 
@@ -373,6 +376,11 @@ public class GraphSurgePricing {
             BufferedWriter out = writer.getBufferedWriter();
             out.write("Categories");
             out.write(",");
+            out.write("DataType");
+            out.write(",");
+            out.write("TazId");
+            out.write(",");
+
 
             for(int i=0; i<dataset[0].length; i++){
                 out.write("bin_" + i);
@@ -381,16 +389,29 @@ public class GraphSurgePricing {
             out.newLine();
 
 
-            List<Double> categoriesList = new ArrayList<>();
-            categoriesList.addAll(transformedBins.keySet());
+            List<String> categoriesList = new ArrayList<>();
+            categoriesList.addAll(getCategoriesKeys());
             Collections.sort(categoriesList);
+            double diff = min;
+            if(categoriesList.size() > 1)
+                 diff = getRoundedNumber(Math.abs(min - Double.parseDouble(categoriesList.get(1))));
 
-            List<String> categoriesStrings = new ArrayList<>();
-
-            int j = 0;
-            for(Double c : categoriesList){
-                double _legend = Math.round(c * 100.0) / 100.0;
-                out.write(_legend + "");
+            for(int j= 0;j<categoriesList.size();j++){
+                double category = Double.parseDouble(categoriesList.get(j));
+                String strFormat = "";
+                if(diff == category){
+                    strFormat = category+"-"+diff;
+                }else if(j+1 == categoriesList.size()){
+                    strFormat = category+"-"+(category+diff);
+                }
+                else{
+                    strFormat = category+"-"+categoriesList.get(j+1);
+                }
+                out.write(strFormat);
+                out.write(",");
+                out.write("price");
+                out.write(",");
+                out.write(tazIds.toArray()[j].toString());
                 out.write(",");
 
                 for(int i=0; i < dataset[j].length; i++){
@@ -398,8 +419,6 @@ public class GraphSurgePricing {
                     out.write(",");
                 }
                 out.newLine();
-                j++;
-
             }
 
             out.flush();
