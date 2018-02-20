@@ -396,7 +396,7 @@ public class GraphSurgePricing {
 
         JFreeChart chart = ChartFactory.createLineChart(
                 "Ride Hail Revenue",
-                "iteration","revenue",
+                "iteration","revenue($)",
                 dataset,
                 PlotOrientation.VERTICAL,
                 false,true,false);

@@ -63,10 +63,10 @@ public class GraphRideHailingRevenue {
 
 
         try {
-            String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("rideHailingRevenue.csv");
+            String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("rideHailRevenue.csv");
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
 
-            out.write("iteration,revenue");
+            out.write("iteration #,revenue");
             out.newLine();
 
             Iterator iterator = data.iterator();
