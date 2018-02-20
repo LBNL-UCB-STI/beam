@@ -101,7 +101,7 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
           }
         }
         surgePriceBin.copy(previousIterationSurgePriceLevel = updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = Math.max(updatedSurgeLevel,minimumSurgeLevel))
-      }
+    }
     }
     updatePreviousIterationRevenuesAndResetCurrent
   }

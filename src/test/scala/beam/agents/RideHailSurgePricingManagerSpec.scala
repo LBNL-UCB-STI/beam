@@ -141,7 +141,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 
       val tazArray = treeMap.tazQuadTree.values.asScala.toSeq
 
-      val randomTaz = tazArray(Random.nextInt( tazArray.size))
+      val randomTaz = tazArray(2)
       val timeBinSize = beamConfig.beam.agentsim.agents.rideHailing.surgePricing.timeBinSize
       val hourRandom = 1
       val hourInSeconds = hourRandom * timeBinSize
