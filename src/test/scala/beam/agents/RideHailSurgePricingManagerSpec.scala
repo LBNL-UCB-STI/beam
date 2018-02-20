@@ -154,10 +154,9 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 
     "correctly add ride cost" in {
       val rhspm = new RideHailSurgePricingManager(beamConfig, treeMap)
+      val tazArray = treeMap.tazQuadTree.values.asScala.toList
 
-      val tazArray = treeMap.tazQuadTree.values.asScala.toSeq
-
-      val randomTaz = tazArray(Random.nextInt( tazArray.size))
+      val randomTaz = tazArray(2)
       val timeBinSize = beamConfig.beam.agentsim.agents.rideHailing.surgePricing.timeBinSize
       val endTime = Math.ceil(Time.parseTime(beamConfig.matsim.modules.qsim.endTime)  / timeBinSize).toInt
       val hourRandom = Random.nextInt(endTime)
@@ -169,7 +168,6 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 
       val arrayForTaz = rhspm.surgePriceBins.get(randomTaz.tazId.toString).get
       val surgePriceBin = arrayForTaz(hourRandom)
-
       surgePriceBin.currentIterationRevenue should equal(expectedValueCurrentIterationRevenue)
 
     }
