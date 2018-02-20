@@ -18,7 +18,9 @@ class UtilityBasedModeChoice @Inject()(config: Config, beamServices: BeamService
   private val log = Logger.getLogger(classOf[UtilityBasedModeChoice])
 
   val householdMembershipAllocator = HouseholdMembershipAllocator(scenario.getHouseholds,scenario.getPopulation)
-  val chainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(scenario.getVehicles,householdMembershipAllocator)
+  val chainBasedModes = Set[String]("car")
+  val chainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(scenario.getVehicles,
+    householdMembershipAllocator, chainBasedModes)
 
   if (!config.planCalcScore().isMemorizingExperiencedPlans) {
     throw new RuntimeException(s"Must memorize experienced plans for ${this.getClass.getSimpleName} to work.")
