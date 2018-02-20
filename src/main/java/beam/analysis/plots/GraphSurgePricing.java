@@ -29,8 +29,8 @@ public class GraphSurgePricing {
     private  Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
     private  int binSize;
     private  int numberOfTimeBins;
-    private  String graphTitle = "Surge Price Level";
-    private  String xAxisLabel = "hour";
+    private  String graphTitle = "Ride Hail Surge Price Level";
+    private  String xAxisLabel = "timebin";
     private  String yAxisLabel = "price level";
     private  int noOfCategories = 6;
     private  Double categorySize = null;
@@ -50,6 +50,7 @@ public class GraphSurgePricing {
     private  String surgePricingCsvFileName = "";
     private  String surgePricingAndRevenueWithTaz = "";
     private  String revenueGraphImageFile =  "";
+    private  String revenueCsvFileName =  "";
 
 
     public GraphSurgePricing(){
@@ -68,10 +69,11 @@ public class GraphSurgePricing {
 
 
         final int iNo = iterationNumber;
-        graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "surge_price.png");
-        surgePricingCsvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "surge_pricing.csv");
-        surgePricingAndRevenueWithTaz = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "surge_price_level_bins_with_taz_info.csv");
-        revenueGraphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "revenue_graph.png");
+        graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
+        surgePricingCsvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
+        surgePricingAndRevenueWithTaz = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
+        revenueGraphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailRevenue.png");
+        revenueCsvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailRevenue.csv");
 
 
         binSize = surgePricingManager.timeBinSize();
@@ -95,6 +97,8 @@ public class GraphSurgePricing {
         drawRevenueGraph(revenueDataSet);
 
         writeTazCsv(tazDataset);
+
+        writeRevenueCsv(revenueDataSet);
 
 
     }
@@ -525,6 +529,41 @@ public class GraphSurgePricing {
 
 
             }
+
+
+
+            out.flush();
+            out.close();
+
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public  void writeRevenueCsv(double[] revenueDataSet){
+
+
+
+        try {
+            BufferedWriter out = new BufferedWriter(new FileWriter(new File(revenueCsvFileName)));
+
+
+
+            for(int i = 0; i < numberOfTimeBins; i++){
+                out.write("bin_" + i);
+                out.write(",");
+            }
+            out.newLine();
+
+
+
+            for(double revenue : revenueDataSet){
+                out.write( revenue + "");
+                out.write(",");
+            }
+            out.newLine();
 
 
 

@@ -8,6 +8,9 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 
 public class GraphRideHailingRevenue {
@@ -22,18 +25,20 @@ public class GraphRideHailingRevenue {
 
         DefaultCategoryDataset dataSet = createDataset(data);
         drawRideHailingRevenueGraph(dataSet);
+
+        writeRideHailingRevenueCsv(data);
     }
 
     public void drawRideHailingRevenueGraph(DefaultCategoryDataset dataSet) {
 
         JFreeChart chart = ChartFactory.createLineChart(
-                "Revenue/Iteration",
-                "iteration","revenue",
+                "Ride Hail Revenue",
+                "iteration","revenue($)",
                 dataSet,
                 PlotOrientation.VERTICAL,
-                true,true,false);
+                false,true,false);
 
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("revenuegraph.png");
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("rideHailRevenue.png");
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
@@ -52,5 +57,32 @@ public class GraphRideHailingRevenue {
         }
 
         return dataset;
+    }
+
+    private void writeRideHailingRevenueCsv(ArrayBuffer<Object> data) {
+
+
+        try {
+            String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("rideHailingRevenue.csv");
+            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
+
+            out.write("iteration,revenue");
+            out.newLine();
+
+            Iterator iterator = data.iterator();
+            for(int i=0; iterator.hasNext(); i++){
+                Double revenue = (Double)iterator.next();
+                out.write(i + "," + revenue);
+                out.newLine();
+            }
+
+            out.flush();
+            out.close();
+
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
