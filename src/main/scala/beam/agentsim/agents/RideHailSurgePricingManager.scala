@@ -62,6 +62,8 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
       (v.tazId.toString, array)
     }.toMap
 
+  val rand = new Random
+
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
   def updateSurgePriceLevels(): Unit = {
@@ -69,7 +71,7 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
       // TODO: can we refactor the following two blocks of code to reduce duplication?
 
       // TODO: seed following random to some config seed?
-      val rand = Random
+
       updateForAllElements(surgePriceBins) { surgePriceBin =>
         val updatedSurgeLevel = if (rand.nextBoolean()) {
           surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
@@ -97,8 +99,6 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
         }
         surgePriceBin.copy(previousIterationSurgePriceLevel = updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = Math.max(updatedSurgeLevel,minimumSurgeLevel))
       }
-
-
     }
     updatePreviousIterationRevenuesAndResetCurrent
   }
@@ -167,7 +167,7 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
     sum
   }
 
-  private def getTimeBinIndex(time: Double): Int = Math.round(time / timeBinSize).toInt - 1
+  private def getTimeBinIndex(time: Double): Int = Math.round(time / timeBinSize).toInt // - 1
 
 }
 
