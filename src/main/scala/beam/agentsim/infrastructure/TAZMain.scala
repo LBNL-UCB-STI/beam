@@ -126,7 +126,7 @@ object TAZTreeMap {
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
-          var taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y))
+          val taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y))
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
       }

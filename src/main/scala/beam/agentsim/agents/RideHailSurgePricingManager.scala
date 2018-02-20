@@ -1,17 +1,27 @@
 package beam.agentsim.agents
 
 
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
-import com.google.inject.Inject
+import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.misc.Time
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.{ArrayBuffer, ArraySeq, HashMap}
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
+import scala.collection.JavaConverters._
 
-class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: TAZTreeMap) {
+object RideHailSurgePricingManager {
+  val defaultTazTreeMap: TAZTreeMap = {
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](-1, -1, 1, 1)
+    val taz = new TAZ("0", new Coord(0.0, 0.0))
+    tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+    new TAZTreeMap(tazQuadTree)
+  }
+}
+
+class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TAZTreeMap]) {
 
   var iteration = 0;
 
@@ -19,7 +29,6 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
   // TODO:
 
   // when ever turning around direction, make the step half as large after a certain iteration number, which is specified
-
 
 
   // max price define
@@ -40,10 +49,10 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
   var isFirstIteration = true
 
   // TODO: implement all cases for these surge prices properly
-  val CONTINUES_DEMAND_SUPPLY_MATCHING="CONTINUES_DEMAND_SUPPLY_MATCHING"
-  val KEEP_PRICE_LEVEL_FIXED_AT_ONE="KEEP_PRICE_LEVEL_FIXED_AT_ONE"
+  val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
+  val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-  var priceAdjustmentStrategy=rideHaillingConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy = rideHaillingConfig.surgePricing.priceAdjustmentStrategy
 
   //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
 
@@ -55,8 +64,10 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
 
   // TODO: initialize all bins (price levels and iteration revenues)!
 
+  private val tazTreeMap = mTazTreeMap.getOrElse(RideHailSurgePricingManager.defaultTazTreeMap)
+
   //Scala like code
-  val surgePriceBins = tazTreeMap.tazQuadTree
+  val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] = tazTreeMap.tazQuadTree
     .values
     .asScala
     .map { v =>
@@ -73,44 +84,42 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
   // TODO: initialize in BEAMSim and also reset there after each iteration?
   def updateSurgePriceLevels(): Unit = {
 
-    if (priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)){
-      return;
-    }
+    if (!priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) {
+      if (isFirstIteration) {
+        // TODO: can we refactor the following two blocks of code to reduce duplication?
 
-    if (isFirstIteration) {
-      // TODO: can we refactor the following two blocks of code to reduce duplication?
+        // TODO: seed following random to some config seed?
 
-      // TODO: seed following random to some config seed?
-
-      updateForAllElements(surgePriceBins) { surgePriceBin =>
-        val updatedSurgeLevel = if (rand.nextBoolean()) {
-          surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
-        } else {
-          surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
-        }
-        surgePriceBin.copy(currentIterationSurgePriceLevel = updatedSurgeLevel)
-      }
-
-      isFirstIteration = false
-
-    } else {
-      // TODO: move surge price by step in direction of positive movement
-      //   iterate over all items
-      updateForAllElements(surgePriceBins) { surgePriceBin =>
-        val updatedPreviousSurgePriceLevel = surgePriceBin.currentIterationSurgePriceLevel;
-        val updatedSurgeLevel = if (surgePriceBin.currentIterationRevenue == surgePriceBin.previousIterationRevenue) {
-          surgePriceBin.currentIterationSurgePriceLevel
-        } else {
-          if (surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue) {
-            surgePriceBin.currentIterationSurgePriceLevel + (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+        updateForAllElements(surgePriceBins) { surgePriceBin =>
+          val updatedSurgeLevel = if (rand.nextBoolean()) {
+            surgePriceBin.currentIterationSurgePriceLevel + surgeLevelAdaptionStep
           } else {
-            surgePriceBin.currentIterationSurgePriceLevel - (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+            surgePriceBin.currentIterationSurgePriceLevel - surgeLevelAdaptionStep
           }
+          surgePriceBin.copy(currentIterationSurgePriceLevel = updatedSurgeLevel)
         }
-        surgePriceBin.copy(previousIterationSurgePriceLevel = updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = Math.max(updatedSurgeLevel,minimumSurgeLevel))
+
+        isFirstIteration = false
+
+      } else {
+        // TODO: move surge price by step in direction of positive movement
+        //   iterate over all items
+        updateForAllElements(surgePriceBins) { surgePriceBin =>
+          val updatedPreviousSurgePriceLevel = surgePriceBin.currentIterationSurgePriceLevel;
+          val updatedSurgeLevel = if (surgePriceBin.currentIterationRevenue == surgePriceBin.previousIterationRevenue) {
+            surgePriceBin.currentIterationSurgePriceLevel
+          } else {
+            if (surgePriceBin.currentIterationRevenue > surgePriceBin.previousIterationRevenue) {
+              surgePriceBin.currentIterationSurgePriceLevel + (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+            } else {
+              surgePriceBin.currentIterationSurgePriceLevel - (surgePriceBin.currentIterationSurgePriceLevel - surgePriceBin.previousIterationSurgePriceLevel)
+            }
+          }
+          surgePriceBin.copy(previousIterationSurgePriceLevel = updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = Math.max(updatedSurgeLevel, minimumSurgeLevel))
+        }
+      }
+      updatePreviousIterationRevenuesAndResetCurrent
     }
-    }
-    updatePreviousIterationRevenuesAndResetCurrent
   }
 
   //Method to avoid code duplication
@@ -131,25 +140,26 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
     }
   }
 
+
   def getSurgeLevel(location: Location, time: Double): Double = {
-      val taz = tazTreeMap.getTAZ(location.getX, location.getY)
-      val timeBinIndex = getTimeBinIndex(time)
-      surgePriceBins.get(taz.tazId.toString)
-        .map(i => i(timeBinIndex).currentIterationSurgePriceLevel)
-        .getOrElse(throw new Exception("no surge level found"))
+    val taz = tazTreeMap.getTAZ(location.getX, location.getY)
+    val timeBinIndex = getTimeBinIndex(time)
+    surgePriceBins.get(taz.tazId.toString)
+      .map(i => i(timeBinIndex).currentIterationSurgePriceLevel)
+      .getOrElse(throw new Exception("no surge level found"))
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 
-      val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
-      val timeBinIndex = getTimeBinIndex(time)
+    val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
+    val timeBinIndex = getTimeBinIndex(time)
 
-      surgePriceBins.get(taz.tazId.toString).foreach { i =>
-        val surgePriceBin = i.apply(timeBinIndex)
-        val updatedCurrentIterRevenue = surgePriceBin.currentIterationRevenue + cost
-        val updatedBin = surgePriceBin.copy(currentIterationRevenue = updatedCurrentIterRevenue)
-        i.update(timeBinIndex, updatedBin)
-      }
+    surgePriceBins.get(taz.tazId.toString).foreach { i =>
+      val surgePriceBin = i.apply(timeBinIndex)
+      val updatedCurrentIterRevenue = surgePriceBin.currentIterationRevenue + cost
+      val updatedBin = surgePriceBin.copy(currentIterationRevenue = updatedCurrentIterRevenue)
+      i.update(timeBinIndex, updatedBin)
+    }
 
   }
 
@@ -185,5 +195,5 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
 }
 
 
-// TO
+// TODO put in companion object
 case class SurgePriceBin(previousIterationRevenue: Double, currentIterationRevenue: Double, previousIterationSurgePriceLevel: Double, currentIterationSurgePriceLevel: Double)

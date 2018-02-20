@@ -9,7 +9,7 @@ import org.matsim.core.utils.misc.Time
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
-import scala.util.Random
+import scala.util.{Random, Try}
 import org.scalatest.mockito.MockitoSugar
 import org.mockito.Mockito._
 
@@ -20,19 +20,34 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(testConfigFileName)
 
   val beamConfig: BeamConfig = BeamConfig(config)
-  val treeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
+  val treeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+
+  def getTazTreeMap(file: String): TAZTreeMap = {
+    Try(TAZTreeMap.fromCsv(file)).getOrElse{
+      RideHailSurgePricingManager.defaultTazTreeMap
+    }
+  }
 
   "RideHailSurgePricingManager" must {
     "be correctly initialized" in {
-      val rhspm = new RideHailSurgePricingManager(beamConfig, treeMap)
+      val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(testConfigFileName)
+        .withValue("beam.agentsim.agents.rideHailing.surgePricing.priceAdjustmentStrategy", ConfigValueFactory.fromAnyRef("CONTINUES_DEMAND_SUPPLY_MATCHING"))
+      val beamConfig: BeamConfig = BeamConfig(config)
+      val treeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+
+      val rhspm = new RideHailSurgePricingManager(beamConfig, Some(treeMap))
       rhspm.surgePriceBins should have size treeMap.tazQuadTree.size()
       val expectedResult = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
       rhspm.surgePriceBins.values.map( f => f.map(_ shouldBe(expectedResult)))
     }
 
     "correctly update SurgePriceLevels" in {
-      //First iteration random returns true
+      val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(testConfigFileName)
+        .withValue("beam.agentsim.agents.rideHailing.surgePricing.priceAdjustmentStrategy", ConfigValueFactory.fromAnyRef("CONTINUES_DEMAND_SUPPLY_MATCHING"))
+      val beamConfig: BeamConfig = BeamConfig(config)
+      val treeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
+      //First iteration random returns true
       val mockRandom = mock[Random]
       when(mockRandom.nextBoolean) thenReturn (true)
 
@@ -40,7 +55,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 //        override def nextBoolean(): Boolean = true
 //      }
 
-      var rhspm = new RideHailSurgePricingManager(beamConfig, treeMap) {
+      var rhspm = new RideHailSurgePricingManager(beamConfig, Some(treeMap)) {
         override val rand = mockRandom
       }
 
@@ -74,7 +89,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 //      random = new Random(){
 //        override def nextBoolean(): Boolean = false
 //      }
-      rhspm = new RideHailSurgePricingManager(beamConfig, treeMap) {
+      rhspm = new RideHailSurgePricingManager(beamConfig, Some(treeMap)) {
         override val rand = mockRandom
       }
 
@@ -105,7 +120,11 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
     }
 
     "correctly update previous iteration revenues and resetting current" in {
-      val rhspm = new RideHailSurgePricingManager(beamConfig, treeMap)
+      val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(testConfigFileName)
+        .withValue("beam.agentsim.agents.rideHailing.surgePricing.priceAdjustmentStrategy", ConfigValueFactory.fromAnyRef("CONTINUES_DEMAND_SUPPLY_MATCHING"))
+      val beamConfig: BeamConfig = BeamConfig(config)
+      val treeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, Some(treeMap))
       val expectedResultCurrentIterationRevenue = 0
       val initialValueCurrent = rhspm.surgePriceBins.map(f => (f._1, f._2.map(s => s.currentIterationRevenue)))
 
@@ -121,9 +140,9 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
       val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(testConfigFileName)
         .withValue("beam.agentsim.agents.rideHailing.surgePricing.priceAdjustmentStrategy", ConfigValueFactory.fromAnyRef("KEEP_PRICE_LEVEL_FIXED_AT_ONE"))
       val beamConfig: BeamConfig = BeamConfig(config)
-      val treeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
+      val treeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-      val rhspm = new RideHailSurgePricingManager(beamConfig, treeMap)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, Some(treeMap))
 
       val tazArray = treeMap.tazQuadTree.values.asScala.toSeq
       val randomTaz = tazArray(Random.nextInt( tazArray.size))
@@ -135,9 +154,9 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
       val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(testConfigFileName)
         .withValue("beam.agentsim.agents.rideHailing.surgePricing.priceAdjustmentStrategy", ConfigValueFactory.fromAnyRef("CONTINUES_DEMAND_SUPPLY_MATCHING"))
       val beamConfig: BeamConfig = BeamConfig(config)
-      val treeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
+      val treeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-      val rhspm = new RideHailSurgePricingManager(beamConfig, treeMap)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, Some(treeMap))
 
       val tazArray = treeMap.tazQuadTree.values.asScala.toSeq
 
@@ -153,7 +172,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
     }
 
     "correctly add ride cost" in {
-      val rhspm = new RideHailSurgePricingManager(beamConfig, treeMap)
+      val rhspm = new RideHailSurgePricingManager(beamConfig, Some(treeMap))
       val tazArray = treeMap.tazQuadTree.values.asScala.toList
 
       val randomTaz = tazArray(2)

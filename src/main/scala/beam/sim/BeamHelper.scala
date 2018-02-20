@@ -31,6 +31,7 @@ import org.matsim.utils.objectattributes.AttributeConverter
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+import scala.util.Try
 
 trait BeamHelper {
 
@@ -56,12 +57,14 @@ trait BeamHelper {
       override def install(): Unit = {
         val beamConfig = BeamConfig(typesafeConfig)
 
-        val tazTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
-        bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
+        val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
+        mTazTreeMap.foreach{ tazTreeMap =>
+          bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
+        }
 
         bind(classOf[BeamConfig]).toInstance(beamConfig)
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, tazTreeMap))
+        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
 
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
