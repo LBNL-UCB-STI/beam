@@ -12,7 +12,11 @@ import java.io.IOException;
 
 public class GraphRideHailingRevenue {
 
-    public static void createGraph(RideHailSurgePricingManager surgePricingManager){
+    public GraphRideHailingRevenue(){
+
+    }
+
+    public void createGraph(RideHailSurgePricingManager surgePricingManager){
 
         ArrayBuffer<Object> data = surgePricingManager.rideHailingRevenue();
 
@@ -20,7 +24,7 @@ public class GraphRideHailingRevenue {
         drawRideHailingRevenueGraph(dataSet);
     }
 
-    public static void drawRideHailingRevenueGraph(DefaultCategoryDataset dataSet) {
+    public void drawRideHailingRevenueGraph(DefaultCategoryDataset dataSet) {
 
         JFreeChart chart = ChartFactory.createLineChart(
                 "Revenue/Iteration",
@@ -37,7 +41,7 @@ public class GraphRideHailingRevenue {
         }
     }
 
-    private static DefaultCategoryDataset createDataset(ArrayBuffer<Object> data) {
+    private DefaultCategoryDataset createDataset(ArrayBuffer<Object> data) {
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset( );
 

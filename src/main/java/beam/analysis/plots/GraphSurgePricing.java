@@ -24,34 +24,39 @@ public class GraphSurgePricing {
     // The inner map consists of category index to number of occurrence for each category
     // The categories are defined as buckets for occurrences of prices form 0-1, 1-2
 
-    private static Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
-    private static int binSize;
-    private static int numberOfTimeBins;
-    private static int iterationNumber = 0;
-    private static String graphTitle = "Surge Price Level";
-    private static String xAxisLabel = "hour";
-    private static String yAxisLabel = "price level";
-    private static int noOfCategories = 6;
-    private static Double categorySize = null;
-    private  static Double max = null;
-    private  static Double min = null;
+    private  static int iterationNumber = 0;
 
-    private  static List<Double> categoryKeys;
+    private  Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
+    private  int binSize;
+    private  int numberOfTimeBins;
+    private  String graphTitle = "Surge Price Level";
+    private  String xAxisLabel = "hour";
+    private  String yAxisLabel = "price level";
+    private  int noOfCategories = 6;
+    private  Double categorySize = null;
+    private   Double max = null;
+    private   Double min = null;
 
-
-    private static double[] revenueDataSet;
-
-    private static Set<String> tazIds = new TreeSet<>();
-
-    private static Map<String, double[][]> tazDataset = new TreeMap<>();
-
-    private static String graphImageFile = "";
-    private static String surgePricingCsvFileName = "";
-    private static String surgePricingAndRevenueWithTaz = "";
-    private static String revenueGraphImageFile =  "";
+    private   List<Double> categoryKeys;
 
 
-    public static void createGraph(RideHailSurgePricingManager surgePricingManager){
+    private  double[] revenueDataSet;
+
+    private  Set<String> tazIds = new TreeSet<>();
+
+    private  Map<String, double[][]> tazDataset = new TreeMap<>();
+
+    private  String graphImageFile = "";
+    private  String surgePricingCsvFileName = "";
+    private  String surgePricingAndRevenueWithTaz = "";
+    private  String revenueGraphImageFile =  "";
+
+
+    public GraphSurgePricing(){
+
+    }
+
+    public  void createGraph(RideHailSurgePricingManager surgePricingManager){
 
         //iterationNumber = itNo;
         tazDataset.clear();
@@ -94,7 +99,7 @@ public class GraphSurgePricing {
         iterationNumber++;
     }
 
-    public static List<String> getCategoriesKeys(){
+    public  List<String> getCategoriesKeys(){
 
         if(min == max) {
             List<Double> categoriesList = new ArrayList<>();
@@ -117,7 +122,7 @@ public class GraphSurgePricing {
         }
     }
 
-    public static double[][] getDataset(){
+    public  double[][] getDataset(){
 
         if(max != min) {
 
@@ -136,7 +141,7 @@ public class GraphSurgePricing {
         }
     }
 
-    public static void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager){
+    public  void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager){
 
         scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
         Iterator mapIter = surgePriceBinsMap.keysIterator();
@@ -171,7 +176,7 @@ public class GraphSurgePricing {
         }
     }
 
-    public static void processBin(int binNumber, SurgePriceBin surgePriceBin){
+    public  void processBin(int binNumber, SurgePriceBin surgePriceBin){
 
         double revenue = surgePriceBin.currentIterationRevenue();
         revenueDataSet[binNumber] += revenue;
@@ -204,11 +209,11 @@ public class GraphSurgePricing {
 
 
 
-    public static void calculateCateogorySize(){
+    public  void calculateCateogorySize(){
         categorySize = (max - min)/noOfCategories;
     }
 
-    public static void buildCategoryKeys(){
+    public  void buildCategoryKeys(){
 
         List<Double> _categoryKeys = new ArrayList<>();
 
@@ -222,7 +227,7 @@ public class GraphSurgePricing {
         categoryKeys = _categoryKeys;
     }
 
-    public static int getPriceCategory(double price){
+    public  int getPriceCategory(double price){
 
         int catIdxFound = -1;
 
@@ -243,9 +248,9 @@ public class GraphSurgePricing {
         return catIdxFound;
     }
 
-    public static Map<Integer, Map<Integer, Integer>> finalCategories = new HashMap<>();
+    public  Map<Integer, Map<Integer, Integer>> finalCategories = new HashMap<>();
 
-    public static void processTransformedCategories(){
+    public  void processTransformedCategories(){
 
         // determine the category based on key,
         // copy data from transformedBins to the final categories collection
@@ -290,7 +295,7 @@ public class GraphSurgePricing {
         System.out.println("Done with final categories");
     }
 
-    private static double[][] buildDatasetFromFinalCategories(Map<Integer, Map<Integer, Integer>> finalCategories) {
+    private  double[][] buildDatasetFromFinalCategories(Map<Integer, Map<Integer, Integer>> finalCategories) {
 
         double[][] dataset = new double[noOfCategories][numberOfTimeBins];
 
@@ -325,7 +330,7 @@ public class GraphSurgePricing {
         return dataset;
     }
 
-    private static double[][] buildDatasetFromTransformedCategories(Map<Double, Map<Integer, Integer>> transformedCategories) {
+    private  double[][] buildDatasetFromTransformedCategories(Map<Double, Map<Integer, Integer>> transformedCategories) {
 
         double[][] dataset = new double[transformedCategories.keySet().size()][numberOfTimeBins];
 
@@ -352,7 +357,7 @@ public class GraphSurgePricing {
         return dataset;
     }
 
-    public static void drawGraph(double[][] _dataset, List<String> categoriesKeys){
+    public  void drawGraph(double[][] _dataset, List<String> categoriesKeys){
 
         writePriceSurgeCsv(_dataset);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("Categories ", "", _dataset);
@@ -376,7 +381,7 @@ public class GraphSurgePricing {
         }
     }
 
-    public static void drawRevenueGraph(double[] data) {
+    public  void drawRevenueGraph(double[] data) {
 
         DefaultCategoryDataset dataset = new DefaultCategoryDataset( );
 
@@ -400,11 +405,11 @@ public class GraphSurgePricing {
     }
 
 
-    public static Double getRoundedNumber(Double number){
+    public  Double getRoundedNumber(Double number){
         return Math.round(number * 100.0) / 100.0;
     }
 
-    public static void writePriceSurgeCsv(double[][] dataset){
+    public  void writePriceSurgeCsv(double[][] dataset){
 
 
 
@@ -466,7 +471,7 @@ public class GraphSurgePricing {
         }
     }
 
-    public static void writeTazCsv(Map<String, double[][]> dataset){
+    public  void writeTazCsv(Map<String, double[][]> dataset){
 
 
 
