@@ -13,6 +13,9 @@ import scala.util.Random
 
 class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: TAZTreeMap) {
 
+  var iteration = 0;
+
+
   // TODO:
 
   // when ever turning around direction, make the step half as large after a certain iteration number, which is specified
@@ -169,6 +172,13 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
 
   private def getTimeBinIndex(time: Double): Int = Math.round(time / timeBinSize).toInt // - 1
 
+  def incrementIteration() = {
+    iteration += 1;
+  }
+
+  def getIterationNumber() = {
+    iteration;
+  }
 }
 
 

@@ -24,7 +24,7 @@ public class GraphSurgePricing {
     // The inner map consists of category index to number of occurrence for each category
     // The categories are defined as buckets for occurrences of prices form 0-1, 1-2
 
-    private  static int iterationNumber = 0;
+    private int iterationNumber = 0;
 
     private  Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
     private  int binSize;
@@ -57,7 +57,7 @@ public class GraphSurgePricing {
     }
 
     public  void createGraph(RideHailSurgePricingManager surgePricingManager){
-
+        iterationNumber = surgePricingManager.getIterationNumber();
         //iterationNumber = itNo;
         tazDataset.clear();
         transformedBins.clear();
@@ -96,7 +96,7 @@ public class GraphSurgePricing {
 
         writeTazCsv(tazDataset);
 
-        iterationNumber++;
+
     }
 
     public  List<String> getCategoriesKeys(){

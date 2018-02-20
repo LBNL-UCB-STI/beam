@@ -145,6 +145,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       surgePricingManager.updateRevenueStats()
       surgePricingManager.updateSurgePriceLevels()
+      surgePricingManager.incrementIteration()
+
       sender() ! ()  // return empty object to blocking caller
 
     case RegisterResource(vehId: Id[Vehicle]) =>
