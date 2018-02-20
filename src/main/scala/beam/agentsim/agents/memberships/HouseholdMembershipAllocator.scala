@@ -8,7 +8,7 @@ import org.matsim.households.{Household, Households}
 import scala.collection.JavaConverters
 
 case class HouseholdMembershipAllocator(households: Households,
-                                        implicit val population: org.matsim.api.core.v01.population.Population) {
+                                        implicit val population: org.matsim.api.core.v01.population.Population){
 
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
@@ -24,5 +24,6 @@ case class HouseholdMembershipAllocator(households: Households,
         personId -> hh)
     }).toMap
   }
+
 
 }

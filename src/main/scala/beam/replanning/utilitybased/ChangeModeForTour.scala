@@ -36,7 +36,7 @@ class ChangeModeForTour(beamServices: BeamServices,
   def findAlternativesForTour(tour: Subtour, person: Person)
   : Vector[BeamMode] = {
     val res = weightedRandom.sample(1, Array())
-    chainBasedTourVehicleAllocator.findChainBasedModesPerPerson(person.getId) ++ Vector[BeamMode](res(0))
+    chainBasedTourVehicleAllocator.allocateChainBasedModesforPerson(person.getId) ++ Vector[BeamMode](res(0))
   }
 
   def scoreTour(tour: Subtour, person: Person, modeChoiceCalculator: ModeChoiceCalculator): Map[BeamMode, Double] = {
