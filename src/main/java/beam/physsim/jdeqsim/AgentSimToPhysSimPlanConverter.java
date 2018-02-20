@@ -21,6 +21,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.network.NetworkUtils;
@@ -36,6 +37,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 
 
 /**
@@ -58,6 +60,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
 
     private BeamConfig beamConfig;
     private HashMap<String,String> previousActivity = new HashMap<>();
+    private Random rand= MatsimRandom.getRandom(); // TODO: check, if this is better then general random resp. seeded from beam config
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -175,6 +178,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler {
         }else if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
             String mode = pathTraversalEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+
+            // pt sampling
+            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
+            // pathTraversal, a busLine should be filtered out, avoiding jumping busses in visualization (but making traffic flows less precise).
+
+            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble()>beamConfig.beam().physsim().ptSampleSize()){
+                return;
+            }
+
 
             if (mode != null && (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS))) {
 
