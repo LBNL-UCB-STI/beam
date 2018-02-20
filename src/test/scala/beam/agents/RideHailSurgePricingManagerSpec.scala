@@ -168,7 +168,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
       rhspm.addRideCost(hourInSeconds, cost, randomTaz.coord)
 
       val arrayForTaz = rhspm.surgePriceBins.get(randomTaz.tazId.toString).get
-      val surgePriceBin = arrayForTaz(hourRandom -1)
+      val surgePriceBin = arrayForTaz(hourRandom)
 
       surgePriceBin.currentIterationRevenue should equal(expectedValueCurrentIterationRevenue)
 
