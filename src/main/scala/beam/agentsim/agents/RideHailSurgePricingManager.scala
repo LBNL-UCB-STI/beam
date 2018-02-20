@@ -49,6 +49,8 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
 
   var rideHailingRevenue = ArrayBuffer[Double]()
 
+  val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0);
+
   // TODO: add system iteration revenue in class (add after each iteration), so that it can be accessed during graph generation!
 
   // TODO: initialize all bins (price levels and iteration revenues)!
@@ -59,7 +61,7 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
     .asScala
     .map { v =>
       val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
-        arrayBuffer.append(SurgePriceBin(0.0, 0.0, 1.0, 1.0))
+        arrayBuffer.append(defaultBinContent)
         arrayBuffer
       }
       (v.tazId.toString, array)
@@ -70,6 +72,11 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
   def updateSurgePriceLevels(): Unit = {
+
+    if (priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)){
+      return;
+    }
+
     if (isFirstIteration) {
       // TODO: can we refactor the following two blocks of code to reduce duplication?
 
@@ -125,18 +132,14 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
   }
 
   def getSurgeLevel(location: Location, time: Double): Double = {
-    if (tazTreeMap == null || priceAdjustmentStrategy.equalsIgnoreCase(KEEP_PRICE_LEVEL_FIXED_AT_ONE)) 1.0
-    else {
       val taz = tazTreeMap.getTAZ(location.getX, location.getY)
       val timeBinIndex = getTimeBinIndex(time)
       surgePriceBins.get(taz.tazId.toString)
         .map(i => i(timeBinIndex).currentIterationSurgePriceLevel)
         .getOrElse(throw new Exception("no surge level found"))
-    }
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
-    if (tazTreeMap != null) {
 
       val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
       val timeBinIndex = getTimeBinIndex(time)
@@ -147,7 +150,7 @@ class RideHailSurgePricingManager @Inject()(beamConfig: BeamConfig, tazTreeMap: 
         val updatedBin = surgePriceBin.copy(currentIterationRevenue = updatedCurrentIterRevenue)
         i.update(timeBinIndex, updatedBin)
       }
-    }
+
   }
 
   // TODO: print revenue each iteration out
