@@ -102,7 +102,7 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
     public void handleEvent(final Event event) {
 
         // select 500 agents for sf-light demo in via
-        if (outFileName.contains("sf-light")){
+        //if (outFileName.contains("sf-light")){
             String person=event.getAttributes().get("person");
             String vehicle=event.getAttributes().get("vehicle");
 
@@ -111,9 +111,7 @@ public class EventWriterXML_viaCompatible implements EventWriter, BasicEventHand
             } else {
                 if (!addPersonToEventsFile(vehicle)) return;
             }
-
-
-        }
+        //}
 
         try {
             this.out.append("\t<event ");
