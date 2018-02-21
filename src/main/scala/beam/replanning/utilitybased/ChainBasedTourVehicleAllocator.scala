@@ -100,10 +100,8 @@ case class ChainBasedTourVehicleAllocator(vehicles: Vehicles,
 
     vehicularTours foreach { vt =>
       allocateVehicles(vt)
-
       processAllocation(vt, plan)
     }
-
   }
 
 
