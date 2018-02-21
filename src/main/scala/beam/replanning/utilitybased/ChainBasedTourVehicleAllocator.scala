@@ -20,6 +20,7 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.{JavaConverters, mutable}
 import scala.util.Try
 
@@ -49,8 +50,8 @@ case class ChainBasedTourVehicleAllocator(vehicles: Vehicles,
   /**
     * These [[Vehicle]]s cannot be assigned to other agents.
     */
-  val householdReservations: mutable.Map[Id[Household],mutable.Map[Id[Person], Id[Vehicle]]] = mutable
-    .Map[Id[Household],mutable.Map[Id[Person],Id[Vehicle]]]()
+  val householdReservations: TrieMap[Id[Household],mutable.Map[Id[Person], Id[Vehicle]]] = TrieMap[Id[Household],mutable
+  .Map[Id[Person],Id[Vehicle]]]()
 
 
   override def identifyVehiclesUsableForAgent(person: Id[Person]): util.Set[Id[Vehicle]] = {
