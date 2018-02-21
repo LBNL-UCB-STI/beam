@@ -480,6 +480,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      }
       stop
   }
 
