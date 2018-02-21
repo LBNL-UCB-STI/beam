@@ -24,7 +24,9 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
+      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig = BeamConfig(config)
+
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
