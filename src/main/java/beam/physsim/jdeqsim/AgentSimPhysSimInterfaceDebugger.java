@@ -2,8 +2,6 @@ package beam.physsim.jdeqsim;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.PathTraversalLib;
-import beam.router.r5.NetworkCoordinator;
-import beam.sim.BeamServices;
 import beam.sim.common.GeoUtils;
 import beam.utils.DebugLib;
 import com.conveyal.r5.streets.EdgeStore;
@@ -21,46 +19,42 @@ public class AgentSimPhysSimInterfaceDebugger {
     private final GeoUtils geoUtils;
     private final TransportNetwork transportNetwork;
 
-
     public AgentSimPhysSimInterfaceDebugger(GeoUtils geoUtils, TransportNetwork transportNetwork) {
         this.geoUtils = geoUtils;
         this.transportNetwork = transportNetwork;
     }
 
-
     public void handleEvent(Event event) {
         exploreAdjacentLinkConnectivity(event);
     }
 
-
-    private void exploreAdjacentLinkConnectivity(Event event){
+    private void exploreAdjacentLinkConnectivity(Event event) {
         String mode_ = event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
         String links_ = event.getAttributes().get("links");
         String vehicleType = event.getAttributes().get("vehicle_type");
         String vehicleId_ = event.getAttributes().get("vehicle_id");
         double fuel = Double.parseDouble(event.getAttributes().get("fuel"));
 
-        if (mode_.equalsIgnoreCase("subway")){
+        if (mode_.equalsIgnoreCase("subway")) {
             DebugLib.emptyFunctionForSettingBreakPoint();
         }
 
-        LinkedList<String> linkIds_ = PathTraversalLib.getLinkIdList(links_,",");
+        LinkedList<String> linkIds_ = PathTraversalLib.getLinkIdList(links_, ",");
 
         Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(event.getAttributes());
 
-
-        for (int i=0;i< linkIds_.size()-1;i++){
-            int linkIdInt=Integer.parseInt(linkIds_.get(i));
-            int nextlinkIdInt=Integer.parseInt(linkIds_.get(i+1));
+        for (int i = 0; i < linkIds_.size() - 1; i++) {
+            int linkIdInt = Integer.parseInt(linkIds_.get(i));
+            int nextlinkIdInt = Integer.parseInt(linkIds_.get(i + 1));
             EdgeStore.Edge currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt);
             ///System.out.println(linkIdInt + "-> (" + currentEdge.getFromVertex() + "," + currentEdge.getToVertex() + ")");
             EdgeStore.Edge nextEdge = transportNetwork.streetLayer.edgeStore.getCursor(nextlinkIdInt);
 
-            double distanceBetweenEdgesInMeters=geoUtils.distInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x,currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));
-            if (currentEdge.getToVertex()==nextEdge.getFromVertex()){
+            double distanceBetweenEdgesInMeters = geoUtils.distInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x, currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));
+            if (currentEdge.getToVertex() == nextEdge.getFromVertex()) {
                 DebugLib.emptyFunctionForSettingBreakPoint();
             } else {
-                if (!(vehicleType.equalsIgnoreCase("tram") || vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("rail") || vehicleType.equalsIgnoreCase("ferry") || vehicleType.equalsIgnoreCase("cable_car")) && distanceBetweenEdgesInMeters>1000){
+                if (!(vehicleType.equalsIgnoreCase("tram") || vehicleType.equalsIgnoreCase("subway") || vehicleType.equalsIgnoreCase("rail") || vehicleType.equalsIgnoreCase("ferry") || vehicleType.equalsIgnoreCase("cable_car")) && distanceBetweenEdgesInMeters > 1000) {
                     DebugLib.emptyFunctionForSettingBreakPoint();
                     System.out.print("pathTraversalLinks not connected, vehicle Id:");
                     System.out.print(vehicleId_);
@@ -85,13 +79,5 @@ public class AgentSimPhysSimInterfaceDebugger {
                 }
             }
         }
-
-
-
-
-
-
     }
-
-
 }
