@@ -13,16 +13,13 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.contrib.socnetsim.sharedvehicles.VehicleRessources
-import org.matsim.contrib.socnetsim.sharedvehicles.replanning.AllocateVehicleToPlansInGroupPlanAlgorithm
-import org.matsim.core.population.routes.NetworkRoute
+import org.matsim.core.population.routes.{LinkNetworkRouteFactory, NetworkRoute}
 import org.matsim.core.router.TripStructureUtils._
 import org.matsim.core.router.{CompositeStageActivityTypes, TripStructureUtils}
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import scala.annotation.tailrec
-import scala.collection.concurrent.TrieMap
 import scala.collection.{JavaConverters, mutable}
 import scala.util.Try
 
@@ -36,34 +33,48 @@ case class ChainBasedTourVehicleAllocator(vehicles: Vehicles,
 
   val stageActivitytypes = new CompositeStageActivityTypes()
 
+  val linkNetworkRouteFactory = new LinkNetworkRouteFactory()
+
   private val random = new Random(3004568) // Random.org
 
   // Delegation
   val householdMemberships: Map[Id[Person], Household] = householdMembershipAllocator.memberships
 
-  private val allocator = new AllocateVehicleToPlansInGroupPlanAlgorithm(random, this, JavaConverters.asJavaCollection
-  (modes), true, false)
+  private val vehicleMap = JavaConverters.mapAsScalaMap(vehicles.getVehicles)
 
   // Delegation
   implicit val population: Population = householdMembershipAllocator.population
 
+
   /**
     * These [[Vehicle]]s cannot be assigned to other agents.
     */
-  var _reservedForPerson: TrieMap[Id[Vehicle], Id[Person]] = TrieMap[Id[Vehicle], Id[Person]]()
-  //
-  var _householdAllocations: TrieMap[Id[Household], Seq[SubtourRecord]] = TrieMap[Id[Household], Seq[SubtourRecord]]()
+  val householdReservations: mutable.Map[Id[Household],mutable.Map[Id[Person], Id[Vehicle]]] = mutable
+    .Map[Id[Household],mutable.Map[Id[Person],Id[Vehicle]]]()
 
 
   override def identifyVehiclesUsableForAgent(person: Id[Person]): util.Set[Id[Vehicle]] = {
-
     JavaConverters.setAsJavaSet(filterAvailableVehiclesForAgent(person).map(veh => veh.getId).toSet)
   }
 
-  private def filterAvailableVehiclesForAgent(person:Id[Person]):Vector[Vehicle]={
-    val hh = householdMemberships(person)
+  private def filterAvailableVehiclesForAgent(person: Id[Person]): Vector[Vehicle] = {
+    val household = householdMemberships(person)
+
+    val rankAppropriateVehicles: mutable.Map[Id[Person], Id[Vehicle]] = householdReservations.getOrElseUpdate(household
+      .getId,{
+      val vehicleRes = mutable.Map[Id[Person],Id[Vehicle]]()
+      val householdVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds).toIndexedSeq
+      for (i <- JavaConverters.collectionAsScalaIterable(vehicles.getVehicles.values()).toIndexedSeq.indices.toSet ++
+        householdMemberships(person).rankedMembers.indices.toSet) {
+        if (i < householdVehicles.size & i < household.rankedMembers.size) {
+          vehicleRes += (household.rankedMembers(i).memberId->householdVehicles(i))
+        }
+      }
+      vehicleRes
+    })
+
     // only car for now
-    JavaConverters.asScalaBuffer(hh.getVehicleIds).filterNot(vehId => _reservedForPerson.contains(vehId)).map(vehId =>
+    rankAppropriateVehicles.get(person).map(vehId =>
       vehicles.getVehicles.get(vehId)).filter(vehicle => vehicle.getType.getDescription.equals
     ("Car") || vehicle.getType.getDescription.equals
     ("SUV")).toVector
@@ -71,61 +82,57 @@ case class ChainBasedTourVehicleAllocator(vehicles: Vehicles,
 
   def identifyChainBasedModesForAgent(person: Id[Person]): Vector[BeamMode] = {
     val availableVehicles = filterAvailableVehiclesForAgent(person)
-    if(availableVehicles.nonEmpty){
-      availableVehicles.map(_=>BeamMode.CAR)
-    }else{
+    if (availableVehicles.nonEmpty) {
+      availableVehicles.map(_ => BeamMode.CAR)
+    } else {
       Vector[BeamMode]()
     }
   }
 
-  def allocateChainBasedModesforHouseholdMember(memberId: Id[Person]): Unit = {
+  def allocateChainBasedModesforHouseholdMember(memberId: Id[Person], subtour: Subtour, plan: Plan): Unit = {
 
     val household = householdMemberships(memberId)
 
     val householdPlans: Seq[Plan] = household.members.flatMap(member => JavaConverters.collectionAsScalaIterable(member.getPlans))
 
-//    val groupPlan = new GroupPlans(new util.ArrayList[JointPlan](), JavaConverters.seqAsJavaList(householdPlans))
+    val vehicularTours: Option[SubtourRecord] = getVehicularToursSortedByStartTime(householdPlans).find(rec => rec.subtour == subtour)
 
-    val vehicularTours = getVehicularToursSortedByStartTime(householdPlans)
+    vehicularTours foreach { vt =>
+      allocateVehicles(vt)
 
-//    if (vehicularTours.nonEmpty) {
-//      allocator.run(groupPlan)
-//    }
-
-    allocateVehicles(vehicularTours)
-
-    processAllocation(vehicularTours)
-
-    _householdAllocations.put(household.getId,vehicularTours)
+      processAllocation(vt, plan)
+    }
 
   }
 
 
-  def processAllocation(vehicularTours: Seq[SubtourRecord]): Unit = {
-    for {record <- vehicularTours
-         subtour = record.subtour
-         trip: TripStructureUtils.Trip <- JavaConverters.collectionAsScalaIterable(subtour.getTrips)
-         leg: Leg <- JavaConverters.collectionAsScalaIterable(trip.getLegsOnly) if !modes.contains(leg
-      .getMode)} yield leg.getRoute.asInstanceOf[NetworkRoute].setVehicleId(record.allocatedVehicle.getOrElse
-    (throw new RuntimeException("No VehicleId for record")))
+  def processAllocation(record: SubtourRecord, plan: Plan): Unit = {
+    val subtour = record.subtour
+    for {trip: TripStructureUtils.Trip <- JavaConverters.collectionAsScalaIterable(subtour.getTrips)
+         leg: Leg <- JavaConverters.collectionAsScalaIterable(trip.getLegsOnly)}
+      yield {
+        if (leg.getRoute == null) {
+          val currentTrip = TripStructureUtils.findCurrentTrip(leg, plan, stageActivitytypes)
+          leg.setRoute(linkNetworkRouteFactory.createRoute(currentTrip.getOriginActivity.getLinkId, currentTrip
+            .getDestinationActivity.getLinkId))
+        }
+        val allocatedVehicle = record.allocatedVehicle.getOrElse {
+          throw new
+              RuntimeException("No vehicle allocated for subtour!")
+        }
+        leg.getRoute.asInstanceOf[NetworkRoute].setVehicleId(allocatedVehicle)
+      }
   }
 
-  @tailrec
-  private def allocateVehicles(toursToAllocate: Seq[SubtourRecord]): Unit = {
-    // greedy algo. Should be ok, but didn't formally prove it
-    if (toursToAllocate.isEmpty) return
-    val remainingSubtours = toursToAllocate.tail
-    val currentSubtour = remainingSubtours.head
 
-    val firstAvailableVehicle = currentSubtour.possibleVehicles.min((vr1:VehicleRecord, vr2:VehicleRecord) => {
+  private def allocateVehicles(currentSubtour: SubtourRecord): Unit = {
+    val firstAvailableVehicle = currentSubtour.possibleVehicles.min((vr1: VehicleRecord, vr2: VehicleRecord) => {
       val timeComp = java.lang.Double.compare(vr1.availableFrom, vr2.availableFrom)
       if (timeComp != 0) timeComp else vr1.nAllocs - vr2.nAllocs
     })
-
     if (firstAvailableVehicle.availableFrom < currentSubtour.endTime) firstAvailableVehicle.availableFrom = currentSubtour.endTime
     firstAvailableVehicle.nAllocs += 1
     currentSubtour.allocatedVehicle = Some(firstAvailableVehicle.id)
-    allocateVehicles(remainingSubtours)
   }
 
 
@@ -133,7 +140,7 @@ case class ChainBasedTourVehicleAllocator(vehicles: Vehicles,
     val vehicleRecordFactory = new VehicleRecordFactory()
     val vehicularTours =
       (for {plan: Plan <- householdPlans
-            subtour: Subtour <- JavaConverters.collectionAsScalaIterable(getSubtours(plan, stageActivitytypes)) if subtour.getParent != null}
+            subtour: Subtour <- JavaConverters.collectionAsScalaIterable(getSubtours(plan, stageActivitytypes))}
         yield {
           for {trip <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) if isChainBased(trip)}
             yield {
@@ -153,7 +160,6 @@ case class ChainBasedTourVehicleAllocator(vehicles: Vehicles,
     var homeLoc: Option[Id[Link]] = None
     for (record <- vehicularTours) {
       val s = record.subtour
-      assert(s.getParent == null)
       val anchor: Option[Id[Link]] = Option(s.getTrips.get(0).getOriginActivity.getLinkId)
       if (anchor.isEmpty) throw new NullPointerException("null anchor location")
       if (homeLoc.isEmpty) homeLoc = anchor
@@ -205,8 +211,11 @@ object ChainBasedTourVehicleAllocator {
         .getTripElements).map({
         case act: Activity => Option(act.getEndTime).getOrElse(throw new RuntimeException(s"could not get " +
           s"time from $act"))
-        case leg: Leg => Option(leg.getRoute).filterNot(route => Time.isUndefinedTime(route
-          .getTravelTime)).map(_.getTravelTime).filterNot(Time.isUndefinedTime).getOrElse(0.0)
+        case leg: Leg => Option(leg).flatMap(leg => Option(leg.getRoute)).filterNot(route => Time.isUndefinedTime
+        (Try {
+          route.getTravelTime
+        }.getOrElse(Double.NegativeInfinity)))
+          .map(_.getTravelTime).filterNot(Time.isUndefinedTime).getOrElse(0.0)
       }).sum
       new SubtourRecord(startTime, endTime, possibleVehicles, subtour, None)
     }

@@ -119,7 +119,7 @@ class ChangeModeForTour(beamServices: BeamServices,
     if (mode.isTransit()) {
       legs.foreach(leg => leg.setMode(WALK_TRANSIT.value))
     } else {
-      chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(plan.getPerson.getId)
+      chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(plan.getPerson.getId,subtour,plan)
     }
   }
 
@@ -155,10 +155,10 @@ class ChangeModeForTour(beamServices: BeamServices,
     if (JavaConverters.collectionAsScalaIterable(TripStructureUtils.getLegs(plan)).isEmpty) {
       addTripsBetweenActivities(plan)
     }
-    plan.getPlanElements.asScala.filter(pe =>
-      !pe.isInstanceOf[Activity] && pe.asInstanceOf[Activity].getLinkId == null).foreach(act =>
-      act.asInstanceOf[Activity].setLinkId(Id.createLinkId("dummy")))
-
+    plan.getPlanElements.asScala.foreach {
+      case act: Activity if act.getLinkId == null => act.setLinkId(Id.createLinkId("dummy"))
+      case _ =>
+    }
   }
 }
 
