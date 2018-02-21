@@ -15,6 +15,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
@@ -37,8 +38,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
-  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
+  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _;
+  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
@@ -82,6 +83,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     createGraphsFromEvents.createGraphs(event);
     ModalityStyleStats.processData(scenario.getPopulation(),event);
     ModalityStyleStats.buildModalityStyleGraph();
+    PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration,"population.csv.gz"))
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {

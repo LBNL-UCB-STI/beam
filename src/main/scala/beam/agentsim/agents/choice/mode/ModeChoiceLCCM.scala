@@ -1,10 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
-import java.util
 import java.util.Random
 
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, Nonmandatory, TourType}
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
@@ -12,8 +11,6 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.BeamServices
-
-import scala.collection.JavaConverters._
 
 /**
   * ModeChoiceLCCM
@@ -41,13 +38,13 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
+  override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     choose(alternatives,attributesOfIndividual,Mandatory)
   }
 
-  private def choose(alternatives: Seq[EmbodiedBeamTrip], attributesOfIndividual: Option[AttributesOfIndividual], tourType: TourType): EmbodiedBeamTrip = {
+  private def choose(alternatives: Seq[EmbodiedBeamTrip], attributesOfIndividual: Option[AttributesOfIndividual], tourType: TourType): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
-      throw new IllegalArgumentException("Choice set was empty.")
+      None
     } else {
       val bestInGroup = altsToBestInGroup(alternatives,tourType)
       /*
@@ -91,20 +88,30 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
       /*
        * Evaluate and sample from classmembership, then sample from corresponding mode choice model
        */
-      val chosenClass = lccm.classMembershipModels(tourType).sampleAlternative(classMembershipInputData, new Random())
-      val chosenMode = lccm.modeChoiceModels(tourType)(chosenClass).sampleAlternative(modeChoiceInputData, new Random())
+      val chosenClassOpt = lccm.classMembershipModels(tourType).sampleAlternative(classMembershipInputData, new Random())
+      chosenClassOpt match{
+        case None =>
+          throw new IllegalArgumentException("Was unable to sample from modality styles, check attributes of alternatives")
+        case Some(chosenClass) =>
+          val chosenModeOpt = lccm.modeChoiceModels(tourType)(chosenClass).sampleAlternative(modeChoiceInputData, new Random())
+          expectedMaximumUtility = lccm.modeChoiceModels(tourType)(chosenClass).getExpectedMaximumUtility(modeChoiceInputData)
 
-      expectedMaximumUtility = lccm.modeChoiceModels(tourType)(chosenClass).getExpectedMaximumUtility(modeChoiceInputData)
-
-      val chosenAlt = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
-
-      if (chosenAlt.isEmpty) {
-        throw new RuntimeException("No choice was made.")
-      } else {
-        alternatives(chosenAlt.head.index)
+          chosenModeOpt match {
+            case Some(chosenMode) =>
+              val chosenAlt = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
+              if (chosenAlt.isEmpty) {
+                None
+              } else {
+                Some(alternatives(chosenAlt.head.index))
+              }
+            case None =>
+              None
+          }
       }
     }
   }
+
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = 0.0
 
   def altsToBestInGroup(alternatives: Seq[EmbodiedBeamTrip], tourType: TourType): Vector[ModeChoiceData] = {
     val transitFareDefaults: Seq[BigDecimal] = TransitFareDefaults.estimateTransitFares(alternatives)
@@ -137,7 +144,7 @@ class ModeChoiceLCCM(val beamServices: BeamServices, val lccm: LatentClassChoice
     bestInGroup.toVector
   }
 
-  def sampleMode(alternatives: Seq[EmbodiedBeamTrip], conditionedOnModalityStyle: String, tourType: TourType): String = {
+  def sampleMode(alternatives: Seq[EmbodiedBeamTrip], conditionedOnModalityStyle: String, tourType: TourType): Option[String] = {
     val bestInGroup = altsToBestInGroup(alternatives,tourType)
     val modeChoiceInputData = bestInGroup.map{ alt =>
       val theParams = Map(

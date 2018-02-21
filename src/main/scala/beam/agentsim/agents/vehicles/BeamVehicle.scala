@@ -28,10 +28,10 @@ import scala.util.{Random, Try}
 // If we need immutable state, we will need to operate on this through lenses.
 
 // TODO: safety for
-class BeamVehicle(powerTrain: Powertrain,
+class BeamVehicle(val powerTrain: Powertrain,
                   val matSimVehicle: Vehicle,
-                  initialMatsimAttributes: Option[ObjectAttributes],
-  beamVehicleType: BeamVehicleType,
+                  val  initialMatsimAttributes: Option[ObjectAttributes],
+                  val  beamVehicleType: BeamVehicleType,
   )
   extends Resource[BeamVehicle] {
     val log: Logger = Logger.getLogger(classOf[BeamVehicle])

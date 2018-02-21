@@ -35,7 +35,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper wi
       "should sample higher probability alternatives more often" in {
         // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
         // will be walk with 100 trials (p-val 3.00491e-12)
-        val samps = for(i <- 1 until 100)yield mnl.sampleAlternative(alts,rand)
+        val samps = for(i <- 1 until 100)yield mnl.sampleAlternative(alts,rand).get
         samps.filter(_.equals("walk")).length > 50 should be(true)
       }
     }

@@ -192,6 +192,10 @@ dependencies {
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
 
+    ////////////////////////////////////
+    ///Performance Monitoring (Kamon)///
+    ////////////////////////////////////
+
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:${kamonVersion}")
@@ -291,6 +295,17 @@ task deploy(type: AWSLambdaInvokeTask) {
         println new String(invokeResult.payload.array(), "UTF-8")
     }
 }
+
+task downloadAspectj{
+    if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
+        download {
+            src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+            dest buildDir
+        }
+    }
+}
+
+
 
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file

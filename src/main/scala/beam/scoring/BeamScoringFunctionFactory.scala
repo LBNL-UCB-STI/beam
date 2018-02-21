@@ -51,8 +51,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
         // Compute and log all-day score w.r.t. all modality styles
         // One of them has many suspicious-looking 0.0 values. Probably something which
         // should be minus infinity or exception instead.
-        val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6")
-          .map(style => style -> beamServices.modeChoiceCalculatorFactory(attributes.copy(modalityStyle = Some(style))))
+        val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6").map{style =>
+          style -> beamServices.modeChoiceCalculatorFactory(attributes.copy(modalityStyle = Some(style)))}
           .toMap
           .mapValues(modeChoiceCalculatorForStyle => trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum)
         log.debug(vectorOfUtilities)
@@ -78,7 +78,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
           "surplus" -> logsum   // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
         )))
 
-        finalScore = scoreOfBeingInClassGivenThisOutcome
+        finalScore = Math.max(scoreOfBeingInClassGivenThisOutcome, -100.0) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
+        // that if changes to utility function drive the true scores below -100, this will need to be replaced with another big number.
       }
 
       override def handleActivity(activity: Activity): Unit = {}
