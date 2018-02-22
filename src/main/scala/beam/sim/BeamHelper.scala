@@ -4,9 +4,10 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle, TryToKeepOneOfEachClass}
+import beam.replanning._
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
@@ -20,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.config.ConfigFactory
 import kamon.Kamon
+import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -33,6 +35,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 trait BeamHelper {
+  val log: Logger = Logger.getLogger(classOf[BeamHelper])
 
   def module(typesafeConfig: com.typesafe.config.Config, scenario: Scenario, transportNetwork: TransportNetwork): com.google.inject.Module = AbstractModule.`override`(
     ListBuffer(new AbstractModule() {
@@ -64,6 +67,7 @@ trait BeamHelper {
         }
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+        addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
         addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString).toProvider(classOf[UtilityBasedModeChoice])
         addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
           override def convertToString(o: scala.Any): String = mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
@@ -71,19 +75,6 @@ trait BeamHelper {
           override def convert(value: String): MapStringDouble = MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
         })
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
-
-        addControlerListenerBinding().toInstance(new IterationEndsListener {
-          override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-
-                import scala.collection.JavaConverters._
-                val stringToPersons = scenario.getPopulation.getPersons.values().asScala.groupBy(p => p.getSelectedPlan.getAttributes.getAttribute("modality-style").toString)
-
-                println(stringToPersons.map {
-                  case (style, people) => (style, people.size)
-                }.toList.sorted.mkString(","))
-
-          }
-        })
       }
     })
 

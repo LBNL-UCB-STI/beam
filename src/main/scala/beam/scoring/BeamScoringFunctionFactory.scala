@@ -78,7 +78,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
           "surplus" -> logsum   // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
         )))
 
-        finalScore = scoreOfBeingInClassGivenThisOutcome
+        finalScore = Math.max(scoreOfBeingInClassGivenThisOutcome, -100.0) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
+        // that if changes to utility function drive the true scores below -100, this will need to be replaced with another big number.
       }
 
       override def handleActivity(activity: Activity): Unit = {}

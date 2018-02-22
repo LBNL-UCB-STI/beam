@@ -83,6 +83,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     createGraphsFromEvents.createGraphs(event);
     ModalityStyleStats.processData(scenario.getPopulation(),event);
     ModalityStyleStats.buildModalityStyleGraph();
+    PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration,"population.csv.gz"))
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
