@@ -69,7 +69,7 @@ public class BeamCalcLinkStats {
     public BeamCalcLinkStats(final Network network) {
         this.network = network;
         this.linkData = new TreeMap<>();
-        this.nofHours = 30;
+        this.nofHours = 24;
         reset();
     }
 
