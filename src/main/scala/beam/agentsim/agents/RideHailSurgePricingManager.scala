@@ -43,6 +43,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   val rideHaillingConfig = beamConfig.beam.agentsim.agents.rideHailing
   val timeBinSize = rideHaillingConfig.surgePricing.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories = rideHaillingConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins = Math.ceil(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize).toInt
   val surgeLevelAdaptionStep = rideHaillingConfig.surgePricing.surgeLevelAdaptionStep
   val minimumSurgeLevel = rideHaillingConfig.surgePricing.minimumSurgeLevel

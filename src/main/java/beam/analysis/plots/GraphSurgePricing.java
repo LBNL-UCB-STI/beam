@@ -32,7 +32,7 @@ public class GraphSurgePricing {
     private  String graphTitle = "Ride Hail Surge Price Level";
     private  String xAxisLabel = "timebin";
     private  String yAxisLabel = "price level";
-    private  int noOfCategories = 6;
+    private  int noOfCategories = 0;
     private  Double categorySize = null;
     private   Double max = null;
     private   Double min = null;
@@ -58,6 +58,7 @@ public class GraphSurgePricing {
     }
 
     public  void createGraph(RideHailSurgePricingManager surgePricingManager){
+        noOfCategories = surgePricingManager.numberOfCategories();
         iterationNumber = surgePricingManager.getIterationNumber();
         //iterationNumber = itNo;
         tazDataset.clear();
