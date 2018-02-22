@@ -1,68 +1,206 @@
 package beam.replanning.utilitybased
 
-import java.util
-import java.util.Collections
-
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
+import beam.router.Modes
 import beam.sim.BeamHelper
+import org.junit.Assert
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population._
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
+import org.matsim.core.router.TripStructureUtils
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.households.{Household, HouseholdImpl, Households, HouseholdsImpl}
-import org.matsim.vehicles.Vehicle
+import org.matsim.households.{Household, HouseholdImpl, HouseholdsImpl}
+import org.matsim.utils.objectattributes.ObjectAttributes
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, GivenWhenThen, Matchers}
 
+import scala.collection.{JavaConverters, immutable}
+import scala.util.Random
+
 class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper with MockitoSugar with GivenWhenThen with BeforeAndAfterAll {
 
-  private var chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator = _
-  private var householdMembershipAllocator: HouseholdMembershipAllocator = _
-  private val population = ScenarioUtils.createScenario(ConfigUtils.createConfig).getPopulation
-  private val popFact = population.getFactory
+  val MODE = "Car"
+
+  trait ChainBasedTourAllocatorTestFixture {
+    val pop: Population = ScenarioUtils.createScenario(ConfigUtils.createConfig).getPopulation
+    val popFact: PopulationFactory = pop.getFactory
+    val persAttr: ObjectAttributes = pop.getPersonAttributes
+    val vehs: Vehicles = VehicleUtils.createVehiclesContainer()
+
+    // These are unique to each test case
+    val personList: immutable.IndexedSeq[Id[Person]]
+    val vehicleList: immutable.IndexedSeq[Id[Vehicle]]
+
+    val hhs = new HouseholdsImpl
+    val hh: HouseholdImpl = hhs.getFactory.createHousehold(Id.create("hh", classOf[Household])).asInstanceOf[HouseholdImpl]
+    var chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator = _
+
+    def init() {
+      // Create and add people
+      personList.foreach(id => {
+        val person = popFact.createPerson(id)
+        val plan: Plan = createPlan(id.toString.toInt)
+        plan.setPerson(person)
+        person.addPlan(plan)
+        pop.addPerson(person)
+        pop.getPersonAttributes.putAttribute(s"$id", "rank", id.toString.toLong)
+      })
+
+      // Create vehicles
+      val vehType: VehicleType = VehicleUtils.getDefaultVehicleType
+      vehType.setDescription(MODE)
+      vehs.addVehicleType(vehType)
+
+      vehicleList.foreach { id => {
+        vehs.addVehicle(vehs.getFactory.createVehicle(id, vehType))
+      }
+      }
+
+      // Add people and vehicles to household
+      hh.setMemberIds(JavaConverters.seqAsJavaList(personList))
+      hh.setVehicleIds(JavaConverters.seqAsJavaList(vehicleList.map(Id.createVehicleId(_))))
+      hhs.addHousehold(hh)
+
+      chainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(vehs, HouseholdMembershipAllocator(hhs, pop), Set[String]("car"))
+    }
+
+    def createPlan(i: Int): Plan = {
+      val plan = popFact.createPlan()
+
+      plan.addActivity(popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
 
 
-  override def beforeAll(): Unit = {
+      val hw = popFact.createLeg("some_mode")
+      hw.setRoute(RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(42), Id.createLinkId(12)))
+      plan.addLeg(hw)
+
+      plan.addActivity(popFact.createActivityFromLinkId("w", Id.createLinkId(12)))
+
+      val wh = popFact.createLeg("some_other_mode")
+      wh.setRoute(RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(12), Id.createLinkId(42)))
+      plan.addLeg(wh)
+      plan.addActivity(popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
+      plan
+    }
+
+    private def assertSingleVehicleAndGetVehicleId(p: Plan): Id[Vehicle] = {
+
+      var v: Option[Id[Vehicle]] = None
+
+      JavaConverters.iterableAsScalaIterable(p.getPlanElements).toList.foreach({
+        case leg: Leg if leg.getMode == MODE =>
+          val r = leg.getRoute.asInstanceOf[NetworkRoute]
+          Assert.assertNotNull("null vehicle id in route", r.getVehicleId)
+          Assert.assertTrue(s"vehicle ${r.getVehicleId} not same as $v", v.isEmpty || r.getVehicleId == v.get)
+          v = Option(r.getVehicleId)
+      })
+
+      v.getOrElse(throw new RuntimeException("Not sure what's going on here!"))
+    }
+  }
+
+  private def createHouseholdWithEnoughVehicles = new ChainBasedTourAllocatorTestFixture {
+    override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+    override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] = personList.map(Id.createVehicleId(_))
+    init()
+  }
+
+  private def createHouseholdsWithTooFewVehicles = new ChainBasedTourAllocatorTestFixture {
+    override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+    override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] = (1 to 2).map(Id.createVehicleId(_))
+    init()
+  }
+
+  behavior of "A ChainBasedTourVehicleAllocator"
+
+  it should "allocate a chain-based vehicle to an agent if one is available in the household" in {
+
+    Given("A household with several agents")
+    val f = createHouseholdWithEnoughVehicles
+
+    And("enough chain-based vehicles in the household for everyone")
+    val vehicles = JavaConverters.mapAsScalaMap(f.vehs.getVehicles)
+
+    And("a household member of any rank that is a member of the household")
+    val rng = Random
+    val idRankNum = rng.nextInt(5) + 1
+
+    val personWithAnyRank = Id.createPersonId(idRankNum)
+    f.persAttr.getAttribute(personWithAnyRank.toString, "rank") should be(idRankNum)
+
+    And("the person would like to know which chain-based modes are available")
+    val availableVehicleModes = f.chainBasedTourVehicleAllocator.identifyChainBasedModesForAgent(personWithAnyRank)
+
+    Then("a chain-based mode should be available,")
+    availableVehicleModes should contain atLeastOneElementOf Modes.BeamMode.chainBasedModes
+
+    And("if the person requests a tour-based vehicle,")
+
+
+    Then("it should be allocated to the person.")
 
   }
 
-  "A ChainBasedTourVehicleAllocator" should "allocate a requested vehicle to an agent if it is available" in {
-    Given("a person that is a member of a household")
+  it should "not allocate a chain-based vehicle to an agent when there aren't any available in the household" in {
+    Given("A household with several agents")
+    val f = createHouseholdsWithTooFewVehicles
 
-    And("the person is of any rank")
+    And("too few chain-based vehicles in the household")
+    val vehicles = JavaConverters.mapAsScalaMap(f.vehs.getVehicles)
 
-    And("there are enough tour-based vehicles in the household")
+    And("a household member of high rank")
+    val personWithHighRank = Id.createPersonId(5)
+    f.persAttr.getAttribute(personWithHighRank.toString, "rank") should be(5)
 
-    When("the person requests available vehicles")
+    And("a household member of low rank")
+    val personWithLowRank = Id.createPersonId(1)
+    f.persAttr.getAttribute(personWithLowRank.toString, "rank") should be(1)
 
-    Then("allocate a tour-based vehicle.")
+    And("the two members would like to know which chain-based modes are available")
+    val availableLowRankModes = f.chainBasedTourVehicleAllocator
+      .identifyChainBasedModesForAgent(personWithLowRank)
+    val availableHighRankModes = f.chainBasedTourVehicleAllocator
+      .identifyChainBasedModesForAgent(personWithHighRank)
 
-    it should not ""
+    Then("a chain-based mode should not be available for a low-ranking individual")
+    availableLowRankModes.size should be(0)
+
+    And("a chain-based mode should be available for a high-ranking individual")
+    availableHighRankModes should contain atLeastOneElementOf Modes.BeamMode.chainBasedModes
+
+    And("it should be allocated to the high-ranking person,")
+    val highRankPlan = f.pop.getPersons.get(personWithHighRank).getPlans.get(0)
+    val highRankSubtour = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(highRankPlan,
+      f.chainBasedTourVehicleAllocator.stageActivitytypes)).toIndexedSeq(0)
+    f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(personWithHighRank, highRankSubtour, highRankPlan)
+    val highRankLegs =  JavaConverters.collectionAsScalaIterable(highRankSubtour.getTrips).flatMap { trip =>
+      JavaConverters
+        .collectionAsScalaIterable(trip.getLegsOnly)
+    }
+    val highRankModes = highRankLegs.map(leg => leg.getMode)
+
+    highRankModes should contain only "car"
+
+    val highRankVehicles: Iterable[Id[Vehicle]] = highRankLegs.map(leg=>leg.getRoute.asInstanceOf[NetworkRoute]
+      .getVehicleId).toIndexedSeq
+
+    highRankVehicles should contain only Id.createVehicleId("1")
+
+      And("it should not be allocated to the low-ranking person.")
+    val lowRankPlan = f.pop.getPersons.get(personWithLowRank).getPlans.get(0)
+    val lowRankSubtour = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(lowRankPlan,
+      f.chainBasedTourVehicleAllocator.stageActivitytypes)).toIndexedSeq(0)
+    f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(personWithLowRank, lowRankSubtour,
+      lowRankPlan)
+    val lowRankModes = JavaConverters.collectionAsScalaIterable(lowRankSubtour.getTrips).flatMap { trip =>
+      JavaConverters
+        .collectionAsScalaIterable(trip.getLegsOnly)
+    }.map(leg => leg.getMode)
+    lowRankModes should not contain "car"
+
   }
 
-  private def createHouseholdWithNoConflict: Households = {
-    val hhs: HouseholdsImpl = new HouseholdsImpl
-
-    var hh: HouseholdImpl = hhs.getFactory.createHousehold(Id.create("small", classOf[Household])).asInstanceOf[HouseholdImpl]
-
-    (1 to 5L).foreach(i => {
-      hh.setMemberIds(util.Arrays.asList[Id[Person]](Id.createPersonId(i)))
-      population.getPersonAttributes.putAttribute(s"$i","rank",i)
-    })
-    hh.setVehicleIds(Collections.emptyList[Id[Vehicle]])
-    hhs.addHousehold(hh)
-
-    hh = hhs.getFactory.createHousehold(Id.create("big", classOf[Household])).asInstanceOf[HouseholdImpl]
-    (2 to 10L).foreach(i=>hh.setMemberIds(util.Arrays.asList[Id[Person]](Id.createPersonId(i))))
-    hh.setVehicleIds(util.Arrays.asList[Id[Vehicle]](Id.createVehicleId(1)))
-    hhs.addHousehold(hh)
-
-    hh = hhs.getFactory.createHousehold(Id.create("lots of vehicles", classOf[Household])).asInstanceOf[HouseholdImpl]
-    (10 to 15L).foreach(i => hh.setMemberIds(util.Arrays.asList[Id[Person]](Id.createPersonId(i))))
-    (2 to 10L).foreach(i => hh.setVehicleIds(util.Arrays.asList[Id[Vehicle]](Id.createVehicleId(i))))
-    hhs.addHousehold(hh)
-
-    hhs
-  }
 
 }
