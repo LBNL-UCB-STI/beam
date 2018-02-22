@@ -18,8 +18,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning/runs/run.runName_base'
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/pruned-transit_2018-01-19_06-13-51/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-02/ridehail-price/runs/run.RideHailPrice_base/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T)
@@ -48,7 +47,6 @@ for(iter in tail(list.dirs(iter.dir,full.names=F),-1)){
   ev[,iter:=iter.i]
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
   vehs[[length(evs)+1]] <- ev[type%in%c('PersonEntersVehicle','PersonLeavesVehicle')]
-
 }
 ev <- rbindlist(evs)
 veh <- rbindlist(vehs,fill=T)

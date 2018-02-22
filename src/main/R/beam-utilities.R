@@ -76,17 +76,9 @@ parse.link.stats <- function(link.stats.file,net.file=NA){
   if(file.exists(file.rdata)){
     load(file.rdata)
   }else{
-    stats <- data.table(read.table(link.stats.file,header=T,sep='\t'))
-    stats <- melt(stats,id.vars=c("LINK","ORIG_ID","FROM","TO","LENGTH","FREESPEED","CAPACITY"))
-    stats[,type:=ifelse(grepl('HRS',variable),'volume','traveltime')]
-    stats[,stat:=ifelse(grepl('min',variable),'min',ifelse(grepl('max',variable),'max','avg'))]
-    stats[,hour:=-1]
-    stats[type=='volume',hour:=as.numeric(unlist(lapply(str_split(unlist(lapply(str_split(variable,"HRS"),function(ll){ ll[2] })),"\\."),function(lll){ lll[1] })))]
-    stats[type=='traveltime',hour:=as.numeric(unlist(lapply(str_split(unlist(lapply(str_split(variable,"TRAVELTIME"),function(ll){ ll[2] })),"\\."),function(lll){ lll[1] })))]
-    stats[,variable:=NULL]
-    stats <- join.on(stats[type=='volume'],stats[type=='traveltime'],c('LINK','hour','stat'),c('LINK','hour','stat'),'value','tt.')
-    stats[,':='(volume=value,traveltime=tt.value,value=NULL,tt.value=NULL,type=NULL)]
-    setkey(stats,LINK,stat,hour)
+    stats <- data.table(read.csv(link.stats.file,fill=T))
+    stats[,hour:=as.numeric(as.character(hour))]
+    setkey(stats,link,stat,hour)
     stats <- unique(stats)
     save(stats,file=file.rdata)
   }
