@@ -12,7 +12,7 @@ load.libraries(c('maptools','sp'))
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
 
-factor.to.scale.personal.back <- 20 # should be a command line arg
+factor.to.scale.personal.back <- 200 # should be a command line arg
 
 option_list <- list(
 )
@@ -65,6 +65,9 @@ setkey(ev,type,iter,hr,vehicle_type)
 
 ## VMT by time and mode
 toplot <- ev[J('PathTraversal')][,.(vmt=sum(length/1609,na.rm=T)),by=c('hr','iter','vehicle_type')]
+if(max(toplot$iter)>9){
+  toplot <- toplot[iter %in% seq(0,max(toplot$iter),by=max(toplot$iter)/8)]
+}
 toplot[vehicle_type%in%c('Car','TNC'),vmt:=vmt*factor.to.scale.personal.back]
 p <- ggplot(toplot,aes(x=hr,y=vmt,fill=vehicle_type))+geom_bar(stat='identity',position='stack')+facet_wrap(~iter)+labs(x="Hour",y="Vehicle Miles Traveled",fill="Vehicle Type",title=to.title(run.name))
 pdf.scale <- .6
