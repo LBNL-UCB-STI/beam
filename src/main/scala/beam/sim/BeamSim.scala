@@ -98,10 +98,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     deleteOutputFile("traveldistancestats.png")
 
-    deleteOutputFile("modestats.txt")
-
-    deleteOutputFile("modestats.png")
-
     deleteOutputFile("tmp")
     //===========================
   }

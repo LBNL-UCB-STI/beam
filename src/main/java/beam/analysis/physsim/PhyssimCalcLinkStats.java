@@ -80,7 +80,7 @@ public class PhyssimCalcLinkStats {
         CategoryDataset dataset = buildAndGetGraphCategoryDataset();
         if(this.controlerIO != null) {
             if(isNotTestMode() && writeLinkstats(iteration)) {
-                linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, Controler.FILENAME_LINKSTATS));
+                linkStats.writeFile(this.controlerIO.getIterationFilename(iteration, "linkstats.csv.gz"));
             }
             createModesFrequencyGraph(dataset, iteration);
         }
