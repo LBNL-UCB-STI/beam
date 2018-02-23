@@ -169,23 +169,16 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
       stay() replying ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
 
-    case Event(req: ReservationRequest, _) if isTooLate(req) =>
+    case Event(req: ReservationRequest, _) if req.departFrom.startTime < passengerSchedule.schedule.head._1.startTime =>
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
+    case Event(req: ReservationRequest, _) if !hasRoomFor(req) =>
+      stay() replying ReservationResponse(req.requestId, Left(VehicleFullError))
+
     case Event(req: ReservationRequest, _) =>
-      val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
-      val vehicleCap = _currentVehicleUnderControl.get.getType.getCapacity
-      val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
-      val hasRoom = tripReservations.forall { entry =>
-        entry._2.riders.size < fullCap
-      }
-      if (hasRoom) {
-        val legs = tripReservations.map(_._1)
-        passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
-        stay() replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
-      } else {
-        stay() replying ReservationResponse(req.requestId, Left(VehicleFullError))
-      }
+      val legs = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).keys.toSeq
+      passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
+      stay() replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
 
     case Event(RemovePassengerFromTrip(id),_)=>
       if(passengerSchedule.removePassenger(id)){
@@ -220,17 +213,14 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     false
   }
 
-  private def isTooLate(req: ReservationRequest) = {
-    _currentLeg match {
-      case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
-        true
-      case _ =>
-        if (req.departFrom.startTime < passengerSchedule.schedule.head._1.startTime) {
-          true
-        } else {
-          false
-        }
+  def hasRoomFor(req: ReservationRequest) = {
+    val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
+    val vehicleCap = _currentVehicleUnderControl.get.getType.getCapacity
+    val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
+    val hasRoom = tripReservations.forall { entry =>
+      entry._2.riders.size < fullCap
     }
+    hasRoom
   }
 
   def setPassengerSchedule(newPassengerSchedule: PassengerSchedule) = {
