@@ -30,7 +30,6 @@ import scala.concurrent.duration.FiniteDuration
 trait BeamServices extends ActorInject {
   val controler: ControlerI
   var beamConfig: BeamConfig
-//  val matsimServices: MatsimServices
 
   val registry: ActorRef
 
@@ -39,8 +38,6 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
-  var physSim: ActorRef
-  var schedulerRef: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
   var taz: TAZTreeMap
@@ -52,15 +49,12 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
-//  val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
   val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
 
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
-  var physSim: ActorRef = _
-  var schedulerRef: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
   var taz: TAZTreeMap = _
