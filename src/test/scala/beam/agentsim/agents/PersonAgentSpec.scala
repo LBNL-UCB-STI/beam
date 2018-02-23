@@ -4,17 +4,16 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequestWithVehicle, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.{AlightVehicle, BoardVehicle}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
@@ -44,8 +43,8 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.{JavaConverters, mutable}
 import scala.collection.concurrent.TrieMap
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
@@ -266,12 +265,12 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         EmbodiedBeamLeg(BeamLeg(29400, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 29400), SpaceTime(new Coord(167138.4,1117), 29400), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false)
       ))))
 
-      val reservationRequestWithVehicle = expectMsgType[ReservationRequestWithVehicle]
+      val reservationRequest = expectMsgType[ReservationRequest]
 
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
 
-      personActor ! ReservationResponse(reservationRequestWithVehicle.request.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg.beamLeg, reservationRequestWithVehicle.request.passengerVehiclePersonId)))
+      personActor ! ReservationResponse(reservationRequest.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg.beamLeg, reservationRequest.passengerVehiclePersonId)))
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]

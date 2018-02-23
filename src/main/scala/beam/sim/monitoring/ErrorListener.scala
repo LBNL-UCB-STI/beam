@@ -1,14 +1,12 @@
 package beam.sim.monitoring
 
-import akka.actor.{Actor, ActorLogging, ActorRef, DeadLetter, Props}
+import akka.actor.{Actor, ActorLogging, DeadLetter, Props}
 import beam.agentsim.agents.BeamAgent
-import beam.agentsim.agents.TriggerUtils.{completed, schedule}
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
+import beam.agentsim.agents.TriggerUtils.completed
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
-import beam.agentsim.agents.vehicles.{ReservationRequestWithVehicle, ReservationResponse}
+import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.TriggerWithId
-import beam.router.Modes.BeamMode.CABLE_CAR
 
 /**
   * @author sid.feygin
@@ -27,9 +25,9 @@ class ErrorListener() extends Actor with ActorLogging {
       }
     case d: DeadLetter =>
       d.message match {
-        case m: ReservationRequestWithVehicle =>
+        case m: ReservationRequest =>
           log.warning(s"Person ${d.sender} attempted to reserve ride with agent ${d.recipient} that was not found, message sent to dead letters.")
-          d.sender ! ReservationResponse(m.request.requestId,Left(DriverNotFoundError))
+          d.sender ! ReservationResponse(m.requestId,Left(DriverNotFoundError))
         case m: RemovePassengerFromTrip =>
           // Can be safely skipped
         case TriggerWithId(trigger,triggerId) =>

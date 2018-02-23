@@ -179,16 +179,36 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         }
         resultingState
       }
-    case Event(ReservationRequestWithVehicle(req, vehicleIdToReserve), _) =>
-      val response = if(passengerSchedule.isEmpty){
-        log.warning(s"$id received ReservationRequestWithVehicle from ${vehicleIdToReserve} but passengerSchedule is empty")
-        ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
-      }else{
-        handleVehicleReservation(req, vehicleIdToReserve)
-      }
-      beamServices.personRefs(req.passengerVehiclePersonId.personId) ! response
-      stay()
 
+    case Event(req: ReservationRequest, _) =>
+      val response = if(passengerSchedule.isEmpty) {
+        log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
+        ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
+      } else {
+        _currentLeg match {
+          case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
+            ReservationResponse(req.requestId, Left(VehicleGoneError))
+          case _ =>
+            if (req.departFrom.startTime < passengerSchedule.schedule.head._1.startTime) {
+              ReservationResponse(req.requestId, Left(VehicleGoneError))
+            } else {
+              val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
+              val vehicleCap = _currentVehicleUnderControl.get.getType.getCapacity
+              val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
+              val hasRoom = tripReservations.forall { entry =>
+                entry._2.riders.size < fullCap
+              }
+              if (hasRoom) {
+                val legs = tripReservations.map(_._1)
+                passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
+                ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
+              } else {
+                ReservationResponse(req.requestId, Left(VehicleFullError))
+              }
+            }
+        }
+      }
+      stay() replying response
 
     case Event(RemovePassengerFromTrip(id),_)=>
       if(passengerSchedule.removePassenger(id)){
@@ -287,32 +307,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     } else {
       passengerScheduleEmpty(theTick, theTriggerId)
     }
-  }
-
-  private def handleVehicleReservation(req: ReservationRequest, vehicleIdToReserve: Id[Vehicle]) = {
-    val response = _currentLeg match {
-      case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
-        ReservationResponse(req.requestId, Left(VehicleGoneError))
-      case _ =>
-        if(req.departFrom.startTime < passengerSchedule.schedule.head._1.startTime){
-          ReservationResponse(req.requestId, Left(VehicleGoneError))
-        }else{
-          val tripReservations = passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).toVector
-          val vehicleCap = _currentVehicleUnderControl.get.getType.getCapacity
-          val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
-          val hasRoom = tripReservations.forall { entry =>
-            entry._2.riders.size < fullCap
-          }
-          if(hasRoom){
-            val legs = tripReservations.map(_._1)
-            passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
-            ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
-          } else {
-            ReservationResponse(req.requestId, Left(VehicleFullError))
-          }
-        }
-    }
-    response
   }
 
 }
