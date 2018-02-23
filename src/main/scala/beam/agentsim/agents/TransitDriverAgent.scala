@@ -8,7 +8,6 @@ import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.TriggerWithId
@@ -59,23 +58,19 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
       logDebug(s" $id has been initialized, going to Waiting state")
-      holdTickAndTriggerId(tick, triggerId)
       vehicle.becomeDriver(beamServices.agentRefs(id.toString)).fold(fa =>
         stop(Failure(s"BeamAgent $id attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        vehicle.driver.get ! BecomeDriverSuccess(Some(initialPassengerSchedule), vehicle.id)
+        _currentVehicleUnderControl = Some(vehicle)
+        passengerSchedule = initialPassengerSchedule
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(PersonAgent.Waiting)
+        goto(PersonAgent.Waiting) replying
+          completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime, self, passengerSchedule.schedule.firstKey))
       })
   }
 
   chainedWhen(AnyState) {
-    case Event(BecomeDriverSuccessAck, _) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      scheduler ! completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey
-        .startTime, self, passengerSchedule.schedule.firstKey))
-      stay
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
     case Event(Finish, _) =>
