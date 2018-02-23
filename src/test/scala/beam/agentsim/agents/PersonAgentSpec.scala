@@ -223,6 +223,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       vehicles.put(vehicleId, bus)
 
       val busLeg = EmbodiedBeamLeg(BeamLeg(28800, BeamMode.BUS, 600, BeamPath(Vector(), Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)), SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 29400), 1.0)), Id.createVehicleId("my_bus"), false, None, BigDecimal(0), false)
+      val busLeg2 = EmbodiedBeamLeg(BeamLeg(29400, BeamMode.BUS, 600, BeamPath(Vector(), Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)), SpaceTime(new Coord(167138.4,1117), 29400), SpaceTime(new Coord(180000.4,1200), 30000), 1.0)), Id.createVehicleId("my_bus"), false, None, BigDecimal(0), false)
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -262,13 +263,17 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
         EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 28800), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false),
         busLeg,
-        EmbodiedBeamLeg(BeamLeg(29400, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 29400), SpaceTime(new Coord(167138.4,1117), 29400), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false)
+        busLeg2,
+        EmbodiedBeamLeg(BeamLeg(30000, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30000), SpaceTime(new Coord(167138.4,1117), 30000), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false)
       ))))
 
       val reservationRequest = expectMsgType[ReservationRequest]
 
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
+
 
       personActor ! ReservationResponse(reservationRequest.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg.beamLeg, reservationRequest.passengerVehiclePersonId)))
 
