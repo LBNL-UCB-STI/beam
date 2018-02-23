@@ -95,7 +95,6 @@ class BeamVehicle(val powerTrain: Powertrain,
     * will take the seat according to priorities defined through the [[SeatAssignmentRule.assignSeatOnLeave]].
     *
     * @param idToRemove the passenger [[Vehicle]] to remove.
-    * @return [[Try]] expression (maybe) holding a [[ClearCarrier]] message for the driver to pass on to the passenger.
     */
   def removePassenger(idToRemove: Id[Vehicle]): Boolean = {
     vehicleOccupancyAdministrator.removePassenger(idToRemove)

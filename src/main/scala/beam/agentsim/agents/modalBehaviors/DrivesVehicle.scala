@@ -139,17 +139,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         stay()
       }
 
-    case Event(BecomeDriverSuccess(newPassengerSchedule, assignedVehicle), info) =>
-      _currentVehicleUnderControl = Some(beamServices.vehicles(assignedVehicle))
-      newPassengerSchedule match {
-        case Some(passSched) =>
-          passengerSchedule = passSched
-        case None =>
-          passengerSchedule = PassengerSchedule()
-      }
-      self ! BecomeDriverSuccessAck
-      stay()
-
     case Event(req: CancelReservation, _) =>
       _currentVehicleUnderControl.foreach { vehicleIdAndRef =>
         val vehiclePersonId = VehiclePersonId(vehicleIdAndRef.id, req.passengerId)

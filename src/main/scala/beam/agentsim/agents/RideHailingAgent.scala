@@ -7,7 +7,6 @@ import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, ModifyPassengerScheduleAck, ReservationResponse}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.TriggerWithId
@@ -68,12 +67,11 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"RideHailingAgent $self attempted to become driver of vehicle ${vehicle.id} " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        holdTickAndTriggerId(tick,triggerId)
-        vehicle.driver.get ! BecomeDriverSuccess(None, vehicle.id)
+        _currentVehicleUnderControl = Some(vehicle)
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(PersonAgent.Waiting)
+        goto(PersonAgent.Waiting) replying completed(triggerId)
       })
   }
 
@@ -85,10 +83,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
   chainedWhen (AnyState) {
     case Event (ModifyPassengerScheduleAck (Some (msgId) ), _) =>
-      stay
-    case Event(BecomeDriverSuccessAck, _) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      scheduler ! completed(triggerId)
       stay
     case Event (Finish, _) =>
       stop
