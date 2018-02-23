@@ -207,18 +207,17 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   }
 
-  private def isNotCompatible(updatedPassengerSchedule: PassengerSchedule) = {
-    var errorFlag = false
+  private def isNotCompatible(updatedPassengerSchedule: PassengerSchedule): Boolean = {
     if (!passengerSchedule.isEmpty) {
       val endSpaceTime = passengerSchedule.terminalSpacetime()
       if (updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
         beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc, endSpaceTime.loc) >
           beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       ) {
-        errorFlag = true
+        return true
       }
     }
-    errorFlag
+    false
   }
 
   private def isTooLate(req: ReservationRequest) = {

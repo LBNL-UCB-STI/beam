@@ -6,7 +6,7 @@ import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResour
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils._
-import beam.agentsim.agents.household.HouseholdActor.{AttributesOfIndividual, ReleaseVehicleReservation}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -70,42 +70,11 @@ object PersonAgent {
 
   case object Moving extends Traveling
 
-  case class ResetPersonAgent(tick: Double) extends Trigger
-
   case class ActivityStartTrigger(tick: Double) extends Trigger
 
   case class ActivityEndTrigger(tick: Double) extends Trigger
 
-  case class RouteResponseWrapper(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip]) extends Trigger
-
-  case class RideHailingInquiryTrigger(tick: Double, triggerId: Long, alternatives: Vector[BeamTrip],
-                                       timesToCustomer: Vector[Double]) extends Trigger
-
-  case class MakeRideHailingReservationResponseWrapper(tick: Double, triggerId: Long,
-                                                       rideHailingAgentOpt: Option[ActorRef], timeToCustomer: Double,
-                                                       tripChoice: BeamTrip) extends Trigger
-
-  case class FinishWrapper(tick: Double, triggerId: Long) extends Trigger
-
-  case class NextActivityWrapper(tick: Double, triggerId: Long) extends Trigger
-
   case class PersonDepartureTrigger(tick: Double) extends Trigger
-
-  case class PersonEntersRideHailingVehicleTrigger(tick: Double) extends Trigger
-
-  case class PersonLeavesRideHailingVehicleTrigger(tick: Double) extends Trigger
-
-  case class PersonEntersBoardingQueueTrigger(tick: Double) extends Trigger
-
-  case class PersonEntersAlightingQueueTrigger(tick: Double) extends Trigger
-
-  case class PersonArrivesTransitStopTrigger(tick: Double) extends Trigger
-
-  case class PersonArrivalTrigger(tick: Double) extends Trigger
-
-  case class TeleportationArrivalTrigger(tick: Double) extends Trigger
-
-  case class CompleteDrivingMissionTrigger(tick: Double) extends Trigger
 
 }
 
@@ -392,8 +361,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         case None =>
           stop(Failure(s"Expected a non-empty BeamTrip but found ${_restOfCurrentTrip}"))
       }
-    }
-    else {
+    } else {
       nextActivity match {
         case Left(msg) =>
           logDebug(msg)
