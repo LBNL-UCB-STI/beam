@@ -218,12 +218,15 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     it("should know how to take a walk_transit trip when it's already in its plan") {
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
-      val vehicleId = Id.createVehicleId("my_bus")
-      val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(vehicleId, vehicleType), None, Car)
-      vehicles.put(vehicleId, bus)
+      val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType), None, Car)
+      val tram = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType), None, Car)
+
+      vehicles.put(bus.getId, bus)
+      vehicles.put(tram.getId, tram)
 
       val busLeg = EmbodiedBeamLeg(BeamLeg(28800, BeamMode.BUS, 600, BeamPath(Vector(), Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)), SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 29400), 1.0)), Id.createVehicleId("my_bus"), false, None, BigDecimal(0), false)
       val busLeg2 = EmbodiedBeamLeg(BeamLeg(29400, BeamMode.BUS, 600, BeamPath(Vector(), Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)), SpaceTime(new Coord(167138.4,1117), 29400), SpaceTime(new Coord(180000.4,1200), 30000), 1.0)), Id.createVehicleId("my_bus"), false, None, BigDecimal(0), false)
+      val tramLeg = EmbodiedBeamLeg(BeamLeg(30000, BeamMode.TRAM, 600, BeamPath(Vector(), Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)), SpaceTime(new Coord(180000.4,1200), 30000), SpaceTime(new Coord(190000.4,1300), 30600), 1.0)), Id.createVehicleId("my_tram"), false, None, BigDecimal(0), false)
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -248,12 +251,14 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       val transitDriverProps = Props(new ForwardActor(self))
       val router = system.actorOf(Props(new Actor() {
         context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
+        context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
         override def receive: Receive = {
           case _ =>
         }
       }), "router")
 
       bus.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(), timeout.duration))
+      tram.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(), timeout.duration))
 
       val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -264,18 +269,21 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 28800), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false),
         busLeg,
         busLeg2,
-        EmbodiedBeamLeg(BeamLeg(30000, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30000), SpaceTime(new Coord(167138.4,1117), 30000), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false)
+        tramLeg,
+        EmbodiedBeamLeg(BeamLeg(30600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30600), SpaceTime(new Coord(167138.4,1117), 30600), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false)
       ))))
 
-      val reservationRequest = expectMsgType[ReservationRequest]
-
+      val reservationRequestBus = expectMsgType[ReservationRequest]
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
+      personActor ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
 
-
-      personActor ! ReservationResponse(reservationRequest.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg.beamLeg, reservationRequest.passengerVehiclePersonId)))
+      val reservationRequestTram = expectMsgType[ReservationRequest]
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30600, tramLeg.beamLeg), personActor)
+      personActor ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
@@ -288,6 +296,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       expectMsgType[PathTraversalEvent]
 
       // In undetermined order
+      expectMsgAllClassOf(classOf[BoardVehicle], classOf[PersonEntersVehicleEvent])
+      expectMsgAllClassOf(classOf[AlightVehicle], classOf[PersonLeavesVehicleEvent])
+
       expectMsgAllClassOf(classOf[BoardVehicle], classOf[PersonEntersVehicleEvent])
       expectMsgAllClassOf(classOf[AlightVehicle], classOf[PersonLeavesVehicleEvent])
 
