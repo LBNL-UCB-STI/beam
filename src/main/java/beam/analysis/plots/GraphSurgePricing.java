@@ -123,10 +123,7 @@ public class GraphSurgePricing {
             for(Double key : categoryKeys){
                 categoriesStrings.add(getRoundedNumber(key) + "");
             }
-            int lastIndex = categoriesStrings.size() - 1;
-            String lastValue = categoriesStrings.get(lastIndex);
-            lastValue = lastValue + "-" + max;
-            categoriesStrings.set(lastIndex, lastValue);
+
             return categoriesStrings;
         }
     }
@@ -371,6 +368,14 @@ public class GraphSurgePricing {
         writePriceSurgeCsv(_dataset);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("Categories ", "", _dataset);
 
+
+        List<String> _categoriesKeys = new ArrayList<>();
+        _categoriesKeys.addAll(categoriesKeys);
+        int lastIndex = _categoriesKeys.size() - 1;
+        String lastValue = _categoriesKeys.get(lastIndex);
+        lastValue = lastValue + "-" + max;
+        _categoriesKeys.set(lastIndex, lastValue);
+
         try {
 
 
@@ -381,7 +386,7 @@ public class GraphSurgePricing {
 
 
 
-            GraphUtils.plotLegendItems(plot, categoriesKeys, dataset.getRowCount());
+            GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
 
 
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
