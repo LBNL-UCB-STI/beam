@@ -139,15 +139,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         stay()
       }
 
-    case Event(req: CancelReservation, _) =>
-      _currentVehicleUnderControl.foreach { vehicleIdAndRef =>
-        val vehiclePersonId = VehiclePersonId(vehicleIdAndRef.id, req.passengerId)
-        passengerSchedule.removePassenger(vehiclePersonId)
-        _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
-        _awaitingBoardConfirmation -= vehiclePersonId.vehicleId
-        vehicleIdAndRef.driver.get ! CancelReservationWithVehicle(vehiclePersonId)
-      }
-      stay()
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
       stop(Failure(s"Received EndLegTrigger while in state Waiting. passenger schedule $passengerSchedule"))
   }

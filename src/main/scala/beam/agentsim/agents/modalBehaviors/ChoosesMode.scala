@@ -409,7 +409,3 @@ object ChoosesMode {
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
 }
-
-case class CancelReservation(reservationId: Id[ReservationRequest], passengerId: Id[Person])
-
-case class CancelReservationWithVehicle(vehiclePersonId: VehiclePersonId)

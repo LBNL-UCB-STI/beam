@@ -7,19 +7,16 @@ import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, ModifyPassengerScheduleAck, ReservationResponse}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.TriggerWithId
-import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamTrip, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.RoutingModel.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.vehicles.Vehicle
 
 object RideHailingAgent {
   val idPrefix: String = "rideHailingAgent"
@@ -29,27 +26,12 @@ object RideHailingAgent {
 
   case class RideHailingAgentData() extends BeamAgentData
 
-  case object Idle extends BeamAgentState
-
-  case object Traveling extends BeamAgentState
-
-  case class PickupCustomer(confirmation: ReservationResponse, customerId: Id[Person], pickUpLocation: Location, destination: Location, trip2DestPlan: Option[BeamTrip], trip2CustPlan: Option[BeamTrip])
-
-  case class DropOffCustomer(newLocation: SpaceTime)
-
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
   }
 
   def getRideHailingTrip(chosenTrip: EmbodiedBeamTrip): Vector[RoutingModel.EmbodiedBeamLeg] = {
     chosenTrip.legs.filter(l => isRideHailingLeg(l))
-  }
-
-  def isRideHailingTrip(chosenTrip: EmbodiedBeamTrip): Boolean = {
-    getRideHailingTrip(chosenTrip).nonEmpty
-  }
-  def exchangeVehicleId(vehicleId: Id[Vehicle]): Id[Vehicle] ={
-    Id.createVehicleId(s"rideHailingVehicle-${vehicleId.toString}")
   }
 
 }
@@ -82,8 +64,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   }
 
   chainedWhen (AnyState) {
-    case Event (ModifyPassengerScheduleAck (Some (msgId) ), _) =>
-      stay
     case Event (Finish, _) =>
       stop
   }
