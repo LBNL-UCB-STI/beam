@@ -119,8 +119,8 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
           surgePriceBin.copy(previousIterationSurgePriceLevel = updatedPreviousSurgePriceLevel, currentIterationSurgePriceLevel = Math.max(updatedSurgeLevel, minimumSurgeLevel))
         }
       }
-      updatePreviousIterationRevenuesAndResetCurrent
     }
+    updatePreviousIterationRevenuesAndResetCurrent
   }
 
   //Method to avoid code duplication
