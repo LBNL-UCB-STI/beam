@@ -148,7 +148,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     // following
     // block has time to execute and send the Ack which ultimately results in the next Trigger (e.g. StartLegTrigger)
     // to be scheduled
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), _) if notCompatible(updatedPassengerSchedule) =>
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), _) if isNotCompatible(updatedPassengerSchedule) =>
       stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
 
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), _) =>
@@ -169,7 +169,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
       stay() replying ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
 
-    case Event(req: ReservationRequest, _) if isTooLateFor(req) =>
+    case Event(req: ReservationRequest, _) if isTooLate(req) =>
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
     case Event(req: ReservationRequest, _) =>
@@ -207,7 +207,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   }
 
-  def notCompatible(updatedPassengerSchedule: PassengerSchedule) = {
+  private def isNotCompatible(updatedPassengerSchedule: PassengerSchedule) = {
     var errorFlag = false
     if (!passengerSchedule.isEmpty) {
       val endSpaceTime = passengerSchedule.terminalSpacetime()
@@ -221,7 +221,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     errorFlag
   }
 
-  private def isTooLateFor(req: ReservationRequest) = {
+  private def isTooLate(req: ReservationRequest) = {
     _currentLeg match {
       case Some(currentLeg) if req.departFrom.startTime <= currentLeg.startTime =>
         true
@@ -233,7 +233,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         }
     }
   }
-
 
   def setPassengerSchedule(newPassengerSchedule: PassengerSchedule) = {
     passengerSchedule = newPassengerSchedule
