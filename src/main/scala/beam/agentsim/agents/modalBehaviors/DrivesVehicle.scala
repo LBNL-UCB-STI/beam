@@ -46,7 +46,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   protected var passengerSchedule: PassengerSchedule = PassengerSchedule()
   var lastVisited:  SpaceTime = SpaceTime.zero
   protected var _currentLeg: Option[BeamLeg] = None
-  //TODO: send some message to set _currentVehicle
   protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
   protected var _awaitingBoardConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
   protected var _awaitingAlightConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
