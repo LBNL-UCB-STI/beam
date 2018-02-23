@@ -123,6 +123,10 @@ public class GraphSurgePricing {
             for(Double key : categoryKeys){
                 categoriesStrings.add(getRoundedNumber(key) + "");
             }
+            int lastIndex = categoriesStrings.size() - 1;
+            String lastValue = categoriesStrings.get(lastIndex);
+            lastValue = lastValue + "-" + max;
+            categoriesStrings.set(lastIndex, lastValue);
             return categoriesStrings;
         }
     }
