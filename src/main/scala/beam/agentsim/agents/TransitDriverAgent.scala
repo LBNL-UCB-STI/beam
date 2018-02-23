@@ -60,17 +60,10 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       holdTickAndTriggerId(tick, triggerId)
-      self ! BecomeDriver(tick, id, Some(initialPassengerSchedule))
-        stay ()
-
-    /*
-    * Becoming driver
-    */
-    case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
-      vehicle.becomeDriver(beamServices.agentRefs(newDriver.toString)).fold(fa =>
-        stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
+      vehicle.becomeDriver(beamServices.agentRefs(id.toString)).fold(fa =>
+        stop(Failure(s"BeamAgent $id attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle.id)
+        vehicle.driver.get ! BecomeDriverSuccess(Some(initialPassengerSchedule), vehicle.id)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(PersonAgent.Waiting)
