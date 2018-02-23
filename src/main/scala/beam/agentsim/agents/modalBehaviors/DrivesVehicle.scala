@@ -122,7 +122,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
-          print("")
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
     case Event(BoardVehicle(tick, vehiclePersonId), _) =>
@@ -149,34 +148,21 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     // following
     // block has time to execute and send the Ack which ultimately results in the next Trigger (e.g. StartLegTrigger)
     // to be scheduled
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), _) if notCompatible(updatedPassengerSchedule) =>
+      stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
+
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), _) =>
-      var errorFlag = false
-      if (!passengerSchedule.isEmpty) {
-        val endSpaceTime = passengerSchedule.terminalSpacetime()
-        if (updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
-          beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc, endSpaceTime.loc) >
-            beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-        ) {
-          errorFlag = true
+      passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
+      updatedPassengerSchedule.schedule.foreach { legAndManifest =>
+        legAndManifest._2.riders.foreach { rider =>
+          passengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
         }
       }
-      if (errorFlag) {
-        stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with " +
-          "new"))
-      } else {
-        passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
-        updatedPassengerSchedule.schedule.foreach { legAndManifest =>
-          legAndManifest._2.riders.foreach { rider =>
-            passengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
-          }
-        }
-        val resultingState = _currentLeg match {
-          case None =>
-            goto(Waiting) replying ModifyPassengerScheduleAck(requestId)
-          case Some(_) =>
-            stay() replying ModifyPassengerScheduleAck(requestId)
-        }
-        resultingState
+      _currentLeg match {
+        case None =>
+          goto(Waiting) replying ModifyPassengerScheduleAck(requestId)
+        case Some(_) =>
+          stay() replying ModifyPassengerScheduleAck(requestId)
       }
 
     case Event(req: ReservationRequest, _) =>
@@ -228,6 +214,21 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stay()
 
   }
+
+  def notCompatible(updatedPassengerSchedule: PassengerSchedule) = {
+    var errorFlag = false
+    if (!passengerSchedule.isEmpty) {
+      val endSpaceTime = passengerSchedule.terminalSpacetime()
+      if (updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
+        beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc, endSpaceTime.loc) >
+          beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+      ) {
+        errorFlag = true
+      }
+    }
+    errorFlag
+  }
+
   def setPassengerSchedule(newPassengerSchedule: PassengerSchedule) = {
     passengerSchedule = newPassengerSchedule
   }
