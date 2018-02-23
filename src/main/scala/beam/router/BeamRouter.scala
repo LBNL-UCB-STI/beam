@@ -27,7 +27,6 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.router.util.TravelTime
@@ -92,7 +91,6 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs)
           val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          services.agentRefs += (transitDriverId.toString -> transitDriver)
           scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
 
         case _ =>

@@ -56,7 +56,6 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
-    when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 

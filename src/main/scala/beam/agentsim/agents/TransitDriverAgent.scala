@@ -58,7 +58,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
   chainedWhen(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
       logDebug(s" $id has been initialized, going to Waiting state")
-      vehicle.becomeDriver(beamServices.agentRefs(id.toString)).fold(fa =>
+      vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"BeamAgent $id attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
         _currentVehicleUnderControl = Some(vehicle)

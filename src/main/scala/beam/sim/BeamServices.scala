@@ -18,7 +18,6 @@ import glokka.Registry
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
-import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
@@ -44,7 +43,6 @@ trait BeamServices extends ActorInject {
   var schedulerRef: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
-  val agentRefs: TrieMap[String, ActorRef]
   var taz: TAZTreeMap
 
   def clearAll
@@ -65,13 +63,11 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var schedulerRef: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-  val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
   var taz: TAZTreeMap = _
 
   def clearAll = {
     personRefs.clear
     vehicles.clear()
-    agentRefs.clear()
   }
 }
 

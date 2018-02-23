@@ -87,7 +87,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         val rideHailingAgentProps = RideHailingAgent.props(beamServices, scheduler, transportNetwork, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)
         val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgentProps, rideHailingName)
         context.watch(rideHailingAgentRef)
-        beamServices.agentRefs.put(rideHailingName, rideHailingAgentRef)
         scheduler ! ScheduleTrigger(InitializeTrigger(0.0), rideHailingAgentRef)
         rideHailingAgents :+= rideHailingAgentRef
       }
