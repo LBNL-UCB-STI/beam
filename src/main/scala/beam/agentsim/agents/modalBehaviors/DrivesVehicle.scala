@@ -142,12 +142,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   }
 
   chainedWhen(AnyState) {
-    // Note, when this is received from PersonAgent, it is due to a NotifyLegEndTrigger. The reason that
-    // NotifyLeg*Trigger
-    // are triggers and not direct messages is that otherwise, the schedule would move on before the logic in the
-    // following
-    // block has time to execute and send the Ack which ultimately results in the next Trigger (e.g. StartLegTrigger)
-    // to be scheduled
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), _) if isNotCompatible(updatedPassengerSchedule) =>
       stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
 
