@@ -113,8 +113,9 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
           RoutingModel.traverseStreetLeg(_currentLeg.get, _currentVehicleUnderControl.get.id, (_,_) => 0L)
             .foreach(eventsManager.processEvent)
-          eventsManager.processEvent(new VehicleLeavesTrafficEvent(_currentLeg.get.endTime, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
-          goto(Moving) replying completed(triggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self))
+          val endTime = tick + _currentLeg.get.duration
+          eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
+          goto(Moving) replying completed(triggerId, schedule[EndLegTrigger](endTime, self))
         case None =>
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
