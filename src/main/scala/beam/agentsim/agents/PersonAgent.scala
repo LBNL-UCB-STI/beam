@@ -206,11 +206,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
               stop(Failure(s"Expected a non-empty BeamTrip but found ${_restOfCurrentTrip}"))
           }
       }
-
-
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) =>
-      stash()
-      stay
   }
 
   when(Moving) {
