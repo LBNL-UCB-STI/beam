@@ -220,10 +220,9 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) =>
       _currentEmbodiedLeg match {
         case Some(currentLeg) if currentLeg.beamLeg == beamLeg =>
-          val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick)
-          processedDataOpt match {
-            case Some(processedData) => // There are more legs in the trip...
-              if (processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
+          breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
+            case Some(ProcessedData(nextLeg, _, _)) => // There are more legs in the trip...
+              if (nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
                 // The next vehicle is the same as current so just update state and go to Waiting
                 _currentEmbodiedLeg = None
                 goto(Waiting) replying completed(triggerId)
@@ -243,9 +242,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           stash()
           stay
       }
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
-      stash()
-      stay
   }
 
   onTransition {
