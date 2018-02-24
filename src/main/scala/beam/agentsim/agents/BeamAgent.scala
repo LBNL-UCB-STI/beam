@@ -2,15 +2,12 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, ScheduledTrigger}
-import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.Trigger
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
-
-import scala.collection.mutable
 
 
 object BeamAgent {
@@ -68,94 +65,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
 
-  private val chainedStateFunctions = new mutable.HashMap[BeamAgentState, mutable.Set[StateFunction]] with mutable.MultiMap[BeamAgentState, StateFunction]
-
-  final def chainedWhen(stateName: BeamAgentState)(stateFunction: StateFunction): Unit = {
-    chainedStateFunctions.addBinding(stateName, stateFunction)
-  }
-
-  def handleEvent(state: BeamAgentState, event: Event): State = {
-    var theStateData = event.stateData
-    event match {
-      case Event(TriggerWithId(trigger, triggerId), _) =>
-        theStateData = theStateData.copy(triggerId = Some(triggerId), tick = Some(trigger.tick))
-      case Event(_, _) =>
-      // do nothing
-    }
-    var theEvent = event.copy(stateData = theStateData)
-
-
-    if (chainedStateFunctions.contains(state)) {
-      var resultingBeamStates = List[State]()
-      var resultingReplies = List[Any]()
-      chainedStateFunctions(state).foreach { stateFunction =>
-        if (stateFunction isDefinedAt theEvent) {
-          val fsmState: State = stateFunction(theEvent)
-          theStateData = fsmState.stateData.copy(triggerId = theStateData.triggerId, tick = theStateData.tick)
-          theEvent = Event(event.event, theStateData)
-          resultingBeamStates = resultingBeamStates :+ fsmState
-          resultingReplies = resultingReplies ::: fsmState.replies
-        }
-      }
-      val newStates = for (result <- resultingBeamStates if result.stateName != Abstain) yield result
-      if (!allStatesSame(newStates.map(_.stateName))) {
-        stop(Failure(s"Chained when blocks did not achieve consensus on state to transition " +
-          s" to for BeamAgent ${stateData.id}, newStates: $newStates, theEvent=$theEvent ,"))
-      } else if (newStates.isEmpty && state == AnyState) {
-        stop(Failure(s"Did not handle the event=$event"))
-      } else if (newStates.isEmpty) {
-        handleEvent(AnyState, event)
-      } else {
-        val numCompletionNotices = resultingReplies.count(_.isInstanceOf[CompletionNotice])
-        if (numCompletionNotices > 1) {
-          stop(Failure(s"Chained when blocks attempted to reply with multiple CompletionNotices for BeamAgent ${stateData.id}"))
-        } else {
-          if (numCompletionNotices == 1) {
-            theStateData = theStateData.copy(triggerId = None)
-          }
-          FSM.State(
-            stateName = newStates.head.stateName,
-            stateData = theStateData,
-            timeout = None,
-            stopReason = newStates.flatMap(s => s.stopReason).headOption, // Stop iff anyone wants to. TODO: Maybe do a consensus check here, too.
-            replies = resultingReplies
-          )
-        }
-      }
-    } else {
-      FSM.State(state, event.stateData)
-    }
-  }
-
-  def numCompletionNotices(theReplies: List[Any]): Int = {
-    theReplies.count(_.isInstanceOf[CompletionNotice])
-  }
-
-  def allStatesSame(theStates: List[BeamAgentState]): Boolean = {
-    theStates.forall(stateToTest => stateToTest == theStates.head)
-  }
-
   startWith(Uninitialized, BeamAgentInfo[T](id, data))
-
-  when(Uninitialized){
-    case ev @  Event(_,_) =>
-      handleEvent(stateName, ev)
-  }
-  when(Initialized) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-  }
-
-  whenUnhandled {
-    case ev@Event(_, _) =>
-      val result = handleEvent(AnyState, ev)
-      if (result.stateName == AnyState) {
-        logWarn(s"Unrecognized event ${ev.event}")
-        stay()
-      } else {
-        result
-      }
-  }
 
   onTermination {
     case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
@@ -169,9 +79,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, stateData.tick))
   }
 
-  /*
-   * Helper methods
-   */
   def holdTickAndTriggerId(tick: Double, triggerId: Long) = {
     if (_currentTriggerId.isDefined || _currentTick.isDefined)
       throw new IllegalStateException(s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively.")

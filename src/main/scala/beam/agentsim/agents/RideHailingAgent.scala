@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
+import beam.agentsim.agents.PersonAgent.WaitingToDrive
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -44,7 +44,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   override val data: RideHailingAgentData = RideHailingAgentData()
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
-  chainedWhen(Uninitialized) {
+  when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _: BeamAgentInfo[RideHailingAgentData]) =>
       vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"RideHailingAgent $self attempted to become driver of vehicle ${vehicle.id} " +
@@ -53,7 +53,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(PersonAgent.Waiting) replying completed(triggerId)
+        goto(WaitingToDrive) replying completed(triggerId)
       })
   }
 
@@ -63,34 +63,10 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     stay
   }
 
-  chainedWhen (AnyState) {
+  whenUnhandled {
     case Event (Finish, _) =>
       stop
   }
-
-
-  //// BOILERPLATE /////
-
-  when (Waiting) {
-  case ev@Event (_, _) =>
-  handleEvent (stateName, ev)
-  case msg@_ =>
-  stop (Failure (s"Unrecognized message $msg") )
-}
-
-  when (Moving) {
-  case ev@Event (_, _) =>
-  handleEvent (stateName, ev)
-  case msg@_ =>
-  stop (Failure (s"Unrecognized message $msg") )
-}
-
-  when (AnyState) {
-  case ev@Event (_, _) =>
-  handleEvent (stateName, ev)
-  case msg@_ =>
-  stop (Failure (s"Unrecognized message $msg") )
-}
 
 }
 

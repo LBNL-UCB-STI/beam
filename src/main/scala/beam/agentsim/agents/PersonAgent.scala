@@ -68,7 +68,11 @@ object PersonAgent {
 
   case object Waiting extends Traveling
 
+  case object WaitingToDrive extends Traveling
+
   case object Moving extends Traveling
+
+  case object Driving extends Traveling
 
   case class ActivityStartTrigger(tick: Double) extends Trigger
 
@@ -118,41 +122,18 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     }
   }
 
-  when(PerformingActivity) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-  }
-  when(ChoosingMode) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-    case msg@_ =>
-      stop(Failure(s"Unrecognized message $msg from state ChoosingMode"))
-  }
-  when(Waiting) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-    case msg@_ =>
-      stop(Failure(s"Unrecognized message $msg from state Waiting"))
-  }
-  when(Moving) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-    case msg@_ =>
-      stop(Failure(s"Unrecognized message $msg from state Moving"))
-  }
-
-  chainedWhen(Uninitialized) {
+  when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
       goto(Initialized) replying completed(triggerId, schedule[ActivityStartTrigger](0.0, self))
   }
 
-  chainedWhen(Initialized) {
+  when(Initialized) {
     case Event(TriggerWithId(ActivityStartTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       logDebug(s"starting at ${currentActivity.getType} @ $tick")
       goto(PerformingActivity) using info replying completed(triggerId, schedule[ActivityEndTrigger](currentActivity.getEndTime, self))
   }
 
-  chainedWhen(PerformingActivity) {
+  when(PerformingActivity) {
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       nextActivity.fold(
         msg => {
@@ -167,7 +148,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       )
   }
 
-  chainedWhen(Waiting) {
+  when(Waiting) {
     /*
      * Starting Trip
      */
@@ -232,7 +213,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       stay
   }
 
-  chainedWhen(Moving) {
+  when(Moving) {
     /*
      * Learn as passenger that leg is ending
      */
@@ -268,9 +249,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   }
 
   onTransition {
-    case Moving -> Waiting =>
-      unstashAll()
-    case Waiting -> Moving =>
+    case _ -> _ =>
       unstashAll()
   }
 
@@ -341,7 +320,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
             // Can't depart earlier than it is now
             val newTriggerTime = math.max(_currentEmbodiedLeg.get.beamLeg.startTime, tick)
             scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
-            goto(Waiting)
+            goto(WaitingToDrive)
           } else {
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
@@ -429,7 +408,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     super.postStop()
   }
 
-  chainedWhen(AnyState) {
+  whenUnhandled {
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
+      stash()
+      stay
     case Event(NotifyResourceInUse(_, _), _) =>
       stay()
     case Event(RegisterResource(_), _) =>

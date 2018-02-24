@@ -47,7 +47,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
   def passengerScheduleEmpty(tick: Double, triggerId: Long): State
 
-  chainedWhen(Moving) {
+  when(Driving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
       lastVisited = beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)
       _currentVehicleUnderControl match {
@@ -90,7 +90,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
   }
 
-  chainedWhen(Waiting) {
+  when(WaitingToDrive) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
@@ -115,7 +115,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             .foreach(eventsManager.processEvent)
           val endTime = tick + _currentLeg.get.duration
           eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
-          goto(Moving) replying completed(triggerId, schedule[EndLegTrigger](endTime, self))
+          goto(Driving) replying completed(triggerId, schedule[EndLegTrigger](endTime, self))
         case None =>
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
@@ -124,7 +124,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stop(Failure(s"Received EndLegTrigger while in state Waiting. passenger schedule $passengerSchedule"))
   }
 
-  chainedWhen(AnyState) {
+  whenUnhandled {
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), _) if isNotCompatible(updatedPassengerSchedule) =>
       stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
 

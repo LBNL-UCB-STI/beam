@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
+import beam.agentsim.agents.PersonAgent.{Moving, Waiting, WaitingToDrive}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -55,7 +55,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
   initialPassengerSchedule.addLegs(legs)
 
 
-  chainedWhen(Uninitialized) {
+  when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       vehicle.becomeDriver(self).fold(fa =>
@@ -65,12 +65,12 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
         passengerSchedule = initialPassengerSchedule
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(PersonAgent.Waiting) replying
+        goto(WaitingToDrive) replying
           completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime, self, passengerSchedule.schedule.firstKey))
       })
   }
 
-  chainedWhen(AnyState) {
+  whenUnhandled {
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
     case Event(Finish, _) =>
@@ -80,20 +80,5 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
     scheduler ! completed(triggerId)
     stop
-  }
-
-  when(Waiting) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-  }
-  when(Moving) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-  }
-  when(AnyState) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-    case msg@_ =>
-      stop(Failure(s"Unrecognized message ${msg}"))
   }
 }
