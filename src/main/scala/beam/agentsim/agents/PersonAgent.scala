@@ -214,12 +214,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
                 // Send message to driver we're entering vehicle
                 // Note that here we enter vehicle regardless of its capacity (!)
 
-                // TODO: Instead of maintaining references to the vehicle, we should maintain the ref
-                //       to the driver (associated with vehicleID)
-                beamServices.vehicles(nextBeamVehicleId).driver.foreach(
-                  driver =>
-                    driver ! BoardVehicle(tick, VehiclePersonId(previousVehicleId, id))
-                )
                 eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, nextBeamVehicleId))
 
                 _restOfCurrentTrip = processedData.restTrip
@@ -255,8 +249,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
               } else {
                 // The next vehicle is different from current so we exit the current vehicle
                 val passengerVehicleId = _currentVehicle.penultimateVehicle()
-                beamServices.vehicles(_currentVehicle.outermostVehicle()).driver.get ! AlightVehicle(tick,
-                  VehiclePersonId(passengerVehicleId, id))
                 eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
                 _currentVehicle = _currentVehicle.pop()
                 // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass

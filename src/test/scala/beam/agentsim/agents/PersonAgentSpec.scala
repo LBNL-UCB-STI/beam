@@ -12,7 +12,6 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleProtocol.{AlightVehicle, BoardVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -296,11 +295,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       expectMsgType[PathTraversalEvent]
 
       // In undetermined order
-      expectMsgAllClassOf(classOf[BoardVehicle], classOf[PersonEntersVehicleEvent])
-      expectMsgAllClassOf(classOf[AlightVehicle], classOf[PersonLeavesVehicleEvent])
+      expectMsgAllClassOf(classOf[PersonEntersVehicleEvent])
+      expectMsgAllClassOf(classOf[PersonLeavesVehicleEvent])
 
-      expectMsgAllClassOf(classOf[BoardVehicle], classOf[PersonEntersVehicleEvent])
-      expectMsgAllClassOf(classOf[AlightVehicle], classOf[PersonLeavesVehicleEvent])
+      expectMsgAllClassOf(classOf[PersonEntersVehicleEvent])
+      expectMsgAllClassOf(classOf[PersonLeavesVehicleEvent])
 
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]

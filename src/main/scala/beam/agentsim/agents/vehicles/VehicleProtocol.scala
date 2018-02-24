@@ -12,10 +12,6 @@ object VehicleProtocol {
 
   case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
 
-  case class BoardVehicle(tick: Double, passengerVehicle: VehiclePersonId)
-
-  case class AlightVehicle(tick: Double, passengerVehicle: VehiclePersonId)
-
   case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
   case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)

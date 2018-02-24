@@ -1,12 +1,11 @@
 package beam.agentsim.agents.modalBehaviors
 
-import akka.actor.FSM
 import akka.actor.FSM.Failure
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.TriggerUtils.{completed, _}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{DriverHasEmptyPassengerScheduleError, VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
@@ -21,8 +20,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
-
-import scala.collection.immutable.HashSet
 
 /**
   * @author dserdiuk on 7/29/17.
@@ -47,16 +44,11 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   var lastVisited:  SpaceTime = SpaceTime.zero
   protected var _currentLeg: Option[BeamLeg] = None
   protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
-  protected var _awaitingBoardConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
-  protected var _awaitingAlightConfirmation: Set[Id[Vehicle]] = HashSet[Id[Vehicle]]()
 
   def passengerScheduleEmpty(tick: Double, triggerId: Long): State
 
   chainedWhen(Moving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
-      //we have just completed a leg
-      //      logDebug(s"Received EndLeg($tick, ${completedLeg.endTime}) for
-      // beamVehicleId=${_currentVehicleUnderControl.get.id}, started Boarding/Alighting   ")
       lastVisited = beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
@@ -67,45 +59,39 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
       passengerSchedule.schedule.get(_currentLeg.get) match {
         case Some(manifest) =>
-          holdTickAndTriggerId(tick, triggerId)
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
               logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
               scheduler ! scheduleOne[NotifyLegEndTrigger](tick, personRef, _currentLeg.get)
             }
           }
-          if (manifest.alighters.isEmpty) {
-            processNextLegOrCompleteMission()
+          manifest.alighters.foreach { alighter =>
+            _currentVehicleUnderControl.foreach(veh=>
+              if(!veh.removePassenger(alighter)){
+                log.error(s"Attempted to remove passenger ${alighter} but was not on board ${id}")
+              })
+          }
+          eventsManager.processEvent(new PathTraversalEvent(tick, _currentVehicleUnderControl.get.id,
+            _currentVehicleUnderControl.get.getType,
+            passengerSchedule.curTotalNumPassengers(_currentLeg.get),
+            _currentLeg.get))
+
+          _currentLeg = None
+          passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
+
+          if (passengerSchedule.schedule.nonEmpty) {
+            val nextLeg = passengerSchedule.schedule.firstKey
+            goto(Waiting) replying completed(triggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
           } else {
-            logDebug(s" will wait for ${manifest.alighters.size} alighters: ${manifest.alighters}")
-            _awaitingAlightConfirmation ++= manifest.alighters
-            stay()
+            passengerScheduleEmpty(tick, triggerId)
           }
         case None =>
           throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
       }
-
-    case Event(AlightVehicle(tick, vehiclePersonId), _) =>
-
-      // Remove person from vehicle and clear carrier
-      _currentVehicleUnderControl.foreach(veh=>
-        if(!veh.removePassenger(vehiclePersonId.vehicleId)){
-          log.error(s"Attempted to remove passenger ${vehiclePersonId.vehicleId} but was not on board ${id}")
-        })
-      _awaitingAlightConfirmation -= vehiclePersonId.vehicleId
-
-      if (_awaitingAlightConfirmation.isEmpty) {
-        processNextLegOrCompleteMission()
-      } else {
-        stay()
-      }
   }
+
   chainedWhen(Waiting) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
-      holdTickAndTriggerId(tick, triggerId)
-      //      logDebug(s"Received StartLeg($tick, ${newLeg.startTime}) for
-      // beamVehicleId=${_currentVehicleUnderControl.get.id} ")
-
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
           _currentLeg = Some(newLeg)
@@ -114,27 +100,23 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             scheduler ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs
             (personVehicle.personId), newLeg)
           }
-          if (manifest.boarders.isEmpty) {
-            releaseAndScheduleEndLeg()
-          } else {
-            logDebug(s" will wait for ${manifest.boarders.size} boarders: ${manifest.boarders}")
-            _awaitingBoardConfirmation ++= manifest.boarders
-            stay()
+          manifest.boarders.foreach { boarder =>
+            _currentVehicleUnderControl.foreach{veh=>
+              if(!veh.addPassenger(boarder)){
+                log.error(s"Attempted to add passenger ${boarder} but vehicle was full ${id}")
+              }
+            }
           }
+          eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, _currentVehicleUnderControl.get.id, "car", 1.0))
+          // Produce link events for this trip (the same ones as in PathTraversalEvent).
+          // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
+          // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+          RoutingModel.traverseStreetLeg(_currentLeg.get, _currentVehicleUnderControl.get.id, (_,_) => 0L)
+            .foreach(eventsManager.processEvent)
+          eventsManager.processEvent(new VehicleLeavesTrafficEvent(_currentLeg.get.endTime, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
+          goto(Moving) replying completed(triggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self))
         case None =>
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
-      }
-    case Event(BoardVehicle(tick, vehiclePersonId), _) =>
-      _awaitingBoardConfirmation -= vehiclePersonId.vehicleId
-      _currentVehicleUnderControl.foreach{veh=>
-        if(!veh.addPassenger(vehiclePersonId.vehicleId)){
-          log.error(s"Attempted to add passenger ${vehiclePersonId.vehicleId} but vehicle was full ${id}")
-        }
-      }
-      if (_awaitingBoardConfirmation.isEmpty) {
-        releaseAndScheduleEndLeg()
-      } else {
-        stay()
       }
 
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
@@ -175,21 +157,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stay() replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
 
     case Event(RemovePassengerFromTrip(id),_)=>
-      if(passengerSchedule.removePassenger(id)){
-//        log.error(s"Passenger $id removed from trip")
-      }
-
-      if(_awaitingAlightConfirmation.nonEmpty){
-        _awaitingAlightConfirmation -= id.vehicleId
-        if (_awaitingAlightConfirmation.isEmpty) {
-          processNextLegOrCompleteMission()
-        }
-      }else if(_awaitingBoardConfirmation.nonEmpty) {
-        _awaitingBoardConfirmation -= id.vehicleId
-        if (_awaitingBoardConfirmation.isEmpty) {
-          releaseAndScheduleEndLeg()
-        }
-      }
+      passengerSchedule.removePassenger(id)
       stay()
 
   }
@@ -263,38 +231,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   def unbecomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double): Unit ={
     beamServices.vehicles(vehicleId).unsetDriver()
     eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), vehicleId))
-  }
-
-  private def releaseAndScheduleEndLeg(): FSM.State[BeamAgent.BeamAgentState, BeamAgent.BeamAgentInfo[T]] = {
-    val (tick, theTriggerId) = releaseTickAndTriggerId()
-    eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, _currentVehicleUnderControl.get.id, "car", 1.0))
-    // Produce link events for this trip (the same ones as in PathTraversalEvent).
-    // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
-    // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-    RoutingModel.traverseStreetLeg(_currentLeg.get, _currentVehicleUnderControl.get.id, (_,_) => 0L)
-      .foreach(eventsManager.processEvent)
-    eventsManager.processEvent(new VehicleLeavesTrafficEvent(_currentLeg.get.endTime, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
-    scheduler ! completed(theTriggerId, schedule[EndLegTrigger](_currentLeg.get.endTime, self))
-    goto(Moving)
-  }
-
-  private def processNextLegOrCompleteMission() = {
-    val (theTick, theTriggerId) = releaseTickAndTriggerId()
-    eventsManager.processEvent(new PathTraversalEvent(theTick, _currentVehicleUnderControl.get.id,
-      _currentVehicleUnderControl.get.getType,
-      passengerSchedule.curTotalNumPassengers(_currentLeg.get),
-      _currentLeg.get))
-
-    _currentLeg = None
-    passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
-
-    if (passengerSchedule.schedule.nonEmpty) {
-      val nextLeg = passengerSchedule.schedule.firstKey
-      scheduler ! completed(theTriggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
-      goto(Waiting)
-    } else {
-      passengerScheduleEmpty(theTick, theTriggerId)
-    }
   }
 
 }
