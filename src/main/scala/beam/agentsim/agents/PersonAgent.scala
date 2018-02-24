@@ -89,7 +89,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   var _currentEmbodiedLeg: Option[EmbodiedBeamLeg] = None
   var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
 
-  override def logDepth: Int = 12
+  override def logDepth: Int = 100
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
     processNextLegOrStartActivity(triggerId, tick)
@@ -309,10 +309,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     if (_restOfCurrentTrip.legs.nonEmpty) {
       breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
         case Some(processedData) =>
-          if (processedData.nextLeg.beamLeg.startTime < tick) {
-            stop(Failure(s"I am going to schedule a leg for ${processedData.nextLeg.beamLeg.startTime}, but it is " +
-              s"$tick."))
-          } else if (processedData.nextLeg.asDriver) {
+          if (processedData.nextLeg.asDriver) {
             /*
              * AS DRIVER
              */
@@ -326,7 +323,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
             // vehicle is the same...
             val nextEmbodiedBeamLeg = processedData.nextLeg
             passengerSchedule.addLegs(Vector(nextEmbodiedBeamLeg.beamLeg))
-            holdTickAndTriggerId(tick, triggerId)
             if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehiclePersonId.vehicleId) {
               // We are already in vehicle from before, so update schedule
               //XXXX (VR): Easy refactor => send directly to driver
@@ -349,9 +345,12 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
             _restOfCurrentTrip = processedData.restTrip
             _currentEmbodiedLeg = Some(processedData.nextLeg)
-            scheduleStartLegAndWait()
-          }
-          else {
+
+            // Can't depart earlier than it is now
+            val newTriggerTime = math.max(_currentEmbodiedLeg.get.beamLeg.startTime, tick)
+            scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
+            goto(Waiting)
+          } else {
             // We don't update the rest of the currentRoute, this will happen when the agent recieves the
             // NotifyStartLegTrigger
             _currentEmbodiedLeg = None
@@ -453,17 +452,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         log.warning("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
       }
       stop
-  }
-
-  def scheduleStartLegAndWait(): State = {
-    val (tick, triggerId) = releaseTickAndTriggerId()
-    val newTriggerTime = _currentEmbodiedLeg.get.beamLeg.startTime
-    if (newTriggerTime < tick) {
-      stop(Failure(s"It is $tick and I am trying to schedule the start of my " +
-        s"leg for $newTriggerTime. I can't do that."))
-    }
-    scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
-    goto(Waiting)
   }
 
   override def logPrefix(): String = s"PersonAgent:$id "

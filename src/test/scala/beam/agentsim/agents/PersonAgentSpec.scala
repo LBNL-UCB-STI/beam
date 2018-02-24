@@ -282,7 +282,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30600, tramLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
       personActor ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
 
       expectMsgType[ModeChoiceEvent]
