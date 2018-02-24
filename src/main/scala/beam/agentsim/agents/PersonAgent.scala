@@ -163,7 +163,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
      * Learn as passenger that leg is starting
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
-      logDebug(s"NotifyLegStartTrigger received: ${beamLeg}")
+      logDebug(s"NotifyLegStartTrigger received: $beamLeg")
       _currentEmbodiedLeg match {
         /*
          * If we already have a leg then we're not ready to start a new one,
@@ -175,31 +175,23 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           stash()
           stay
         case None =>
-          val processedDataOpt = breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick)
-          processedDataOpt match {
-            case Some(processedData) =>
-              if (processedData.nextLeg.beamLeg != beamLeg || processedData.nextLeg.asDriver) {
+          breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
+            case Some(ProcessedData(nextLeg, restTrip)) =>
+              if (nextLeg.beamLeg != beamLeg || nextLeg.asDriver) {
                 // We've recevied this leg out of order from 2 different drivers or we haven't our
                 // personDepartureTrigger
                 stash()
                 stay
-              } else if (processedData.nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
+              } else if (nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
                 logDebug(s"Already on vehicle: ${_currentVehicle.outermostVehicle()}")
-                _restOfCurrentTrip = processedData.restTrip
-                _currentEmbodiedLeg = Some(processedData.nextLeg)
+                _restOfCurrentTrip = restTrip
+                _currentEmbodiedLeg = Some(nextLeg)
                 goto(Moving) replying completed(triggerId)
               } else {
-                val previousVehicleId = _currentVehicle.outermostVehicle()
-                val nextBeamVehicleId = processedData.nextLeg.beamVehicleId
-
-                // Send message to driver we're entering vehicle
-                // Note that here we enter vehicle regardless of its capacity (!)
-
-                eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, nextBeamVehicleId))
-
-                _restOfCurrentTrip = processedData.restTrip
-                _currentEmbodiedLeg = Some(processedData.nextLeg)
-                _currentVehicle = _currentVehicle.pushIfNew(nextBeamVehicleId)
+                eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, nextLeg.beamVehicleId))
+                _restOfCurrentTrip = restTrip
+                _currentEmbodiedLeg = Some(nextLeg)
+                _currentVehicle = _currentVehicle.pushIfNew(nextLeg.beamVehicleId)
                 goto(Moving) replying completed(triggerId)
               }
             case None =>
@@ -216,7 +208,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       _currentEmbodiedLeg match {
         case Some(currentLeg) if currentLeg.beamLeg == beamLeg =>
           breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
-            case Some(ProcessedData(nextLeg, _, _)) => // There are more legs in the trip...
+            case Some(ProcessedData(nextLeg, _)) => // There are more legs in the trip...
               if (nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
                 // The next vehicle is the same as current so just update state and go to Waiting
                 _currentEmbodiedLeg = None
@@ -270,20 +262,20 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     }
     if (_restOfCurrentTrip.legs.nonEmpty) {
       breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
-        case Some(processedData) =>
-          if (processedData.nextLeg.asDriver) {
+        case Some(ProcessedData(nextLeg, restTrip)) =>
+          if (nextLeg.asDriver) {
             /*
              * AS DRIVER
              */
             val passengerSchedule = PassengerSchedule()
-            val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(processedData.nextLeg.beamVehicleId)) {
+            val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
               VehiclePersonId(bodyId, id)
             } else {
-              VehiclePersonId(processedData.nextLeg.beamVehicleId, id)
+              VehiclePersonId(nextLeg.beamVehicleId, id)
             }
             //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and
             // vehicle is the same...
-            val nextEmbodiedBeamLeg = processedData.nextLeg
+            val nextEmbodiedBeamLeg = nextLeg
             passengerSchedule.addLegs(Vector(nextEmbodiedBeamLeg.beamLeg))
             if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehiclePersonId.vehicleId) {
               // We are already in vehicle from before, so update schedule
@@ -305,8 +297,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
               setPassengerSchedule(passengerSchedule)
             }
             _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
-            _restOfCurrentTrip = processedData.restTrip
-            _currentEmbodiedLeg = Some(processedData.nextLeg)
+            _restOfCurrentTrip = restTrip
+            _currentEmbodiedLeg = Some(nextLeg)
 
             // Can't depart earlier than it is now
             val newTriggerTime = math.max(_currentEmbodiedLeg.get.beamLeg.startTime, tick)
@@ -433,16 +425,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val nextLeg = trip.legs.head
       val restLegs = trip.legs.tail
       val restTrip: EmbodiedBeamTrip = EmbodiedBeamTrip(restLegs)
-      val nextStart = if (restTrip.legs.nonEmpty) {
-        restTrip.legs.head.beamLeg.startTime
-      } else {
-        tick
-      }
-      Some(ProcessedData(nextLeg, restTrip, nextStart))
+      Some(ProcessedData(nextLeg, restTrip))
     }
   }
 
-  case class ProcessedData(nextLeg: EmbodiedBeamLeg, restTrip: EmbodiedBeamTrip, nextStart: Double)
+  case class ProcessedData(nextLeg: EmbodiedBeamLeg, restTrip: EmbodiedBeamTrip)
 
 
 }
