@@ -408,8 +408,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     super.postStop()
   }
 
-  whenUnhandled {
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
+  val myUnhandled: StateFunction = {
+    case Event(TriggerWithId(NotifyLegStartTrigger(_, _), _), _) =>
+      stash()
+      stay
+    case Event(TriggerWithId(NotifyLegEndTrigger(_, _), _), _) =>
       stash()
       stay
     case Event(NotifyResourceInUse(_, _), _) =>
@@ -427,6 +430,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       }
       stop
   }
+
+  whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   override def logPrefix(): String = s"PersonAgent:$id "
 

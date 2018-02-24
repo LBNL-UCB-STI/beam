@@ -70,12 +70,14 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
       })
   }
 
-  whenUnhandled {
+  val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
   }
+
+  whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
     scheduler ! completed(triggerId)

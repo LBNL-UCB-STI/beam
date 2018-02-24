@@ -63,10 +63,12 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     stay
   }
 
-  whenUnhandled {
+  val myUnhandled: StateFunction =  {
     case Event (Finish, _) =>
       stop
   }
+
+  whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
 }
 

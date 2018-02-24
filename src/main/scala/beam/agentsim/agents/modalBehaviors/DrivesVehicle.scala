@@ -81,7 +81,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
 
           if (passengerSchedule.schedule.nonEmpty) {
             val nextLeg = passengerSchedule.schedule.firstKey
-            goto(Waiting) replying completed(triggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
+            goto(WaitingToDrive) replying completed(triggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
           } else {
             passengerScheduleEmpty(tick, triggerId)
           }
@@ -124,7 +124,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       stop(Failure(s"Received EndLegTrigger while in state Waiting. passenger schedule $passengerSchedule"))
   }
 
-  whenUnhandled {
+  val drivingBehavior: StateFunction = {
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), _) if isNotCompatible(updatedPassengerSchedule) =>
       stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
 
@@ -137,7 +137,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       }
       _currentLeg match {
         case None =>
-          goto(Waiting) replying ModifyPassengerScheduleAck(requestId)
+          goto(WaitingToDrive) replying ModifyPassengerScheduleAck(requestId)
         case Some(_) =>
           stay() replying ModifyPassengerScheduleAck(requestId)
       }
