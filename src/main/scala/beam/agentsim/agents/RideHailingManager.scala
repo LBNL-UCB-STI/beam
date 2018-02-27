@@ -40,6 +40,10 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
   * BEAM
   */
 
+
+
+
+
 object RideHailingManager {
   val RIDE_HAIL_MANAGER = "RideHailingManager";
   val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
@@ -81,6 +85,8 @@ object RideHailingManager {
   case object RideUnavailableAck
 
   case object RideAvailableAck
+
+  case object RepositioningTimer
 
 
   def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
@@ -163,7 +169,18 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, availableIn.get)
         makeAvailable(rideHailingAgentLocation)
         sender ! CheckInSuccess
-      })
+      }     )
+
+
+    case RepositioningTimer =>  {
+      // TODO: reposition vehicles
+
+     //  beamServices.schedulerRef ! RepositioningTimer -> make trigger
+
+
+      // TODO: schedule next Timer
+    }
+
 
     case CheckOutResource(_) =>
       // Because the RideHail Manager is in charge of deciding which specific vehicles to assign to customers, this should never be used
@@ -249,6 +266,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
           case Some((closestRideHailingAgent)) =>
             val travelProposal = travelPlanOpt.get._1
             surgePricingManager.addRideCost(departAt.atTime, travelProposal.estimatedPrice.doubleValue(),customerPickUp)
+
 
             val tripPlan = travelPlanOpt.map(_._2)
             handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent,
