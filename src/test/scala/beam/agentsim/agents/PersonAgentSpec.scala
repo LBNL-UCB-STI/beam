@@ -294,12 +294,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       expectMsgType[PathTraversalEvent]
 
-      // In undetermined order
-      expectMsgAllClassOf(classOf[PersonEntersVehicleEvent])
-      expectMsgAllClassOf(classOf[PersonLeavesVehicleEvent])
+      expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[PersonLeavesVehicleEvent]
 
-      expectMsgAllClassOf(classOf[PersonEntersVehicleEvent])
-      expectMsgAllClassOf(classOf[PersonLeavesVehicleEvent])
+      expectMsgType[PersonEntersVehicleEvent]
+      expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
