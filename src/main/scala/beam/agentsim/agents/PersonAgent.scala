@@ -264,39 +264,20 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
         case Some(ProcessedData(nextLeg, restTrip)) =>
           if (nextLeg.asDriver) {
-            /*
-             * AS DRIVER
-             */
             val passengerSchedule = PassengerSchedule()
-            val vehiclePersonId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
-              VehiclePersonId(bodyId, id)
+            val vehicleId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
+              bodyId
             } else {
-              VehiclePersonId(nextLeg.beamVehicleId, id)
+              nextLeg.beamVehicleId
             }
-            //TODO the following needs to find all subsequent legs in currentRoute for which this agent is driver and
-            // vehicle is the same...
-            val nextEmbodiedBeamLeg = nextLeg
-            passengerSchedule.addLegs(Vector(nextEmbodiedBeamLeg.beamLeg))
-            if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehiclePersonId.vehicleId) {
-              // We are already in vehicle from before, so update schedule
-              //XXXX (VR): Easy refactor => send directly to driver
-              //              beamServices.vehicles(vehiclePersonId.vehicleId).driver.foreach(_ ! ModifyPassengerSchedule
-              //              (passengerSchedule))
+            passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
+            if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehicleId) {
               modifyPassengerSchedule(passengerSchedule)
             } else {
-              //              //XXXX (VR): Our first time entering this vehicle, so become driver directly
-              //              val vehicle = beamServices.vehicles(vehiclePersonId.vehicleId)
-              //              vehicle.becomeDriver(self).fold(fa =>
-              //                stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
-              //                  s"but driver ${vehicle.driver.get} already assigned.")),
-              //                fb => {
-              //                  vehicle.driver.get ! BecomeDriverSuccess(Some(passengerSchedule),vehiclePersonId.vehicleId)
-              //                  eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-              //                })
-              becomeDriverOfVehicle(vehiclePersonId.vehicleId, tick)
+              becomeDriverOfVehicle(vehicleId, tick)
               setPassengerSchedule(passengerSchedule)
             }
-            _currentVehicle = _currentVehicle.pushIfNew(vehiclePersonId.vehicleId)
+            _currentVehicle = _currentVehicle.pushIfNew(vehicleId)
             _restOfCurrentTrip = restTrip
             _currentEmbodiedLeg = Some(nextLeg)
 
