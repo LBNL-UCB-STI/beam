@@ -219,6 +219,8 @@ trait ChoosesMode {
             combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
           }
           if (itinsWithoutWalk.nonEmpty) itinsWithoutWalk else combinedItinerariesForChoice
+        case _ =>
+          combinedItinerariesForChoice
       }
 
       modeChoiceCalculator(filteredItinerariesForChoice) match {
@@ -231,7 +233,7 @@ trait ChoosesMode {
           }
         case None =>
           // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-          goto(Waiting) using info.copy(data = choosesModeData.copy(pendingChosenTrip = None))
+          goto(Waiting) using info.copy(data = choosesModeData.copy(pendingChosenTrip = Some(createExpensiveWalkTrip(nextStateData.data.asInstanceOf[ChoosesModeData]))))
     }
   }
 
@@ -303,24 +305,12 @@ trait ChoosesMode {
   onTransition {
     case ChoosingMode -> Waiting =>
       unstashAll()
-      val chosenTrip = nextStateData.data.asInstanceOf[ChoosesModeData].pendingChosenTrip match {
-        case Some(pendingChosenTrip) =>
-          pendingChosenTrip
-        case None =>
-          createExpensiveWalkTrip(nextStateData.data.asInstanceOf[ChoosesModeData])
-      }
-      scheduleDepartureWithValidatedTrip(chosenTrip, nextStateData.data.asInstanceOf[ChoosesModeData])
+      scheduleDepartureWithValidatedTrip(nextStateData.data.asInstanceOf[ChoosesModeData].pendingChosenTrip.get, nextStateData.data.asInstanceOf[ChoosesModeData])
     case WaitingForReservationConfirmation -> Waiting =>
       // Schedule triggers contained in reservation confirmation
       nextStateData.triggersToSchedule.foreach(scheduler ! _)
       unstashAll()
-      val chosenTrip = nextStateData.data.asInstanceOf[ChoosesModeData].pendingChosenTrip match {
-        case Some(pendingChosenTrip) =>
-          pendingChosenTrip
-        case None =>
-          createExpensiveWalkTrip(nextStateData.data.asInstanceOf[ChoosesModeData])
-      }
-      scheduleDepartureWithValidatedTrip(chosenTrip, nextStateData.data.asInstanceOf[ChoosesModeData])
+      scheduleDepartureWithValidatedTrip(nextStateData.data.asInstanceOf[ChoosesModeData].pendingChosenTrip.get, nextStateData.data.asInstanceOf[ChoosesModeData])
   }
 
   def createExpensiveWalkTrip(choosesModeData: ChoosesModeData): EmbodiedBeamTrip = {
