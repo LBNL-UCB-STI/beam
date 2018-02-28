@@ -151,17 +151,14 @@ trait ChoosesMode {
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
       }
-      val newPersonData = choosesModeData.copy(availablePersonalStreetVehicles = availablePersonalStreetVehicles, rideHailingResult = rideHailingResult)
-      stay() using info.copy(data = newPersonData)
+      stay() using info.copy(data = choosesModeData.copy(availablePersonalStreetVehicles = availablePersonalStreetVehicles, rideHailingResult = rideHailingResult))
     /*
      * Receive and store data needed for choice.
      */
     case Event(theRouterResult: RoutingResponse, info @ BeamAgentInfo(_ , choosesModeData: ChoosesModeData,_,_,_,_)) =>
-      val newPersonData = choosesModeData.copy(routingResponse = Some(theRouterResult))
-      stay() using info.copy(data = newPersonData)
+      stay() using info.copy(data = choosesModeData.copy(routingResponse = Some(theRouterResult)))
     case Event(theRideHailingResult: RideHailingInquiryResponse, info @ BeamAgentInfo(_ , choosesModeData: ChoosesModeData,_,_,_,_)) =>
-      val newPersonData = choosesModeData.copy(rideHailingResult = Some(theRideHailingResult))
-      stay() using info.copy(data = newPersonData)
+      stay() using info.copy(data = choosesModeData.copy(rideHailingResult = Some(theRideHailingResult)))
 
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), theTriggerId), _) =>
       // We've received this leg too early...
