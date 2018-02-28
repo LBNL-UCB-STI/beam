@@ -18,6 +18,8 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
@@ -86,7 +88,9 @@ object RideHailingManager {
 
   case object RideAvailableAck
 
-  case object RepositioningTimer
+  case class RepositioningTimer(tick: Double) extends Trigger
+
+
 
 
   def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
@@ -108,6 +112,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   // val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
+  val selfTimerTimoutDuration=10*60 // TODO: set from config
 
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
@@ -172,13 +177,31 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       }     )
 
 
-    case RepositioningTimer =>  {
+    case TriggerWithId(RepositioningTimer(tick),triggerId) =>  {
+
+    print()
+      // TODO: add initial timer
+
       // TODO: reposition vehicles
 
      //  beamServices.schedulerRef ! RepositioningTimer -> make trigger
 
 
       // TODO: schedule next Timer
+
+      // get two random idling TNCs
+      // move one TNC to the other.
+
+
+      // start relocate?
+
+      // end relocate?
+
+
+      val timerTrigger=RepositioningTimer(tick+selfTimerTimoutDuration)
+      val timerMessage=ScheduleTrigger(timerTrigger, self)
+      beamServices.schedulerRef ! timerMessage
+      beamServices.schedulerRef ! CompletionNotice(triggerId, Vector())
     }
 
 
