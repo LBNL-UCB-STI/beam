@@ -228,8 +228,7 @@ trait ChoosesMode {
     if (rideHailingLeg.nonEmpty) {
       val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
       val rideHailingId = Id.create(choosesModeData.rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
-      rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId
-      (bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
+      rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId(bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
       awaitingReservationConfirmation = awaitingReservationConfirmation + rideHailingId
     } else {
       var prevLeg = chosenTrip.legs.head
