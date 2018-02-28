@@ -209,24 +209,19 @@ trait ChoosesMode {
   }
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
-    case s @ FSM.State(stateName, info @ BeamAgentInfo(_ , choosesModeData @ ChoosesModeData(None, Some(routingResponse), Some(rideHailingResult), _, _),_,_,_,_), timeout, stopReason, replies) =>
-      val modeAlreadyDefined = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).isDefined
-      var predefinedMode: Option[BeamMode] = None
-      var combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
-
-      if (modeAlreadyDefined) {
-        predefinedMode = Some(_experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).get.asInstanceOf[ModeChoiceStrategy].mode)
-        if (predefinedMode.get != WALK) {
-          val itinsWithoutWalk = if (predefinedMode.get == DRIVE_TRANSIT) {
+    case s @ FSM.State(stateName, info @ BeamAgentInfo(_ , choosesModeData @ ChoosesModeData(None, Some(routingResponse), Some(rideHailingResult), _, _),_,_,_,_), _, _, _) =>
+      val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
+      val filteredItinerariesForChoice = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).map(_.asInstanceOf[ModeChoiceStrategy].mode) match {
+        case Some(mode) if mode != WALK =>
+          val itinsWithoutWalk = if (mode == DRIVE_TRANSIT) {
             combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
           } else {
             combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
           }
-          if (itinsWithoutWalk.nonEmpty) combinedItinerariesForChoice = itinsWithoutWalk
-        }
+          if (itinsWithoutWalk.nonEmpty) itinsWithoutWalk else combinedItinerariesForChoice
       }
 
-      modeChoiceCalculator(combinedItinerariesForChoice) match{
+      modeChoiceCalculator(filteredItinerariesForChoice) match {
         case Some(chosenTrip) =>
           if (chosenTrip.requiresReservationConfirmation) {
             val awaitingReservationConfirmation = sendReservationRequests(chosenTrip, choosesModeData)
