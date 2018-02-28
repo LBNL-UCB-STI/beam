@@ -165,18 +165,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
       logDebug(s"NotifyLegStartTrigger received: $beamLeg")
       _currentEmbodiedLeg match {
-        /*
-         * If we already have a leg then we're not ready to start a new one,
-         * this occurs when a transit driver is ready to roll but an agent hasn't
-         * finished previous leg.
-         */
-        case Some(_) =>
-          stash()
-          stay
+        // Must be None, otherwise we wouldn't be Waiting
         case None =>
           breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
             case Some(ProcessedData(nextLeg, restTrip)) =>
-              if (nextLeg.beamLeg != beamLeg || nextLeg.asDriver) {
+              if (nextLeg.beamLeg != beamLeg) {
                 // We've recevied this leg out of order from 2 different drivers or we haven't our
                 // personDepartureTrigger
                 stash()
@@ -281,7 +274,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
           goto(WaitingToDrive)
         } else {
-          // We don't update the rest of the currentRoute, this will happen when the agent recieves the
+          // We don't update the rest of the currentRoute, this will happen when the agent receives the
           // NotifyStartLegTrigger
           _currentEmbodiedLeg = None
           scheduler ! completed(triggerId)

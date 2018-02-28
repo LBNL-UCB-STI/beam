@@ -53,44 +53,36 @@ trait ChoosesMode {
 
   when(ChoosingMode) ( transform {
     case Event(MobilityStatusReponse(streetVehicles), info @ BeamAgentInfo(_ , choosesModeData: ChoosesModeData,_,_,_,_)) =>
-      val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong),
-        WALK, asDriver = true)
-      var availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
-      var rideHailingResult = choosesModeData.rideHailingResult
+      val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(_currentTick.get.toInt)
-
       val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
         case l: Leg => Some(l)
         case _ => None
       }
       val modeChoiceStrategy = maybeLeg.map(l => ModeChoiceStrategy(BeamMode.withValue(l.getMode)))
-      modeChoiceStrategy match {
-        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+      val availablePersonalStreetVehicles = modeChoiceStrategy match {
+        case None | Some(ModeChoiceStrategy(CAR | BIKE | DRIVE_TRANSIT)) =>
           // In these cases, a personal vehicle will be involved
-          availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
-        case None =>
-          availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
-        case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
+          streetVehicles.filter(_.asDriver)
+        case Some(ModeChoiceStrategy(DRIVE_TRANSIT))=>
           val tour = _experiencedBeamPlan.getTourContaining(nextAct)
           val tripIndex = tour.tripIndexOfElement(nextAct)
           if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
-            availablePersonalStreetVehicles = streetVehicles.filter(_.asDriver)
+            streetVehicles.filter(_.asDriver)
           } else {
-            availablePersonalStreetVehicles = Vector()
+            Vector()
           }
         case _ =>
-          availablePersonalStreetVehicles = Vector()
+          Vector()
       }
 
       // Mark rideHailingResult as None if we need to request a new one, or fake a result if we don't need to make a request
-      modeChoiceStrategy match {
-        case Some(ModeChoiceStrategy(mode)) if mode == RIDE_HAIL =>
-          rideHailingResult = None
-        case None =>
-          rideHailingResult = None
+      val rideHailingResult = modeChoiceStrategy match {
+        case None | Some(ModeChoiceStrategy(RIDE_HAIL)) =>
+          None
         case _ =>
-          rideHailingResult = Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA", classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequestedError)))
+          Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA", classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequestedError)))
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
@@ -117,11 +109,11 @@ trait ChoosesMode {
         case None =>
           makeRequestWith(Vector(TRANSIT), streetVehicles :+ bodyStreetVehicle)
           makeRideHailRequest()
-        case Some(ModeChoiceStrategy(mode)) if mode == WALK =>
+        case Some(ModeChoiceStrategy(WALK)) =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle))
-        case Some(ModeChoiceStrategy(mode)) if mode == WALK_TRANSIT =>
+        case Some(ModeChoiceStrategy(WALK_TRANSIT)) =>
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
-        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE =>
+        case Some(ModeChoiceStrategy(mode @ (CAR | BIKE))) =>
           maybeLeg.map(l => (l, l.getRoute)) match {
             case Some((l, r: NetworkRoute)) =>
               val maybeVehicle = filterStreetVehiclesForQuery(streetVehicles, mode).headOption
@@ -135,16 +127,17 @@ trait ChoosesMode {
             case _ =>
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
-        case Some(ModeChoiceStrategy(mode)) if mode == DRIVE_TRANSIT =>
+        case Some(ModeChoiceStrategy(DRIVE_TRANSIT)) =>
+          val LastActivityIndex = currentTour.trips.size - 1
           currentTour.tripIndexOfElement(nextAct) match {
-            case ind if ind == 0 =>
+            case 0 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
-            case ind if ind == currentTour.trips.size - 1 =>
+            case LastActivityIndex =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
           }
-        case Some(ModeChoiceStrategy(mode)) if mode == RIDE_HAIL =>
+        case Some(ModeChoiceStrategy(RIDE_HAIL)) =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
       }
