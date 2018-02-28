@@ -243,9 +243,12 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     _currentEmbodiedLeg match {
       case Some(embodiedBeamLeg) =>
         if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
-          unbecomeDriverOfVehicle(_currentVehicle.outermostVehicle(), tick)
+          beamServices.vehicles(_currentVehicle.outermostVehicle()).unsetDriver()
+          eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), _currentVehicle.outermostVehicle()))
           _currentVehicle = _currentVehicle.pop()
-          if (!_currentVehicle.isEmpty) resumeControlOfVehcile(_currentVehicle.outermostVehicle())
+          if (!_currentVehicle.isEmpty) {
+            _currentVehicleUnderControl = Some(beamServices.vehicles(_currentVehicle.outermostVehicle()))
+          }
         }
       case None =>
     }

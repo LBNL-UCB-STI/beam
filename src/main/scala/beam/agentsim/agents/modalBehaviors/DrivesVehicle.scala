@@ -186,41 +186,4 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     hasRoom
   }
 
-  def setPassengerSchedule(newPassengerSchedule: PassengerSchedule) = {
-    passengerSchedule = newPassengerSchedule
-  }
-
-  def modifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule)={
-    var errorFlag = false
-    if (!passengerSchedule.isEmpty) {
-      val endSpaceTime = passengerSchedule.terminalSpacetime()
-      if (updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
-        beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc, endSpaceTime.loc) >
-          beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      ) {
-        errorFlag = true
-      }
-    }
-    if (errorFlag) {
-      stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with " +
-        "new"))
-    } else {
-      passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
-      updatedPassengerSchedule.schedule.foreach { legAndManifest =>
-        legAndManifest._2.riders.foreach { rider =>
-          passengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
-        }
-      }
-    }
-  }
-
-  def resumeControlOfVehcile(vehicleId: Id[Vehicle]) = {
-    _currentVehicleUnderControl = Some(beamServices.vehicles(vehicleId))
-  }
-
-  def unbecomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double): Unit ={
-    beamServices.vehicles(vehicleId).unsetDriver()
-    eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), vehicleId))
-  }
-
 }
