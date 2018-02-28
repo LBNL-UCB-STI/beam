@@ -201,7 +201,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       val timerTrigger=RepositioningTimer(tick+selfTimerTimoutDuration)
       val timerMessage=ScheduleTrigger(timerTrigger, self)
       beamServices.schedulerRef ! timerMessage
-      beamServices.schedulerRef ! CompletionNotice(triggerId, Vector())
+      beamServices.schedulerRef ! TriggerUtils.completed(triggerId)
     }
 
 
