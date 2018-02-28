@@ -250,36 +250,34 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       case None =>
     }
     breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
-      case Some(ProcessedData(nextLeg, restTrip)) =>
-        if (nextLeg.asDriver) {
-          val passengerSchedule = PassengerSchedule()
-          val vehicleId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
-            bodyId
-          } else {
-            nextLeg.beamVehicleId
-          }
-          passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
-          if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehicleId) {
-            modifyPassengerSchedule(passengerSchedule)
-          } else {
-            becomeDriverOfVehicle(vehicleId, tick)
-            setPassengerSchedule(passengerSchedule)
-          }
-          _currentVehicle = _currentVehicle.pushIfNew(vehicleId)
-          _restOfCurrentTrip = restTrip
-          _currentEmbodiedLeg = Some(nextLeg)
-
-          // Can't depart earlier than it is now
-          val newTriggerTime = math.max(_currentEmbodiedLeg.get.beamLeg.startTime, tick)
-          scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
-          goto(WaitingToDrive)
+      case Some(ProcessedData(nextLeg, restTrip)) if nextLeg.asDriver =>
+        val passengerSchedule = PassengerSchedule()
+        val vehicleId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
+          bodyId
         } else {
-          // We don't update the rest of the currentRoute, this will happen when the agent receives the
-          // NotifyStartLegTrigger
-          _currentEmbodiedLeg = None
-          scheduler ! completed(triggerId)
-          goto(Waiting)
+          nextLeg.beamVehicleId
         }
+        passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
+        setPassengerSchedule(passengerSchedule)
+
+        if (_currentVehicle.isEmpty || _currentVehicle.outermostVehicle() != vehicleId) {
+          becomeDriverOfVehicle(vehicleId, tick)
+        }
+
+        _currentVehicle = _currentVehicle.pushIfNew(vehicleId)
+        _restOfCurrentTrip = restTrip
+        _currentEmbodiedLeg = Some(nextLeg)
+
+        // Can't depart earlier than it is now
+        val newTriggerTime = math.max(_currentEmbodiedLeg.get.beamLeg.startTime, tick)
+        scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
+        goto(WaitingToDrive)
+      case Some(ProcessedData(nextLeg, restTrip)) =>
+        // We don't update the rest of the currentRoute, this will happen when the agent receives the
+        // NotifyStartLegTrigger
+        _currentEmbodiedLeg = None
+        scheduler ! completed(triggerId)
+        goto(Waiting)
       case None =>
         nextActivity match {
           case Left(msg) =>
