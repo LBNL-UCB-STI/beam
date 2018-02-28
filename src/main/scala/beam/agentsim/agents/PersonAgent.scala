@@ -169,13 +169,12 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
          * If we already have a leg then we're not ready to start a new one,
          * this occurs when a transit driver is ready to roll but an agent hasn't
          * finished previous leg.
-         * Solution for now is to re-send this to self, but this could get expensive...
          */
         case Some(_) =>
           stash()
           stay
         case None =>
-          breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
+          breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
             case Some(ProcessedData(nextLeg, restTrip)) =>
               if (nextLeg.beamLeg != beamLeg || nextLeg.asDriver) {
                 // We've recevied this leg out of order from 2 different drivers or we haven't our
@@ -207,7 +206,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) =>
       _currentEmbodiedLeg match {
         case Some(currentLeg) if currentLeg.beamLeg == beamLeg =>
-          breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
+          breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
             case Some(ProcessedData(nextLeg, _)) => // There are more legs in the trip...
               if (nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
                 // The next vehicle is the same as current so just update state and go to Waiting
@@ -215,11 +214,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
                 goto(Waiting) replying completed(triggerId)
               } else {
                 // The next vehicle is different from current so we exit the current vehicle
-                val passengerVehicleId = _currentVehicle.penultimateVehicle()
                 eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
                 _currentVehicle = _currentVehicle.pop()
-                // Note that this will send a scheduling reply to a driver, not the scheduler, the driver must pass
-                // on the new trigger
                 processNextLegOrStartActivity(triggerId, tick)
               }
             case None =>
@@ -260,81 +256,77 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         }
       case None =>
     }
-    if (_restOfCurrentTrip.legs.nonEmpty) {
-      breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip, tick) match {
-        case Some(ProcessedData(nextLeg, restTrip)) =>
-          if (nextLeg.asDriver) {
-            val passengerSchedule = PassengerSchedule()
-            val vehicleId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
-              bodyId
-            } else {
-              nextLeg.beamVehicleId
-            }
-            passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
-            if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehicleId) {
-              modifyPassengerSchedule(passengerSchedule)
-            } else {
-              becomeDriverOfVehicle(vehicleId, tick)
-              setPassengerSchedule(passengerSchedule)
-            }
-            _currentVehicle = _currentVehicle.pushIfNew(vehicleId)
-            _restOfCurrentTrip = restTrip
-            _currentEmbodiedLeg = Some(nextLeg)
+    breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
+      case Some(ProcessedData(nextLeg, restTrip)) =>
+        if (nextLeg.asDriver) {
+          val passengerSchedule = PassengerSchedule()
+          val vehicleId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
+            bodyId
+          } else {
+            nextLeg.beamVehicleId
+          }
+          passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
+          if (!_currentVehicle.isEmpty && _currentVehicle.outermostVehicle() == vehicleId) {
+            modifyPassengerSchedule(passengerSchedule)
+          } else {
+            becomeDriverOfVehicle(vehicleId, tick)
+            setPassengerSchedule(passengerSchedule)
+          }
+          _currentVehicle = _currentVehicle.pushIfNew(vehicleId)
+          _restOfCurrentTrip = restTrip
+          _currentEmbodiedLeg = Some(nextLeg)
 
-            // Can't depart earlier than it is now
-            val newTriggerTime = math.max(_currentEmbodiedLeg.get.beamLeg.startTime, tick)
-            scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
-            goto(WaitingToDrive)
-          } else {
-            // We don't update the rest of the currentRoute, this will happen when the agent recieves the
-            // NotifyStartLegTrigger
-            _currentEmbodiedLeg = None
-            scheduler ! completed(triggerId)
-            goto(Waiting)
-          }
-        case None =>
-          stop(Failure(s"Expected a non-empty BeamTrip but found ${_restOfCurrentTrip}"))
-      }
-    } else {
-      nextActivity match {
-        case Left(msg) =>
-          logDebug(msg)
-          scheduler ! completed(triggerId)
-          stop
-        case Right(activity) =>
-          _currentActivityIndex = _currentActivityIndex + 1
-          currentTourPersonalVehicle match {
-            case Some(personalVeh) =>
-              if (currentActivity.getType.equals("Home")) {
-                context.parent ! ReleaseVehicleReservation(id, personalVeh)
-                context.parent ! CheckInResource(personalVeh, None)
-                currentTourPersonalVehicle = None
-              }
-            case None =>
-          }
-          val endTime = if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
-            activity.getEndTime
-          } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
-            tick
-          } else {
-            //            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
-            // minutes.")
-            //TODO consider ending the day here to match MATSim convention for start/end activity
-            tick + 60 * 10
-          }
-          // Report travelled distance for inclusion in experienced plans.
-          // We currently get large unaccountable differences in round trips, e.g. work -> home may
-          // be twice as long as home -> work. Probably due to long links, and the location of the activity
-          // on the link being undefined.
-          eventsManager.processEvent(new TeleportationArrivalEvent(tick, id, _currentTrip.get.legs.map(l => l.beamLeg.travelPath.distanceInM).sum))
-          assert(activity.getLinkId != null)
-          eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTrip.get.tripClassifier.value))
+          // Can't depart earlier than it is now
+          val newTriggerTime = math.max(_currentEmbodiedLeg.get.beamLeg.startTime, tick)
+          scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, _currentEmbodiedLeg.get.beamLeg))
+          goto(WaitingToDrive)
+        } else {
+          // We don't update the rest of the currentRoute, this will happen when the agent recieves the
+          // NotifyStartLegTrigger
           _currentEmbodiedLeg = None
-          _currentTrip = None
-          eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
-          scheduler ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
-          goto(PerformingActivity)
-      }
+          scheduler ! completed(triggerId)
+          goto(Waiting)
+        }
+      case None =>
+        nextActivity match {
+          case Left(msg) =>
+            logDebug(msg)
+            scheduler ! completed(triggerId)
+            stop
+          case Right(activity) =>
+            _currentActivityIndex = _currentActivityIndex + 1
+            currentTourPersonalVehicle match {
+              case Some(personalVeh) =>
+                if (currentActivity.getType.equals("Home")) {
+                  context.parent ! ReleaseVehicleReservation(id, personalVeh)
+                  context.parent ! CheckInResource(personalVeh, None)
+                  currentTourPersonalVehicle = None
+                }
+              case None =>
+            }
+            val endTime = if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
+              activity.getEndTime
+            } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
+              tick
+            } else {
+              //            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
+              // minutes.")
+              //TODO consider ending the day here to match MATSim convention for start/end activity
+              tick + 60 * 10
+            }
+            // Report travelled distance for inclusion in experienced plans.
+            // We currently get large unaccountable differences in round trips, e.g. work -> home may
+            // be twice as long as home -> work. Probably due to long links, and the location of the activity
+            // on the link being undefined.
+            eventsManager.processEvent(new TeleportationArrivalEvent(tick, id, _currentTrip.get.legs.map(l => l.beamLeg.travelPath.distanceInM).sum))
+            assert(activity.getLinkId != null)
+            eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTrip.get.tripClassifier.value))
+            _currentEmbodiedLeg = None
+            _currentTrip = None
+            eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
+            scheduler ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
+            goto(PerformingActivity)
+        }
     }
   }
 
@@ -399,14 +391,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
   override def logPrefix(): String = s"PersonAgent:$id "
 
-  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip, tick: Double): Option[ProcessedData] = {
+  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip): Option[ProcessedData] = {
     if (trip.legs.isEmpty) {
       None
     } else {
-      val nextLeg = trip.legs.head
-      val restLegs = trip.legs.tail
-      val restTrip: EmbodiedBeamTrip = EmbodiedBeamTrip(restLegs)
-      Some(ProcessedData(nextLeg, restTrip))
+      Some(ProcessedData(trip.legs.head, EmbodiedBeamTrip(trip.legs.tail)))
     }
   }
 
