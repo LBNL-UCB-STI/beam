@@ -122,17 +122,17 @@ trait ChoosesMode {
                   val leg = BeamLeg(departTime.atTime, mode, l.getTravelTime.toLong, BeamPath((r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId).map(id => id.toString.toInt).toVector, None, SpaceTime.zero, SpaceTime.zero, 0.0))
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
                 case _ =>
-                  makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
+                  makeRequestWith(Vector(), Vector(bodyStreetVehicle))
               }
             case _ =>
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
         case Some(ModeChoiceStrategy(DRIVE_TRANSIT)) =>
-          val LastActivityIndex = currentTour.trips.size - 1
+          val LastTripIndex = currentTour.trips.size - 1
           currentTour.tripIndexOfElement(nextAct) match {
             case 0 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
-            case LastActivityIndex =>
+            case LastTripIndex =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
