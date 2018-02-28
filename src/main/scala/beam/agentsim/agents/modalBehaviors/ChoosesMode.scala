@@ -11,13 +11,11 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.{ChoosesModeData, LegWithPassengerVehicle, WaitingForReservationConfirmationData}
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, VehicleStack, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
@@ -159,19 +157,11 @@ trait ChoosesMode {
     case Event(theRideHailingResult: RideHailingInquiryResponse, info @ BeamAgentInfo(_ , choosesModeData: ChoosesModeData,_,_,_,_)) =>
       stay() using info.copy(data = choosesModeData.copy(rideHailingResult = Some(theRideHailingResult)))
 
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), theTriggerId), _) =>
-      // We've received this leg too early...
-      stash()
-      stay()
   } using completeChoiceIfReady)
 
   when(WaitingForReservationConfirmation) (transform { transform {
     case Event(response@ReservationResponse(requestId, _), info @ BeamAgentInfo(_ , wfrcData @ WaitingForReservationConfirmationData(pendingReservationConfirmation, awaitingReservationConfirmation, choosesModeData),_,_,_,_)) =>
       stay() using info.copy(data = wfrcData.copy(pendingReservationConfirmation = pendingReservationConfirmation - requestId, awaitingReservationConfirmation = awaitingReservationConfirmation + (requestId -> (sender(), response))))
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg),theTriggerId),_) =>
-      // We've received this leg too early...
-      stash()
-      stay()
   } using finalizeReservationsIfReady } using completeChoiceIfReady)
 
   def finalizeReservationsIfReady: PartialFunction[State, State] = {
