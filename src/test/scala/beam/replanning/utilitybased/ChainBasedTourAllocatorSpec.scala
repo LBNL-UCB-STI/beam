@@ -122,6 +122,7 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
 
     And("enough chain-based vehicles in the household for everyone")
     val vehicles = JavaConverters.mapAsScalaMap(f.vehs.getVehicles)
+    vehicles.size shouldEqual f.hh.getMemberIds.size()
 
     And("a household member of any rank that is a member of the household")
     val rng = Random
@@ -137,9 +138,26 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
     availableVehicleModes should contain atLeastOneElementOf Modes.BeamMode.chainBasedModes
 
     And("if the person requests a tour-based vehicle,")
-
+    val plan = f.pop.getPersons.get(personWithAnyRank).getPlans.get(0)
+    val subtour = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(plan,
+      f.chainBasedTourVehicleAllocator.stageActivitytypes)).toIndexedSeq(0)
+    f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(personWithAnyRank, subtour,
+      plan)
+    val legs =  JavaConverters.collectionAsScalaIterable(subtour.getTrips).flatMap { trip =>
+      JavaConverters
+        .collectionAsScalaIterable(trip.getLegsOnly)
+    }
 
     Then("it should be allocated to the person.")
+
+    val modes = legs.map(leg => leg.getMode)
+
+    modes should contain only "car"
+
+    val vehicleIds: Vector[Id[Vehicle]] = legs.map(leg=>leg.getRoute.asInstanceOf[NetworkRoute]
+      .getVehicleId).toVector
+
+    vehicleIds should contain only vehicleIds.head
 
   }
 
@@ -149,6 +167,7 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
 
     And("too few chain-based vehicles in the household")
     val vehicles = JavaConverters.mapAsScalaMap(f.vehs.getVehicles)
+
 
     And("a household member of high rank")
     val personWithHighRank = Id.createPersonId(5)
@@ -199,7 +218,6 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
         .collectionAsScalaIterable(trip.getLegsOnly)
     }.map(leg => leg.getMode)
     lowRankModes should not contain "car"
-
   }
 
 
