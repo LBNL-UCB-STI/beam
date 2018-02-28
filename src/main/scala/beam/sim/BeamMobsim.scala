@@ -7,12 +7,12 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, DeadLetter, Ident
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.RideHailingManager.NotifyIterationEnds
+import beam.agentsim.agents.RideHailingManager.{NotifyIterationEnds, RepositioningTimer}
 import beam.agentsim.agents.{RideHailSurgePricingManager, _}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
@@ -58,6 +58,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       val scheduler = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) , 300.0), "scheduler")
       context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
       context.watch(scheduler)
+      beamServices.schedulerRef=scheduler
 
       private val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
       envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
@@ -103,6 +104,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       Await.result(beamServices.beamRouter ? InitTransit(scheduler), timeout.duration)
       log.info(s"Transit schedule has been initialized")
 
+      scheduleRideHailManagerTimerMessage()
+
+
       override def receive = {
 
         case CompletionNotice(_, _) =>
@@ -128,6 +132,13 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           runSender = sender
           log.info("Running BEAM Mobsim")
           scheduler ! StartSchedule(0)
+      }
+
+      private def scheduleRideHailManagerTimerMessage(): Unit = {
+        val timerTrigger=RepositioningTimer(0.0)
+        val timerMessage=ScheduleTrigger(timerTrigger, rideHailingManager)
+        scheduler ! timerMessage
+        log.info(s"rideHailManagerTimerScheduled")
       }
 
       private def cleanupRideHailingAgents(): Unit = {
