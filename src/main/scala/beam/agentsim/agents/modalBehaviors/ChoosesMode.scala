@@ -234,9 +234,9 @@ trait ChoosesMode {
     } else {
       var prevLeg = chosenTrip.legs.head
       for (leg <- chosenTrip.legs) {
-        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle =
-          inferredVehicle.pop()
-        //        if (exitNextVehicle) inferredVehicle = inferredVehicle.pop()
+        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) {
+          inferredVehicle = inferredVehicle.pop()
+        }
 
         if (inferredVehicle.nestedVehicles.nonEmpty) {
           val passengerVeh: Id[Vehicle] = if (inferredVehicle.outermostVehicle() == leg.beamVehicleId) {
