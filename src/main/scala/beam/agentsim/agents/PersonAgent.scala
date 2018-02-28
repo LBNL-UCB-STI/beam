@@ -251,20 +251,20 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     }
     breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
       case Some(ProcessedData(nextLeg, restTrip)) if nextLeg.asDriver =>
-        val passengerSchedule = PassengerSchedule()
-        val vehicleId = if (HumanBodyVehicle.isHumanBodyVehicle(nextLeg.beamVehicleId)) {
-          bodyId
-        } else {
-          nextLeg.beamVehicleId
-        }
+        passengerSchedule = PassengerSchedule()
         passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
-        setPassengerSchedule(passengerSchedule)
 
-        if (_currentVehicle.isEmpty || _currentVehicle.outermostVehicle() != vehicleId) {
-          becomeDriverOfVehicle(vehicleId, tick)
+        if (_currentVehicle.isEmpty || _currentVehicle.outermostVehicle() != nextLeg.beamVehicleId) {
+          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+          vehicle.becomeDriver(self).fold(fa =>
+            stop(Failure(s"I attempted to become driver of vehicle $id but driver ${vehicle.driver.get} already assigned.")),
+            fb => {
+              _currentVehicleUnderControl = Some(vehicle)
+              eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), nextLeg.beamVehicleId))
+            })
         }
 
-        _currentVehicle = _currentVehicle.pushIfNew(vehicleId)
+        _currentVehicle = _currentVehicle.pushIfNew(nextLeg.beamVehicleId)
         _restOfCurrentTrip = restTrip
         _currentEmbodiedLeg = Some(nextLeg)
 

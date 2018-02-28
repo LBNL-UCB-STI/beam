@@ -214,17 +214,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
     }
   }
 
-  def becomeDriverOfVehicle(vehicleId: Id[Vehicle], tick: Double) = {
-    val vehicle = beamServices.vehicles(vehicleId)
-    vehicle.becomeDriver(self).fold(fa =>
-      stop(Failure(s"BeamAgent $self attempted to become driver of vehicle $id " +
-        s"but driver ${vehicle.driver.get} already assigned.")),
-      fb => {
-        _currentVehicleUnderControl = Some(vehicle)
-        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicleId))
-      })
-  }
-
   def resumeControlOfVehcile(vehicleId: Id[Vehicle]) = {
     _currentVehicleUnderControl = Some(beamServices.vehicles(vehicleId))
   }
