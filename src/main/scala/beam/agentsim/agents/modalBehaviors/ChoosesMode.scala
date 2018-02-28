@@ -166,15 +166,6 @@ trait ChoosesMode {
         goto(Waiting) using info.copy(data = choosesModeData, triggersToSchedule = triggers.toVector ++ triggersToSchedule)
       } else {
         val firstErrorResponse = awaitingReservationConfirmation.values.filter(_._2.response.isLeft).head._2.response.left.get
-        var rideHailingResult = choosesModeData.rideHailingResult
-        var routingResponse = choosesModeData.routingResponse
-        choosesModeData.pendingChosenTrip.get.tripClassifier match {
-          case RIDE_HAIL =>
-            rideHailingResult = Some(rideHailingResult.get.copy(proposals = Vector(), error = Some(firstErrorResponse)))
-          case _ =>
-            routingResponse = Some(routingResponse.get.copy(itineraries = routingResponse.get.itineraries.diff(Seq
-            (choosesModeData.pendingChosenTrip.get))))
-        }
         if (choosesModeData.routingResponse.get.itineraries.isEmpty & choosesModeData.rideHailingResult.get.error.isDefined) {
           // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
           // if more agents could be hailed.
@@ -182,7 +173,21 @@ trait ChoosesMode {
         } else {
           cancelTrip(stateData.data.asInstanceOf[WaitingForReservationConfirmationData].choosesModeData.pendingChosenTrip.get.legs, _currentVehicle)
           goto(ChoosingMode) using info.copy(
-            data = choosesModeData.copy(pendingChosenTrip = None, rideHailingResult = rideHailingResult, routingResponse = routingResponse),
+            data = choosesModeData.copy(
+              pendingChosenTrip = None,
+              rideHailingResult = choosesModeData.pendingChosenTrip.get.tripClassifier match {
+                case RIDE_HAIL =>
+                  Some(choosesModeData.rideHailingResult.get.copy(proposals = Vector(), error = Some(firstErrorResponse)))
+                case _ =>
+                  choosesModeData.rideHailingResult
+              },
+              routingResponse = choosesModeData.pendingChosenTrip.get.tripClassifier match {
+                case RIDE_HAIL =>
+                  choosesModeData.routingResponse
+                case _ =>
+                  Some(choosesModeData.routingResponse.get.copy(itineraries = choosesModeData.routingResponse.get.itineraries.diff(Seq(choosesModeData.pendingChosenTrip.get))))
+              }
+            ),
             triggersToSchedule = Vector()
           )
         }
