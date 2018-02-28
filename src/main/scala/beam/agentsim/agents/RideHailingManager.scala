@@ -37,6 +37,7 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.util.Random
 
 /**
   * BEAM
@@ -185,11 +186,31 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       // TODO: reposition vehicles
 
      //  beamServices.schedulerRef ! RepositioningTimer -> make trigger
+      val rnd = new Random
+      val availableKeyset = availableRideHailVehicles.keySet.toArray
+      if(availableKeyset.size > 1) {
+        val idRnd1 = availableKeyset.apply(rnd.nextInt(availableKeyset.size))
+        val idRnd2 = availableKeyset
+          .filterNot(_.equals(idRnd1))
+          .apply(rnd.nextInt(availableKeyset.size))
 
+        for{
+          rnd1 <- availableRideHailVehicles.get(idRnd1)
+          rnd2 <- availableRideHailVehicles.get(idRnd2)
+        } yield {
+          updateLocationOfAgent(idRnd1, rnd2.currentLocation, true)
+          updateLocationOfAgent(idRnd2, rnd1.currentLocation, true)
+        }
+      }
+
+//      updateLocationOfAgent(rnd1, )
 
       // TODO: schedule next Timer
 
       // get two random idling TNCs
+
+
+
       // move one TNC to the other.
 
 
