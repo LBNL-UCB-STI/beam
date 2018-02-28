@@ -204,21 +204,18 @@ trait ChoosesMode {
         case _ =>
           combinedItinerariesForChoice
       }
-
       modeChoiceCalculator(filteredItinerariesForChoice) match {
+        case Some(chosenTrip) if chosenTrip.requiresReservationConfirmation =>
+          val awaitingReservationConfirmation = sendReservationRequests(chosenTrip, choosesModeData)
+          goto(WaitingForReservationConfirmation) using info.copy(data = WaitingForReservationConfirmationData(pendingReservationConfirmation = awaitingReservationConfirmation, awaitingReservationConfirmation = Map(), choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))))
         case Some(chosenTrip) =>
-          if (chosenTrip.requiresReservationConfirmation) {
-            val awaitingReservationConfirmation = sendReservationRequests(chosenTrip, choosesModeData)
-            goto(WaitingForReservationConfirmation) using info.copy(data = WaitingForReservationConfirmationData(pendingReservationConfirmation = awaitingReservationConfirmation, awaitingReservationConfirmation = Map(), choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))))
-          } else {
-            goto(Waiting) using info.copy(data = choosesModeData.copy(pendingChosenTrip = Some(chosenTrip)))
-          }
+          goto(Waiting) using info.copy(data = choosesModeData.copy(pendingChosenTrip = Some(chosenTrip)))
         case None =>
           // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
           val originalWalkTripLeg = routingResponse.itineraries.filter(_.tripClassifier == WALK).head.legs.head
           val expensiveWalkTrip = EmbodiedBeamTrip(Vector(originalWalkTripLeg.copy(cost = BigDecimal(100.0))))
           goto(Waiting) using info.copy(data = choosesModeData.copy(pendingChosenTrip = Some(expensiveWalkTrip)))
-    }
+      }
   }
 
   def sendReservationRequests(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
