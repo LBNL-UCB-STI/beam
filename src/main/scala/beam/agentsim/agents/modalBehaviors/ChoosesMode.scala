@@ -215,7 +215,9 @@ trait ChoosesMode {
           }
         case None =>
           // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-          goto(Waiting) using info.copy(data = choosesModeData.copy(pendingChosenTrip = Some(createExpensiveWalkTrip(nextStateData.data.asInstanceOf[ChoosesModeData]))))
+          val originalWalkTripLeg = routingResponse.itineraries.filter(_.tripClassifier == WALK).head.legs.head
+          val expensiveWalkTrip = EmbodiedBeamTrip(Vector(originalWalkTripLeg.copy(cost = BigDecimal(100.0))))
+          goto(Waiting) using info.copy(data = choosesModeData.copy(pendingChosenTrip = Some(expensiveWalkTrip)))
     }
   }
 
@@ -292,11 +294,6 @@ trait ChoosesMode {
       nextStateData.triggersToSchedule.foreach(scheduler ! _)
       unstashAll()
       scheduleDepartureWithValidatedTrip(nextStateData.data.asInstanceOf[ChoosesModeData].pendingChosenTrip.get, nextStateData.data.asInstanceOf[ChoosesModeData])
-  }
-
-  def createExpensiveWalkTrip(choosesModeData: ChoosesModeData): EmbodiedBeamTrip = {
-    val originalWalkTripLeg = choosesModeData.routingResponse.get.itineraries.filter(_.tripClassifier == WALK).head.legs.head
-    EmbodiedBeamTrip(Vector(originalWalkTripLeg.copy(cost = BigDecimal(100.0))))
   }
 
   def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
