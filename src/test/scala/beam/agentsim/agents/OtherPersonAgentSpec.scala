@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
@@ -49,7 +49,7 @@ import scala.concurrent.Await
 /**
   * Created by sfeygin on 2/7/17.
   */
-class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
+class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString(
   """
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
@@ -91,131 +91,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
   describe("A PersonAgent FSM") {
 
-    it("should allow scheduler to set the first activity") {
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      homeActivity.setStartTime(1.0)
-      homeActivity.setEndTime(10.0)
-      val plan = PopulationUtils.getFactory.createPlan()
-      plan.addActivity(homeActivity)
-      val personAgentRef = TestFSMRef(new PersonAgent(scheduler, services, modeChoiceCalculator, networkCoordinator.transportNetwork, self, self, eventsManager, Id.create("dummyAgent", classOf[PersonAgent]), plan, Id.create("dummyBody", classOf[Vehicle])))
-
-      watch(personAgentRef)
-      scheduler ! ScheduleTrigger(InitializeTrigger(0.0), personAgentRef)
-      scheduler ! StartSchedule(0)
-      expectTerminated(personAgentRef)
-      expectMsg(CompletionNotice(0, Vector()))
-    }
-
-    // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
-    it("should demonstrate a complete trip, throwing MATSim events") {
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
-      val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      homeActivity.setEndTime(28800) // 8:00:00 AM
-      plan.addActivity(homeActivity)
-      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      workActivity.setEndTime(61200) //5:00:00 PM
-      plan.addActivity(workActivity)
-      person.addPlan(plan)
-      population.addPerson(person)
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
-
-      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), new Coord(0.0, 0.0)))
-      val personActor = householdActor.getSingleChild(person.getId.toString)
-
-      scheduler ! StartSchedule(0)
-
-      // The agent will ask for a route, and we provide it.
-      expectMsgType[RoutingRequest]
-      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 100, BeamPath(Vector(1, 2), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), true)))))
-
-      // The agent will ask for a ride, and we will answer.
-      val inquiry = expectMsgType[RideHailingInquiry]
-      personActor ! RideHailingInquiryResponse(inquiry.inquiryId, Nil, None)
-
-      expectMsgType[ModeChoiceEvent]
-      expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
-
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
-      expectMsgType[TeleportationArrivalEvent]
-
-      expectMsgType[PersonArrivalEvent]
-      expectMsgType[ActivityStartEvent]
-
-      expectMsgType[CompletionNotice]
-    }
-
-    it("should know how to take a car trip when it's already in its plan") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
-      val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
-      vehicles.put(vehicleId, beamVehicle)
-      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
-      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
-      val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      homeActivity.setEndTime(28800) // 8:00:00 AM
-      plan.addActivity(homeActivity)
-      val leg = PopulationUtils.createLeg("car")
-      val route = RouteUtils.createLinkNetworkRouteImpl(Id.createLinkId(1), Array[Id[Link]](), Id.createLinkId(2))
-      route.setVehicleId(vehicleId)
-      leg.setRoute(route)
-      plan.addLeg(leg)
-      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      workActivity.setEndTime(61200) //5:00:00 PM
-      plan.addActivity(workActivity)
-      person.addPlan(plan)
-      population.addPerson(person)
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
-
-      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(beamVehicle.getId -> beamVehicle), new Coord(0.0, 0.0)))
-      val personActor = householdActor.getSingleChild(person.getId.toString)
-
-      scheduler ! StartSchedule(0)
-
-      // The agent will ask for current travel times for a route it already knows.
-      val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
-      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(embodyRequest.leg.copy(duration = 1000), Id.createVehicleId("body-something"), true, None, BigDecimal(0), true)))))
-
-      expectMsgType[ModeChoiceEvent]
-      expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
-
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
-      expectMsgType[TeleportationArrivalEvent]
-
-      expectMsgType[PersonArrivalEvent]
-      expectMsgType[ActivityStartEvent]
-
-      expectMsgType[CompletionNotice]
-    }
-
-    it("should know how to take a walk_transit trip when it's already in its plan") {
+    it("should also work when the first bus is late") {
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType), None, Car)
       val tram = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType), None, Car)
@@ -276,12 +152,12 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(35000, busLeg2.beamLeg), personActor)
       personActor ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, tramLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, tramLeg.beamLeg), personActor) // My tram is late!
       personActor ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
 
       expectMsgType[ModeChoiceEvent]
@@ -311,6 +187,9 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       expectMsgType[CompletionNotice]
     }
+
+
+
 
   }
 
