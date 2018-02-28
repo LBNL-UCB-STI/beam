@@ -82,9 +82,10 @@ class ChangeModeForTour(beamServices: BeamServices,
   def timeScaling(beamMode: BeamMode, tripDistanceInMeters: Double): Double = {
     val transitSpeedDefault = 10 // m/s
     val transit2AutoRatio = 1.7 // car is 1.7 times faster than transit
+
     beamMode match {
       case BeamMode.CAR => tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio)
-      case WALK => tripDistanceInMeters * 1.4 // 1.4 m/s beeline walk (typical default)
+      case WALK => tripDistanceInMeters / 1.4 // 1.4 m/s beeline walk (typical default)
       case RIDE_HAIL => tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio) * DefaultRideHailCostPerMinute.toDouble
       case a: BeamMode if a.isTransit() => tripDistanceInMeters / transitSpeedDefault
     }
