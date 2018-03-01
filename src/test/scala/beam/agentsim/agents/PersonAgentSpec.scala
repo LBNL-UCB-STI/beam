@@ -133,7 +133,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       // The agent will ask for a route, and we provide it.
       expectMsgType[RoutingRequest]
-      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 100, BeamPath(Vector(1, 2), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), true)))))
+      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 100, BeamPath(Vector(1, 2), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), true)))))
 
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailingInquiry]
@@ -193,7 +193,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
-      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(embodyRequest.leg.copy(duration = 1000), Id.createVehicleId("body-something"), true, None, BigDecimal(0), true)))))
+      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(embodyRequest.leg.copy(duration = 1000), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), true)))))
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
@@ -265,11 +265,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
       val request = expectMsgType[RoutingRequest]
       personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
-        EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 28800), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false),
+        EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 28800), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false),
         busLeg,
         busLeg2,
         tramLeg,
-        EmbodiedBeamLeg(BeamLeg(30600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30600), SpaceTime(new Coord(167138.4,1117), 30600), 1.0)), Id.createVehicleId("body-something"), true, None, BigDecimal(0), false)
+        EmbodiedBeamLeg(BeamLeg(30600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30600), SpaceTime(new Coord(167138.4,1117), 30600), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false)
       ))))
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
