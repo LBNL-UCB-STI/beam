@@ -30,10 +30,6 @@ import org.slf4j.LoggerFactory
   */
 object PersonAgent {
 
-  val timeToChooseMode: Double = 0.0
-  val minActDuration: Double = 0.0
-  val teleportWalkDuration = 0.0
-
   private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
