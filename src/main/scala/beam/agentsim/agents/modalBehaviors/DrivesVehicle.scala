@@ -3,7 +3,7 @@ package beam.agentsim.agents.modalBehaviors
 import akka.actor.FSM.Failure
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
-import beam.agentsim.agents.BeamAgent.{AnyState, BeamAgentData}
+import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils.{completed, _}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
@@ -17,9 +17,8 @@ import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{PersonEntersVehicleEvent, PersonLeavesVehicleEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
-import org.matsim.vehicles.Vehicle
 
 /**
   * @author dserdiuk on 7/29/17.
@@ -65,12 +64,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
               scheduler ! scheduleOne[NotifyLegEndTrigger](tick, personRef, _currentLeg.get)
             }
           }
-          manifest.alighters.foreach { alighter =>
-            _currentVehicleUnderControl.foreach(veh=>
-              if(!veh.removePassenger(alighter)){
-                log.error(s"Attempted to remove passenger ${alighter} but was not on board ${id}")
-              })
-          }
           eventsManager.processEvent(new PathTraversalEvent(tick, _currentVehicleUnderControl.get.id,
             _currentVehicleUnderControl.get.getType,
             passengerSchedule.curTotalNumPassengers(_currentLeg.get),
@@ -99,13 +92,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
             scheduler ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs
             (personVehicle.personId), newLeg)
-          }
-          manifest.boarders.foreach { boarder =>
-            _currentVehicleUnderControl.foreach{veh=>
-              if(!veh.addPassenger(boarder)){
-                log.error(s"Attempted to add passenger ${boarder} but vehicle was full ${id}")
-              }
-            }
           }
           eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, _currentVehicleUnderControl.get.id, "car", 1.0))
           // Produce link events for this trip (the same ones as in PathTraversalEvent).
