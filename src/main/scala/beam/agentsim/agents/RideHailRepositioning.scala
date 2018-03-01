@@ -12,7 +12,7 @@ class Force(startCoord,endCoord){
   getVector();
 }
 
-def getPowerForceAt(coordinate, time):Force{
+def getForceAt(coordinate, time):Force{
   waitingLocations=getPreviousIteration.AtTime(time).getWaitingLocationsInRadius(coordinate, radius);
 
   idlingLocations=getPreviousIteration.AtTime(time).getIdlingLocationsInRadius(coordinate, radius);
@@ -23,8 +23,29 @@ def getPowerForceAt(coordinate, time):Force{
     forces.add(forces);
   }
 
+  for (waitingLoc <- idlingLocations){
+    forces.add(forces);
+  }
+
+  val finalForce=getSumOfForces(forces)
+  return finalForce;
 }
 
+
+def mainRepositioningAlgorithm(time){
+  for (vehicle <- idlingVehicle){
+    val force=getForceAt(vehicle.location, time + 5min);
+
+    vehicle.repositionTo(force.endCoordinate);
+  }
+}
+
+
+
+
+def sumOfForces(force: Seq[Force]):Force{
+
+}
 
 def getPullingForceTowardsWaitingPassenger(coordPassenger,waitingTime, coordTNC): Force{
   val f:force = Force(coordTNC,coordPassenger)
