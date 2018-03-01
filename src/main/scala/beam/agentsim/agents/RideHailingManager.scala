@@ -195,6 +195,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       // move one TNC to the other.
       val rnd = new Random
       val availableKeyset = availableRideHailVehicles.keySet.toArray
+      implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+      import context.dispatcher
       if(availableKeyset.size > 1) {
         val idRnd1 = availableKeyset.apply(rnd.nextInt(availableKeyset.size))
         val idRnd2 = availableKeyset
