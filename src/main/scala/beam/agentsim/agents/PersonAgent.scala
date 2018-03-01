@@ -171,8 +171,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
       logDebug(s"NotifyLegStartTrigger received: $beamLeg")
-      breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
-        case Some(ProcessedData(nextLeg, _)) =>
+      _restOfCurrentTrip.legs.headOption match {
+        case Some(nextLeg) =>
           if (nextLeg.beamLeg != beamLeg) {
             // We've recevied this leg out of order from 2 different drivers or we haven't our
             // personDepartureTrigger
@@ -365,17 +365,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   override def logPrefix(): String = s"PersonAgent:$id "
-
-  private def breakTripIntoNextLegAndRestOfTrip(trip: EmbodiedBeamTrip): Option[ProcessedData] = {
-    if (trip.legs.isEmpty) {
-      None
-    } else {
-      Some(ProcessedData(trip.legs.head, EmbodiedBeamTrip(trip.legs.tail)))
-    }
-  }
-
-  case class ProcessedData(nextLeg: EmbodiedBeamLeg, restTrip: EmbodiedBeamTrip)
-
 
 }
 
