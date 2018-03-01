@@ -159,31 +159,27 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
      */
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), _) =>
       logDebug(s"NotifyLegStartTrigger received: $beamLeg")
-      _currentEmbodiedLeg match {
-        // Must be None, otherwise we wouldn't be Waiting
-        case None =>
-          breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
-            case Some(ProcessedData(nextLeg, restTrip)) =>
-              if (nextLeg.beamLeg != beamLeg) {
-                // We've recevied this leg out of order from 2 different drivers or we haven't our
-                // personDepartureTrigger
-                stash()
-                stay
-              } else if (nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
-                logDebug(s"Already on vehicle: ${_currentVehicle.outermostVehicle()}")
-                _restOfCurrentTrip = restTrip
-                _currentEmbodiedLeg = Some(nextLeg)
-                goto(Moving) replying completed(triggerId)
-              } else {
-                eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, nextLeg.beamVehicleId))
-                _restOfCurrentTrip = restTrip
-                _currentEmbodiedLeg = Some(nextLeg)
-                _currentVehicle = _currentVehicle.pushIfNew(nextLeg.beamVehicleId)
-                goto(Moving) replying completed(triggerId)
-              }
-            case None =>
-              stop(Failure(s"Expected a non-empty BeamTrip but found ${_restOfCurrentTrip}"))
+      breakTripIntoNextLegAndRestOfTrip(_restOfCurrentTrip) match {
+        case Some(ProcessedData(nextLeg, restTrip)) =>
+          if (nextLeg.beamLeg != beamLeg) {
+            // We've recevied this leg out of order from 2 different drivers or we haven't our
+            // personDepartureTrigger
+            stash()
+            stay
+          } else if (nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
+            logDebug(s"Already on vehicle: ${_currentVehicle.outermostVehicle()}")
+            _restOfCurrentTrip = restTrip
+            _currentEmbodiedLeg = Some(nextLeg)
+            goto(Moving) replying completed(triggerId)
+          } else {
+            eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, nextLeg.beamVehicleId))
+            _restOfCurrentTrip = restTrip
+            _currentEmbodiedLeg = Some(nextLeg)
+            _currentVehicle = _currentVehicle.pushIfNew(nextLeg.beamVehicleId)
+            goto(Moving) replying completed(triggerId)
           }
+        case None =>
+          stop(Failure(s"Expected a non-empty BeamTrip but found ${_restOfCurrentTrip}"))
       }
   }
 
