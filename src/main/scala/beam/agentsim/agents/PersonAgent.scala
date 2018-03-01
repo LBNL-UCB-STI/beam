@@ -89,23 +89,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
   override def logDepth: Int = 100
 
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
-    _restOfCurrentTrip.legs.headOption match {
-      case Some(embodiedBeamLeg) =>
-        if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
-          beamServices.vehicles(_currentVehicle.outermostVehicle()).unsetDriver()
-          eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), _currentVehicle.outermostVehicle()))
-          _currentVehicle = _currentVehicle.pop()
-          if (!_currentVehicle.isEmpty) {
-            _currentVehicleUnderControl = Some(beamServices.vehicles(_currentVehicle.outermostVehicle()))
-          }
-        }
-      case None =>
-    }
-    _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.tail)
-    processNextLegOrStartActivity(triggerId, tick)
-  }
-
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg) else Right(_experiencedBeamPlan.activities(ind))
   }
@@ -219,6 +202,24 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       }
   }
 
+  // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
+    _restOfCurrentTrip.legs.headOption match {
+      case Some(embodiedBeamLeg) =>
+        if (embodiedBeamLeg.unbecomeDriverOnCompletion) {
+          beamServices.vehicles(_currentVehicle.outermostVehicle()).unsetDriver()
+          eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), _currentVehicle.outermostVehicle()))
+          _currentVehicle = _currentVehicle.pop()
+          if (!_currentVehicle.isEmpty) {
+            _currentVehicleUnderControl = Some(beamServices.vehicles(_currentVehicle.outermostVehicle()))
+          }
+        }
+      case None =>
+    }
+    _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.tail)
+    processNextLegOrStartActivity(triggerId, tick)
+  }
+
   onTransition {
     case _ -> _ =>
       unstashAll()
@@ -261,8 +262,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, nextLeg.beamLeg))
         goto(WaitingToDrive)
       case Some(nextLeg)  =>
-        // We don't update the rest of the currentRoute, this will happen when the agent receives the
-        // NotifyStartLegTrigger
         scheduler ! completed(triggerId)
         goto(Waiting)
       case None =>
