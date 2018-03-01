@@ -24,7 +24,7 @@ import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamTime, BeamTrip}
+import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime}
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
@@ -201,13 +201,13 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         val idRnd1 = availableKeyset.apply(rnd.nextInt(availableKeyset.size))
         val idRnd2 = availableKeyset
           .filterNot(_.equals(idRnd1))
-          .apply(rnd.nextInt(availableKeyset.size))
+          .apply(rnd.nextInt(availableKeyset.size - 1))
 
         for{
           rnd1 <- availableRideHailVehicles.get(idRnd1)
           rnd2 <- availableRideHailVehicles.get(idRnd2)
         } yield {
-          val departureTime: BeamTime = ??? //TODO
+          val departureTime: BeamTime = DiscreteTime(0)
           val futureRnd1AgentResponse = router ? RoutingRequest(
             rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
           // get route from customer to destination
