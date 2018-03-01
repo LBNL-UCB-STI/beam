@@ -91,7 +91,8 @@ object RideHailingManager {
 
   case class RepositioningTimer(tick: Double) extends Trigger
 
-
+  case class RepositionResponse(rnd1: RideHailingAgentLocation, rnd2: RideHailingManager.RideHailingAgentLocation,
+                                rnd1Response: RoutingResponse, rnd2Response: RoutingResponse)
 
 
   def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
@@ -177,6 +178,9 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         sender ! CheckInSuccess
       }     )
 
+    case RepositionResponse(rnd1, rnd2, _, _) =>
+      updateLocationOfAgent(rnd1.vehicleId, rnd2.currentLocation, true)
+      updateLocationOfAgent(rnd2.vehicleId, rnd1.currentLocation, true)
 
     case TriggerWithId(RepositioningTimer(tick),triggerId) =>  {
 
@@ -185,7 +189,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       // TODO: reposition vehicles
 
-     //  beamServices.schedulerRef ! RepositioningTimer -> make trigger
+      //  beamServices.schedulerRef ! RepositioningTimer -> make trigger
+
+      // get two random idling TNCs
+      // move one TNC to the other.
       val rnd = new Random
       val availableKeyset = availableRideHailVehicles.keySet.toArray
       if(availableKeyset.size > 1) {
@@ -198,22 +205,23 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
           rnd1 <- availableRideHailVehicles.get(idRnd1)
           rnd2 <- availableRideHailVehicles.get(idRnd2)
         } yield {
-          updateLocationOfAgent(idRnd1, rnd2.currentLocation, true)
-          updateLocationOfAgent(idRnd2, rnd1.currentLocation, true)
+          val departureTime: BeamTime = ??? //TODO
+          val futureRnd1AgentResponse = router ? RoutingRequest(
+            rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
+          // get route from customer to destination
+          val futureRnd2AgentResponse  = router ? RoutingRequest(
+            rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
+          for{
+            rnd1Response <- futureRnd1AgentResponse.mapTo[RoutingResponse]
+            rnd2Response <- futureRnd2AgentResponse.mapTo[RoutingResponse]
+          } yield {
+            self ! RepositionResponse(rnd1, rnd2, rnd1Response, rnd2Response)
+          }
         }
       }
 
 //      updateLocationOfAgent(rnd1, )
-
       // TODO: schedule next Timer
-
-      // get two random idling TNCs
-
-
-
-      // move one TNC to the other.
-
-
       // start relocate?
 
       // end relocate?
