@@ -17,7 +17,7 @@ class TNCWaitingTimesCollector(eventsManager: EventsManager) extends BasicEventH
   }
 
   def tellHistoryToRideHailIterationHistoryActor(): Unit ={
-    // TODO
+    // TODO: send message to actor with collected data
   }
 
   override def handleEvent(event: Event): Unit = {

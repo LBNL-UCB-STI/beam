@@ -5,13 +5,25 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 
+class HistoricWaitingTimes(){
+
+}
+
+
 class RideHailIterationHistoryActor extends Actor{
   def receive = {
-    case AddTNCHistoryData(_,_) =>  ???
+    case AddTNCHistoryData(_,_) =>  ??? // // receive message from TNCWaitingTimesCollector
+    case GetWaitingTimes() =>  ??? // received message from RideHailManager
+      sender() ! UpdateHistoricWaitingTimes(_)
     case _      =>  ???
   }
 }
 
+
 case class AddTNCHistoryData(tncIdleTimes: Set[WaitingEvent], passengerWaitingTimes:Set[WaitingEvent])
 
 
+case class GetWaitingTimes()
+
+
+case class UpdateHistoricWaitingTimes(historicWaitingTimes: HistoricWaitingTimes)
