@@ -8,6 +8,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.RideHailingManager.{NotifyIterationEnds, RepositioningTimer}
+import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.agents.{RideHailSurgePricingManager, _}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -65,6 +66,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       private val rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager),RideHailingManager.RIDE_HAIL_MANAGER)
       context.watch(rideHailingManager)
+      beamServices.rideHailingManager= rideHailingManager
       private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, eventsManager), "population")
       context.watch(population)
       Await.result(population ? Identify(0), timeout.duration)

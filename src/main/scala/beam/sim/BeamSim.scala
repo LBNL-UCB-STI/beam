@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
+import beam.agentsim.agents.TNCWaitingTimes
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
@@ -39,6 +40,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
+
+  private var tncWaitingTimes: TNCWaitingTimes = _
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
@@ -75,6 +78,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario)
 
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
+
+
+    tncWaitingTimes = new TNCWaitingTimes(eventsManager)
+
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -82,6 +89,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     createGraphsFromEvents.createGraphs(event);
     ModalityStyleStats.processData(scenario.getPopulation(),event);
     ModalityStyleStats.buildModalityStyleGraph();
+
+
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
