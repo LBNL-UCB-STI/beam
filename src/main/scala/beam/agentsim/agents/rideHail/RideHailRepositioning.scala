@@ -94,22 +94,7 @@ class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]){
 }
 
 
-class TNCWaitingTimes(eventsManager: EventsManager) extends BasicEventHandler {
 
-  eventsManager.addHandler(this)
-
-  def getTNCIdlingTimes():Set[WaitingEvent]={
-    ???
-  }
-
-  def getTNCPassengerWaitingTimes():Set[WaitingEvent]={
-    ???
-  }
-
-  override def handleEvent(event: Event): Unit = {
-
-  }
-}
 
 class IterationHistory(){
 
