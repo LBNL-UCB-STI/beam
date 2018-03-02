@@ -1,8 +1,9 @@
 package beam.agentsim.agents
 
 import beam.agentsim.events.SpaceTime
-
-import scala.collection.mutable.ArrayBuffer
+import org.matsim.api.core.v01.events.Event
+import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.events.handler.BasicEventHandler
 
 
 // TODO
@@ -90,6 +91,29 @@ class LocationWaitingTimeMatrix(val waitingEvents: Set[WaitingEvent]){
   def getWaitingEventsAtTime(time: Double):Set[WaitingEvent] ={
     waitingEvents.filter(waitingEvent => (time >= waitingEvent.location.time && time <= waitingEvent.location.time + waitingEvent.waitingDuration))
   }
+}
+
+
+class TNCWaitingTimes(eventsManager: EventsManager) extends BasicEventHandler {
+
+  eventsManager.addHandler(this)
+
+  def getTNCIdlingTimes():Set[WaitingEvent]={
+    ???
+  }
+
+  def getTNCPassengerWaitingTimes():Set[WaitingEvent]={
+    ???
+  }
+
+  override def handleEvent(event: Event): Unit = {
+
+  }
+}
+
+class IterationHistory(){
+
+
 }
 
 
