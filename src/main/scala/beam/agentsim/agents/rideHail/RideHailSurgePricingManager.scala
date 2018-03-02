@@ -1,5 +1,4 @@
-package beam.agentsim.agents
-
+package beam.agentsim.agents.rideHail
 
 import beam.agentsim.infrastructure.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -8,9 +7,9 @@ import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.misc.Time
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-import scala.collection.JavaConverters._
 
 object RideHailSurgePricingManager {
   val defaultTazTreeMap: TAZTreeMap = {

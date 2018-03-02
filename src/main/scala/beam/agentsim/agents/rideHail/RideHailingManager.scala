@@ -1,5 +1,6 @@
-package beam.agentsim.agents
+package beam.agentsim.agents.rideHail
 
+import beam.agentsim.agents.BeamAgent.BeamAgentData
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, Props}
@@ -9,10 +10,11 @@ import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.BeamAgentData
-import beam.agentsim.agents.RideHailingManager._
+import beam.agentsim.agents.{PersonAgent, TriggerUtils}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
@@ -39,69 +41,17 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 
-/**
-  * BEAM
-  */
 
 
 
 
 
-object RideHailingManager {
-  val RIDE_HAIL_MANAGER = "RideHailingManager";
-  val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
-
-  def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
-    classOf[RideHailingInquiry])
-
-  case class NotifyIterationEnds()
-
-  case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent],
-                                pickUpLocation: Location, departAt: BeamTime, destination: Location)
-
-  case class TravelProposal(rideHailingAgentLocation: RideHailingAgentLocation, timesToCustomer: Long,
-                            estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration],
-                            responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
-
-  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Seq[TravelProposal],
-                                        error: Option[ReservationError] = None)
-
-  case class ReserveRide(inquiryId: Id[RideHailingInquiry], customerIds: VehiclePersonId, pickUpLocation: Location,
-                         departAt: BeamTime, destination: Location)
-
-  private case class RoutingResponses(customerAgent: ActorRef, inquiryId: Id[RideHailingInquiry],
-                                      personId: Id[PersonAgent], customerPickUp: Location,departAt:BeamTime, rideHailingLocation: RideHailingAgentLocation,
-                                      shortDistanceToRideHailingAgent: Double,
-                                      rideHailingAgent2CustomerResponse: RoutingResponse,
-                                      rideHailing2DestinationResponse: RoutingResponse)
-
-  case class ReserveRideResponse(inquiryId: Id[RideHailingInquiry], data: Either[ReservationError, RideHailConfirmData])
-
-  case class RideHailConfirmData(rideHailAgent: ActorRef, customerId: Id[PersonAgent], travelProposal: TravelProposal)
-
-  case class RegisterRideAvailable(rideHailingAgent: ActorRef, vehicleId: Id[Vehicle], availableSince: SpaceTime)
-
-  case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
-
-  case class RideHailingAgentLocation(rideHailAgent: ActorRef, vehicleId: Id[Vehicle], currentLocation: SpaceTime)
-
-  case object RideUnavailableAck
-
-  case object RideAvailableAck
-
-  case class RepositioningTimer(tick: Double) extends Trigger
-
-  case class RepositionResponse(rnd1: RideHailingAgentLocation, rnd2: RideHailingManager.RideHailingAgentLocation,
-                                rnd1Response: RoutingResponse, rnd2Response: RoutingResponse)
 
 
-  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
-    Props(new RideHailingManager(name, services, router, boundingBox,surgePricingManager))
-  }
-}
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
 case class RideHailingManagerData() extends BeamAgentData
+
 
 // TODO: remove name variable, as not used currently in the code anywhere?
 class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
@@ -478,4 +428,63 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 }
 
+/**
+  * BEAM
+  */
 
+
+
+
+
+object RideHailingManager {
+  val RIDE_HAIL_MANAGER = "RideHailingManager";
+  val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
+
+  def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
+    classOf[RideHailingInquiry])
+
+  case class NotifyIterationEnds()
+
+  case class RideHailingInquiry(inquiryId: Id[RideHailingInquiry], customerId: Id[PersonAgent],
+                                pickUpLocation: Location, departAt: BeamTime, destination: Location)
+
+  case class TravelProposal(rideHailingAgentLocation: RideHailingAgentLocation, timesToCustomer: Long,
+                            estimatedPrice: BigDecimal, estimatedTravelTime: Option[Duration],
+                            responseRideHailing2Pickup: RoutingResponse, responseRideHailing2Dest: RoutingResponse)
+
+  case class RideHailingInquiryResponse(inquiryId: Id[RideHailingInquiry], proposals: Seq[TravelProposal],
+                                        error: Option[ReservationError] = None)
+
+  case class ReserveRide(inquiryId: Id[RideHailingInquiry], customerIds: VehiclePersonId, pickUpLocation: Location,
+                         departAt: BeamTime, destination: Location)
+
+  private case class RoutingResponses(customerAgent: ActorRef, inquiryId: Id[RideHailingInquiry],
+                                      personId: Id[PersonAgent], customerPickUp: Location,departAt:BeamTime, rideHailingLocation: RideHailingAgentLocation,
+                                      shortDistanceToRideHailingAgent: Double,
+                                      rideHailingAgent2CustomerResponse: RoutingResponse,
+                                      rideHailing2DestinationResponse: RoutingResponse)
+
+  case class ReserveRideResponse(inquiryId: Id[RideHailingInquiry], data: Either[ReservationError, RideHailConfirmData])
+
+  case class RideHailConfirmData(rideHailAgent: ActorRef, customerId: Id[PersonAgent], travelProposal: TravelProposal)
+
+  case class RegisterRideAvailable(rideHailingAgent: ActorRef, vehicleId: Id[Vehicle], availableSince: SpaceTime)
+
+  case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
+
+  case class RideHailingAgentLocation(rideHailAgent: ActorRef, vehicleId: Id[Vehicle], currentLocation: SpaceTime)
+
+  case object RideUnavailableAck
+
+  case object RideAvailableAck
+
+  case class RepositioningTimer(tick: Double) extends Trigger
+
+  case class RepositionResponse(rnd1: RideHailingAgentLocation, rnd2: RideHailingManager.RideHailingAgentLocation,
+                                rnd1Response: RoutingResponse, rnd2Response: RoutingResponse)
+
+
+  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
+    Props(new RideHailingManager(name, services, router, boundingBox,surgePricingManager))
+  }
+}

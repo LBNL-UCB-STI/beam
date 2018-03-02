@@ -7,9 +7,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, DeadLetter, Ident
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.RideHailingManager.{NotifyIterationEnds, RepositioningTimer}
-import beam.agentsim.agents.RideHailSurgePricingManager
-import beam.agentsim.agents.{RideHailSurgePricingManager, _}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
+import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RepositioningTimer}
+import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAgent, RideHailingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._

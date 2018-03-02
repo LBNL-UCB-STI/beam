@@ -1,6 +1,6 @@
 package beam.analysis.plots;
 
-import beam.agentsim.agents.RideHailSurgePricingManager;
+import beam.agentsim.agents.rideHail.RideHailSurgePricingManager;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;

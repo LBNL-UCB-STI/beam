@@ -1,4 +1,4 @@
-package beam.agentsim.agents
+package beam.agentsim.agents.rideHail
 
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.events.Event

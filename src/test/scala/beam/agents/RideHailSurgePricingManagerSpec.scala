@@ -1,6 +1,7 @@
 package beam.agents
 
-import beam.agentsim.agents.{RideHailSurgePricingManager, SurgePriceBin}
+import beam.agentsim.agents.SurgePriceBin
+import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, SurgePriceBin}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils

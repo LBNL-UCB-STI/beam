@@ -1,14 +1,15 @@
-package beam.agentsim.agents
+package beam.agentsim.agents.rideHail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
-import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
+import beam.agentsim.agents.rideHail.RideHailingAgent.RideHailingAgentData
 import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, ModifyPassengerScheduleAck, ReservationResponse}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.BeamRouter.Location

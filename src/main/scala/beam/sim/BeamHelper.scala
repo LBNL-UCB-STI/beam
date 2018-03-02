@@ -4,7 +4,7 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
-import beam.agentsim.agents.RideHailSurgePricingManager
+import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.replanning.utilitybased.UtilityBasedModeChoice
