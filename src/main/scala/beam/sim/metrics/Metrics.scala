@@ -3,6 +3,9 @@ package beam.sim.metrics
 import akka.util.Helpers.toRootLowerCase
 
 object Metrics {
+  var level: String = "off"
+
+  private def metricLevel: MetricLevel = levelForOrOff(level)
 
   /**
     * Marker trait for annotating MetricLevel, which must be Int after erasure.
@@ -57,5 +60,7 @@ object Metrics {
   /**
     * Returns true if associated string is a valid level else false
     */
-  def isMetricsEnable(s: String): Boolean = levelForOrOff(s) != OffLevel
+  def isMetricsEnable(): Boolean = metricLevel != OffLevel
+
+  def isRightLevel(level: MetricLevel) = level <= metricLevel && level != OffLevel
 }
