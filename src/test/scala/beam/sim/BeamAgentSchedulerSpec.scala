@@ -85,14 +85,14 @@ object BeamAgentSchedulerSpec {
     override def logPrefix(): String = "TestBeamAgent"
 
     when(Uninitialized) {
-      case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
+      case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
         goto(Initialized) replying completed(triggerId, Vector())
     }
     when(Initialized) {
-      case msg@Event(TriggerWithId(_, triggerId), _) =>
+      case Event(TriggerWithId(_, triggerId), _) =>
         stay() replying completed(triggerId, Vector())
     }
-    when(AnyState) {
+    whenUnhandled {
       case Event(IllegalTriggerGoToError(_), _) =>
         stop
       case Event(Finish, _) =>

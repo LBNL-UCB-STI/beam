@@ -15,17 +15,9 @@ object BeamAgent {
   // states
   trait BeamAgentState
 
-  case object Abstain extends BeamAgentState
-
   case object Uninitialized extends BeamAgentState
 
   case object Initialized extends BeamAgentState
-
-  case object AnyState extends BeamAgentState
-
-  case object Finished extends BeamAgentState
-
-  case object Error extends BeamAgentState
 
   sealed trait Info
 
