@@ -1,4 +1,6 @@
 
+load.libraries(c('GEOquery','XML'))
+
 clean.and.relabel <- function(ev,factor.to.scale.personal.back,val.of.time=16.9){
   # Clean and relabel
   ev[vehicle_type=="bus",vehicle_type:="Bus"]
@@ -152,7 +154,12 @@ csv2rdata <- function(csv.file){
   rdata.file <- pp(head(str_split(csv.file,'csv')[[1]],-1),'Rdata')
   if(!file.exists(rdata.file)){
     if(file.exists(csv.file)){
-      df <- data.table(read.csv(csv.file))
+      headers <- unlist(as.vector(read.table(csv.file,header=F,nrows=1,sep=',',stringsAsFactors=F)))
+      firstrow <- as.vector(read.table(csv.file,header=F,skip=1,nrows=1,sep=','))
+      if(length(headers)<length(firstrow)){
+        headers <- c(unlist(headers),pp("V",1:(length(firstrow)-length(headers))))
+      }
+      df <- data.table(read.csv(csv.file,fill=T,col.names=headers))
       save(df,file=rdata.file)
     }else{
       my.cat(pp("File not found: ",csv.file))
@@ -163,6 +170,34 @@ csv2rdata <- function(csv.file){
   }
   return(df)
 }
+
+# Not ready yet
+#plans2rdata <- function(plans.file){
+  #rdata.file <- pp(head(str_split(plans.file,'xml')[[1]],-1),'Rdata')
+  #if(!file.exists(rdata.file)){
+    #if(file.exists(plans.file)){
+      #tmpdir <- tempdir()
+      #tmpfile <- pp(tmpdir,'/plans.xml')
+      #gunzip(plans.file, destname = tmpfile, remove=F)
+
+      #xmlToList(tmpfile)
+
+      #doc <- xmlTreeParse(tmpfile, useInternalNodes = TRUE)
+      #xpathApply(doc, "//population//person", function(x) do.call(paste, as.list(xmlValue(x))))
+      #xpathSApply(doc, "//book", function(x) strsplit(xmlValue(x), " "))
+      #xpathSApply(doc, "//book/child::*", xmlValue)
+
+      #df <- data.table(read.csv(csv.file))
+      #save(df,file=rdata.file)
+    #}else{
+      #my.cat(pp("File not found: ",csv.file))
+      #df <- data.table(dat=NA)
+    #}
+  #}else{
+    #load(rdata.file)
+  #}
+  #return(df)
+#}
 
 repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
     if (!forward) x = rev(x)           # reverse x twice if carrying backward

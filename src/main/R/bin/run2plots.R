@@ -37,6 +37,7 @@ make.dir(plots.dir)
 
 evs <- list()
 vehs <- list()
+pops <- list()
 iter <- tail(list.dirs(iter.dir,full.names=F),-1)[1]
 for(iter in tail(list.dirs(iter.dir,full.names=F),-1)){
   my.cat(iter)
@@ -47,11 +48,18 @@ for(iter in tail(list.dirs(iter.dir,full.names=F),-1)){
   ev[,iter:=iter.i]
   evs[[length(evs)+1]] <- ev[type%in%c('PathTraversal','ModeChoice')]
   vehs[[length(evs)+1]] <- ev[type%in%c('PersonEntersVehicle','PersonLeavesVehicle')]
+
+  pop.csv <- pp(iter.dir,iter,'/',iter.i,'.population.csv.gz')
+  pop <- csv2rdata(pop.csv)
+  pop[,iter:=iter.i]
+  pops[[length(pops)+1]] <- pop
 }
 ev <- rbindlist(evs)
 veh <- rbindlist(vehs,fill=T)
+pop <- rbindlist(pops)
 rm('evs')
 rm('vehs')
+rm('pops')
 
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
 
@@ -127,6 +135,24 @@ ggsave(pp(plots.dir,'cumul-transit-v-metric.pdf'),p,width=10*pdf.scale,height=8*
 p<-ggplot(toplot,aes(x=i,y=cumsum(toplot$numPassengers)/sum(toplot$numPassengers)))+geom_line()+geom_line(data=toplot2,aes(x=i,y=cumsum(toplot2$pmt)/sum(toplot2$pmt)))+facet_wrap(~type,scale='free_x')+labs(x='Trip #',y='Cumulative Fraction',title='Transit Fleet Utilization')
 ggsave(pp(plots.dir,'cumul-transit-v-trip.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
+
+# Modality style distributions
+if('customAttributes' %in% names(pop)){
+  pop[,style:=customAttributes]
+  pop <- pop[style!='']
+  if(any(u(pop$style)=='class1')){
+    new.names <- c(class1='Multimodals',class2='Empty nesters',class3='Transit takers',class4='Inveterate drivers',class5='Moms in cars',class6='Car commuters')
+    pop[,style:=new.names[as.character(style)]]
+  }
+  toplot <- pop[,.(n=length(type)),by=c('style','iter')]
+  setkey(toplot,style,iter)
+
+  pdf.scale <- .8
+  p<-ggplot(toplot,aes(x=iter,y=n,fill=style))+geom_bar(stat='identity',position='stack')+labs(x='Trip #',y='# Agents',title='Modality Style Convergence')
+  ggsave(pp(plots.dir,'modality-styles-v-iteration.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
+  
+}
 
 
 
