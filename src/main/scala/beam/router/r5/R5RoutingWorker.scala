@@ -46,11 +46,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
-      val response = latency("routing-router-time", Metrics.RegularLevel) {
-        getPlanFromR5(key)
-      }
-      countOccurrence("routing-router-count", Metrics.VerboseLevel)
-      response
+      getPlanFromR5(key)
     }
   })
 
@@ -67,7 +63,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
         }
-        countOccurrence("request-router-count", Metrics.VerboseLevel)
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
@@ -281,12 +276,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
              assuming that: For each transit in option there is a TransitJourneyID in connection
              */
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
-            val fares = //latency("fare-router-count", Metrics.VerboseLevel)
-            {
-              val fareSegments = getFareSegments(segments.toVector)
-              filterFaresOnTransfers(fareSegments)
-            }
-
+            val fareSegments = getFareSegments(segments.toVector)
+            val fares = filterFaresOnTransfers(fareSegments)
 
             segments.foreach { case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
