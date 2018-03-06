@@ -12,6 +12,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics
+import beam.sim.metrics.Metrics.MetricLevel
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
@@ -87,8 +88,9 @@ trait BeamHelper {
     }
 
     val beamConfig = BeamConfig(config)
-    val enableMetrics = Metrics.isMetricsEnable(beamConfig.beam.metrics.level)
-    if (enableMetrics) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    Metrics.level = beamConfig.beam.metrics.level
+
+    if (Metrics.isMetricsEnable()) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val (_, outputDirectory) = runBeamWithConfig(config)
 
@@ -101,8 +103,11 @@ trait BeamHelper {
       Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
     }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
+    Files.copy(Paths.get(cfgFile), Paths.get(beamConfig.beam.outputs.baseOutputDirectory, "output_beam.conf"))
 
-    if (enableMetrics) Kamon.shutdown()
+
+
+    if (Metrics.isMetricsEnable()) Kamon.shutdown()
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
