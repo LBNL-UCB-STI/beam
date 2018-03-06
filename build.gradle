@@ -370,7 +370,7 @@ def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-javaagent:build/aspectjweaver-1.8.10.jar"]
 
 run {
     if (project.hasProperty("appArgs")) {
