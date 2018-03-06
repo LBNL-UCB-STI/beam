@@ -46,10 +46,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
-      val response = latency("routing-latency", Metrics.RegularLevel) {
+      val response = latency("routing-router-time", Metrics.RegularLevel) {
         getPlanFromR5(key)
       }
-      countOccurrence("routing-count", Metrics.VerboseLevel)
+      countOccurrence("routing-router-count", Metrics.VerboseLevel)
       response
     }
   })
@@ -63,10 +63,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       transitSchedule = newTransitSchedule
     case request: RoutingRequest =>
       val eventualResponse = Future {
-        countOccurrence("request-count", Metrics.VerboseLevel)
-        latency("request-latency", Metrics.RegularLevel) {
+
+        latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
         }
+        countOccurrence("request-router-count", Metrics.VerboseLevel)
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
@@ -167,7 +168,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
           val transitModes = Nil
-          val profileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+          val profileResponse = latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) { cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)) }
           if (profileResponse.options.isEmpty) {
             return Nil // Cannot walk to vehicle, so no options from this vehicle.
           }
@@ -199,7 +200,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val accessMode = vehicle.mode.r5Mode.get.left.get
         val egressMode = LegMode.WALK
         val transitModes = Nil
-        val profileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+        val profileResponse = latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)) }
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
@@ -236,7 +237,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         case time: WindowTime => WindowTime(time.atTime + walkToVehicleDuration, 0)
       }
       val transitModes: Vector[TransitModes] = routingRequest.transitModes.map(_.r5Mode.get.right.get)
-      val profileResponse: ProfileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+      val latencyTag = (if(transitModes.isEmpty) "mainVehicleToDestinationRoute" else "mainTransitRoute" ) + "-router-time"
+      val profileResponse: ProfileResponse = latency(latencyTag, Metrics.RegularLevel) {cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)) }
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
           * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
@@ -279,7 +281,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
              assuming that: For each transit in option there is a TransitJourneyID in connection
              */
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
-            val fares = latency("fare", Metrics.VerboseLevel) {
+            val fares = //latency("fare-router-count", Metrics.VerboseLevel)
+            {
               val fareSegments = getFareSegments(segments.toVector)
               filterFaresOnTransfers(fareSegments)
             }
