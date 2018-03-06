@@ -103,6 +103,9 @@ trait BeamHelper {
       Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
     }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
+    Files.copy(Paths.get(cfgFile), Paths.get(beamConfig.beam.outputs.baseOutputDirectory, "output_beam.conf"))
+
+
 
     if (Metrics.isMetricsEnable()) Kamon.shutdown()
   }
