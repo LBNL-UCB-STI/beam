@@ -87,7 +87,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       case Event(_, _) =>
       // do nothing
     }
-    latency(triggerName + "-time", Metrics.RegularLevel) {
+    latency(triggerName + "-agentsim-time", Metrics.RegularLevel) {
       var theEvent = event.copy(stateData = theStateData)
 
       if (chainedStateFunctions.contains(state)) {
