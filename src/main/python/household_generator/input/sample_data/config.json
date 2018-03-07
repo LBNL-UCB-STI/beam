@@ -21,8 +21,8 @@
         }
     },
     "network_config_files": {
-        "person": "sample_data/sample_person_bn.json",
-        "household": "sample_data/sample_household_bn.json"
+        "person": "/Users/sfeygin/IdeaProjects/beam/src/main/python/household_generator/input/sample_data/sample_person_bn.json",
+        "household": "/Users/sfeygin/IdeaProjects/beam/src/main/python/household_generator/input/sample_data/sample_household_bn.json"
     },
     "version": "0"
 }
