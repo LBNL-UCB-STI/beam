@@ -31,6 +31,7 @@ import scala.concurrent.duration.FiniteDuration
 trait BeamServices extends ActorInject {
   val controler: ControlerI
   var beamConfig: BeamConfig
+//  val matsimServices: MatsimServices
 
   val registry: ActorRef
 
@@ -54,6 +55,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
+//  val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
   val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))

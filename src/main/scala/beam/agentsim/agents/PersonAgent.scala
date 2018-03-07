@@ -42,7 +42,9 @@ object PersonAgent {
     Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId))
   }
 
-  case class PersonData(maybeModeChoiceData: Option[ChoosesModeData]) extends BeamAgentData {}
+  trait PersonData extends BeamAgentData
+
+  case class EmptyPersonData() extends PersonData {}
 
   object PersonData {
 
@@ -109,7 +111,7 @@ object PersonAgent {
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
-  override def data: PersonData = PersonData(maybeModeChoiceData = None)
+  override def data: PersonData = EmptyPersonData()
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentVehicle: VehicleStack = VehicleStack()
@@ -191,7 +193,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         nextAct => {
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
-          goto(ChoosingMode) using info.copy(data = PersonData(Some(ChoosesModeData())))
+          goto(ChoosingMode) using info.copy(data = ChoosesModeData(), triggersToSchedule = Vector())
         }
       )
   }
@@ -478,6 +480,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      }
       stop
   }
 

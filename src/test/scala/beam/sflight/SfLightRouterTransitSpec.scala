@@ -111,7 +111,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
           // writeResponseToFile(origin, destination, time, response)
 
           assert(response.itineraries.exists(_.costEstimate > 0))
-          assert(response.itineraries.filter(_.tripClassifier.isTransit()).forall(_.costEstimate > 0))
+          assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
           assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
           assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
         })

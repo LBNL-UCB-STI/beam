@@ -51,6 +51,10 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     }.toMap
   }
 
+  /*
+   * We use presence of ASC to indicate whether an alternative should be added to the MNL model. So even if an alternative is a base alterantive,
+   * it should be given an ASC with value of 0.0 in order to be added to the choice set.
+   */
   def extractModeChoiceModels(lccmData: Vector[LccmData]): Map[TourType, Map[String, MultinomialLogit]] = {
     val uniqueClasses = lccmData.map(_.latentClass).distinct
     val modeChoiceData = lccmData.filter(_.model == "modeChoice")
@@ -61,7 +65,8 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
         val mnlData = theData.map{ theDat =>
           new MnlData(theDat.alternative, theDat.variable, if(theDat.variable.equalsIgnoreCase("asc")){ "intercept"}else{"multiplier"},theDat.value)
         }
-        theLatentClass -> MultinomialLogit(mnlData)
+        val altsToInclude = mnlData.filter(_.paramName.equalsIgnoreCase("asc")).map(_.alternative).distinct
+        theLatentClass -> MultinomialLogit(mnlData.filter(mnlRow => altsToInclude.contains(mnlRow.alternative)))
       }.toMap
     }.toMap
   }

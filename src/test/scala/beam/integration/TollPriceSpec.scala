@@ -13,7 +13,7 @@ class TollPriceSpec extends WordSpecLike with Matchers with BeamHelper with Befo
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing tollPrice value" must {
     "create less entries for mode choice car as value increases" in {
-      val inputTollPrice = Seq(-1000000.0, 1000000.0)
+      val inputTollPrice = Seq(-100.0, 100.0)
       val modeChoice = inputTollPrice.map(tc => new StartWithCustomConfig(
         baseConfig
           .withValue("beam.agentsim.agents.modalBehaviors.modeChoiceClass", ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit"))

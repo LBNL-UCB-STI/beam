@@ -16,6 +16,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
@@ -38,8 +39,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
-  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
+  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _;
+  private var modalityStyleStats: ModalityStyleStats = _;
+  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
 
   private var tncWaitingTimes: TNCWaitingTimesCollector = _
 
@@ -76,7 +78,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamConfig)
 
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario)
-
+    modalityStyleStats = new ModalityStyleStats();
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
 
@@ -87,8 +89,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     agentSimToPhysSimPlanConverter.startPhysSim(event)
     createGraphsFromEvents.createGraphs(event);
-    ModalityStyleStats.processData(scenario.getPopulation(),event);
-    ModalityStyleStats.buildModalityStyleGraph();
+    modalityStyleStats.processData(scenario.getPopulation(),event);
+    modalityStyleStats.buildModalityStyleGraph();
+    PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration,"population.csv.gz"))
 
     tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
   }
@@ -105,9 +108,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     deleteOutputFile("traveldistancestats.png")
 
-    deleteOutputFile("modestats.txt")
-
-    deleteOutputFile("modestats.png")
+  //  deleteOutputFile("modestats.txt")
+  // deleteOutputFile("modestats.png")
 
     deleteOutputFile("tmp")
     //===========================

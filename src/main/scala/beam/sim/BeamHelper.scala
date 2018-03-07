@@ -5,14 +5,16 @@ import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.replanning.{BeamReplanningStrategy, GrabExperiencedPlan, SwitchModalityStyle}
+import beam.replanning._
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics
+import beam.sim.metrics.Metrics.MetricLevel
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
@@ -22,10 +24,13 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.config.ConfigFactory
 import kamon.Kamon
+import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.utils.objectattributes.AttributeConverter
 
@@ -34,6 +39,7 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
 trait BeamHelper {
+  val log: Logger = Logger.getLogger(classOf[BeamHelper])
 
   def module(typesafeConfig: com.typesafe.config.Config, scenario: Scenario, transportNetwork: TransportNetwork): com.google.inject.Module = AbstractModule.`override`(
     ListBuffer(new AbstractModule() {
@@ -43,7 +49,6 @@ trait BeamHelper {
         install(new ScenarioByInstanceModule(scenario))
         install(new ControlerDefaultsModule)
         install(new ControlerDefaultCoreListenersModule)
-
 
         // Beam Inject below:
         install(new ConfigModule(typesafeConfig))
@@ -70,8 +75,12 @@ trait BeamHelper {
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
+        if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
+          bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
+        }
         addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
         addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+        addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
         addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString).toProvider(classOf[UtilityBasedModeChoice])
         addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
           override def convertToString(o: scala.Any): String = mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
@@ -91,8 +100,9 @@ trait BeamHelper {
     }
 
     val beamConfig = BeamConfig(config)
-    val enableMetrics = Metrics.isMetricsEnable(beamConfig.beam.metrics.level)
-    if (enableMetrics) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    Metrics.level = beamConfig.beam.metrics.level
+
+    if (Metrics.isMetricsEnable()) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val (_, outputDirectory) = runBeamWithConfig(config)
 
@@ -106,7 +116,7 @@ trait BeamHelper {
     }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
 
-    if (enableMetrics) Kamon.shutdown()
+    if (Metrics.isMetricsEnable()) Kamon.shutdown()
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {

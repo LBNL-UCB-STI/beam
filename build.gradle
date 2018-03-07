@@ -12,6 +12,7 @@ buildscript {
     dependencies {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
+        classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
 //        classpath "nl.eveoh:gradle-aspectj:2.0"
     }
 }
@@ -34,6 +35,7 @@ apply plugin: 'maven'
 apply plugin: 'idea'
 apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
+apply plugin: 'ManifestClasspath'
 //apply plugin: 'aspectj'
 
 group = 'beam'
@@ -192,10 +194,13 @@ dependencies {
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
 
+    ////////////////////////////////////
+    ///Performance Monitoring (Kamon)///
+    ////////////////////////////////////
+
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:${kamonVersion}")
-//    compile("io.kamon:kamon-annotation:${kamonVersion}")
 //    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
 
@@ -292,6 +297,17 @@ task deploy(type: AWSLambdaInvokeTask) {
     }
 }
 
+task downloadAspectj{
+    if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
+        download {
+            src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+            dest buildDir
+        }
+    }
+}
+
+
+
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////
@@ -354,7 +370,7 @@ def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-javaagent:build/aspectjweaver-1.8.10.jar"]
 
 run {
     if (project.hasProperty("appArgs")) {

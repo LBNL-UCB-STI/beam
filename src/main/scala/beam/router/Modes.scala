@@ -16,7 +16,7 @@ import scala.collection.immutable
   */
 object Modes {
 
-  sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode, TransitModes]], val matsimMode: String) extends StringEnumEntry {
+  sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry {
     def isTransit(): Boolean = isR5TransitMode(this)
   }
 
@@ -68,13 +68,10 @@ object Modes {
 
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
 
-    val personalVehicleModes = Seq(CAR, EV, BIKE)
-
-    def isPersonalVehicleMode(beamMode: BeamMode): Boolean = personalVehicleModes.contains(beamMode)
-
+    val chainBasedModes = Seq(CAR, EV, BIKE)
   }
 
-
+  def isChainBasedMode(beamMode: BeamMode): Boolean =BeamMode.chainBasedModes.contains(beamMode)
 
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] = beamMode.r5Mode.get
 
