@@ -126,14 +126,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
-        countOccurrence("physsim-count", Metrics.VerboseLevel());
-        latency("physsim-latency", Metrics.RegularLevel(), new AbstractFunction0() {
-            @Override
-            public Object apply() {
+//        latency("physsim-cost", Metrics.RegularLevel(), new AbstractFunction0() {
+//            @Override
+//            public Object apply() {
                 jdeqSimulation.run();
-                return null;
-            }
-        }); // core phys sim
+//                return null;
+//            }
+//        }); // core phys sim
 
         linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
 
