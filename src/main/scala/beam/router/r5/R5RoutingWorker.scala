@@ -276,8 +276,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
              assuming that: For each transit in option there is a TransitJourneyID in connection
              */
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
-            val fareSegments = getFareSegments(segments.toVector)
-            val fares = filterFaresOnTransfers(fareSegments)
+            val fares = latency("fare-transit-time", Metrics.VerboseLevel) {
+              val fareSegments = getFareSegments(segments.toVector)
+              filterFaresOnTransfers(fareSegments)
+            }
 
             segments.foreach { case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
@@ -485,7 +487,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       streetRouter.timeLimitSeconds = request.streetTime * 60
       if (streetRouter.setOrigin(request.fromLat, request.fromLon)) {
         if (streetRouter.setDestination(request.toLat, request.toLon)) {
-          streetRouter.route()
+          latency("route-transit-time", Metrics.VerboseLevel) {
+            streetRouter.route() //latency 1
+          }
           val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
           if (lastState != null) {
             streetPath = new StreetPath(lastState, transportNetwork, false)
@@ -507,13 +511,15 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val accessRouter = findAccessPaths(request)
       val egressRouter = findEgressPaths(request)
       import scala.collection.JavaConverters._
-
+      //latency 2nd step
       val router = new McRaptorSuboptimalPathProfileRouter(transportNetwork, request, accessRouter.mapValues(_.getReachedStops).asJava, egressRouter.mapValues(_.getReachedStops).asJava)
       router.NUMBER_OF_SEARCHES = beamServices.beamConfig.beam.routing.r5.numberOfSamples
       val usefullpathList = new util.ArrayList[PathWithTimes]
       // getPaths actually returns a set, which is important so that things are deduplicated. However we need a list
       // so we can sort it below.
-      usefullpathList.addAll(router.getPaths)
+      latency("getpath-transit-time", Metrics.VerboseLevel) {
+        usefullpathList.addAll(router.getPaths) //latency of get paths
+      }
       //This sort is necessary only for text debug output so it will be disabled when it is finished
       /**
         * Orders first no transfers then one transfers 2 etc
@@ -544,7 +550,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       for (path <- usefullpathList) {
         profileResponse.addTransitPath(accessRouter, egressRouter, path, transportNetwork, request.getFromTimeDateZD)
       }
-      profileResponse.generateStreetTransfers(transportNetwork, request)
+      latency("transfer-transit-time", Metrics.VerboseLevel) {
+        profileResponse.generateStreetTransfers(transportNetwork, request)
+      } // latency possible candidate
     }
     profileResponse.recomputeStats(request)
     log.debug("Returned {} options", profileResponse.getOptions.size)
@@ -615,5 +623,4 @@ object R5RoutingWorker {
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new R5RoutingWorker(beamServices, transportNetwork, network, fareCalculator, tollCalculator))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
-
 }
