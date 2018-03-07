@@ -4,15 +4,13 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.replanning._
+import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics
-import beam.sim.metrics.Metrics.MetricLevel
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
@@ -27,8 +25,6 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.utils.objectattributes.AttributeConverter
 
@@ -103,7 +99,7 @@ trait BeamHelper {
       Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
     }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
-    Files.copy(Paths.get(cfgFile), Paths.get(beamConfig.beam.outputs.baseOutputDirectory, "output_beam.conf"))
+//    Files.copy(Paths.get(cfgFile), Paths.get(beamConfig.beam.outputs.baseOutputDirectory, "output_beam.conf"))
 
 
 

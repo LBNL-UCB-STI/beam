@@ -74,7 +74,8 @@ case class ChainBasedTourVehicleAllocator(vehicles: Vehicles,
 
     vehicularTours foreach { vt =>
       if(allocateVehicles(vt)) {
-        processAllocation(vt, plan)
+        //TODO: turn back on when using intra-household choice
+//        processAllocation(vt, plan)
       }
     }
   }
