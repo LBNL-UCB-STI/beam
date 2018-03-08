@@ -134,7 +134,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
     case TriggerWithId(RepositioningTimer(tick),triggerId) =>  {
 
-    print()
+    //print()
       // TODO: add initial timer
 
       // TODO: reposition vehicles
