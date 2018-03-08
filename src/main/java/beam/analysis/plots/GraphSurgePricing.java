@@ -139,10 +139,10 @@ public class GraphSurgePricing {
 
         if(categorize) {
 
-            Map<Integer, Map<Integer, Integer>> finalCategories = processTransformedCategories(transformedBins);
-            return buildDatasetFromFinalCategories(finalCategories);
+            Map<Integer, Map<Integer, Integer>> finalCategories = convertTransformedBinsToCategories(transformedBins);
+            return buildDatasetFromCategories(finalCategories);
         }else{
-            return buildDatasetFromTransformedCategories(transformedBins);
+            return buildDatasetFromTransformedBins(transformedBins);
         }
     }
 
@@ -254,7 +254,7 @@ public class GraphSurgePricing {
     }
 
 
-    public  Map<Integer, Map<Integer, Integer>> processTransformedCategories(Map<Double, Map<Integer, Integer>> transformedBins){
+    public  Map<Integer, Map<Integer, Integer>> convertTransformedBinsToCategories(Map<Double, Map<Integer, Integer>> transformedBins){
 
         // determine the category based on key,
         // copy data from transformedBins to the final categories collection
@@ -303,7 +303,7 @@ public class GraphSurgePricing {
         return finalCategories;
     }
 
-    private  double[][] buildDatasetFromFinalCategories(Map<Integer, Map<Integer, Integer>> finalCategories) {
+    private  double[][] buildDatasetFromCategories(Map<Integer, Map<Integer, Integer>> finalCategories) {
 
         double[][] dataset = new double[noOfCategories][numberOfTimeBins];
 
@@ -338,7 +338,7 @@ public class GraphSurgePricing {
         return dataset;
     }
 
-    private  double[][] buildDatasetFromTransformedCategories(Map<Double, Map<Integer, Integer>> transformedCategories) {
+    private  double[][] buildDatasetFromTransformedBins(Map<Double, Map<Integer, Integer>> transformedCategories) {
 
         double[][] dataset = new double[transformedCategories.keySet().size()][numberOfTimeBins];
 
