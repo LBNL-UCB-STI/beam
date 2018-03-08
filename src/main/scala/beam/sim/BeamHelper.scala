@@ -4,7 +4,9 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
+import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
@@ -30,6 +32,7 @@ import org.matsim.utils.objectattributes.AttributeConverter
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+import scala.util.Try
 
 trait BeamHelper {
   val log: Logger = Logger.getLogger(classOf[BeamHelper])
@@ -53,8 +56,17 @@ trait BeamHelper {
       mapper.registerModule(DefaultScalaModule)
 
       override def install(): Unit = {
-        bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
+        val beamConfig = BeamConfig(typesafeConfig)
+
+        val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
+        mTazTreeMap.foreach{ tazTreeMap =>
+          bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
+        }
+
+        bind(classOf[BeamConfig]).toInstance(beamConfig)
         bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
+
         addControlerListenerBinding().to(classOf[BeamSim])
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])

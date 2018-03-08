@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure
 
-import java.io.{File, FileReader, FileWriter}
+import java.io._
 import java.util
 import java.util.ArrayList
+import java.util.zip.GZIPInputStream
 
 import beam.agentsim.agents.PersonAgent
 import beam.utils.scripts.HasXY.wgs2Utm
@@ -20,6 +21,7 @@ import util.HashMap
 
 import beam.utils.ObjectAttributesUtils
 import beam.utils.scripts.HouseholdAttrib.HousingType
+import org.matsim.core.utils.io.IOUtils
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.supercsv.cellprocessor.ParseDouble
 import org.supercsv.cellprocessor.FmtBool
@@ -30,6 +32,7 @@ import org.supercsv.exception.SuperCsvConstraintViolationException
 import org.supercsv.util.CsvContext
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
+import org.xml.sax.InputSource
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -75,10 +78,13 @@ object TAZCreatorScript extends App {
   println(taz.getId(-120.8043534,+35.5283106))
 */
 
-  println("HELLO WORLD")
-  val path = "d:/shape_out.csv"
-  val mapTaz = TAZTreeMap.fromCsv(path)
-  print(mapTaz)
+  TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
+
+
+//  println("HELLO WORLD")
+//  val path = "d:/shape_out.csv.gz"
+//  val mapTaz = TAZTreeMap.fromCsv(path)
+//  print(mapTaz)
 
 
   //Test Write File
@@ -97,8 +103,8 @@ object TAZCreatorScript extends App {
 
 }
 
-class TAZTreeMap(tazQuadTree: QuadTree[TAZ]) {
-  def getId(x: Double, y: Double): TAZ = {
+class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
+  def getTAZ(x: Double, y: Double): TAZ = {
     // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getClosest(x,y)
   }
@@ -120,7 +126,7 @@ object TAZTreeMap {
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
-          var taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y))
+          val taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y))
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
       }
@@ -179,11 +185,19 @@ object TAZTreeMap {
 
   }
 
+  private def readerFromFile(filePath: String): java.io.Reader  = {
+    if(filePath.endsWith(".gz")){
+      new InputStreamReader(new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath))))
+    } else {
+      new FileReader(filePath)
+    }
+  }
+
   private def readCsvFile(filePath: String): Seq[CsvTaz] = {
     var mapReader: ICsvMapReader = null
     val res = ArrayBuffer[CsvTaz]()
     try{
-      mapReader = new CsvMapReader(new FileReader(filePath), CsvPreference.STANDARD_PREFERENCE)
+      mapReader = new CsvMapReader(readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
       val header = mapReader.getHeader(true)
       var flag = true
       var line: java.util.Map[String, String] = mapReader.read(header:_*)
@@ -248,8 +262,10 @@ object TAZTreeMap {
       for(t <- allNonRepeatedTaz){
         val tazToWrite = new HashMap[String, Object]();
         tazToWrite.put(header(0), t.id)
-        tazToWrite.put(header(1), t.coordX.toString)
-        tazToWrite.put(header(2), t.coordY.toString)
+       //
+       val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
+        tazToWrite.put(header(1), transFormedCoord.getX.toString)
+        tazToWrite.put(header(2), transFormedCoord.getY.toString)
         mapWriter.write(tazToWrite, header, processors)
       }
     } finally {

@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
+import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle
