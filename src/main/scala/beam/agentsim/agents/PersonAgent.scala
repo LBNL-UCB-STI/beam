@@ -165,27 +165,16 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is ending
      */
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) =>
-      _restOfCurrentTrip.legs.headOption match {
-        case Some(currentLeg) if currentLeg.beamLeg == beamLeg =>
-          _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.tail)
-          _restOfCurrentTrip.legs.headOption match {
-            case Some(nextLeg) => // There are more legs in the trip...
-              if (nextLeg.beamVehicleId == _currentVehicle.outermostVehicle()) {
-                // The next vehicle is the same as current so just update state and go to Waiting
-                goto(Waiting) replying completed(triggerId)
-              } else {
-                // The next vehicle is different from current so we exit the current vehicle
-                eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
-                _currentVehicle = _currentVehicle.pop()
-                processNextLegOrStartActivity(triggerId, tick)
-              }
-            case None =>
-              stop(Failure(s"Expected a non-empty BeamTrip but found ${_restOfCurrentTrip}"))
-          }
-        case _ =>
-          stash()
-          stay
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) if beamLeg == _restOfCurrentTrip.legs.head.beamLeg =>
+      _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.tail)
+      if (_restOfCurrentTrip.legs.head.beamVehicleId == _currentVehicle.outermostVehicle()) {
+        // The next vehicle is the same as current so just update state and go to Waiting
+        goto(Waiting) replying completed(triggerId)
+      } else {
+        // The next vehicle is different from current so we exit the current vehicle
+        eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
+        _currentVehicle = _currentVehicle.pop()
+        processNextLegOrStartActivity(triggerId, tick)
       }
   }
 
