@@ -272,18 +272,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         EmbodiedBeamLeg(BeamLeg(30600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30600), SpaceTime(new Coord(167138.4,1117), 30600), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false)
       ))))
 
-      val reservationRequestBus = expectMsgType[ReservationRequest]
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
-      personActor ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
-
-      val reservationRequestTram = expectMsgType[ReservationRequest]
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
-      personActor ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
-
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[PersonDepartureEvent]
@@ -291,21 +279,29 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
-
       expectMsgType[PathTraversalEvent]
 
+      val reservationRequestBus = expectMsgType[ReservationRequest]
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
+      personActor ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
+      val reservationRequestTram = expectMsgType[ReservationRequest]
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
+      personActor ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
-
       expectMsgType[PathTraversalEvent]
-      expectMsgType[TeleportationArrivalEvent]
 
+      expectMsgType[TeleportationArrivalEvent]
       expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
 
