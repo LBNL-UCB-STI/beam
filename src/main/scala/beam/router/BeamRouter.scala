@@ -156,11 +156,11 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         .map { tripSchedule =>
           // First create a unique for this trip which will become the transit agent and vehicle ids
           val tripVehId = Id.create(tripSchedule.tripId, classOf[Vehicle])
-          var legs: Seq[BeamLeg] = Nil
-          tripSchedule.departures.zipWithIndex.sliding(2).foreach { case Array((departureTimeFrom, from), (departureTimeTo, to)) =>
+          val legs: Seq[BeamLeg] =
+          tripSchedule.departures.zipWithIndex.sliding(2).map { case Array((departureTimeFrom, from), (departureTimeTo, to)) =>
             val duration = tripSchedule.arrivals(to) - departureTimeFrom
-            legs :+= BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
-          }
+            BeamLeg(departureTimeFrom.toLong, mode, duration, transitPaths(from)(departureTimeFrom.toLong, duration, tripVehId))
+          }.toSeq
           (tripVehId, (route, legs))
         }
     }
