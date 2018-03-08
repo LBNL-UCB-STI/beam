@@ -445,33 +445,44 @@ public class GraphSurgePricing {
 
 
 
-            double diff = min;
-            if(categoriesList.size() > 1)
-                 diff = getRoundedNumber(Math.abs(min - Double.parseDouble(categoriesList.get(1))));
+            if(categorize) {
+                double diff = min;
+                if (categoriesList.size() > 1)
+                    diff = getRoundedNumber(Math.abs(min - Double.parseDouble(categoriesList.get(1))));
 
-            for(int j= 0;j<categoriesList.size();j++){
-                double category = Double.parseDouble(categoriesList.get(j));
-                String strFormat = "";
-                if(diff == category){
-                    strFormat = category+"-"+diff;
-                }else if(j+1 == categoriesList.size()){
-                    strFormat = category+"-"+(category+diff);
-                }
-                else{
-                    strFormat = category+"-"+categoriesList.get(j+1);
-                }
-                out.write(strFormat);
-                out.write(",");
-                /*out.write("price");
-                out.write(",");
-                out.write(tazIds.toArray()[j].toString());
-                out.write(",");*/
-
-                for(int i=0; i < dataset[j].length; i++){
-                    out.write(dataset[j][i] + "");
+                for (int j = 0; j < categoriesList.size(); j++) {
+                    double category = Double.parseDouble(categoriesList.get(j));
+                    String strFormat = "";
+                    if (diff == category) {
+                        strFormat = category + "-" + diff;
+                    } else if (j + 1 == categoriesList.size()) {
+                        strFormat = category + "-" + (category + diff);
+                    } else {
+                        strFormat = category + "-" + categoriesList.get(j + 1);
+                    }
+                    out.write(strFormat);
                     out.write(",");
+
+                    for (int i = 0; i < dataset[j].length; i++) {
+                        out.write(dataset[j][i] + "");
+                        out.write(",");
+                    }
+                    out.newLine();
                 }
-                out.newLine();
+            }else{
+
+                for (int j = 0; j < categoriesList.size(); j++) {
+                    double category = Double.parseDouble(categoriesList.get(j));
+
+                    out.write(categoriesList.get(j));
+                    out.write(",");
+
+                    for (int i = 0; i < dataset[j].length; i++) {
+                        out.write(dataset[j][i] + "");
+                        out.write(",");
+                    }
+                    out.newLine();
+                }
             }
 
             out.flush();
