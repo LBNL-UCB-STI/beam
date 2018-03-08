@@ -9,6 +9,8 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.jfree.data.statistics.HistogramDataset;
+import org.jfree.data.statistics.HistogramType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
@@ -95,12 +97,16 @@ public class GraphSurgePricing {
             double[][] dataset = getDataset(true);
             writePriceSurgeCsv(dataset, categoriesKeys, true);
             drawGraph(dataset, categoriesKeys, true);
+
+            drawHistogram(dataset, categoriesKeys, true);
         }else {
 
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
             double[][] dataset = getDataset(false);
             writePriceSurgeCsv(dataset, categoriesKeys, false);
             drawGraph(dataset, categoriesKeys, false);
+
+            drawHistogram(dataset, categoriesKeys, true);
         }
 
         drawRevenueGraph(revenueDataSet);
@@ -570,6 +576,43 @@ public class GraphSurgePricing {
 
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+
+    public void drawHistogram(double[][] dataset, List<String> categoriesList, boolean categorize){
+
+        double[] frequencies = new double[dataset.length];
+
+        for(int i = 0; i < dataset.length; i++){
+
+            double count = 0;
+            for(int j=0; j<dataset[i].length; j++){
+
+                count += dataset[i][j];
+            }
+            frequencies[i] = count;
+        }
+
+        System.out.println("Frequencies : " + Arrays.toString(frequencies));
+
+        // Création des datasets
+        HistogramDataset histogramDataset = new HistogramDataset();
+        histogramDataset.setType(HistogramType.FREQUENCY);
+        histogramDataset.addSeries("Ride Hailing Price Histogram", frequencies, 10);
+
+        // Création de l'histogramme
+        JFreeChart chart = ChartFactory.createHistogram("", null, null, histogramDataset,
+                PlotOrientation.VERTICAL, true, true, false);
+
+
+        String fileName = graphImageFile.replace(".png", "_histogram.png");
+        //GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
+
+        try {
+            GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+        }catch(IOException ioe){
+            ioe.printStackTrace();
         }
     }
 }
