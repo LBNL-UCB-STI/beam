@@ -20,6 +20,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
+
 public class GraphSurgePricing {
 
     // The keys of the outer map represents binNumber
@@ -40,9 +41,6 @@ public class GraphSurgePricing {
     private  Double categorySize = null;
     private   Double max = null;
     private   Double min = null;
-
-    private   List<Double> _categoryKeys;
-
 
     private  double[] revenueDataSet;
 
@@ -97,12 +95,13 @@ public class GraphSurgePricing {
             double[][] dataset = getDataset(true);
             writePriceSurgeCsv(dataset, categoriesKeys, true);
             drawGraph(dataset, categoriesKeys, true);
-        }
+        }else {
 
-        List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
-        double[][] dataset = getDataset(false);
-        writePriceSurgeCsv(dataset, categoriesKeys, false);
-        drawGraph(dataset, categoriesKeys, false);
+            List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
+            double[][] dataset = getDataset(false);
+            writePriceSurgeCsv(dataset, categoriesKeys, false);
+            drawGraph(dataset, categoriesKeys, false);
+        }
 
         drawRevenueGraph(revenueDataSet);
 
@@ -285,9 +284,9 @@ public class GraphSurgePricing {
                     if(sourceFrequency != null) {
                         if (targetFrequencey == null) {
 
-                                data.put(i, sourceFrequency);
+                            data.put(i, sourceFrequency);
                         } else {
-                                data.put(i, sourceFrequency + targetFrequencey);
+                            data.put(i, sourceFrequency + targetFrequencey);
 
                         }
                     }
@@ -335,7 +334,7 @@ public class GraphSurgePricing {
                 dataset[i] = arr;
             }
         }
-       log.info("built the dataset");
+        log.info("built the dataset");
         return dataset;
     }
 
@@ -382,8 +381,6 @@ public class GraphSurgePricing {
             boolean legend = true;
 
             String fileName = graphImageFile;
-            if(!categorize)
-                fileName = graphImageFile.replace(".png", "_.png");
 
             final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisLabel,yAxisLabel,fileName,legend);
             CategoryPlot plot = chart.getCategoryPlot();
@@ -431,9 +428,7 @@ public class GraphSurgePricing {
 
 
         String fileName = surgePricingCsvFileName;
-        if(!categorize){
-            fileName = surgePricingCsvFileName.replace(".csv", "_.csv");
-        }
+
 
         try {
             BufferedWriter out = new BufferedWriter(new FileWriter( new File(fileName)));
@@ -446,8 +441,6 @@ public class GraphSurgePricing {
                 out.write(",");
             }
             out.newLine();
-
-
 
             if(categorize) {
                 double diff = min;
