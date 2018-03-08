@@ -9,6 +9,8 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
@@ -18,11 +20,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
+
 public class GraphSurgePricing {
 
     // The keys of the outer map represents binNumber
     // The inner map consists of category index to number of occurrence for each category
     // The categories are defined as buckets for occurrences of prices form 0-1, 1-2
+
+    private Logger log = LoggerFactory.getLogger(GraphSurgePricing.class);
 
     private int iterationNumber = 0;
 
@@ -298,7 +303,7 @@ public class GraphSurgePricing {
 
 
         }
-        System.out.println("Done with final categories");
+        log.info("Done with final categories");
     }
 
     private  double[][] buildDatasetFromFinalCategories(Map<Integer, Map<Integer, Integer>> finalCategories) {
@@ -332,7 +337,7 @@ public class GraphSurgePricing {
                 dataset[i] = arr;
             }
         }
-        System.out.println("built the dataset");
+       log.info("built the dataset");
         return dataset;
     }
 
