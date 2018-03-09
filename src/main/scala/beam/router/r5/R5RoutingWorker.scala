@@ -9,7 +9,6 @@ import akka.pattern._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.{Modes, RoutingModel}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
@@ -18,8 +17,8 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.TripWithFares
+import beam.router.{Modes, RoutingModel}
 import beam.sim.BeamServices
-import beam.sim.metrics.Metrics.MetricLevel
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -163,7 +162,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
           val transitModes = Nil
-          val profileResponse = latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) { cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)) }
+          val profileResponse = latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
+            cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+          }
           if (profileResponse.options.isEmpty) {
             return Nil // Cannot walk to vehicle, so no options from this vehicle.
           }
@@ -195,7 +196,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val accessMode = vehicle.mode.r5Mode.get.left.get
         val egressMode = LegMode.WALK
         val transitModes = Nil
-        val profileResponse = latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)) }
+        val profileResponse = latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
+          cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+        }
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
@@ -232,8 +235,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         case time: WindowTime => WindowTime(time.atTime + walkToVehicleDuration, 0)
       }
       val transitModes: Vector[TransitModes] = routingRequest.transitModes.map(_.r5Mode.get.right.get)
-      val latencyTag = (if(transitModes.isEmpty) "mainVehicleToDestinationRoute" else "mainTransitRoute" ) + "-router-time"
-      val profileResponse: ProfileResponse = latency(latencyTag, Metrics.RegularLevel) {cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode)) }
+      val latencyTag = (if (transitModes.isEmpty) "mainVehicleToDestinationRoute" else "mainTransitRoute") + "-router-time"
+      val profileResponse: ProfileResponse = latency(latencyTag, Metrics.RegularLevel) {
+        cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+      }
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
           * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
@@ -478,8 +483,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val option = new ProfileOption
     request.reverseSearch = false
     //For direct modes
-    import scala.collection.JavaConversions._
-    for (mode <- request.directModes) {
+
+    for (mode <- request.directModes.asScala) {
       val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator(request.fromTime), turnCostCalculator)
       var streetPath: StreetPath = null
       streetRouter.profileRequest = request
@@ -547,8 +552,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         foo(o1, o2)
       })
       log.debug("Usefull paths:{}", usefullpathList.size)
-      for (path <- usefullpathList) {
-        profileResponse.addTransitPath(accessRouter, egressRouter, path, transportNetwork, request.getFromTimeDateZD)
+
+      for (path <- usefullpathList.asScala) {
+        profileResponse.addTransitPath(accessRouter.asJava, egressRouter.asJava, path, transportNetwork, request.getFromTimeDateZD)
       }
       latency("transfer-transit-time", Metrics.VerboseLevel) {
         profileResponse.generateStreetTransfers(transportNetwork, request)
@@ -570,8 +576,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     //For egress
     //TODO: this must be reverse search
     request.reverseSearch = true
-    import scala.collection.JavaConversions._
-    for (mode <- request.egressModes) {
+
+    for (mode <- request.egressModes.asScala) {
       val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator(request.fromTime), turnCostCalculator)
       streetRouter.transitStopSearch = true
       streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
@@ -598,8 +604,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     request.reverseSearch = false
     // Routes all access modes
     val accessRouter = mutable.Map[LegMode, StreetRouter]()
-    import scala.collection.JavaConversions._
-    for (mode <- request.accessModes) {
+
+    for (mode <- request.accessModes.asScala) {
       var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator(request.fromTime), turnCostCalculator)
       streetRouter.profileRequest = request
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)
@@ -623,4 +629,5 @@ object R5RoutingWorker {
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new R5RoutingWorker(beamServices, transportNetwork, network, fareCalculator, tollCalculator))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
+
 }
