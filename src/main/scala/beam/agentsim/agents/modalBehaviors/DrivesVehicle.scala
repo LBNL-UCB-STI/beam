@@ -3,7 +3,7 @@ package beam.agentsim.agents.modalBehaviors
 import akka.actor.FSM.Failure
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
-import beam.agentsim.agents.BeamAgent.BeamAgentData
+import beam.agentsim.agents.BeamAgent.{BeamAgentData, BeamAgentInfo}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils.{completed, _}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
@@ -44,10 +44,10 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
   protected var _currentLeg: Option[BeamLeg] = None
   protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
 
-  def passengerScheduleEmpty(tick: Double, triggerId: Long): State
+  def passengerScheduleEmpty(tick: Double, triggerId: Long, info: BeamAgentInfo[PersonData]): State
 
   when(Driving) {
-    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), info) =>
       lastVisited = beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
@@ -76,7 +76,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             val nextLeg = passengerSchedule.schedule.firstKey
             goto(WaitingToDrive) replying completed(triggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
           } else {
-            passengerScheduleEmpty(tick, triggerId)
+            passengerScheduleEmpty(tick, triggerId, info.asInstanceOf[BeamAgentInfo[PersonData]])
           }
         case None =>
           throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")

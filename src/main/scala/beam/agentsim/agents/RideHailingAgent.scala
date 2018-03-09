@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.WaitingToDrive
+import beam.agentsim.agents.PersonAgent.{PersonData, WaitingToDrive}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -57,7 +57,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       })
   }
 
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long) = {
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long, info: BeamAgentInfo[PersonData]) = {
     vehicle.checkInResource(Some(lastVisited),context.dispatcher)
     scheduler ! completed(triggerId)
     stay

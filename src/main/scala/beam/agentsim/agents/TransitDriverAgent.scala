@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{Moving, Waiting, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent.{Moving, PersonData, Waiting, WaitingToDrive}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -79,7 +79,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long, info: BeamAgentInfo[PersonData]): State = {
     scheduler ! completed(triggerId)
     stop
   }
