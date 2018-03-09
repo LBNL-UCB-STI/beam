@@ -52,6 +52,8 @@ object PersonAgent {
 
   case object Waiting extends Traveling
 
+  case object ProcessingNextLegOrStartActivity extends Traveling
+
   case object WaitingToDrive extends Traveling
 
   case object Moving extends Traveling
@@ -130,13 +132,15 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   }
 
   when(Waiting, stateTimeout = 1 second) {
-    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), _) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(new ActivityEndEvent(tick, id, currentActivity.getLinkId, currentActivity.getFacilityId, currentActivity.getType))
       assert(currentActivity.getLinkId != null)
       eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, _restOfCurrentTrip.tripClassifier.value))
-      processNextLegOrStartActivity(triggerId, tick, info)
+      self ! ProcessNextLegOrStartActivity(triggerId, tick)
+      goto(ProcessingNextLegOrStartActivity)
+
     /*
      * Learn as passenger that leg is starting
      */
@@ -170,7 +174,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is ending
      */
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), info) if beamLeg == _restOfCurrentTrip.legs.head.beamLeg =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), _) if beamLeg == _restOfCurrentTrip.legs.head.beamLeg =>
       _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.tail)
       if (_restOfCurrentTrip.legs.head.beamVehicleId == _currentVehicle.outermostVehicle()) {
         // The next vehicle is the same as current so just update state and go to Waiting
@@ -179,12 +183,13 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         // The next vehicle is different from current so we exit the current vehicle
         eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
         _currentVehicle = _currentVehicle.pop()
-        processNextLegOrStartActivity(triggerId, tick, info)
+        self ! ProcessNextLegOrStartActivity(triggerId, tick)
+        goto(ProcessingNextLegOrStartActivity)
       }
   }
 
   // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long, info: BeamAgentInfo[PersonData]): State = {
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
     if (_restOfCurrentTrip.legs.head.unbecomeDriverOnCompletion) {
       beamServices.vehicles(_currentVehicle.outermostVehicle()).unsetDriver()
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), _currentVehicle.outermostVehicle()))
@@ -194,7 +199,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       }
     }
     _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.tail)
-    processNextLegOrStartActivity(triggerId, tick, info)
+    self ! ProcessNextLegOrStartActivity(triggerId, tick)
+    goto(ProcessingNextLegOrStartActivity)
   }
 
   onTransition {
@@ -216,74 +222,78 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * of activity
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
-  def processNextLegOrStartActivity(triggerId: Long, tick: Double, info: BeamAgentInfo[PersonData]): PersonAgent.this.State = {
-    (_restOfCurrentTrip.legs.headOption, nextActivity) match {
-      case (Some(nextLeg), _) if nextLeg.asDriver =>
-        passengerSchedule = PassengerSchedule()
-        passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
+  case class ProcessNextLegOrStartActivity(triggerId: Long, tick: Double)
 
-        if (_currentVehicle.isEmpty || _currentVehicle.outermostVehicle() != nextLeg.beamVehicleId) {
-          val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
-          vehicle.becomeDriver(self).fold(fa =>
-            stop(Failure(s"I attempted to become driver of vehicle $id but driver ${vehicle.driver.get} already assigned.")),
-            fb => {
-              _currentVehicleUnderControl = Some(vehicle)
-              eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), nextLeg.beamVehicleId))
-            })
-        }
+  when(ProcessingNextLegOrStartActivity) {
+    case Event(ProcessNextLegOrStartActivity(triggerId: Long, tick: Double), _) =>
+      (_restOfCurrentTrip.legs.headOption, nextActivity) match {
+        case (Some(nextLeg), _) if nextLeg.asDriver =>
+          passengerSchedule = PassengerSchedule()
+          passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
 
-        _currentVehicle = _currentVehicle.pushIfNew(nextLeg.beamVehicleId)
+          if (_currentVehicle.isEmpty || _currentVehicle.outermostVehicle() != nextLeg.beamVehicleId) {
+            val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
+            vehicle.becomeDriver(self).fold(fa =>
+              stop(Failure(s"I attempted to become driver of vehicle $id but driver ${vehicle.driver.get} already assigned.")),
+              fb => {
+                _currentVehicleUnderControl = Some(vehicle)
+                eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), nextLeg.beamVehicleId))
+              })
+          }
 
-        // Can't depart earlier than it is now
-        val newTriggerTime = math.max(nextLeg.beamLeg.startTime, tick)
-        scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, nextLeg.beamLeg))
-        goto(WaitingToDrive)
-      case (Some(nextLeg), _) if nextLeg.beamLeg.mode.isTransit() =>
-        holdTickAndTriggerId(tick, triggerId)
-        val legSegment = _restOfCurrentTrip.legs.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
-        val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
-        TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
-        goto(Waiting)
-      case (Some(_), _) =>
-        scheduler ! completed(triggerId)
-        goto(Waiting)
-      case (None, Right(activity)) =>
-        _currentActivityIndex = _currentActivityIndex + 1
-        currentTourPersonalVehicle match {
-          case Some(personalVeh) =>
-            if (currentActivity.getType.equals("Home")) {
-              context.parent ! ReleaseVehicleReservation(id, personalVeh)
-              context.parent ! CheckInResource(personalVeh, None)
-              currentTourPersonalVehicle = None
-            }
-          case None =>
-        }
-        val endTime = if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
-          activity.getEndTime
-        } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
-          tick
-        } else {
-          //            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
-          // minutes.")
-          //TODO consider ending the day here to match MATSim convention for start/end activity
-          tick + 60 * 10
-        }
-        // Report travelled distance for inclusion in experienced plans.
-        // We currently get large unaccountable differences in round trips, e.g. work -> home may
-        // be twice as long as home -> work. Probably due to long links, and the location of the activity
-        // on the link being undefined.
-        eventsManager.processEvent(new TeleportationArrivalEvent(tick, id, _currentTrip.get.legs.map(l => l.beamLeg.travelPath.distanceInM).sum))
-        assert(activity.getLinkId != null)
-        eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTrip.get.tripClassifier.value))
-        _currentTrip = None
-        eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
-        scheduler ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
-        goto(PerformingActivity)
-      case (None, Left(msg)) =>
-        logDebug(msg)
-        scheduler ! completed(triggerId)
-        stop
-    }
+          _currentVehicle = _currentVehicle.pushIfNew(nextLeg.beamVehicleId)
+
+          // Can't depart earlier than it is now
+          val newTriggerTime = math.max(nextLeg.beamLeg.startTime, tick)
+          scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, nextLeg.beamLeg))
+          goto(WaitingToDrive)
+        case (Some(nextLeg), _) if nextLeg.beamLeg.mode.isTransit() =>
+          holdTickAndTriggerId(tick, triggerId)
+          val legSegment = _restOfCurrentTrip.legs.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
+          val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
+          TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
+          goto(Waiting)
+        case (Some(_), _) =>
+          scheduler ! completed(triggerId)
+          goto(Waiting)
+        case (None, Right(activity)) =>
+          _currentActivityIndex = _currentActivityIndex + 1
+          currentTourPersonalVehicle match {
+            case Some(personalVeh) =>
+              if (currentActivity.getType.equals("Home")) {
+                context.parent ! ReleaseVehicleReservation(id, personalVeh)
+                context.parent ! CheckInResource(personalVeh, None)
+                currentTourPersonalVehicle = None
+              }
+            case None =>
+          }
+          val endTime = if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
+            activity.getEndTime
+          } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
+            tick
+          } else {
+            //            logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
+            // minutes.")
+            //TODO consider ending the day here to match MATSim convention for start/end activity
+            tick + 60 * 10
+          }
+          // Report travelled distance for inclusion in experienced plans.
+          // We currently get large unaccountable differences in round trips, e.g. work -> home may
+          // be twice as long as home -> work. Probably due to long links, and the location of the activity
+          // on the link being undefined.
+          eventsManager.processEvent(new TeleportationArrivalEvent(tick, id, _currentTrip.get.legs.map(l => l.beamLeg.travelPath.distanceInM).sum))
+          assert(activity.getLinkId != null)
+          eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, _currentTrip.get.tripClassifier.value))
+          _currentTrip = None
+          eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
+          scheduler ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
+          goto(PerformingActivity)
+        case (None, Left(msg)) =>
+          logDebug(msg)
+          scheduler ! completed(triggerId)
+          stop
+      }
+
   }
 
   def cancelTrip(legsToCancel: Vector[EmbodiedBeamLeg], startingVehicle: VehicleStack): Unit = {

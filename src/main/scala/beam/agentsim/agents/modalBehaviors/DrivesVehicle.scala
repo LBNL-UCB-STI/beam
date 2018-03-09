@@ -44,10 +44,10 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
   protected var _currentLeg: Option[BeamLeg] = None
   protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
 
-  def passengerScheduleEmpty(tick: Double, triggerId: Long, info: BeamAgentInfo[PersonData]): State
+  def passengerScheduleEmpty(tick: Double, triggerId: Long): State
 
   when(Driving) {
-    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), info) =>
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
       lastVisited = beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
@@ -76,7 +76,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
             val nextLeg = passengerSchedule.schedule.firstKey
             goto(WaitingToDrive) replying completed(triggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
           } else {
-            passengerScheduleEmpty(tick, triggerId, info.asInstanceOf[BeamAgentInfo[PersonData]])
+            passengerScheduleEmpty(tick, triggerId)
           }
         case None =>
           throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
