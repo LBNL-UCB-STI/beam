@@ -14,7 +14,7 @@ import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
+import beam.agentsim.scheduler.BeamAgentScheduler.{IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
@@ -242,8 +242,14 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         futureResponse.mapTo[ReservationResponse].map { reservationResponse =>
           reservationResponse.response.fold(
             error => {
-              _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.dropWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId))
-              scheduler ! completed(triggerId)
+              // Cannot replan yet -- if my reservation fails, just schedule a mock transit trip for myself.
+              scheduler ! completed(triggerId, legSegment.flatMap(leg => {
+                log.error("scheduling dummy transit trip for {}", leg)
+                Vector(
+                  ScheduleTrigger(NotifyLegStartTrigger(leg.beamLeg.startTime, leg.beamLeg), self),
+                  ScheduleTrigger(NotifyLegEndTrigger(leg.beamLeg.endTime, leg.beamLeg), self))
+              }
+              ))
             },
             confirmation => scheduler ! completed(triggerId)
           )
