@@ -59,7 +59,7 @@ trait BeamHelper {
         val beamConfig = BeamConfig(typesafeConfig)
 
         val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
-        mTazTreeMap.foreach{ tazTreeMap =>
+        mTazTreeMap.foreach { tazTreeMap =>
           bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
         }
 
