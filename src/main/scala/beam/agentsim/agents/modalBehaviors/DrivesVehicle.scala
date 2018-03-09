@@ -90,8 +90,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
           _currentLeg = Some(newLeg)
           manifest.riders.foreach { personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
-            scheduler ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs
-            (personVehicle.personId), newLeg)
+            scheduler ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs(personVehicle.personId), newLeg)
           }
           eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, _currentVehicleUnderControl.get.id, "car", 1.0))
           // Produce link events for this trip (the same ones as in PathTraversalEvent).
@@ -132,7 +131,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
       stay() replying ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
 
-    case Event(req: ReservationRequest, _) if req.departFrom.startTime < passengerSchedule.schedule.head._1.startTime =>
+    case Event(req: ReservationRequest, _) if req.departFrom.startTime <= passengerSchedule.schedule.head._1.startTime =>
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
     case Event(req: ReservationRequest, _) if !hasRoomFor(req) =>

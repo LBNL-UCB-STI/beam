@@ -3,6 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
 import akka.pattern._
+import scala.concurrent.duration._
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -140,7 +141,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       )
   }
 
-  when(Waiting) {
+  when(Waiting, stateTimeout = 1 second) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), info: BeamAgentInfo[PersonData]) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
@@ -161,6 +162,9 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         _currentVehicle = _currentVehicle.pushIfNew(_restOfCurrentTrip.legs.head.beamVehicleId)
         goto(Moving) replying completed(triggerId)
       }
+    case Event(StateTimeout, _) =>
+      logDebug("timeout")
+      stop(Failure(getLog.mkString("\n")))
   }
 
   when(Moving) {
