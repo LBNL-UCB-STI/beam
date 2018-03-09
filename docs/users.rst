@@ -241,3 +241,7 @@ To stop the container::
 
 If you get the image from docker hub, you need to import the beam dashboard from metrics/grafana/dashboards directory.
 
+Cloud visualization services become more popular nowadays and save lost of effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
+.. _Datadog: https://www.datadoghq.com/
+.. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
+
