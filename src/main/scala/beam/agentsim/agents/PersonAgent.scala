@@ -239,7 +239,15 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         val legSegment = _restOfCurrentTrip.legs.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
         val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
         val futureResponse = TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ? resRequest
-        futureResponse.map(result => completed(triggerId)).to(scheduler)
+        futureResponse.mapTo[ReservationResponse].map { reservationResponse =>
+          reservationResponse.response.fold(
+            error => {
+              _restOfCurrentTrip = _restOfCurrentTrip.copy(legs = _restOfCurrentTrip.legs.dropWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId))
+              scheduler ! completed(triggerId)
+            },
+            confirmation => scheduler ! completed(triggerId)
+          )
+        }
         goto(Waiting)
       case (Some(_), _) =>
         scheduler ! completed(triggerId)
