@@ -40,16 +40,6 @@ object PersonAgent {
 
   case class EmptyPersonData() extends PersonData {}
 
-  object PersonData {
-
-    import scala.collection.JavaConverters._
-
-    def planToVec(plan: Plan): Vector[Activity] = {
-      scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p
-        .isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
-    }
-  }
-
   sealed trait InActivity extends BeamAgentState
 
   case object PerformingActivity extends InActivity
