@@ -2,8 +2,6 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
-import akka.pattern._
-import scala.concurrent.duration._
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -15,7 +13,7 @@ import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.scheduler.BeamAgentScheduler.{IllegalTriggerGoToError, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
@@ -26,13 +24,12 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
-import org.slf4j.LoggerFactory
+
+import scala.concurrent.duration._
 
 /**
   */
 object PersonAgent {
-
-  private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
@@ -81,7 +78,6 @@ object PersonAgent {
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
-  import context.dispatcher
   override def data: PersonData = EmptyPersonData()
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
@@ -176,10 +172,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
             stay()
           }
         )
-
-    case Event(StateTimeout, _) =>
-      logDebug("timeout")
-      stop(Failure(getLog.mkString("\n")))
   }
 
   when(Moving) {
@@ -349,6 +341,9 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
+    case Event(StateTimeout, _) =>
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      stop(Failure("Timeout - this probably means this agent was not getting a reply it was expecting."))
     case Event(Finish, _) =>
       log.warning("Still travelling at end of simulation.")
       log.warning("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))

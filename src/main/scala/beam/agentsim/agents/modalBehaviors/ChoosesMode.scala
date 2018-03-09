@@ -37,7 +37,7 @@ trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   onTransition {
-    case PerformingActivity -> ChoosingMode =>
+    case (PerformingActivity | Waiting) -> ChoosingMode =>
       val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
       modeChoiceStrategy match {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
