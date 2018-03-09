@@ -582,28 +582,45 @@ public class GraphSurgePricing {
 
     public void drawHistogram(double[][] dataset, List<String> categoriesList, boolean categorize){
 
-        double[] frequencies = new double[dataset.length];
+        //double[] prices = new double[dataset.length];
+
+        List<Double> prices = new ArrayList<>();
 
         for(int i = 0; i < dataset.length; i++){
+
+            double price = Double.parseDouble(categoriesList.get(i));
 
             double count = 0;
             for(int j=0; j<dataset[i].length; j++){
 
-                count += dataset[i][j];
+                double f = dataset[i][j];
+
+                for(int k =0; k < f; k++){
+                    prices.add(price);
+                }
             }
-            frequencies[i] = count;
         }
 
-        System.out.println("Frequencies : " + Arrays.toString(frequencies));
+        //System.out.println("Frequencies : " + Arrays.toString(frequencies));
 
         // Création des datasets
         HistogramDataset histogramDataset = new HistogramDataset();
         histogramDataset.setType(HistogramType.FREQUENCY);
-        histogramDataset.addSeries("Ride Hailing Price Histogram", frequencies, 10);
+
+//        String [] stockArr = stockList.toArray(new String[stockList.size()]);
+        double[] _prices = new double[prices.size()];
+        for(int i = 0; i < prices.size(); i++){
+            _prices[i] = prices.get(i);
+        }
+
+
+
+        histogramDataset.addSeries("Ride Hailing Price Histogram", _prices, 10);
 
         // Création de l'histogramme
         JFreeChart chart = ChartFactory.createHistogram("", null, null, histogramDataset,
                 PlotOrientation.VERTICAL, true, true, false);
+
 
 
         String fileName = graphImageFile.replace(".png", "_histogram.png");
