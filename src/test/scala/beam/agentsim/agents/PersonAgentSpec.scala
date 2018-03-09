@@ -264,7 +264,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       scheduler ! StartSchedule(0)
 
       val request = expectMsgType[RoutingRequest]
-      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
+      lastSender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
         EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 28800), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false),
         busLeg,
         busLeg2,
@@ -286,14 +286,14 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
-      personActor ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
+      lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
-      personActor ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
+      lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 

@@ -2,6 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
+import akka.pattern._
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -79,6 +80,7 @@ object PersonAgent {
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
+  import context.dispatcher
   override def data: PersonData = EmptyPersonData()
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
@@ -233,7 +235,13 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         val newTriggerTime = math.max(nextLeg.beamLeg.startTime, tick)
         scheduler ! completed(triggerId, schedule[StartLegTrigger](newTriggerTime, self, nextLeg.beamLeg))
         goto(WaitingToDrive)
-      case (Some(nextLeg), _)  =>
+      case (Some(nextLeg), _) if nextLeg.beamLeg.mode.isTransit() =>
+        val legSegment = _restOfCurrentTrip.legs.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
+        val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
+        val futureResponse = TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ? resRequest
+        futureResponse.map(result => completed(triggerId)).to(scheduler)
+        goto(Waiting)
+      case (Some(_), _) =>
         scheduler ! completed(triggerId)
         goto(Waiting)
       case (None, Right(activity)) =>

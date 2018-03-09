@@ -233,60 +233,6 @@ trait ChoosesMode {
     awaitingReservationConfirmation
   }
 
-  def reserveTransit(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
-    var inferredVehicle: VehicleStack = VehicleStack()
-    var exitNextVehicle = false
-    var legsWithPassengerVehicle: Vector[LegWithPassengerVehicle] = Vector()
-    var awaitingReservationConfirmation = Set[Id[ReservationRequest]]()
-    var prevLeg = chosenTrip.legs.head
-    for (leg <- chosenTrip.legs) {
-      if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) {
-        inferredVehicle = inferredVehicle.pop()
-      }
-
-      if (inferredVehicle.nestedVehicles.nonEmpty) {
-        val passengerVeh: Id[Vehicle] = if (inferredVehicle.outermostVehicle() == leg.beamVehicleId) {
-          if (inferredVehicle.nestedVehicles.size < 2) {
-            // In this case, we are changing into a WALK leg
-            Id.create("dummy", classOf[Vehicle])
-          } else {
-            inferredVehicle.penultimateVehicle()
-          }
-        } else {
-          inferredVehicle.outermostVehicle()
-        }
-        legsWithPassengerVehicle = legsWithPassengerVehicle :+ LegWithPassengerVehicle(leg, passengerVeh)
-      }
-      inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-      exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
-      prevLeg = leg
-    }
-    val ungroupedLegs = legsWithPassengerVehicle.filter(_.leg.beamLeg.mode.isTransit()).toList
-    var runningVehId = ungroupedLegs.head.leg.beamVehicleId
-    var groupedLegs = List[List[LegWithPassengerVehicle]]()
-    var currentSegmentList = List[LegWithPassengerVehicle]()
-    ungroupedLegs.foreach { legwithpass =>
-      if (legwithpass.leg.beamVehicleId == runningVehId) {
-        currentSegmentList = currentSegmentList :+ legwithpass
-      } else {
-        groupedLegs = groupedLegs :+ currentSegmentList
-        currentSegmentList = List(legwithpass)
-        runningVehId = legwithpass.leg.beamVehicleId
-      }
-      groupedLegs = groupedLegs.slice(0, groupedLegs.size - 1) :+ currentSegmentList
-    }
-    if (groupedLegs.nonEmpty) {
-      groupedLegs.foreach { legSegment =>
-        val legs = legSegment.sortBy(_.leg.beamLeg.startTime)
-        val vehId = legSegment.head.leg.beamVehicleId
-        val resRequest = new ReservationRequest(legs.head.leg.beamLeg, legs.last.leg
-          .beamLeg, VehiclePersonId(legs.head.passengerVehicle, id))
-        TransitDriverAgent.selectByVehicleId(vehId) ! resRequest
-        awaitingReservationConfirmation = awaitingReservationConfirmation + resRequest.requestId
-      }
-    }
-  }
-
   onTransition {
     case ChoosingMode -> Waiting =>
       unstashAll()
