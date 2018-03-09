@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{PersonData, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent.{EmptyPersonData, PersonData, WaitingToDrive}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -24,7 +24,7 @@ object RideHailingAgent {
   def props(services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
     Props(new RideHailingAgent(rideHailingAgentId, scheduler, vehicle, location, eventsManager, services, transportNetwork))
 
-  case class RideHailingAgentData() extends BeamAgentData
+  case class RideHailingAgentData()
 
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
@@ -41,8 +41,9 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   extends BeamAgent[RideHailingAgentData]
     with HasServices
     with DrivesVehicle[RideHailingAgentData] {
-  override val data: RideHailingAgentData = RideHailingAgentData()
   override def logPrefix(): String = s"RideHailingAgent $id: "
+
+  startWith(Uninitialized, BeamAgentInfo(id, RideHailingAgentData()))
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _: BeamAgentInfo[RideHailingAgentData]) =>

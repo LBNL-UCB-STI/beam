@@ -8,7 +8,6 @@ import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
-import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.RideHailingManager._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
@@ -85,7 +84,7 @@ object RideHailingManager {
 }
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
-case class RideHailingManagerData() extends BeamAgentData
+case class RideHailingManagerData()
 
 class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope) extends VehicleManager with HasServices {
 

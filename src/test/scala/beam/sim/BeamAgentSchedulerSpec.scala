@@ -2,7 +2,7 @@ package beam.sim
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
-import beam.agentsim.agents.BeamAgent.{NoData, _}
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.TriggerUtils.completed
 import beam.agentsim.agents._
 import beam.agentsim.scheduler.BeamAgentScheduler._
@@ -75,14 +75,16 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Be
 
 object BeamAgentSchedulerSpec {
 
-  case class ReportState(val tick: Double) extends Trigger
+  case class MyData()
 
-  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[NoData] {
+  case class ReportState(tick: Double) extends Trigger
+
+  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[MyData] {
     val eventsManager = new EventsManagerImpl
 
-    override def data = NoData()
-
     override def logPrefix(): String = "TestBeamAgent"
+
+    startWith(Uninitialized, BeamAgentInfo(id, MyData()))
 
     when(Uninitialized) {
       case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>

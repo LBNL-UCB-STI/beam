@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{Moving, PersonData, Waiting, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent.{EmptyPersonData, PersonData, WaitingToDrive}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -28,7 +28,7 @@ object TransitDriverAgent {
     Props(new TransitDriverAgent(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs))
   }
 
-  case class TransitDriverData() extends BeamAgentData
+  case class TransitDriverData()
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
     Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
@@ -47,13 +47,13 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
                          val legs: Seq[BeamLeg]) extends
   BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
   override val id: Id[TransitDriverAgent] = transitDriverId
-  override val data: TransitDriverData = TransitDriverData()
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "
 
   val initialPassengerSchedule = PassengerSchedule()
   initialPassengerSchedule.addLegs(legs)
 
+  startWith(Uninitialized, BeamAgentInfo(id, TransitDriverData()))
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>

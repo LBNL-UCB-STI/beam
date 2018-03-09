@@ -36,7 +36,7 @@ object PersonAgent {
     Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId))
   }
 
-  trait PersonData extends BeamAgentData
+  trait PersonData
 
   case class EmptyPersonData() extends PersonData {}
 
@@ -78,7 +78,7 @@ object PersonAgent {
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
-  override def data: PersonData = EmptyPersonData()
+
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
   var _currentVehicle: VehicleStack = VehicleStack()
@@ -87,6 +87,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
 
   override def logDepth: Int = 100
+
+  startWith(Uninitialized, BeamAgentInfo(id, EmptyPersonData()))
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg) else Right(_experiencedBeamPlan.activities(ind))

@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.PersonAgent.EmptyPersonData
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.Trigger
 import org.matsim.api.core.v01.Id
@@ -21,16 +22,12 @@ object BeamAgent {
 
   sealed trait Info
 
-  trait BeamAgentData
-
-  case class BeamAgentInfo[+T <: BeamAgentData](id: Id[_],
+  case class BeamAgentInfo[+T](id: Id[_],
                                                 data: T,
                                                 triggerId: Option[Long] = None,
                                                 tick: Option[Double] = None,
                                                 triggersToSchedule: Vector[ScheduleTrigger] = Vector.empty,
                                                 errorReason: Option[String] = None) extends Info
-
-  case class NoData() extends BeamAgentData
 
   case object Finish
 
@@ -45,19 +42,16 @@ case class InitializeTrigger(tick: Double) extends Trigger
   * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
   */
-trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
+trait BeamAgent[T] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
 
   def id: Id[_]
 
-  def data: T
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
-
-  startWith(Uninitialized, BeamAgentInfo[T](id, data))
 
   onTermination {
     case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
