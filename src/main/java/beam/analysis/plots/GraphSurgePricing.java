@@ -9,6 +9,8 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.jfree.data.statistics.HistogramDataset;
+import org.jfree.data.statistics.HistogramType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
@@ -42,9 +44,6 @@ public class GraphSurgePricing {
     private   Double max = null;
     private   Double min = null;
 
-    private   List<Double> categoryKeys;
-
-
     private  double[] revenueDataSet;
 
     private  Set<String> tazIds = new TreeSet<>();
@@ -56,21 +55,19 @@ public class GraphSurgePricing {
     private  String surgePricingAndRevenueWithTaz = "";
     private  String revenueGraphImageFile =  "";
     private  String revenueCsvFileName =  "";
+    private RideHailSurgePricingManager surgePricingManager;
 
 
-    public GraphSurgePricing(){
+    public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager){
 
-    }
-
-    public  void createGraph(RideHailSurgePricingManager surgePricingManager){
-        noOfCategories = surgePricingManager.numberOfCategories();
-        iterationNumber = surgePricingManager.getIterationNumber();
+        this.surgePricingManager = surgePricingManager;
+        noOfCategories = this.surgePricingManager.numberOfCategories();
+        iterationNumber = this.surgePricingManager.getIterationNumber();
         //iterationNumber = itNo;
         tazDataset.clear();
         transformedBins.clear();
         max = null;
         min = null;
-        finalCategories.clear();
         tazIds.clear();
 
 
@@ -82,73 +79,76 @@ public class GraphSurgePricing {
         revenueCsvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailRevenue.csv");
 
 
-        binSize = surgePricingManager.timeBinSize();
-        numberOfTimeBins = surgePricingManager.numberOfTimeBins();
+        binSize = this.surgePricingManager.timeBinSize();
+        numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
 
         revenueDataSet = new double[numberOfTimeBins];
 
+    }
+
+    public  void createGraphs(){
+
         processSurgePriceBinsMap(surgePricingManager);
 
-        calculateCateogorySize();
+        if(min != max) {
 
+            calculateCateogorySize();
+            List<String> categoriesKeys = getCategoriesKeys(transformedBins,true);
+            double[][] dataset = getDataset(true);
+            writePriceSurgeCsv(dataset, categoriesKeys, true);
+            drawGraph(dataset, categoriesKeys, true);
 
+            drawHistogram(dataset, categoriesKeys, true);
+        }else {
 
-        double[][] dataset = getDataset();
+            List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
+            double[][] dataset = getDataset(false);
+            writePriceSurgeCsv(dataset, categoriesKeys, false);
+            drawGraph(dataset, categoriesKeys, false);
 
-        List<String> categoriesKeys = getCategoriesKeys();
-
-
-        drawGraph(dataset, categoriesKeys);
+            drawHistogram(dataset, categoriesKeys, true);
+        }
 
         drawRevenueGraph(revenueDataSet);
 
         writeTazCsv(tazDataset);
 
         writeRevenueCsv(revenueDataSet);
-
-
     }
 
-    public  List<String> getCategoriesKeys(){
+    public  List<String> getCategoriesKeys(Map<Double, Map<Integer, Integer>> transformedBins, boolean categorize){
 
-        if(min == max) {
+        List<String> categoriesStrings = new ArrayList<>();
+
+        if(!categorize) {
             List<Double> categoriesList = new ArrayList<>();
             categoriesList.addAll(transformedBins.keySet());
             Collections.sort(categoriesList);
 
-            List<String> categoriesStrings = new ArrayList<>();
+//            categoriesStrings = categoriesList.stream().map(String::valueOf).collect(Collectors.toList());
             for (Double price : categoriesList) {
-                //double _legend = Math.round(c * 100.0) / 100.0;
                 categoriesStrings.add(price + "");
             }
-            return categoriesStrings;
         }else{
-            List<String> categoriesStrings= new ArrayList<>();
 
-            for(Double key : categoryKeys){
+//            categoriesStrings = buildCategoryKeys().stream().map(String::valueOf).collect(Collectors.toList());
+            for(Double key : buildCategoryKeys()){
                 categoriesStrings.add(getRoundedNumber(key) + "");
             }
 
-            return categoriesStrings;
         }
+
+        return categoriesStrings;
     }
 
-    public  double[][] getDataset(){
+    public  double[][] getDataset(boolean categorize){
 
-        if(max != min) {
+        if(categorize) {
 
-            buildCategoryKeys();
-
-            processTransformedCategories();
-
-            double[][] dataset = buildDatasetFromFinalCategories(finalCategories);
-
-            return dataset;
+            Map<Integer, Map<Integer, Integer>> finalCategories = convertTransformedBinsToCategories(transformedBins);
+            return buildDatasetFromCategories(finalCategories);
         }else{
-
-            double[][] dataset = buildDatasetFromTransformedCategories(transformedBins);
-
-            return dataset;
+            return buildDatasetFromTransformedBins(transformedBins);
         }
     }
 
@@ -224,7 +224,7 @@ public class GraphSurgePricing {
         categorySize = (max - min)/noOfCategories;
     }
 
-    public  void buildCategoryKeys(){
+    public  List<Double> buildCategoryKeys(){
 
         List<Double> _categoryKeys = new ArrayList<>();
 
@@ -235,7 +235,7 @@ public class GraphSurgePricing {
             minPrice = minPrice + (categorySize);
         }
 
-        categoryKeys = _categoryKeys;
+        return _categoryKeys;
     }
 
     public  int getPriceCategory(double price){
@@ -259,14 +259,16 @@ public class GraphSurgePricing {
         return catIdxFound;
     }
 
-    public  Map<Integer, Map<Integer, Integer>> finalCategories = new HashMap<>();
 
-    public  void processTransformedCategories(){
+    public  Map<Integer, Map<Integer, Integer>> convertTransformedBinsToCategories(Map<Double, Map<Integer, Integer>> transformedBins){
 
         // determine the category based on key,
         // copy data from transformedBins to the final categories collection
         // if for that category we dont have data of bins just copy it
         // otherwise add it
+
+        Map<Integer, Map<Integer, Integer>> finalCategories = new HashMap<>();
+
 
         for(double k : transformedBins.keySet()){
             int idx = getPriceCategory(k);
@@ -288,9 +290,9 @@ public class GraphSurgePricing {
                     if(sourceFrequency != null) {
                         if (targetFrequencey == null) {
 
-                                data.put(i, sourceFrequency);
+                            data.put(i, sourceFrequency);
                         } else {
-                                data.put(i, sourceFrequency + targetFrequencey);
+                            data.put(i, sourceFrequency + targetFrequencey);
 
                         }
                     }
@@ -304,9 +306,10 @@ public class GraphSurgePricing {
 
         }
         log.info("Done with final categories");
+        return finalCategories;
     }
 
-    private  double[][] buildDatasetFromFinalCategories(Map<Integer, Map<Integer, Integer>> finalCategories) {
+    private  double[][] buildDatasetFromCategories(Map<Integer, Map<Integer, Integer>> finalCategories) {
 
         double[][] dataset = new double[noOfCategories][numberOfTimeBins];
 
@@ -337,11 +340,11 @@ public class GraphSurgePricing {
                 dataset[i] = arr;
             }
         }
-       log.info("built the dataset");
+        log.info("built the dataset");
         return dataset;
     }
 
-    private  double[][] buildDatasetFromTransformedCategories(Map<Double, Map<Integer, Integer>> transformedCategories) {
+    private  double[][] buildDatasetFromTransformedBins(Map<Double, Map<Integer, Integer>> transformedCategories) {
 
         double[][] dataset = new double[transformedCategories.keySet().size()][numberOfTimeBins];
 
@@ -368,11 +371,9 @@ public class GraphSurgePricing {
         return dataset;
     }
 
-    public  void drawGraph(double[][] _dataset, List<String> categoriesKeys){
+    public  void drawGraph(double[][] _dataset, List<String> categoriesKeys, boolean categorize){
 
-        writePriceSurgeCsv(_dataset);
         CategoryDataset dataset = DatasetUtilities.createCategoryDataset("Categories ", "", _dataset);
-
 
         List<String> _categoriesKeys = new ArrayList<>();
         _categoriesKeys.addAll(categoriesKeys);
@@ -383,9 +384,10 @@ public class GraphSurgePricing {
 
         try {
 
-
             boolean legend = true;
-            String fileName = "surge_pricing.png";
+
+            String fileName = graphImageFile;
+
             final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset,graphTitle,xAxisLabel,yAxisLabel,fileName,legend);
             CategoryPlot plot = chart.getCategoryPlot();
 
@@ -394,7 +396,7 @@ public class GraphSurgePricing {
             GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
 
 
-            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+            GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -428,17 +430,17 @@ public class GraphSurgePricing {
         return Math.round(number * 100.0) / 100.0;
     }
 
-    public  void writePriceSurgeCsv(double[][] dataset){
+    public  void writePriceSurgeCsv(double[][] dataset, List<String> categoriesList, boolean categorize){
 
+
+        String fileName = surgePricingCsvFileName;
 
 
         try {
-            BufferedWriter out = new BufferedWriter(new FileWriter( new File(surgePricingCsvFileName)));
+            BufferedWriter out = new BufferedWriter(new FileWriter( new File(fileName)));
             //BufferedWriter out = writer.getBufferedWriter();
             out.write("Categories");
             out.write(",");
-
-
 
             for(int i=0; i<dataset[0].length; i++){
                 out.write("bin_" + i);
@@ -446,53 +448,54 @@ public class GraphSurgePricing {
             }
             out.newLine();
 
+            if(categorize) {
+                double diff = min;
+                if (categoriesList.size() > 1)
+                    diff = getRoundedNumber(Math.abs(min - Double.parseDouble(categoriesList.get(1))));
 
-            List<String> categoriesList = new ArrayList<>();
-            categoriesList.addAll(getCategoriesKeys());
-            Collections.sort(categoriesList);
-            double diff = min;
-            if(categoriesList.size() > 1)
-                 diff = getRoundedNumber(Math.abs(min - Double.parseDouble(categoriesList.get(1))));
-
-            for(int j= 0;j<categoriesList.size();j++){
-                double category = Double.parseDouble(categoriesList.get(j));
-                String strFormat = "";
-                if(diff == category){
-                    strFormat = category+"-"+diff;
-                }else if(j+1 == categoriesList.size()){
-                    strFormat = category+"-"+(category+diff);
-                }
-                else{
-                    strFormat = category+"-"+categoriesList.get(j+1);
-                }
-                out.write(strFormat);
-                out.write(",");
-                /*out.write("price");
-                out.write(",");
-                out.write(tazIds.toArray()[j].toString());
-                out.write(",");*/
-
-                for(int i=0; i < dataset[j].length; i++){
-                    out.write(dataset[j][i] + "");
+                for (int j = 0; j < categoriesList.size(); j++) {
+                    double category = Double.parseDouble(categoriesList.get(j));
+                    String strFormat = "";
+                    if (diff == category) {
+                        strFormat = category + "-" + diff;
+                    } else if (j + 1 == categoriesList.size()) {
+                        strFormat = category + "-" + (category + diff);
+                    } else {
+                        strFormat = category + "-" + categoriesList.get(j + 1);
+                    }
+                    out.write(strFormat);
                     out.write(",");
+
+                    for (int i = 0; i < dataset[j].length; i++) {
+                        out.write(dataset[j][i] + "");
+                        out.write(",");
+                    }
+                    out.newLine();
                 }
-                out.newLine();
+            }else{
+
+                for (int j = 0; j < categoriesList.size(); j++) {
+                    double category = Double.parseDouble(categoriesList.get(j));
+
+                    out.write(categoriesList.get(j));
+                    out.write(",");
+
+                    for (int i = 0; i < dataset[j].length; i++) {
+                        out.write(dataset[j][i] + "");
+                        out.write(",");
+                    }
+                    out.newLine();
+                }
             }
-
-
 
             out.flush();
             out.close();
-
-
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public  void writeTazCsv(Map<String, double[][]> dataset){
-
-
 
         try {
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(surgePricingAndRevenueWithTaz)));
@@ -541,16 +544,10 @@ public class GraphSurgePricing {
                     out.write(",");
                 }
                 out.newLine();
-
-
             }
-
-
 
             out.flush();
             out.close();
-
-
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -559,12 +556,8 @@ public class GraphSurgePricing {
 
     public  void writeRevenueCsv(double[] revenueDataSet){
 
-
-
         try {
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(revenueCsvFileName)));
-
-
 
             for(int i = 0; i < numberOfTimeBins; i++){
                 out.write("bin_" + i);
@@ -572,20 +565,14 @@ public class GraphSurgePricing {
             }
             out.newLine();
 
-
-
             for(double revenue : revenueDataSet){
                 out.write( revenue + "");
                 out.write(",");
             }
             out.newLine();
 
-
-
             out.flush();
             out.close();
-
-
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -593,18 +580,56 @@ public class GraphSurgePricing {
     }
 
 
+    public void drawHistogram(double[][] dataset, List<String> categoriesList, boolean categorize){
+
+        //double[] prices = new double[dataset.length];
+
+        List<Double> prices = new ArrayList<>();
+
+        for(int i = 0; i < dataset.length; i++){
+
+            double price = Double.parseDouble(categoriesList.get(i));
+
+            double count = 0;
+            for(int j=0; j<dataset[i].length; j++){
+
+                double f = dataset[i][j];
+
+                for(int k =0; k < f; k++){
+                    prices.add(price);
+                }
+            }
+        }
+
+        //System.out.println("Frequencies : " + Arrays.toString(frequencies));
+
+        // Création des datasets
+        HistogramDataset histogramDataset = new HistogramDataset();
+        histogramDataset.setType(HistogramType.FREQUENCY);
+
+//        String [] stockArr = stockList.toArray(new String[stockList.size()]);
+        double[] _prices = new double[prices.size()];
+        for(int i = 0; i < prices.size(); i++){
+            _prices[i] = prices.get(i);
+        }
 
 
-    ///////////////////////////////////////////////////////////
-    /*
-    Task 1 -
-        We have surgepricebins collection.
-        Each collection has bins of size binsize.
-        Each bin has a price.
-        We create a collection transformedbins
-        In transformedbins, the key is the price, the value is a map [bin, frequency]
-        This shows that for this price we have this frequency for this particular bin.
+
+        histogramDataset.addSeries("Ride Hailing Price Histogram", _prices, 10);
+
+        // Création de l'histogramme
+        JFreeChart chart = ChartFactory.createHistogram("", null, null, histogramDataset,
+                PlotOrientation.VERTICAL, true, true, false);
 
 
-     */
+
+        String fileName = graphImageFile.replace(".png", "_histogram.png");
+        //GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
+
+        try {
+            GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+        }catch(IOException ioe){
+            ioe.printStackTrace();
+        }
+    }
 }
