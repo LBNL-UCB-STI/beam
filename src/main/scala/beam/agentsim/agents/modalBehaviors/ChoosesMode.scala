@@ -53,7 +53,7 @@ trait ChoosesMode {
   }
 
   when(ChoosingMode) ( transform {
-    case Event(MobilityStatusReponse(streetVehicles), info @ BeamAgentInfo(_ , choosesModeData: ChoosesModeData,_,_,_,_)) =>
+    case Event(MobilityStatusReponse(streetVehicles), info @ BeamAgentInfo(choosesModeData: ChoosesModeData,_,_,_,_)) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity.right.get
       val departTime = DiscreteTime(_currentTick.get.toInt)
@@ -146,22 +146,22 @@ trait ChoosesMode {
     /*
      * Receive and store data needed for choice.
      */
-    case Event(theRouterResult: RoutingResponse, info @ BeamAgentInfo(_ , choosesModeData: ChoosesModeData,_,_,_,_)) =>
+    case Event(theRouterResult: RoutingResponse, info @ BeamAgentInfo(choosesModeData: ChoosesModeData,_,_,_,_)) =>
       stay() using info.copy(data = choosesModeData.copy(routingResponse = Some(theRouterResult)))
-    case Event(theRideHailingResult: RideHailingInquiryResponse, info @ BeamAgentInfo(_ , choosesModeData: ChoosesModeData,_,_,_,_)) =>
+    case Event(theRideHailingResult: RideHailingInquiryResponse, info @ BeamAgentInfo(choosesModeData: ChoosesModeData,_,_,_,_)) =>
       stay() using info.copy(data = choosesModeData.copy(rideHailingResult = Some(theRideHailingResult)))
 
   } using completeChoiceIfReady)
 
   when(WaitingForReservationConfirmation) (transform { transform {
-    case Event(response@ReservationResponse(requestId, _), info @ BeamAgentInfo(_ , wfrcData @ WaitingForReservationConfirmationData(pendingReservationConfirmation, awaitingReservationConfirmation, choosesModeData),_,_,_,_)) =>
+    case Event(response@ReservationResponse(requestId, _), info @ BeamAgentInfo(wfrcData @ WaitingForReservationConfirmationData(pendingReservationConfirmation, awaitingReservationConfirmation, choosesModeData),_,_,_,_)) =>
       stay() using info.copy(data = wfrcData.copy(pendingReservationConfirmation = pendingReservationConfirmation - requestId, awaitingReservationConfirmation = awaitingReservationConfirmation + (requestId -> (sender(), response))))
   } using finalizeReservationsIfReady } using completeChoiceIfReady)
 
   case object FinishingModeChoice extends BeamAgentState
 
   def finalizeReservationsIfReady: PartialFunction[State, State] = {
-    case s@FSM.State(stateName, info@BeamAgentInfo(_, wfrcData@WaitingForReservationConfirmationData(pendingReservationConfirmation, awaitingReservationConfirmation, choosesModeData), _, _, triggersToSchedule, _), timeout, stopReason, replies)
+    case s@FSM.State(stateName, info@BeamAgentInfo(wfrcData@WaitingForReservationConfirmationData(pendingReservationConfirmation, awaitingReservationConfirmation, choosesModeData), _, _, triggersToSchedule, _), timeout, stopReason, replies)
       if pendingReservationConfirmation.isEmpty =>
       if (awaitingReservationConfirmation.values.forall(_._2.response.isRight)) {
         val triggers = awaitingReservationConfirmation.flatMap(_._2._2.response.right.get.triggersToSchedule)
@@ -199,7 +199,7 @@ trait ChoosesMode {
   }
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
-    case s @ FSM.State(_, info @ BeamAgentInfo(_ , choosesModeData @ ChoosesModeData(_, None, Some(routingResponse), Some(rideHailingResult), _, _),_,_,_,_), _, _, _) =>
+    case s @ FSM.State(_, info @ BeamAgentInfo(choosesModeData @ ChoosesModeData(_, None, Some(routingResponse), Some(rideHailingResult), _, _),_,_,_,_), _, _, _) =>
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).map(_.asInstanceOf[ModeChoiceStrategy].mode) match {
         case Some(mode) if mode != WALK =>
@@ -227,7 +227,7 @@ trait ChoosesMode {
   }
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
-    case Event(StateTimeout, info@BeamAgentInfo(_, data: ChoosesModeData,_,_,_,_)) =>
+    case Event(StateTimeout, info@BeamAgentInfo(data: ChoosesModeData,_,_,_,_)) =>
       goto(Waiting) using info.copy(data = data.personData.copy(currentTrip = data.pendingChosenTrip, restOfCurrentTrip = data.pendingChosenTrip))
   }
 

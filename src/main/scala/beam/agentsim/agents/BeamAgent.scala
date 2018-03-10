@@ -22,8 +22,7 @@ object BeamAgent {
 
   sealed trait Info
 
-  case class BeamAgentInfo[+T](id: Id[_],
-                                                data: T,
+  case class BeamAgentInfo[+T](data: T,
                                                 triggerId: Option[Long] = None,
                                                 tick: Option[Double] = None,
                                                 triggersToSchedule: Vector[ScheduleTrigger] = Vector.empty,

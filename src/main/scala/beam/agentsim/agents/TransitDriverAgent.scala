@@ -53,7 +53,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
   val initialPassengerSchedule = PassengerSchedule()
   initialPassengerSchedule.addLegs(legs)
 
-  startWith(Uninitialized, BeamAgentInfo(id, TransitDriverData()))
+  startWith(Uninitialized, BeamAgentInfo(TransitDriverData()))
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>

@@ -43,7 +43,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     with DrivesVehicle[RideHailingAgentData] {
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
-  startWith(Uninitialized, BeamAgentInfo(id, RideHailingAgentData()))
+  startWith(Uninitialized, BeamAgentInfo(RideHailingAgentData()))
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _: BeamAgentInfo[RideHailingAgentData]) =>
