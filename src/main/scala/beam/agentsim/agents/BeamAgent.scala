@@ -4,8 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.EmptyPersonData
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.Trigger
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
@@ -20,10 +18,6 @@ object BeamAgent {
 
   case object Initialized extends BeamAgentState
 
-  sealed trait Info
-
-  case class BeamAgentInfo[+T](data: T) extends Info
-
   case object Finish
 
   case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason)
@@ -33,11 +27,7 @@ object BeamAgent {
 case class InitializeTrigger(tick: Double) extends Trigger
 
 
-/**
-  * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
-  * state data types.
-  */
-trait BeamAgent[T] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
+trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T]  {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager

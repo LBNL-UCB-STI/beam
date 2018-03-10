@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{EmptyPersonData, PersonData, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent.WaitingToDrive
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
@@ -43,10 +43,10 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     with DrivesVehicle[RideHailingAgentData] {
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
-  startWith(Uninitialized, BeamAgentInfo(RideHailingAgentData()))
+  startWith(Uninitialized, RideHailingAgentData())
 
   when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _: BeamAgentInfo[RideHailingAgentData]) =>
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"RideHailingAgent $self attempted to become driver of vehicle ${vehicle.id} " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {

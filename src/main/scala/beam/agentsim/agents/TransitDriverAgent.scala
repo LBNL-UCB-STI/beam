@@ -53,10 +53,10 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
   val initialPassengerSchedule = PassengerSchedule()
   initialPassengerSchedule.addLegs(legs)
 
-  startWith(Uninitialized, BeamAgentInfo(TransitDriverData()))
+  startWith(Uninitialized, TransitDriverData())
 
   when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"BeamAgent $id attempted to become driver of vehicle $id " +

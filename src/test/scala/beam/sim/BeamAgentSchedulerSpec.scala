@@ -84,7 +84,7 @@ object BeamAgentSchedulerSpec {
 
     override def logPrefix(): String = "TestBeamAgent"
 
-    startWith(Uninitialized, BeamAgentInfo(MyData()))
+    startWith(Uninitialized, MyData())
 
     when(Uninitialized) {
       case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
