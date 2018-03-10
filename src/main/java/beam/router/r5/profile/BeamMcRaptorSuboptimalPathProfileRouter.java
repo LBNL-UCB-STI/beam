@@ -3,7 +3,7 @@ package beam.router.r5.profile;
 import com.conveyal.r5.api.util.LegMode;
 import com.conveyal.r5.api.util.TransitModes;
 import com.conveyal.r5.profile.*;
-import com.conveyal.r5.profile.McRaptorSuboptimalPathProfileRouter.McRaptorState;
+import com.conveyal.r5.profile.McRaptorSuboptimalPathProfileRouter.*;
 import com.conveyal.r5.streets.LinkedPointSet;
 import com.conveyal.r5.streets.StreetRouter;
 import com.conveyal.r5.transit.*;
@@ -18,7 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
  * A profile routing implementation which uses McRAPTOR to store bags of arrival times and paths per
@@ -27,9 +26,9 @@ import java.util.function.Supplier;
  *
  * @author mattwigway
  */
-public class McRaptorSuboptimalPathProfileRouter {
+public class BeamMcRaptorSuboptimalPathProfileRouter {
     
-    private static final Logger LOG = LoggerFactory.getLogger(McRaptorSuboptimalPathProfileRouter.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BeamMcRaptorSuboptimalPathProfileRouter.class);
 
     public static final int BOARD_SLACK = 60;
 
@@ -44,7 +43,7 @@ public class McRaptorSuboptimalPathProfileRouter {
             600000007, 1600000009, 1200000041, 1500000041 };
 
     // DEBUG: USED TO EVALUATE HASH PERFORMANCE
-//    Set<StatePatternKey> keys = new HashSet<>(); // all unique keys
+//    Set<BeamStatePatternKey> keys = new HashSet<>(); // all unique keys
 //    TIntSet hashes = new TIntHashSet(); // all unique hashes
 
     /**
@@ -82,7 +81,7 @@ public class McRaptorSuboptimalPathProfileRouter {
     /** In order to properly do target pruning we store the best times at each target _by access mode_, so car trips don't quash walk trips */
     private TObjectIntMap<LegMode> bestTimesAtTargetByAccessMode = new TObjectIntHashMap<>(4, 0.95f, Integer.MAX_VALUE);
 
-    public McRaptorSuboptimalPathProfileRouter (TransportNetwork network, ProfileRequest req, Map<LegMode, TIntIntMap> accessTimes, Map<LegMode, TIntIntMap> egressTimes) {
+    public BeamMcRaptorSuboptimalPathProfileRouter(TransportNetwork network, ProfileRequest req, Map<LegMode, TIntIntMap> accessTimes, Map<LegMode, TIntIntMap> egressTimes) {
         this.network = network;
         this.request = req;
         this.accessTimes = accessTimes;
@@ -269,13 +268,13 @@ public class McRaptorSuboptimalPathProfileRouter {
             // However, do allow L1 -> Red -> Green and L2 -> Red -> Green to exist simultaneously. (if we were only
             // looking at the previous pattern, these would be identical when we board the green line because they both
             // came from the red line).
-            Map<StatePatternKey, McRaptorState> statesPerPatternSequence = new HashMap<>();
-            TObjectIntMap<StatePatternKey> tripsPerPatternSequence = new TObjectIntHashMap<>();
+            Map<BeamStatePatternKey, McRaptorState> statesPerPatternSequence = new HashMap<>();
+            TObjectIntMap<BeamStatePatternKey> tripsPerPatternSequence = new TObjectIntHashMap<>();
 
             // used for frequency trips
-            TObjectIntMap<StatePatternKey> boardTimesPerPatternSequence = new TObjectIntHashMap<>();
+            TObjectIntMap<BeamStatePatternKey> boardTimesPerPatternSequence = new TObjectIntHashMap<>();
 
-            TObjectIntMap<StatePatternKey> boardStopsPositionsPerPatternSequence = new TObjectIntHashMap<>();
+            TObjectIntMap<BeamStatePatternKey> boardStopsPositionsPerPatternSequence = new TObjectIntHashMap<>();
 
             TripPattern pattern = network.transitLayer.tripPatterns.get(patIdx);
             RouteInfo routeInfo = network.transitLayer.routes.get(pattern.routeIndex);
@@ -301,7 +300,7 @@ public class McRaptorSuboptimalPathProfileRouter {
                 boolean stopPreviouslyReached = bestStates.containsKey(stop);
 
                 // get off the bus, if we can
-                for (Map.Entry<StatePatternKey, McRaptorState> e : statesPerPatternSequence.entrySet()) {
+                for (Map.Entry<BeamStatePatternKey, McRaptorState> e : statesPerPatternSequence.entrySet()) {
                     int trip = tripsPerPatternSequence.get(e.getKey());
                     TripSchedule sched = pattern.tripSchedules.get(trip);
 
@@ -346,7 +345,7 @@ public class McRaptorSuboptimalPathProfileRouter {
                         // find a trip, if we can
                         int currentTrip = -1; // first increment lands at zero
 
-                        StatePatternKey spk = new StatePatternKey(state);
+                        BeamStatePatternKey spk = new BeamStatePatternKey(state);
 
                         if (pattern.hasSchedules) {
                             for (TripSchedule tripSchedule : pattern.tripSchedules) {
@@ -610,7 +609,7 @@ public class McRaptorSuboptimalPathProfileRouter {
 
         // BELOW CODE IS USED TO EVALUATE HASH PERFORMANCE
         // uncomment it, the variables it uses, and the log statement in route to print a hash collision report
-//        keys.add(new StatePatternKey(state));
+//        keys.add(new BeamStatePatternKey(state));
 //        hashes.add(state.patternHash);
 
         if (!bestStates.containsKey(stop)) bestStates.put(stop, createStateBag());
@@ -658,43 +657,11 @@ public class McRaptorSuboptimalPathProfileRouter {
 //    }
 
 
-    /** A bag of states which maintains dominance, and also keeps transfer and non-transfer states separately. */
-    public static class McRaptorStateBag {
-        /** best states at stops */
-        private DominatingList best;
 
-        /** best non-transferring states at stops */
-        private DominatingList nonTransfer;
-
-        public McRaptorStateBag(Supplier<DominatingList> factory) {
-            this.best = factory.get();
-            this.nonTransfer = factory.get();
-        }
-
-        public boolean add (McRaptorState state) {
-            boolean ret = best.add(state);
-
-            // state.pattern == -1 implies this is a transfer
-            if (state.pattern != -1) {
-                if (nonTransfer.add(state)) ret = true;
-            }
-
-            return ret;
-        }
-
-        public Collection<McRaptorState> getBestStates () {
-            return best.getNonDominatedStates();
-        }
-
-        public Collection<McRaptorState> getNonTransferStates () {
-            return nonTransfer.getNonDominatedStates();
-        }
-    }
-
-    private static class StatePatternKey {
+    private static class BeamStatePatternKey {
         McRaptorState state;
 
-        public StatePatternKey (McRaptorState state) {
+        public BeamStatePatternKey(McRaptorState state) {
             this.state = state;
         }
 
@@ -703,9 +670,9 @@ public class McRaptorSuboptimalPathProfileRouter {
         }
 
         public boolean equals (Object o) {
-            if (o instanceof StatePatternKey) {
-                return Arrays.equals(state.patterns, ((StatePatternKey) o).state.patterns) &&
-                        state.accessMode == ((StatePatternKey) o).state.accessMode;
+            if (o instanceof BeamStatePatternKey) {
+                return Arrays.equals(state.patterns, ((BeamStatePatternKey) o).state.patterns) &&
+                        state.accessMode == ((BeamStatePatternKey) o).state.accessMode;
             }
 
             return false;
