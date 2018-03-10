@@ -22,7 +22,7 @@ object BeamAgent {
 
   sealed trait Info
 
-  case class BeamAgentInfo[+T](data: T, triggersToSchedule: Vector[ScheduleTrigger] = Vector.empty) extends Info
+  case class BeamAgentInfo[+T](data: T) extends Info
 
   case object Finish
 
