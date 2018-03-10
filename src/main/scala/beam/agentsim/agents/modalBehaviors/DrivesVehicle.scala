@@ -160,7 +160,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
     false
   }
 
-  def hasRoomFor(req: ReservationRequest) = {
+  private def hasRoomFor(req: ReservationRequest) = {
     val vehicleCap = _currentVehicleUnderControl.get.getType.getCapacity
     val fullCap = vehicleCap.getSeats + vehicleCap.getStandingRoom
     passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
