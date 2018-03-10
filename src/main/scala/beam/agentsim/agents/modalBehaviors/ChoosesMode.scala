@@ -228,7 +228,7 @@ trait ChoosesMode {
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, info@BeamAgentInfo(_, data: ChoosesModeData,_,_,_,_)) =>
-      goto(Waiting) using info.copy(data = data.personData.copy(pendingChosenTrip = data.pendingChosenTrip))
+      goto(Waiting) using info.copy(data = data.personData.copy(currentTrip = data.pendingChosenTrip, restOfCurrentTrip = data.pendingChosenTrip))
   }
 
   def reserveRidehailing(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
@@ -246,10 +246,11 @@ trait ChoosesMode {
       // Schedule triggers contained in reservation confirmation
       stateData.triggersToSchedule.foreach(scheduler ! _)
       unstashAll()
-      scheduleDepartureWithValidatedTrip(nextStateData.data.asInstanceOf[EmptyPersonData].pendingChosenTrip.get, stateData.data.asInstanceOf[ChoosesModeData])
+      scheduleDepartureWithValidatedTrip(stateData.data.asInstanceOf[ChoosesModeData])
   }
 
-  def scheduleDepartureWithValidatedTrip(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
+  def scheduleDepartureWithValidatedTrip(choosesModeData: ChoosesModeData) = {
+    val chosenTrip = choosesModeData.pendingChosenTrip.get
     val (tick, theTriggerId) = releaseTickAndTriggerId()
     var availablePersonalStreetVehicles = choosesModeData.availablePersonalStreetVehicles
     // Write start and end links of chosen route into Activities.
@@ -302,9 +303,6 @@ trait ChoosesMode {
       rideHailingManager ! ReleaseVehicleReservation(id, choosesModeData.rideHailingResult.get.proposals.head
         .rideHailingAgentLocation.vehicleId)
     }
-    availablePersonalStreetVehicles = Vector()
-    _currentTrip = Some(chosenTrip)
-    _restOfCurrentTrip = chosenTrip
     scheduler ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
   }
 
