@@ -3,7 +3,6 @@ package beam.agentsim.agents.modalBehaviors
 import akka.actor.FSM.Failure
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
-import beam.agentsim.agents.BeamAgent.BeamAgentInfo
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.TriggerUtils.{completed, _}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
