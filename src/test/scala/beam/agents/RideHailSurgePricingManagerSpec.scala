@@ -7,12 +7,12 @@ import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.utils.misc.Time
+import org.mockito.Mockito._
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
 import scala.util.{Random, Try}
-import org.scalatest.mockito.MockitoSugar
-import org.mockito.Mockito._
 
 
 class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with MockitoSugar{

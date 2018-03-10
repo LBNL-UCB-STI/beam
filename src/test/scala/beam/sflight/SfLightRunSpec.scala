@@ -10,13 +10,13 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
 /**
   * Created by colinsheppard
   */
 
-class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper {
 
   "SF Light" must {
     "run without error and at least one person chooses car mode" in {

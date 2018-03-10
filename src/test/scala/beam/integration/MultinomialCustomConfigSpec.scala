@@ -4,7 +4,7 @@ import MultinomialCustomConfigSpec.Utility
 import beam.integration
 import beam.sim.{BeamHelper, RunBeam}
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.xml.{Elem, Node, Text}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -87,7 +87,7 @@ object MultinomialCustomConfigSpec  {
 
 }
 
-class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
+class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
 
 

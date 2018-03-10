@@ -2,14 +2,14 @@ package beam.agentsim.agents.choice.logit
 
 import beam.sim.BeamHelper
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.util.Random
 
 /**
   * BEAM
   */
-class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper {
 
     "An MNL Model" must {
       val mnlData: Vector[MnlData] = Vector(
