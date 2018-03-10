@@ -40,9 +40,7 @@ object PersonAgent {
 
   case class BasePersonData(currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: Option[EmbodiedBeamTrip] = None, hasDeparted: Boolean = false) extends PersonData {}
 
-  sealed trait InActivity extends BeamAgentState
-
-  case object PerformingActivity extends InActivity
+  case object PerformingActivity extends BeamAgentState
 
   sealed trait Traveling extends BeamAgentState
 
