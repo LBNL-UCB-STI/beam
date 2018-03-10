@@ -305,7 +305,7 @@ trait ChoosesMode {
 }
 
 object ChoosesMode {
-  case class ChoosesModeData(personData: EmptyPersonData, pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
+  case class ChoosesModeData(personData: BasePersonData, pendingChosenTrip: Option[EmbodiedBeamTrip] = None,
                              routingResponse: Option[RoutingResponse] = None,
                              rideHailingResult: Option[RideHailingInquiryResponse] = None,
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
