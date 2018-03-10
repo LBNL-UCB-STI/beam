@@ -175,21 +175,10 @@ trait ChoosesMode {
           // if more agents could be hailed.
           stop(Failure(firstErrorResponse.errorCode.toString))
         } else {
-          cancelTrip(stateData.asInstanceOf[WaitingForReservationConfirmationData].choosesModeData.pendingChosenTrip.get.legs, _currentVehicle)
           goto(ChoosingMode) using choosesModeData.copy(
             pendingChosenTrip = None,
-            rideHailingResult = choosesModeData.pendingChosenTrip.get.tripClassifier match {
-              case RIDE_HAIL =>
-                Some(choosesModeData.rideHailingResult.get.copy(proposals = Vector(), error = Some(firstErrorResponse)))
-              case _ =>
-                choosesModeData.rideHailingResult
-            },
-            routingResponse = choosesModeData.pendingChosenTrip.get.tripClassifier match {
-              case RIDE_HAIL =>
-                choosesModeData.routingResponse
-              case _ =>
-                Some(choosesModeData.routingResponse.get.copy(itineraries = choosesModeData.routingResponse.get.itineraries.diff(Seq(choosesModeData.pendingChosenTrip.get))))
-            }
+            rideHailingResult = Some(choosesModeData.rideHailingResult.get.copy(proposals = Vector(), error = Some(firstErrorResponse))),
+            routingResponse = choosesModeData.routingResponse
           )
         }
       }

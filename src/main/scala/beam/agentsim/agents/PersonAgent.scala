@@ -293,42 +293,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
   }
 
-  def cancelTrip(legsToCancel: Vector[EmbodiedBeamLeg], startingVehicle: VehicleStack): Unit = {
-    if (legsToCancel.nonEmpty) {
-      var inferredVehicle = startingVehicle
-      var exitNextVehicle = false
-      var prevLeg = legsToCancel.head
-
-      if (inferredVehicle.nestedVehicles.nonEmpty) inferredVehicle = inferredVehicle.pop()
-
-      for (leg <- legsToCancel) {
-        if (exitNextVehicle || (!prevLeg.asDriver && leg.beamVehicleId != prevLeg.beamVehicleId)) inferredVehicle =
-          inferredVehicle.pop()
-
-        if (inferredVehicle.isEmpty || inferredVehicle.outermostVehicle() != leg.beamVehicleId) {
-          inferredVehicle = inferredVehicle.pushIfNew(leg.beamVehicleId)
-          if (inferredVehicle.nestedVehicles.size > 1 && !leg.asDriver && leg.beamLeg.mode.isTransit) {
-            TransitDriverAgent.selectByVehicleId(inferredVehicle
-              .outermostVehicle()) ! RemovePassengerFromTrip(VehiclePersonId(inferredVehicle.penultimateVehicle(), id))
-          }
-        }
-        exitNextVehicle = leg.asDriver && leg.unbecomeDriverOnCompletion
-        prevLeg = leg
-      }
-    }
-  }
-
-  override def postStop(): Unit = {
-    stateData match {
-      case BasePersonData(_,Some(restOfCurrentTrip),_) =>
-        if (restOfCurrentTrip.legs.nonEmpty) {
-          cancelTrip(restOfCurrentTrip.legs, _currentVehicle)
-        }
-      case _ =>
-    }
-    super.postStop()
-  }
-
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(NotifyLegStartTrigger(_, _), _), _) =>
       stash()
