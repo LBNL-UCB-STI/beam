@@ -103,9 +103,6 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
         case None =>
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
-
-    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
-      stop(Failure(s"Received EndLegTrigger while in state Waiting. passenger schedule $passengerSchedule"))
   }
 
   val drivingBehavior: StateFunction = {
@@ -144,6 +141,9 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
     case Event(RemovePassengerFromTrip(id),_)=>
       passengerSchedule.removePassenger(id)
       stay()
+
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
+      stop(Failure(s"Received unexpected EndLegTrigger. passenger schedule $passengerSchedule"))
 
   }
 
