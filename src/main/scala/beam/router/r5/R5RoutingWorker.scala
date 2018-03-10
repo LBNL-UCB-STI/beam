@@ -17,6 +17,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.TripWithFares
+import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.{Modes, RoutingModel}
 import beam.sim.BeamServices
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -517,7 +518,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val egressRouter = findEgressPaths(request)
       import scala.collection.JavaConverters._
       //latency 2nd step
-      val router = new McRaptorSuboptimalPathProfileRouter(transportNetwork, request, accessRouter.mapValues(_.getReachedStops).asJava, egressRouter.mapValues(_.getReachedStops).asJava)
+      val router = new BeamMcRaptorSuboptimalPathProfileRouter(transportNetwork, request, accessRouter.mapValues(_.getReachedStops).asJava, egressRouter.mapValues(_.getReachedStops).asJava)
       router.NUMBER_OF_SEARCHES = beamServices.beamConfig.beam.routing.r5.numberOfSamples
       val usefullpathList = new util.ArrayList[PathWithTimes]
       // getPaths actually returns a set, which is important so that things are deduplicated. However we need a list
