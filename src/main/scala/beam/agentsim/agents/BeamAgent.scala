@@ -22,15 +22,11 @@ object BeamAgent {
 
   sealed trait Info
 
-  case class BeamAgentInfo[+T](data: T,
-                                                triggerId: Option[Long] = None,
-                                                tick: Option[Double] = None,
-                                                triggersToSchedule: Vector[ScheduleTrigger] = Vector.empty,
-                                                errorReason: Option[String] = None) extends Info
+  case class BeamAgentInfo[+T](data: T, triggersToSchedule: Vector[ScheduleTrigger] = Vector.empty) extends Info
 
   case object Finish
 
-  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Double])
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason)
 
 }
 
@@ -61,7 +57,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]]  {
       }
       log.error(event.toString)
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, stateData.tick))
+      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason))
   }
 
   def holdTickAndTriggerId(tick: Double, triggerId: Long) = {

@@ -17,7 +17,7 @@ class ErrorListener() extends Actor with ActorLogging {
   private var terminatedPrematurelyEvents: List[BeamAgent.TerminatedPrematurelyEvent] = Nil
 
   override def receive: Receive = {
-    case event@BeamAgent.TerminatedPrematurelyEvent(agentRef, reason, maybeTick) =>
+    case event@BeamAgent.TerminatedPrematurelyEvent(_, _) =>
       terminatedPrematurelyEvents ::= event
       if (terminatedPrematurelyEvents.size >= nextCounter) {
         nextCounter *= 2
@@ -42,7 +42,7 @@ class ErrorListener() extends Actor with ActorLogging {
   }
 
   def formatErrorReasons(): String = {
-    def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = event.tick.map(_ / 3600.0).getOrElse(-1.0).toInt
+    def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = -1
     val msgCounts = terminatedPrematurelyEvents
       .groupBy( event => event.reason.toString.substring(0,Math.min(event.reason.toString.length-1,65)) )
       .mapValues( eventsPerReason =>
