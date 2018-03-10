@@ -135,12 +135,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       assert(currentActivity.getLinkId != null)
       eventsManager.processEvent(new PersonDepartureEvent(tick, id, currentActivity.getLinkId, currentTrip.tripClassifier.value))
       holdTickAndTriggerId(tick, triggerId)
-      self ! ProcessNextLegOrStartActivity()
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
 
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_, true)) =>
       holdTickAndTriggerId(tick, triggerId)
-      self ! ProcessNextLegOrStartActivity()
       goto(ProcessingNextLegOrStartActivity)
 
     /*
@@ -185,7 +183,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))
         _currentVehicle = _currentVehicle.pop()
         holdTickAndTriggerId(tick, triggerId)
-        self ! ProcessNextLegOrStartActivity()
         goto(ProcessingNextLegOrStartActivity) using data.copy(restOfCurrentTrip = Some(restOfCurrentTrip.copy(legs = restOfCurrentTrip.legs.tail)))
       }
   }
@@ -201,7 +198,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       }
     }
     holdTickAndTriggerId(tick, triggerId)
-    self ! ProcessNextLegOrStartActivity()
     goto(ProcessingNextLegOrStartActivity) using stateData.asInstanceOf[BasePersonData].copy(restOfCurrentTrip = Some(stateData.asInstanceOf[BasePersonData].restOfCurrentTrip.get.copy(legs= stateData.asInstanceOf[BasePersonData].restOfCurrentTrip.get.legs.tail)))
   }
 
@@ -224,10 +220,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * of activity
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
-  case class ProcessNextLegOrStartActivity()
-
-  when(ProcessingNextLegOrStartActivity) {
-    case Event(ProcessNextLegOrStartActivity(), data@BasePersonData(Some(currentTrip),Some(restOfCurrentTrip), _)) =>
+  when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
+    case Event(StateTimeout, data@BasePersonData(Some(currentTrip),Some(restOfCurrentTrip), _)) =>
       (restOfCurrentTrip.legs.headOption, nextActivity) match {
         case (Some(nextLeg), _) if nextLeg.asDriver =>
           passengerSchedule = PassengerSchedule()
