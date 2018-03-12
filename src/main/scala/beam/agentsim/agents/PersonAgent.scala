@@ -177,7 +177,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,Some(restOfCurrentTrip), _)) if beamLeg == restOfCurrentTrip.legs.head.beamLeg =>
       if (restOfCurrentTrip.legs.tail.head.beamVehicleId == _currentVehicle.outermostVehicle()) {
         // The next vehicle is the same as current so just update state and go to Waiting
-        goto(Waiting) replying completed(triggerId)
+        goto(Waiting) replying completed(triggerId) using data.copy(restOfCurrentTrip = Some(restOfCurrentTrip.copy(legs = restOfCurrentTrip.legs.tail)))
       } else {
         // The next vehicle is different from current so we exit the current vehicle
         eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, _currentVehicle.outermostVehicle()))

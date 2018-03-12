@@ -171,7 +171,8 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, tramLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, tramLeg.beamLeg), personActor) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
+      val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
+      assert(personLeavesVehicleEvent.getTime == 40000.0)
 
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
