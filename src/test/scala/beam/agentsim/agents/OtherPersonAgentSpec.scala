@@ -10,6 +10,7 @@ import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingI
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger}
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleGoneError
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
@@ -102,6 +103,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val busLeg = EmbodiedBeamLeg(BeamLeg(28800, BeamMode.BUS, 600, BeamPath(Vector(), Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)), SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 29400), 1.0)), Id.createVehicleId("my_bus"), false, None, BigDecimal(0), false)
       val busLeg2 = EmbodiedBeamLeg(BeamLeg(29400, BeamMode.BUS, 600, BeamPath(Vector(), Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)), SpaceTime(new Coord(167138.4,1117), 29400), SpaceTime(new Coord(180000.4,1200), 30000), 1.0)), Id.createVehicleId("my_bus"), false, None, BigDecimal(0), false)
       val tramLeg = EmbodiedBeamLeg(BeamLeg(30000, BeamMode.TRAM, 600, BeamPath(Vector(), Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)), SpaceTime(new Coord(180000.4,1200), 30000), SpaceTime(new Coord(190000.4,1300), 30600), 1.0)), Id.createVehicleId("my_tram"), false, None, BigDecimal(0), false)
+      val replannedTramLeg = EmbodiedBeamLeg(BeamLeg(35000, BeamMode.TRAM, 600, BeamPath(Vector(), Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)), SpaceTime(new Coord(180000.4,1200), 35000), SpaceTime(new Coord(190000.4,1300), 35600), 1.0)), Id.createVehicleId("my_tram"), false, None, BigDecimal(0), false)
 
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -140,7 +142,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       scheduler ! StartSchedule(0)
 
       val request = expectMsgType[RoutingRequest]
-      personActor ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
+      lastSender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
         EmbodiedBeamLeg(BeamLeg(28800, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(166321.9,1568.87), 28800), SpaceTime(new Coord(167138.4,1117), 28800), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false),
         busLeg,
         busLeg2,
@@ -162,15 +164,25 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(35000, busLeg2.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(34400, busLeg2.beamLeg), personActor)
       expectMsgType[PersonEntersVehicleEvent]
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
-      assert(personLeavesVehicleEvent.getTime == 35000.0)
+      assert(personLeavesVehicleEvent.getTime == 34400.0)
+
+      val reservationRequestLateTram = expectMsgType[ReservationRequest]
+      lastSender ! ReservationResponse(reservationRequestLateTram.requestId, Left(VehicleGoneError))
+
+      val replanningRequest = expectMsgType[RoutingRequest]
+      lastSender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
+        replannedTramLeg,
+        EmbodiedBeamLeg(BeamLeg(35600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 35600), SpaceTime(new Coord(167138.4,1117), 35600), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false)
+      ))))
+      expectMsgType[ModeChoiceEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
-      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, tramLeg.beamLeg), personActor)
-      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, tramLeg.beamLeg), personActor) // My tram is late!
+      scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, replannedTramLeg.beamLeg), personActor)
+      scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, replannedTramLeg.beamLeg), personActor) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
