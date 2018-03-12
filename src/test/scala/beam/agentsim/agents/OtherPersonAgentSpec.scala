@@ -164,15 +164,15 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(35000, busLeg2.beamLeg), personActor)
       expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
+      val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
+      assert(personLeavesVehicleEvent.getTime == 35000.0)
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, tramLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, tramLeg.beamLeg), personActor) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]
-      val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
-      assert(personLeavesVehicleEvent.getTime == 40000.0)
+      expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
