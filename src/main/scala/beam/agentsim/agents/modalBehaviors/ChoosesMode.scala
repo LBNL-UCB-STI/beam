@@ -39,7 +39,7 @@ trait ChoosesMode {
 
   onTransition {
     case (PerformingActivity | Waiting) -> ChoosingMode =>
-      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
+      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity(stateData.asInstanceOf[BasePersonData]).right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
       modeChoiceStrategy match {
         case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
@@ -54,8 +54,8 @@ trait ChoosesMode {
 
   when(ChoosingMode) ( transform {
     case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
-      val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity.getCoord, _currentTick.get.toLong), WALK, asDriver = true)
-      val nextAct = nextActivity.right.get
+      val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
+      val nextAct = nextActivity(choosesModeData.personData).right.get
       val departTime = DiscreteTime(_currentTick.get.toInt)
       val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
         case l: Leg => Some(l)
@@ -87,11 +87,11 @@ trait ChoosesMode {
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
-        router ! RoutingRequest(currentActivity.getCoord, nextAct.getCoord, departTime, Modes.filterForTransit(transitModes), vehicles, streetVehiclesAsAccess)
+        router ! RoutingRequest(currentActivity(stateData.asInstanceOf[ChoosesModeData].personData).getCoord, nextAct.getCoord, departTime, Modes.filterForTransit(transitModes), vehicles, streetVehiclesAsAccess)
       }
 
       def makeRideHailRequest(): Unit = {
-        rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity.getCoord, departTime, nextAct.getCoord)
+        rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity(stateData.asInstanceOf[ChoosesModeData].personData).getCoord, departTime, nextAct.getCoord)
       }
 
       def filterStreetVehiclesForQuery(streetVehicles: Vector[StreetVehicle], byMode: BeamMode): Vector[StreetVehicle] = {
@@ -129,8 +129,8 @@ trait ChoosesMode {
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
         case Some(ModeChoiceStrategy(DRIVE_TRANSIT)) =>
-          val LastTripIndex = currentTour.trips.size - 1
-          currentTour.tripIndexOfElement(nextAct) match {
+          val LastTripIndex = currentTour(stateData.asInstanceOf[BasePersonData]).trips.size - 1
+          currentTour(stateData.asInstanceOf[BasePersonData]).tripIndexOfElement(nextAct) match {
             case 0 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
             case LastTripIndex =>
@@ -179,9 +179,9 @@ trait ChoosesMode {
   case object FinishingModeChoice extends BeamAgentState
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
-    case FSM.State(_, choosesModeData @ ChoosesModeData(_, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
+    case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
-      val filteredItinerariesForChoice = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).map(_.asInstanceOf[ModeChoiceStrategy].mode) match {
+      val filteredItinerariesForChoice = _experiencedBeamPlan.getStrategy(nextActivity(personData).right.get, classOf[ModeChoiceStrategy]).map(_.asInstanceOf[ModeChoiceStrategy].mode) match {
         case Some(mode) if mode != WALK =>
           val itinsWithoutWalk = if (mode == DRIVE_TRANSIT) {
             combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
@@ -196,7 +196,7 @@ trait ChoosesMode {
         case Some(chosenTrip) if RideHailingAgent.getRideHailingTrip(chosenTrip).nonEmpty =>
           val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
           val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
-          rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId(bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
+          rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId(bodyId, id), currentActivity(personData).getCoord, departAt, nextActivity(personData).right.get.getCoord)
           goto(WaitingForReservationConfirmation) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
@@ -228,13 +228,13 @@ trait ChoosesMode {
     // Our aim should be that every transition from a link to another link be accounted for.
     val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
     if (links.nonEmpty) {
-      _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(links.head))
-      _experiencedBeamPlan.activities(_currentActivityIndex + 1).setLinkId(Id.createLinkId(links.last))
+      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).setLinkId(Id.createLinkId(links.head))
+      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(links.last))
     } else {
-      val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex).getCoord)
-      val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex + 1).getCoord)
-      _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 1000.0, StreetMode.WALK).edge))
-      _experiencedBeamPlan.activities(_currentActivityIndex + 1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
+      val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).getCoord)
+      val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1).getCoord)
+      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 1000.0, StreetMode.WALK).edge))
+      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
     }
 
     def availableAlternatives = {
@@ -247,11 +247,11 @@ trait ChoosesMode {
     }
 
     eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, choosesModeData.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      _experiencedBeamPlan.activities(_currentActivityIndex).getLinkId.toString, availableAlternatives.mkString(":"), choosesModeData.availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity.right.get), chosenTrip))
+      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).getLinkId.toString, availableAlternatives.mkString(":"), choosesModeData.availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity(choosesModeData.personData).right.get), chosenTrip))
 
-    _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(_currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
+    _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
       case None =>
-        _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(chosenTrip.tripClassifier))
+        _experiencedBeamPlan.putStrategy(currentTour(choosesModeData.personData), ModeChoiceStrategy(chosenTrip.tripClassifier))
       case _ =>
     }
 
