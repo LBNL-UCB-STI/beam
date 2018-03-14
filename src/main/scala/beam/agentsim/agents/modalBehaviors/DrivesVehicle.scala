@@ -47,26 +47,25 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
 
   when(Driving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
-      lastVisited = beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)
+      lastVisited = beamServices.geo.wgs2Utm(passengerSchedule.schedule.firstKey.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
           // If no manager is set, we ignore
-          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)))
+          veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(passengerSchedule.schedule.firstKey.travelPath.endPoint)))
         case None =>
-          throw new RuntimeException(s"Driver $id just ended a leg ${_currentLeg.get} but had no vehicle under control")
+          throw new RuntimeException(s"Driver $id just ended a leg ${passengerSchedule.schedule.firstKey} but had no vehicle under control")
       }
-      passengerSchedule.schedule.get(_currentLeg.get) match {
+      passengerSchedule.schedule.get(passengerSchedule.schedule.firstKey) match {
         case Some(manifest) =>
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
               logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-              scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, _currentLeg.get), personRef)
+              scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, passengerSchedule.schedule.firstKey), personRef)
             }
           }
           eventsManager.processEvent(new PathTraversalEvent(tick, _currentVehicleUnderControl.get.id,
             _currentVehicleUnderControl.get.getType,
-            passengerSchedule.curTotalNumPassengers(_currentLeg.get),
-            _currentLeg.get))
+            passengerSchedule.curTotalNumPassengers(passengerSchedule.schedule.firstKey), passengerSchedule.schedule.firstKey))
 
           _currentLeg = None
           passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
@@ -78,7 +77,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
             passengerScheduleEmpty(tick, triggerId)
           }
         case None =>
-          throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${_currentLeg}")
+          throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${passengerSchedule.schedule.firstKey}")
       }
   }
 
