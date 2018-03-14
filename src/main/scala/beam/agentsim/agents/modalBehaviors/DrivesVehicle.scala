@@ -115,12 +115,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
           passengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
         }
       }
-      _currentLeg match {
-        case None =>
-          goto(WaitingToDrive) replying ModifyPassengerScheduleAck(requestId)
-        case Some(_) =>
-          stay() replying ModifyPassengerScheduleAck(requestId)
-      }
+      stay() replying ModifyPassengerScheduleAck(requestId)
 
     case Event(req: ReservationRequest, _) if passengerSchedule.isEmpty =>
       log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
