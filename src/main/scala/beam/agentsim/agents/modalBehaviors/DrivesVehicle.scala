@@ -40,7 +40,6 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
 
   protected var passengerSchedule: PassengerSchedule = PassengerSchedule()
   var lastVisited:  SpaceTime = SpaceTime.zero
-  protected var _currentLeg: Option[BeamLeg] = None
   protected var _currentVehicleUnderControl: Option[BeamVehicle] = None
 
   def passengerScheduleEmpty(tick: Double, triggerId: Long): State
@@ -67,7 +66,6 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
             _currentVehicleUnderControl.get.getType,
             passengerSchedule.curTotalNumPassengers(passengerSchedule.schedule.firstKey), passengerSchedule.schedule.firstKey))
 
-          _currentLeg = None
           passengerSchedule.schedule.remove(passengerSchedule.schedule.firstKey)
 
           if (passengerSchedule.schedule.nonEmpty) {
@@ -85,7 +83,6 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
-          _currentLeg = Some(passengerSchedule.schedule.firstKey)
           manifest.riders.foreach { personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
             scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
