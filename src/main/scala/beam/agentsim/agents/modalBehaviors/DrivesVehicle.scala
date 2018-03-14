@@ -85,7 +85,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), _) =>
       passengerSchedule.schedule.get(newLeg) match {
         case Some(manifest) =>
-          _currentLeg = Some(newLeg)
+          _currentLeg = Some(passengerSchedule.schedule.firstKey)
           manifest.riders.foreach { personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
             scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
@@ -94,9 +94,9 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
           // Produce link events for this trip (the same ones as in PathTraversalEvent).
           // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
           // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-          RoutingModel.traverseStreetLeg(_currentLeg.get, _currentVehicleUnderControl.get.id, (_,_) => 0L)
+          RoutingModel.traverseStreetLeg(passengerSchedule.schedule.firstKey, _currentVehicleUnderControl.get.id, (_,_) => 0L)
             .foreach(eventsManager.processEvent)
-          val endTime = tick + _currentLeg.get.duration
+          val endTime = tick + passengerSchedule.schedule.firstKey.duration
           eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
           goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
         case None =>
