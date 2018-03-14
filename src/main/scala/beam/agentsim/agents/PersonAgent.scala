@@ -189,8 +189,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     if (data.restOfCurrentTrip.get.legs.head.unbecomeDriverOnCompletion) {
       beamServices.vehicles(data.currentVehicle.outermostVehicle()).unsetDriver()
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.outermostVehicle()))
-      if (!data.currentVehicle.isEmpty) {
-        _currentVehicleUnderControl = Some(beamServices.vehicles(data.currentVehicle.outermostVehicle()))
+      if (!data.currentVehicle.pop().isEmpty) {
+        _currentVehicleUnderControl = Some(beamServices.vehicles(data.currentVehicle.pop().outermostVehicle()))
       }
     }
     holdTickAndTriggerId(tick, triggerId)
