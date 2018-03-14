@@ -4,12 +4,12 @@ import akka.actor.FSM.Failure
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.TriggerUtils.{completed, _}
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{DriverHasEmptyPassengerScheduleError, VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
@@ -60,7 +60,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
           manifest.riders.foreach { pv =>
             beamServices.personRefs.get(pv.personId).foreach { personRef =>
               logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-              scheduler ! scheduleOne[NotifyLegEndTrigger](tick, personRef, _currentLeg.get)
+              scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, _currentLeg.get), personRef)
             }
           }
           eventsManager.processEvent(new PathTraversalEvent(tick, _currentVehicleUnderControl.get.id,
@@ -73,7 +73,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
 
           if (passengerSchedule.schedule.nonEmpty) {
             val nextLeg = passengerSchedule.schedule.firstKey
-            goto(WaitingToDrive) replying completed(triggerId, schedule[StartLegTrigger](nextLeg.startTime, self, nextLeg))
+            goto(WaitingToDrive) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
           } else {
             passengerScheduleEmpty(tick, triggerId)
           }
@@ -89,7 +89,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
           _currentLeg = Some(newLeg)
           manifest.riders.foreach { personVehicle =>
             logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
-            scheduler ! scheduleOne[NotifyLegStartTrigger](tick, beamServices.personRefs(personVehicle.personId), newLeg)
+            scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
           }
           eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, _currentVehicleUnderControl.get.id, "car", 1.0))
           // Produce link events for this trip (the same ones as in PathTraversalEvent).
@@ -99,7 +99,7 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
             .foreach(eventsManager.processEvent)
           val endTime = tick + _currentLeg.get.duration
           eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, _currentVehicleUnderControl.get.id, "car", 0.0))
-          goto(Driving) replying completed(triggerId, schedule[EndLegTrigger](endTime, self))
+          goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
         case None =>
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }

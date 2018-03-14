@@ -5,10 +5,10 @@ import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.WaitingToDrive
 import beam.agentsim.agents.RideHailingAgent._
-import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -54,13 +54,13 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(WaitingToDrive) replying completed(triggerId)
+        goto(WaitingToDrive) replying CompletionNotice(triggerId)
       })
   }
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long) = {
     vehicle.checkInResource(Some(lastVisited),context.dispatcher)
-    scheduler ! completed(triggerId)
+    scheduler ! CompletionNotice(triggerId)
     stay
   }
 

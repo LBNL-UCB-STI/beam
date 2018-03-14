@@ -3,7 +3,6 @@ package beam.sim
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.TriggerUtils.completed
 import beam.agentsim.agents._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
@@ -52,17 +51,17 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Be
       scheduler ! ScheduleTrigger(ReportState(9.0), self)
       scheduler ! StartSchedule(0)
       expectMsg(TriggerWithId(InitializeTrigger(0.0), 1))
-      scheduler ! completed(1)
+      scheduler ! CompletionNotice(1)
       expectMsg(TriggerWithId(ReportState(1.0), 2))
-      scheduler ! completed(2)
+      scheduler ! CompletionNotice(2)
       expectMsg(TriggerWithId(ReportState(5.0), 4))
-      scheduler ! completed(4)
+      scheduler ! CompletionNotice(4)
       expectMsg(TriggerWithId(ReportState(9.0), 6))
-      scheduler ! completed(6)
+      scheduler ! CompletionNotice(6)
       expectMsg(TriggerWithId(ReportState(10.0), 3))
-      scheduler ! completed(3)
+      scheduler ! CompletionNotice(3)
       expectMsg(TriggerWithId(ReportState(15.0), 5))
-      scheduler ! completed(5)
+      scheduler ! CompletionNotice(5)
       expectMsg(CompletionNotice(0L))
     }
   }
@@ -88,11 +87,11 @@ object BeamAgentSchedulerSpec {
 
     when(Uninitialized) {
       case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
-        goto(Initialized) replying completed(triggerId, Vector())
+        goto(Initialized) replying CompletionNotice(triggerId, Vector())
     }
     when(Initialized) {
       case Event(TriggerWithId(_, triggerId), _) =>
-        stay() replying completed(triggerId, Vector())
+        stay() replying CompletionNotice(triggerId, Vector())
     }
     whenUnhandled {
       case Event(IllegalTriggerGoToError(_), _) =>

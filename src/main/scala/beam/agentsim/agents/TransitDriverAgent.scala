@@ -5,11 +5,10 @@ import akka.actor.{ActorContext, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.WaitingToDrive
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
-import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
@@ -66,7 +65,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(WaitingToDrive) replying
-          completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime, self, passengerSchedule.schedule.firstKey))
+          CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(passengerSchedule.schedule.firstKey.startTime, passengerSchedule.schedule.firstKey), self)))
       })
   }
 
@@ -80,7 +79,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
-    scheduler ! completed(triggerId)
+    scheduler ! CompletionNotice(triggerId)
     stop
   }
 }

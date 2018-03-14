@@ -2,10 +2,10 @@ package beam.sim.monitoring
 
 import akka.actor.{Actor, ActorLogging, DeadLetter, Props}
 import beam.agentsim.agents.BeamAgent
-import beam.agentsim.agents.TriggerUtils.completed
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
 
 /**
@@ -32,7 +32,7 @@ class ErrorListener() extends Actor with ActorLogging {
           // Can be safely skipped
         case TriggerWithId(trigger,triggerId) =>
           log.warning(s"Trigger sent to dead letters ${trigger}")
-          d.sender ! completed(triggerId)
+          d.sender ! CompletionNotice(triggerId)
           //
         case _ =>
           log.error(s"ErrorListener: saw dead letter without knowing how to handle it: $d")
