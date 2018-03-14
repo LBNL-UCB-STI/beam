@@ -1,7 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
+import akka.actor.FSM
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, FSM}
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -10,7 +10,7 @@ import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.{ChoosesModeData, WaitingForReservationConfirmationData}
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -154,7 +154,7 @@ trait ChoosesMode {
   } using completeChoiceIfReady)
 
   when(WaitingForReservationConfirmation) (transform {
-    case Event(response@ReservationResponse(_, _), wfrcData @ WaitingForReservationConfirmationData(_, _, choosesModeData)) =>
+    case Event(response@ReservationResponse(_, _), choosesModeData: ChoosesModeData) =>
       if (response.response.isRight) {
         val triggers = response.response.right.get.triggersToSchedule
         log.debug("scheduling triggers from reservation responses: {}", triggers)
@@ -194,8 +194,10 @@ trait ChoosesMode {
       }
       modeChoiceCalculator(filteredItinerariesForChoice) match {
         case Some(chosenTrip) if RideHailingAgent.getRideHailingTrip(chosenTrip).nonEmpty =>
-          val awaitingReservationConfirmation = reserveRidehailing(chosenTrip, choosesModeData)
-          goto(WaitingForReservationConfirmation) using WaitingForReservationConfirmationData(pendingReservationConfirmation = awaitingReservationConfirmation, awaitingReservationConfirmation = Map(), choosesModeData.copy(pendingChosenTrip = Some(chosenTrip)))
+          val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
+          val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
+          rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId(bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
+          goto(WaitingForReservationConfirmation) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>
@@ -209,16 +211,6 @@ trait ChoosesMode {
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: ChoosesModeData) =>
       goto(Waiting) using data.personData.copy(currentTrip = data.pendingChosenTrip, restOfCurrentTrip = data.pendingChosenTrip)
-  }
-
-  def reserveRidehailing(chosenTrip: EmbodiedBeamTrip, choosesModeData: ChoosesModeData) = {
-    val rideHailingLeg = RideHailingAgent.getRideHailingTrip(chosenTrip)
-    var awaitingReservationConfirmation = Set[Id[ReservationRequest]]()
-    val departAt = DiscreteTime(rideHailingLeg.head.beamLeg.startTime.toInt)
-    val rideHailingId = Id.create(choosesModeData.rideHailingResult.get.inquiryId.toString, classOf[ReservationRequest])
-    rideHailingManager ! ReserveRide(choosesModeData.rideHailingResult.get.inquiryId, VehiclePersonId(bodyId, id), currentActivity.getCoord, departAt, nextActivity.right.get.getCoord)
-    awaitingReservationConfirmation = awaitingReservationConfirmation + rideHailingId
-    awaitingReservationConfirmation
   }
 
   onTransition {
@@ -292,8 +284,6 @@ object ChoosesMode {
                              rideHailingResult: Option[RideHailingInquiryResponse] = None,
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData
-
-  case class WaitingForReservationConfirmationData(pendingReservationConfirmation: Set[Id[ReservationRequest]], awaitingReservationConfirmation: Map[Id[ReservationRequest], (ActorRef, ReservationResponse)], choosesModeData: ChoosesModeData) extends PersonData
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
