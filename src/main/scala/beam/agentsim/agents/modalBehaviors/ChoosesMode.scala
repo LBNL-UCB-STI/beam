@@ -153,23 +153,15 @@ trait ChoosesMode {
 
   } using completeChoiceIfReady)
 
-  when(WaitingForReservationConfirmation) (transform { transform {
-    case Event(response@ReservationResponse(requestId, _), wfrcData @ WaitingForReservationConfirmationData(pendingReservationConfirmation, awaitingReservationConfirmation, choosesModeData)) =>
-      stay() using wfrcData.copy(pendingReservationConfirmation = pendingReservationConfirmation - requestId, awaitingReservationConfirmation = awaitingReservationConfirmation + (requestId -> (sender(), response)))
-  } using finalizeReservationsIfReady } using completeChoiceIfReady)
-
-  case object FinishingModeChoice extends BeamAgentState
-
-  def finalizeReservationsIfReady: PartialFunction[State, State] = {
-    case s@FSM.State(stateName, wfrcData@WaitingForReservationConfirmationData(pendingReservationConfirmation, awaitingReservationConfirmation, choosesModeData), timeout, stopReason, replies)
-      if pendingReservationConfirmation.isEmpty =>
-      if (awaitingReservationConfirmation.values.forall(_._2.response.isRight)) {
-        val triggers = awaitingReservationConfirmation.flatMap(_._2._2.response.right.get.triggersToSchedule)
+  when(WaitingForReservationConfirmation) (transform {
+    case Event(response@ReservationResponse(_, _), wfrcData @ WaitingForReservationConfirmationData(_, _, choosesModeData)) =>
+      if (response.response.isRight) {
+        val triggers = response.response.right.get.triggersToSchedule
         log.debug("scheduling triggers from reservation responses: {}", triggers)
         triggers.foreach(scheduler ! _)
         goto(FinishingModeChoice) using choosesModeData
       } else {
-        val firstErrorResponse = awaitingReservationConfirmation.values.filter(_._2.response.isLeft).head._2.response.left.get
+        val firstErrorResponse = response.response.left.get
         if (choosesModeData.routingResponse.get.itineraries.isEmpty & choosesModeData.rideHailingResult.get.error.isDefined) {
           // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
           // if more agents could be hailed.
@@ -182,8 +174,9 @@ trait ChoosesMode {
           )
         }
       }
+  } using completeChoiceIfReady)
 
-  }
+  case object FinishingModeChoice extends BeamAgentState
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case s @ FSM.State(_, choosesModeData @ ChoosesModeData(_, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
