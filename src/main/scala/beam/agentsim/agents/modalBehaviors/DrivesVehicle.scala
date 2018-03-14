@@ -141,10 +141,6 @@ trait DrivesVehicle[T] extends BeamAgent[T] with HasServices {
     case Event(RemovePassengerFromTrip(id),_)=>
       passengerSchedule.removePassenger(id)
       stay()
-
-    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
-      stop(Failure(s"Received unexpected EndLegTrigger. passenger schedule $passengerSchedule"))
-
   }
 
   private def isNotCompatible(updatedPassengerSchedule: PassengerSchedule): Boolean = {
