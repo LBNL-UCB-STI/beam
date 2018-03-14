@@ -179,7 +179,7 @@ trait ChoosesMode {
   case object FinishingModeChoice extends BeamAgentState
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
-    case s @ FSM.State(_, choosesModeData @ ChoosesModeData(_, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
+    case FSM.State(_, choosesModeData @ ChoosesModeData(_, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = _experiencedBeamPlan.getStrategy(nextActivity.right.get, classOf[ModeChoiceStrategy]).map(_.asInstanceOf[ModeChoiceStrategy].mode) match {
         case Some(mode) if mode != WALK =>
