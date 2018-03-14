@@ -37,7 +37,7 @@ object PersonAgent {
 
   trait PersonData
 
-  case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: Option[EmbodiedBeamTrip] = None, hasDeparted: Boolean = false) extends PersonData {}
+  case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: Option[EmbodiedBeamTrip] = None, currentTourPersonalVehicle: Option[Id[Vehicle]] = None, hasDeparted: Boolean = false) extends PersonData {}
 
   case object PerformingActivity extends BeamAgentState
 
@@ -70,7 +70,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentVehicle: VehicleStack = VehicleStack()
-  var currentTourPersonalVehicle: Option[Id[Vehicle]] = None
 
   override def logDepth: Int = 100
 
@@ -126,7 +125,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   }
 
   when(Waiting, stateTimeout = 1 second) {
-    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), data@BasePersonData(_, Some(currentTrip),_, false)) =>
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), data@BasePersonData(_, Some(currentTrip),_,_,false)) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(new ActivityEndEvent(tick, id, currentActivity(data).getLinkId, currentActivity(data).getFacilityId, currentActivity(data).getType))
@@ -135,14 +134,14 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
 
-    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,_, true)) =>
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,_,_,true)) =>
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
 
     /*
      * Learn as passenger that leg is starting
      */
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), BasePersonData(_,_,Some(restOfCurrentTrip), _)) if beamLeg == restOfCurrentTrip.legs.head.beamLeg =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), BasePersonData(_,_,Some(restOfCurrentTrip),_, _)) if beamLeg == restOfCurrentTrip.legs.head.beamLeg =>
       logDebug(s"NotifyLegStartTrigger received: $beamLeg")
       if (restOfCurrentTrip.legs.head.beamVehicleId == _currentVehicle.outermostVehicle()) {
         logDebug(s"Already on vehicle: ${_currentVehicle.outermostVehicle()}")
@@ -172,7 +171,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is ending
      */
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,Some(restOfCurrentTrip), _)) if beamLeg == restOfCurrentTrip.legs.head.beamLeg =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,Some(restOfCurrentTrip),_,_)) if beamLeg == restOfCurrentTrip.legs.head.beamLeg =>
       if (restOfCurrentTrip.legs.tail.head.beamVehicleId == _currentVehicle.outermostVehicle()) {
         // The next vehicle is the same as current so just update state and go to Waiting
         goto(Waiting) replying completed(triggerId) using data.copy(restOfCurrentTrip = Some(restOfCurrentTrip.copy(legs = restOfCurrentTrip.legs.tail)))
@@ -219,7 +218,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
-    case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),Some(restOfCurrentTrip), _)) =>
+    case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),Some(restOfCurrentTrip),currentTourPersonalVehicle, _)) =>
       (restOfCurrentTrip.legs.headOption, nextActivity(data)) match {
         case (Some(nextLeg), _) if nextLeg.asDriver =>
           passengerSchedule = PassengerSchedule()
@@ -251,15 +250,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           scheduler ! completed(triggerId)
           goto(Waiting)
         case (None, Right(activity)) =>
-          currentTourPersonalVehicle match {
-            case Some(personalVeh) =>
-              if (activity.getType.equals("Home")) {
-                context.parent ! ReleaseVehicleReservation(id, personalVeh)
-                context.parent ! CheckInResource(personalVeh, None)
-                currentTourPersonalVehicle = None
-              }
-            case None =>
-          }
           val (tick, triggerId) = releaseTickAndTriggerId()
           val endTime = if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
             activity.getEndTime
@@ -280,7 +270,24 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value))
           eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
           scheduler ! completed(triggerId, schedule[ActivityEndTrigger](endTime, self))
-          goto(PerformingActivity) using data.copy(currentActivityIndex = currentActivityIndex + 1, currentTrip = None, restOfCurrentTrip = None, hasDeparted = false)
+          goto(PerformingActivity) using data.copy(
+            currentActivityIndex = currentActivityIndex + 1,
+            currentTrip = None,
+            restOfCurrentTrip = None,
+            currentTourPersonalVehicle = currentTourPersonalVehicle match {
+              case Some(personalVeh) =>
+                if (activity.getType.equals("Home")) {
+                  context.parent ! ReleaseVehicleReservation(id, personalVeh)
+                  context.parent ! CheckInResource(personalVeh, None)
+                  None
+                } else {
+                  currentTourPersonalVehicle
+                }
+              case None =>
+                None
+            },
+            hasDeparted = false
+          )
         case (None, Left(msg)) =>
           logDebug(msg)
           val (_, triggerId) = releaseTickAndTriggerId()

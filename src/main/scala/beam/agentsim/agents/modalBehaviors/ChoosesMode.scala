@@ -95,7 +95,7 @@ trait ChoosesMode {
       }
 
       def filterStreetVehiclesForQuery(streetVehicles: Vector[StreetVehicle], byMode: BeamMode): Vector[StreetVehicle] = {
-        currentTourPersonalVehicle match {
+        stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle match {
           case Some(personalVeh) =>
             // We already have a vehicle we're using on this tour, so filter down to that
             streetVehicles.filter(_.id == personalVeh)
@@ -210,70 +210,65 @@ trait ChoosesMode {
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: ChoosesModeData) =>
-      goto(Waiting) using data.personData.copy(currentTrip = data.pendingChosenTrip, restOfCurrentTrip = data.pendingChosenTrip)
+      val chosenTrip = data.pendingChosenTrip.get
+      val (tick, theTriggerId) = releaseTickAndTriggerId()
+      // Write start and end links of chosen route into Activities.
+      // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
+      // Our aim should be that every transition from a link to another link be accounted for.
+      val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
+      if (links.nonEmpty) {
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).setLinkId(Id.createLinkId(links.head))
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(links.last))
+      } else {
+        val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(data.personData.currentActivityIndex).getCoord)
+        val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).getCoord)
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 1000.0, StreetMode.WALK).edge))
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
+      }
+
+      def availableAlternatives = {
+        val theModes = data.routingResponse.get.itineraries.map(_.tripClassifier).distinct
+        if (data.rideHailingResult.isDefined && data.rideHailingResult.get.error.isEmpty) {
+          theModes :+ RIDE_HAIL
+        } else {
+          theModes
+        }
+      }
+
+      eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+        _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString, availableAlternatives.mkString(":"), data.availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).right.get), chosenTrip))
+
+      _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
+        case None =>
+          _experiencedBeamPlan.putStrategy(currentTour(data.personData), ModeChoiceStrategy(chosenTrip.tripClassifier))
+        case _ =>
+      }
+
+      val personalVehicleUsed = data.availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip).headOption
+
+      var availablePersonalStreetVehicles = data.availablePersonalStreetVehicles
+      if (personalVehicleUsed.nonEmpty) {
+        availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed.get)
+      }
+      availablePersonalStreetVehicles.foreach { veh =>
+        context.parent ! ReleaseVehicleReservation(id, veh.id)
+        context.parent ! CheckInResource(veh.id, None)
+      }
+      if (chosenTrip.tripClassifier != RIDE_HAIL && data.rideHailingResult.get.proposals.nonEmpty) {
+        rideHailingManager ! ReleaseVehicleReservation(id, data.rideHailingResult.get.proposals.head
+          .rideHailingAgentLocation.vehicleId)
+      }
+      scheduler ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
+      goto(Waiting) using data.personData.copy(
+        currentTrip = data.pendingChosenTrip,
+        restOfCurrentTrip = data.pendingChosenTrip,
+        currentTourPersonalVehicle = personalVehicleUsed
+      )
   }
 
   onTransition {
     case FinishingModeChoice -> Waiting =>
       unstashAll()
-      scheduleDepartureWithValidatedTrip(stateData.asInstanceOf[ChoosesModeData])
-  }
-
-  def scheduleDepartureWithValidatedTrip(choosesModeData: ChoosesModeData) = {
-    val chosenTrip = choosesModeData.pendingChosenTrip.get
-    val (tick, theTriggerId) = releaseTickAndTriggerId()
-    var availablePersonalStreetVehicles = choosesModeData.availablePersonalStreetVehicles
-    // Write start and end links of chosen route into Activities.
-    // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
-    // Our aim should be that every transition from a link to another link be accounted for.
-    val links = chosenTrip.legs.flatMap(l => l.beamLeg.travelPath.linkIds)
-    if (links.nonEmpty) {
-      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).setLinkId(Id.createLinkId(links.head))
-      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(links.last))
-    } else {
-      val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).getCoord)
-      val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1).getCoord)
-      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 1000.0, StreetMode.WALK).edge))
-      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
-    }
-
-    def availableAlternatives = {
-      val theModes = choosesModeData.routingResponse.get.itineraries.map(_.tripClassifier).distinct
-      if (choosesModeData.rideHailingResult.isDefined && choosesModeData.rideHailingResult.get.error.isEmpty) {
-        theModes :+ RIDE_HAIL
-      } else {
-        theModes
-      }
-    }
-
-    eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, choosesModeData.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      _experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex).getLinkId.toString, availableAlternatives.mkString(":"), choosesModeData.availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity(choosesModeData.personData).right.get), chosenTrip))
-
-    _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(choosesModeData.personData.currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
-      case None =>
-        _experiencedBeamPlan.putStrategy(currentTour(choosesModeData.personData), ModeChoiceStrategy(chosenTrip.tripClassifier))
-      case _ =>
-    }
-
-    val personalVehicleUsed: Vector[Id[Vehicle]] = choosesModeData.availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip)
-
-    if (personalVehicleUsed.nonEmpty) {
-      if (personalVehicleUsed.size > 1) {
-        logWarn(s"Found multiple personal vehicle in use for chosenTrip: $chosenTrip but only expected one. Using " +
-          s"only one for subsequent planning.")
-      }
-      currentTourPersonalVehicle = Some(personalVehicleUsed(0))
-      availablePersonalStreetVehicles = availablePersonalStreetVehicles filterNot (_.id == personalVehicleUsed(0))
-    }
-    availablePersonalStreetVehicles.foreach { veh =>
-      context.parent ! ReleaseVehicleReservation(id, veh.id)
-      context.parent ! CheckInResource(veh.id, None)
-    }
-    if (chosenTrip.tripClassifier != RIDE_HAIL && choosesModeData.rideHailingResult.get.proposals.nonEmpty) {
-      rideHailingManager ! ReleaseVehicleReservation(id, choosesModeData.rideHailingResult.get.proposals.head
-        .rideHailingAgentLocation.vehicleId)
-    }
-    scheduler ! completed(triggerId = theTriggerId, schedule[PersonDepartureTrigger](chosenTrip.legs.head.beamLeg.startTime, self))
   }
 
 }
