@@ -124,7 +124,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       stay() replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
 
     case Event(RemovePassengerFromTrip(id), data) =>
-      data.passengerSchedule.removePassenger(id)
+      data.passengerSchedule.schedule.foreach(lm => {
+        if (lm._2.riders.contains(id)) {
+          lm._2.riders -= id
+        }
+        if (lm._2.alighters.contains(id.vehicleId)) {
+          lm._2.alighters -= id.vehicleId
+        }
+        if (lm._2.boarders.contains(id.vehicleId)) {
+          lm._2.boarders -= id.vehicleId
+        }
+      })
       stay()
   }
 
