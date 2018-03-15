@@ -6,7 +6,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.RoutingModel.BeamLeg
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
 /**
   * @author dserdiuk
