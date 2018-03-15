@@ -58,7 +58,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
           }
           eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
             beamServices.vehicles(currentVehicleUnderControl).getType,
-            data.passengerSchedule.curTotalNumPassengers(data.passengerSchedule.schedule.firstKey), data.passengerSchedule.schedule.firstKey))
+            data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.size, data.passengerSchedule.schedule.firstKey))
 
           data.passengerSchedule.schedule.remove(data.passengerSchedule.schedule.firstKey)
 
@@ -108,7 +108,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       }
       stay() replying ModifyPassengerScheduleAck(requestId)
 
-    case Event(req: ReservationRequest, data) if data.passengerSchedule.isEmpty =>
+    case Event(req: ReservationRequest, data) if data.passengerSchedule.schedule.isEmpty =>
       log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
       stay() replying ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
 
@@ -129,10 +129,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   }
 
   private def isNotCompatible(originalPassengerSchedule: PassengerSchedule, updatedPassengerSchedule: PassengerSchedule): Boolean = {
-    if (!originalPassengerSchedule.isEmpty) {
-      val endSpaceTime = originalPassengerSchedule.terminalSpacetime()
-      if (updatedPassengerSchedule.initialSpacetime.time < endSpaceTime.time ||
-        beamServices.geo.distInMeters(updatedPassengerSchedule.initialSpacetime.loc, endSpaceTime.loc) >
+    if (originalPassengerSchedule.schedule.nonEmpty) {
+      val endSpaceTime = originalPassengerSchedule.schedule.lastKey.travelPath.endPoint
+      ()
+      if (updatedPassengerSchedule.schedule.firstKey.travelPath.startPoint.time < endSpaceTime.time ||
+        beamServices.geo.distInMeters(updatedPassengerSchedule.schedule.firstKey.travelPath.startPoint.loc, endSpaceTime.loc) >
           beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       ) {
         return true

@@ -13,28 +13,6 @@ import scala.collection.mutable
   */
 class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
 
-  /**
-    * Total number of current riders (we don't count alighters or boarders in this sum).
-    */
-  def curTotalNumPassengers(beamLeg: BeamLeg): Int = {
-    schedule(beamLeg).riders.size
-  }
-
-  def isEmpty: Boolean = schedule.isEmpty
-
-  def initialSpacetime: SpaceTime = {
-    schedule.firstKey.travelPath.startPoint
-  }
-
-  def terminalSpacetime(): SpaceTime = {
-    val lastLeg = schedule.lastKey
-    lastLeg.travelPath.endPoint
-  }
-
-  def getStartLeg: BeamLeg = {
-    schedule.head._1
-  }
-
   def addLegs(legs: Seq[BeamLeg]): Seq[Option[Manifest]] = {
     legs.withFilter(leg => !(schedule contains leg)).map(leg => schedule.put(leg, Manifest()))
   }
@@ -78,7 +56,6 @@ object PassengerSchedule {
 case class VehiclePersonId(vehicleId: Id[Vehicle], personId: Id[Person])
 
 class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mutable.ListBuffer[Id[Vehicle]], val alighters: mutable.ListBuffer[Id[Vehicle]]) {
-  def isEmpty: Boolean = riders.isEmpty
   override def toString: String = {
     s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
   }
