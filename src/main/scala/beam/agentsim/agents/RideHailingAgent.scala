@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{DrivingData, VehicleStack, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
@@ -17,6 +17,8 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+
+import scala.concurrent.duration.Duration
 
 object RideHailingAgent {
   val idPrefix: String = "rideHailingAgent"
@@ -59,10 +61,12 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       })
   }
 
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long, lastVisited: SpaceTime) = {
-    vehicle.checkInResource(Some(lastVisited),context.dispatcher)
-    scheduler ! CompletionNotice(triggerId)
-    goto(WaitingToDrive) using stateData.withPassengerSchedule(PassengerSchedule()).asInstanceOf[RideHailingAgentData]
+  when(PassengerScheduleEmpty) {
+    case Event(PassengerScheduleEmptyMessage(lastVisited), _) =>
+      val (_, triggerId) = releaseTickAndTriggerId()
+      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+      scheduler ! CompletionNotice(triggerId)
+      goto(WaitingToDrive) using stateData.withPassengerSchedule(PassengerSchedule()).asInstanceOf[RideHailingAgentData]
   }
 
   val myUnhandled: StateFunction =  {

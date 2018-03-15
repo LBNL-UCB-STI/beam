@@ -63,6 +63,8 @@ object PersonAgent {
 
   case object WaitingToDrive extends Traveling
 
+  case object PassengerScheduleEmpty extends Traveling
+
   case object Moving extends Traveling
 
   case object Driving extends Traveling
@@ -189,22 +191,22 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   }
 
   // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long, lastVisited: SpaceTime): State = {
-    val data = stateData.asInstanceOf[BasePersonData]
-    if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
-      beamServices.vehicles(data.currentVehicle.head).unsetDriver()
-      eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.head))
-    }
-    holdTickAndTriggerId(tick, triggerId)
-    goto(ProcessingNextLegOrStartActivity) using data.copy(
-      restOfCurrentTrip = data.restOfCurrentTrip.tail,
-      currentVehicle = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
-        data.currentVehicle.tail
-      } else {
-        data.currentVehicle
-      },
-      passengerSchedule = PassengerSchedule()
-    )
+  when(PassengerScheduleEmpty) {
+    case Event(PassengerScheduleEmptyMessage(_), data: BasePersonData) =>
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
+        beamServices.vehicles(data.currentVehicle.head).unsetDriver()
+        eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.head))
+      }
+      holdTickAndTriggerId(tick, triggerId)
+      goto(ProcessingNextLegOrStartActivity) using data.copy(
+        restOfCurrentTrip = data.restOfCurrentTrip.tail,
+        currentVehicle = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
+          data.currentVehicle.tail
+        } else {
+          data.currentVehicle
+        }
+      )
   }
 
   onTransition {
