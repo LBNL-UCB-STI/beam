@@ -98,10 +98,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       }
       stay() using data.withPassengerSchedule(newPassengerSchedule).asInstanceOf[T] replying ModifyPassengerScheduleAck(requestId)
 
-    case Event(req: ReservationRequest, data) if data.passengerSchedule.schedule.isEmpty =>
-      log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
-      stay() replying ReservationResponse(req.requestId, Left(DriverHasEmptyPassengerScheduleError))
-
     case Event(req: ReservationRequest, data) if req.departFrom.startTime <= data.passengerSchedule.schedule.head._1.startTime =>
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
