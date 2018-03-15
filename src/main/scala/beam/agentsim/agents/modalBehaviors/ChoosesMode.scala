@@ -261,7 +261,7 @@ trait ChoosesMode {
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(chosenTrip.legs.head.beamLeg.startTime), self)))
       goto(Waiting) using data.personData.copy(
         currentTrip = data.pendingChosenTrip,
-        restOfCurrentTrip = data.pendingChosenTrip,
+        restOfCurrentTrip = data.pendingChosenTrip.get.legs.toList,
         currentTourPersonalVehicle = personalVehicleUsed
       )
   }
