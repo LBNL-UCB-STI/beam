@@ -94,10 +94,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     activityOrMessage(data.currentActivityIndex + 1, "plan finished")
   }
 
-  def prevActivity(data: BasePersonData): Either[String, Activity] = {
-    activityOrMessage(data.currentActivityIndex - 1, "at start")
-  }
-
   def currentTour(data: BasePersonData): Tour = {
     stateName match {
       case PerformingActivity =>
