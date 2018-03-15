@@ -207,7 +207,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         data.currentVehicle.tail
       } else {
         data.currentVehicle
-      }
+      },
+      passengerSchedule = PassengerSchedule()
     )
   }
 

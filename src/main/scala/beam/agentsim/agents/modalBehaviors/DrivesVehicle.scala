@@ -48,51 +48,41 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       val currentVehicleUnderControl = data.currentVehicle.head
       // If no manager is set, we ignore
       beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint)))
-      data.passengerSchedule.schedule.get(data.passengerSchedule.schedule.firstKey) match {
-        case Some(manifest) =>
-          manifest.riders.foreach { pv =>
-            beamServices.personRefs.get(pv.personId).foreach { personRef =>
-              logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-              scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, data.passengerSchedule.schedule.firstKey), personRef)
-            }
-          }
-          eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
-            beamServices.vehicles(currentVehicleUnderControl).getType,
-            data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.size, data.passengerSchedule.schedule.firstKey))
+      data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.foreach { pv =>
+        beamServices.personRefs.get(pv.personId).foreach { personRef =>
+          logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
+          scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, data.passengerSchedule.schedule.firstKey), personRef)
+        }
+      }
+      eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
+        beamServices.vehicles(currentVehicleUnderControl).getType,
+        data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.size, data.passengerSchedule.schedule.firstKey))
 
-          val newSchedule = PassengerSchedule(data.passengerSchedule.schedule - data.passengerSchedule.schedule.firstKey)
+      val newSchedule = PassengerSchedule(data.passengerSchedule.schedule - data.passengerSchedule.schedule.firstKey)
 
-          if (newSchedule.schedule.nonEmpty) {
-            val nextLeg = newSchedule.schedule.firstKey
-            goto(WaitingToDrive) using data.withPassengerSchedule(newSchedule).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
-          } else {
-            passengerScheduleEmpty(tick, triggerId)
-          }
-        case None =>
-          throw new RuntimeException(s"Driver $id did not find a manifest for BeamLeg ${data.passengerSchedule.schedule.firstKey}")
+      if (newSchedule.schedule.nonEmpty) {
+        val nextLeg = newSchedule.schedule.firstKey
+        goto(WaitingToDrive) using data.withPassengerSchedule(newSchedule).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
+      } else {
+        passengerScheduleEmpty(tick, triggerId)
       }
   }
 
   when(WaitingToDrive) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
-      data.passengerSchedule.schedule.get(newLeg) match {
-        case Some(manifest) =>
-          manifest.riders.foreach { personVehicle =>
-            logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
-            scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
-          }
-          eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, data.currentVehicle.head, "car", 1.0))
-          // Produce link events for this trip (the same ones as in PathTraversalEvent).
-          // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
-          // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-          RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.firstKey, data.currentVehicle.head, (_,_) => 0L)
-            .foreach(eventsManager.processEvent)
-          val endTime = tick + data.passengerSchedule.schedule.firstKey.duration
-          eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
-          goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
-        case None =>
-          stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
+      data.passengerSchedule.schedule(newLeg).riders.foreach { personVehicle =>
+        logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
+        scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
       }
+      eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, data.currentVehicle.head, "car", 1.0))
+      // Produce link events for this trip (the same ones as in PathTraversalEvent).
+      // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
+      // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.firstKey, data.currentVehicle.head, (_,_) => 0L)
+        .foreach(eventsManager.processEvent)
+      val endTime = tick + data.passengerSchedule.schedule.firstKey.duration
+      eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
+      goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
   }
 
   val drivingBehavior: StateFunction = {

@@ -19,9 +19,10 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   }
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): PassengerSchedule = {
-    PassengerSchedule(schedule ++ (legs.map(leg => (leg, schedule(leg).copy(riders = schedule(leg).riders + passenger))) ++
-      legs.headOption.map(boardLeg => (boardLeg, schedule(boardLeg).copy(boarders = schedule(boardLeg).boarders + passenger.vehicleId))) ++
-      legs.lastOption.map(alightLeg => (alightLeg, schedule(alightLeg).copy(alighters = schedule(alightLeg).alighters + passenger.vehicleId)))))
+    var newSchedule = schedule ++ legs.map(leg => (leg, schedule(leg).copy(riders = schedule(leg).riders + passenger)))
+    newSchedule = newSchedule ++ legs.headOption.map(boardLeg => (boardLeg, newSchedule(boardLeg).copy(boarders = newSchedule(boardLeg).boarders + passenger.vehicleId)))
+    newSchedule = newSchedule ++ legs.lastOption.map(alightLeg => (alightLeg, newSchedule(alightLeg).copy(alighters = newSchedule(alightLeg).alighters + passenger.vehicleId)))
+    PassengerSchedule(newSchedule)
   }
 
   override def toString: String = {
