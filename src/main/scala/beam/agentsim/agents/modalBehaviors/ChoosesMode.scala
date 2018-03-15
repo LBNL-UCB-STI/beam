@@ -281,6 +281,8 @@ object ChoosesMode {
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
+
+    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
   }
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])

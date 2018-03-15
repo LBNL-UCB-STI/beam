@@ -60,11 +60,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
             beamServices.vehicles(currentVehicleUnderControl).getType,
             data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.size, data.passengerSchedule.schedule.firstKey))
 
-          data.passengerSchedule.schedule.remove(data.passengerSchedule.schedule.firstKey)
+          val newSchedule = PassengerSchedule(data.passengerSchedule.schedule - data.passengerSchedule.schedule.firstKey)
 
-          if (data.passengerSchedule.schedule.nonEmpty) {
-            val nextLeg = data.passengerSchedule.schedule.firstKey
-            goto(WaitingToDrive) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
+          if (newSchedule.schedule.nonEmpty) {
+            val nextLeg = newSchedule.schedule.firstKey
+            goto(WaitingToDrive) using data.withPassengerSchedule(newSchedule).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
           } else {
             passengerScheduleEmpty(tick, triggerId)
           }
@@ -100,13 +100,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
 
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
-      data.passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
+      var newPassengerSchedule = data.passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
       updatedPassengerSchedule.schedule.foreach { legAndManifest =>
         legAndManifest._2.riders.foreach { rider =>
-          data.passengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
+          newPassengerSchedule = newPassengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
         }
       }
-      stay() replying ModifyPassengerScheduleAck(requestId)
+      stay() using data.withPassengerSchedule(newPassengerSchedule).asInstanceOf[T] replying ModifyPassengerScheduleAck(requestId)
 
     case Event(req: ReservationRequest, data) if data.passengerSchedule.schedule.isEmpty =>
       log.warning(s"$id received ReservationRequestWithVehicle but passengerSchedule is empty")
@@ -120,22 +120,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
     case Event(req: ReservationRequest, data) =>
       val legs = data.passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).keys.toSeq
-      data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
-      stay() replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
+      stay() using data.withPassengerSchedule(data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)).asInstanceOf[T] replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
 
     case Event(RemovePassengerFromTrip(id), data) =>
-      data.passengerSchedule.schedule.foreach(lm => {
-        if (lm._2.riders.contains(id)) {
-          lm._2.riders -= id
-        }
-        if (lm._2.alighters.contains(id.vehicleId)) {
-          lm._2.alighters -= id.vehicleId
-        }
-        if (lm._2.boarders.contains(id.vehicleId)) {
-          lm._2.boarders -= id.vehicleId
-        }
-      })
-      stay()
+      stay() using data.withPassengerSchedule(PassengerSchedule(data.passengerSchedule.schedule ++ data.passengerSchedule.schedule.collect {
+        case (leg, manifest) =>
+          (leg, manifest.copy(riders = manifest.riders - id, alighters = manifest.alighters - id.vehicleId, boarders = manifest.boarders - id.vehicleId))
+      })).asInstanceOf[T]
   }
 
   private def isNotCompatible(originalPassengerSchedule: PassengerSchedule, updatedPassengerSchedule: PassengerSchedule): Boolean = {

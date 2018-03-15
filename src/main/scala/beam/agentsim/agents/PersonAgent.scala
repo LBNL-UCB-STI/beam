@@ -39,11 +39,14 @@ object PersonAgent {
   trait DrivingData {
     def currentVehicle: VehicleStack
     def passengerSchedule: PassengerSchedule
+    def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData
   }
 
   type VehicleStack = Vector[Id[Vehicle]]
 
-  case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: Option[EmbodiedBeamTrip] = None, currentVehicle: VehicleStack = Vector(), currentTourPersonalVehicle: Option[Id[Vehicle]] = None, passengerSchedule: PassengerSchedule = PassengerSchedule(), hasDeparted: Boolean = false) extends PersonData {}
+  case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: Option[EmbodiedBeamTrip] = None, currentVehicle: VehicleStack = Vector(), currentTourPersonalVehicle: Option[Id[Vehicle]] = None, passengerSchedule: PassengerSchedule = PassengerSchedule(), hasDeparted: Boolean = false) extends PersonData {
+    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+  }
 
   case object PerformingActivity extends BeamAgentState
 
@@ -231,12 +234,12 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),Some(restOfCurrentTrip),currentVehicle,currentTourPersonalVehicle,_,_)) =>
       (restOfCurrentTrip.legs.headOption, nextActivity(data)) match {
         case (Some(nextLeg), _) if nextLeg.asDriver =>
-          data.passengerSchedule.addLegs(Vector(nextLeg.beamLeg))
           val (tick, triggerId) = releaseTickAndTriggerId()
           // Can't depart earlier than it is now
           val newTriggerTime = math.max(nextLeg.beamLeg.startTime, tick)
           scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(newTriggerTime, nextLeg.beamLeg), self)))
           goto(WaitingToDrive) using data.copy(
+            passengerSchedule = data.passengerSchedule.addLegs(Vector(nextLeg.beamLeg)),
             currentVehicle = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
               val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
               vehicle.becomeDriver(self).fold(

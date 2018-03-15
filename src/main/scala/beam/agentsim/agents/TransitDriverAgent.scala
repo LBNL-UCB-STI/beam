@@ -27,7 +27,9 @@ object TransitDriverAgent {
     Props(new TransitDriverAgent(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs))
   }
 
-  case class TransitDriverData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData
+  case class TransitDriverData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData {
+    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+  }
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
     Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
@@ -59,9 +61,9 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        data.passengerSchedule.addLegs(legs)
-        goto(WaitingToDrive) using data.copy(currentVehicle = Vector(vehicle.id)) replying
-          CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(data.passengerSchedule.schedule.firstKey.startTime, data.passengerSchedule.schedule.firstKey), self)))
+        val schedule = data.passengerSchedule.addLegs(legs)
+        goto(WaitingToDrive) using data.copy(currentVehicle = Vector(vehicle.id)).withPassengerSchedule(schedule).asInstanceOf[TransitDriverData] replying
+          CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey), self)))
       })
   }
 
