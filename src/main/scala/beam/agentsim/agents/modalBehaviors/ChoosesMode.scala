@@ -39,9 +39,8 @@ trait ChoosesMode {
 
   onTransition {
     case (PerformingActivity | Waiting) -> ChoosingMode =>
-      val modeChoiceStrategy = _experiencedBeamPlan.getStrategy(nextActivity(stateData.asInstanceOf[BasePersonData]).right.get, classOf[ModeChoiceStrategy]).asInstanceOf[Option[ModeChoiceStrategy]]
-      modeChoiceStrategy match {
-        case Some(ModeChoiceStrategy(mode)) if mode == CAR || mode == BIKE || mode == DRIVE_TRANSIT =>
+      stateData.asInstanceOf[BasePersonData].currentTourMode match {
+        case Some(CAR | BIKE | DRIVE_TRANSIT)  =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
           context.parent ! mobilityStatusInquiry(id)
         case None =>
@@ -181,7 +180,7 @@ trait ChoosesMode {
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
-      val filteredItinerariesForChoice = _experiencedBeamPlan.getStrategy(nextActivity(personData).right.get, classOf[ModeChoiceStrategy]).map(_.asInstanceOf[ModeChoiceStrategy].mode) match {
+      val filteredItinerariesForChoice = personData.currentTourMode match {
         case Some(mode) if mode != WALK =>
           val itinsWithoutWalk = if (mode == DRIVE_TRANSIT) {
             combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
@@ -238,12 +237,6 @@ trait ChoosesMode {
       eventsManager.processEvent(new ModeChoiceEvent(tick, id, chosenTrip.tripClassifier.value, data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
         _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString, availableAlternatives.mkString(":"), data.availablePersonalStreetVehicles.nonEmpty, chosenTrip.legs.map(_.beamLeg.travelPath.distanceInM).sum, _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).right.get), chosenTrip))
 
-      _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(data.personData.currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
-        case None =>
-          _experiencedBeamPlan.putStrategy(currentTour(data.personData), ModeChoiceStrategy(chosenTrip.tripClassifier))
-        case _ =>
-      }
-
       val personalVehicleUsed = data.availablePersonalStreetVehicles.map(_.id).intersect(chosenTrip.vehiclesInTrip).headOption
 
       var availablePersonalStreetVehicles = data.availablePersonalStreetVehicles
@@ -262,6 +255,7 @@ trait ChoosesMode {
       goto(Waiting) using data.personData.copy(
         currentTrip = data.pendingChosenTrip,
         restOfCurrentTrip = data.pendingChosenTrip.get.legs.toList,
+        currentTourMode = Some(chosenTrip.tripClassifier),
         currentTourPersonalVehicle = personalVehicleUsed
       )
   }
