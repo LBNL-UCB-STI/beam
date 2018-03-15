@@ -150,29 +150,27 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is starting
      */
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_, _)) if beamLeg == currentLeg.beamLeg && currentLeg.beamVehicleId == currentVehicle.head =>
+      logDebug(s"Already on vehicle: ${currentVehicle.head}")
+      goto(Moving) replying CompletionNotice(triggerId)
+
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_, _)) if beamLeg == currentLeg.beamLeg =>
-      logDebug(s"NotifyLegStartTrigger received: $beamLeg")
-      if (currentLeg.beamVehicleId == currentVehicle.head) {
-        logDebug(s"Already on vehicle: ${currentVehicle.head}")
-        goto(Moving) replying CompletionNotice(triggerId)
-      } else {
-        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
-        goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
-      }
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
+      goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
 
     case Event(reservationResponse: ReservationResponse, data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       reservationResponse.response.fold(
-          error => {
-            logError("replanning")
-            holdTickAndTriggerId(tick, triggerId)
-            goto(ChoosingMode) using ChoosesModeData(data)
-          },
-          confirmation => {
-            scheduler ! CompletionNotice(triggerId)
-            stay()
-          }
-        )
+        error => {
+          logError("replanning")
+          holdTickAndTriggerId(tick, triggerId)
+          goto(ChoosingMode) using ChoosesModeData(data)
+        },
+        confirmation => {
+          scheduler ! CompletionNotice(triggerId)
+          stay()
+        }
+      )
   }
 
   when(Moving) {
