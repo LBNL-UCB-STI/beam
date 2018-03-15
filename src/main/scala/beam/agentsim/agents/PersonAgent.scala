@@ -34,7 +34,11 @@ object PersonAgent {
     Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId))
   }
 
-  trait PersonData
+  trait PersonData extends DrivingData
+
+  trait DrivingData {
+    def currentVehicle: VehicleStack
+  }
 
   type VehicleStack = Vector[Id[Vehicle]]
 
@@ -191,9 +195,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     if (data.restOfCurrentTrip.get.legs.head.unbecomeDriverOnCompletion) {
       beamServices.vehicles(data.currentVehicle.head).unsetDriver()
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.head))
-      if (data.currentVehicle.tail.nonEmpty) {
-        _currentVehicleUnderControl = Some(beamServices.vehicles(data.currentVehicle.tail.head))
-      }
     }
     holdTickAndTriggerId(tick, triggerId)
     goto(ProcessingNextLegOrStartActivity) using data.copy(
@@ -242,7 +243,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
                 fa =>
                   throw new RuntimeException(s"I attempted to become driver of vehicle $id but driver ${vehicle.driver.get} already assigned."),
                 fb => {
-                  _currentVehicleUnderControl = Some(vehicle)
                   eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), nextLeg.beamVehicleId))
                 })
               nextLeg.beamVehicleId +: currentVehicle

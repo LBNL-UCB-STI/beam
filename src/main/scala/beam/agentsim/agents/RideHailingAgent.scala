@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.WaitingToDrive
+import beam.agentsim.agents.PersonAgent.{DrivingData, VehicleStack, WaitingToDrive}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -24,7 +24,7 @@ object RideHailingAgent {
   def props(services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
     Props(new RideHailingAgent(rideHailingAgentId, scheduler, vehicle, location, eventsManager, services, transportNetwork))
 
-  case class RideHailingAgentData()
+  case class RideHailingAgentData(currentVehicle: VehicleStack = Vector()) extends DrivingData
 
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
@@ -46,15 +46,14 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   startWith(Uninitialized, RideHailingAgentData())
 
   when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"RideHailingAgent $self attempted to become driver of vehicle ${vehicle.id} " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        _currentVehicleUnderControl = Some(vehicle)
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(WaitingToDrive) replying CompletionNotice(triggerId)
+        goto(WaitingToDrive) replying CompletionNotice(triggerId) using data.copy(currentVehicle = Vector(vehicle.id))
       })
   }
 

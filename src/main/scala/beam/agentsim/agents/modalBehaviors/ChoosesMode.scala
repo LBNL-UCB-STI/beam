@@ -278,7 +278,9 @@ object ChoosesMode {
                              routingResponse: Option[RoutingResponse] = None,
                              rideHailingResult: Option[RideHailingInquiryResponse] = None,
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
-                             expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData
+                             expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData {
+    override def currentVehicle: VehicleStack = personData.currentVehicle
+  }
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
