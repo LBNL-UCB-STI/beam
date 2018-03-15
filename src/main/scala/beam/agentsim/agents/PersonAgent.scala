@@ -177,19 +177,19 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is ending
      */
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_)) if beamLeg == currentLeg.beamLeg && restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
+      // The next vehicle is the same as current so just update state and go to Waiting
+      goto(Waiting) replying CompletionNotice(triggerId) using data.copy(restOfCurrentTrip = restOfCurrentTrip)
+
     case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_)) if beamLeg == currentLeg.beamLeg =>
-      if (restOfCurrentTrip.head.beamVehicleId == currentVehicle.head) {
-        // The next vehicle is the same as current so just update state and go to Waiting
-        goto(Waiting) replying CompletionNotice(triggerId) using data.copy(restOfCurrentTrip = restOfCurrentTrip)
-      } else {
-        // The next vehicle is different from current so we exit the current vehicle
-        eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, currentVehicle.head))
-        holdTickAndTriggerId(tick, triggerId)
-        goto(ProcessingNextLegOrStartActivity) using data.copy(
-          restOfCurrentTrip = restOfCurrentTrip,
-          currentVehicle = currentVehicle.tail
-        )
-      }
+      // The next vehicle is different from current so we exit the current vehicle
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, currentVehicle.head))
+      holdTickAndTriggerId(tick, triggerId)
+      goto(ProcessingNextLegOrStartActivity) using data.copy(
+        restOfCurrentTrip = restOfCurrentTrip,
+        currentVehicle = currentVehicle.tail
+      )
+
   }
 
   // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
