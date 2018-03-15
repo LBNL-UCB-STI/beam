@@ -150,11 +150,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is starting
      */
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_, _)) if beamLeg == currentLeg.beamLeg && currentLeg.beamVehicleId == currentVehicle.head =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(_, beamLeg), triggerId), BasePersonData(_,_,currentLeg::_,currentVehicle,_,_, _)) if beamLeg == currentLeg.beamLeg && currentLeg.beamVehicleId == currentVehicle.head =>
       logDebug(s"Already on vehicle: ${currentVehicle.head}")
       goto(Moving) replying CompletionNotice(triggerId)
 
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_, _)) if beamLeg == currentLeg.beamLeg =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::_,currentVehicle,_,_, _)) if beamLeg == currentLeg.beamLeg =>
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
 
@@ -177,7 +177,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is ending
      */
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_)) if beamLeg == currentLeg.beamLeg && restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(_, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_)) if beamLeg == currentLeg.beamLeg && restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
       // The next vehicle is the same as current so just update state and go to Waiting
       goto(Waiting) replying CompletionNotice(triggerId) using data.copy(restOfCurrentTrip = restOfCurrentTrip)
 
@@ -231,7 +231,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
-    case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),nextLeg::tailOfCurrentTrip,currentVehicle,currentTourPersonalVehicle,_,_)) if nextLeg.asDriver =>
+    case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::_,currentVehicle,_,_,_)) if nextLeg.asDriver =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       // Can't depart earlier than it is now
       val newTriggerTime = math.max(nextLeg.beamLeg.startTime, tick)
@@ -251,17 +251,17 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           currentVehicle
         }
       )
-    case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),nextLeg::tailOfCurrentTrip,currentVehicle,currentTourPersonalVehicle,_,_)) if nextLeg.beamLeg.mode.isTransit() =>
+    case Event(StateTimeout, BasePersonData(_, _,nextLeg::tailOfCurrentTrip,_,_,_,_)) if nextLeg.beamLeg.mode.isTransit() =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(Waiting)
-    case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),nextLeg::tailOfCurrentTrip,currentVehicle,currentTourPersonalVehicle,_,_)) =>
+    case Event(StateTimeout, BasePersonData(_, _,_::_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Waiting)
 
-    case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),_,currentVehicle,currentTourPersonalVehicle,_,_)) =>
+    case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),_,_,currentTourPersonalVehicle,_,_)) =>
       nextActivity(data) match {
         case Right(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
