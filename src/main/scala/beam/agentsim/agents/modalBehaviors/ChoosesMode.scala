@@ -10,7 +10,6 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
-import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -62,7 +61,7 @@ trait ChoosesMode {
       }
       val maybeMode = maybeLeg.map(l => BeamMode.withValue(l.getMode))
       val availablePersonalStreetVehicles = maybeMode match {
-        case None | Some(CAR | BIKE | DRIVE_TRANSIT) =>
+        case None | Some(CAR | BIKE) =>
           // In these cases, a personal vehicle will be involved
           streetVehicles.filter(_.asDriver)
         case Some(DRIVE_TRANSIT)=>
@@ -105,15 +104,15 @@ trait ChoosesMode {
       }
 
       // Form and send requests
-      modeChoiceStrategy match {
+      maybeMode match {
         case None =>
           makeRequestWith(Vector(TRANSIT), streetVehicles :+ bodyStreetVehicle)
           makeRideHailRequest()
-        case Some(ModeChoiceStrategy(WALK)) =>
+        case Some(WALK) =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle))
-        case Some(ModeChoiceStrategy(WALK_TRANSIT)) =>
+        case Some(WALK_TRANSIT) =>
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
-        case Some(ModeChoiceStrategy(mode @ (CAR | BIKE))) =>
+        case Some(mode @ (CAR | BIKE)) =>
           maybeLeg.map(l => (l, l.getRoute)) match {
             case Some((l, r: NetworkRoute)) =>
               val maybeVehicle = filterStreetVehiclesForQuery(streetVehicles, mode).headOption
@@ -127,7 +126,7 @@ trait ChoosesMode {
             case _ =>
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
-        case Some(ModeChoiceStrategy(DRIVE_TRANSIT)) =>
+        case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           currentTour(stateData.asInstanceOf[BasePersonData]).tripIndexOfElement(nextAct) match {
             case 0 =>
@@ -137,7 +136,7 @@ trait ChoosesMode {
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
           }
-        case Some(ModeChoiceStrategy(RIDE_HAIL)) =>
+        case Some(RIDE_HAIL) =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
       }
