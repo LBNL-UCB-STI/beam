@@ -6,7 +6,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{DrivingData, VehicleStack, WaitingToDrive}
 import beam.agentsim.agents.RideHailingAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
@@ -24,7 +24,7 @@ object RideHailingAgent {
   def props(services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
     Props(new RideHailingAgent(rideHailingAgentId, scheduler, vehicle, location, eventsManager, services, transportNetwork))
 
-  case class RideHailingAgentData(currentVehicle: VehicleStack = Vector()) extends DrivingData
+  case class RideHailingAgentData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData
 
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")

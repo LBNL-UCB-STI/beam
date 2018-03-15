@@ -280,6 +280,7 @@ object ChoosesMode {
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
+    override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
   }
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
