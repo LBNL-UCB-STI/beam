@@ -60,12 +60,12 @@ trait ChoosesMode {
         case l: Leg => Some(l)
         case _ => None
       }
-      val modeChoiceStrategy = maybeLeg.map(l => ModeChoiceStrategy(BeamMode.withValue(l.getMode)))
-      val availablePersonalStreetVehicles = modeChoiceStrategy match {
-        case None | Some(ModeChoiceStrategy(CAR | BIKE | DRIVE_TRANSIT)) =>
+      val maybeMode = maybeLeg.map(l => BeamMode.withValue(l.getMode))
+      val availablePersonalStreetVehicles = maybeMode match {
+        case None | Some(CAR | BIKE | DRIVE_TRANSIT) =>
           // In these cases, a personal vehicle will be involved
           streetVehicles.filter(_.asDriver)
-        case Some(ModeChoiceStrategy(DRIVE_TRANSIT))=>
+        case Some(DRIVE_TRANSIT)=>
           val tour = _experiencedBeamPlan.getTourContaining(nextAct)
           val tripIndex = tour.tripIndexOfElement(nextAct)
           if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
@@ -78,8 +78,8 @@ trait ChoosesMode {
       }
 
       // Mark rideHailingResult as None if we need to request a new one, or fake a result if we don't need to make a request
-      val rideHailingResult = modeChoiceStrategy match {
-        case None | Some(ModeChoiceStrategy(RIDE_HAIL)) =>
+      val rideHailingResult = maybeMode match {
+        case None | Some(RIDE_HAIL) =>
           None
         case _ =>
           Some(RideHailingInquiryResponse(Id.create[RideHailingInquiry]("NA", classOf[RideHailingInquiry]), Vector(), Some(RideHailNotRequestedError)))
@@ -128,7 +128,7 @@ trait ChoosesMode {
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
         case Some(ModeChoiceStrategy(DRIVE_TRANSIT)) =>
-          val LastTripIndex = currentTour(stateData.asInstanceOf[BasePersonData]).trips.size - 1
+          val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           currentTour(stateData.asInstanceOf[BasePersonData]).tripIndexOfElement(nextAct) match {
             case 0 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
