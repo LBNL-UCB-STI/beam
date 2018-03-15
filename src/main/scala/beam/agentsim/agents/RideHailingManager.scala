@@ -329,10 +329,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
     // Modify RH agent passenger schedule and create BeamAgentScheduler message that will dispatch RH agent to do the
     // pickup
     val passengerSchedule = PassengerSchedule()
-    passengerSchedule.addLegs(travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip.legs) // Adds
-    // empty trip to customer
-    passengerSchedule.addPassenger(vehiclePersonId, trip2DestPlan.get.legs.filter(_.mode == CAR)) // Adds customer's
-    // actual trip to destination
+    val tripToCustomer = travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip.legs
+    passengerSchedule.addLegs(tripToCustomer)
+    val tripToDestination = trip2DestPlan.get.legs.filter(_.mode == CAR)
+    passengerSchedule.addLegs(tripToDestination)
+    passengerSchedule.addPassenger(vehiclePersonId, tripToDestination)
     putIntoService(closestRideHailingAgentLocation)
     lockedVehicles -= closestRideHailingAgentLocation.vehicleId
 

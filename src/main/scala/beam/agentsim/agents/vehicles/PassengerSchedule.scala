@@ -57,15 +57,8 @@ class PassengerSchedule(val schedule: mutable.TreeMap[BeamLeg, Manifest]) {
   }
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): Unit = {
-    legs.foreach(leg =>
-      schedule.get(leg) match {
-        case Some(manifest) =>
-          manifest.riders += passenger
-        case None =>
-          schedule.put(leg, Manifest(passenger))
-      }
-    )
-    if(!legs.isEmpty){
+    legs.foreach(leg => schedule(leg).riders += passenger)
+    if(legs.nonEmpty){
       schedule(legs.head).boarders += passenger.vehicleId
       schedule(legs.last).alighters += passenger.vehicleId
     }
@@ -93,6 +86,4 @@ class Manifest(val riders: mutable.ListBuffer[VehiclePersonId], val boarders: mu
 
 object Manifest {
   def apply(): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](), mutable.ListBuffer[Id[Vehicle]](), mutable.ListBuffer[Id[Vehicle]]())
-
-  def apply(passenger: VehiclePersonId): Manifest = new Manifest(mutable.ListBuffer[VehiclePersonId](passenger), mutable.ListBuffer[Id[Vehicle]](), mutable.ListBuffer[Id[Vehicle]]())
 }
