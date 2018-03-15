@@ -11,6 +11,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.RoutingModel._
@@ -194,7 +195,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   }
 
   // Callback from DrivesVehicle. Analogous to NotifyLegEndTrigger, but when driving ourselves.
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long, lastVisited: SpaceTime): State = {
     val data = stateData.asInstanceOf[BasePersonData]
     if (data.restOfCurrentTrip.get.legs.head.unbecomeDriverOnCompletion) {
       beamServices.vehicles(data.currentVehicle.head).unsetDriver()

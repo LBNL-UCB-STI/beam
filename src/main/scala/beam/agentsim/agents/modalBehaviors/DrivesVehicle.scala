@@ -5,7 +5,7 @@ import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{DriverHasEmptyPassengerScheduleError, VehicleFullError, VehicleGoneError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -38,13 +38,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   protected val transportNetwork: TransportNetwork
 
-  var lastVisited:  SpaceTime = SpaceTime.zero
-
-  def passengerScheduleEmpty(tick: Double, triggerId: Long): State
+  def passengerScheduleEmpty(tick: Double, triggerId: Long, lastVisited: SpaceTime): State
 
   when(Driving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
-      lastVisited = beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint)
+      val lastVisited = beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint)
       val currentVehicleUnderControl = data.currentVehicle.head
       // If no manager is set, we ignore
       beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint)))
@@ -64,7 +62,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         val nextLeg = newSchedule.schedule.firstKey
         goto(WaitingToDrive) using data.withPassengerSchedule(newSchedule).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
       } else {
-        passengerScheduleEmpty(tick, triggerId)
+        passengerScheduleEmpty(tick, triggerId, lastVisited)
       }
   }
 

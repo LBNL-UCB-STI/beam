@@ -8,6 +8,7 @@ import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
@@ -76,7 +77,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long, lastVisited: SpaceTime): State = {
     scheduler ! CompletionNotice(triggerId)
     stop
   }

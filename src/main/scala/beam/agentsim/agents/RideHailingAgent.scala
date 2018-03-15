@@ -59,7 +59,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       })
   }
 
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long) = {
+  override def passengerScheduleEmpty(tick: Double, triggerId: Long, lastVisited: SpaceTime) = {
     vehicle.checkInResource(Some(lastVisited),context.dispatcher)
     scheduler ! CompletionNotice(triggerId)
     goto(WaitingToDrive) using stateData.withPassengerSchedule(PassengerSchedule()).asInstanceOf[RideHailingAgentData]
