@@ -79,29 +79,3 @@ object BeamVehicle {
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 }
-
-case class VehicleStack(nestedVehicles: Vector[Id[Vehicle]] = Vector()) {
-  def isEmpty = nestedVehicles.isEmpty
-
-  def pushIfNew(vehicle: Id[Vehicle]) = {
-    if (nestedVehicles.nonEmpty && nestedVehicles.head == vehicle) {
-      VehicleStack(nestedVehicles)
-    } else {
-      VehicleStack(vehicle +: nestedVehicles)
-    }
-  }
-
-  def penultimateVehicle(): Id[Vehicle] = {
-    if (nestedVehicles.size < 2) throw new RuntimeException("Attempted to access penultimate vehilce when 1 or 0 are " +
-      "in the vehicle stack.")
-    nestedVehicles(1)
-  }
-
-  def outermostVehicle(): Id[Vehicle] = {
-    nestedVehicles(0)
-  }
-
-  def pop(): VehicleStack = {
-    VehicleStack(nestedVehicles.tail)
-  }
-}
