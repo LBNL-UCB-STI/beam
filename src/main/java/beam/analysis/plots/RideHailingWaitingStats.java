@@ -23,6 +23,7 @@ public class RideHailingWaitingStats implements IGraphStats {
     private static final String yAxisTitle = "Waiting Time";
     private static final String fileName = "RideHailingWaitingStats.png";
     private static HashMap<String, Event> rideHailingWaiting = new HashMap<>();
+    private static int lastMax = 0;
 
     @Override
     public void processStats(Event event) {
@@ -127,9 +128,12 @@ public class RideHailingWaitingStats implements IGraphStats {
      */
     private String getTimeSlot(double time) {
         time = time / 60;
+        if (((int) time) > lastMax) {
+            lastMax = (int) time;
+        }
         if (time < 1) return "0-1 mins";
         else if (time < 2) return "1-2 mins";
         else if (time < 4) return "2-4 mins";
-        else return ">4 mins";
+        else return "4-"+lastMax+" mins";
     }
 }
