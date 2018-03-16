@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.agents.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
+import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -15,6 +15,7 @@ import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
+import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.NetworkCoordinator
@@ -39,6 +40,7 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
+import scala.collection.{JavaConverters, mutable}
 import scala.collection.concurrent.TrieMap
 
 /**
@@ -75,9 +77,10 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     theServices
   }
   val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = alternatives.head
+    override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = Some(alternatives.head)
     override val beamServices: BeamServices = services
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+    override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
   }
   private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
   networkCoordinator.loadNetwork()
@@ -115,10 +118,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
 
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
 
-      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), Vector(person), new Coord(0.0, 0.0)))
+      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)
@@ -174,10 +178,11 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
 
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
 
-      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(beamVehicle.getId -> beamVehicle), Vector(person), new Coord(0.0, 0.0)))
+      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(beamVehicle.getId -> beamVehicle), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)

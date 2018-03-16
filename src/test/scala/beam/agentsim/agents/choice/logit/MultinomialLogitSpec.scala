@@ -2,14 +2,14 @@ package beam.agentsim.agents.choice.logit
 
 import beam.sim.BeamHelper
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.util.Random
 
 /**
   * BEAM
   */
-class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper {
 
     "An MNL Model" must {
       val mnlData: Vector[MnlData] = Vector(
@@ -35,7 +35,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper wi
       "should sample higher probability alternatives more often" in {
         // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
         // will be walk with 100 trials (p-val 3.00491e-12)
-        val samps = for(i <- 1 until 100)yield mnl.sampleAlternative(alts,rand)
+        val samps = for(i <- 1 until 100)yield mnl.sampleAlternative(alts,rand).get
         samps.filter(_.equals("walk")).length > 50 should be(true)
       }
     }

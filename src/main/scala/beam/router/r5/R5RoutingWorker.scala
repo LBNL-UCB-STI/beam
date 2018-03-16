@@ -9,7 +9,6 @@ import akka.pattern._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.{Modes, RoutingModel}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router.RoutingModel.BeamLeg._
@@ -18,14 +17,16 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.TripWithFares
+import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
+import beam.router.{Modes, RoutingModel}
 import beam.sim.BeamServices
+import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator, TurnCostCalculator}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import kamon.Kamon
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -36,21 +37,16 @@ import scala.collection.mutable
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging {
+class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447; // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
-  val routingTimeHistogram = Kamon.metrics.histogram("routing-time")
-
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
-      val time = System.nanoTime()
-      val response = getPlanFromR5(key)
-      routingTimeHistogram.record((System.nanoTime() - time) / (1000*1000))
-      response
+      getPlanFromR5(key)
     }
   })
 
@@ -63,7 +59,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       transitSchedule = newTransitSchedule
     case request: RoutingRequest =>
       val eventualResponse = Future {
-        calcRoute(request)
+
+        latency("request-router-time", Metrics.RegularLevel) {
+          calcRoute(request)
+        }
       }
       eventualResponse.failed.foreach(e => e.printStackTrace())
       eventualResponse pipeTo sender
@@ -164,7 +163,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
           val transitModes = Nil
-          val profileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+          val profileResponse = latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
+            cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+          }
           if (profileResponse.options.isEmpty) {
             return Nil // Cannot walk to vehicle, so no options from this vehicle.
           }
@@ -196,7 +197,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val accessMode = vehicle.mode.r5Mode.get.left.get
         val egressMode = LegMode.WALK
         val transitModes = Nil
-        val profileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+        val profileResponse = latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
+          cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+        }
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
           val streetSegment = profileResponse.options.get(0).access.get(0)
@@ -233,7 +236,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         case time: WindowTime => WindowTime(time.atTime + walkToVehicleDuration, 0)
       }
       val transitModes: Vector[TransitModes] = routingRequest.transitModes.map(_.r5Mode.get.right.get)
-      val profileResponse: ProfileResponse = cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+      val latencyTag = (if (transitModes.isEmpty) "mainVehicleToDestinationRoute" else "mainTransitRoute") + "-router-time"
+      val profileResponse: ProfileResponse = latency(latencyTag, Metrics.RegularLevel) {
+        cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+      }
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
           * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
@@ -276,8 +282,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
              assuming that: For each transit in option there is a TransitJourneyID in connection
              */
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
-            val fareSegments = getFareSegments(segments.toVector)
-            val fares = filterFaresOnTransfers(fareSegments)
+            val fares = latency("fare-transit-time", Metrics.VerboseLevel) {
+              val fareSegments = getFareSegments(segments.toVector)
+              filterFaresOnTransfers(fareSegments)
+            }
 
             segments.foreach { case (transitSegment, transitJourneyID) =>
               val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
@@ -476,8 +484,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val option = new ProfileOption
     request.reverseSearch = false
     //For direct modes
-    import scala.collection.JavaConversions._
-    for (mode <- request.directModes) {
+
+    for (mode <- request.directModes.asScala) {
       val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator(request.fromTime), turnCostCalculator)
       var streetPath: StreetPath = null
       streetRouter.profileRequest = request
@@ -485,7 +493,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       streetRouter.timeLimitSeconds = request.streetTime * 60
       if (streetRouter.setOrigin(request.fromLat, request.fromLon)) {
         if (streetRouter.setDestination(request.toLat, request.toLon)) {
-          streetRouter.route()
+          latency("route-transit-time", Metrics.VerboseLevel) {
+            streetRouter.route() //latency 1
+          }
           val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
           if (lastState != null) {
             streetPath = new StreetPath(lastState, transportNetwork, false)
@@ -507,13 +517,15 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val accessRouter = findAccessPaths(request)
       val egressRouter = findEgressPaths(request)
       import scala.collection.JavaConverters._
-
-      val router = new McRaptorSuboptimalPathProfileRouter(transportNetwork, request, accessRouter.mapValues(_.getReachedStops).asJava, egressRouter.mapValues(_.getReachedStops).asJava)
+      //latency 2nd step
+      val router = new BeamMcRaptorSuboptimalPathProfileRouter(transportNetwork, request, accessRouter.mapValues(_.getReachedStops).asJava, egressRouter.mapValues(_.getReachedStops).asJava)
       router.NUMBER_OF_SEARCHES = beamServices.beamConfig.beam.routing.r5.numberOfSamples
       val usefullpathList = new util.ArrayList[PathWithTimes]
       // getPaths actually returns a set, which is important so that things are deduplicated. However we need a list
       // so we can sort it below.
-      usefullpathList.addAll(router.getPaths)
+      latency("getpath-transit-time", Metrics.VerboseLevel) {
+        usefullpathList.addAll(router.getPaths) //latency of get paths
+      }
       //This sort is necessary only for text debug output so it will be disabled when it is finished
       /**
         * Orders first no transfers then one transfers 2 etc
@@ -541,10 +553,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         foo(o1, o2)
       })
       log.debug("Usefull paths:{}", usefullpathList.size)
-      for (path <- usefullpathList) {
-        profileResponse.addTransitPath(accessRouter, egressRouter, path, transportNetwork, request.getFromTimeDateZD)
+
+      for (path <- usefullpathList.asScala) {
+        profileResponse.addTransitPath(accessRouter.asJava, egressRouter.asJava, path, transportNetwork, request.getFromTimeDateZD)
       }
-      profileResponse.generateStreetTransfers(transportNetwork, request)
+      latency("transfer-transit-time", Metrics.VerboseLevel) {
+        profileResponse.generateStreetTransfers(transportNetwork, request)
+      } // latency possible candidate
     }
     profileResponse.recomputeStats(request)
     log.debug("Returned {} options", profileResponse.getOptions.size)
@@ -562,8 +577,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     //For egress
     //TODO: this must be reverse search
     request.reverseSearch = true
-    import scala.collection.JavaConversions._
-    for (mode <- request.egressModes) {
+
+    for (mode <- request.egressModes.asScala) {
       val streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator(request.fromTime), turnCostCalculator)
       streetRouter.transitStopSearch = true
       streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
@@ -590,8 +605,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     request.reverseSearch = false
     // Routes all access modes
     val accessRouter = mutable.Map[LegMode, StreetRouter]()
-    import scala.collection.JavaConversions._
-    for (mode <- request.accessModes) {
+
+    for (mode <- request.accessModes.asScala) {
       var streetRouter = new StreetRouter(transportNetwork.streetLayer, travelTimeCalculator(request.fromTime), turnCostCalculator)
       streetRouter.profileRequest = request
       streetRouter.streetMode = StreetMode.valueOf(mode.toString)

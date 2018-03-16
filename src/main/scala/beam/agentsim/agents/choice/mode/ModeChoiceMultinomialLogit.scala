@@ -23,9 +23,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   var expectedMaximumUtility: Double = 0.0
 
-  override def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
+  override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
-      throw new IllegalArgumentException("Empty choice set.")
+      None
     } else {
 
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives)
@@ -47,27 +47,27 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         AlternativeAttributes(mct.mode.value,theParams ++ transferParam)
       }.toVector
 
-      val chosenMode = try {
-        model.sampleAlternative(inputData, new Random())
-      } catch {
-        case e: RuntimeException if e.getMessage.startsWith("Cannot create a CDF") =>
-          // This should be fixed (see issue #202) and never throw, but leaving this catch just in case
-          return alternatives(chooseRandomAlternativeIndex(alternatives))
-      }
+      val chosenModeOpt = model.sampleAlternative(inputData, new Random())
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData)
-      val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
 
-      if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
-        throw new RuntimeException("No choice was made.")
-      } else {
-        alternatives(chosenModeCostTime.head.index)
+      chosenModeOpt match {
+        case Some(chosenMode) =>
+          val chosenModeCostTime = bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
+
+          if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
+            None
+          } else {
+            Some(alternatives(chosenModeCostTime.head.index))
+          }
+        case None =>
+          None
       }
     }
   }
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double = {
-    val parameters = Map("transfer" -> numTransfers.toDouble, "cost" -> cost.toDouble, "time" -> time)
-    model.getUtilityOfAlternative(AlternativeAttributes(mode.value, parameters))
+    val variables = Map("transfer" -> numTransfers.toDouble, "cost" -> cost.toDouble, "time" -> time)
+    model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = {
@@ -121,11 +121,11 @@ object ModeChoiceMultinomialLogit {
       new MnlData("COMMON",         "time",       "multiplier", mnlConfig.params.time),
       new MnlData("car",            "intercept",  "intercept",  mnlConfig.params.car_intercept),
       new MnlData("walk",           "intercept",  "intercept",  mnlConfig.params.walk_intercept),
-      new MnlData("ride_hailing",   "intercept",  "intercept",  mnlConfig.params.walk_intercept),
-      new MnlData("bike",           "intercept",  "intercept",  mnlConfig.params.walk_intercept),
-      new MnlData("walk_transit",   "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("ride_hailing",   "intercept",  "intercept",  mnlConfig.params.ride_hailing_intercept),
+      new MnlData("bike",           "intercept",  "intercept",  mnlConfig.params.bike_intercept),
+      new MnlData("walk_transit",   "intercept",  "intercept",  mnlConfig.params.walk_transit_intercept),
       new MnlData("walk_transit",   "transfer",   "multiplier", mnlConfig.params.transfer),
-      new MnlData("drive_transit",  "intercept",  "intercept",  mnlConfig.params.walk_intercept),
+      new MnlData("drive_transit",  "intercept",  "intercept",  mnlConfig.params.drive_transit_intercept),
       new MnlData("drive_transit",  "transfer",   "multiplier", mnlConfig.params.transfer)
     )
     MultinomialLogit(mnlData)

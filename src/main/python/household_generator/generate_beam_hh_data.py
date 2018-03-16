@@ -3,12 +3,19 @@ Instructions:
     This file is used to generate synthetic household data for BEAM inputs. It has been
     tested for the SF Bay Area.
 
-    In order to set up the file to work for population synthesis in other locations, you will need
-    to download the appropriate census data for your target location.
+     >> Note that the census files are too large to keep in the sample file directory, but all other sample inputs are
+    already provided.
 
-    Raw data may be downloaded here: https://www.census.gov/programs-surveys/acs/data/pums.html.
+    >> In order to use this script for population synthesis for the SF Bay area, you will need to download the
+    appropriate census data.
 
-    Certain inputs are already provided.
+    >> Raw data may be downloaded here: https://www.census.gov/programs-surveys/acs/data/pums.html.
+
+    >> Place the files in sample_data (or wherever you are keeping __all__ input files).
+
+    >> Note that some fields may not match those expected by doppelganger. You may need to edit the census files
+    (i.e., ssXXhYY.csv and ssXXpYY.csv) to ensure that column headers match expected doppelganger inputs. Typically,
+    this involves just lower-casing the column names.
 
 """
 
@@ -23,7 +30,8 @@ import numpy as np
 from tqdm import tnrange, tqdm_notebook
 
 from doppelganger import Configuration, allocation, Preprocessor, PumsData, Accuracy
-from doppelganger.scripts import create_bayes_net, download_tract_data, generate_synthetic_people_and_households
+
+
 
 logging.basicConfig(filename='logs', filemode='a', level=logging.INFO)
 
@@ -31,7 +39,7 @@ logging.basicConfig(filename='logs', filemode='a', level=logging.INFO)
 
 # Load pumas (these will be based on the pumas you actually want to generate data for...
 # You can use a GIS to find these.
-puma_df = pd.read_csv('input/sfbay_puma_from_intersection.csv', dtype=str)
+puma_df = pd.read_csv('input/sample_data/sfbay_puma_from_intersection.csv', dtype=str)
 # Select 2010 PUMA column for filtering
 puma_df_clean = puma_df.PUMACE10
 PUMA = puma_df_clean.iloc[0]
@@ -51,10 +59,10 @@ gen_pumas = ['state_{}_puma_{}_generated.csv'.format(STATE, puma) for puma in pu
 
 
 def create_household_and_population_dfs():
-    # Read in population level PUMS (may take a while...)
+    # Read __downloaded___ (see link above) population level PUMS (may take a while...)
     person_pums_df = pd.read_csv('input/ss14p{}.csv'.format(STATE_ABBREVIATION.lower()), na_values=['N.A'],
                                  na_filter=True)
-    # Read in household level PUMS (may take a while...)
+    # Read __downloaded__ (see link above) household level PUMS (may take a while...)
     household_pums_df = pd.read_csv('input/ss14h{}.csv'.format(STATE_ABBREVIATION.lower()), na_values=['N.A'],
                                     na_filter=True)
     # filter household data and population data to AOI
@@ -68,7 +76,7 @@ def create_household_and_population_dfs():
     return household_df_in_aoi, person_df_in_aoi
 
 
-configuration = Configuration.from_file('input/config.json')
+configuration = Configuration.from_file('./input/sample_data/config.json')
 household_fields = tuple(set(
     field.name for field in allocation.DEFAULT_HOUSEHOLD_FIELDS).union(
     set(configuration.household_fields)
@@ -155,7 +163,7 @@ def _combine_and_synthesize():
     tract_sd = pd.concat([df['num_people']['std'], df['num_vehicles']['std']], axis=1)
     tract_sd.columns = ['hh_sd', 'car_sd']
 
-    tract_gdf = gpd.read_file("input/tl_2016_{}_tract/tl_2016_{}_tract.shp".format(STATE, STATE))
+    tract_gdf = gpd.read_file("input/sample_data/tl_2016_{}_tract/tl_2016_{}_tract.shp".format(STATE, STATE))
 
     tract_sd_df = pd.DataFrame(tract_sd)
     tract_sd_df['tract'] = tract_sd_df.index
@@ -176,5 +184,14 @@ def _combine_and_synthesize():
 
 
 if __name__ == '__main__':
+
+    from sys import path
+    import os.path as osp
+    path.append(osp.join(__file__, 'scripts'))
+    path.append(osp.dirname(osp.dirname(osp.abspath(__file__))))
+    from download_allocate_generate import create_bayes_net, download_tract_data, \
+        generate_synthetic_people_and_households
+
+
     create_household_and_population_dfs()
     population_generator()
