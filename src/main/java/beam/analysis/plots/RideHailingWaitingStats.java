@@ -5,10 +5,14 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.jsoup.helper.StringUtil;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
@@ -117,6 +121,7 @@ public class RideHailingWaitingStats implements IGraphStats {
         GraphUtils.plotLegendItems(plot, timeRanges, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+        writeToCSV(iterationNumber);
     }
 
 
@@ -135,5 +140,37 @@ public class RideHailingWaitingStats implements IGraphStats {
         else if (time < 2) return "1-2 mins";
         else if (time < 4) return "2-4 mins";
         else return "4-"+lastMax+" mins";
+    }
+
+
+    private void writeToCSV(int iterationNumber) throws IOException {
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "RideHailWaitingStats.csv");;
+        BufferedWriter out = null;
+        try {
+            out = new BufferedWriter(new FileWriter(new File(fileName)));
+            String heading = "Hour\\Times," + StringUtil.join(timeSlots, ",").replaceAll(" mins", "");
+            out.write(heading);
+            out.newLine();
+            List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
+            for (Integer i : hoursList) {
+                out.write("" + i);
+                Map<String, Integer> innerMap = hourModeFrequency.get(i);
+                for (String slot : timeSlots) {
+                    String frequency = innerMap.get(slot) == null ? "" : innerMap.get(slot).toString();
+                    out.write("," + frequency);
+                }
+                out.newLine();
+            }
+            out.flush();
+            out.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (out != null) {
+                out.close();
+            }
+        }
+
+
     }
 }
