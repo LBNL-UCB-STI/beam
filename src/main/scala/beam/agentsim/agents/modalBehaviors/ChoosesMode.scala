@@ -85,15 +85,15 @@ trait ChoosesMode {
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
-        router ! RoutingRequest(currentActivity(stateData.asInstanceOf[ChoosesModeData].personData).getCoord, nextAct.getCoord, departTime, Modes.filterForTransit(transitModes), vehicles, streetVehiclesAsAccess)
+        router ! RoutingRequest(currentActivity(choosesModeData.personData).getCoord, nextAct.getCoord, departTime, Modes.filterForTransit(transitModes), vehicles, streetVehiclesAsAccess)
       }
 
       def makeRideHailRequest(): Unit = {
-        rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity(stateData.asInstanceOf[ChoosesModeData].personData).getCoord, departTime, nextAct.getCoord)
+        rideHailingManager ! RideHailingInquiry(RideHailingManager.nextRideHailingInquiryId, id, currentActivity(choosesModeData.personData).getCoord, departTime, nextAct.getCoord)
       }
 
       def filterStreetVehiclesForQuery(streetVehicles: Vector[StreetVehicle], byMode: BeamMode): Vector[StreetVehicle] = {
-        stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle match {
+        choosesModeData.personData.currentTourPersonalVehicle match {
           case Some(personalVeh) =>
             // We already have a vehicle we're using on this tour, so filter down to that
             streetVehicles.filter(_.id == personalVeh)
@@ -128,7 +128,7 @@ trait ChoosesMode {
           }
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
-          currentTour(stateData.asInstanceOf[BasePersonData]).tripIndexOfElement(nextAct) match {
+          currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
             case 0 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
             case LastTripIndex =>
