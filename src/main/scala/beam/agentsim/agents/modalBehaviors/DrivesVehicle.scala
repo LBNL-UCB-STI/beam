@@ -98,9 +98,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       stay() using data.withPassengerSchedule(newPassengerSchedule).asInstanceOf[T] replying ModifyPassengerScheduleAck(requestId)
 
     case Event(req: ReservationRequest, data) if data.passengerSchedule.schedule.isEmpty =>
+      log.error("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
     case Event(req: ReservationRequest, data) if req.departFrom.startTime <= data.passengerSchedule.schedule.head._1.startTime =>
+      log.error("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
     case Event(req: ReservationRequest, data) if !hasRoomFor(data.passengerSchedule, req, beamServices.vehicles(data.currentVehicle.head)) =>
