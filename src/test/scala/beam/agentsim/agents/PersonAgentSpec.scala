@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
@@ -86,6 +86,17 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
     override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
   }
+
+  // Mock a transit driver (who has to be a child of a mock router)
+  val transitDriverProps = Props(new ForwardActor(self))
+  val router = system.actorOf(Props(new Actor() {
+    context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
+    context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
+    override def receive: Receive = {
+      case _ =>
+    }
+  }), "router")
+
   private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
   networkCoordinator.loadNetwork()
 
@@ -245,16 +256,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
-
-      // Mock a transit driver (who has to be a child of a mock router)
-      val transitDriverProps = Props(new ForwardActor(self))
-      val router = system.actorOf(Props(new Actor() {
-        context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-        context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
-        override def receive: Receive = {
-          case _ =>
-        }
-      }), "router")
 
       bus.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(), timeout.duration))
       tram.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(), timeout.duration))
