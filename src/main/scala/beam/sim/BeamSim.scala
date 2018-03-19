@@ -7,7 +7,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.agents.rideHail.TNCWaitingTimesCollector
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -39,7 +39,10 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _;
+  private var modalityStyleStats: ModalityStyleStats = _;
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
+
+  private var tncWaitingTimes: TNCWaitingTimesCollector = _
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass, beamServices)
@@ -61,8 +64,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     beamServices.beamRouter = actorSystem.actorOf(BeamRouter.props(beamServices, transportNetwork, scenario.getNetwork, eventsManager, scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
-    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
-      beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)
+    /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
+          beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
 
     agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
       eventsManager,
@@ -74,16 +77,22 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamConfig)
 
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario)
-
+    modalityStyleStats = new ModalityStyleStats();
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
+
+
+    tncWaitingTimes = new TNCWaitingTimesCollector(eventsManager)
+
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     agentSimToPhysSimPlanConverter.startPhysSim(event)
     createGraphsFromEvents.createGraphs(event);
-    ModalityStyleStats.processData(scenario.getPopulation(),event);
-    ModalityStyleStats.buildModalityStyleGraph();
-    PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration,"population.csv.gz"))
+    modalityStyleStats.processData(scenario.getPopulation(), event);
+    modalityStyleStats.buildModalityStyleGraph();
+    PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
+
+    tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
@@ -98,9 +107,8 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     deleteOutputFile("traveldistancestats.png")
 
-    deleteOutputFile("modestats.txt")
-
-    deleteOutputFile("modestats.png")
+    //  deleteOutputFile("modestats.txt")
+    // deleteOutputFile("modestats.png")
 
     deleteOutputFile("tmp")
     //===========================

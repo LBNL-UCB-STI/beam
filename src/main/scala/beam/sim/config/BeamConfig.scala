@@ -100,14 +100,35 @@ object BeamConfig {
         case class RideHailing(
           defaultCostPerMile               : scala.Double,
           defaultCostPerMinute             : scala.Double,
-          numDriversAsFractionOfPopulation : scala.Double
+          numDriversAsFractionOfPopulation : scala.Double,
+          surgePricing                     : BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing
         )
         object RideHailing {
+          case class SurgePricing(
+            minimumSurgeLevel       : scala.Double,
+            numberOfCategories      : scala.Int,
+            priceAdjustmentStrategy : java.lang.String,
+            surgeLevelAdaptionStep  : scala.Double,
+            timeBinSize             : scala.Int
+          )
+          object SurgePricing {
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing = {
+              BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing(
+                minimumSurgeLevel       = if(c.hasPathOrNull("minimumSurgeLevel")) c.getDouble("minimumSurgeLevel") else 0.1,
+                numberOfCategories      = if(c.hasPathOrNull("numberOfCategories")) c.getInt("numberOfCategories") else 6,
+                priceAdjustmentStrategy = if(c.hasPathOrNull("priceAdjustmentStrategy")) c.getString("priceAdjustmentStrategy") else "KEEP_PRICE_LEVEL_FIXED_AT_ONE",
+                surgeLevelAdaptionStep  = if(c.hasPathOrNull("surgeLevelAdaptionStep")) c.getDouble("surgeLevelAdaptionStep") else 0.1,
+                timeBinSize             = if(c.hasPathOrNull("timeBinSize")) c.getInt("timeBinSize") else 3600
+              )
+            }
+          }
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailing = {
             BeamConfig.Beam.Agentsim.Agents.RideHailing(
               defaultCostPerMile               = if(c.hasPathOrNull("defaultCostPerMile")) c.getDouble("defaultCostPerMile") else 1.25,
               defaultCostPerMinute             = if(c.hasPathOrNull("defaultCostPerMinute")) c.getDouble("defaultCostPerMinute") else 0.75,
-              numDriversAsFractionOfPopulation = if(c.hasPathOrNull("numDriversAsFractionOfPopulation")) c.getDouble("numDriversAsFractionOfPopulation") else 0.5
+              numDriversAsFractionOfPopulation = if(c.hasPathOrNull("numDriversAsFractionOfPopulation")) c.getDouble("numDriversAsFractionOfPopulation") else 0.5,
+              surgePricing                     = BeamConfig.Beam.Agentsim.Agents.RideHailing.SurgePricing(c.getConfig("surgePricing"))
             )
           }
         }

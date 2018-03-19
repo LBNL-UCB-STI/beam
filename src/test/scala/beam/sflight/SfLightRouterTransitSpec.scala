@@ -167,7 +167,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
       val response = expectMsgType[RoutingResponse]
 
-      printResponse(origin, destination, time, response)
+      //printResponse(origin, destination, time, response)
 
       assert(response.itineraries.exists(_.costEstimate == 18.70))
       assert(response.itineraries.exists(_.tripClassifier == WALK))

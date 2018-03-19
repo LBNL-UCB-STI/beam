@@ -8,7 +8,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -40,7 +39,6 @@ trait BeamServices extends ActorInject {
   var beamRouter: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
-  var taz: TAZTreeMap
 
   def clearAll
 }
@@ -57,7 +55,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var beamRouter: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-  var taz: TAZTreeMap = _
 
   def clearAll = {
     personRefs.clear

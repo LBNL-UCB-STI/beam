@@ -44,14 +44,15 @@ class ErrorListener() extends Actor with ActorLogging {
   def formatErrorReasons(): String = {
     def hourOrMinus1(event: BeamAgent.TerminatedPrematurelyEvent) = -1
     val msgCounts = terminatedPrematurelyEvents
-      .groupBy( event => event.reason.toString.substring(0,Math.min(event.reason.toString.length-1,65)) )
-      .mapValues( eventsPerReason =>
+      .groupBy(event => event.reason.toString.substring(0, Math.min(event.reason.toString.length - 1, 65)))
+      .mapValues(eventsPerReason =>
         eventsPerReason
           .groupBy(event => hourOrMinus1(event))
           .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size))
-    msgCounts.map{case(msg, cntByHour) =>
+    msgCounts.map { case (msg, cntByHour) =>
       val sortedCounts = cntByHour.toSeq.sortBy(_._1)
-      s"$msg:\n\tHour\t${sortedCounts.map{ case(hr, cnt) => hr.toString}.mkString("\t")}\n\tCnt \t${sortedCounts.map{ case(hr, cnt) => cnt.toString}.mkString("\t")}"}.mkString("\n")
+      s"$msg:\n\tHour\t${sortedCounts.map { case (hr, cnt) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts.map { case (hr, cnt) => cnt.toString }.mkString("\t")}"
+    }.mkString("\n")
   }
 
 }

@@ -16,15 +16,25 @@ import java.io.IOException;
 import java.util.*;
 
 public class ModalityStyleStats {
-    private static Set<String> className = new TreeSet<>();
-    private static Map<Integer, Map<String, Double>> iterationVsModalityClassCount = new HashMap<>();
-    private static final String graphTile = "Modality Style";
-    private static final String xAxisTitle = "Iteration";
-    private static final String yAxisTitle = "Number of Agents";
-    private static final String fileName = "modality-style.png";
-    private static final String attributeName = "modality-style";
+    private Set<String> className ;
+    private Map<Integer, Map<String, Double>> iterationVsModalityClassCount ;
+    private final String graphTile;
+    private final String xAxisTitle;
+    private final String yAxisTitle;
+    private final String fileName;
+    private final String attributeName;
 
-    public static void buildModalityStyleGraph() {
+    public ModalityStyleStats(){
+        className = new TreeSet<>();
+        iterationVsModalityClassCount = new HashMap<>();
+        graphTile = "Modality Style";
+        xAxisTitle = "Iteration";
+        yAxisTitle = "Number of Agents";
+        fileName = "modality-style.png";
+        attributeName = "modality-style";
+    }
+
+    public void buildModalityStyleGraph() {
         try {
             buildGraphFromPopulationProcessDataSet();
         } catch (Exception e) {
@@ -32,12 +42,12 @@ public class ModalityStyleStats {
         }
     }
 
-    public static void processData(Population population, IterationEndsEvent event) {
+    public void processData(Population population, IterationEndsEvent event) {
         processPopulationPlan(population, event);
     }
 
 
-    private static void processPopulationPlan(Population population, IterationEndsEvent event) {
+    private void processPopulationPlan(Population population, IterationEndsEvent event) {
         if (population == null) {
             return;
         }
@@ -66,7 +76,7 @@ public class ModalityStyleStats {
         }
     }
 
-    private static double[][] buildModalityStyleDataSet() {
+    private double[][] buildModalityStyleDataSet() {
         List<Integer> iterationCount = GraphsStatsAgentSimEventsListener.getSortedIntegerList(iterationVsModalityClassCount.keySet());
         List<String> classList = GraphsStatsAgentSimEventsListener.getSortedStringList(className);
         if (iterationCount.size() == 0 || classList.size() == 0) {
@@ -90,7 +100,7 @@ public class ModalityStyleStats {
         return dataSet;
     }
 
-    private static CategoryDataset buildModalityStyleGraphDataSet() {
+    private CategoryDataset buildModalityStyleGraphDataSet() {
         double dataSet[][] = buildModalityStyleDataSet();
         if (dataSet == null) {
             return null;
@@ -98,7 +108,7 @@ public class ModalityStyleStats {
         return DatasetUtilities.createCategoryDataset("", "", dataSet);
     }
 
-    private static void buildGraphFromPopulationProcessDataSet() throws IOException {
+    private void buildGraphFromPopulationProcessDataSet() throws IOException {
         CategoryDataset categoryDataset = buildModalityStyleGraphDataSet();
         if (categoryDataset == null) {
             return;

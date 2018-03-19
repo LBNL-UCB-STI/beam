@@ -5,11 +5,14 @@ import akka.actor.FSM.Failure
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
+import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobilityStatusInquiry
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
-import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
+import beam.agentsim.agents.modalBehaviors.ChoosesMode.{ChoosesModeData, LegWithPassengerVehicle, WaitingForReservationConfirmationData}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.NotifyLegStartTrigger
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
+import beam.agentsim.agents.rideHail.{RideHailingAgent, RideHailingManager}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -22,7 +25,8 @@ import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
 import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Leg
+import org.matsim.api.core.v01.population.{Leg, Person}
+import org.matsim.core.controler.Controler
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 
