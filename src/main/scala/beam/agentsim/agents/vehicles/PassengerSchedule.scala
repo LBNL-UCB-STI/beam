@@ -1,13 +1,11 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.events.SpaceTime
 import beam.router.RoutingModel.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.TreeMap
-import scala.collection.mutable
 
 /**
   * Holds information about the numbers and identities of agents in the model
@@ -19,9 +17,9 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   }
 
   def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): PassengerSchedule = {
-    var newSchedule = schedule ++ legs.map(leg => (leg, schedule(leg).copy(riders = schedule(leg).riders + passenger)))
-    newSchedule = newSchedule ++ legs.headOption.map(boardLeg => (boardLeg, newSchedule(boardLeg).copy(boarders = newSchedule(boardLeg).boarders + passenger.vehicleId)))
-    newSchedule = newSchedule ++ legs.lastOption.map(alightLeg => (alightLeg, newSchedule(alightLeg).copy(alighters = newSchedule(alightLeg).alighters + passenger.vehicleId)))
+    var newSchedule = schedule ++ legs.map(leg => {val manifest:Manifest = schedule.getOrElse(leg, Manifest()); (leg, manifest.copy(riders = manifest.riders + passenger))})
+    newSchedule = newSchedule ++ legs.headOption.map(boardLeg => {val manifest:Manifest = newSchedule.getOrElse(boardLeg, Manifest());(boardLeg, manifest.copy(boarders = manifest.boarders + passenger.vehicleId))})
+    newSchedule = newSchedule ++ legs.lastOption.map(alightLeg => {val manifest:Manifest = newSchedule.getOrElse(alightLeg, Manifest());(alightLeg, manifest.copy(alighters = manifest.alighters + passenger.vehicleId))})
     PassengerSchedule(newSchedule)
   }
 
