@@ -56,17 +56,15 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private val errorListener = context.actorOf(ErrorListener.props())
       context.watch(errorListener)
       context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
-      val scheduler = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) , 300.0), "scheduler")
+      private val scheduler = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) , 300.0), "scheduler")
       context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
       context.watch(scheduler)
-      beamServices.schedulerRef=scheduler
 
       private val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
       envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
-      private val rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager),RideHailingManager.RIDE_HAIL_MANAGER)
+      private val rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, scheduler, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager),RideHailingManager.RIDE_HAIL_MANAGER)
       context.watch(rideHailingManager)
-      beamServices.rideHailingManager= rideHailingManager
       private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, eventsManager), "population")
       context.watch(population)
       Await.result(population ? Identify(0), timeout.duration)

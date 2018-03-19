@@ -17,7 +17,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -51,7 +51,7 @@ case class RideHailingManagerData()
 
 
 // TODO: remove name variable, as not used currently in the code anywhere?
-class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
+class RideHailingManager(val name: String, val beamServices: BeamServices, val scheduler: ActorRef, val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
 
   import scala.collection.JavaConverters._
 
@@ -178,8 +178,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       val timerTrigger=RepositioningTimer(tick+selfTimerTimoutDuration)
       val timerMessage=ScheduleTrigger(timerTrigger, self)
-      beamServices.schedulerRef ! timerMessage
-      beamServices.schedulerRef ! TriggerUtils.completed(triggerId)
+      scheduler ! timerMessage
+      scheduler ! CompletionNotice(triggerId)
     }
 
 
@@ -480,7 +480,7 @@ object RideHailingManager {
                                 rnd1Response: RoutingResponse, rnd2Response: RoutingResponse)
 
 
-  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
-    Props(new RideHailingManager(name, services, router, boundingBox,surgePricingManager))
+  def props(name: String, services: BeamServices, scheduler: ActorRef, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
+    Props(new RideHailingManager(name, services, scheduler, router, boundingBox, surgePricingManager))
   }
 }
