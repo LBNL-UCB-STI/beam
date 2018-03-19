@@ -36,6 +36,15 @@ import scala.concurrent.duration._
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
+  // I will plan my trips with an earliest departure time 10 minutes from now,
+  // and I will start walking/driving 10 minutes before the time scheduled by the router.
+
+  // This is my first attempt to avoid the "Vehicle Gone" error due to our
+  // simulation time window.
+
+  // I wouldn't even call it unrealistic.
+  val PLANNING_DELAY = 600
+
   onTransition {
     case (PerformingActivity | Waiting) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
@@ -54,7 +63,7 @@ trait ChoosesMode {
     case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
-      val departTime = DiscreteTime(_currentTick.get.toInt)
+      val departTime = DiscreteTime(_currentTick.get.toInt + PLANNING_DELAY)
       val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
         case l: Leg => Some(l)
         case _ => None
@@ -250,7 +259,7 @@ trait ChoosesMode {
         rideHailingManager ! ReleaseVehicleReservation(id, data.rideHailingResult.get.proposals.head
           .rideHailingAgentLocation.vehicleId)
       }
-      scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(chosenTrip.legs.head.beamLeg.startTime), self)))
+      scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime - PLANNING_DELAY, tick)), self)))
       goto(Waiting) using data.personData.copy(
         currentTrip = data.pendingChosenTrip,
         restOfCurrentTrip = data.pendingChosenTrip.get.legs.toList,

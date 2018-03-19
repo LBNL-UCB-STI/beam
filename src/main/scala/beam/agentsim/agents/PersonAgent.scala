@@ -138,7 +138,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       )
   }
 
-  when(Waiting, stateTimeout = 1 second) {
+  when(Waiting) {
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), data@BasePersonData(_, Some(currentTrip),_,_,_,_,_,false)) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
@@ -167,7 +167,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val (tick, triggerId) = releaseTickAndTriggerId()
       reservationResponse.response.fold(
         error => {
-          logError("replanning")
+          log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
           holdTickAndTriggerId(tick, triggerId)
           goto(ChoosingMode) using ChoosesModeData(data)
         },
@@ -238,9 +238,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::_,currentVehicle,_,_,_,_)) if nextLeg.asDriver =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      // Can't depart earlier than it is now
-      val newTriggerTime = math.max(nextLeg.beamLeg.startTime, tick)
-      scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(newTriggerTime, nextLeg.beamLeg), self)))
+      scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)))
       goto(WaitingToDrive) using data.copy(
         passengerSchedule = data.passengerSchedule.addLegs(Vector(nextLeg.beamLeg)),
         currentVehicle = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
