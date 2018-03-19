@@ -63,7 +63,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private val envelopeInUTM = beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
       envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
-      private val rideHailingManager = context.actorOf(RideHailingManager.props("RideHailingManager", beamServices, scheduler, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager),RideHailingManager.RIDE_HAIL_MANAGER)
+      private val rideHailingManager = context.actorOf(RideHailingManager.props(beamServices, scheduler, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager), "RideHailingManager")
       context.watch(rideHailingManager)
       private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, eventsManager), "population")
       context.watch(population)

@@ -38,20 +38,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 
-
-
-
-
-
-
-
-
-//TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
-case class RideHailingManagerData()
-
-
-// TODO: remove name variable, as not used currently in the code anywhere?
-class RideHailingManager(val name: String, val beamServices: BeamServices, val scheduler: ActorRef, val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
+class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef, val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
 
   import scala.collection.JavaConverters._
 
@@ -433,7 +420,6 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val s
 
 
 object RideHailingManager {
-  val RIDE_HAIL_MANAGER = "RideHailingManager";
   val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
@@ -480,7 +466,7 @@ object RideHailingManager {
                                 rnd1Response: RoutingResponse, rnd2Response: RoutingResponse)
 
 
-  def props(name: String, services: BeamServices, scheduler: ActorRef, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
-    Props(new RideHailingManager(name, services, scheduler, router, boundingBox, surgePricingManager))
+  def props(services: BeamServices, scheduler: ActorRef, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
+    Props(new RideHailingManager(services, scheduler, router, boundingBox, surgePricingManager))
   }
 }
