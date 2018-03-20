@@ -161,19 +161,16 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
 
-    case Event(reservationResponse: ReservationResponse, data: BasePersonData) =>
+    case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      reservationResponse.response.fold(
-        error => {
-          log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
-          holdTickAndTriggerId(tick, triggerId)
-          goto(ChoosingMode) using ChoosesModeData(data)
-        },
-        confirmation => {
-          scheduler ! CompletionNotice(triggerId)
-          stay()
-        }
-      )
+      log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
+      holdTickAndTriggerId(tick, triggerId)
+      goto(ChoosingMode) using ChoosesModeData(data)
+
+    case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
+      val (_, triggerId) = releaseTickAndTriggerId()
+      scheduler ! CompletionNotice(triggerId)
+      stay()
   }
 
   when(Moving) {
