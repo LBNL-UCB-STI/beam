@@ -144,14 +144,13 @@ public class RideHailingWaitingStats implements IGraphStats {
 
 
     private void writeToCSV(int iterationNumber) throws IOException {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "RideHailWaitingStats.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "RideHailWaitingStats.csv");
         BufferedWriter out = null;
         try {
-            out = new BufferedWriter(new FileWriter(new File(fileName)));
+            out = new BufferedWriter(new FileWriter(new File(csvFileName)));
             String heading = "Hour," + StringUtil.join(timeSlots, ",");
             out.write(heading);
             out.newLine();
-            List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
             for (int i = 0; i < 24; i++) {
                 out.write("" + (i+1));
                 Map<String, Integer> innerMap = hourModeFrequency.get(i);
