@@ -83,8 +83,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  override def logDepth: Int = 100
-
   startWith(Uninitialized, BasePersonData())
 
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
