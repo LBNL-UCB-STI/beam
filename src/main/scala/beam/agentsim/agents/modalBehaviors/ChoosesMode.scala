@@ -65,12 +65,7 @@ trait ChoosesMode {
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val departTime = DiscreteTime(_currentTick.get.toInt + PLANNING_DELAY)
-      val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
-        case l: Leg => Some(l)
-        case _ => None
-      }
-      val maybeMode = maybeLeg.map(l => BeamMode.withValue(l.getMode))
-      val availablePersonalStreetVehicles = maybeMode match {
+      val availablePersonalStreetVehicles = choosesModeData.personData.currentTourMode match {
         case None | Some(CAR | BIKE) =>
           // In these cases, a personal vehicle will be involved
           streetVehicles.filter(_.asDriver)
@@ -87,7 +82,7 @@ trait ChoosesMode {
       }
 
       // Mark rideHailingResult as None if we need to request a new one, or fake a result if we don't need to make a request
-      val rideHailingResult = maybeMode match {
+      val rideHailingResult = choosesModeData.personData.currentTourMode match {
         case None | Some(RIDE_HAIL) =>
           None
         case _ =>
@@ -114,7 +109,7 @@ trait ChoosesMode {
       }
 
       // Form and send requests
-      maybeMode match {
+      choosesModeData.personData.currentTourMode match {
         case None =>
           makeRequestWith(Vector(TRANSIT), streetVehicles :+ bodyStreetVehicle)
           makeRideHailRequest()
@@ -123,6 +118,10 @@ trait ChoosesMode {
         case Some(WALK_TRANSIT) =>
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
         case Some(mode @ (CAR | BIKE)) =>
+          val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
+            case l: Leg => Some(l)
+            case _ => None
+          }
           maybeLeg.map(l => (l, l.getRoute)) match {
             case Some((l, r: NetworkRoute)) =>
               val maybeVehicle = filterStreetVehiclesForQuery(streetVehicles, mode).headOption
