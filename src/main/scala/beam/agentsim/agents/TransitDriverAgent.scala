@@ -60,6 +60,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
       vehicle.becomeDriver(self).fold(fa =>
         stop(Failure(s"BeamAgent $id attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
+        eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         val schedule = data.passengerSchedule.addLegs(legs)
         goto(WaitingToDrive) using data.copy(currentVehicle = Vector(vehicle.id)).withPassengerSchedule(schedule).asInstanceOf[TransitDriverData] replying
