@@ -261,7 +261,7 @@ trait ChoosesMode {
           .rideHailingAgentLocation.vehicleId)
       }
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime - PLANNING_DELAY, tick)), self)))
-      goto(Waiting) using data.personData.copy(
+      goto(WaitingForDeparture) using data.personData.copy(
         currentTrip = data.pendingChosenTrip,
         restOfCurrentTrip = data.pendingChosenTrip.get.legs.toList,
         currentTourMode = Some(chosenTrip.tripClassifier),

@@ -56,6 +56,8 @@ object PersonAgent {
 
   case object ChoosingMode extends Traveling
 
+  case object WaitingForDeparture extends Traveling
+
   case object WaitingForReservationConfirmation extends Traveling
 
   case object Waiting extends Traveling
@@ -136,7 +138,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       )
   }
 
-  when(Waiting) {
+  when(WaitingForDeparture) {
+    /*
+     * Callback from ChoosesMode
+     */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), data@BasePersonData(_, Some(currentTrip),_,_,_,_,_,false)) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
@@ -147,8 +152,28 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
 
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,_,_,_,_,_,true)) =>
+      // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
+  }
+
+  when(Waiting) {
+    // These are responses to a transit reservation for right now -- getting on a bus, basically.
+    // It is sent from ProcessingNextLegOrStartActivity.
+    // That's why we expect the response here in this state.
+
+    // If boarding the bus fails, go back to choosing mode.
+    case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
+      holdTickAndTriggerId(tick, triggerId)
+      goto(ChoosingMode) using ChoosesModeData(data)
+
+    // If boarding succeeds, stay and wait for the NotifyLegStartTrigger
+    case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
+      val (_, triggerId) = releaseTickAndTriggerId()
+      scheduler ! CompletionNotice(triggerId)
+      stay()
 
     /*
      * Learn as passenger that leg is starting
@@ -160,17 +185,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_, _)) if beamLeg == currentLeg.beamLeg =>
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
-
-    case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
-      holdTickAndTriggerId(tick, triggerId)
-      goto(ChoosingMode) using ChoosesModeData(data)
-
-    case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
-      val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! CompletionNotice(triggerId)
-      stay()
   }
 
   when(Moving) {
