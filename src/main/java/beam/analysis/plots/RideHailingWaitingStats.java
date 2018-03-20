@@ -153,7 +153,6 @@ public class RideHailingWaitingStats implements IGraphStats {
             out.newLine();
             List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
             for (int i = 0; i < 24; i++) {
-//            for (Integer i : hoursList) {
                 out.write("" + (i+1));
                 Map<String, Integer> innerMap = hourModeFrequency.get(i);
                 if (innerMap == null) {
