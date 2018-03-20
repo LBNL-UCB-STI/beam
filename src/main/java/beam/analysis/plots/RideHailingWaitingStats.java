@@ -131,7 +131,7 @@ public class RideHailingWaitingStats implements IGraphStats {
      * @param time seconds
      * @return
      */
-    private String getTimeSlot(double time) {
+    private static synchronized String getTimeSlot(double time) {
         time = time / 60;
         if (((int) time) > lastMax) {
             lastMax = (int) time;
@@ -148,7 +148,7 @@ public class RideHailingWaitingStats implements IGraphStats {
         BufferedWriter out = null;
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
-            String heading = "Hour," + StringUtil.join(timeSlots, ",");
+            String heading = "Hour," + StringUtil.join(timeSlots, ",").replace(" mins","_min").replaceAll("[0-9]*-","");
             out.write(heading);
             out.newLine();
             for (int i = 0; i < 24; i++) {
