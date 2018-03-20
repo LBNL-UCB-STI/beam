@@ -144,19 +144,26 @@ public class RideHailingWaitingStats implements IGraphStats {
 
 
     private void writeToCSV(int iterationNumber) throws IOException {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "RideHailWaitingStats.csv");;
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "RideHailWaitingStats.csv");
         BufferedWriter out = null;
         try {
             out = new BufferedWriter(new FileWriter(new File(fileName)));
-            String heading = "Hour\\Times," + StringUtil.join(timeSlots, ",").replaceAll(" mins", "");
+            String heading = "Hour," + StringUtil.join(timeSlots, ",");
             out.write(heading);
             out.newLine();
             List<Integer> hoursList = GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
-            for (Integer i : hoursList) {
-                out.write("" + i);
+            for (int i = 0; i < 24; i++) {
+//            for (Integer i : hoursList) {
+                out.write("" + (i+1));
                 Map<String, Integer> innerMap = hourModeFrequency.get(i);
+                if (innerMap == null) {
+                    for (int j = 0; j < timeSlots.size(); j++)
+                        out.write(",0");
+                    out.newLine();
+                    continue;
+                }
                 for (String slot : timeSlots) {
-                    String frequency = innerMap.get(slot) == null ? "" : innerMap.get(slot).toString();
+                    String frequency = innerMap.get(slot) == null ? "0" : innerMap.get(slot).toString();
                     out.write("," + frequency);
                 }
                 out.newLine();
