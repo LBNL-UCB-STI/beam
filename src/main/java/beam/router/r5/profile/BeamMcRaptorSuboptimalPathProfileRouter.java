@@ -115,7 +115,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
                 return true;
             }));
 
-            LOG.info("{} patterns found near the destination", patternsNearDestination.cardinality());
+//            LOG.info("{} patterns found near the destination", patternsNearDestination.cardinality());
         }
 
         List<McRaptorState> ret = new ArrayList<>();
@@ -164,8 +164,8 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
                 doPropagationToPointSet(departureTime);
             }
 
-            if (n % 15 == 0)
-                LOG.info("minute {}, {} rounds", n, round);
+//            if (n % 15 == 0)
+//                LOG.info("minute {}, {} rounds", n, round);
         }
 
         // DEBUG: print hash table performance
@@ -176,7 +176,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
             throw new UnsupportedOperationException("We have removed support for fare analysis during refactoring, because there is no more PropagatedTimesStore");
         }
 
-        LOG.info("McRAPTOR took {}ms", System.currentTimeMillis() - startTime);
+//        LOG.info("McRAPTOR took {}ms", System.currentTimeMillis() - startTime);
 
         return ret;
     }
@@ -246,9 +246,9 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         });
         //states.forEach(s -> LOG.info("{}", s.dump(network)));
 
-        LOG.info("{} states led to {} paths", states.size(), paths.size());
+//        LOG.info("{} states led to {} paths", states.size(), paths.size());
 
-        paths.values().forEach(p -> LOG.info("{}", p.dump(network)));
+//        paths.values().forEach(p -> LOG.info("{}", p.dump(network)));
 
         return new ArrayList<>(paths.values());
     }
