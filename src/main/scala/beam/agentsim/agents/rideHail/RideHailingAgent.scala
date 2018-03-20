@@ -54,7 +54,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
         stop(Failure(s"RideHailingAgent $self attempted to become driver of vehicle ${vehicle.id} " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
-        eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(WaitingToDrive) replying CompletionNotice(triggerId) using data.copy(currentVehicle = Vector(vehicle.id))
       })

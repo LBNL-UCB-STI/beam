@@ -1,0 +1,125 @@
+package beam.agentsim
+
+import java.time.ZonedDateTime
+
+import akka.actor._
+import akka.testkit.{ImplicitSender, TestKit}
+import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
+import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
+import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.router.BeamRouter
+import beam.router.Modes.BeamMode
+import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
+import beam.router.r5.NetworkCoordinator
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamMobsim, BeamServices}
+import beam.utils.{BeamConfigUtils, DateUtils}
+import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent}
+import org.matsim.api.core.v01.population.{Leg, Person}
+import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.events.handler.{BasicEventHandler, EventHandler}
+import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
+import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.mockito.Matchers.any
+import org.mockito.Mockito.when
+import org.scalatest._
+import org.scalatest.mockito.MockitoSugar
+
+import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
+import scala.language.postfixOps
+
+class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFactory.parseString(
+  """
+  akka.test.timefactor=10
+  """))) with WordSpecLike with Matchers
+  with ImplicitSender with MockitoSugar with BeforeAndAfterAll with Inside {
+
+  var router: ActorRef = _
+  var geo: GeoUtils = _
+  var scenario: Scenario = _
+  var services: BeamServices = _
+  var networkCoordinator: NetworkCoordinator = _
+  var beamConfig: BeamConfig = _
+
+  override def beforeAll: Unit = {
+    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
+    beamConfig = BeamConfig(config)
+
+    // Have to mock a lot of things to get the router going
+    services = mock[BeamServices]
+    when(services.beamConfig).thenReturn(beamConfig)
+    geo = new GeoUtilsImpl(services)
+    when(services.geo).thenReturn(geo)
+    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
+    when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
+    when(services.modeChoiceCalculatorFactory).thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
+    val personRefs = TrieMap[Id[Person], ActorRef]()
+    when(services.personRefs).thenReturn(personRefs)
+    networkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
+    networkCoordinator.loadNetwork()
+
+    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+    val tollCalculator = mock[TollCalculator]
+    when(tollCalculator.calcToll(any())).thenReturn(0.0)
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    scenario = ScenarioUtils.loadScenario(matsimConfig)
+    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator), "router")
+    when(services.beamRouter).thenReturn(router)
+  }
+
+  override def afterAll: Unit = {
+    shutdown()
+  }
+
+  "The agentsim" must {
+    "let everybody walk when their plan says so" in {
+      scenario.getPopulation.getPersons.values().forEach(person => {
+        person.getSelectedPlan.getPlanElements.asScala.collect {
+          case (leg : Leg) =>
+            leg.setMode("walk")
+        }
+      })
+      val events = EventsUtils.createEventsManager()
+      events.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          event match {
+            case event: PersonDepartureEvent =>
+              assert(event.getLegMode == "walk")
+            case _ =>
+          }
+        }
+      })
+      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, events, system, new RideHailSurgePricingManager(beamConfig, None))
+      mobsim.run()
+    }
+
+    "let everybody take transit when their plan says so" in {
+      scenario.getPopulation.getPersons.values().forEach(person => {
+        person.getSelectedPlan.getPlanElements.asScala.collect {
+          case (leg : Leg) =>
+            leg.setMode("walk_transit")
+        }
+      })
+      val events = EventsUtils.createEventsManager()
+      events.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          event match {
+            case event: PersonDepartureEvent =>
+              println(event)
+            case _ =>
+          }
+        }
+      })
+      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, events, system, new RideHailSurgePricingManager(beamConfig, None))
+      mobsim.run()
+    }
+
+  }
+
+}
