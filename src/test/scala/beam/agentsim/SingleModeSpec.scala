@@ -17,7 +17,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.{BeamConfigUtils, DateUtils}
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.handler.BasicEventHandler
@@ -31,6 +31,7 @@ import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.language.postfixOps
 
 class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFactory.parseString(
@@ -84,18 +85,23 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
             leg.setMode("walk")
         }
       })
-      val events = EventsUtils.createEventsManager()
-      events.addHandler(new BasicEventHandler {
+      val events = mutable.ListBuffer[Event]()
+      val eventsManager = EventsUtils.createEventsManager()
+      eventsManager.addHandler(new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
           event match {
             case event: PersonDepartureEvent =>
-              println(event)
+              events += event
             case _ =>
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, events, system, new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
+      events.foreach {
+        case event: PersonDepartureEvent =>
+          assert(event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver")
+      }
     }
 
     "let everybody take transit when their plan says so" in {
@@ -105,18 +111,23 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
             leg.setMode("walk_transit")
         }
       })
-      val events = EventsUtils.createEventsManager()
-      events.addHandler(new BasicEventHandler {
+      val events = mutable.ListBuffer[Event]()
+      val eventsManager = EventsUtils.createEventsManager()
+      eventsManager.addHandler(new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
           event match {
             case event: PersonDepartureEvent =>
-              println(event)
+              events += event
             case _ =>
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, events, system, new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
+      events.foreach {
+        case event: PersonDepartureEvent =>
+          assert(event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver")
+      }
     }
 
     "let everybody take drive_transit when their plan says so" in {
@@ -140,20 +151,26 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
             person.getSelectedPlan.addLeg(leg)
         }
       })
-      val events = EventsUtils.createEventsManager()
-      events.addHandler(new BasicEventHandler {
+      val events = mutable.ListBuffer[Event]()
+      val eventsManager = EventsUtils.createEventsManager()
+      eventsManager.addHandler(new BasicEventHandler {
         override def handleEvent(event: Event): Unit = {
           event match {
-            case event: PersonDepartureEvent =>
-              println(event)
+            case event@ (_:PersonDepartureEvent | _:ActivityEndEvent) =>
+              events += event
             case _ =>
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, events, system, new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
+      events.collect {
+        case event: PersonDepartureEvent =>
+          // drive_transit can fail -- maybe I don't have a car
+          assert(event.getLegMode == "walk" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver")
+      }
+//      events.groupBy(_.getAttributes.get("person")).map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
-
 
   }
 

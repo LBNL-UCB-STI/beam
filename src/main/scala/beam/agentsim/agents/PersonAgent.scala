@@ -127,13 +127,14 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         nextAct => {
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
-          val preChosenMode = _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(data.currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
-            case None =>
-              None
-            case Some(ModeChoiceStrategy(mode)) =>
-              Some(mode)
-          }
-          goto(ChoosingMode) using ChoosesModeData(personData = data.copy(currentTourMode = preChosenMode))
+          goto(ChoosingMode) using ChoosesModeData(personData = data.copy(
+            // If we don't have a current tour mode (i.e. are not on a tour aka at home),
+            // use the mode of the next leg as the new tour mode.
+            currentTourMode = data.currentTourMode.orElse(_experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
+              case leg: Leg => Some(BeamMode.withValue(leg.getMode))
+              case _ => None
+            })
+          ))
         }
       )
   }
