@@ -119,6 +119,42 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
       mobsim.run()
     }
 
+    "let everybody take drive_transit when their plan says so" in {
+      scenario.getPopulation.getPersons.values().forEach(person => {
+        val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
+          case (activity: Activity) if activity.getType == "Home" =>
+            Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
+          case (activity: Activity) =>
+            Seq(activity)
+          case (leg: Leg) =>
+            Nil
+        }.flatten
+        if (newPlanElements.last.isInstanceOf[Leg]) {
+          newPlanElements.remove(newPlanElements.size-1)
+        }
+        person.getSelectedPlan.getPlanElements.clear()
+        newPlanElements.foreach {
+          case (activity: Activity) =>
+            person.getSelectedPlan.addActivity(activity)
+          case (leg: Leg) =>
+            person.getSelectedPlan.addLeg(leg)
+        }
+      })
+      val events = EventsUtils.createEventsManager()
+      events.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          event match {
+            case event: PersonDepartureEvent =>
+              println(event)
+            case _ =>
+          }
+        }
+      })
+      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, events, system, new RideHailSurgePricingManager(beamConfig, None))
+      mobsim.run()
+    }
+
+
   }
 
 }
