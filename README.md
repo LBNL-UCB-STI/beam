@@ -1,6 +1,6 @@
 # BEAM
 
-[![Build Status](https://travis-ci.org/LBNL-UCB-STI/beam.svg?branch=master)](https://travis-ci.org/LBNL-UCB-STI/beam)
+[![Build Status](http://ec2-18-188-90-189.us-east-2.compute.amazonaws.com:8080/job/beam/badge/icon)](http://ec2-18-188-90-189.us-east-2.compute.amazonaws.com:8080/job/beam/)
 [![Documentation Status](https://readthedocs.org/projects/beam/badge/?version=latest)](http://beam.readthedocs.io/en/latest/?badge=latest)
 
 BEAM stands for Behavior, Energy, Autonomy, and Mobility. The model is being developed as a framework for a series of research studies in sustainable transportation at Lawrence Berkeley National Laboratory and the UC Berkeley Institute for Transportation Studies.  
