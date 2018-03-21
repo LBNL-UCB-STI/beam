@@ -60,7 +60,10 @@ public class RideHailingWaitingStats implements IGraphStats {
     public void resetStats() {
         hourModeFrequency.clear();
         timeSlots.clear();
+        rideHailingWaiting.clear();
+        RideHailingWaitingStats.lastMax = 0;
     }
+
 
     private void processRideHailingWaitingTimes(Event event, double time) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
