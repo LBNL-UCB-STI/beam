@@ -189,13 +189,8 @@ trait ChoosesMode {
     case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = personData.currentTourMode match {
-        case Some(mode) if mode != WALK =>
-          val itinsWithoutWalk = if (mode == DRIVE_TRANSIT) {
-            combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
-          } else {
-            combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
-          }
-          if (itinsWithoutWalk.nonEmpty) itinsWithoutWalk else combinedItinerariesForChoice
+        case Some(mode) =>
+          combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
           combinedItinerariesForChoice
       }
