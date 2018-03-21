@@ -131,6 +131,9 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
     }
 
     "let everybody take drive_transit when their plan says so" in {
+      // Here, we only set the mode for the first leg of each tour -- prescribing a mode for the tour,
+      // but not for individual legs except the first one.
+      // We want to make sure that our car is returned home.
       scenario.getPopulation.getPersons.values().forEach(person => {
         val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
           case (activity: Activity) if activity.getType == "Home" =>
