@@ -137,11 +137,12 @@ trait ChoosesMode {
           }
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
-          currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
-            case 0 =>
+          (currentTour(choosesModeData.personData).tripIndexOfElement(nextAct), choosesModeData.personData.currentTourPersonalVehicle) match {
+            case (0,_) =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
-            case LastTripIndex =>
-              makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
+            // At the end of the tour, only drive home a vehicle that we have also taken away from there.
+            case (LastTripIndex, Some(currentTourPersonalVehicleId)) =>
+              makeRequestWith(Vector(TRANSIT), streetVehicles.filter(_.id == currentTourPersonalVehicleId) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
           }
@@ -187,8 +188,19 @@ trait ChoosesMode {
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
+      val nextAct = nextActivity(choosesModeData.personData).right.get
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = personData.currentTourMode match {
+        case Some(DRIVE_TRANSIT) =>
+          val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
+          currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
+            case 0 =>
+              combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
+            case LastTripIndex =>
+              combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
+            case _ =>
+              combinedItinerariesForChoice.filter(_.tripClassifier == WALK_TRANSIT)
+          }
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
@@ -258,8 +270,8 @@ trait ChoosesMode {
       goto(WaitingForDeparture) using data.personData.copy(
         currentTrip = data.pendingChosenTrip,
         restOfCurrentTrip = data.pendingChosenTrip.get.legs.toList,
-        currentTourMode = Some(chosenTrip.tripClassifier),
-        currentTourPersonalVehicle = personalVehicleUsed
+        currentTourMode = data.personData.currentTourMode.orElse(Some(chosenTrip.tripClassifier)),
+        currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehicleUsed)
       )
   }
 

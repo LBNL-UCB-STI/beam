@@ -170,9 +170,16 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
       events.collect {
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
-          assert(event.getLegMode == "walk" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver")
+          assert(event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver")
       }
-//      events.groupBy(_.getAttributes.get("person")).map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
+      val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
+      val filteredEventsByPerson = eventsByPerson.filter {
+        _._2
+          .filter(_.isInstanceOf[ActivityEndEvent])
+          .sliding(2)
+          .exists(pair => pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home"))
+      }
+      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
 
   }
