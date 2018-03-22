@@ -24,7 +24,7 @@ public class RideHailingWaitingStats implements IGraphStats {
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
-    private static final String yAxisTitle = "Waiting Time";
+    private static final String yAxisTitle = "Waiting Time (min)";
     private static final String fileName = "RideHailWaitingStats";
     private static HashMap<String, Event> rideHailingWaiting = new HashMap<>();
     private static int lastMax = 0;
