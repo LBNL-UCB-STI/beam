@@ -22,10 +22,10 @@ import java.util.*;
 public class RideHailingWaitingStats implements IGraphStats {
     private static Set<String> timeSlots = new TreeSet<>();
     private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
-    private static final String graphTitle = "Ride Hailing Waiting Histogram";
+    private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time";
-    private static final String fileName = "RideHailingWaitingStats.png";
+    private static final String fileName = "RideHailWaitingStats";
     private static HashMap<String, Event> rideHailingWaiting = new HashMap<>();
     private static int lastMax = 0;
 
@@ -116,13 +116,13 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     private void createModesFrequencyGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, fileName + ".png", legend);
         CategoryPlot plot = chart.getCategoryPlot();
         List<String> timeRanges = new ArrayList<>();
         timeRanges.addAll(timeSlots);
         Collections.sort(timeRanges);
         GraphUtils.plotLegendItems(plot, timeRanges, dataset.getRowCount());
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         writeToCSV(iterationNumber);
     }
@@ -132,40 +132,39 @@ public class RideHailingWaitingStats implements IGraphStats {
      * converts the given seconds to minutes and returns the range it lies in
      *
      * @param time seconds
-     * @return
+     * @return the upper bound of the range
      */
     private static synchronized String getTimeSlot(double time) {
-        time = time / 60;
+        time = Math.ceil(time / 60);
         if (((int) time) > lastMax) {
+            timeSlots.remove(""+lastMax);
             lastMax = (int) time;
         }
-        if (time < 1) return "0-1 mins";
-        else if (time < 2) return "1-2 mins";
-        else if (time < 4) return "2-4 mins";
-        else return "4-"+lastMax+" mins";
+        if (time < 1) return "1_min";
+        else if (time < 2) return "2_min";
+        else if (time <= 4) return "4_min";
+        else return lastMax + "_min";
     }
 
-
     private void writeToCSV(int iterationNumber) throws IOException {
-        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "RideHailWaitingStats.csv");
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         BufferedWriter out = null;
         try {
             out = new BufferedWriter(new FileWriter(new File(csvFileName)));
-            String heading = "Hour," + StringUtil.join(timeSlots, ",").replace(" mins","_min").replaceAll("[0-9]*-","");
+            String heading = "WaitingTime\\Hour";
+            for (int hours = 1; hours <= 24; hours++) {
+                heading += "," + hours;
+            }
             out.write(heading);
             out.newLine();
-            for (int i = 0; i < 24; i++) {
-                out.write("" + (i+1));
-                Map<String, Integer> innerMap = hourModeFrequency.get(i);
-                if (innerMap == null) {
-                    for (int j = 0; j < timeSlots.size(); j++)
-                        out.write(",0");
-                    out.newLine();
-                    continue;
-                }
-                for (String slot : timeSlots) {
-                    String frequency = innerMap.get(slot) == null ? "0" : innerMap.get(slot).toString();
-                    out.write("," + frequency);
+
+            for (String slot : timeSlots) {
+                out.write(slot);
+                String line = "";
+                for (int i = 0; i < 24; i++) {
+                    Map<String, Integer> innerMap = hourModeFrequency.get(i);
+                    line = (innerMap == null || innerMap.get(slot) == null) ? ",0" : "," + innerMap.get(slot);
+                    out.write(line);
                 }
                 out.newLine();
             }
@@ -178,7 +177,5 @@ public class RideHailingWaitingStats implements IGraphStats {
                 out.close();
             }
         }
-
-
     }
 }
