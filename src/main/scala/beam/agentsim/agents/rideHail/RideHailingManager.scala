@@ -96,8 +96,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   override def receive: Receive = {
     case NotifyIterationEnds() =>
       try {
-        val graphSurgePricing: GraphSurgePricing = new GraphSurgePricing(surgePricingManager);
-        graphSurgePricing.createGraphs()
+        /*val graphSurgePricing: GraphSurgePricing = new GraphSurgePricing(surgePricingManager, beamServices);
+        graphSurgePricing.createGraphs()*/
 
         val graphRideHailingRevenue: GraphRideHailingRevenue = new GraphRideHailingRevenue();
         graphRideHailingRevenue.createGraph(surgePricingManager)
