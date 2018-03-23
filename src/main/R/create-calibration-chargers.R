@@ -230,9 +230,9 @@ if(F){
 
 # Revise BEAM inputs, decide which public and residential chargers to include in outputs for calibration
 
-points <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points.csv',stringsAsFactors=F))
-sites  <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-with-counties.csv',stringsAsFactors=F))
-plug.types <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-plug-types.csv'))
+points <- data.table(read.csv('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-points.csv',stringsAsFactors=F))
+sites  <- data.table(read.csv('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-sites-with-counties.csv',stringsAsFactors=F))
+plug.types <- data.table(read.csv('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-plug-types.csv'))
 plug.types[,cp.type:=c('CHAdeMO'='CHAdeMO','J-1772-2'='J1772','J-1772-1'='NEMA','SAE-Combo-3'='SAE-Combo-CCS1')[as.character(plugTypeName)]]
 
 points <- join.on(points,sites,'siteID','id',c('latitude','longitude'))
@@ -264,7 +264,7 @@ n.new.points[,num:=cp.n-n]
 drop.points <- both[cp.n < n]
 drop.points[,num:=n-cp.n]
 
-do.or.load('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/work.Rdata',function(){
+do.or.load('/Users/critter/Documents/beam/input/nersc/calibration-v2/work.Rdata',function(){
   load('/Users/critter/Documents/beam/input/run0-201-plans-all.Rdata')
   load('/Users/critter/Documents/beam/input/sf-bay-sampled-plans.Rdata')
   plans <- plans[id%in%sampled.reg$smart.id]
@@ -309,7 +309,7 @@ tot.num.to.add <- sum(n.new.points$num)
 # We need to identify sites that should be reclassified as "workplace" by setting their policy ID to 7 which is how we are
 # noting workplace in BEAM. This reclass corresponds to the number of existing chargers from AFDC that we assume are workplace
 # based on the overlap of overall AFDC and CP, so about 860 chargers
-existing.sites <- data.table(read.csv('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-with-counties.csv'))
+existing.sites <- data.table(read.csv('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-sites-with-counties.csv'))
 non.tesla.sites <- existing.sites[policyID!=4]
 dist.mat <- dist2(non.tesla.sites[,list(latitude,longitude*1.25)],work[,list(latitude,longitude*1.25)]) # 1.25 here is degree lat per degre long @ 37.6 parallel
 num.within.mile <- apply(dist.mat,1,function(x){ sum(x<0.01)}) # count number of work locations within 2/3 mile of the charger
@@ -317,7 +317,7 @@ ids.to.reassign <- sample(non.tesla.sites$id,tot.cp.workplace - tot.num.to.add,r
 existing.sites[id%in%ids.to.reassign,policyID:=7]
 
 extra.work.pen <- 2
-for(extra.work.pen in c(0,0.5,1)){
+for(extra.work.pen in c(3,7)){
   n.new.points[,num.to.use:=num + round(extra.work.pen*num*tot.cp.workplace/tot.num.to.add)]
   site.id <- max(sites$id)+1
   point.id <- max(points$id)+1
@@ -356,14 +356,14 @@ for(extra.work.pen in c(0,0.5,1)){
   all.sites <- rbindlist(list(existing.sites,new.sites),use.names=T)
 
   if(T){
-    #write.csv(all.points,file=pp('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-points-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
-    #write.csv(all.sites,file=pp('/Users/critter/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/charging-sites-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
+    write.csv(all.points,file=pp('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-points-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
+    write.csv(all.sites,file=pp('/Users/critter/Documents/beam/input/nersc/calibration-v2/charging-sites-cp-more-work-',roundC(extra.work.pen*100,0),'pct.csv'),row.names=F)
   }
 }
 
 # now work on residential chargers to include in calibration
 
-person.att <- data.table(read.csv('~/GoogleDriveUCB/beam-core/model-inputs/calibration-v2/person-attributes-from-reg-with-spatial-group.csv'))
+person.att <- data.table(read.csv('/Users/critter/Documents/beam/input/nersc/calibration-v2/person-attributes-from-reg-with-spatial-group.csv'))
 
 cp.sum <- cp[type=='Residential' & start.month==12,list(n=length(u(device.id))),by=c('county')]
 

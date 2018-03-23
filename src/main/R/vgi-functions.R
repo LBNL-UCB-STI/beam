@@ -18,29 +18,31 @@ load.scenarios <- function(){
     gap[gap<0,gap:=0]
     gap[,hr.cal:=(hr-1)%%24+1]
     gap[,max.norm:=max.en-min(max.en),by=c('final.type','veh.type')]
-    gap[hr.cal<=4 & hr>30,max.norm:=max.norm - max(max.norm),by=c('final.type','veh.type')]
-    gap <- gap[hr>28]
-    setkey(gap,final.type,veh.type,hr.cal)
-    gap[hr>30 & hr.cal>=23]
-    max.start <- gap[hr>30 & hr.cal>=23,list(maxstart=diff(max.en)),by=c('final.type','veh.type')]
+    #gap[hr.cal<=4 & hr>32,max.norm:=max.norm - max(max.norm),by=c('final.type','veh.type')]
+    gap <- gap[hr>=30]
+    setkey(gap,final.type,veh.type,hr)
+    gap[hr>32 & hr.cal%in%4:5]
+    max.start <- gap[hr>32 & hr.cal%in%4:5,list(maxstart=diff(max.en)),by=c('final.type','veh.type')]
     gap <- join.on(gap,max.start,c('final.type','veh.type'))
     gap[,max.norm:=max.norm-min(max.norm)+maxstart,by=c('final.type','veh.type')]
     gap[,min.norm:=max.norm-gap]
-    min.start <- gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
+    min.start <- gap[hr>32 & hr.cal%in%4:5,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
     gap <- join.on(gap,min.start,c('final.type','veh.type'))
     gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
     gap
   }
+  # the.gap <- copy(gap.weekday)
+  # the.day <- the.wday
   scale.the.gap <- function(the.gap,cp.day.norm,the.day){
     day.name <- names(wdays[wdays==the.day])
     the.gap <- join.on(the.gap,cp.day.norm[wday==day.name],'final.type','type','norm.load')
     the.gap[,max.norm:=max.norm*norm.load]
     the.gap[,min.norm:=max.norm-gap*norm.load]
     the.gap[,plugged.in.capacity:=plugged.in.capacity*norm.load]
-    min.start <- the.gap[hr>30 & hr.cal>=23,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
+    min.start <- the.gap[hr>32 & hr.cal%in%4:5,list(minstart=diff(min.norm)),by=c('final.type','veh.type')]
     the.gap <- join.on(the.gap,min.start,c('final.type','veh.type'))
     the.gap[,min.norm.relative.to.min:=min.norm - min(min.norm)+minstart,by=c('final.type','veh.type')]
-    the.gap 
+    the.gap[hr<54] 
   }
 
 repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
