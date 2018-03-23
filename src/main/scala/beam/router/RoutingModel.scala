@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -93,6 +94,8 @@ object RoutingModel {
                      travelPath: BeamPath) {
     val endTime: Long = startTime + duration
 
+    def copyWithNewLinks(newLinks: Vector[Int]): BeamLeg = this.copy(travelPath = this.travelPath.copy(newLinks))
+
     override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
   }
 
@@ -126,7 +129,14 @@ object RoutingModel {
       Iterator.empty
     }
   }
+  def linksToTimeAndDistance(linkIds: Vector[Int], startTime: Long, travelTimeByEnterTimeAndLinkId: (Long, Int) => Long, streetLayer: StreetLayer) = {
+    def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
+    val traversalTimes = (startTime +: linkIds.scanLeft(startTime)(exitTimeByEnterTimeAndLinkId)).sliding(2).map(pair => pair.last - pair.head).toVector
+    val cumulDistance = linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
+    LinksTimesDistances(linkIds, traversalTimes, cumulDistance)
+  }
 
+  case class LinksTimesDistances(linkIds: Vector[Int], tavelTimes: Vector[Long], distances: Vector[Double])
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
 
   /**
@@ -136,6 +146,7 @@ object RoutingModel {
 
     */
   case class BeamPath(linkIds: Vector[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
+    def duration = endPoint.time - startPoint.time
 
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
 

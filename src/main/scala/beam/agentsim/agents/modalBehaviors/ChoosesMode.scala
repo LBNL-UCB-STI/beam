@@ -137,11 +137,11 @@ trait ChoosesMode {
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
         case Some(DRIVE_TRANSIT) =>
-          val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
+          val lastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
             case 0 =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
-            case LastTripIndex =>
+            case lastTripIndex =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
