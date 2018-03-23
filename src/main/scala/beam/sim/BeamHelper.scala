@@ -7,6 +7,7 @@ import java.util.Properties
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
+import beam.analysis.plots.GraphSurgePricing
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
@@ -68,6 +69,9 @@ trait BeamHelper {
         bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
 
         addControlerListenerBinding().to(classOf[BeamSim])
+
+        addControlerListenerBinding().to(classOf[GraphSurgePricing])
+
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
