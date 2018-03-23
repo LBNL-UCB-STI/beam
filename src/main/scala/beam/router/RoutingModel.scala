@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.events.{Event, LinkEnterEvent, LinkLeaveEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -129,14 +130,14 @@ object RoutingModel {
       Iterator.empty
     }
   }
-  def linksToTimeAndDistance(linkIds: Vector[Int], startTime: Long, travelTimeByEnterTimeAndLinkId: (Long, Int) => Long, streetLayer: StreetLayer) = {
-    def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId)
-    val traversalTimes = (startTime +: linkIds.scanLeft(startTime)(exitTimeByEnterTimeAndLinkId)).sliding(2).map(pair => pair.last - pair.head).toVector
+  def linksToTimeAndDistance(linkIds: Vector[Int], startTime: Long, travelTimeByEnterTimeAndLinkId: (Long, Int, StreetMode) => Long, mode: StreetMode, streetLayer: StreetLayer) = {
+    def exitTimeByEnterTimeAndLinkId(enterTime: Long, linkId: Int) = enterTime + travelTimeByEnterTimeAndLinkId(enterTime, linkId, mode)
+    val traversalTimes = linkIds.scanLeft(startTime)(exitTimeByEnterTimeAndLinkId).sliding(2).map(pair => pair.last - pair.head).toVector
     val cumulDistance = linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
     LinksTimesDistances(linkIds, traversalTimes, cumulDistance)
   }
 
-  case class LinksTimesDistances(linkIds: Vector[Int], tavelTimes: Vector[Long], distances: Vector[Double])
+  case class LinksTimesDistances(linkIds: Vector[Int], travelTimes: Vector[Long], distances: Vector[Double])
   case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
 
   /**

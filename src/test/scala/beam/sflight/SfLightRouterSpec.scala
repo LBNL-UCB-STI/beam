@@ -115,7 +115,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       //      assertMakesSense(carOption)
       val actualModesOfCarOption = carOption.toBeamTrip().legs.map(_.mode)
-      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, CAR, WALK)
     }
 
     "respond with a walk and a car route for going from downtown SF to Treasure Island" in {
@@ -180,7 +180,7 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
           assertMakesSense(carTrip)
           inside(carTrip) {
             case BeamTrip(legs, _) =>
-              legs should have size 3
+              legs should have size 4
               inside(legs(0)) {
                 case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
                   mode should be(WALK)
@@ -192,10 +192,14 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
               }
               inside(legs(2)) {
                 case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
+                  mode should be(CAR)
+                  links should not be 'empty
+              }
+              inside(legs(3)) {
+                case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _)) =>
                   mode should be(WALK)
               }
           }
-
         })
       })
     }
