@@ -179,6 +179,14 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           .sliding(2)
           .exists(pair => pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home"))
       }
+      eventsByPerson.map {
+        _._2.span {
+          case event: ActivityEndEvent if event.getActType == "Home" =>
+            true
+          case _ =>
+            false
+        }
+      }
       filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
 
