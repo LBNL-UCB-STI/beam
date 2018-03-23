@@ -56,6 +56,8 @@ object PersonAgent {
 
   case object ChoosingMode extends Traveling
 
+  case object WaitingForDeparture extends Traveling
+
   case object WaitingForReservationConfirmation extends Traveling
 
   case object Waiting extends Traveling
@@ -80,6 +82,8 @@ object PersonAgent {
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
+
+  override def logDepth: Int = 100
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
@@ -125,18 +129,22 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
         nextAct => {
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
-          val preChosenMode = _experiencedBeamPlan.getStrategy(_experiencedBeamPlan.activities(data.currentActivityIndex + 1), classOf[ModeChoiceStrategy]) match {
-            case None =>
-              None
-            case Some(ModeChoiceStrategy(mode)) =>
-              Some(mode)
-          }
-          goto(ChoosingMode) using ChoosesModeData(personData = data.copy(currentTourMode = preChosenMode))
+          goto(ChoosingMode) using ChoosesModeData(personData = data.copy(
+            // If we don't have a current tour mode (i.e. are not on a tour aka at home),
+            // use the mode of the next leg as the new tour mode.
+            currentTourMode = data.currentTourMode.orElse(_experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
+              case leg: Leg => Some(BeamMode.withValue(leg.getMode))
+              case _ => None
+            })
+          ))
         }
       )
   }
 
-  when(Waiting) {
+  when(WaitingForDeparture) {
+    /*
+     * Callback from ChoosesMode
+     */
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), data@BasePersonData(_, Some(currentTrip),_,_,_,_,_,false)) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
@@ -147,8 +155,28 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
 
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,_,_,_,_,_,true)) =>
+      // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
+  }
+
+  when(Waiting) {
+    // These are responses to a transit reservation for right now -- getting on a bus, basically.
+    // It is sent from ProcessingNextLegOrStartActivity.
+    // That's why we expect the response here in this state.
+
+    // If boarding the bus fails, go back to choosing mode.
+    case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
+      holdTickAndTriggerId(tick, triggerId)
+      goto(ChoosingMode) using ChoosesModeData(data)
+
+    // If boarding succeeds, stay and wait for the NotifyLegStartTrigger
+    case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
+      val (_, triggerId) = releaseTickAndTriggerId()
+      scheduler ! CompletionNotice(triggerId)
+      stay()
 
     /*
      * Learn as passenger that leg is starting
@@ -160,20 +188,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_, _)) if beamLeg == currentLeg.beamLeg =>
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
-
-    case Event(reservationResponse: ReservationResponse, data: BasePersonData) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      reservationResponse.response.fold(
-        error => {
-          log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
-          holdTickAndTriggerId(tick, triggerId)
-          goto(ChoosingMode) using ChoosesModeData(data)
-        },
-        confirmation => {
-          scheduler ! CompletionNotice(triggerId)
-          stay()
-        }
-      )
   }
 
   when(Moving) {
