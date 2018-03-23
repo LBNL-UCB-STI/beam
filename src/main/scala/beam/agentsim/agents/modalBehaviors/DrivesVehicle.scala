@@ -41,6 +41,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
   when(Driving) {
+    // When I already started driving on the schedule.head leg, I cannot take reservations for it anymore
+    case Event(req: ReservationRequest, data) if req.departFrom.startTime == data.passengerSchedule.schedule.head._1.startTime =>
+      log.error("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
+      stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
+
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       val currentVehicleUnderControl = data.currentVehicle.head
       // If no manager is set, we ignore
@@ -101,7 +106,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       log.error("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
-    case Event(req: ReservationRequest, data) if req.departFrom.startTime <= data.passengerSchedule.schedule.head._1.startTime =>
+    case Event(req: ReservationRequest, data) if req.departFrom.startTime < data.passengerSchedule.schedule.head._1.startTime =>
       log.error("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 

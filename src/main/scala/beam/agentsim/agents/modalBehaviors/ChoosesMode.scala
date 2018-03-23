@@ -65,12 +65,7 @@ trait ChoosesMode {
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val departTime = DiscreteTime(_currentTick.get.toInt + PLANNING_DELAY)
-      val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
-        case l: Leg => Some(l)
-        case _ => None
-      }
-      val maybeMode = maybeLeg.map(l => BeamMode.withValue(l.getMode))
-      val availablePersonalStreetVehicles = maybeMode match {
+      val availablePersonalStreetVehicles = choosesModeData.personData.currentTourMode match {
         case None | Some(CAR | BIKE) =>
           // In these cases, a personal vehicle will be involved
           streetVehicles.filter(_.asDriver)
@@ -87,7 +82,7 @@ trait ChoosesMode {
       }
 
       // Mark rideHailingResult as None if we need to request a new one, or fake a result if we don't need to make a request
-      val rideHailingResult = maybeMode match {
+      val rideHailingResult = choosesModeData.personData.currentTourMode match {
         case None | Some(RIDE_HAIL) =>
           None
         case _ =>
@@ -114,7 +109,7 @@ trait ChoosesMode {
       }
 
       // Form and send requests
-      maybeMode match {
+      choosesModeData.personData.currentTourMode match {
         case None =>
           makeRequestWith(Vector(TRANSIT), streetVehicles :+ bodyStreetVehicle)
           makeRideHailRequest()
@@ -123,6 +118,10 @@ trait ChoosesMode {
         case Some(WALK_TRANSIT) =>
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
         case Some(mode @ (CAR | BIKE)) =>
+          val maybeLeg = _experiencedBeamPlan.getPlanElements.get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct)-1) match {
+            case l: Leg => Some(l)
+            case _ => None
+          }
           maybeLeg.map(l => (l, l.getRoute)) match {
             case Some((l, r: NetworkRoute)) =>
               val maybeVehicle = filterStreetVehiclesForQuery(streetVehicles, mode).headOption
@@ -137,12 +136,13 @@ trait ChoosesMode {
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
         case Some(DRIVE_TRANSIT) =>
-          val lastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
-          currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
-            case 0 =>
+          val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
+          (currentTour(choosesModeData.personData).tripIndexOfElement(nextAct), choosesModeData.personData.currentTourPersonalVehicle) match {
+            case (0,_) =>
               makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle)
-            case lastTripIndex =>
-              makeRequestWith(Vector(TRANSIT), filterStreetVehiclesForQuery(streetVehicles, CAR) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
+            // At the end of the tour, only drive home a vehicle that we have also taken away from there.
+            case (LastTripIndex, Some(currentTourPersonalVehicleId)) =>
+              makeRequestWith(Vector(TRANSIT), streetVehicles.filter(_.id == currentTourPersonalVehicleId) :+ bodyStreetVehicle, streetVehiclesAsAccess = false)
             case _ =>
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle))
           }
@@ -188,15 +188,21 @@ trait ChoosesMode {
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult), _, _), _, _, _) =>
+      val nextAct = nextActivity(choosesModeData.personData).right.get
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = personData.currentTourMode match {
-        case Some(mode) if mode != WALK =>
-          val itinsWithoutWalk = if (mode == DRIVE_TRANSIT) {
-            combinedItinerariesForChoice.filter(itin => itin.tripClassifier == CAR || itin.tripClassifier == DRIVE_TRANSIT)
-          } else {
-            combinedItinerariesForChoice.filter(_.tripClassifier != WALK)
+        case Some(DRIVE_TRANSIT) =>
+          val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
+          currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
+            case 0 =>
+              combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
+            case LastTripIndex =>
+              combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
+            case _ =>
+              combinedItinerariesForChoice.filter(_.tripClassifier == WALK_TRANSIT)
           }
-          if (itinsWithoutWalk.nonEmpty) itinsWithoutWalk else combinedItinerariesForChoice
+        case Some(mode) =>
+          combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
           combinedItinerariesForChoice
       }
@@ -261,11 +267,11 @@ trait ChoosesMode {
           .rideHailingAgentLocation.vehicleId)
       }
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime - PLANNING_DELAY, tick)), self)))
-      goto(Waiting) using data.personData.copy(
+      goto(WaitingForDeparture) using data.personData.copy(
         currentTrip = data.pendingChosenTrip,
         restOfCurrentTrip = data.pendingChosenTrip.get.legs.toList,
-        currentTourMode = Some(chosenTrip.tripClassifier),
-        currentTourPersonalVehicle = personalVehicleUsed
+        currentTourMode = data.personData.currentTourMode.orElse(Some(chosenTrip.tripClassifier)),
+        currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehicleUsed)
       )
   }
 
