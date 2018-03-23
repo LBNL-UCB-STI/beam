@@ -200,6 +200,12 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
                   mode should be(WALK)
               }
           }
+
+          // Finally make sure durations within the trip are self-consistent
+          val carEmbodiedTrip = response.itineraries.find(_.tripClassifier == CAR)
+          assert(carEmbodiedTrip.get.totalTravelTime == carEmbodiedTrip.get.legs.foldLeft(0.0)(_ + _.beamLeg.duration))
+          assert(carEmbodiedTrip.get.totalTravelTime == carEmbodiedTrip.get.legs.foldLeft(0.0)(_ + _.beamLeg.travelPath.duration))
+
         })
       })
     }
