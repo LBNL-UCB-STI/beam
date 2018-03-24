@@ -245,7 +245,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       }
       def splitLegForParking(leg: BeamLeg): Vector[BeamLeg] = {
         val theLinkIds = leg.travelPath.linkIds
-        if(leg.mode == WALK || theLinkIds.length <= 1){
+        if(theLinkIds.length <= 1){
           Vector(leg)
         }else if(leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters){
           val firstLeg = updateLegWithCurrentTravelTime(leg.copyWithNewLinks(Vector(theLinkIds.head)))
@@ -289,8 +289,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
 
           val theTravelPath = buildStreetPath(access, tripStartTime, toR5StreetMode(access.mode))
-          val splitLegs = splitLegForParking(BeamLeg(tripStartTime, mapLegMode(access.mode), theTravelPath.duration, travelPath = theTravelPath))
-
+          val theLeg = BeamLeg(tripStartTime, mapLegMode(access.mode), theTravelPath.duration, travelPath = theTravelPath)
+          val splitLegs = if(access.mode != LegMode.WALK && routingRequest.mustParkAtEnd){
+            splitLegForParking(theLeg)
+          }else{
+            Vector(theLeg)
+          }
           // assign toll to first part of the split
           legsWithFares :+= (splitLegs.head, toll)
           splitLegs.tail.foreach(leg => legsWithFares :+= (leg, 0.0))
