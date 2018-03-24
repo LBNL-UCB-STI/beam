@@ -48,8 +48,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       val currentVehicleUnderControl = data.currentVehicle.head
-      // If no manager is set, we ignore
+      // Let vehicle manager know vehicle is idle, if no manager is set, we ignore
       beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint)))
+      // Let passengers know leg has ended
       data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.foreach { pv =>
         beamServices.personRefs.get(pv.personId).foreach { personRef =>
           logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
@@ -60,6 +61,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         beamServices.vehicles(currentVehicleUnderControl).getType,
         data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.size, data.passengerSchedule.schedule.firstKey))
 
+      // Update schedule by removing the ended leg
       val newSchedule = PassengerSchedule(data.passengerSchedule.schedule - data.passengerSchedule.schedule.firstKey)
 
       if (newSchedule.schedule.nonEmpty) {
