@@ -8,6 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -35,6 +36,7 @@ trait BeamServices extends ActorInject {
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator
   val dates: DateUtils
+  val tazTreeMap: TAZTreeMap
 
   var beamRouter: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
@@ -50,6 +52,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
   val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
+  val tazTreeMap: TAZTreeMap = injector.getInstance(classOf[TAZTreeMap])
 
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
   var beamRouter: ActorRef = _

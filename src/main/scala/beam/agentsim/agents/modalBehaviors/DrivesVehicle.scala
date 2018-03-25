@@ -5,6 +5,7 @@ import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -65,8 +66,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       val newSchedule = PassengerSchedule(data.passengerSchedule.schedule - data.passengerSchedule.schedule.firstKey)
 
       if (newSchedule.schedule.nonEmpty) {
-        val nextLeg = newSchedule.schedule.firstKey
-        goto(WaitingToDrive) using data.withPassengerSchedule(newSchedule).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
+        if(data.hasParkingBehaviors){
+          holdTickAndTriggerId(tick, triggerId)
+          goto(ChoosingParkingSpot) using ChoosesParkingData(data.withPassengerSchedule(newSchedule).asInstanceOf[BasePersonData]).asInstanceOf[T]
+        }else{
+          val nextLeg = newSchedule.schedule.firstKey
+          goto(WaitingToDrive) using data.withPassengerSchedule(newSchedule).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
+        }
       } else {
         holdTickAndTriggerId(tick, triggerId)
         self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint))

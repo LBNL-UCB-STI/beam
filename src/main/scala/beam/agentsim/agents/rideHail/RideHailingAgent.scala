@@ -27,6 +27,7 @@ object RideHailingAgent {
 
   case class RideHailingAgentData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+    override def hasParkingBehaviors: Boolean = false
   }
 
   def isRideHailingLeg(currentLeg: EmbodiedBeamLeg): Boolean = {

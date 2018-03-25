@@ -292,6 +292,7 @@ object ChoosesMode {
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
+    override def hasParkingBehaviors: Boolean = true
   }
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])

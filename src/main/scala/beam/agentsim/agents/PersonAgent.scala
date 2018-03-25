@@ -9,9 +9,11 @@ import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, NotifyLegStartTrigger, StartLegTrigger}
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
+import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
@@ -42,12 +44,17 @@ object PersonAgent {
     def currentVehicle: VehicleStack
     def passengerSchedule: PassengerSchedule
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData
+    def hasParkingBehaviors: Boolean
   }
 
   type VehicleStack = Vector[Id[Vehicle]]
 
-  case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: List[EmbodiedBeamLeg] = List(), currentVehicle: VehicleStack = Vector(), currentTourMode: Option[BeamMode] = None, currentTourPersonalVehicle: Option[Id[Vehicle]] = None, passengerSchedule: PassengerSchedule = PassengerSchedule(), hasDeparted: Boolean = false) extends PersonData {
+  case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None,
+                            restOfCurrentTrip: List[EmbodiedBeamLeg] = List(), currentVehicle: VehicleStack = Vector(),
+                            currentTourMode: Option[BeamMode] = None, currentTourPersonalVehicle: Option[Id[Vehicle]] = None,
+                            passengerSchedule: PassengerSchedule = PassengerSchedule(), hasDeparted: Boolean = false) extends PersonData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+    override def hasParkingBehaviors: Boolean = true
   }
 
   case object PerformingActivity extends BeamAgentState
@@ -80,8 +87,11 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
-  HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
+class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator,
+                  val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef,
+                  val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan,
+                  val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with HasServices with ChoosesMode with
+  DrivesVehicle[PersonData] with ChoosesParking with Stash {
 
   override def logDepth: Int = 100
 
@@ -239,7 +249,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * This should be called when it's time to either embark on another leg in a trip or to wrap up a trip that is
    * now complete. There are four outcomes possible:
    *
-   * 1 There are more legs in the trip and the PersonAgent is the driver => stay in current state but schedule
+   * 1 There are more legs in the trip and the PersonAgent is the driver => goto WaitingToDrive and schedule
    * StartLegTrigger
    * 2 There are more legs in the trip but the PersonAGent is a passenger => goto Waiting and schedule nothing
    * further (the driver will initiate the start of the leg)
@@ -247,12 +257,14 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * of activity
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
-  when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
-    case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::_,currentVehicle,_,_,_,_)) if nextLeg.asDriver =>
+  when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero){
+    case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::restOfCurrentTrip,currentVehicle,_,_,_,_)) if nextLeg.asDriver =>
       val (tick, triggerId) = releaseTickAndTriggerId()
+      val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
+
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)))
       goto(WaitingToDrive) using data.copy(
-        passengerSchedule = data.passengerSchedule.addLegs(Vector(nextLeg.beamLeg)),
+        passengerSchedule = data.passengerSchedule.addLegs(legsToInclude.map(_.beamLeg).toVector),
         currentVehicle = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)
           vehicle.becomeDriver(self).fold(
