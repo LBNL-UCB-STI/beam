@@ -13,6 +13,6 @@ dependencies:
 test:
   timeout: 1800
 
-notify:
-  webhooks:
-    - url: https://hooks.glip.com/webhook/6ce6971f-d577-4905-8bf2-fd0ed9fafb4c
+#notify:
+#  webhooks:
+#    - url: https://hooks.glip.com/webhook/6ce6971f-d577-4905-8bf2-fd0ed9fafb4c
