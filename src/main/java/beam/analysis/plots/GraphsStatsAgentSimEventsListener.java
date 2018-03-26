@@ -7,15 +7,13 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 
 /**
@@ -28,6 +26,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     public static final String RIDE = "ride";
     public static final String TNC = "tnc";
     public static final String WALK="walk";
+    public static final String RIDE_HAILING = "ride_hailing";
     public static final String TNC_DEAD_HEADING_DISTANCE="tnc_deadheading_distance";
 
     public static OutputDirectoryHierarchy CONTROLLER_IO;
@@ -35,11 +34,11 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
     public static final int GRAPH_WIDTH =800;
     // Static Initializer
 
-
     private IGraphStats deadHeadingStats = new DeadHeadingStats();
     private IGraphStats fuelUsageStats = new FuelUsageStats();
     private IGraphStats modeChoseStats = new ModeChosenStats();
     private IGraphStats personTravelTimeStats = new PersonTravelTimeStats();
+    private IGraphStats rideHailingWaitingStats = new RideHailingWaitingStats();
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener() {
@@ -58,12 +57,14 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         fuelUsageStats.resetStats();
         modeChoseStats.resetStats();
         personTravelTimeStats.resetStats();
+        rideHailingWaitingStats.resetStats();
     }
 
     @Override
     public void handleEvent(Event event) {
 
         if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
+            rideHailingWaitingStats.processStats(event);
             modeChoseStats.processStats(event);
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             fuelUsageStats.processStats(event);
@@ -72,6 +73,8 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
             personTravelTimeStats.processStats(event);
         } else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE)) {
             personTravelTimeStats.processStats(event);
+        } else if (event instanceof PersonEntersVehicleEvent || event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE)){
+            rideHailingWaitingStats.processStats(event);
         }
     }
 
@@ -81,6 +84,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler {
         deadHeadingStats.createGraph(event,"TNC0");
         deadHeadingStats.createGraph(event,"");
         personTravelTimeStats.resetStats();
+        rideHailingWaitingStats.createGraph(event);
     }
 
      // helper methods
