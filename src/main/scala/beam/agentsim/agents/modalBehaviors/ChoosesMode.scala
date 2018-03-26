@@ -136,6 +136,7 @@ trait ChoosesMode {
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
         case Some(DRIVE_TRANSIT) =>
+          // Non-standard capitalization actually needed here for the pattern matching to work correctly
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (currentTour(choosesModeData.personData).tripIndexOfElement(nextAct), choosesModeData.personData.currentTourPersonalVehicle) match {
             case (0,_) =>
@@ -192,6 +193,7 @@ trait ChoosesMode {
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = personData.currentTourMode match {
         case Some(DRIVE_TRANSIT) =>
+          // Non-standard capitalization actually needed here for the pattern matching to work correctly
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
             case 0 =>

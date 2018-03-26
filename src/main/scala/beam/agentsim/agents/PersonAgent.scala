@@ -258,6 +258,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero){
+    // Non-empty trips with me as driver
     case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::restOfCurrentTrip,currentVehicle,_,_,_,_)) if nextLeg.asDriver =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
@@ -278,16 +279,18 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           currentVehicle
         }
       )
+    // Non-empty transit trips
     case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_)) if nextLeg.beamLeg.mode.isTransit() =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(Waiting)
+    // Other non-empty trips (note the _::_ isn't a catch-all, empty trips pass through)
     case Event(StateTimeout, BasePersonData(_,_,_::_,_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Waiting)
-
+    // Empty trips (i.e. we're done with travel)
     case Event(StateTimeout, data@BasePersonData(currentActivityIndex, Some(currentTrip),_,_,currentTourMode,currentTourPersonalVehicle,_,_)) =>
       nextActivity(data) match {
         case Right(activity) =>
