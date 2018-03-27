@@ -1,13 +1,13 @@
 package beam.agentsim.infrastructure
 
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
 import beam.agentsim.infrastructure.ParkingStall._
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
-import beam.router.Modes.BeamMode.CABLE_CAR
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -16,7 +16,8 @@ import scala.collection.mutable
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class ZonalParkingManager(override val beamServices: BeamServices, tazTreeMap:TAZTreeMap, parkingAttributes: ObjectAttributes) extends ParkingManager(tazTreeMap,parkingAttributes)
+class ZonalParkingManager(override val beamServices: BeamServices, val beamRouter: ActorRef,
+                          tazTreeMap:TAZTreeMap, parkingStockAttributes: ParkingStockAttributes) extends ParkingManager(tazTreeMap,parkingStockAttributes)
   with HasServices{
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] = collection.mutable.Map[Id[ParkingStall], ParkingStall]()
   val pooledResources: mutable.Map[StallAttributes,Int] = mutable.Map()
@@ -73,17 +74,17 @@ class ZonalParkingManager(override val beamServices: BeamServices, tazTreeMap:TA
         None
       }
 
-      maybeDominantSpot match {
+      respondWithStall(maybeDominantSpot match {
         case Some(stall) =>
-          respondWithStall(stall)
+          stall
         case None =>
           chargingPreference match {
             case NoNeed =>
-              respondWithStall(selectPublicStall(inquiry,500.0))
+              selectPublicStall(inquiry,500.0)
             case _ =>
-              respondWithStall(selectStallWithCharger(inquiry,500.0))
+              selectStallWithCharger(inquiry,500.0)
           }
-      }
+      })
   }
 
   def maybeCreateNewStall(attrib: StallAttributes,atLocation: Location, withCost: Double): Option[ParkingStall] = {
@@ -127,9 +128,9 @@ class ZonalParkingManager(override val beamServices: BeamServices, tazTreeMap:TA
           val walkingDistance = beamServices.geo.distInMeters(stallLoc,inquiry.destination)
           val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 / inquiry.valueOfTime // 1.4 m/s avg. walk
           val cost = calculateCost(attrib, inquiry.arrivalTime, inquiry.parkingDuration)
-          ParkingAlternative(attrib, stallLoc, cost + valueOfTimeSpentWalking)
+          Vector(ParkingAlternative(attrib, stallLoc, cost + valueOfTimeSpentWalking))
         }else{
-          Vector()
+          Vector[ParkingAlternative]()
         }
       }.flatten
     }.flatten
@@ -166,11 +167,11 @@ class ZonalParkingManager(override val beamServices: BeamServices, tazTreeMap:TA
 
 object ZonalParkingManager{
   case class ParkingAlternative(stallAttributes: StallAttributes, location: Location, cost: Double)
-}
 
-// IDEAS
-// override def calcCost(parkingType: String, arrivalTime: Double, parkingDuration: String): Unit = ???
-// override def getCheapestParkingInSameTAZ(): Unit = ???
+  def props(beamServices: BeamServices, beamRouter: ActorRef, tazTreeMap: TAZTreeMap, parkingStockAttributes: ParkingStockAttributes): Props = {
+    Props(new ZonalParkingManager(beamServices, beamRouter, tazTreeMap, parkingStockAttributes))
+  }
+}
 
 
 

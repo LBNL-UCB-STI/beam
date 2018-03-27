@@ -13,7 +13,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
@@ -33,9 +33,10 @@ import scala.concurrent.duration._
   */
 object PersonAgent {
 
-  def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
-            humanBodyVehicleId: Id[Vehicle]): Props = {
-    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId))
+  def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork,
+            router: ActorRef, rideHailingManager: ActorRef, parkingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent],
+            household: Household, plan: Plan, humanBodyVehicleId: Id[Vehicle]): Props = {
+    Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, parkingManager, eventsManager, personId, plan, humanBodyVehicleId))
   }
 
   trait PersonData extends DrivingData
@@ -88,7 +89,7 @@ object PersonAgent {
 }
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator,
-                  val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef,
+                  val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val parkingManager: ActorRef,
                   val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan,
                   val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with HasServices with ChoosesMode with
   DrivesVehicle[PersonData] with ChoosesParking with Stash {

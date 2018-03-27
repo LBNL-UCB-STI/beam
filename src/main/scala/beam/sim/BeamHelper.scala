@@ -6,7 +6,7 @@ import java.util.Properties
 
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 import beam.analysis.plots.GraphSurgePricing
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice

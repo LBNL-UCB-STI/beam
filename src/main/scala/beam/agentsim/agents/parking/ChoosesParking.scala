@@ -6,8 +6,10 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot}
 import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.router.RoutingModel.BeamLeg
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -28,10 +30,19 @@ object ChoosesParking {
 trait ChoosesParking {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  when(ChoosingParkingSpot, stateTimeout = Duration.Zero) {
-    case Event(StateTimeout, data@ChoosesParkingData(_)) =>
+  onTransition {
+    case Driving -> ChoosingMode =>
+      val personData = stateData.asInstanceOf[ChoosesParkingData].personData
+      val nextBeamLeg: BeamLeg = personData.restOfCurrentTrip.head.beamLeg
+
+      //TODO source value of time from appropriate place
+      parkingManager ! ParkingInquiry(id, nextBeamLeg.travelPath.startPoint.loc, nextBeamLeg.travelPath.endPoint.loc, nextActivity(personData).right.get.getType,
+        17.0, NoNeed, nextBeamLeg.endTime, nextActivity(personData).right.get.getEndTime - nextBeamLeg.endTime.toDouble)
+  }
+  when(ChoosingParkingSpot) {
+    case Event(response: ParkingInquiryResponse, data@ChoosesParkingData(_)) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      beamServices.tazTreeMap
+
       val nextLeg = data.passengerSchedule.schedule.head._1
       goto(WaitingToDrive) using data.personData replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
   }

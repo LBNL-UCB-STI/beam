@@ -13,6 +13,8 @@ import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAg
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
+import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
@@ -37,7 +39,8 @@ import scala.concurrent.duration.FiniteDuration
   *
   * Created by sfeygin on 2/8/17.
   */
-class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim {
+class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager,
+                           val actorSystem: ActorSystem, val tazTreeMap: TAZTreeMap, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val log = Logger.getLogger(classOf[BeamMobsim])
@@ -65,7 +68,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       private val rideHailingManager = context.actorOf(RideHailingManager.props(beamServices, scheduler, beamServices.beamRouter, envelopeInUTM,rideHailSurgePricingManager), "RideHailingManager")
       context.watch(rideHailingManager)
-      private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, eventsManager), "population")
+      private val parkingManager = context.actorOf(ZonalParkingManager.props(beamServices,  beamServices.beamRouter, tazTreeMap, ParkingStockAttributes(100)), "ParkingManager")
+      context.watch(parkingManager)
+      private val population = context.actorOf(Population.props(scenario, beamServices, scheduler, transportNetwork, beamServices.beamRouter, rideHailingManager, parkingManager, eventsManager), "population")
       context.watch(population)
       Await.result(population ? Identify(0), timeout.duration)
 
