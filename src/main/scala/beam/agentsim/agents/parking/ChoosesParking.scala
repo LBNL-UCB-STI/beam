@@ -31,17 +31,20 @@ trait ChoosesParking {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   onTransition {
-    case Driving -> ChoosingMode =>
-      val personData = stateData.asInstanceOf[ChoosesParkingData].personData
+    case Driving -> ChoosingParkingSpot =>
+      val personData = stateData.asInstanceOf[BasePersonData]
       val nextBeamLeg: BeamLeg = personData.restOfCurrentTrip.head.beamLeg
 
       //TODO source value of time from appropriate place
-      parkingManager ! ParkingInquiry(id, nextBeamLeg.travelPath.startPoint.loc, nextBeamLeg.travelPath.endPoint.loc, nextActivity(personData).right.get.getType,
+      parkingManager ! ParkingInquiry(id, beamServices.geo.wgs2Utm(nextBeamLeg.travelPath.startPoint.loc),
+        beamServices.geo.wgs2Utm(nextBeamLeg.travelPath.endPoint.loc), nextActivity(personData).right.get.getType,
         17.0, NoNeed, nextBeamLeg.endTime, nextActivity(personData).right.get.getEndTime - nextBeamLeg.endTime.toDouble)
   }
   when(ChoosingParkingSpot) {
-    case Event(response: ParkingInquiryResponse, data@ChoosesParkingData(_)) =>
+    case Event(ParkingInquiryResponse(stall), data@ChoosesParkingData(_)) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
+
+      stall
 
       val nextLeg = data.passengerSchedule.schedule.head._1
       goto(WaitingToDrive) using data.personData replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))

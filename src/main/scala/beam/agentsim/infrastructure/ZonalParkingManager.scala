@@ -55,10 +55,10 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       // Because the ZonalParkingManager is in charge of deciding which stalls to assign, this should never be received
       throw new RuntimeException("Illegal use of CheckOutResource, ZonalParkingManager is responsible for checking out stalls in fleet.")
 
-    case inquiry@ParkingInquiry(customerId: Id[PersonAgent], customerLocation: Location, destination: Location,
+    case inquiry@ParkingInquiry(customerId: Id[PersonAgent], customerLocationUtm: Location, destinationUtm: Location,
       activityType: String, valueOfTime: Double, chargingPreference: ChargingPreference, arrivalTime: Long, parkingDuration: Double) =>
 
-      val nearbyTazsWithDistances = findTAZsWithDistances(destination, 500.0)
+      val nearbyTazsWithDistances = findTAZsWithDistances(destinationUtm, 5000.0)
       val preferredType = activityType match {
         case act if act.equalsIgnoreCase("home") => Residential
         case act if act.equalsIgnoreCase("work") => Workplace
@@ -69,7 +69,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
        * To save time avoiding route calculations, we look for the trivial case: nearest TAZ with activity type matching available parking type.
        */
       val maybeDominantSpot = if(chargingPreference == NoNeed) {
-        maybeCreateNewStall(StallAttributes(nearbyTazsWithDistances.head._1.tazId, preferredType, Free, NoCharger),destination, 0.0)
+        maybeCreateNewStall(StallAttributes(nearbyTazsWithDistances.head._1.tazId, preferredType, Free, NoCharger),destinationUtm, 0.0)
       }else{
         None
       }
@@ -119,13 +119,13 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   }
 
   def selectPublicStall(inquiry: ParkingInquiry, searchRadius: Double): ParkingStall = {
-    val nearbyTazsWithDistances = findTAZsWithDistances(inquiry.destination, searchRadius)
+    val nearbyTazsWithDistances = findTAZsWithDistances(inquiry.destinationUtm, searchRadius)
     val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.map{ taz =>
       Vector(Free, FlatFee, Block).map{ pricingModel =>
         val attrib = StallAttributes(taz._1.tazId, Public, pricingModel, NoCharger)
         if (pooledResources(attrib) > 0) {
           val stallLoc = sampleLocationForStall(taz._1,attrib)
-          val walkingDistance = beamServices.geo.distInMeters(stallLoc,inquiry.destination)
+          val walkingDistance = beamServices.geo.distInMeters(stallLoc,inquiry.destinationUtm)
           val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 / inquiry.valueOfTime // 1.4 m/s avg. walk
           val cost = calculateCost(attrib, inquiry.arrivalTime, inquiry.parkingDuration)
           Vector(ParkingAlternative(attrib, stallLoc, cost + valueOfTimeSpentWalking))

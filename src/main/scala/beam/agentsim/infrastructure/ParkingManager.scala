@@ -14,7 +14,7 @@ abstract class ParkingManager(tazTreeMap:TAZTreeMap, parkingStockAttributes: Par
 }
 
 object ParkingManager{
-  case class ParkingInquiry(customerId: Id[PersonAgent], customerLocation: Location, destination: Location,
+  case class ParkingInquiry(customerId: Id[PersonAgent], customerLocationUtm: Location, destinationUtm: Location,
                             activityType: String, valueOfTime: Double, chargingPreference: ChargingPreference,
                             arrivalTime: Long, parkingDuration: Double)
   case class ParkingInquiryResponse(stall: ParkingStall)
