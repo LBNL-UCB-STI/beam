@@ -9,7 +9,7 @@ Setup Jenkins Server
 
 4.  Add oracle java apt repository::
 
-    *$ sudo add-apt-repository ppa:webupd8team/java*
+    $ sudo add-apt-repository ppa:webupd8team/java
 
 5.  Run commands to update system package index and install Java installer script::
 
@@ -55,7 +55,7 @@ An "Unlock Jenkins" screen would appear, which displays the location of the init
 
 14. In the terminal window, use the cat command to display the password:::
 
-   $ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+    $ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 
 15. Copy the 32-character alphanumeric password from the terminal and paste it into the "Administrator password" field, then click "Continue".
 
@@ -81,108 +81,108 @@ At this point, Jenkins has been successfully installed.
 
 20. Update your package lists and install Nginx:::
 
-   $ sudo apt-get install nginx
+    $ sudo apt-get install nginx
 
 21. To check successful installation run:::
 
-   $ nginx -v
+    $ nginx -v
 
 22. Move into the proper directory where you want to put your certificates::
 
-   $ cd /etc/nginx
+    $ cd /etc/nginx
 
 23. Generate a certificate::
 
-   $ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/cert.key -out /etc/nginx/cert.crt
+    $ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/cert.key -out /etc/nginx/cert.crt
 
 24. Next you will need to edit the default Nginx configuration file.::
 
-   $ sudo vi /etc/nginx/sites-enabled/default
+    $ sudo vi /etc/nginx/sites-enabled/default
 
 25. Update the file with following contents::
 
-   server {
+    server {
 
-    listen 80;
+      listen 80;
 
-    return 301 https://$host$request_uri;
+      return 301 https://$host$request_uri;
 
-   }
-
-   server {
-
-    listen 443;
-    server_name beam-ci.tk;
-
-    ssl_certificate           /etc/nginx/cert.crt;
-    ssl_certificate_key       /etc/nginx/cert.key;
-
-    ssl on;
-    ssl_session_cache  builtin:1000  shared:SSL:10m;
-    ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
-    ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
-    ssl_prefer_server_ciphers on;
-
-    access_log            /var/log/nginx/jenkins.access.log;
-
-    location / {
-
-      proxy_set_header        Host $host;
-      proxy_set_header        X-Real-IP $remote_addr;
-      proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header        X-Forwarded-Proto $scheme;
-
-      # Fix the “It appears that your reverse proxy set up is broken" error.
-      proxy_pass          http://localhost:8080;
-      proxy_read_timeout  90;
-
-      proxy_redirect      http://localhost:8080 https://beam-ci.tk;
     }
-   }
+
+    server {
+
+      listen 443;
+      server_name beam-ci.tk;
+
+      ssl_certificate           /etc/nginx/cert.crt;
+      ssl_certificate_key       /etc/nginx/cert.key;
+
+      ssl on;
+      ssl_session_cache  builtin:1000  shared:SSL:10m;
+      ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
+      ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+      ssl_prefer_server_ciphers on;
+
+      access_log            /var/log/nginx/jenkins.access.log;
+
+      location / {
+
+        proxy_set_header        Host $host;
+        proxy_set_header        X-Real-IP $remote_addr;
+        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header        X-Forwarded-Proto $scheme;
+
+        # Fix the “It appears that your reverse proxy set up is broken" error.
+        proxy_pass          http://localhost:8080;
+        proxy_read_timeout  90;
+
+        proxy_redirect      http://localhost:8080 https://beam-ci.tk;
+      }
+    }
 
 26. For Jenkins to work with Nginx, we need to update the Jenkins config to listen only on the localhost interface instead of all (0.0.0.0), to ensure traffic gets handled properly. This is an important step because if Jenkins is still listening on all interfaces, then it will still potentially be accessible via its original port (8080).
 
 27. Modify the /etc/default/jenkins configuration file to make these adjustments.::
 
-   $ sudo vi /etc/default/jenkins
+    $ sudo vi /etc/default/jenkins
 
 28. Locate the JENKINS\_ARGS line and update it to look like the following:::
 
-   $ JENKINS_ARGS="--webroot=/var/cache/$NAME/war --httpListenAddress=127.0.0.1 --httpPort=$HTTP_PORT -ajp13Port=$AJP_PORT"
+    $ JENKINS_ARGS="--webroot=/var/cache/$NAME/war --httpListenAddress=127.0.0.1 --httpPort=$HTTP_PORT -ajp13Port=$AJP_PORT"
 
 29. Then go ahead and restart Jenkins::
 
-   $ sudo service jenkins restart
+    $ sudo service jenkins restart
 
 30. After that restart Nginx::
 
-   $ sudo service nginx restart
+    $ sudo service nginx restart
 
 You should now be able to visit your domain using either HTTP or HTTPS, and the Jenkins site will be served securely. You will see a certificate warning because you used a self-signed certificate.
 
 31. Next we install certbot to setup nginx with as CA certificate. Certbot team maintains a PPA. Once you add it to your list of repositories all you'll need to do is apt-get the following packages:::
 
-   $ sudo add-apt-repository ppa:certbot/certbot
+    $ sudo add-apt-repository ppa:certbot/certbot
 
 32. Run apt update::
 
-   $ sudo apt-get update
+    $ sudo apt-get update
 
 33. Install certbot for Nginx.::
 
-   $ sudo apt-get install python-certbot-nginx
+    $ sudo apt-get install python-certbot-nginx
 
 34. Get a certificate and have Certbot edit Nginx configuration automatically, run the following command.::
 
-   $ sudo certbot –nginx
+    $ sudo certbot –nginx
 
 35. The Certbot packages on your system come with a cron job that will renew your certificates automatically before they expire. Since Let's Encrypt certificates last for 90 days, it's highly advisable to take advantage of this feature. You can test automatic renewal for your certificates by running this command:::
 
-   $ sudo certbot renew –dry-run
+    $ sudo certbot renew –dry-run
 
 36. Restart Nginx:::
 
-   $ sudo service nginx restart
+    $ sudo service nginx restart
 
 37. Go to AWS management console and update the Security Group associated with jenkins server by removing the port 8080, that we added in step 2.
 
@@ -204,35 +204,35 @@ slave AMI to spawn automatic EC2 instance on new build jobs.
     $ sudo add-apt-repository ppa:webupd8team/java*
     $ sudo curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash*
 
-1. Run commands to update system package index::
+5. Run commands to update system package index::
 
    $ sudo apt update
 
-2. Install Java and other dependency components, there is no need to install any jenkins component or service. Jenkins automatically deploy an agent as it initiates the build.::
+6. Install Java and other dependency components, there is no need to install any jenkins component or service. Jenkins automatically deploy an agent as it initiates the build.::
 
    $ sudo apt install git docker oracle-java8-installer git-lfs=2.3.4
 
-3. SSH master that we created in last topic and from inside master again ssh your newly created slave, just to test the communication.::
+7. SSH master that we created in last topic and from inside master again ssh your newly created slave, just to test the communication.::
 
    $ ssh ubuntu@<slave_ip_address>
 
-4. In EC2 Instances pane, click on your Jenkins slave instance you just configure, and create a new image.
+8. In EC2 Instances pane, click on your Jenkins slave instance you just configure, and create a new image.
 
 |image6|
 
-5. On Create Image dialog, name the image and select “Delete on Termination”. It makes slave instance disposable, if there are any build artifacts, job should save them, that will send them to your master.
+9. On Create Image dialog, name the image and select “Delete on Termination”. It makes slave instance disposable, if there are any build artifacts, job should save them, that will send them to your master.
 
 |image7|
 
-1. Once image creation process completes, just copy the AMI ID, we need it for master configuration.
+10. Once image creation process completes, just copy the AMI ID, we need it for master configuration.
 
 |image8|
 
-1. Update the Slave security group and remove all other IP addresses except master. You should only enable ingress from the IP addresses you wish to allow access to your slave.
+11. Update the Slave security group and remove all other IP addresses except master. You should only enable ingress from the IP addresses you wish to allow access to your slave.
 
 |image9|
 
-1. At the end drop slave instance, its not needed anymore.
+12. At the end drop slave instance, its not needed anymore.
 
 
 .. |image0| image:: _static/figs/jenkins-unlock.png
