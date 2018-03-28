@@ -186,9 +186,62 @@ You should now be able to visit your domain using either HTTP or HTTPS, and the 
 
 37. Go to AWS management console and update the Security Group associated with jenkins server by removing the port 8080, that we added in step 2.
 
+
+
+Setup Jenkins Slave
+===================
+
+Now configure a Jenkins slave for pipeline configuration. We need the
+slave AMI to spawn automatic EC2 instance on new build jobs.
+
+1. Create Amazon EC2 instance from an Amazon Machine Image (AMI) that
+   has Ubuntu 64-bit as base operating system.
+2. Choose a security group that will allow only SSH access to your
+   master (and temporarily for your personal system).
+3. Connect to the instance via SSH.
+4. Add oracle java apt repository and git-lfs::
+
+    $ sudo add-apt-repository ppa:webupd8team/java*
+    $ sudo curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash*
+
+1. Run commands to update system package index::
+
+   $ sudo apt update
+
+2. Install Java and other dependency components, there is no need to install any jenkins component or service. Jenkins automatically deploy an agent as it initiates the build.::
+
+   $ sudo apt install git docker oracle-java8-installer git-lfs=2.3.4
+
+3. SSH master that we created in last topic and from inside master again ssh your newly created slave, just to test the communication.::
+
+   $ ssh ubuntu@<slave_ip_address>
+
+4. In EC2 Instances pane, click on your Jenkins slave instance you just configure, and create a new image.
+
+|image6|
+
+5. On Create Image dialog, name the image and select “Delete on Termination”. It makes slave instance disposable, if there are any build artifacts, job should save them, that will send them to your master.
+
+|image7|
+
+1. Once image creation process completes, just copy the AMI ID, we need it for master configuration.
+
+|image8|
+
+1. Update the Slave security group and remove all other IP addresses except master. You should only enable ingress from the IP addresses you wish to allow access to your slave.
+
+|image9|
+
+1. At the end drop slave instance, its not needed anymore.
+
+
 .. |image0| image:: _static/figs/jenkins-unlock.png
 .. |image1| image:: _static/figs/jenkins-customize.png
 .. |image2| image:: _static/figs/jenkins-plugins.png
 .. |image3| image:: _static/figs/jenkins-ready.png
 .. |image4| image:: _static/figs/jenkins-first-admin.png
 .. |image5| image:: _static/figs/jenkins-using.png
+.. |image6| image:: _static/figs/ami-step1.png
+.. |image7| image:: _static/figs/ami-step2.png
+.. |image8| image:: _static/figs/ami-step3.png
+.. |image9| image:: _static/figs/ami-step4.png
