@@ -1,5 +1,8 @@
+DevOps Guide
+=================
+
 Setup Jenkins Server
-====================
+--------------------
 
 1.  From the AWS Management Console, launch the Amazon EC2 instance from an Amazon Machine Image (AMI) that has Ubuntu 64-bit as base operating system.
 
@@ -188,7 +191,7 @@ You should now be able to visit your domain using either HTTP or HTTPS, and the 
 
 
 Setup Jenkins Slave
-===================
+-------------------
 
 Now configure a Jenkins slave for pipeline configuration. You need the slave AMI to spawn automatic EC2 instance on new build jobs.
 
@@ -233,7 +236,7 @@ Now configure a Jenkins slave for pipeline configuration. You need the slave AMI
 
 
 Configure Jenkins Master
-========================
+------------------------
 
 Now start configuring Jenkins master, so it can spawn new slave instance on demand.
 
