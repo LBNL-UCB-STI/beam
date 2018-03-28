@@ -39,15 +39,15 @@ Setup Jenkins Server
 
     $ sudo service jenkins status
 
-12. If everything went well, the beginning of the output should show that the service is active and configured to start at boot:::
+12. If everything went well, the beginning of the output should show that the service is active and configured to start at boot::
 
-    jenkins.service - LSB: Start Jenkins at boot time
-    Loaded: loaded (/etc/init.d/jenkins; bad; vendor preset: enabled)
-    Active:active (exited) since Thu 2017-04-20 16:51:13 UTC; 2min 7s ago
-    Docs: man:systemd-sysv-generator(8)
+  jenkins.service - LSB: Start Jenkins at boot time
+  Loaded: loaded (/etc/init.d/jenkins; bad; vendor preset: enabled)
+  Active:active (exited) since Thu 2017-04-20 16:51:13 UTC; 2min 7s ago
+  Docs: man:systemd-sysv-generator(8)
 
 13. To set up installation, visit Jenkins on its default port, 8080, using the server domain name or IP address:
-   http://ip_address_of_ec2_instance:8080
+  http://ip_address_of_ec2_instance:8080
 
 An "Unlock Jenkins" screen would appear, which displays the location of the initial password
 
@@ -101,46 +101,45 @@ At this point, Jenkins has been successfully installed.
 
 25. Update the file with following contents::
 
-    server {
+  server {
 
-      listen 80;
+    listen 80;
+    return 301 https://$host$request_uri;
 
-      return 301 https://$host$request_uri;
+  }
 
+  server {
+
+    listen 443;
+    server_name beam-ci.tk;
+
+    ssl_certificate           /etc/nginx/cert.crt;
+    ssl_certificate_key       /etc/nginx/cert.key;
+
+    ssl on;
+    ssl_session_cache  builtin:1000  shared:SSL:10m;
+    ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
+    ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+    ssl_prefer_server_ciphers on;
+
+    access_log            /var/log/nginx/jenkins.access.log;
+
+    location / {
+
+      proxy_set_header        Host $host;
+      proxy_set_header        X-Real-IP $remote_addr;
+      proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header        X-Forwarded-Proto $scheme;
+
+      # Fix the “It appears that your reverse proxy set up is broken" error.
+      proxy_pass          http://localhost:8080;
+      proxy_read_timeout  90;
+
+      proxy_redirect      http://localhost:8080 https://beam-ci.tk;
     }
+  }
 
-    server {
-
-      listen 443;
-      server_name beam-ci.tk;
-
-      ssl_certificate           /etc/nginx/cert.crt;
-      ssl_certificate_key       /etc/nginx/cert.key;
-
-      ssl on;
-      ssl_session_cache  builtin:1000  shared:SSL:10m;
-      ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
-      ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
-      ssl_prefer_server_ciphers on;
-
-      access_log            /var/log/nginx/jenkins.access.log;
-
-      location / {
-
-        proxy_set_header        Host $host;
-        proxy_set_header        X-Real-IP $remote_addr;
-        proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header        X-Forwarded-Proto $scheme;
-
-        # Fix the “It appears that your reverse proxy set up is broken" error.
-        proxy_pass          http://localhost:8080;
-        proxy_read_timeout  90;
-
-        proxy_redirect      http://localhost:8080 https://beam-ci.tk;
-      }
-    }
-
-26. For Jenkins to work with Nginx, we need to update the Jenkins config to listen only on the localhost interface instead of all (0.0.0.0), to ensure traffic gets handled properly. This is an important step because if Jenkins is still listening on all interfaces, then it will still potentially be accessible via its original port (8080).
+26. For Jenkins to work with Nginx, you need to update the Jenkins config to listen only on the localhost interface instead of all (0.0.0.0), to ensure traffic gets handled properly. This is an important step because if Jenkins is still listening on all interfaces, then it will still potentially be accessible via its original port (8080).
 
 27. Modify the /etc/default/jenkins configuration file to make these adjustments.::
 
@@ -160,7 +159,7 @@ At this point, Jenkins has been successfully installed.
 
 You should now be able to visit your domain using either HTTP or HTTPS, and the Jenkins site will be served securely. You will see a certificate warning because you used a self-signed certificate.
 
-31. Next we install certbot to setup nginx with as CA certificate. Certbot team maintains a PPA. Once you add it to your list of repositories all you'll need to do is apt-get the following packages:::
+31. Next you install certbot to setup nginx with as CA certificate. Certbot team maintains a PPA. Once you add it to your list of repositories all you'll need to do is apt-get the following packages:::
 
     $ sudo add-apt-repository ppa:certbot/certbot
 
@@ -184,20 +183,17 @@ You should now be able to visit your domain using either HTTP or HTTPS, and the 
 
     $ sudo service nginx restart
 
-37. Go to AWS management console and update the Security Group associated with jenkins server by removing the port 8080, that we added in step 2.
+37. Go to AWS management console and update the Security Group associated with jenkins server by removing the port 8080, that you added in step 2.
 
 
 
 Setup Jenkins Slave
 ===================
 
-Now configure a Jenkins slave for pipeline configuration. We need the
-slave AMI to spawn automatic EC2 instance on new build jobs.
+Now configure a Jenkins slave for pipeline configuration. You need the slave AMI to spawn automatic EC2 instance on new build jobs.
 
-1. Create Amazon EC2 instance from an Amazon Machine Image (AMI) that
-   has Ubuntu 64-bit as base operating system.
-2. Choose a security group that will allow only SSH access to your
-   master (and temporarily for your personal system).
+1. Create Amazon EC2 instance from an Amazon Machine Image (AMI) that has Ubuntu 64-bit as base operating system.
+2. Choose a security group that will allow only SSH access to your master (and temporarily for your personal system).
 3. Connect to the instance via SSH.
 4. Add oracle java apt repository and git-lfs::
 
@@ -212,7 +208,7 @@ slave AMI to spawn automatic EC2 instance on new build jobs.
 
    $ sudo apt install git docker oracle-java8-installer git-lfs=2.3.4
 
-7. SSH master that we created in last topic and from inside master again ssh your newly created slave, just to test the communication.::
+7. SSH master that you created in last topic and from inside master again ssh your newly created slave, just to test the communication.::
 
    $ ssh ubuntu@<slave_ip_address>
 
@@ -224,7 +220,7 @@ slave AMI to spawn automatic EC2 instance on new build jobs.
 
 |image7|
 
-10. Once image creation process completes, just copy the AMI ID, we need it for master configuration.
+10. Once image creation process completes, just copy the AMI ID, you need it for master configuration.
 
 |image8|
 
@@ -234,6 +230,96 @@ slave AMI to spawn automatic EC2 instance on new build jobs.
 
 12. At the end drop slave instance, its not needed anymore.
 
+
+
+Configure Jenkins Master
+========================
+
+Now start configuring Jenkins master, so it can spawn new slave instance on demand.
+
+1. Once Master and Slave are setup, login to Jenkins server administrative console as admin.
+2. On the left-hand side, click Manage Jenkins, and then click Manage Plugins.
+3. Click on the Available tab, and then enter Amazon EC2 plugin at the top right.
+
+|image10|
+
+3. Select the checkbox next to Amazon EC2 plugin, and then click Install without restart.
+4. Once the installation is done, click Go back to the top page.
+4. On the sidebar, click on Credentials, hover (global) for finding the sub menu and add a credential.
+
+|image11|
+
+6. Choose AWS Credentials, and limit the scope to System, complete the form, if you make an error, Jenkins will add an error below the   secret key. Jenkins uses access key ID and secret access key to interface with Amazon EC2.
+
+|image12|
+
+7. Click on Manage Jenkins, and then Configure System.
+8. Scroll all the way down to the section that says Cloud.
+9. Click Add a new cloud, and select Amazon EC2. A collection of new fields appears.
+
+|image13|
+
+10. Select Amazon EC2 Credentials that you just created. EC2 Key Pair’s Private key is a key generated when creating a new EC2 image on AWS.
+
+|image14|
+
+11. Complete the form, choose a Region, Instance Type, label and set Idle termination time. If the slave becomes idle during this time, the instance will be terminated.
+
+|image15|
+
+12. In order for Jenkins to watch GitHub projects, you will need to create a Personal Access Token in your GitHub account.
+
+Now go to GitHub and signing into your account and click on user icon in the upper-right hand corner and select Settings from the drop down menu:
+
+|image16|
+
+13. On Settings page, locate the Developer settings section on the left-hand menu and go to Personal access tokens and click on Generate new token button:
+
+|image17|
+
+14. In the Token description box, add a description that will allow you to recognize it later
+
+|image18|
+
+15. In the Select scopes section, check the repo:status, repo:public_repo and admin:org_hook boxes. These will allow Jenkins to update commit statuses and to create webhooks for the project. If you are using a private repository, you will need to select the general repo permission instead of the repo sub items:
+
+|image19|
+
+16. When you are finished, click Generate token at the bottom.
+17. You will be redirected back to the Personal access tokens index page and your new token will displayed
+
+|image20|
+
+18. Copy the token now so that you can reference it later.
+
+Now that you have a token, you need to add it to your Jenkins server so it can automatically set up webhooks. Log into your Jenkins web interface using the administrative account you configured during installation.
+
+19. On Jenkins main dashboard, click Credentials in the left hand menu:
+
+|image21|
+
+20.  Click the arrow next to (global) within the Jenkins scope. In the box that appears, click Add credentials
+
+|image22|
+
+21. From Kind drop down menu, select Secret text. In the Secret field, paste your GitHub personal access token. Fill out the Description field so that you will be able to identify this entry at a later date
+   and press OK button in the bottom.
+
+|image23|
+
+22. Jenkins dashboard, click Manage Jenkins in the left hand menu and then click Configure System:
+
+|image24|
+
+23. Find the section with title GitHub. Click the Add GitHub Server button and then select GitHub Server:
+
+|image25|
+
+24. In the Credentials drop down menu, select your GitHub personal access token that you added in the last section:
+
+|image26|
+
+25. Click the Test connection button. Jenkins will make a test API call to your account and verify connectivity. On successful connectivity click Save:
 
 .. |image0| image:: _static/figs/jenkins-unlock.png
 .. |image1| image:: _static/figs/jenkins-customize.png
@@ -245,3 +331,21 @@ slave AMI to spawn automatic EC2 instance on new build jobs.
 .. |image7| image:: _static/figs/ami-step2.png
 .. |image8| image:: _static/figs/ami-step3.png
 .. |image9| image:: _static/figs/ami-step4.png
+.. |image10| image:: _static/figs/jenkins-ec2-plugin.png
+.. |image11| image:: _static/figs/jenkins-credential1.png
+.. |image12| image:: _static/figs/jenkins-credential3.png
+.. |image13| image:: _static/figs/jenkins-cloud1.png
+.. |image14| image:: _static/figs/jenkins-cloud2.png
+.. |image15| image:: _static/figs/jenkins-cloud3.png
+.. |image16| image:: _static/figs/github-step1.png
+.. |image17| image:: _static/figs/github-step2.png
+.. |image18| image:: _static/figs/github-step3.png
+.. |image19| image:: _static/figs/github-step4.png
+.. |image20| image:: _static/figs/github-step5.png
+.. |image21| image:: _static/figs/jenkins-menu.png
+.. |image22| image:: _static/figs/jenkins-credential1.png
+.. |image23| image:: _static/figs/jenkins-credential2.png
+.. |image24| image:: _static/figs/jenkins-config.png
+.. |image25| image:: _static/figs/jenkins-github1.png
+.. |image26| image:: _static/figs/jenkins-github2.png
+
