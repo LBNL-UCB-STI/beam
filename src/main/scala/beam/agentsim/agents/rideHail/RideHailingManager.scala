@@ -61,7 +61,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val selfTimerTimoutDuration = 10 * 60 // TODO: set from config
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 60;
+  val rideHailAllocationManagerTimeoutInSeconds = 0;
 
   val bufferedReserveRideMessages:collection.mutable.ListBuffer[ReserveRide] = new ListBuffer[ReserveRide]
 
