@@ -19,7 +19,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
 @ImplementedBy(classOf[GeoUtilsImpl])
 trait GeoUtils extends HasServices  {
-  lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
+    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
   lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326",beamServices.beamConfig.beam.spatial.localCRS)
 
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc),spacetime.time)
@@ -45,19 +45,10 @@ trait GeoUtils extends HasServices  {
   def distInMeters(coord1: Coord, coord2: Coord): Double = {
     distLatLon2Meters(utm2Wgs(coord1), utm2Wgs(coord2))
   }
+
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distLatLon2Meters(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
 
-  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
-    //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
-    val earthRadius = 6371000
-    val distX = Math.toRadians(x2 - x1)
-    val distY = Math.toRadians(y2 - y1)
-    val a = Math.sin(distX / 2) * Math.sin(distX / 2) + Math.cos(Math.toRadians(x1)) * Math.cos(Math.toRadians(x2)) * Math.sin(distY / 2) * Math.sin(distY / 2)
-    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    val dist = earthRadius * c
-    dist
-
-  }
+  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
 
   def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
     var radius = 10.0
@@ -98,6 +89,19 @@ object GeoUtils {
       lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("epsg:4326",beamConfig.beam.spatial.localCRS)
       wgs2Utm.transform(coord)
     }
+  }
+
+
+  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
+    //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
+    val earthRadius = 6371000
+    val distX = Math.toRadians(x2 - x1)
+    val distY = Math.toRadians(y2 - y1)
+    val a = Math.sin(distX / 2) * Math.sin(distX / 2) + Math.cos(Math.toRadians(x1)) * Math.cos(Math.toRadians(x2)) * Math.sin(distY / 2) * Math.sin(distY / 2)
+    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    val dist = earthRadius * c
+    dist
+
   }
 }
 
