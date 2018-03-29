@@ -95,7 +95,8 @@ object RoutingModel {
                      travelPath: BeamPath) {
     val endTime: Long = startTime + duration
 
-    def copyWithNewLinks(newLinks: Vector[Int]): BeamLeg = this.copy(travelPath = this.travelPath.copy(newLinks))
+    def updateLinks(newLinks: Vector[Int]): BeamLeg = this.copy(travelPath = this.travelPath.copy(newLinks))
+    def updateStartTime(newStartTime: Long): BeamLeg = this.copy(startTime = newStartTime, travelPath = this.travelPath.updateStartTime(newStartTime))
 
     override def toString: String = s"BeamLeg(${mode} @ ${startTime},dur:${duration},path: ${travelPath.toShortString})"
   }
@@ -150,6 +151,7 @@ object RoutingModel {
     def duration = endPoint.time - startPoint.time
 
     def toShortString() = if(linkIds.size >0){ s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"}else{""}
+    def updateStartTime(newStartTime: Long): BeamPath = this.copy(startPoint = this.startPoint.copy(time = newStartTime), endPoint = this.endPoint.copy(time = newStartTime + this.duration))
 
   }
 

@@ -1,11 +1,12 @@
 package beam.agentsim.agents.modalBehaviors
 
 import akka.actor.FSM.Failure
+import akka.actor.Stash
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
-import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot}
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{VehicleFullError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -35,7 +36,7 @@ object DrivesVehicle {
 
 }
 
-trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
+trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
 
   protected val transportNetwork: TransportNetwork
 
@@ -66,7 +67,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       val newSchedule = PassengerSchedule(data.passengerSchedule.schedule - data.passengerSchedule.schedule.firstKey)
 
       if (newSchedule.schedule.nonEmpty) {
-        if(data.hasParkingBehaviors){
+        if(data.hasParkingBehaviors && newSchedule.schedule.size == 1){
           holdTickAndTriggerId(tick, triggerId)
           goto(ChoosingParkingSpot) using ChoosesParkingData(data.withPassengerSchedule(newSchedule).asInstanceOf[BasePersonData]).asInstanceOf[T]
         }else{
@@ -82,19 +83,25 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(WaitingToDrive) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
-      data.passengerSchedule.schedule(newLeg).riders.foreach { personVehicle =>
-        logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
-        scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
+      beamServices.vehicles(data.currentVehicle.head).stall match {
+        case None =>
+          data.passengerSchedule.schedule(newLeg).riders.foreach { personVehicle =>
+            logDebug(s"Scheduling NotifyLegStartTrigger for Person ${personVehicle.personId}")
+            scheduler ! ScheduleTrigger(NotifyLegStartTrigger(tick, newLeg), beamServices.personRefs(personVehicle.personId))
+          }
+          eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, data.currentVehicle.head, "car", 1.0))
+          // Produce link events for this trip (the same ones as in PathTraversalEvent).
+          // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
+          // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
+          RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.firstKey, data.currentVehicle.head, (_,_) => 0L)
+            .foreach(eventsManager.processEvent)
+          val endTime = tick + data.passengerSchedule.schedule.firstKey.duration
+          eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
+          goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
+        case Some(oldStall) =>
+          stash()
+          goto(ReleasingParkingSpot) using data.asInstanceOf[T]
       }
-      eventsManager.processEvent(new VehicleEntersTrafficEvent(tick, Id.createPersonId(id), null, data.currentVehicle.head, "car", 1.0))
-      // Produce link events for this trip (the same ones as in PathTraversalEvent).
-      // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
-      // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.firstKey, data.currentVehicle.head, (_,_) => 0L)
-        .foreach(eventsManager.processEvent)
-      val endTime = tick + data.passengerSchedule.schedule.firstKey.duration
-      eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
-      goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
   }
 
   val drivingBehavior: StateFunction = {

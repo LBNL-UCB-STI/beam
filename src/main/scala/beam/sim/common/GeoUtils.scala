@@ -16,7 +16,6 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 
 
-
 @ImplementedBy(classOf[GeoUtilsImpl])
 trait GeoUtils extends HasServices  {
   lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")

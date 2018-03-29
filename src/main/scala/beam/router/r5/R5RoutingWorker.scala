@@ -122,7 +122,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       case e: ArrayIndexOutOfBoundsException =>
         new ProfileResponse
     }
-    log.debug(s"# options found = ${result.options.size()}")
+//    log.debug(s"# options found = ${result.options.size()}")
     result
   }
 
@@ -248,14 +248,14 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         if(theLinkIds.length <= 1){
           Vector(leg)
         }else if(leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters){
-          val firstLeg = updateLegWithCurrentTravelTime(leg.copyWithNewLinks(Vector(theLinkIds.head)))
-          val secondLeg = updateLegWithCurrentTravelTime(leg.copyWithNewLinks(theLinkIds.tail).copy(startTime = firstLeg.startTime + firstLeg.duration))
+          val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
+          val secondLeg = updateLegWithCurrentTravelTime(leg.updateLinks(theLinkIds.tail).copy(startTime = firstLeg.startTime + firstLeg.duration))
           Vector(firstLeg, secondLeg)
         }else{
           val indexFromEnd = theLinkIds.reverse.map(lengthOfLink(_)).scanLeft(0.0)(_+_).indexWhere(_>beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters)
           val indexFromBeg = theLinkIds.length - indexFromEnd
-          val firstLeg = updateLegWithCurrentTravelTime(leg.copyWithNewLinks(theLinkIds.take(indexFromBeg)))
-          val secondLeg = updateLegWithCurrentTravelTime(leg.copyWithNewLinks(theLinkIds.takeRight(indexFromEnd+1)).copy(startTime = firstLeg.startTime + firstLeg.duration))
+          val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(theLinkIds.take(indexFromBeg)))
+          val secondLeg = updateLegWithCurrentTravelTime(leg.updateLinks(theLinkIds.takeRight(indexFromEnd+1)).copy(startTime = firstLeg.startTime + firstLeg.duration))
           Vector(firstLeg, secondLeg)
         }
       }
@@ -385,10 +385,10 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     val embodiedTrips = routingRequest.streetVehicles.flatMap(vehicle => tripsForVehicle(vehicle))
 
     if (!embodiedTrips.exists(_.tripClassifier == WALK)) {
-      log.debug("No walk route found. {}", routingRequest)
+//      log.debug("No walk route found. {}", routingRequest)
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        log.debug("Adding dummy walk route with maximum street time.")
+//        log.debug("Adding dummy walk route with maximum street time.")
         val origin = new Coord(routingRequest.origin.getX, routingRequest.origin.getY)
         val dest = new Coord(routingRequest.destination.getX, routingRequest.destination.getY)
         val beelineDistanceInMeters = beamServices.geo.distInMeters(origin, dest)
@@ -412,7 +412,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         )
         RoutingResponse(embodiedTrips :+ dummyTrip)
       } else {
-        log.debug("Not adding a dummy walk route since agent has no body.")
+//        log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(embodiedTrips)
       }
     } else {
@@ -566,13 +566,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
             val streetSegment = new StreetSegment(streetPath, mode, transportNetwork.streetLayer)
             option.addDirect(streetSegment, request.getFromTimeDateZD)
           } else {
-            log.debug("Direct mode {} last state wasn't found", mode)
+//            log.debug("Direct mode {} last state wasn't found", mode)
           }
         } else {
-          log.debug("Direct mode {} destination wasn't found!", mode)
+//          log.debug("Direct mode {} destination wasn't found!", mode)
         }
       } else {
-        log.debug("Direct mode {} origin wasn't found!", mode)
+//        log.debug("Direct mode {} origin wasn't found!", mode)
       }
     }
     option.summary = option.generateSummary
@@ -616,7 +616,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
         foo(o1, o2)
       })
-      log.debug("Usefull paths:{}", usefullpathList.size)
+//      log.debug("Usefull paths:{}", usefullpathList.size)
 
       for (path <- usefullpathList.asScala) {
         profileResponse.addTransitPath(accessRouter.asJava, egressRouter.asJava, path, transportNetwork, request.getFromTimeDateZD)
@@ -626,8 +626,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       } // latency possible candidate
     }
     profileResponse.recomputeStats(request)
-    log.debug("Returned {} options", profileResponse.getOptions.size)
-    log.debug("Took {} ms", System.currentTimeMillis - startRouting)
+//    log.debug("Returned {} options", profileResponse.getOptions.size)
+//    log.debug("Took {} ms", System.currentTimeMillis - startRouting)
     profileResponse
   }
 
@@ -653,9 +653,9 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         streetRouter.route()
         val stops = streetRouter.getReachedStops
         egressRouter.put(mode, streetRouter)
-        log.debug("Added {} edgres stops for mode {}", stops.size, mode)
+//        log.debug("Added {} edgres stops for mode {}", stops.size, mode)
       }
-      else log.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode)
+//      else log.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode)
     }
     egressRouter
   }
@@ -683,7 +683,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         //Searching for access paths
         accessRouter.put(mode, streetRouter)
       }
-      else log.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode)
+//      else log.debug("MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!", mode)
     }
     accessRouter
   }

@@ -1,7 +1,9 @@
 package beam.agentsim.infrastructure
 
+import akka.actor.FSM.Event
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource._
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
@@ -28,11 +30,13 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     List(Residential, Workplace, Public).foreach { parkingType =>
       List(Free, FlatFee, Block).foreach { pricingModel =>
         List(NoCharger, Level1, Level2, DCFast, UltraFast).foreach { chargingType =>
-          pooledResources.put(StallAttributes(taz.tazId, parkingType, pricingModel, chargingType), 100)
+          pooledResources.put(StallAttributes(taz.tazId, parkingType, pricingModel, chargingType), 1)
         }
       }
     }
   }
+  // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
+  pooledResources.put(StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger),Int.MaxValue)
 
 
   override def receive: Receive = {
@@ -46,10 +50,9 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       // Irrelevant for parking
 
     case CheckInResource(stallId: Id[ParkingStall], availableIn: Option[SpaceTime]) =>
-      val stall = resources.get(stallId).get
-      pooledResources.update(stall.attributes,pooledResources(stall.attributes)+1)
-      resources.remove(stall.id)
-      sender ! CheckInSuccess
+        val stall = resources.get(stallId).get
+        pooledResources.update(stall.attributes, pooledResources(stall.attributes) + 1)
+        resources.remove(stall.id)
 
     case CheckOutResource(_) =>
       // Because the ZonalParkingManager is in charge of deciding which stalls to assign, this should never be received
@@ -114,7 +117,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     attrib.pricingModel match {
       case Free => 0.0
       case FlatFee => 5.0
-      case Block => parkingDuration * 5.0
+      case Block => parkingDuration / 3600.0 * 5.0
     }
   }
 
@@ -126,24 +129,29 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
         if (pooledResources(attrib) > 0) {
           val stallLoc = sampleLocationForStall(taz._1,attrib)
           val walkingDistance = beamServices.geo.distInMeters(stallLoc,inquiry.destinationUtm)
-          val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 / inquiry.valueOfTime // 1.4 m/s avg. walk
+          val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.valueOfTime // 1.4 m/s avg. walk
           val cost = calculateCost(attrib, inquiry.arrivalTime, inquiry.parkingDuration)
-          Vector(ParkingAlternative(attrib, stallLoc, cost + valueOfTimeSpentWalking))
+          Vector(ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking))
         }else{
           Vector[ParkingAlternative]()
         }
       }.flatten
     }.flatten
-    val chosenStall = allOptions.sortBy(_.cost).headOption match {
+    val chosenStall = allOptions.sortBy(_.rankingWeight).headOption match {
       case Some(alternative) =>
         maybeCreateNewStall(alternative.stallAttributes, alternative.location, alternative.cost)
       case None => None
     }
-    // Finally, if no stall found, repeat with larger search distance for TAZs
+    // Finally, if no stall found, repeat with larger search distance for TAZs or create one very expensive
     chosenStall match {
       case Some(stall) => stall
       case None =>
-        selectPublicStall(inquiry, searchRadius * 2.0)
+        if(searchRadius * 2.0 > ZonalParkingManager.maxSearchRadius){
+          stallnum = stallnum + 1
+          new ParkingStall(Id.create(stallnum, classOf[ParkingStall]),StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger),inquiry.destinationUtm, 100.0)
+        }else{
+          selectPublicStall(inquiry, searchRadius * 2.0)
+        }
     }
 
   }
@@ -152,11 +160,11 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     var nearbyTazs: Vector[TAZ] = Vector()
     var searchRadius = startRadius
     while(nearbyTazs.isEmpty){
-      nearbyTazs = tazTreeMap.tazQuadTree.getDisk(searchCenter.getX,searchCenter.getY,searchRadius).asScala.toVector
-      searchRadius = searchRadius * 2.0
-      if(searchRadius > 10e6){
+      if(searchRadius > ZonalParkingManager.maxSearchRadius){
         throw new RuntimeException("Parking search radius has reached 10,000 km and found no TAZs, possible map projection error?")
       }
+      nearbyTazs = tazTreeMap.tazQuadTree.getDisk(searchCenter.getX,searchCenter.getY,searchRadius).asScala.toVector
+      searchRadius = searchRadius * 2.0
     }
     nearbyTazs.zip(nearbyTazs.map{taz => beamServices.geo.distInMeters(taz.coord,searchCenter)}).sortBy(_._2)
   }
@@ -166,11 +174,13 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
 }
 
 object ZonalParkingManager{
-  case class ParkingAlternative(stallAttributes: StallAttributes, location: Location, cost: Double)
+  case class ParkingAlternative(stallAttributes: StallAttributes, location: Location, cost: Double, rankingWeight: Double)
 
   def props(beamServices: BeamServices, beamRouter: ActorRef, tazTreeMap: TAZTreeMap, parkingStockAttributes: ParkingStockAttributes): Props = {
     Props(new ZonalParkingManager(beamServices, beamRouter, tazTreeMap, parkingStockAttributes))
   }
+
+  val maxSearchRadius = 10e6
 }
 
 

@@ -123,6 +123,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           context.stop(rideHailingManager)
           context.stop(scheduler)
           context.stop(errorListener)
+          context.stop(parkingManager)
 
         case Terminated(_) =>
           if (context.children.isEmpty) {

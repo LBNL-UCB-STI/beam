@@ -13,7 +13,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.infrastructure.{ParkingManager, TAZTreeMap}
+import beam.agentsim.infrastructure.{ParkingManager, ParkingStall, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
@@ -53,7 +53,8 @@ object PersonAgent {
   case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None,
                             restOfCurrentTrip: List[EmbodiedBeamLeg] = List(), currentVehicle: VehicleStack = Vector(),
                             currentTourMode: Option[BeamMode] = None, currentTourPersonalVehicle: Option[Id[Vehicle]] = None,
-                            passengerSchedule: PassengerSchedule = PassengerSchedule(), hasDeparted: Boolean = false) extends PersonData {
+                            passengerSchedule: PassengerSchedule = PassengerSchedule(), hasDeparted: Boolean = false
+                            ) extends PersonData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
     override def hasParkingBehaviors: Boolean = true
   }

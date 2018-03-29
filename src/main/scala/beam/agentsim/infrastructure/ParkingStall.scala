@@ -18,6 +18,7 @@ object ParkingStall{
   case object Residential extends ParkingType
   case object Workplace   extends ParkingType
   case object Public      extends ParkingType
+  case object NoOtherExists extends ParkingType
 
   sealed trait ChargingType
   case object NoCharger   extends ChargingType
