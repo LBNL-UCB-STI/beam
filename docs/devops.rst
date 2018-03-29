@@ -319,6 +319,77 @@ Now that you have a token, you need to add it to your Jenkins server so it can a
 
 25. Click the Test connection button. Jenkins will make a test API call to your account and verify connectivity. On successful connectivity click Save.
 
+Configure Jenkins Jobs
+----------------------
+
+Once Jenkins is installed on master and its configured with slave, cloud and github. The only thing we need now, before configuring the jobs, is to install a set of plugins.
+
+1. On the left-hand side of Jenkins dashboard, click Manage Jenkins, and then click Manage Plugins.
+2. Click on the Available tab, and then enter plugin name at the top right to install following set of plugins.
+
+   -  Gradle Plugin: This plugin allows Jenkins to invoke Gradle build scripts directly.
+   -  Build Timeout: This plugin allows builds to be automatically terminated after the specified amount of time has elapsed.
+   -  HTML5 Notifier Plugin: The HTML5 Notifier Plugin provides W3C Web Notifications support for builds.
+   -  Notification Plugin: you can notify on deploying, on master failure/back to normal, etc.
+   -  HTTP Request Plugin: This plugin sends a http request to a url with some parameters.
+   -  embeddable-build-status: Fancy but I love to have a status badge on my README
+   -  Timestamper: It adds time information in our build output.
+   -  AnsiColor: Because some tools (linter, tests) output string with bash color and Jenkins do not render the color without it.
+   -  Green Balls: Because green is better than blue!
+
+1. Back in the main Jenkins dashboard, click New Item in the left hand menu:
+2. Enter a name for your new pipeline in the Enter an item name field. Afterwards, select Freestyle Project as the item type and Click the OK button at the bottom to move on.
+
+|image27|
+
+3. On the next screen, specify Project name and description.
+
+|image28|
+
+1. Then check the GitHub project box. In the Project url field that appears, enter your project's GitHub repository URL.
+
+|image29|
+
+1. In the HTML5 Notification Configuration section left uncheck Skip HTML5 Notifications? Checkbox, to receive browser notifications against our builds
+
+|image30|
+
+8. To configure Glip Notifications with Jenkins build you need to configure notification endpoint under Job Notification section. Select JSON in Format drop-down, HTML in Protocol and to obtain end point URL follow steps 8.1 through 8.3.
+
+|image31|
+
+   8.1. Open Glip and go to your desired channel where you want to receive notifications and then click top right button for Conversation Settings. It will open a menu, click Add Integration menu item.
+
+|image32|
+
+   8.2. On Add Integration dialog search Jenkins and click on the Jenkins Integration option.
+
+|image33|
+
+   8.3. A new window would appear with integration steps, copy the URL from this window and use in the above step.
+
+|image34|
+
+9. At the end of notification section check Execute concurrent build if necessary and Restrict where this project can run and specify the label that we mentioned in last section while configuring master.
+
+|image35|
+
+10. In Source Code Management specify the beam github url against Repository URL and select appropriate credentials. Put \*\* for all branches, to activate build for all available bit hub branches.
+
+|image36|
+
+11. Next, in the Build Triggers section, check the GitHub hook trigger for GITScm polling box.
+
+|image37|
+
+12. Under Build Environment section, click Abort build if it's stuck and specify the timeout. Enable timestamps to Console output and select xterm in ANSI color option and in the end specify the build name pattern for more readable build names.
+
+|image38|
+
+13. Last but not least, in Build section add a gradle build step, check Use Gradle Wrapper and specify the gralde task for build.
+
+|image39|
+
 References:
 ^^^^^^^^^^^
 
@@ -358,4 +429,20 @@ https://jmaitrehenry.ca/2016/08/04/how-to-install-a-jenkins-master-that-spawn-sl
 .. |image24| image:: _static/figs/jenkins-config.png
 .. |image25| image:: _static/figs/jenkins-github1.png
 .. |image26| image:: _static/figs/jenkins-github2.png
+.. |image27| image:: _static/figs/jenkins-pipeline0.png
+.. |image28| image:: _static/figs/jenkins-pipeline1.png
+.. |image29| image:: _static/figs/jenkins-pipeline2.png
+.. |image30| image:: _static/figs/jenkins-pipeline3.png
+.. |image31| image:: _static/figs/jenkins-pipeline4.png
+.. |image32| image:: _static/figs/glip-notification1.png
+.. |image33| image:: _static/figs/glip-notification2.png
+.. |image34| image:: _static/figs/glip-notification3.png
+.. |image35| image:: _static/figs/jenkins-pipeline5.png
+.. |image36| image:: _static/figs/jenkins-pipeline6.png
+.. |image37| image:: _static/figs/jenkins-pipeline7.png
+.. |image38| image:: _static/figs/jenkins-pipeline8.png
+.. |image39| image:: _static/figs/jenkins-pipeline9.png
+
+
+
 
