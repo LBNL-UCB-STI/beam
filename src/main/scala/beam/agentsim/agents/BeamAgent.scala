@@ -65,7 +65,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   def id: Id[_]
 
   def data: T
-
   protected implicit val timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Double] = None
@@ -77,7 +76,6 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   }
 
   def handleEvent(state: BeamAgentState, event: Event): State = {
-
     var theStateData = event.stateData
     var triggerName = "none"
     event match {
@@ -87,7 +85,7 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
       case Event(_, _) =>
       // do nothing
     }
-    latency(triggerName + "-time", Metrics.RegularLevel) {
+    latency(triggerName + "-agentsim-time", Metrics.RegularLevel) {
       var theEvent = event.copy(stateData = theStateData)
 
       if (chainedStateFunctions.contains(state)) {

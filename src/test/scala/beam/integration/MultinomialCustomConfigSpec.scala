@@ -4,7 +4,7 @@ import MultinomialCustomConfigSpec.Utility
 import beam.integration
 import beam.sim.{BeamHelper, RunBeam}
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.xml.{Elem, Node, Text}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -87,7 +87,7 @@ object MultinomialCustomConfigSpec  {
 
 }
 
-class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
+class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
 
 
@@ -182,10 +182,10 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val countPositive = bikeConfigPositive.groupedCount.get("bike").getOrElse(0);
       val countNegative = bikeConfigNegative.groupedCount.get("bike").getOrElse(0);
 
-      println("Bike __________>")
-      println("Positive: " + countPositive)
-      println("Negative: " + countNegative)
-      println("__________________________________")
+//      println("Bike __________>")
+//      println("Positive: " + countPositive)
+//      println("Negative: " + countNegative)
+//      println("__________________________________")
 
       countPositive should be >= countNegative
     }
@@ -230,10 +230,10 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val countPositive = rideConfigPositive.groupedCount.get("ride_hailing").getOrElse(0);
       val countNegative = rideConfigNegative.groupedCount.get("ride_hailing").getOrElse(0);
 
-      println("Ride Hailing __________>")
-      println("Positive: " + countPositive)
-      println("Negative: " + countNegative)
-      println("__________________________________")
+//      println("Ride Hailing __________>")
+//      println("Positive: " + countPositive)
+//      println("Negative: " + countNegative)
+//      println("__________________________________")
 
       countPositive should be >= countNegative
     }
@@ -279,10 +279,10 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val countPositive = transitConfigPositive.groupedCount.get("drive_transit").getOrElse(0);
       val countNegative = transitConfigNegative.groupedCount.get("drive_transit").getOrElse(0);
 
-      println("Transit __________>")
-      println("Positive: " + countPositive)
-      println("Negative: " + countNegative)
-      println("__________________________________")
+//      println("Transit __________>")
+//      println("Positive: " + countPositive)
+//      println("Negative: " + countNegative)
+//      println("__________________________________")
 
       countPositive should be >= countNegative
     }
@@ -328,10 +328,10 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val countPositive = walkConfigPositive.groupedCount.get("walk").getOrElse(0);
       val countNegative = walkConfigNegative.groupedCount.get("walk").getOrElse(0);
 
-      println("WAlk __________>")
-      println("Positive: " + countPositive)
-      println("Negative: " + countNegative)
-      println("__________________________________")
+//      println("WAlk __________>")
+//      println("Positive: " + countPositive)
+//      println("Negative: " + countNegative)
+//      println("__________________________________")
 
       countPositive should be >= countNegative
     }

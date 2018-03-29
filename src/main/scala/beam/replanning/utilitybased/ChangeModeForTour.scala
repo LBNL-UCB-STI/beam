@@ -7,11 +7,9 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.choice.mode.DrivingCostDefaults._
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, SUBWAY, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
@@ -19,33 +17,30 @@ import org.apache.commons.math3.util.Pair
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.algorithms.PlanAlgorithm
-import org.matsim.core.router.TripStructureUtils.{Subtour, Trip}
+import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
-import org.matsim.vehicles.Vehicles
 
-import scala.collection.{JavaConverters, mutable}
 import scala.collection.JavaConverters._
+import scala.collection.{JavaConverters, mutable}
+import scala.util.Random
 
-class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator: HouseholdMembershipAllocator, vehicles: Vehicles) extends PlanAlgorithm {
+class ChangeModeForTour(beamServices: BeamServices,
+                        chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator) extends PlanAlgorithm {
 
   val rng = new MersenneTwister(3004568) // Random.org
+  val random = new Random(3004568)
+  val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8), new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15), new Pair[BeamMode, java.lang.Double](FERRY, 0.005), new Pair[BeamMode, java.lang.Double](RAIL, 0.045))))
 
-  val weightedRandom = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(mutable.Buffer[Pair[BeamMode, java.lang.Double]](new Pair[BeamMode, java.lang.Double](BUS, 0.8),
-    new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15), new Pair[BeamMode, java.lang.Double](FERRY, 0.005), new Pair[BeamMode, java.lang.Double](RAIL, 0.045))))
+  val DefaultRideHailCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
+  val DefaultRideHailCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
 
   val stageActivitytypes = new CompositeStageActivityTypes()
-
-  def findChainBasedModesPerPerson(person: Person): Vector[BeamMode] = {
-    // Does person have access to chain-based modes at home for this plan?
-    val household = householdMembershipAllocator.memberships(person.getId)
-    // For now just cars
-    JavaConverters.asScalaBuffer(household.getVehicleIds).map(vehId => beamServices.vehicles(vehId)).filter(beamVehicle => beamVehicle.beamVehicleType.equals(Car)).map(_ => CAR).toVector
-  }
 
   def findAlternativesForTour(tour: Subtour, person: Person)
   : Vector[BeamMode] = {
     val res = weightedRandom.sample(1, Array())
-    findChainBasedModesPerPerson(person) ++ Vector[BeamMode](res(0))
+    chainBasedTourVehicleAllocator.identifyChainBasedModesForAgent(person.getId) ++ Vector[BeamMode](res(0)) ++
+      Vector[BeamMode](WALK, RIDE_HAIL)
   }
 
   def scoreTour(tour: Subtour, person: Person, modeChoiceCalculator: ModeChoiceCalculator): Map[BeamMode, Double] = {
@@ -53,9 +48,11 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
     (for {alt <- alternativesForTour} yield {
       alt -> JavaConverters.collectionAsScalaIterable(tour.getTrips).map(trip => {
         val timeDist = getCostAndTimeForMode(alt, trip.getOriginActivity, trip.getDestinationActivity)
-        if(alt.isTransit()){
-            modeChoiceCalculator.utilityOf(if(alternativesForTour.contains(CAR)) DRIVE_TRANSIT else WALK_TRANSIT, timeDist._1, timeDist._2, numTransfers = rng.nextInt(4) + 1)
-        }else{
+        if (alt.isTransit()) {
+          modeChoiceCalculator.utilityOf(
+            if (alternativesForTour.contains(CAR)) DRIVE_TRANSIT
+            else WALK_TRANSIT, timeDist._1, timeDist._2, numTransfers = rng.nextInt(4) + 1)
+        } else {
           modeChoiceCalculator.utilityOf(alt, timeDist._1, timeDist._2)
         }
       }).sum
@@ -68,98 +65,115 @@ class ChangeModeForTour(beamServices: BeamServices, householdMembershipAllocator
     val destCoord = dest.getCoord
     val tripDistanceInMeters = beamServices.geo.distLatLon2Meters(beamServices.geo.utm2Wgs(originCoord), beamServices
       .geo.utm2Wgs(destCoord))
-    val cost = defaultCostPerMode(beamMode, tripDistanceInMeters)
-    val time = defaultTimeScalingPerMode(beamMode, tripDistanceInMeters)
-    (cost, time)
+    val distanceCost = distanceScaling(beamMode, tripDistanceInMeters)
+    val timeCost = timeScaling(beamMode, tripDistanceInMeters)
+    (distanceCost, timeCost)
   }
 
-  def defaultCostPerMode(beamMode: BeamMode, distance: Double): Double = {
-    if (beamMode.isTransit()) {
-      TransitFareDefaults.faresByMode(beamMode)
-    } else {
-      distance * (DEFAULT_LITERS_PER_METER / DEFAULT_LITERS_PER_GALLON) * DEFAULT_PRICE_PER_GALLON
+  def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
+    beamMode match {
+      case BeamMode.CAR => distance * (DEFAULT_LITERS_PER_METER / DEFAULT_LITERS_PER_GALLON) * DEFAULT_PRICE_PER_GALLON
+      case WALK => distance * 6 // MATSim Default
+      case RIDE_HAIL => distance * DefaultRideHailCostPerMile.toDouble * (1/1609.34)  // 1 mile = 1609.34
+      case a: BeamMode if a.isTransit() => TransitFareDefaults.faresByMode(beamMode)
     }
   }
 
-  def defaultTimeScalingPerMode(beamMode: BeamMode, tripDistanceInMeters: Double): Double = {
+  def timeScaling(beamMode: BeamMode, tripDistanceInMeters: Double): Double = {
     val transitSpeedDefault = 10 // m/s
     val transit2AutoRatio = 1.7 // car is 1.7 times faster than transit
 
-    if (beamMode.isTransit()) {
-      //Assume PT speed of 10 m/s
-      tripDistanceInMeters / transitSpeedDefault
-    } else {
-      tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio)
+    beamMode match {
+      case BeamMode.CAR => tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio)
+      case WALK => tripDistanceInMeters / 1.4 // 1.4 m/s beeline walk (typical default)
+      case RIDE_HAIL => tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio) * DefaultRideHailCostPerMinute.toDouble
+      case a: BeamMode if a.isTransit() => tripDistanceInMeters / transitSpeedDefault
     }
   }
 
   def rankAlternatives(plan: Plan,
                        attributesOfIndividual: AttributesOfIndividual): Map[Int, Map[BeamMode, Double]] = {
     val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
-
     val subtours = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivitytypes))
-
     subtours.zipWithIndex.map({ case (tour, idx) =>
       idx -> scoreTour(tour, plan.getPerson, modeChoiceCalculator)
     }).toMap
   }
 
 
-  //  def propagateVehicleConstraints(beamPlan: BeamPlan, modeMap: Map[BeamMode, Int]): Boolean = {
-  //
-  //    beamPlan.tours.map(tour =>)
-  //
-  //  }
-  //
+  def changeModeForTour(subtour: Subtour, plan: Plan, mode: BeamMode): Unit = {
+    val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
 
+    val legs = trips.flatMap(trip => JavaConverters
+      .collectionAsScalaIterable(trip
+        .getLegsOnly))
 
-  def changeModeForTrip(trip: Trip, plan: Plan, mode: BeamMode): Unit = {
-
-    val legs = JavaConverters.collectionAsScalaIterable(trip.getLegsOnly)
     if (legs.isEmpty) {
-      insertEmptyTrip(plan,trip.getOriginActivity,trip.getDestinationActivity,mode.toString,
-      householdMembershipAllocator.population.getFactory)
-    } else {
-      if(mode.isTransit()){
-        legs.foreach(leg => leg.setMode(WALK_TRANSIT.value))
-      }else{
-        legs.foreach(leg => leg.setMode(mode.value))
+      for {trip <- trips} yield {
+        insertEmptyTrip(plan, trip.getOriginActivity, trip.getDestinationActivity, mode.toString,
+          chainBasedTourVehicleAllocator.population.getFactory)
       }
+    }
+
+    if (mode.isTransit()) {
+      legs.foreach(leg => leg.setMode(WALK_TRANSIT.value))
+    } else {
+      chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(plan.getPerson.getId, subtour, plan)
+    }
+  }
+
+  private def scrubRoutes(plan: Plan): Unit = {
+    plan.getPlanElements.forEach {
+      case leg: Leg =>
+        leg.setRoute(null)
+      case _ =>
     }
   }
 
   def insertEmptyTrip(plan: Plan, fromActivity: Activity, toActivity: Activity, mainMode: String,
-                      pf: PopulationFactory):Unit = {
+                      pf: PopulationFactory): Unit = {
     val list: util.List[Leg] = Collections.singletonList(pf.createLeg(mainMode))
     TripRouter.insertTrip(plan, fromActivity, list, toActivity)
   }
 
-  def addTripsBetweenActivities(plan:Plan):Unit={
+  def addTripsBetweenActivities(plan: Plan): Unit = {
     val activities = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getActivities(plan,
       stageActivitytypes)).toIndexedSeq
-    activities.sliding(2).foreach(acts=>    insertEmptyTrip(plan,acts(0),acts(1), "car",
-      householdMembershipAllocator.population.getFactory))
+    activities.sliding(2).foreach(acts => insertEmptyTrip(plan, acts(0), acts(1), "car",
+      chainBasedTourVehicleAllocator.population.getFactory))
   }
 
   override def run(plan: Plan): Unit = {
-    if(JavaConverters.collectionAsScalaIterable(TripStructureUtils.getLegs(plan)).isEmpty){addTripsBetweenActivities(plan)}
-    plan.getPlanElements.asScala.map{ pe =>
-      pe match {
-        case act: Activity =>
-          if(act.getLinkId == null)act.setLinkId(Id.createLinkId("dummy"))
-        case _ =>
-      }
-    }
+    maybeFixPlans(plan)
     val person = plan.getPerson
-    val household = householdMembershipAllocator.memberships(person.getId)
-    val attributesOfIndividual = AttributesOfIndividual(person, household, Population.getVehiclesFromHousehold(household, vehicles))
+    val household = chainBasedTourVehicleAllocator.householdMemberships(person.getId)
+    val householdVehicles = Population.getVehiclesFromHousehold(household, chainBasedTourVehicleAllocator.vehicles)
+    val attributesOfIndividual = AttributesOfIndividual(person, household, householdVehicles)
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
-    val tours: Iterable[Subtour] = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivitytypes))
+    val tours: Seq[Subtour] = JavaConverters.collectionAsScalaIterable(TripStructureUtils.getSubtours(plan,
+      stageActivitytypes)).toIndexedSeq
+
     rankedAlternatives.foreach({ case (tourIdx, alts) =>
-      val subtour: Subtour = tours.toIndexedSeq(tourIdx)
-      val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
-      trips.foreach(trip => changeModeForTrip(trip, plan, alts.maxBy({ case (_, dbl) => dbl })._1))
+      val denom = Math.abs(alts.values.map(Math.exp(_)).sum)
+      val altIter = alts.map { x => new Pair[BeamMode, java.lang.Double](x._1, Math.exp(x._2) / denom) }
+      val dist = new EnumeratedDistribution[BeamMode](rng, JavaConverters.bufferAsJavaList(altIter.toBuffer))
+      val choice = dist.sample()
+      val subtour: Subtour = tours(tourIdx)
+      changeModeForTour(subtour, plan, choice)
     })
+
+    scrubRoutes(plan)
+
+  }
+
+  private def maybeFixPlans(plan: Plan): Unit = {
+    if (JavaConverters.collectionAsScalaIterable(TripStructureUtils.getLegs(plan)).isEmpty) {
+      addTripsBetweenActivities(plan)
+    }
+    plan.getPlanElements.asScala.foreach {
+      case act: Activity if act.getLinkId == null => act.setLinkId(Id.createLinkId("dummy"))
+      case _ =>
+    }
   }
 }
 

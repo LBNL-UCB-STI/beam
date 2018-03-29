@@ -3,7 +3,7 @@ package beam.agentsim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef}
-import akka.pattern.{ask, pipe}
+import akka.pattern.ask
 import beam.agentsim.Resource._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
@@ -34,12 +34,10 @@ trait Resource[R] extends Identifiable[R] {
       case Some(managerRef) =>
         implicit val ec = executionContext
         val response = managerRef ? CheckInResource(getId, whenWhere)
-        response.mapTo[CheckInResourceAck].map{result =>
-          result match {
-            case CheckInSuccess =>
-            case CheckInFailure(msg) =>
-              throw new RuntimeException(s"Resource could not be checked in: $msg")
-          }
+        response.mapTo[CheckInResourceAck].map {
+          case CheckInSuccess =>
+          case CheckInFailure(msg) =>
+            throw new RuntimeException(s"Resource could not be checked in: $msg")
         }
       case None =>
         throw new RuntimeException(s"Resource manager not defined for resource $getId")

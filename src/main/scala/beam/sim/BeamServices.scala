@@ -8,7 +8,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -18,7 +17,6 @@ import glokka.Registry
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler._
-import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
@@ -42,10 +40,11 @@ trait BeamServices extends ActorInject {
   var beamRouter: ActorRef
   var physSim: ActorRef
   var schedulerRef: ActorRef
+  var rideHailingManager: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
   val agentRefs: TrieMap[String, ActorRef]
-  var taz: TAZTreeMap
+ // var taz: TAZTreeMap
 
   def clearAll
 }
@@ -63,10 +62,12 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var beamRouter: ActorRef = _
   var physSim: ActorRef = _
   var schedulerRef: ActorRef = _
+  var rideHailingManager: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
   val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
-  var taz: TAZTreeMap = _
+
+ // var taz: TAZTreeMap = _
 
   def clearAll = {
     personRefs.clear

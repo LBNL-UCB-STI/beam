@@ -14,13 +14,13 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.vehicles.VehicleUtils
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.{FunSpecLike}
 
 class HouseholdActorSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.parseString( """
   akka.loggers = ["akka.testkit.TestEventListener"]
   akka.log-dead-letters = 10
   """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
-  with BeforeAndAfterAll with MockitoSugar with ImplicitSender{
+  with MockitoSugar with ImplicitSender{
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
