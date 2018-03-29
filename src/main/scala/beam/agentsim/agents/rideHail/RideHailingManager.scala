@@ -37,6 +37,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
 
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
@@ -58,6 +59,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
   val selfTimerTimoutDuration = 10 * 60 // TODO: set from config
+
+
+  val rideHailAllocationManagerTimeoutInSeconds = 60;
+
+  val bufferedReserveRideMessages:collection.mutable.ListBuffer[ReserveRide] = new ListBuffer[ReserveRide]
 
   var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
   // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
@@ -277,28 +283,15 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
       }
 
-    case ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
-      if (pendingInquiries.asMap.containsKey(inquiryId)) {
-        val (travelPlanOpt: Option[(TravelProposal, BeamTrip)], customerAgent: ActorRef, closestRHA: Option[RideHailingAgentLocation]) = findClosestRideHailingAgents(inquiryId, customerPickUp)
+    case reserveRide @ ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
 
-        closestRHA match {
-          case Some((closestRideHailingAgent)) =>
-            val travelProposal = travelPlanOpt.get._1
-            surgePricingManager.addRideCost(departAt.atTime, travelProposal.estimatedPrice.doubleValue(), customerPickUp)
-
-
-            val tripPlan = travelPlanOpt.map(_._2)
-            handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent,
-              closestRideHailingAgent, travelProposal, tripPlan)
-          // We have an agent nearby, but it's not the one we originally wanted
-          case _ =>
-            customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
-            (UnknownRideHailReservationError))
-        }
+      if (rideHailAllocationManagerTimeoutInSeconds==0){
+        handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
       } else {
-        sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
-        (UnknownInquiryIdError))
+        bufferedReserveRideMessages += reserveRide
       }
+
+
     case ModifyPassengerScheduleAck(inquiryIDOption) =>
       completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]))
 
@@ -438,6 +431,32 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
     })
     //TODO: Possibly get multiple taxis in this block
     distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2).headOption
+  }
+
+
+  private def handlePendingQuery(inquiryId: Id[RideHailingInquiry], vehiclePersonIds: VehiclePersonId, customerPickUp: Location,
+                          departAt: BeamTime, destination: Location): Unit ={
+    if (pendingInquiries.asMap.containsKey(inquiryId)) {
+      val (travelPlanOpt: Option[(TravelProposal, BeamTrip)], customerAgent: ActorRef, closestRHA: Option[RideHailingAgentLocation]) = findClosestRideHailingAgents(inquiryId, customerPickUp)
+
+      closestRHA match {
+        case Some((closestRideHailingAgent)) =>
+          val travelProposal = travelPlanOpt.get._1
+          surgePricingManager.addRideCost(departAt.atTime, travelProposal.estimatedPrice.doubleValue(), customerPickUp)
+
+
+          val tripPlan = travelPlanOpt.map(_._2)
+          handleReservation(inquiryId, vehiclePersonIds, customerPickUp, destination, customerAgent,
+            closestRideHailingAgent, travelProposal, tripPlan)
+        // We have an agent nearby, but it's not the one we originally wanted
+        case _ =>
+          customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
+          (UnknownRideHailReservationError))
+      }
+    } else {
+      sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
+      (UnknownInquiryIdError))
+    }
   }
 
 
