@@ -319,6 +319,8 @@ Now that you have a token, you need to add it to your Jenkins server so it can a
 
 25. Click the Test connection button. Jenkins will make a test API call to your account and verify connectivity. On successful connectivity click Save.
 
+
+
 Configure Jenkins Jobs
 ----------------------
 
@@ -334,7 +336,7 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
    -  HTTP Request Plugin: This plugin sends a http request to a url with some parameters.
    -  embeddable-build-status: Fancy but I love to have a status badge on my README
    -  Timestamper: It adds time information in our build output.
-   -  AnsiColor: Because some tools (linter, tests) output string with bash color and Jenkins do not render the color without it.
+   -  AnsiColor: Because some tools (lint, test) output string with bash color and Jenkins do not render the color without it.
    -  Green Balls: Because green is better than blue!
 
 1. Back in the main Jenkins dashboard, click New Item in the left hand menu:
