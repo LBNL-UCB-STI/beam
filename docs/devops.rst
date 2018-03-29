@@ -18,13 +18,13 @@ Setup Jenkins Server
 
     $ sudo apt update; sudo apt install oracle-java8-installer
 
-6.  Add the repository key to the system.::
+6.  Add the repository key to the system::
 
-    $ wget -q -O - https://pkg.jenkins.io/debian/jenkins-ci.org.key \| sudo apt-key add - .
+    $ wget -q -O - https://pkg.jenkins.io/debian/jenkins-ci.org.key | sudo apt-key add - .
 
-7.  Append the Debian package repository address to the server's sources.::
+7.  Append the Debian package repository address to the server's sources::
 
-    $ echo deb https://pkg.jenkins.io/debian-stable binary/ \| sudo tee /etc/apt/sources.list.d/jenkins.list
+    $ echo deb https://pkg.jenkins.io/debian-stable binary/ | sudo tee /etc/apt/sources.list.d/jenkins.list
 
 8.  Run update so that apt-get will use the new repository::
 
@@ -56,7 +56,7 @@ An "Unlock Jenkins" screen would appear, which displays the location of the init
 
 |image0|
 
-14. In the terminal window, use the cat command to display the password:::
+14. In the terminal window, use the cat command to display the password::
 
     $ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 
@@ -64,7 +64,7 @@ An "Unlock Jenkins" screen would appear, which displays the location of the init
 
 |image1|
 
-16. Click the "Install suggested plugins" option, which will immediately begin the installation process:
+16. Click the "Install suggested plugins" option, which will immediately begin the installation process.
 
 |image2|
 
@@ -76,17 +76,17 @@ An "Unlock Jenkins" screen would appear, which displays the location of the init
 
 |image4|
 
-19. Click "Start using Jenkins" to visit the main Jenkins dashboard:
+19. Click "Start using Jenkins" to visit the main Jenkins dashboard.
 
 |image5|
 
 At this point, Jenkins has been successfully installed.
 
-20. Update your package lists and install Nginx:::
+20. Update your package lists and install Nginx::
 
     $ sudo apt-get install nginx
 
-21. To check successful installation run:::
+21. To check successful installation run::
 
     $ nginx -v
 
@@ -98,21 +98,18 @@ At this point, Jenkins has been successfully installed.
 
     $ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/cert.key -out /etc/nginx/cert.crt
 
-24. Next you will need to edit the default Nginx configuration file.::
+24. Next you will need to edit the default Nginx configuration file::
 
     $ sudo vi /etc/nginx/sites-enabled/default
 
 25. Update the file with following contents::
 
   server {
-
     listen 80;
     return 301 https://$host$request_uri;
-
   }
 
   server {
-
     listen 443;
     server_name beam-ci.tk;
 
@@ -128,7 +125,6 @@ At this point, Jenkins has been successfully installed.
     access_log            /var/log/nginx/jenkins.access.log;
 
     location / {
-
       proxy_set_header        Host $host;
       proxy_set_header        X-Real-IP $remote_addr;
       proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -144,11 +140,11 @@ At this point, Jenkins has been successfully installed.
 
 26. For Jenkins to work with Nginx, you need to update the Jenkins config to listen only on the localhost interface instead of all (0.0.0.0), to ensure traffic gets handled properly. This is an important step because if Jenkins is still listening on all interfaces, then it will still potentially be accessible via its original port (8080).
 
-27. Modify the /etc/default/jenkins configuration file to make these adjustments.::
+27. Modify the /etc/default/jenkins configuration file to make these adjustments::
 
     $ sudo vi /etc/default/jenkins
 
-28. Locate the JENKINS\_ARGS line and update it to look like the following:::
+28. Locate the JENKINS\_ARGS line and update it to look like the following::
 
     $ JENKINS_ARGS="--webroot=/var/cache/$NAME/war --httpListenAddress=127.0.0.1 --httpPort=$HTTP_PORT -ajp13Port=$AJP_PORT"
 
@@ -162,7 +158,7 @@ At this point, Jenkins has been successfully installed.
 
 You should now be able to visit your domain using either HTTP or HTTPS, and the Jenkins site will be served securely. You will see a certificate warning because you used a self-signed certificate.
 
-31. Next you install certbot to setup nginx with as CA certificate. Certbot team maintains a PPA. Once you add it to your list of repositories all you'll need to do is apt-get the following packages:::
+31. Next you install certbot to setup nginx with as CA certificate. Certbot team maintains a PPA. Once you add it to your list of repositories all you'll need to do is apt-get the following packages::
 
     $ sudo add-apt-repository ppa:certbot/certbot
 
@@ -170,19 +166,19 @@ You should now be able to visit your domain using either HTTP or HTTPS, and the 
 
     $ sudo apt-get update
 
-33. Install certbot for Nginx.::
+33. Install certbot for Nginx::
 
     $ sudo apt-get install python-certbot-nginx
 
-34. Get a certificate and have Certbot edit Nginx configuration automatically, run the following command.::
+34. Get a certificate and have Certbot edit Nginx configuration automatically, run the following command::
 
     $ sudo certbot –nginx
 
-35. The Certbot packages on your system come with a cron job that will renew your certificates automatically before they expire. Since Let's Encrypt certificates last for 90 days, it's highly advisable to take advantage of this feature. You can test automatic renewal for your certificates by running this command:::
+35. The Certbot packages on your system come with a cron job that will renew your certificates automatically before they expire. Since Let's Encrypt certificates last for 90 days, it's highly advisable to take advantage of this feature. You can test automatic renewal for your certificates by running this command::
 
     $ sudo certbot renew –dry-run
 
-36. Restart Nginx:::
+36. Restart Nginx::
 
     $ sudo service nginx restart
 
@@ -207,11 +203,11 @@ Now configure a Jenkins slave for pipeline configuration. You need the slave AMI
 
    $ sudo apt update
 
-6. Install Java and other dependency components, there is no need to install any jenkins component or service. Jenkins automatically deploy an agent as it initiates the build.::
+6. Install Java and other dependency components, there is no need to install any jenkins component or service. Jenkins automatically deploy an agent as it initiates the build::
 
    $ sudo apt install git docker oracle-java8-installer git-lfs=2.3.4
 
-7. SSH master that you created in last topic and from inside master again ssh your newly created slave, just to test the communication.::
+7. SSH master that you created in last topic and from inside master again ssh your newly created slave, just to test the communication::
 
    $ ssh ubuntu@<slave_ip_address>
 
@@ -272,24 +268,24 @@ Now start configuring Jenkins master, so it can spawn new slave instance on dema
 
 12. In order for Jenkins to watch GitHub projects, you will need to create a Personal Access Token in your GitHub account.
 
-Now go to GitHub and signing into your account and click on user icon in the upper-right hand corner and select Settings from the drop down menu:
+Now go to GitHub and signing into your account and click on user icon in the upper-right hand corner and select Settings from the drop down menu.
 
 |image16|
 
-13. On Settings page, locate the Developer settings section on the left-hand menu and go to Personal access tokens and click on Generate new token button:
+13. On Settings page, locate the Developer settings section on the left-hand menu and go to Personal access tokens and click on Generate new token button.
 
 |image17|
 
-14. In the Token description box, add a description that will allow you to recognize it later
+14. In the Token description box, add a description that will allow you to recognize it later.
 
 |image18|
 
-15. In the Select scopes section, check the repo:status, repo:public_repo and admin:org_hook boxes. These will allow Jenkins to update commit statuses and to create webhooks for the project. If you are using a private repository, you will need to select the general repo permission instead of the repo sub items:
+15. In the Select scopes section, check the repo:status, repo:public_repo and admin:org_hook boxes. These will allow Jenkins to update commit statuses and to create webhooks for the project. If you are using a private repository, you will need to select the general repo permission instead of the repo sub items.
 
 |image19|
 
 16. When you are finished, click Generate token at the bottom.
-17. You will be redirected back to the Personal access tokens index page and your new token will displayed
+17. You will be redirected back to the Personal access tokens index page and your new token will displayed.
 
 |image20|
 
@@ -297,28 +293,27 @@ Now go to GitHub and signing into your account and click on user icon in the upp
 
 Now that you have a token, you need to add it to your Jenkins server so it can automatically set up webhooks. Log into your Jenkins web interface using the administrative account you configured during installation.
 
-19. On Jenkins main dashboard, click Credentials in the left hand menu:
+19. On Jenkins main dashboard, click Credentials in the left hand menu.
 
 |image21|
 
-20.  Click the arrow next to (global) within the Jenkins scope. In the box that appears, click Add credentials
+20.  Click the arrow next to (global) within the Jenkins scope. In the box that appears, click Add credentials.
 
 |image22|
 
-21. From Kind drop down menu, select Secret text. In the Secret field, paste your GitHub personal access token. Fill out the Description field so that you will be able to identify this entry at a later date
-   and press OK button in the bottom.
+21. From Kind drop down menu, select Secret text. In the Secret field, paste your GitHub personal access token. Fill out the Description field so that you will be able to identify this entry at a later date and press OK button in the bottom.
 
 |image23|
 
-22. Jenkins dashboard, click Manage Jenkins in the left hand menu and then click Configure System:
+22. Jenkins dashboard, click Manage Jenkins in the left hand menu and then click Configure System.
 
 |image24|
 
-23. Find the section with title GitHub. Click the Add GitHub Server button and then select GitHub Server:
+23. Find the section with title GitHub. Click the Add GitHub Server button and then select GitHub Server.
 
 |image25|
 
-24. In the Credentials drop down menu, select your GitHub personal access token that you added in the last section:
+24. In the Credentials drop down menu, select your GitHub personal access token that you added in the last section.
 
 |image26|
 
@@ -328,8 +323,12 @@ References:
 ^^^^^^^^^^^
 
 https://d0.awsstatic.com/whitepapers/DevOps/Jenkins_on_AWS.pdf
+
 https://www.digitalocean.com/community/tutorials/how-to-configure-nginx-with-ssl-as-a-reverse-proxy-for-jenkins
+
 https://www.digitalocean.com/community/tutorials/how-to-set-up-continuous-integration-pipelines-in-jenkins-on-ubuntu-16-04
+
+https://jmaitrehenry.ca/2016/08/04/how-to-install-a-jenkins-master-that-spawn-slaves-on-demand-with-aws-ec2
 
 
 .. |image0| image:: _static/figs/jenkins-unlock.png
