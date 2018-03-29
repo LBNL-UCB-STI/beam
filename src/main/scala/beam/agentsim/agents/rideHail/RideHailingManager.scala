@@ -66,6 +66,9 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val radius: Double = 5000
   val selfTimerTimoutDuration=10*60 // TODO: set from config
 
+  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
+  // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
+
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
     new QuadTree[RideHailingAgentLocation](
