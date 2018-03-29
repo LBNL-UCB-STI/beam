@@ -20,4 +20,6 @@ object RideHailResourceAllocationManager{
 
 case class VehicleAllocation(vehicleId: Id[Vehicle],availableAt: SpaceTime)
 
-case class VehicleAllocationResult(vehicleAllocation: Option[VehicleAllocation], cost: Double)
+case class VehicleAllocationResult(vehicleAllocation: Option[VehicleAllocation])
+
+// TODO (RW): mention to CS that cost removed from VehicleAllocationResult, as not needed to be returned (RHM default implementation calculates it already)
