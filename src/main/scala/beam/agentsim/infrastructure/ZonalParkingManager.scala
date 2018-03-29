@@ -61,7 +61,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     case inquiry@ParkingInquiry(customerId: Id[PersonAgent], customerLocationUtm: Location, destinationUtm: Location,
       activityType: String, valueOfTime: Double, chargingPreference: ChargingPreference, arrivalTime: Long, parkingDuration: Double) =>
 
-      val nearbyTazsWithDistances = findTAZsWithDistances(destinationUtm, 5000.0)
+      val nearbyTazsWithDistances = findTAZsWithDistances(destinationUtm, 500.0)
       val preferredType = activityType match {
         case act if act.equalsIgnoreCase("home") => Residential
         case act if act.equalsIgnoreCase("work") => Workplace
@@ -148,7 +148,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       case None =>
         if(searchRadius * 2.0 > ZonalParkingManager.maxSearchRadius){
           stallnum = stallnum + 1
-          new ParkingStall(Id.create(stallnum, classOf[ParkingStall]),StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger),inquiry.destinationUtm, 100.0)
+          new ParkingStall(Id.create(stallnum, classOf[ParkingStall]),StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger),inquiry.destinationUtm, 1000.0)
         }else{
           selectPublicStall(inquiry, searchRadius * 2.0)
         }
