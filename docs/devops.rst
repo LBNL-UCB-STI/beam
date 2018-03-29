@@ -339,20 +339,20 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
    -  AnsiColor: Because some tools (lint, test) output string with bash color and Jenkins do not render the color without it.
    -  Green Balls: Because green is better than blue!
 
-1. Back in the main Jenkins dashboard, click New Item in the left hand menu:
-2. Enter a name for your new pipeline in the Enter an item name field. Afterwards, select Freestyle Project as the item type and Click the OK button at the bottom to move on.
+3. Back in the main Jenkins dashboard, click New Item in the left hand menu:
+4. Enter a name for your new pipeline in the Enter an item name field. Afterwards, select Freestyle Project as the item type and Click the OK button at the bottom to move on.
 
 |image27|
 
-3. On the next screen, specify Project name and description.
+5. On the next screen, specify Project name and description.
 
 |image28|
 
-1. Then check the GitHub project box. In the Project url field that appears, enter your project's GitHub repository URL.
+6. Then check the GitHub project box. In the Project url field that appears, enter your project's GitHub repository URL.
 
 |image29|
 
-1. In the HTML5 Notification Configuration section left uncheck Skip HTML5 Notifications? Checkbox, to receive browser notifications against our builds
+7. In the HTML5 Notification Configuration section left uncheck Skip HTML5 Notifications? Checkbox, to receive browser notifications against our builds
 
 |image30|
 
@@ -392,8 +392,8 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
 
 |image39|
 
-References:
-^^^^^^^^^^^
+References
+----------
 
 https://d0.awsstatic.com/whitepapers/DevOps/Jenkins_on_AWS.pdf
 
