@@ -196,11 +196,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         case Some(vehicleAllocationResult) =>
           vehicleAllocationResult.vehicleAllocation match {
             case Some(vehicleAllocation) =>
-              // TODO: what to do with vehicleAllocationResult.cost?
+              // TODO (RW): what to do with vehicleAllocationResult.cost?
 
 
               // TODO (RW): Test following code with stanford class
-              rideHailAgent=resources.get(agentsim.vehicleId2BeamVehicleId(vehicleAllocation.vehicleId)).orElse(beamServices.vehicles.get(vehicleAllocation.vehicleId)).get.driver.head
+              val rideHailAgent=resources.get(agentsim.vehicleId2BeamVehicleId(vehicleAllocation.vehicleId)).orElse(beamServices.vehicles.get(vehicleAllocation.vehicleId)).get.driver.head
               val rideHailingAgentLocation=RideHailingAgentLocation(rideHailAgent, vehicleAllocation.vehicleId, vehicleAllocation.availableAt)
               val distance=CoordUtils.calcProjectedEuclideanDistance(customerPickUp,rideHailingAgentLocation.currentLocation.loc)
               rideHailLocationAndShortDistance = Some(rideHailingAgentLocation,distance)
@@ -208,10 +208,9 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
           }
         case None =>
+          // use default allocation manager
           rideHailLocationAndShortDistance = getClosestRideHailingAgent(customerPickUp, radius)
       }
-
-      // using default allocation manager
 
       rideHailLocationAndShortDistance match {
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
