@@ -322,7 +322,15 @@ Now that you have a token, you need to add it to your Jenkins server so it can a
 
 |image26|
 
-25. Click the Test connection button. Jenkins will make a test API call to your account and verify connectivity. On successful connectivity click Save:
+25. Click the Test connection button. Jenkins will make a test API call to your account and verify connectivity. On successful connectivity click Save.
+
+References:
+^^^^^^^^^^^
+
+https://d0.awsstatic.com/whitepapers/DevOps/Jenkins_on_AWS.pdf
+https://www.digitalocean.com/community/tutorials/how-to-configure-nginx-with-ssl-as-a-reverse-proxy-for-jenkins
+https://www.digitalocean.com/community/tutorials/how-to-set-up-continuous-integration-pipelines-in-jenkins-on-ubuntu-16-04
+
 
 .. |image0| image:: _static/figs/jenkins-unlock.png
 .. |image1| image:: _static/figs/jenkins-customize.png
