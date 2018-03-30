@@ -273,7 +273,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
           case None =>
 
             bufferedReserveRideMessages.get(inquiryId) match {
-              case ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
+              case Some(ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)) =>
                 handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
                 bufferedReserveRideMessages.remove(inquiryId);
 
@@ -321,10 +321,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       }
 
-      var resultMap =rideHailResourceAllocationManager.allocateBatchRequest(map)
+      var resultMap =rideHailResourceAllocationManager.allocateBatchRequests(map)
 
 
-      for (ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) <- bufferedReserveRideMessages) {
+      for (ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) <- bufferedReserveRideMessages.values) {
 
         resultMap(inquiryId).vehicleAllocation match {
           case Some(vehicleAllocation) =>

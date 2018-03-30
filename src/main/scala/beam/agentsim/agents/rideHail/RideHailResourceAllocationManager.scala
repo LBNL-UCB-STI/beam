@@ -12,7 +12,7 @@ trait RideHailResourceAllocationManager {
   // TODO Asif: change parameters to case class VehicleAllocationRequest
   def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location): Option[VehicleAllocationResult]
 
-  def allocateBatchRequest(allocationBatchRequest: Map[Id[RideHailingInquiry],VehicleAllocationRequest]): Map[Id[RideHailingInquiry],VehicleAllocationResult]
+  def allocateBatchRequests(allocationBatchRequest: Map[Id[RideHailingInquiry],VehicleAllocationRequest]): Map[Id[RideHailingInquiry],VehicleAllocationResult]
 
 }
 
