@@ -22,7 +22,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
   }
 
-
+// TODO: should we use normal without break
+  // use lockVehicle
   def allocateBatchRequests(allocationBatchRequest: Map[Id[RideHailingInquiry], VehicleAllocationRequest]): Map[Id[RideHailingInquiry], VehicleAllocationResult] = {
 
     var result = Map[Id[RideHailingInquiry], VehicleAllocationResult]()

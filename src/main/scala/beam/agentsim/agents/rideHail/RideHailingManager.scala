@@ -60,9 +60,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val radius: Double = 5000
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 0; // TODO Asif: set from config
+  val rideHailAllocationManagerTimeoutInSeconds = 60; // TODO Asif: set from config
 
-  //var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
+  val isBufferedRideHailAllocationMode = false
+
+ // var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
   var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
   // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
 
@@ -247,9 +249,9 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
     case reserveRide @ ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
 
       if (isBufferedRideHailAllocationMode){
-        handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
-      } else {
         bufferedReserveRideMessages += (inquiryId -> reserveRide)
+      } else {
+        handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
       }
 
     case ModifyPassengerScheduleAck(inquiryIDOption) =>
@@ -304,12 +306,21 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       // TODO (RW) add repositioning code here
 
-
+   //   var scheduleTriggers= Vector[ScheduleTrigger]()
 
       val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
       val timerMessage = ScheduleTrigger(timerTrigger, self)
-      beamServices.schedulerRef ! timerMessage
-      beamServices.schedulerRef ! TriggerUtils.completed(triggerId)
+
+   //   var scheduleTriggers= Vector[ScheduleTrigger](timerMessage)
+
+     // scheduleTriggers :+ = timerMessage
+
+
+      //beamServices.schedulerRef ! timerMessage
+
+
+
+      beamServices.schedulerRef ! TriggerUtils.completed(triggerId,Vector(timerMessage))
 
 
     }
@@ -319,9 +330,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   }
 
-  private def isBufferedRideHailAllocationMode = {
-    rideHailAllocationManagerTimeoutInSeconds != 0
-  }
+
 
   private def findClosestRideHailingAgents(inquiryId: Id[RideHailingInquiry], customerPickUp: Location) = {
 
@@ -485,12 +494,16 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
     }
   }
 
+  def lockedVehicle(vehicleId: Id[Vehicle]) = {
+    lockedVehicles += vehicleId
+  }
+
 
   private def handleRideHailInquiry(inquiryId: Id[RideHailingInquiry], personId: Id[PersonAgent],
                                     customerPickUp: Location, departAt: BeamTime, destination: Location, rideHailLocationAndShortDistance: Option[(RideHailingAgentLocation,Double)],customerAgent: Option[ActorRef]): Unit ={
     rideHailLocationAndShortDistance match {
       case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
-        if (isBufferedRideHailAllocationMode) {
+        if (!isBufferedRideHailAllocationMode) {
           // only lock vehicle in immediate processing mode, in buffered processing mode we lock vehicle only when batch queries are beeing processing
           lockedVehicles += rideHailingLocation.vehicleId
         }
