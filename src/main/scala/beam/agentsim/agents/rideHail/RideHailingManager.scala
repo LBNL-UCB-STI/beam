@@ -61,7 +61,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val selfTimerTimoutDuration = 10 * 60 // TODO: set from config
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 0;
+  val rideHailAllocationManagerTimeoutInSeconds = 60;
 
   //val bufferedReserveRideMessages:collection.mutable.ListBuffer[ReserveRide] = new ListBuffer[ReserveRide]
 
@@ -72,7 +72,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 
 
-  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
+  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
   // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
 
   //TODO improve search to take into account time when available
@@ -483,7 +483,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   }
 
-  private def getClosestRideHailingAgent(pickupLocation: Coord, radius: Double): Option[(RideHailingAgentLocation,
+
+  def getClosestVehiclesWithinStandardRadius(pickupLocation: Coord, radius: Double):Vector[(RideHailingAgentLocation,
     Double)] = {
     val nearbyRideHailingAgents = availableRideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY,
       radius).asScala.toVector
@@ -493,7 +494,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       (rideHailingAgentLocation, distance)
     })
     //TODO: Possibly get multiple taxis in this block
-    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2).headOption
+    distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2)
+  }
+
+  def getClosestRideHailingAgent(pickupLocation: Coord, radius: Double): Option[(RideHailingAgentLocation,
+    Double)] = {
+    getClosestVehiclesWithinStandardRadius(pickupLocation,radius).headOption
   }
 
 
