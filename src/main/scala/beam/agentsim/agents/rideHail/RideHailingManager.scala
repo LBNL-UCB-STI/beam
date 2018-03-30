@@ -58,10 +58,15 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   // val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
-  val selfTimerTimoutDuration = 10 * 60 // TODO: set from config
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 60;
+  val rideHailAllocationManagerTimeoutInSeconds = 0; // TODO Asif: set from config
+
+  //var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
+  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
+  // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
+
+
 
   //val bufferedReserveRideMessages:collection.mutable.ListBuffer[ReserveRide] = new ListBuffer[ReserveRide]
 
@@ -72,8 +77,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 
 
-  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
-  // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
+
 
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
@@ -137,62 +141,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         sender ! CheckInSuccess
       })
 
-    case RepositionResponse(rnd1, rnd2, _, _) =>
-      updateLocationOfAgent(rnd1.vehicleId, rnd2.currentLocation, true)
-      updateLocationOfAgent(rnd2.vehicleId, rnd1.currentLocation, true)
 
-    case TriggerWithId(RepositioningTimer(tick), triggerId) => {
-
-      //print()
-      // TODO: add initial timer
-
-      // TODO: reposition vehicles
-
-      //  beamServices.schedulerRef ! RepositioningTimer -> make trigger
-
-      // get two random idling TNCs
-      // move one TNC to the other.
-      val rnd = new Random
-      val availableKeyset = availableRideHailVehicles.keySet.toArray
-      implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-      import context.dispatcher
-      if (availableKeyset.size > 1) {
-        val idRnd1 = availableKeyset.apply(rnd.nextInt(availableKeyset.size))
-        val idRnd2 = availableKeyset
-          .filterNot(_.equals(idRnd1))
-          .apply(rnd.nextInt(availableKeyset.size - 1))
-
-        for {
-          rnd1 <- availableRideHailVehicles.get(idRnd1)
-          rnd2 <- availableRideHailVehicles.get(idRnd2)
-        } yield {
-          val departureTime: BeamTime = DiscreteTime(0)
-          val futureRnd1AgentResponse = router ? RoutingRequest(
-            rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
-          // get route from customer to destination
-          val futureRnd2AgentResponse = router ? RoutingRequest(
-            rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
-          for {
-            rnd1Response <- futureRnd1AgentResponse.mapTo[RoutingResponse]
-            rnd2Response <- futureRnd2AgentResponse.mapTo[RoutingResponse]
-          } yield {
-            self ! RepositionResponse(rnd1, rnd2, rnd1Response, rnd2Response)
-          }
-        }
-      }
-
-      //      updateLocationOfAgent(rnd1, )
-      // TODO: schedule next Timer
-      // start relocate?
-
-      // end relocate?
-
-
-      val timerTrigger = RepositioningTimer(tick + selfTimerTimoutDuration)
-      val timerMessage = ScheduleTrigger(timerTrigger, self)
-      beamServices.schedulerRef ! timerMessage
-      beamServices.schedulerRef ! TriggerUtils.completed(triggerId)
-    }
 
 
     case CheckOutResource(_) =>
@@ -355,6 +304,14 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       // TODO (RW) add repositioning code here
 
+
+
+      val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
+      val timerMessage = ScheduleTrigger(timerTrigger, self)
+      beamServices.schedulerRef ! timerMessage
+      beamServices.schedulerRef ! TriggerUtils.completed(triggerId)
+
+
     }
 
     case msg =>
@@ -363,7 +320,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   }
 
   private def isBufferedRideHailAllocationMode = {
-    rideHailAllocationManagerTimeoutInSeconds == 0
+    rideHailAllocationManagerTimeoutInSeconds != 0
   }
 
   private def findClosestRideHailingAgents(inquiryId: Id[RideHailingInquiry], customerPickUp: Location) = {
@@ -612,7 +569,6 @@ object RideHailingManager {
 
   case object RideAvailableAck
 
-  case class RepositioningTimer(tick: Double) extends Trigger
 
   case class RepositionResponse(rnd1: RideHailingAgentLocation, rnd2: RideHailingManager.RideHailingAgentLocation,
                                 rnd1Response: RoutingResponse, rnd2Response: RoutingResponse)

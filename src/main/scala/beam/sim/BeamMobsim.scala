@@ -8,7 +8,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
-import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RepositioningTimer}
+import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAgent, RideHailingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -137,7 +137,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       }
 
       private def scheduleRideHailManagerTimerMessage(): Unit = {
-        val timerTrigger=RepositioningTimer(0.0)
+        val timerTrigger=RideHailAllocationManagerTimeout(0.0)
         val timerMessage=ScheduleTrigger(timerTrigger, rideHailingManager)
         scheduler ! timerMessage
         log.info(s"rideHailManagerTimerScheduled")
