@@ -11,6 +11,7 @@ import scala.util.control.Breaks._
 
 class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
 
+  val isBufferedRideHailAllocationMode = true
 
   def getVehicleAllocation(pickUpLocation: Location, departAt: BeamTime, destination: Location): Option[VehicleAllocationResult] = {
     val rideHailingAgentLocation = rideHailingManager.getClosestRideHailingAgent(pickUpLocation, rideHailingManager.radius)

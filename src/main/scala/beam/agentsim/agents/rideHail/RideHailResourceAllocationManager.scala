@@ -9,6 +9,12 @@ import org.matsim.vehicles.Vehicle
 
 trait RideHailResourceAllocationManager {
 
+  // TODO RW make two traits, one for rideHail manager and one for buffered RideHail Manager?
+
+
+
+  val isBufferedRideHailAllocationMode: Boolean
+
   // TODO Asif: change parameters to case class VehicleAllocationRequest
   def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location): Option[VehicleAllocationResult]
 

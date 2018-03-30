@@ -62,7 +62,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   val rideHailAllocationManagerTimeoutInSeconds = 60; // TODO Asif: set from config
 
-  val isBufferedRideHailAllocationMode = false
+
 
  // var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
   var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
@@ -248,7 +248,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
     case reserveRide @ ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
 
-      if (isBufferedRideHailAllocationMode){
+      if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
         bufferedReserveRideMessages += (inquiryId -> reserveRide)
       } else {
         handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
@@ -262,7 +262,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 // TODO (RW): this needs to be called according to timeout settings
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
-    if (isBufferedRideHailAllocationMode){
+    if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
 
 
       var map: Map[Id[RideHailingInquiry], VehicleAllocationRequest] = Map[Id[RideHailingInquiry], VehicleAllocationRequest]()
@@ -503,7 +503,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
                                     customerPickUp: Location, departAt: BeamTime, destination: Location, rideHailLocationAndShortDistance: Option[(RideHailingAgentLocation,Double)],customerAgent: Option[ActorRef]): Unit ={
     rideHailLocationAndShortDistance match {
       case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
-        if (!isBufferedRideHailAllocationMode) {
+        if (!rideHailResourceAllocationManager.isBufferedRideHailAllocationMode) {
           // only lock vehicle in immediate processing mode, in buffered processing mode we lock vehicle only when batch queries are beeing processing
           lockedVehicles += rideHailingLocation.vehicleId
         }

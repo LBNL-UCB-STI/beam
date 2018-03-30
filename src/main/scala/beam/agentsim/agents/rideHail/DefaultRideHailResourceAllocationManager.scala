@@ -10,6 +10,9 @@ import org.slf4j.{Logger, LoggerFactory}
 
 class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocationManager {
 
+  val isBufferedRideHailAllocationMode = false
+
+
   def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location): Option[VehicleAllocationResult] = {
     None
   }
