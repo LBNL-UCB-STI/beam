@@ -44,6 +44,10 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
       vehicleAllocationResult match {
         case Some(vehicleAllocationResult) => result += (rideHailingInquiry -> vehicleAllocationResult)
+          vehicleAllocationResult.vehicleAllocation match {
+            case Some(vehicleAllocation) => rideHailingManager.lockVehicle(vehicleAllocation.vehicleId)
+            case None =>
+          }
         case None => result += (rideHailingInquiry -> VehicleAllocationResult(None))
       }
     }

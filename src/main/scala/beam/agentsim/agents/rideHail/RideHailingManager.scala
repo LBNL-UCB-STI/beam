@@ -60,12 +60,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val radius: Double = 5000
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 60; // TODO Asif: set from config
+  val rideHailAllocationManagerTimeoutInSeconds = 120; // TODO Asif: set from config
 
 
 
- // var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
-  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
+ var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
+//  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
   // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
 
 
@@ -76,7 +76,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   var handleRideHailInquirySubmitted = collection.mutable.Set[Id[RideHailingInquiry]] ()
 
-
+  var nextCompleteNoticeRideHailAllocationTimeout:CompletionNotice=_
 
 
 
@@ -228,6 +228,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
                 handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
                 bufferedReserveRideMessages.remove(inquiryId);
 
+                // TODO if there is any issue related to bufferedReserveRideMessages, look at this closer (e.g. make two data structures, one for those
+                // before timout and one after
+                if (bufferedReserveRideMessages.size==0){
+                  beamServices.schedulerRef ! nextCompleteNoticeRideHailAllocationTimeout
+                }
+
               case _ =>
             }
           // call was made by ride hail agent itself
@@ -250,6 +256,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
         bufferedReserveRideMessages += (inquiryId -> reserveRide)
+        System.out.println("")
       } else {
         handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
       }
@@ -306,21 +313,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       // TODO (RW) add repositioning code here
 
-   //   var scheduleTriggers= Vector[ScheduleTrigger]()
 
       val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
       val timerMessage = ScheduleTrigger(timerTrigger, self)
-
-   //   var scheduleTriggers= Vector[ScheduleTrigger](timerMessage)
-
-     // scheduleTriggers :+ = timerMessage
-
-
-      //beamServices.schedulerRef ! timerMessage
-
-
-
-      beamServices.schedulerRef ! TriggerUtils.completed(triggerId,Vector(timerMessage))
+      nextCompleteNoticeRideHailAllocationTimeout = TriggerUtils.completed(triggerId,Vector(timerMessage))
+     // beamServices.schedulerRef ! TriggerUtils.completed(triggerId,Vector(timerMessage))
 
 
     }
@@ -494,7 +491,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
     }
   }
 
-  def lockedVehicle(vehicleId: Id[Vehicle]) = {
+  def lockVehicle(vehicleId: Id[Vehicle]) = {
     lockedVehicles += vehicleId
   }
 
