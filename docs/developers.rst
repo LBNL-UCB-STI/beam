@@ -139,7 +139,7 @@ The command will start an ec2 instance based on the provided configurations and 
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Beam uses `Kamon`_ as a performance monitoring framework, and its `StatsD`_ reporter enables beam to publish matrices to a verity of backends. `Graphite`_ as the StatsD backend and `Grafana`_ to create beautiful dashboards build a very good monitoring ecosystem. To make environment up and running in a few minutes, use Kamon's provided docker image (beam dashboard need to import) from from `docker hub`_ or build using Dockerfile and supporting configuration files available in metrics directory under beam root. All you need is to install few prerequisite like docker, docker-compose, and make. To start a container you just need to run the following command in metrics dir::
+Beam uses `Kamon`_ as a performance monitoring framework, and its `StatsD`_ reporter enables beam to publish matrices to a verity of backends. `Graphite`_ as the StatsD backend and `Grafana`_ to create beautiful dashboards build a very good monitoring ecosystem. To make environment up and running in a few minutes, use Kamon's provided docker image (beam dashboard need to import) from `docker hub`_ or build using Dockerfile and supporting configuration files available in metrics directory under beam root. All you need is to install few prerequisite like docker, docker-compose, and make. To start a container you just need to run the following command in metrics dir::
 
    $ make up
 
@@ -158,7 +158,7 @@ With the docker container following services start and exposes the listed ports:
 * 8125: the StatsD port.
 * 8126: the StatsD administrative port.
 
-Now start beam by specifying metrics configurations in beam.conf and update the host and port for StatsD server in following config::
+Once your container is running, now update your metrics configurations in beam.conf::
 
   beam.metrics.level = "verbose"
 
@@ -184,7 +184,7 @@ Now start beam by specifying metrics configurations in beam.conf and update the 
       }
 
       statsd {
-        hostname = 192.168.99.100
+        hostname = 127.0.0.1  # replace with your container in case local loop didn't work
         port = 8125
       }
 
@@ -194,7 +194,23 @@ Now start beam by specifying metrics configurations in beam.conf and update the 
       }
     }
 
-Once your container is running all you need to do is, to make sure beam.metrics.level would not be pointing to the value `off` and kamon.statsd.hostname has IP of your docker container and start beam simulation. As simulation starts, kamon would load its modules and start publishing metrics to the StatsD server, running inside the docker container. To open your browser pointing to http://localhost:80 (Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost). Login with the default username (admin) and password (admin), open existing beam dashboard (or create a new one).
+Make sure to update the **host** and **port** for StatsD server in the abode config. To find the docker container IP address, first you need to list the containers to get container id using::
+
+   $ docker ps
+
+Then use the container ip to find IP address, run the following command::
+
+   $ docker inspect YOUR_CONTAINER_IP
+
+And at the bottom under NetworkSettings, locate IP Address of your docker container.
+
+Other then IP address you also need to confirm few other thing in your environment.
+
+   -  beam.metrics.level would not be pointing to the value `off`.
+   -  kamon-statsd.auto-start = yes, under kamon.modules.
+   -  build.gradle has kamon-statsd and kamon-log-reporter are available based on your kamon.module settings.
+
+Now your docker container is up, all required components are configured, all you need to start beam simulation. As simulation starts, kamon would load its modules and start publishing metrics to the StatsD server, running inside the docker container. To open your browser pointing to http://localhost:80 (Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost). Login with the default username (admin) and password (admin), open existing beam dashboard (or create a new one).
 
 To view the container log::
 
