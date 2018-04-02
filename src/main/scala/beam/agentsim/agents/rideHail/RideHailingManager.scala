@@ -1,8 +1,8 @@
 package beam.agentsim.agents.rideHail
 
-import beam.agentsim.agents.BeamAgent.BeamAgentData
 import java.util.concurrent.TimeUnit
 
+import beam.agentsim.agents.BeamAgent.{BeamAgentData, Finish}
 import akka.actor.{ActorRef, Props}
 import akka.pattern._
 import akka.util.Timeout
@@ -290,8 +290,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
     case ReleaseVehicleReservation(_, vehId) =>
       lockedVehicles -= vehId
 
+    case Finish =>
+      log.info("finish message received from BeamAgentScheduler")
+
     case msg =>
-      log.warn(s"unknown message received by RideHailingManager $msg")
+      log.warn(s"unknown message received by RideHailingManager $msg from ${sender().path.toString()}")
 
   }
 

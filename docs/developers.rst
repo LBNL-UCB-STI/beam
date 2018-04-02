@@ -117,3 +117,78 @@ To run experiments, you can specify comma-separated experiment files::
   gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
 
 The command will start an ec2 instance based on the provided configurations and run all simulations in serial. To run on separate parallel instances, set `beamBatch` to false. At the end of each simulation, outputs are uploaded to Amazon S3.
+
+
+Performance Monitoring
+----------------------
+Beam uses `Kamon`_ as a performance monitoring framework, and its `StatsD`_ reporter enables beam to publish matrices to a verity of backends. `Graphite`_ as the StatsD backend and `Grafana`_ to create beautiful dashboards build a very good monitoring ecosystem. To make environment up and running in a few minutes, use Kamon's provided docker image (beam dashboard need to import) from from `docker hub`_ or build using Dockerfile and supporting configuration files available in metrics directory under beam root. All you need is to install few prerequisite like docker, docker-compose, and make. To start a container you just need to run the following command in metrics dir::
+
+   $ make up
+
+.. _Kamon: http://kamon.io
+.. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
+.. _Graphite: http://graphite.wikidot.com/
+.. _Grafana: http://grafana.org/
+.. _docker hub: https://hub.docker.com/u/kamon/
+
+
+With the docker container following services start and exposes the listed ports:
+
+* 80: the Grafana web interface.
+* 81: the Graphite web port
+* 2003: the Graphite data port
+* 8125: the StatsD port.
+* 8126: the StatsD administrative port.
+
+Now start beam by specifying metrics configurations in beam.conf and update the host and port for StatsD server in following config::
+
+  beam.metrics.level = "verbose"
+
+  kamon {
+      trace {
+        level = simple-trace
+      }
+
+      metric {
+        #tick-interval = 5 seconds
+        filters {
+          trace.includes = [ "**" ]
+
+          akka-actor {
+            includes = [ "beam-actor-system/user/router/**", "beam-actor-system/user/worker-*" ]
+            excludes = [ "beam-actor-system/system/**", "beam-actor-system/user/worker-helper" ]
+          }
+
+          akka-dispatcher {
+            includes = [ "beam-actor-system/akka.actor.default-dispatcher" ]
+          }
+        }
+      }
+
+      statsd {
+        hostname = 192.168.99.100
+        port = 8125
+      }
+
+      modules {
+        #kamon-log-reporter.auto-start = yes
+        kamon-statsd.auto-start = yes
+      }
+    }
+
+Once your container is running all you need to do is, to make sure beam.metrics.level would not be pointing to the value `off` and kamon.statsd.hostname has IP of your docker container and start beam simulation. As simulation starts, kamon would load its modules and start publishing metrics to the StatsD server, running inside the docker container. To open your browser pointing to http://localhost:80 (Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost). Login with the default username (admin) and password (admin), open existing beam dashboard (or create a new one).
+
+To view the container log::
+
+   $ make tail
+
+To stop the container::
+
+   $ make down
+
+If you get the image from docker hub, you need to import the beam dashboard from metrics/grafana/dashboards directory.
+
+Cloud visualization services become more popular nowadays and save lost of effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
+.. _Datadog: https://www.datadoghq.com/
+.. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
+
