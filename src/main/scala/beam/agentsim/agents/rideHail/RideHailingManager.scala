@@ -60,7 +60,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val radius: Double = 5000
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 120; // TODO Asif: set from config
+  val rideHailAllocationManagerTimeoutInSeconds = 0.1; // TODO Asif: set from config
 
 
 
@@ -226,11 +226,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
             bufferedReserveRideMessages.get(inquiryId) match {
               case Some(ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)) =>
                 handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
-                bufferedReserveRideMessages.remove(inquiryId);
+                bufferedReserveRideMessages.remove(inquiryId)
+                handleRideHailInquirySubmitted.remove(inquiryId)
 
                 // TODO if there is any issue related to bufferedReserveRideMessages, look at this closer (e.g. make two data structures, one for those
                 // before timout and one after
-                if (bufferedReserveRideMessages.size==0){
+                if (handleRideHailInquirySubmitted.size==0){
                   sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
                 }
 
@@ -256,7 +257,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
         bufferedReserveRideMessages += (inquiryId -> reserveRide)
-        System.out.println("")
+        //System.out.println("")
       } else {
         handlePendingQuery(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination)
       }
