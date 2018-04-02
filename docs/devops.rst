@@ -68,10 +68,10 @@ Set Aws access key, secret ky and s3 details based on previous steps.
 
 18.  At the end, create file named .lfsconfig in you repository with following contents, update host and port based on your environment.
 
-   [lfs]
-     url = "http://host:port/LBNL-UCB-STI/beam.git"
-     batch = true
-     access = basic
+    [lfs]
+        url = "http://host:port/LBNL-UCB-STI/beam.git"
+        batch = true
+        access = basic
 
 This will setup everything you need to setup and install a custom gitl-lfs server on Amazon instance and github repository will start pointing to the your custom server. There is no special installation or requirement for the clint, only thing that you need is to provide lfs user name and password on you client when you pull your contents for the first time.
 
