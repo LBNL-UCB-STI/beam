@@ -231,7 +231,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
                 // TODO if there is any issue related to bufferedReserveRideMessages, look at this closer (e.g. make two data structures, one for those
                 // before timout and one after
                 if (bufferedReserveRideMessages.size==0){
-                  beamServices.schedulerRef ! nextCompleteNoticeRideHailAllocationTimeout
+                  sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
                 }
 
               case _ =>
@@ -269,7 +269,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 // TODO (RW): this needs to be called according to timeout settings
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
-    if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
+
+
+      prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
+
+
+    if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode && bufferedReserveRideMessages.values.size>0){
 
 
       var map: Map[Id[RideHailingInquiry], VehicleAllocationRequest] = Map[Id[RideHailingInquiry], VehicleAllocationRequest]()
@@ -300,7 +305,6 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
           // TODO: how to handle case, if no car availalbe????? -> check
         }
 
-
       }
 
 
@@ -309,14 +313,14 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         // TODO (RW) to make the following call compatible with default code, we need to probably manipulate
 
     //
+      } else {
+      sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
       }
 
       // TODO (RW) add repositioning code here
 
 
-      val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
-      val timerMessage = ScheduleTrigger(timerTrigger, self)
-      nextCompleteNoticeRideHailAllocationTimeout = TriggerUtils.completed(triggerId,Vector(timerMessage))
+
      // beamServices.schedulerRef ! TriggerUtils.completed(triggerId,Vector(timerMessage))
 
 
@@ -327,7 +331,15 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   }
 
+  private def prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick: Double , triggerId:Long): Unit ={
+    val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
+    val timerMessage = ScheduleTrigger(timerTrigger, self)
+      nextCompleteNoticeRideHailAllocationTimeout = TriggerUtils.completed(triggerId,Vector(timerMessage))
+  }
 
+  private def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit ={
+    beamServices.schedulerRef ! nextCompleteNoticeRideHailAllocationTimeout
+  }
 
   private def findClosestRideHailingAgents(inquiryId: Id[RideHailingInquiry], customerPickUp: Location) = {
 
