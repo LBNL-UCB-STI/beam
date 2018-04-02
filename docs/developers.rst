@@ -194,23 +194,33 @@ Once your container is running, now update your metrics configurations in beam.c
       }
     }
 
-Make sure to update the **host** and **port** for StatsD server in the abode config. To find the docker container IP address, first you need to list the containers to get container id using::
+Make sure to update the **host** and **port** for StatsD server in the abode config. Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost. To find the docker container IP address, first you need to list the containers to get container id using::
 
    $ docker ps
 
-Then use the container ip to find IP address, run the following command::
+Then use the container id to find IP address of your container. Run the following command by providing container id in following command by replacing YOUR_CONTAINER_ID::
 
-   $ docker inspect YOUR_CONTAINER_IP
+   $ docker inspect YOUR_CONTAINER_ID
 
-And at the bottom under NetworkSettings, locate IP Address of your docker container.
+Now at the bottom, under NetworkSettings, locate IP Address of your docker container and update statsd host.
 
-Other then IP address you also need to confirm few other thing in your environment.
+Other then IP address you also need to confirm few thing in your environment like.
 
    -  beam.metrics.level would not be pointing to the value `off`.
    -  kamon-statsd.auto-start = yes, under kamon.modules.
-   -  build.gradle has kamon-statsd and kamon-log-reporter are available based on your kamon.module settings.
+   -  build.gradle(Gradle build script) has kamon-statsd and kamon-log-reporter available as dependencies, based on your kamon.modules settings.
 
-Now your docker container is up, all required components are configured, all you need to start beam simulation. As simulation starts, kamon would load its modules and start publishing metrics to the StatsD server, running inside the docker container. To open your browser pointing to http://localhost:80 (Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost). Login with the default username (admin) and password (admin), open existing beam dashboard (or create a new one).
+Now your docker container is up and required components are configured, all you need to start beam simulation. As simulation starts, kamon would load its modules and start publishing metrics to the StatsD server (running inside the docker container).
+
+In your browser open http://localhost:80 (or with IP you located in previous steps). Login with the default username (admin) and password (admin), open existing beam dashboard (or create a new one).
+
+If you get the docker image from docker hub, you need to import the beam dashboard from metrics/grafana/dashboards directory.
+
+   - To import a dashboard open dashboard search and then hit the import button.
+   - From here you can upload a dashboard json file, as upload complete the import process will let you change the name of the dashboard, pick graphite as data source.
+   - A new dashboard will appear in dashboard list.
+
+Open beam dashboard (or what ever the name you specified while importing) and start monitoring different beam module level matrices in a nice graphical interface.
 
 To view the container log::
 
@@ -220,7 +230,6 @@ To stop the container::
 
    $ make down
 
-If you get the image from docker hub, you need to import the beam dashboard from metrics/grafana/dashboards directory.
 
 Cloud visualization services become more popular nowadays and save lost of effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
 .. _Datadog: https://www.datadoghq.com/
