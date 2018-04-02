@@ -83,6 +83,23 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
       </dict>
     </plist>
 
+
+GIT-LFS Configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+The installation process for git-lfs(v2.3.4, latest installer has some issue with node-git-lfs) client is vey simple and document in detail on `github guide`_ for Mac, windows and Linux.
+
+.. _github guide: https://help.github.com/articles/installing-git-large-file-storage/
+
+To verify successful installation execute following command::
+
+    $ git lfs install
+    Git LFS initialized.
+
+To confirm that you have installed the correct version of client run the following command::
+
+   $ gti lfs env
+
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
