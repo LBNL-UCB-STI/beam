@@ -83,8 +83,6 @@ object PersonAgent {
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
   HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
 
-  override def logDepth: Int = 100
-
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
   startWith(Uninitialized, BasePersonData())
@@ -154,8 +152,9 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
 
-    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,_,_,_,_,_,true)) =>
+    case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,restOfCurrentTrip,_,_,_,_,true)) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
+      log.error("at {} replanned to leg {}", tick, restOfCurrentTrip.head)
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }
@@ -169,6 +168,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
+      log.error(getLog.mkString("\n"))
       holdTickAndTriggerId(tick, triggerId)
       goto(ChoosingMode) using ChoosesModeData(data)
 
