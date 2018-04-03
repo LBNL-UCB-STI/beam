@@ -30,11 +30,13 @@ import scala.util.{Random, Try}
 // TODO: safety for
 class BeamVehicle(val powerTrain: Powertrain,
                   val matSimVehicle: Vehicle,
-                  val  initialMatsimAttributes: Option[ObjectAttributes],
-                  val  beamVehicleType: BeamVehicleType,
-  )
+                  val initialMatsimAttributes: Option[ObjectAttributes],
+                  val beamVehicleType: BeamVehicleType,
+                  var fuelLevel: Double,
+                  val fuelCapacityInJoules: Double
+                 )
   extends Resource[BeamVehicle] {
-    val log: Logger = Logger.getLogger(classOf[BeamVehicle])
+  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
 
   /**
     * Manages the functionality to add or remove passengers from the vehicle according
@@ -73,6 +75,15 @@ class BeamVehicle(val powerTrain: Powertrain,
     driver = None
   }
 
+
+  def useFuel(distanceInMeters: Double)={
+    fuelLevel-= powerTrain.estimateConsumptionInJoules(distanceInMeters)/fuelCapacityInJoules
+  }
+
+  def addFuel(fuelInJoules: Double)={
+    fuelLevel+= fuelInJoules/fuelCapacityInJoules
+  }
+
   /**
     * Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
     * a call of [[unsetDriver]] will remove the driver.
@@ -81,7 +92,7 @@ class BeamVehicle(val powerTrain: Powertrain,
     * @param newDriverRef incoming driver
     */
   def becomeDriver(newDriverRef: ActorRef)
-  : Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type ] = {
+  : Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
     if (driver.isEmpty) {
       driver = Option(newDriverRef)
       Right(BecomeDriverOfVehicleSuccessAck)
@@ -111,6 +122,7 @@ class BeamVehicle(val powerTrain: Powertrain,
   def addPassenger(idToAdd: Id[Vehicle]): Boolean = {
     vehicleOccupancyAdministrator.addPassenger(idToAdd)
   }
+
   def canAddPassenger(): Boolean = {
     vehicleOccupancyAdministrator.canAddPassenger()
   }
@@ -181,11 +193,11 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
     *         capacity has been exceeded ([[Left]]) or a
     */
   def addPassenger(idToAdd: Id[Vehicle]): Boolean = {
-    if(seatedPassengers.size==seatedOccupancyLimit){
+    if (seatedPassengers.size == seatedOccupancyLimit) {
       addStandingPassenger(idToAdd)
-    }else if(standingPassengers.size==standingOccupancyLimit){
+    } else if (standingPassengers.size == standingOccupancyLimit) {
       addSeatedPassenger(idToAdd)
-    }else if (seatAssignmentRule.assignSeatOnEnter(idToAdd,
+    } else if (seatAssignmentRule.assignSeatOnEnter(idToAdd,
       standingPassengers,
       seatedPassengers,
       vehicle.matSimVehicle)) {
@@ -214,10 +226,10 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
       }
       seatedPassengers -= idToRemove
       true
-    } else if(standingPassengers.contains(idToRemove)) {
+    } else if (standingPassengers.contains(idToRemove)) {
       standingPassengers -= idToRemove
       true
-    }else{
+    } else {
       false
     }
   }
