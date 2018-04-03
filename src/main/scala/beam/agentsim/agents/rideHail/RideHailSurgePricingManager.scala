@@ -144,9 +144,19 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   def getSurgeLevel(location: Location, time: Double): Double = {
     val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = getTimeBinIndex(time)
-    surgePriceBins.get(taz.tazId.toString)
-      .map(i => i(timeBinIndex).currentIterationSurgePriceLevel)
-      .getOrElse(throw new Exception("no surge level found"))
+    try {
+      surgePriceBins.get(taz.tazId.toString)
+        .map(i => i(timeBinIndex).currentIterationSurgePriceLevel)
+        .getOrElse(throw new Exception("no surge level found"))
+    }catch{
+      case ex: Exception => {
+
+        println("time => " + time + ", timeBinIndex => " + timeBinIndex + ", timeBinSize => " + timeBinSize)
+        println("Size of surgePricebins => " + surgePriceBins.get(taz.tazId.toString).size)
+        ex.printStackTrace()
+        throw ex
+      }
+    }
   }
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
@@ -183,7 +193,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     sum
   }
 
-  private def getTimeBinIndex(time: Double): Int = Math.round(time / timeBinSize).toInt // - 1
+  private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
 
   def incrementIteration() = {
     iteration += 1;
