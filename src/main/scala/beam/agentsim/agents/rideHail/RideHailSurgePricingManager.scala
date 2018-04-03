@@ -152,7 +152,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
       case ex: Exception => {
 
         println("time => " + time + ", timeBinIndex => " + timeBinIndex + ", timeBinSize => " + timeBinSize)
-        println("Size of surgePricebins => " + surgePriceBins.get(taz.tazId.toString).size)
+        println("Size of surgePricebins => " + surgePriceBins.get(taz.tazId.toString).get.size)
         ex.printStackTrace()
         throw ex
       }
