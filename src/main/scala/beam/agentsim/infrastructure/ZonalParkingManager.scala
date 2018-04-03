@@ -31,6 +31,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] = collection.mutable.Map[Id[ParkingStall], ParkingStall]()
   val pooledResources: mutable.Map[StallAttributes,Int] = mutable.Map()
   var stallnum = 0
+  val pathResourceCSV = "PATH"
 
   //TODO allow specification of parking/charging distribution
   tazTreeMap.tazQuadTree.values().forEach { taz =>
@@ -43,7 +44,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     }
   }
   beamServices.beamConfig
-  readCsvFile("PATH").foreach( f => {
+  readCsvFile(pathResourceCSV).foreach( f => {
     pooledResources.update(f._1, f._2)
   })
 

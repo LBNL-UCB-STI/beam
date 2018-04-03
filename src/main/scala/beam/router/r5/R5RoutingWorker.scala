@@ -247,12 +247,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val theLinkIds = leg.travelPath.linkIds
         if(theLinkIds.length <= 1){
           Vector(leg)
-        }else if(leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters){
+        }else if(leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters){
           val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
           val secondLeg = updateLegWithCurrentTravelTime(leg.updateLinks(theLinkIds.tail).copy(startTime = firstLeg.startTime + firstLeg.duration))
           Vector(firstLeg, secondLeg)
         }else{
-          val indexFromEnd = theLinkIds.reverse.map(lengthOfLink(_)).scanLeft(0.0)(_+_).indexWhere(_>beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters)
+          val indexFromEnd = theLinkIds.reverse.map(lengthOfLink(_)).scanLeft(0.0)(_+_).indexWhere(_>beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters)
           val indexFromBeg = theLinkIds.length - indexFromEnd
           val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(theLinkIds.take(indexFromBeg)))
           val secondLeg = updateLegWithCurrentTravelTime(leg.updateLinks(theLinkIds.takeRight(indexFromEnd+1)).copy(startTime = firstLeg.startTime + firstLeg.duration))
