@@ -35,6 +35,8 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       }
     }
   }
+  //TODO read from csv and update map
+
   // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
   pooledResources.put(StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger),Int.MaxValue)
 
