@@ -51,7 +51,7 @@ object ParkingStall{
   case object FlatFee  extends PricingModel
   case object Block    extends PricingModel
 
-  lazy val PricingMap = Map[Int, PricingModel] = Map(
+  lazy val PricingMap = Map[Int, PricingModel](
     1 -> Free, 2 -> FlatFee, 3 -> Block
   )
 
