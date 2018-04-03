@@ -20,12 +20,20 @@ object ParkingStall{
   case object Public      extends ParkingType
   case object NoOtherExists extends ParkingType
 
+  lazy val parkingMap = Map[Int, ParkingType](
+    1 -> Residential, 2 -> Workplace, 3 -> Public, 4 -> NoOtherExists
+  )
+
   sealed trait ChargingType
   case object NoCharger   extends ChargingType
   case object Level1      extends ChargingType
   case object Level2      extends ChargingType
   case object DCFast      extends ChargingType
   case object UltraFast   extends ChargingType
+
+  lazy val chargingMap = Map[Int, ChargingType](
+    1 -> NoCharger, 2 -> Level1, 3 -> Level2, 4 -> DCFast, 5 -> UltraFast
+  )
 
   sealed trait ChargingPreference
   case object NoNeed          extends ChargingPreference
@@ -42,5 +50,9 @@ object ParkingStall{
   case object Free     extends PricingModel
   case object FlatFee  extends PricingModel
   case object Block    extends PricingModel
+
+  lazy val PricingMap = Map[Int, PricingModel] = Map(
+    1 -> Free, 2 -> FlatFee, 3 -> Block
+  )
 
 }
