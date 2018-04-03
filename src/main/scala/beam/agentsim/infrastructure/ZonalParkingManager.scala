@@ -1,5 +1,8 @@
 package beam.agentsim.infrastructure
 
+import java.io.{BufferedInputStream, FileInputStream, FileReader, InputStreamReader}
+import java.util.zip.GZIPInputStream
+
 import akka.actor.FSM.Event
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.Resource._
@@ -8,14 +11,18 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
 import beam.agentsim.infrastructure.ParkingStall._
+import beam.agentsim.infrastructure.TAZTreeMap.readerFromFile
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
+import org.supercsv.io.{CsvMapReader, ICsvMapReader}
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 class ZonalParkingManager(override val beamServices: BeamServices, val beamRouter: ActorRef,
@@ -35,10 +42,14 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
       }
     }
   }
-  //TODO read from csv and update map
+  beamServices.beamConfig
+  readCsvFile("PATH").foreach( f => {
+    pooledResources.update(f._1, f._2)
+  })
 
   // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
   pooledResources.put(StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger),Int.MaxValue)
+
 
 
   override def receive: Receive = {
@@ -156,6 +167,41 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
         }
     }
 
+  }
+  private def readerFromFile(filePath: String): java.io.Reader  = {
+    if(filePath.endsWith(".gz")){
+      new InputStreamReader(new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath))))
+    } else {
+      new FileReader(filePath)
+    }
+  }
+
+  def readCsvFile(filePath: String): mutable.Map[StallAttributes, Int] = {
+    var mapReader: ICsvMapReader = null
+    val res: mutable.Map[StallAttributes,Int] = mutable.Map()
+    try{
+      mapReader = new CsvMapReader(readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+      val header = mapReader.getHeader(true)
+      var flag = true
+      var line: java.util.Map[String, String] = mapReader.read(header:_*)
+      while(null != line){
+
+        val taz = Id.create((line.get("taz")).toUpperCase, classOf[TAZ])
+        val parkingType = ParkingStall.parkingMap(line.get("parkingType").toInt)
+        val pricingModel = ParkingStall.PricingMap(line.get("pricingModel").toInt)
+        val chargingType = ParkingStall.chargingMap(line.get("chargingType").toInt)
+        val numStalls = line.get("numStalls").toInt
+        val fee = line.get("fee")
+
+        res.put(StallAttributes(taz, parkingType, pricingModel, chargingType), numStalls)
+        line = mapReader.read(header:_*)
+      }
+
+    } finally{
+      if(null != mapReader)
+        mapReader.close()
+    }
+    res
   }
 
   def findTAZsWithDistances(searchCenter: Location, startRadius: Double): Vector[(TAZ, Double)]  = {

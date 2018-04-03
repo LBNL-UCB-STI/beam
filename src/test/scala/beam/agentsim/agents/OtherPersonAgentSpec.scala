@@ -137,7 +137,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       bus.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(), timeout.duration))
       tram.becomeDriver(Await.result(system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(), timeout.duration))
 
-      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, eventsManager, population, household.getId, household, Map(), new Coord(0.0, 0.0)))
+      val householdActor = TestActorRef[HouseholdActor](new HouseholdActor(services, (_) => modeChoiceCalculator, scheduler, networkCoordinator.transportNetwork, self, self, null,eventsManager, population, household.getId, household, Map(), new Coord(0.0, 0.0)))
       val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
