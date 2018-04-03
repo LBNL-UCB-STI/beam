@@ -37,6 +37,12 @@ object DrivesVehicle {
 
   case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
 
+  case class AddFuel(fuelInJoules: Double)
+
+  case object GetBeamVehicle
+  case class GetBeamVehicleResult(beamVehicle:BeamVehicle, lastVisited: SpaceTime)
+
+
 }
 
 trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
@@ -61,6 +67,7 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
       lastVisited = beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)
       _currentVehicleUnderControl match {
         case Some(veh) =>
+          veh.useFuel(_currentLeg.get.travelPath.distanceInM)
           // If no manager is set, we ignore
           veh.manager.foreach( _ ! NotifyResourceIdle(veh.id,beamServices.geo.wgs2Utm(_currentLeg.get.travelPath.endPoint)))
         case None =>
@@ -227,6 +234,21 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
         }
       }
       stay()
+
+
+    case Event(AddFuel(fuelInJoules),_) =>
+      _currentVehicleUnderControl.foreach(_.addFuel(fuelInJoules))
+      stay()
+
+    case Event(GetBeamVehicle,_) =>
+      _currentVehicleUnderControl match {
+        case Some(veh) =>
+          sender() !  GetBeamVehicleResult(_currentVehicleUnderControl.get.copy,lastVisited) // TODO: fix
+        case None =>
+          throw new RuntimeException(s"Some one asked about beam vehicle, but no vehicle under control")
+      }
+      stay()
+
 
   }
   def setPassengerSchedule(newPassengerSchedule: PassengerSchedule) = {
