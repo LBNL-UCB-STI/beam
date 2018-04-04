@@ -1,6 +1,6 @@
 package beam.agentsim.agents.rideHail
 
-import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingInquiry
+import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingAgentLocation, RideHailingInquiry}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime
@@ -12,21 +12,18 @@ trait RideHailResourceAllocationManager {
   // TODO RW make two traits, one for rideHail manager and one for buffered RideHail Manager?
 
 
-
   val isBufferedRideHailAllocationMode: Boolean
 
   // TODO Asif: change parameters to case class VehicleAllocationRequest
 
   // TODO: add distinguish param inquiry vs. reservation
-  def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation]
+  def getVehicleAllocation(pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation]
 
   // add assigned and get back new
 
-  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry],Option[VehicleAllocation]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]]
+  def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry], Option[(VehicleAllocation, RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry], Option[VehicleAllocation]]
 
 }
-
-
 object RideHailResourceAllocationManager{
   val DEFAULT_MANAGER="DefaultRideHailResourceAllocationManager"
   val BUFFERED_IMPL_TEMPLATE ="RideHailAllocationManagerBufferedImplTemplate"

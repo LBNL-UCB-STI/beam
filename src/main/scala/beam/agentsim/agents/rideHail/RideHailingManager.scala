@@ -50,6 +50,12 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 
 
+// TODO: RW: We need to update the location of vehicle as it is moving to give good estimate to ride hail allocation manager
+
+
+
+
+
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
 case class RideHailingManagerData() extends BeamAgentData
 
@@ -452,11 +458,17 @@ beamServices.beamRouter ! GetTravelTime
 
 
   def getFromLinkIds(linkId:Int): Vector[Int] = {
+    getMATSimLink(linkId).getFromNode.getInLinks.values()
+    // TODO: covert to int vector
     ???
   }
 
   def getToLinkIds(linkId:Int): Vector[Int] = {
     ???
+  }
+
+  private def getMATSimLink(linkId:Int): Link ={
+    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId))
   }
 
   def getLinkCoord(linkId:Int):Coord={

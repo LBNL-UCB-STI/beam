@@ -1,13 +1,24 @@
 package beam.agentsim.agents.rideHail
-import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingInquiry
+import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingAgentLocation, RideHailingInquiry}
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
 import org.matsim.api.core.v01.{Coord, Id}
 
+/*
 
+ */
   class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
     val isBufferedRideHailAllocationMode = false
-    override def getVehicleAllocation(pickUpLocation: Location, departAt: RoutingModel.BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation] = {
+
+
+
+
+  /*
+This method is used to provide vehicle allocation both during inquiry and reservation. The reservation may be overwritten later by allocateVehiclesInBatch
+ */
+  override def getVehicleAllocation(pickUpLocation: Location, departAt: RoutingModel.BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation] = {
+
+
       val linkId=5
       rideHailingManager.getClosestLink(pickUpLocation)
       val links=rideHailingManager.getLinks()
@@ -23,10 +34,21 @@ import org.matsim.api.core.v01.{Coord, Id}
       val fromCoord= rideHailingManager.getFromNodeCoordinate(linkId)
       val toCoord=rideHailingManager.getToNodeCoordinate(linkId)
 
+
       ???
     }
 
-    override def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry],Option[VehicleAllocation]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = ???
+  /*
+    This method can be used to attempt an overwrite of previous vehicle allocations (has no affect if vehicle already arrived).
+
+   */
+    override def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry],Option[(VehicleAllocation,RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = {
+
+
+
+
+      ???
+    }
 
 
   }
