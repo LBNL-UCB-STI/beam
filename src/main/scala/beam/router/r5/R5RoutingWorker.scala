@@ -62,6 +62,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
         case None => sender ! R5Network(transportNetwork)
       }
+    case GetMatSimNetwork =>
+      sender ! MATSimNetwork(network)
     case request: RoutingRequest =>
       val eventualResponse = Future {
 

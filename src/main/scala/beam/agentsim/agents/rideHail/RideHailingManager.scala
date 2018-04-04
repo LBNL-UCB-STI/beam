@@ -1,5 +1,7 @@
 package beam.agentsim.agents.rideHail
 
+import java.util
+
 import beam.agentsim.agents.BeamAgent.BeamAgentData
 import java.util.concurrent.TimeUnit
 
@@ -33,13 +35,14 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
+import org.matsim.core.network.{NetworkImpl, NetworkUtils}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
@@ -86,8 +89,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   var nextCompleteNoticeRideHailAllocationTimeout:CompletionNotice=_
 
 beamServices.beamRouter ! GetTravelTime
+  beamServices.beamRouter ! GetMatSimNetwork
 
   var transportNetwork:  Option[TransportNetwork] = None
+  var matsimNetwork:  Option[Network] = None
 
 
   //TODO improve search to take into account time when available
@@ -160,6 +165,10 @@ beamServices.beamRouter ! GetTravelTime
     case GetBeamVehicleFuelLevelResult(id,fuelLevel, lastVisited) => {
       vehicleFuelLevel.put(id,fuelLevel)
       updateLocationOfAgent(id, lastVisited, true)
+    }
+
+    case MATSimNetwork(network) => {
+      matsimNetwork=Some(network)
     }
 
     case CheckOutResource(_) =>
@@ -424,24 +433,34 @@ beamServices.beamRouter ! GetTravelTime
   }
 
   def getTravelTimeEstimate(time: Long, linkId: Int): Double ={
-
+    maybeTravelTime match {
+      case Some(matsimTravelTime) =>
+        matsimTravelTime.getLinkTravelTime(matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
+      case None =>
+        val edge = transportNetwork.get.streetLayer.edgeStore.getCursor(linkId)
+        (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(StreetMode.CAR.toString))).toLong
+    }
   }
 
-  def getClosestLink(coord:Coord):Id[Link]={
-
+  def getClosestLink(coord:Coord):Option[Link]={
+    matsimNetwork match {
+      case Some(network) => Some(NetworkUtils.getNearestLink(network,coord));
+      case None => None
+    }
   }
 
-  def getClosestLink(coord:Coord):Id[Link]={
-
+  def getFreeFlowTravelTime(linkId: Int):Option[Double]={
+    getLinks() match {
+      case Some(links) => Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
+      case None => None
+    }
   }
 
-
-  val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
-    case Some(matsimTravelTime) =>
-      matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
-    case None =>
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString))).toLong
+  def getLinks(): Option[util.Map[Id[Link],_<:Link]] ={
+    matsimNetwork match {
+      case Some(network) => Some(network.getLinks)
+      case None => None
+    }
   }
 
   private def makeAvailable(agentLocation: RideHailingAgentLocation) = {

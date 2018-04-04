@@ -281,6 +281,10 @@ object BeamRouter {
 
   case object GetTravelTime
 
+  case class MATSimNetwork(network: Network)
+
+  case object GetMatSimNetwork
+
   /**
     * It is use to represent a request object
     *
