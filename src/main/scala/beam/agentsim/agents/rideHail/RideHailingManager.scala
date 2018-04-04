@@ -81,8 +81,22 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 
 // var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
-  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
-  // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
+
+  val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHailing.allocationManager
+
+  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = allocationManager match {
+    case "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER" => {
+
+      new DefaultRideHailResourceAllocationManager()
+    }
+    case "STANFORD_RIDE_ALLOCATION_MANAGER" => {
+      new StanfordRideAllocationManagerV1(this)
+    }
+    case _ => {
+      new DefaultRideHailResourceAllocationManager()
+    }
+  }
+
 
   var maybeTravelTime: Option[TravelTime] = None
 
