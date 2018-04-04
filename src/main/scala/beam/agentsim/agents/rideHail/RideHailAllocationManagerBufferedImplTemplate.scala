@@ -13,19 +13,20 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
   val isBufferedRideHailAllocationMode = true
 
-  def getVehicleAllocation(pickUpLocation: Location, departAt: BeamTime, destination: Location): Option[VehicleAllocationResult] = {
+  // TODO: no nested option returned
+  def getVehicleAllocation(pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocationResult] = {
     val rideHailingAgentLocation = rideHailingManager.getClosestRideHailingAgent(pickUpLocation, rideHailingManager.radius)
 
     rideHailingAgentLocation match {
-      case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocationResult(Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))))
-      case None => Some(VehicleAllocationResult(None))
+      case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocationResult(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation)))
+      case None => None
     }
 
   }
 
 // TODO: should we use normal without break
   // use lockVehicle
-  def allocateBatchRequests(allocationBatchRequest: Map[Id[RideHailingInquiry], VehicleAllocationRequest]): Map[Id[RideHailingInquiry], VehicleAllocationResult] = {
+  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry], VehicleAllocationRequest]): Map[Id[RideHailingInquiry], VehicleAllocationResult] = {
 
     var result = Map[Id[RideHailingInquiry], VehicleAllocationResult]()
     var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
@@ -36,19 +37,17 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
         for ((rideHailingAgentLocation, distance) <- rideHailingManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)) {
           if (!alreadyUsedVehicles.contains(rideHailingAgentLocation.vehicleId)) {
             alreadyUsedVehicles.add(rideHailingAgentLocation.vehicleId)
-            vehicleAllocationResult = Some(VehicleAllocationResult(Some(VehicleAllocation(rideHailingAgentLocation.vehicleId,rideHailingAgentLocation.currentLocation))))
+            vehicleAllocationResult = Some(VehicleAllocationResult(VehicleAllocation(rideHailingAgentLocation.vehicleId,rideHailingAgentLocation.currentLocation)))
             break
           }
         }
       }
 
       vehicleAllocationResult match {
-        case Some(vehicleAllocationResult) => result += (rideHailingInquiry -> vehicleAllocationResult)
-          vehicleAllocationResult.vehicleAllocation match {
-            case Some(vehicleAllocation) => rideHailingManager.lockVehicle(vehicleAllocation.vehicleId)
-            case None =>
-          }
-        case None => result += (rideHailingInquiry -> VehicleAllocationResult(None))
+        case Some(vehicleAllocationResult) =>
+          result += (rideHailingInquiry -> vehicleAllocationResult)
+          rideHailingManager.lockVehicle(vehicleAllocationResult.vehicleAllocation.vehicleId)
+        case None => result += (rideHailingInquiry -> None)
       }
     }
     result

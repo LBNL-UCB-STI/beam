@@ -13,13 +13,12 @@ class DefaultRideHailResourceAllocationManager(val rideHailingManager: RideHaili
   val isBufferedRideHailAllocationMode = false
 
 
-  def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location): Option[VehicleAllocationResult] = {
-
+  def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocationResult] = {
     None
   }
 
 // TODO RW/Asif: how to make sure no one ever can call this?
-  def allocateBatchRequests(allocationBatchRequest: Map[Id[RideHailingInquiry],VehicleAllocationRequest]): Map[Id[RideHailingInquiry],VehicleAllocationResult] = {
+  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry],VehicleAllocationRequest]): Map[Id[RideHailingInquiry],VehicleAllocationResult] = {
     //log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
     // TODO Asif: repair compilaiton error caused by above line
     ???

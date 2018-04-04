@@ -456,6 +456,30 @@ beamServices.beamRouter ! GetTravelTime
     }
   }
 
+
+  def getFromLinkIds(linkId:Int): Vector[Int] = {
+    ???
+  }
+
+  def getToLinkIds(linkId:Int): Vector[Int] = {
+    ???
+  }
+
+  def getLinkCoord(linkId:Int):Coord={
+    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getCoord
+  }
+
+  def getFromNodeCoordinate(linkId:Int): Coord ={
+    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getFromNode.getCoord
+  }
+
+  def getToNodeCoordinate(linkId:Int): Coord ={
+    matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getToNode.getCoord
+  }
+
+
+
+// TODO: make integers
   def getLinks(): Option[util.Map[Id[Link],_<:Link]] ={
     matsimNetwork match {
       case Some(network) => Some(network.getLinks)
@@ -571,6 +595,10 @@ beamServices.beamRouter ! GetTravelTime
 
   def getVehicleFuelLevel(vehicleId: Id[Vehicle]): Double ={
     vehicleFuelLevel.get(vehicleId).get
+  }
+
+  def getIdleVehicles():collection.concurrent.TrieMap[Id[Vehicle], RideHailingAgentLocation]={
+    availableRideHailVehicles
   }
 
 
