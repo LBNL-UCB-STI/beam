@@ -76,8 +76,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   val radius: Double = 5000
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 120; // TODO Asif: set from config
-
+  val rideHailAllocationManagerTimeoutInSeconds = beamServices.beamConfig.beam.agentsim.agents.rideHailing.rideHailAllocationManagerTimeoutInSeconds
 
 
 // var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
