@@ -520,6 +520,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   }
 
 
+  def getVehicleFuelLevel(vehicleId: Id[Vehicle]): Double ={
+    vehicleFuelLevel.get(vehicleId).get
+  }
+
+
+
   private def handleRideHailInquiry(inquiryId: Id[RideHailingInquiry], personId: Id[PersonAgent],
                                     customerPickUp: Location, departAt: BeamTime, destination: Location, rideHailLocationAndShortDistance: Option[(RideHailingAgentLocation,Double)],customerAgent: Option[ActorRef]): Unit ={
     rideHailLocationAndShortDistance match {
