@@ -19,15 +19,14 @@ class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocatio
 
 // TODO RW/Asif: how to make sure no one ever can call this?
 def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry], Option[(VehicleAllocation, RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry], Option[VehicleAllocation]] = {
-    //log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
-    // TODO Asif: repair compilaiton error caused by above line
+    DefaultRideHailResourceAllocationManager.log.error("batch processing is not implemented for DefaultRideHailResourceAllocationManager")
     ???
   }
 }
 
 
 object DefaultRideHailResourceAllocationManager{
-  val log: Logger = LoggerFactory.getLogger(classOf[DefaultRideHailResourceAllocationManager])
+  def log: Logger = LoggerFactory.getLogger(classOf[DefaultRideHailResourceAllocationManager])
 }
 
 
