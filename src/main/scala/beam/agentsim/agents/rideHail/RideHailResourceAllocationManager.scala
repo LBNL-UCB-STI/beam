@@ -6,8 +6,11 @@ import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+import org.slf4j.{Logger, LoggerFactory};
 
 trait RideHailResourceAllocationManager {
+
+  lazy val log: Logger = LoggerFactory.getLogger(getClass)
 
   // TODO RW make two traits, one for rideHail manager and one for buffered RideHail Manager?
 
