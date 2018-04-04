@@ -199,7 +199,8 @@ beamServices.beamRouter ! GetTravelTime
       val customerAgent = sender()
       var rideHailLocationAndShortDistance: Option[(RideHailingAgentLocation,Double)] = None
 
-      rideHailResourceAllocationManager.getVehicleAllocation(customerPickUp,departAt,destination,true) match {
+      val vehicleAllocationRequest = new VehicleAllocationRequest(customerPickUp, departAt, destination, true)
+      rideHailResourceAllocationManager.getVehicleAllocation(vehicleAllocationRequest) match {
         case Some(vehicleAllocation) =>
               // TODO (RW): Test following code with stanford class
               val rideHailAgent=resources.get(agentsim.vehicleId2BeamVehicleId(vehicleAllocation.vehicleId)).orElse(beamServices.vehicles.get(vehicleAllocation.vehicleId)).get.driver.head
