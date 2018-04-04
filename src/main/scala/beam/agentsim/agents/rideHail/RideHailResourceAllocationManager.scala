@@ -26,6 +26,7 @@ trait RideHailResourceAllocationManager {
 object RideHailResourceAllocationManager{
   val DEFAULT_MANAGER="DefaultRideHailResourceAllocationManager"
   val BUFFERED_IMPL_TEMPLATE ="RideHailAllocationManagerBufferedImplTemplate"
+  val STANFORD_V1 ="StanfordRideAllocationManagerV1"
 }
 
 case class VehicleAllocation(vehicleId: Id[Vehicle],availableAt: SpaceTime)

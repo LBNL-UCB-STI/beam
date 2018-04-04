@@ -432,10 +432,10 @@ beamServices.beamRouter ! GetTravelTime
     }
   }
 
-  def getTravelTimeEstimate(time: Long, linkId: Int): Double ={
+  def getTravelTimeEstimate(time: Double, linkId: Int): Double ={
     maybeTravelTime match {
       case Some(matsimTravelTime) =>
-        matsimTravelTime.getLinkTravelTime(matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
+        matsimTravelTime.getLinkTravelTime(matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)), time, null, null).toLong
       case None =>
         val edge = transportNetwork.get.streetLayer.edgeStore.getCursor(linkId)
         (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(StreetMode.CAR.toString))).toLong

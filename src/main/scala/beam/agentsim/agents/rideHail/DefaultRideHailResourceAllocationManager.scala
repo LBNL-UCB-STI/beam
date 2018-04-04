@@ -8,12 +8,13 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
 
-class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocationManager {
+class DefaultRideHailResourceAllocationManager(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false
 
 
   def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location): Option[VehicleAllocationResult] = {
+
     None
   }
 
