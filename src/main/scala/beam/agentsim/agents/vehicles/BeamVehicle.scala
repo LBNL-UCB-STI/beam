@@ -75,19 +75,12 @@ class BeamVehicle(val powerTrain: Powertrain,
     driver = None
   }
 
-
-  def useFuel(distanceInMeters: Double)={
-    fuelLevel match {
-      case Some(fLevel) => fuelLevel=Some(fLevel - powerTrain.estimateConsumptionInJoules(distanceInMeters)/fuelCapacityInJoules.get )
-      case None =>
-    }
+  def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach {
+    fLevel => fuelLevel = Some(fLevel - powerTrain.estimateConsumptionInJoules(distanceInMeters)/fuelCapacityInJoules.get )
   }
 
-  def addFuel(fuelInJoules: Double)={
-    fuelLevel match {
-      case Some(fLevel) => fuelLevel=Some(fLevel + fuelInJoules/fuelCapacityInJoules.get)
-      case None =>
-    }
+  def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach  {
+    fLevel => fuelLevel = Some(fLevel + fuelInJoules/fuelCapacityInJoules.get)
   }
 
   /**
@@ -98,13 +91,12 @@ class BeamVehicle(val powerTrain: Powertrain,
     * @param newDriverRef incoming driver
     */
   def becomeDriver(newDriverRef: ActorRef)
-  : Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
-    if (driver.isEmpty) {
+  : Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = driver match {
+    case None =>
       driver = Option(newDriverRef)
       Right(BecomeDriverOfVehicleSuccessAck)
-    } else {
-      Left(DriverAlreadyAssigned(id, driver.get))
-    }
+    case Some(d) =>
+      Left(DriverAlreadyAssigned(id, d))
   }
 
   /**
@@ -241,7 +233,6 @@ abstract class VehicleOccupancyAdministrator(val vehicle: BeamVehicle) {
   }
 
   override def toString: String = s"BeamVehicle(id=${vehicle.id},driver=${vehicle.driver})"
-
 }
 
 object VehicleOccupancyAdministrator {
