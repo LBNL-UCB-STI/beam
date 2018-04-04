@@ -1,4 +1,5 @@
 package beam.agentsim.agents.rideHail
+import beam.agentsim.agents.rideHail.RideHailingManager.RideHailingInquiry
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
 import org.matsim.api.core.v01.{Coord, Id}
@@ -6,7 +7,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
   class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
     val isBufferedRideHailAllocationMode = false
-    override def getVehicleAllocation(pickUpLocation: Location, departAt: RoutingModel.BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocationResult] = {
+    override def getVehicleAllocation(pickUpLocation: Location, departAt: RoutingModel.BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation] = {
       val linkId=5
       rideHailingManager.getClosestLink(pickUpLocation)
       val links=rideHailingManager.getLinks()
@@ -25,5 +26,7 @@ import org.matsim.api.core.v01.{Coord, Id}
       ???
     }
 
-    override def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingManager.RideHailingInquiry], VehicleAllocationRequest]): Map[Id[RideHailingManager.RideHailingInquiry], VehicleAllocationResult] = ???
+    override def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry],Option[VehicleAllocation]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = ???
+
+
   }

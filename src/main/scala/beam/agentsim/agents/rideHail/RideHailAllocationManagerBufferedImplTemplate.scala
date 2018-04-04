@@ -26,8 +26,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
 // TODO: should we use normal without break
   // use lockVehicle
-  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry], VehicleAllocationRequest]): Map[Id[RideHailingInquiry], VehicleAllocation] = {
-
+  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry],Option[VehicleAllocation]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = {
+/*
     var result = Map[Id[RideHailingInquiry], VehicleAllocation]()
     var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
     for ((rideHailingInquiry, vehicleAllocationRequest) <- allocationBatchRequest) {
@@ -51,6 +51,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
       }
     }
     result
+    */
+    ???
   }
 
 }

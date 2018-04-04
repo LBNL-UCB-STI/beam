@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 import org.slf4j.{Logger, LoggerFactory}
 
-class DefaultRideHailResourceAllocationManager(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
+class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode = false
 
