@@ -277,6 +277,10 @@ object BeamRouter {
 
   case class UpdateTravelTime(travelTime: TravelTime)
 
+  case class R5Network(transportNetwork:  TransportNetwork)
+
+  case object GetTravelTime
+
   /**
     * It is use to represent a request object
     *

@@ -57,6 +57,11 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   override final def receive: Receive = {
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
+    case GetTravelTime =>
+      maybeTravelTime match {
+        case Some(travelTime) => sender ! UpdateTravelTime(travelTime)
+        case None => sender ! R5Network(transportNetwork)
+      }
     case request: RoutingRequest =>
       val eventualResponse = Future {
 

@@ -23,15 +23,19 @@ import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
-import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime}
 import beam.sim.{BeamServices, HasServices}
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
+import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
@@ -71,7 +75,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
   // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
 
-
+  var maybeTravelTime: Option[TravelTime] = None
 
   //val bufferedReserveRideMessages:collection.mutable.ListBuffer[ReserveRide] = new ListBuffer[ReserveRide]
 
@@ -81,7 +85,9 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   var nextCompleteNoticeRideHailAllocationTimeout:CompletionNotice=_
 
+beamServices.beamRouter ! GetTravelTime
 
+  var transportNetwork:  Option[TransportNetwork] = None
 
 
   //TODO improve search to take into account time when available
@@ -140,7 +146,6 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
       })
 
-
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehId, whenWhere, false)
 
@@ -187,8 +192,8 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       handleRideHailInquiry(inquiryId, personId, customerPickUp, departAt, destination,rideHailLocationAndShortDistance,Some(customerAgent))
 
 
-
-
+     case R5Network(transportNetwork) =>
+       this.transportNetwork=Some(transportNetwork)
 
     case RoutingResponses(customerAgent, inquiryId, personId, customerPickUp, departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
       val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
@@ -265,7 +270,6 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       }
 
     case reserveRide @ ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) =>
-
       if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode){
         bufferedReserveRideMessages += (inquiryId -> reserveRide)
         //System.out.println("")
@@ -280,7 +284,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       lockedVehicles -= vehId
 
 // TODO (RW): this needs to be called according to timeout settings
+
+    case UpdateTravelTime(travelTime) =>
+      maybeTravelTime = Some(travelTime)
+
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
+
 
 
       prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
@@ -412,6 +421,27 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         case None =>
       }
     }
+  }
+
+  def getTravelTimeEstimate(time: Long, linkId: Int): Double ={
+
+  }
+
+  def getClosestLink(coord:Coord):Id[Link]={
+
+  }
+
+  def getClosestLink(coord:Coord):Id[Link]={
+
+  }
+
+
+  val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
+    case Some(matsimTravelTime) =>
+      matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
+    case None =>
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString))).toLong
   }
 
   private def makeAvailable(agentLocation: RideHailingAgentLocation) = {
