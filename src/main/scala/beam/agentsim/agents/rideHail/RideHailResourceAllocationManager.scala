@@ -18,11 +18,11 @@ trait RideHailResourceAllocationManager {
   // TODO Asif: change parameters to case class VehicleAllocationRequest
 
   // TODO: add distinguish param inquiry vs. reservation
-  def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocationResult]
+  def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation]
 
   // add assigned and get back new
 
-  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry],VehicleAllocationRequest]): Map[Id[RideHailingInquiry],VehicleAllocationResult]
+  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry],Option[VehicleAllocation]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]]
 
 }
 
@@ -34,8 +34,6 @@ object RideHailResourceAllocationManager{
 }
 
 case class VehicleAllocation(vehicleId: Id[Vehicle],availableAt: SpaceTime)
-
-case class VehicleAllocationResult(vehicleAllocation: VehicleAllocation)
 
 case class VehicleAllocationRequest(pickUpLocation: Location, departAt: BeamTime, destination: Location)
 

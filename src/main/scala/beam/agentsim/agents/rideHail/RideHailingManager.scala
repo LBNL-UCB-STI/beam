@@ -180,19 +180,15 @@ beamServices.beamRouter ! GetTravelTime
       val customerAgent = sender()
       var rideHailLocationAndShortDistance: Option[(RideHailingAgentLocation,Double)] = None
 
-      rideHailResourceAllocationManager.getVehicleAllocation(customerPickUp,departAt,destination) match {
-
-        case Some(vehicleAllocationResult) =>
-          vehicleAllocationResult.vehicleAllocation match {
-            case Some(vehicleAllocation) =>
+      rideHailResourceAllocationManager.getVehicleAllocation(customerPickUp,departAt,destination,true) match {
+        case Some(vehicleAllocation) =>
               // TODO (RW): Test following code with stanford class
               val rideHailAgent=resources.get(agentsim.vehicleId2BeamVehicleId(vehicleAllocation.vehicleId)).orElse(beamServices.vehicles.get(vehicleAllocation.vehicleId)).get.driver.head
               val rideHailingAgentLocation=RideHailingAgentLocation(rideHailAgent, vehicleAllocation.vehicleId, vehicleAllocation.availableAt)
               val distance=CoordUtils.calcProjectedEuclideanDistance(customerPickUp,rideHailingAgentLocation.currentLocation.loc)
               rideHailLocationAndShortDistance = Some(rideHailingAgentLocation,distance)
-            case None =>
 
-          }
+
         case None =>
           // use default allocation manager
           rideHailLocationAndShortDistance = getClosestRideHailingAgent(customerPickUp, radius)
@@ -303,7 +299,7 @@ beamServices.beamRouter ! GetTravelTime
 
       prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
 
-
+/*
     if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode && bufferedReserveRideMessages.values.size>0){
 
 
@@ -314,9 +310,7 @@ beamServices.beamRouter ! GetTravelTime
 
       }
 
-      var resultMap =rideHailResourceAllocationManager.allocateBatchRequests(map)
-
-
+      var resultMap =rideHailResourceAllocationManager .allocateVehiclesInBatch(map)
       for (ReserveRide(inquiryId, vehiclePersonIds, customerPickUp, departAt, destination) <- bufferedReserveRideMessages.values) {
 
         resultMap(inquiryId).vehicleAllocation match {
@@ -346,7 +340,7 @@ beamServices.beamRouter ! GetTravelTime
       } else {
       sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
       }
-
+*/
       // TODO (RW) add repositioning code here
 
 

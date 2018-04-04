@@ -14,11 +14,11 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
   val isBufferedRideHailAllocationMode = true
 
   // TODO: no nested option returned
-  def getVehicleAllocation(pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocationResult] = {
+  def getVehicleAllocation(pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation] = {
     val rideHailingAgentLocation = rideHailingManager.getClosestRideHailingAgent(pickUpLocation, rideHailingManager.radius)
 
     rideHailingAgentLocation match {
-      case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocationResult(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation)))
+      case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
       case None => None
     }
 
@@ -26,27 +26,27 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
 // TODO: should we use normal without break
   // use lockVehicle
-  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry], VehicleAllocationRequest]): Map[Id[RideHailingInquiry], VehicleAllocationResult] = {
+  def allocateVehiclesInBatch(allocationBatchRequest: Map[Id[RideHailingInquiry], VehicleAllocationRequest]): Map[Id[RideHailingInquiry], VehicleAllocation] = {
 
-    var result = Map[Id[RideHailingInquiry], VehicleAllocationResult]()
+    var result = Map[Id[RideHailingInquiry], VehicleAllocation]()
     var alreadyUsedVehicles = collection.mutable.Set[Id[Vehicle]]()
     for ((rideHailingInquiry, vehicleAllocationRequest) <- allocationBatchRequest) {
-      var vehicleAllocationResult: Option[VehicleAllocationResult] = None
+      var vehicleAllocation: Option[VehicleAllocation] = None
 
       breakable {
         for ((rideHailingAgentLocation, distance) <- rideHailingManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)) {
           if (!alreadyUsedVehicles.contains(rideHailingAgentLocation.vehicleId)) {
             alreadyUsedVehicles.add(rideHailingAgentLocation.vehicleId)
-            vehicleAllocationResult = Some(VehicleAllocationResult(VehicleAllocation(rideHailingAgentLocation.vehicleId,rideHailingAgentLocation.currentLocation)))
+            vehicleAllocation = Some(VehicleAllocation(rideHailingAgentLocation.vehicleId,rideHailingAgentLocation.currentLocation))
             break
           }
         }
       }
 
-      vehicleAllocationResult match {
-        case Some(vehicleAllocationResult) =>
-          result += (rideHailingInquiry -> vehicleAllocationResult)
-          rideHailingManager.lockVehicle(vehicleAllocationResult.vehicleAllocation.vehicleId)
+      vehicleAllocation match {
+        case Some(vehicleAllocation) =>
+          result += (rideHailingInquiry -> vehicleAllocation)
+          rideHailingManager.lockVehicle(vehicleAllocation.vehicleId)
         case None => result += (rideHailingInquiry -> None)
       }
     }
