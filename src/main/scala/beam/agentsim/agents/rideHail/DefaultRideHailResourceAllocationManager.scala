@@ -13,7 +13,7 @@ class DefaultRideHailResourceAllocationManager extends RideHailResourceAllocatio
   val isBufferedRideHailAllocationMode = false
 
 
-  def getVehicleAllocation( pickUpLocation: Location, departAt: BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation] = {
+  def getVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
     None
   }
 

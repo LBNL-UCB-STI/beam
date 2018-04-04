@@ -16,17 +16,17 @@ import org.matsim.api.core.v01.{Coord, Id}
   /*
 This method is used to provide vehicle allocation both during inquiry and reservation. The reservation may be overwritten later by allocateVehiclesInBatch
  */
-  override def getVehicleAllocation(pickUpLocation: Location, departAt: RoutingModel.BeamTime, destination: Location, isInquiry: Boolean): Option[VehicleAllocation] = {
+  override def getVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
 
 
       val linkId=5
-      rideHailingManager.getClosestLink(pickUpLocation)
+      rideHailingManager.getClosestLink(vehicleAllocationRequest.pickUpLocation)
       val links=rideHailingManager.getLinks()
-      rideHailingManager.getTravelTimeEstimate(departAt.atTime,linkId)
+      rideHailingManager.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime,linkId)
       rideHailingManager.getFreeFlowTravelTime(linkId)
-      val (rideHailAgentLocation,distance)=rideHailingManager.getClosestRideHailingAgent(pickUpLocation,rideHailingManager.radius).get
+      val (rideHailAgentLocation,distance)=rideHailingManager.getClosestRideHailingAgent(vehicleAllocationRequest.pickUpLocation,rideHailingManager.radius).get
       rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-      rideHailingManager.getClosestVehiclesWithinStandardRadius(pickUpLocation,rideHailingManager.radius)
+      rideHailingManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation,rideHailingManager.radius)
       rideHailingManager.getIdleVehicles()
       val fromLinkIds= rideHailingManager.getFromLinkIds(linkId)
       val toLinkIds= rideHailingManager.getToLinkIds(linkId)
