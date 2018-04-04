@@ -13,7 +13,7 @@ import beam.agentsim.agents.BeamAgent.BeamAgentData
 import beam.agentsim.agents.{PersonAgent, TriggerUtils}
 import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{GetBeamVehicleFuelLevel, GetBeamVehicleFuelLevelResult, StartLegTrigger}
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -54,18 +54,21 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
   override val resources: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] = collection.mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
+  val vehicleFuelLevel: collection.mutable.Map[Id[Vehicle], Double] = collection.mutable.Map[Id[Vehicle], Double]()
+
+
   // TODO: currently 'DefaultCostPerMile' is not used anywhere in the code, therefore commented it out -> needs to be used!
   // val DefaultCostPerMile = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMile)
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
 
 
-  val rideHailAllocationManagerTimeoutInSeconds = 0.1; // TODO Asif: set from config
+  val rideHailAllocationManagerTimeoutInSeconds = 120; // TODO Asif: set from config
 
 
 
- var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
-//  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
+// var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new RideHailAllocationManagerBufferedImplTemplate(this)
+  var rideHailResourceAllocationManager: RideHailResourceAllocationManager = new DefaultRideHailResourceAllocationManager()
   // TODO Asif: has to come from config, e.g. beam.agentsim.agents.rideHailing.allocationManager = "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
 
 
@@ -131,7 +134,12 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
     case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere) =>
-      updateLocationOfAgent(vehId, whenWhere, false)
+
+      resources.get(agentsim.vehicleId2BeamVehicleId(vehId)).get.driver.foreach(driver => {
+        driver !  GetBeamVehicleFuelLevel
+
+      })
+
 
     case NotifyResourceInUse(vehId: Id[Vehicle], whenWhere) =>
       updateLocationOfAgent(vehId, whenWhere, false)
@@ -144,7 +152,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       })
 
 
-
+    case GetBeamVehicleFuelLevelResult(id,fuelLevel, lastVisited) => {
+      vehicleFuelLevel.put(id,fuelLevel)
+      updateLocationOfAgent(id, lastVisited, true)
+    }
 
     case CheckOutResource(_) =>
       // Because the RideHail Manager is in charge of deciding which specific vehicles to assign to customers, this should never be used

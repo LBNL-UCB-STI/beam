@@ -89,7 +89,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           information
             .map(_.getGasConsumption)
             .getOrElse(Powertrain.AverageMilesPerGallon))
-        val rideHailBeamVehicle = new BeamVehicle(powerTrain, rideHailVehicle, vehicleAttribute, Car)
+        val rideHailBeamVehicle = new BeamVehicle(powerTrain, rideHailVehicle, vehicleAttribute, Car, Some(1.0),
+          Some(24*3600000)) // TODO Asif: read from config/csv
         beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
         rideHailBeamVehicle.registerResource(rideHailingManager)
         val rideHailingAgentProps = RideHailingAgent.props(beamServices, scheduler, transportNetwork, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)

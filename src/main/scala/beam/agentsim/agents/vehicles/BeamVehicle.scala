@@ -32,8 +32,8 @@ class BeamVehicle(val powerTrain: Powertrain,
                   val matSimVehicle: Vehicle,
                   val initialMatsimAttributes: Option[ObjectAttributes],
                   val beamVehicleType: BeamVehicleType,
-                  var fuelLevel: Double,
-                  val fuelCapacityInJoules: Double
+                  var fuelLevel: Option[Double],
+                  val fuelCapacityInJoules: Option[Double]
                  )
   extends Resource[BeamVehicle] {
   val log: Logger = Logger.getLogger(classOf[BeamVehicle])
@@ -77,11 +77,17 @@ class BeamVehicle(val powerTrain: Powertrain,
 
 
   def useFuel(distanceInMeters: Double)={
-    fuelLevel-= powerTrain.estimateConsumptionInJoules(distanceInMeters)/fuelCapacityInJoules
+    fuelLevel match {
+      case Some(fLevel) => fuelLevel=Some(fLevel - powerTrain.estimateConsumptionInJoules(distanceInMeters)/fuelCapacityInJoules.get )
+      case None =>
+    }
   }
 
   def addFuel(fuelInJoules: Double)={
-    fuelLevel+= fuelInJoules/fuelCapacityInJoules
+    fuelLevel match {
+      case Some(fLevel) => fuelLevel=Some(fLevel + fuelInJoules/fuelCapacityInJoules.get)
+      case None =>
+    }
   }
 
   /**

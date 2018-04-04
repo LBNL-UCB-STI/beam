@@ -86,7 +86,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
           // (), Powertrain.PowertrainFromMilesPerGallon(consumption), matSimTransitVehicle, new Attributes())
           //        val transitVehRef = context.actorOf(transitVehProps, BeamVehicle.buildActorName(matSimTransitVehicle))
           val vehicle: BeamVehicle = new BeamVehicle(Powertrain.PowertrainFromMilesPerGallon(consumption),
-            matSimTransitVehicle, None, TransitVehicle)
+            matSimTransitVehicle, None, TransitVehicle,None,None) // TODO: implement fuel level later as needed
           services.vehicles += (transitVehId -> vehicle)
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs)
