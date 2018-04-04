@@ -183,7 +183,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     sum
   }
 
-  private def getTimeBinIndex(time: Double): Int = Math.round(time / timeBinSize).toInt // - 1
+  private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
 
   def incrementIteration() = {
     iteration += 1;
