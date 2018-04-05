@@ -44,6 +44,10 @@ case object AccessErrorCodes {
     override def errorCode: ReservationErrorCode = RideHailNotRequested
   }
 
+  case object RideHailServiceUnavailableError extends ReservationError {
+    override def errorCode: ReservationErrorCode = RideHailNotRequested
+  }
+
 
   case object UnknownRideHailReservationError extends ReservationError {
     override def errorCode: ReservationErrorCode = UnknownRideHailReservation

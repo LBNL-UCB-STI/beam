@@ -17,6 +17,7 @@ import scala.collection.immutable
 object Modes {
 
   sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry {
+
     def isTransit(): Boolean = isR5TransitMode(this)
   }
 
@@ -64,6 +65,8 @@ object Modes {
     case object WALK_TRANSIT extends BeamMode(value = "walk_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.transit_walk)
 
     case object DRIVE_TRANSIT extends BeamMode(value = "drive_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.pt)
+
+    case object RIDE_HAIL_TRANSIT extends BeamMode(value = "ride_hail_transit", Some(Right(TransitModes.TRANSIT)), TransportMode.pt)
 
 
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
