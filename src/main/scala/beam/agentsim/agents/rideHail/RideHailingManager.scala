@@ -2,7 +2,7 @@ package beam.agentsim.agents.rideHail
 
 import java.util.concurrent.TimeUnit
 
-import beam.agentsim.agents.BeamAgent.{BeamAgentData, Finish}
+import beam.agentsim.agents.BeamAgent.Finish
 import akka.actor.{ActorRef, Props}
 import akka.pattern._
 import akka.util.Timeout
@@ -20,9 +20,9 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
+import beam.analysis.plots.GraphRideHailingRevenue
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
@@ -102,7 +102,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       surgePricingManager.updateSurgePriceLevels()
       surgePricingManager.incrementIteration()
 
-      sender() ! ()  // return empty object to blocking caller
+      sender ! Unit  // return empty object to blocking caller
 
     case RegisterResource(vehId: Id[Vehicle]) =>
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
