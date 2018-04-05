@@ -24,7 +24,7 @@ object FileUtils extends LazyLogging {
 
     val outputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory + File.separator + beamConfig.beam.agentsim.simulationName + optionalSuffix).toFile
     outputDir.mkdir()
-    logger.debug("Beam output directory is: {}", outputDir.getAbsolutePath)
+    logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     matsimConfig.controler.setOutputDirectory(outputDir.getAbsolutePath)
   }
 
@@ -34,7 +34,7 @@ object FileUtils extends LazyLogging {
 
     val optionalSuffix: String = getOptionalOutputPathSuffix(addTimestampToOutputDirectory)
     val outputDir = Paths.get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix).toFile
-    logger.debug("Beam output directory is: {}", outputDir.getAbsolutePath)
+    logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     outputDir.mkdir()
     outputDir.getAbsolutePath
   }

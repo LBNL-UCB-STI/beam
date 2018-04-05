@@ -4,6 +4,7 @@ import MultinomialCustomConfigSpec.Utility
 import beam.integration
 import beam.sim.{BeamHelper, RunBeam}
 import com.typesafe.config.{Config, ConfigValueFactory}
+import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.xml.{Elem, Node, Text}
@@ -87,7 +88,7 @@ object MultinomialCustomConfigSpec  {
 
 }
 
-class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
+class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon with LazyLogging {
 
 
 
@@ -132,10 +133,10 @@ class MultinomialCustomConfigSpec extends WordSpecLike with Matchers with BeamHe
       val countPositive = carConfigPositive.groupedCount.get("car").getOrElse(0);
       val countNegative = carConfigNegative.groupedCount.get("car").getOrElse(0);
 
-      println("CAR __________>")
-      println("Positive: " + countPositive)
-      println("Negative: " + countNegative)
-      println("__________________________________")
+      logger.debug("CAR __________>")
+      logger.debug(s"Positive: $countPositive")
+      logger.debug(s"Negative: $countNegative")
+      logger.debug("__________________________________")
 
       countPositive should be >= countNegative
     }
