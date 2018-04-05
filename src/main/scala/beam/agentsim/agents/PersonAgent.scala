@@ -25,7 +25,6 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
-import org.slf4j.LoggerFactory
 
 /**
   */
@@ -34,8 +33,6 @@ object PersonAgent {
   val timeToChooseMode: Double = 0.0
   val minActDuration: Double = 0.0
   val teleportWalkDuration = 0.0
-
-  private val logger = LoggerFactory.getLogger(classOf[PersonAgent])
 
   def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
@@ -109,8 +106,8 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
-  HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
+class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends
+  DrivesVehicle[PersonData] with ChoosesMode with Stash {
   override def data: PersonData = EmptyPersonData()
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
   var _currentActivityIndex: Int = 0
@@ -481,8 +478,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       stop(Failure(reason))
     case Event(Finish, _) =>
       if (stateName == Moving) {
-        log.warning("Still travelling at end of simulation.")
-        log.warning("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+        logger.warn("Still travelling at end of simulation.")
+        logger.warn(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
       }
       stop
   }
@@ -517,8 +514,6 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
   }
 
   case class ProcessedData(nextLeg: EmbodiedBeamLeg, restTrip: EmbodiedBeamTrip, nextStart: Double)
-
-
 }
 
 

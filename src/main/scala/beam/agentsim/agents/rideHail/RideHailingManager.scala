@@ -35,18 +35,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
-
-
-
-
-
-
-
 
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
@@ -96,10 +88,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   override def receive: Receive = {
     case NotifyIterationEnds() =>
       try {
-        /*val graphSurgePricing: GraphSurgePricing = new GraphSurgePricing(surgePricingManager, beamServices);
+        /*val graphSurgePricing: GraphSurgePricing = new GraphSurgePricing(surgePricingManager, beamServices)
         graphSurgePricing.createGraphs()*/
 
-        val graphRideHailingRevenue: GraphRideHailingRevenue = new GraphRideHailingRevenue();
+        val graphRideHailingRevenue: GraphRideHailingRevenue = new GraphRideHailingRevenue()
         graphRideHailingRevenue.createGraph(surgePricingManager)
       } catch {
         // print out exceptions, otherwise hidden, leads to difficult debugging
@@ -440,7 +432,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 
 object RideHailingManager {
-  val RIDE_HAIL_MANAGER = "RideHailingManager";
+  val RIDE_HAIL_MANAGER = "RideHailingManager"
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
     classOf[RideHailingInquiry])

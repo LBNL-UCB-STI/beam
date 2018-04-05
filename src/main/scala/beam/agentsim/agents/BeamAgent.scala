@@ -8,6 +8,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.sim.metrics.{Metrics, MetricsSupport}
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -57,7 +58,7 @@ case class InitializeTrigger(tick: Double) extends Trigger
   * This FSM uses [[BeamAgentState]] and [[BeamAgentInfo]] to define the state and
   * state data types.
   */
-trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] with MetricsSupport {
+trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgentInfo[T]] with MetricsSupport with LazyLogging {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
@@ -165,11 +166,11 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
     case event@StopEvent(reason@(FSM.Failure(_) | FSM.Shutdown), _, stateData) =>
       reason match {
         case FSM.Shutdown =>
-          log.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
+          logger.error("Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception.\n")
         case _ =>
       }
-      log.error(event.toString)
-      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      logger.error(event.toString)
+      logger.error(s"Events leading up to this point:\n\t ${getLog.mkString("\n\t")}")
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, stateData.tick))
   }
 
@@ -210,19 +211,19 @@ trait BeamAgent[T <: BeamAgentData] extends LoggingFSM[BeamAgentState, BeamAgent
   }
 
   def logInfo(msg: String): Unit = {
-    log.info(s"${logWithFullPrefix(msg)}")
+    logger.info(s"${logWithFullPrefix(msg)}")
   }
 
   def logWarn(msg: String): Unit = {
-    log.warning(s"${logWithFullPrefix(msg)}")
+    logger.warn(s"${logWithFullPrefix(msg)}")
   }
 
   def logError(msg: String): Unit = {
-    log.error(s"${logWithFullPrefix(msg)}")
+    logger.error(s"${logWithFullPrefix(msg)}")
   }
 
   def logDebug(msg: String): Unit = {
-    log.debug(s"${logWithFullPrefix(msg)}")
+    logger.debug(s"${logWithFullPrefix(msg)}")
   }
 
 }

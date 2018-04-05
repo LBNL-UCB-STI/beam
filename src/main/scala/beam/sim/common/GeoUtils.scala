@@ -54,11 +54,11 @@ trait GeoUtils extends HasServices  {
     var radius = 10.0
     var theSplit: Split = null
     while(theSplit == null && radius <= maxRadius) {
-      theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode);
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode)
       radius = radius * 10
     }
     if(theSplit == null) {
-      theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode);
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
     }
     if(theSplit == null){
       coord
