@@ -111,13 +111,13 @@ To run a BEAM simulation or experiment on amazon ec2, use following command with
 
 The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. To run each each simulation/experiment parallel on separate instances, set `beamBatch` to false. For customized runs, you can also use following parameters that can be specified from command line:
 
-* `**beamBranch**`: To specify the branch for simulation, current source branch will be used as default branch.
-* `**beamCommit**`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
-* `**beamConfigs**`: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
-* `**beamExperiments**`: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
-* `**beamBatch**`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
-* `**region**`: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
-* `**shutdownWait**`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
+* **`beamBranch`**: To specify the branch for simulation, current source branch will be used as default branch.
+* **`beamCommit`**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **`beamConfigs`**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
+* **`beamExperiments`**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
+* **`beamBatch`**: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
+* **`region`**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
+* **`shutdownWait`**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 
 If any of the above parameter is not specified at the command line, then default values are assumed for optional parameters. These default values are specified in gradle.properties_ file.
 
