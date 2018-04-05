@@ -277,7 +277,7 @@ task deploy(type: AWSLambdaInvokeTask) {
 
     def pload = """{
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "$beamCommit",
+  "commit": "${beamCommit ?: 'HEAD'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
   "batch": "$beamBatch",
