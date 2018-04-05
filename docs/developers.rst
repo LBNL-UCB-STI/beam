@@ -103,6 +103,8 @@ To confirm that you have installed the correct version of client run the followi
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+..
+
     This functionality is available for core BEAM development team with Amazon Web Services access privileges. Please contact Colin_ for access to capability.
 
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
