@@ -131,9 +131,12 @@ Similarly for experiment batch, you can specify comma-separated experiment files
 
   gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
 
+For demo and presentation material, please follow the link_ on google drive.
+
 .. _Colin: mailto:colin.sheppard@lbl.gov
 .. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/
 .. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
+.. _link: https://goo.gl/Db37yM
 
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
