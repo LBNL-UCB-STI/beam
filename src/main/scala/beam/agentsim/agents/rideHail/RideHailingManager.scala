@@ -103,7 +103,7 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         graphRideHailingRevenue.createGraph(surgePricingManager)
       } catch {
         // print out exceptions, otherwise hidden, leads to difficult debugging
-        case e: Exception => e.printStackTrace()
+        case e: Exception => logger.error("Error in NotifyIterationEnds.", e)
       }
 
       surgePricingManager.updateRevenueStats()
@@ -252,11 +252,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
         (customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod,
           rideHailing2DestinationResponseMod)
         pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip()))
-        log.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within " +
+        logger.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within " +
           s"$shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
         customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
       } else {
-        log.debug(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
+        logger.debug(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
         lockedVehicles -= rideHailingLocation.vehicleId
 
         customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
@@ -291,10 +291,10 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
       lockedVehicles -= vehId
 
     case Finish =>
-      log.info("finish message received from BeamAgentScheduler")
+      logger.info("finish message received from BeamAgentScheduler")
 
     case msg =>
-      log.warn(s"unknown message received by RideHailingManager $msg from ${sender().path.toString()}")
+      logger.warn(s"unknown message received by RideHailingManager $msg from ${sender().path.toString()}")
 
   }
 
@@ -404,11 +404,11 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
   private def completeReservation(inquiryId: Id[RideHailingInquiry]): Unit = {
     pendingModifyPassengerScheduleAcks.remove(inquiryId) match {
       case Some(response) =>
-        log.debug(s"Completed reservation for $inquiryId")
+        logger.debug(s"Completed reservation for $inquiryId")
         val customerRef = beamServices.personRefs(response.response.right.get.passengerVehiclePersonId.personId)
         customerRef ! response
       case None =>
-        log.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
+        logger.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
         (RideHailVehicleTakenError))
     }
@@ -441,7 +441,6 @@ class RideHailingManager(val name: String, val beamServices: BeamServices, val r
 
 object RideHailingManager {
   val RIDE_HAIL_MANAGER = "RideHailingManager";
-  val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
     classOf[RideHailingInquiry])

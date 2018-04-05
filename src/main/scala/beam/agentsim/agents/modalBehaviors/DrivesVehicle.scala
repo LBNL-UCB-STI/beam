@@ -123,7 +123,6 @@ trait DrivesVehicle[T <: BeamAgentData] extends BeamAgent[T] with HasServices {
             stay()
           }
         case None =>
-          print("")
           stop(Failure(s"Driver $id did not find a manifest for BeamLeg $newLeg"))
       }
     case Event(BoardVehicle(tick, vehiclePersonId), _) =>
