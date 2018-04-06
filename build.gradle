@@ -138,8 +138,8 @@ dependencies {
     }
     compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.9.0'
 
+    compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.8.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
-
 
     compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -228,8 +228,7 @@ dependencies {
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
-    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.0'
-
+    compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.9.0'
 }
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
@@ -278,7 +277,7 @@ task deploy(type: AWSLambdaInvokeTask) {
 
     def pload = """{
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "$beamCommit",
+  "commit": "${beamCommit ?: 'HEAD'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
   "batch": "$beamBatch",
