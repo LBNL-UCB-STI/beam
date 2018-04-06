@@ -139,8 +139,8 @@ dependencies {
     }
     compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.9.0'
 
+    compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.8.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
-
 
     compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -280,7 +280,7 @@ task deploy(type: AWSLambdaInvokeTask) {
 
     def pload = """{
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "$beamCommit",
+  "commit": "${beamCommit ?: 'HEAD'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
   "batch": "$beamBatch",
