@@ -19,6 +19,7 @@ import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -37,10 +38,8 @@ import scala.concurrent.duration.FiniteDuration
   *
   * Created by sfeygin on 2/8/17.
   */
-class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim {
+class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim with LazyLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
-
-  private val log = Logger.getLogger(classOf[BeamMobsim])
 
   var rideHailingAgents: Seq[ActorRef] = Nil
   val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
@@ -127,7 +126,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             context.stop(self)
             runSender ! Success("Ran.")
           } else {
-            log.debug("Remaining: {}", context.children)
+            log.debug(s"Remaining: ${context.children}")
           }
 
         case "Run!" =>
@@ -158,9 +157,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
     }))
     Await.result(iteration ? "Run!", timeout.duration)
-    log.info("Agentsim finished.")
+    logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
-    log.info("Events drained.")
+    logger.info("Events drained.")
   }
 }
 
