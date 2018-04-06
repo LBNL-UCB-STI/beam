@@ -1,6 +1,8 @@
 package beam.analysis;
 
 import beam.agentsim.events.PathTraversalEvent;
+import beam.sim.common.GeoUtils;
+import beam.sim.common.GeoUtils$;
 import beam.utils.DebugLib;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
@@ -265,7 +267,9 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     public double getFuelUsageBasedOnStartEndCoordinates(double fuelEconomy, Map<String, String> pathTraversalEventAttributes) {
         Tuple<Coord, Coord> startAndEndCoordinates = PathTraversalLib.getStartAndEndCoordinates(pathTraversalEventAttributes);
-        double lengthInMeters = GeoUtils.distInMeters(startAndEndCoordinates.getFirst().getY(), startAndEndCoordinates.getFirst().getX(), startAndEndCoordinates.getSecond().getY(), startAndEndCoordinates.getSecond().getX());
+        double lengthInMeters = GeoUtils$.MODULE$.distLatLon2Meters(startAndEndCoordinates.getFirst().getY(),
+                startAndEndCoordinates.getFirst().getX(), startAndEndCoordinates.getSecond().getY(),
+                startAndEndCoordinates.getSecond().getX());
         return fuelEconomy * lengthInMeters;
     }
 
@@ -280,7 +284,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
                 R5NetworkLink startLink = r5NetworkLinks.get(linkSplit[0].trim());
                 R5NetworkLink endLink = r5NetworkLinks.get(linkSplit[1].trim());
                 Coord centerCoord = new Coord((startLink.coord.getX() + endLink.coord.getX()) / 2, (startLink.coord.getY() + endLink.coord.getY()) / 2);
-                double lengthInMeters = GeoUtils.distInMeters(startLink.coord.getY(), startLink.coord.getX(), endLink.coord.getY(), endLink.coord.getX());
+                double lengthInMeters = GeoUtils$.MODULE$.distLatLon2Meters(startLink.coord.getY(), startLink.coord.getX(), endLink.coord.getY(), endLink.coord.getX());
 // TODO: do county distribution again
 
                 if (linkId.equalsIgnoreCase("849856,1375838")) {

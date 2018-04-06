@@ -130,7 +130,7 @@ trait ChoosesMode {
               val maybeVehicle = filterStreetVehiclesForQuery(streetVehicles, mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
-                  val leg = BeamLeg(departTime.atTime, mode, l.getTravelTime.toLong, BeamPath((r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId).map(id => id.toString.toInt).toVector, None, SpaceTime.zero, SpaceTime.zero, 0.0))
+                  val leg = BeamLeg(departTime.atTime, mode, l.getTravelTime.toLong, BeamPath((r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId).map(id => id.toString.toInt).toVector, None, SpaceTime.zero, SpaceTime.zero, r.getDistance))
                   router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
                 case _ =>
                   makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
@@ -332,6 +332,8 @@ trait ChoosesMode {
   }
 
   def createExpensiveWalkTrip(choosesModeData: ChoosesModeData): EmbodiedBeamTrip = {
+    assert(choosesModeData.routingResponse.get.itineraries.filter(_.tripClassifier == WALK).isDefinedAt(0))
+    assert(choosesModeData.routingResponse.get.itineraries.filter(_.tripClassifier == WALK).head.legs.isDefinedAt(0))
     val originalWalkTripLeg = choosesModeData.routingResponse.get.itineraries.filter(_.tripClassifier == WALK).head.legs.head
     EmbodiedBeamTrip(Vector(originalWalkTripLeg.copy(cost = BigDecimal(100.0))))
   }
@@ -349,8 +351,8 @@ trait ChoosesMode {
     } else {
       val origin = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex).getCoord)
       val destination = beamServices.geo.utm2Wgs(_experiencedBeamPlan.activities(_currentActivityIndex + 1).getCoord)
-      _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 1000.0, StreetMode.WALK).edge))
-      _experiencedBeamPlan.activities(_currentActivityIndex + 1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 1000.0, StreetMode.WALK).edge))
+      _experiencedBeamPlan.activities(_currentActivityIndex).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(origin.getY, origin.getX, 10000.0, StreetMode.WALK).edge))
+      _experiencedBeamPlan.activities(_currentActivityIndex + 1).setLinkId(Id.createLinkId(transportNetwork.streetLayer.findSplit(destination.getY, destination.getX, 10000.0, StreetMode.WALK).edge))
     }
 
     def availableAlternatives = {
