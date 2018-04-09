@@ -15,6 +15,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.utils.DebugLib
 import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -85,6 +86,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
     agentSimToPhysSimPlanConverter.startPhysSim(event)
     createGraphsFromEvents.createGraphs(event)
     modalityStyleStats.processData(scenario.getPopulation(), event)
@@ -92,9 +94,11 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
 
     tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
+    logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
+
     Await.result(actorSystem.terminate(), Duration.Inf)
 
     // remove output files which are not ready for release yet (enable again after Jan 2018)

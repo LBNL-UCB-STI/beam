@@ -17,7 +17,7 @@ import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
-import beam.utils.{MemoryLoggingTimerActor, Tick}
+import beam.utils.{DebugLib, MemoryLoggingTimerActor, Tick}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -52,6 +52,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
 
   override def run() = {
+    logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
     beamServices.clearAll
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(Props(new Actor with ActorLogging {
@@ -114,9 +115,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
 
       def prepareMemoryLoggingTimerActor(timeoutInSeconds:Int,system:ActorSystem,memoryLoggingTimerActorRef: ActorRef):Cancellable={
-
-
-
         import system.dispatcher
 
         val cancellable=system.scheduler.schedule(
