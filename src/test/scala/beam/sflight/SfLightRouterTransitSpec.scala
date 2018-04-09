@@ -123,19 +123,6 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
         .isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
     }
 
-    "respond with a multi transfer route having cost 9.75 USD." in {
-      val origin = new Coord(554413.5055508229, 4176933.7295036125)
-      val destination = new Coord(551010.1423040839, 4184361.3484820053)
-      val time = RoutingModel.DiscreteTime(65220)
-      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
-      val response = expectMsgType[RoutingResponse]
-
-      // printResponse(origin, destination, time, response)
-      assert(response.itineraries.exists(_.costEstimate == 9.75))
-      assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
-    }
-
     "respond with a unlimited transfer route having cost 2.75 USD." in {
       val origin = new Coord(549598.9574660371, 4176177.2431860007)
       val destination = new Coord(544417.3891361314, 4177016.733758491)
@@ -160,19 +147,6 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
 
-    "respond with a CABLE_CAR route having multiple transfers but without transfer permission of cost 18.70 USD." in {
-      val origin = new Coord(550046.6183707184, 4173684.1312090624)
-      val destination = new Coord(551010.1423040839, 4184361.3484820053)
-      val time = RoutingModel.DiscreteTime(54960)
-      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
-      val response = expectMsgType[RoutingResponse]
-
-      //printResponse(origin, destination, time, response)
-
-      assert(response.itineraries.exists(_.costEstimate == 18.70))
-      assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
-    }
   }
 
 //  Vector(itinerary ->, [x=550046.6183707184][y=4173684.1312090624], [x=551010.1423040839][y=4184361.3484820053], DiscreteTime(54960), WALK_TRANSIT, 18.70

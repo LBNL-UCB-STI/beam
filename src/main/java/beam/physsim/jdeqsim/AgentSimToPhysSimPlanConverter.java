@@ -124,15 +124,16 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimConfigGroup config = new JDEQSimConfigGroup();
         config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
+        config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
 
-        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (After GC): "));
+        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
 
         jdeqSimulation.run();
 
-        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (After GC): "));
+        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
 
 
 
