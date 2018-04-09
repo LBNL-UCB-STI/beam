@@ -128,11 +128,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
 
-        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (After GC): "));
+        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
 
         jdeqSimulation.run();
 
-        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (After GC): "));
+        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
 
 
 
