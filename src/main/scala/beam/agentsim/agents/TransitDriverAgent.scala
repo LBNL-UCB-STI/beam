@@ -3,14 +3,13 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorContext, ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{Moving, Waiting}
+import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
-import beam.agentsim.agents.TriggerUtils._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriver, BecomeDriverSuccess, BecomeDriverSuccessAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.scheduler.BeamAgentScheduler.IllegalTriggerGoToError
+import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.{BeamServices, HasServices}
@@ -29,7 +28,9 @@ object TransitDriverAgent {
     Props(new TransitDriverAgent(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs))
   }
 
-  case class TransitDriverData() extends BeamAgentData
+  case class TransitDriverData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData {
+    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+  }
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
     Id.create("TransitDriverAgent-" + BeamVehicle.noSpecialChars(transitVehicle.toString), classOf[TransitDriverAgent])
@@ -46,66 +47,41 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicle: BeamVehicle,
                          val legs: Seq[BeamLeg]) extends
-  BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
+  DrivesVehicle[TransitDriverData] {
   override val id: Id[TransitDriverAgent] = transitDriverId
-  override val data: TransitDriverData = TransitDriverData()
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "
 
-  val initialPassengerSchedule = PassengerSchedule()
-  initialPassengerSchedule.addLegs(legs)
+  startWith(Uninitialized, TransitDriverData())
 
-
-  chainedWhen(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), info: BeamAgentInfo[TransitDriverData]) =>
+  when(Uninitialized) {
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       logDebug(s" $id has been initialized, going to Waiting state")
-      holdTickAndTriggerId(tick, triggerId)
-      self ! BecomeDriver(tick, id, Some(initialPassengerSchedule))
-        stay ()
-
-    /*
-    * Becoming driver
-    */
-    case Event(BecomeDriver(tick, newDriver, newPassengerSchedule), info) =>
-      vehicle.becomeDriver(beamServices.agentRefs(newDriver.toString)).fold(fa =>
-        stop(Failure(s"BeamAgent $newDriver attempted to become driver of vehicle $id " +
+      vehicle.becomeDriver(self).fold(fa =>
+        stop(Failure(s"BeamAgent $id attempted to become driver of vehicle $id " +
           s"but driver ${vehicle.driver.get} already assigned.")), fb => {
-        vehicle.driver.get ! BecomeDriverSuccess(newPassengerSchedule, vehicle.id)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_transit_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(PersonAgent.Waiting)
+        val schedule = data.passengerSchedule.addLegs(legs)
+        goto(WaitingToDrive) using data.copy(currentVehicle = Vector(vehicle.id)).withPassengerSchedule(schedule).asInstanceOf[TransitDriverData] replying
+          CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey), self)))
       })
   }
 
-  chainedWhen(AnyState) {
-    case Event(BecomeDriverSuccessAck, _) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      scheduler ! completed(triggerId, schedule[StartLegTrigger](passengerSchedule.schedule.firstKey
-        .startTime, self, passengerSchedule.schedule.firstKey))
-      stay
+  when(PassengerScheduleEmpty) {
+    case Event(PassengerScheduleEmptyMessage(_), _) =>
+      val (_, triggerId) = releaseTickAndTriggerId()
+      scheduler ! CompletionNotice(triggerId)
+      stop
+  }
+
+  val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _)  =>
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
   }
 
-  override def passengerScheduleEmpty(tick: Double, triggerId: Long): State = {
-    scheduler ! completed(triggerId)
-    stop
-  }
+  whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
-  when(Waiting) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-  }
-  when(Moving) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-  }
-  when(AnyState) {
-    case ev@Event(_, _) =>
-      handleEvent(stateName, ev)
-    case msg@_ =>
-      stop(Failure(s"Unrecognized message ${msg}"))
-  }
 }

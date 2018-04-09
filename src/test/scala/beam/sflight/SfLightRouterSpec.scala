@@ -4,7 +4,6 @@ import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -19,6 +18,7 @@ import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.{BeamConfigUtils, DateUtils}
+import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
@@ -28,6 +28,7 @@ import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -143,9 +144,14 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       }
     }
 
+    def planToVec(plan: Plan): Vector[Activity] = {
+      scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p
+        .isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
+    }
+
     "respond with a car route and a walk route for each trip in sflight" in {
       scenario.getPopulation.getPersons.values().forEach(person => {
-        val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
+        val activities = planToVec(person.getSelectedPlan)
         activities.sliding(2).foreach(pair => {
           val origin = pair(0).getCoord
           val destination = pair(1).getCoord
