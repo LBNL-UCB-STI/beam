@@ -18,13 +18,13 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
         containsDriveAlt = containsDriveAlt :+ alt._2
       }
     }
-
-    Some(alternatives(if (containsDriveAlt.nonEmpty) {
-      containsDriveAlt.head
+    if (containsDriveAlt.nonEmpty) {
+      Some(alternatives(containsDriveAlt.head))
+    } else if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
+    } else {
+      None
     }
-    else {
-      chooseRandomAlternativeIndex(alternatives)
-    }))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
