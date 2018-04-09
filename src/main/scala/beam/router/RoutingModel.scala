@@ -72,7 +72,7 @@ object RoutingModel {
       legs.map(leg => leg.beamVehicleId).distinct
     }
     override def toString() = {
-      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
     }
   }
 

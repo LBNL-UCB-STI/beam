@@ -83,4 +83,9 @@ public class DebugLib {
         log.error(hintString);
         throw new Error(hintString);
     }
+
+    public static String gcAndGetMemoryLogMessage(String message){
+        System.gc();
+        return message + Math.round(10 * (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (Math.pow(1000, 3))) / 10.0 + "(GB)";
+    }
 }
