@@ -14,7 +14,6 @@ trait RideHailResourceAllocationManager {
 
   val isBufferedRideHailAllocationMode: Boolean
 
-  // TODO Asif: change parameters to case class VehicleAllocationRequest
 
   // TODO: add distinguish param inquiry vs. reservation
   def getVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation]
