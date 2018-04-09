@@ -75,6 +75,12 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
 
   override def afterAll: Unit = {
     shutdown()
+    router = null
+    geo = null
+    scenario = null
+    services = null
+    networkCoordinator = null
+    beamConfig = null
   }
 
   "The agentsim" must {
