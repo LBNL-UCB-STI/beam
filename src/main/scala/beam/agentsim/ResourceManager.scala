@@ -7,7 +7,6 @@ import akka.pattern.ask
 import beam.agentsim.Resource._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
-import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Id, Identifiable}
 
 import scala.concurrent.ExecutionContext
@@ -103,6 +102,6 @@ object ResourceManager {
   /**
     * Concrete implementation that manages Resources of type [[BeamVehicle]]
     */
-  trait VehicleManager extends Actor with ResourceManager[BeamVehicle] with LazyLogging
+  trait VehicleManager extends Actor with ResourceManager[BeamVehicle]
 
 }

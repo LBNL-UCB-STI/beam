@@ -3,7 +3,7 @@ package beam.agentsim.agents.rideHail
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.BeamAgent.Finish
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -18,7 +18,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.analysis.plots.GraphRideHailingRevenue
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -47,7 +47,7 @@ import scala.util.Random
 
 
 
-class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRef,val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
+class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRef,val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with ActorLogging with HasServices {
 
   import scala.collection.JavaConverters._
 
@@ -96,7 +96,7 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
         graphRideHailingRevenue.createGraph(surgePricingManager)
       } catch {
         // print out exceptions, otherwise hidden, leads to difficult debugging
-        case e: Exception => logger.error("Error in NotifyIterationEnds.", e)
+        case e: Exception => log.error("Error in NotifyIterationEnds.", e)
       }
 
       surgePricingManager.updateRevenueStats()
@@ -245,11 +245,11 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
         (customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod,
           rideHailing2DestinationResponseMod)
         pendingInquiries.put(inquiryId, (travelProposal, modRHA2Dest.head.toBeamTrip()))
-        logger.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within " +
+        log.debug(s"Found ride to hail for  person=$personId and inquiryId=$inquiryId within " +
           s"$shortDistanceToRideHailingAgent meters, timeToCustomer=$timeToCustomer seconds and cost=$$$cost")
         customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(travelProposal))
       } else {
-        logger.debug(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
+        log.debug(s"Router could not find route to customer person=$personId for inquiryId=$inquiryId")
         lockedVehicles -= rideHailingLocation.vehicleId
 
         customerAgent ! RideHailingInquiryResponse(inquiryId, Vector(), error = Option(CouldNotFindRouteToCustomer))
@@ -284,10 +284,10 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       lockedVehicles -= vehId
 
     case Finish =>
-      logger.info("finish message received from BeamAgentScheduler")
+      log.info("finish message received from BeamAgentScheduler")
 
     case msg =>
-      logger.warn(s"unknown message received by RideHailingManager $msg from ${sender().path.toString()}")
+      log.warning(s"unknown message received by RideHailingManager $msg from ${sender().path.toString()}")
 
   }
 
@@ -394,11 +394,11 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   private def completeReservation(inquiryId: Id[RideHailingInquiry]): Unit = {
     pendingModifyPassengerScheduleAcks.remove(inquiryId) match {
       case Some(response) =>
-        logger.debug(s"Completed reservation for $inquiryId")
+        log.debug(s"Completed reservation for $inquiryId")
         val customerRef = beamServices.personRefs(response.response.right.get.passengerVehiclePersonId.personId)
         customerRef ! response
       case None =>
-        logger.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
+        log.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
         (RideHailVehicleTakenError))
     }

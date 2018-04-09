@@ -193,7 +193,8 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
             false
         }
       }
-      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
+      // TODO: Test that what can be printed with the line below makes sense (chains of modes)
+//      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
 
   }

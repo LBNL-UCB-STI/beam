@@ -109,7 +109,7 @@ object HouseholdActor {
                        val household: Household,
                        vehicles: Map[Id[BeamVehicle], BeamVehicle],
                        homeCoord: Coord)
-    extends VehicleManager {
+    extends VehicleManager with ActorLogging {
 
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
@@ -189,7 +189,7 @@ object HouseholdActor {
          */
         _reservedForPerson.get(personId) match {
           case Some(vehicleId) if vehicleId == vehId =>
-            logger.debug(s"Vehicle $vehicleId is now available for anyone in household $id")
+            log.debug(s"Vehicle $vehicleId is now available for anyone in household $id")
             _reservedForPerson.remove(personId)
           case _ =>
         }
@@ -236,7 +236,7 @@ object HouseholdActor {
       if (context.children.isEmpty) {
         context.stop(self)
       } else {
-        logger.debug("Remaining: {}", context.children)
+        log.debug("Remaining: {}", context.children)
       }
     }
 
@@ -254,7 +254,7 @@ object HouseholdActor {
           }
         case None =>
       }
-      logger.debug(s"Resource $vehicleId is now available again")
+      log.debug(s"Resource $vehicleId is now available again")
     }
 
     // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last
