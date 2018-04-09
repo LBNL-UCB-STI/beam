@@ -154,7 +154,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
     case Event(TriggerWithId(PersonDepartureTrigger(tick), triggerId), BasePersonData(_,_,restOfCurrentTrip,_,_,_,_,true)) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
-      log.error("at {} replanned to leg {}", tick, restOfCurrentTrip.head)
+      log.debug("at {} replanned to leg {}", tick, restOfCurrentTrip.head)
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }
@@ -167,8 +167,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     // If boarding the bus fails, go back to choosing mode.
     case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      log.error("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
-      log.error(getLog.mkString("\n"))
+      log.debug("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
       holdTickAndTriggerId(tick, triggerId)
       goto(ChoosingMode) using ChoosesModeData(data)
 
