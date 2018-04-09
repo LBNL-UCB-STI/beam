@@ -21,6 +21,7 @@ import util.HashMap
 
 import beam.utils.ObjectAttributesUtils
 import beam.utils.scripts.HouseholdAttrib.HousingType
+import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.supercsv.cellprocessor.ParseDouble
@@ -41,7 +42,7 @@ import scala.collection.mutable.ArrayBuffer
 object TAZCreatorScript extends App {
 
   /*
-  val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp";
+  val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp"
   val taz=new TAZTreeMap(shapeFile, "TAZCE10")
 
 // TODO: attriutes or xml from config file - allow specifying multiple files
@@ -78,7 +79,7 @@ object TAZCreatorScript extends App {
   println(taz.getId(-120.8043534,+35.5283106))
 */
 
-  TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
+  //TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
 
 
 //  println("HELLO WORLD")
@@ -88,18 +89,18 @@ object TAZCreatorScript extends App {
 
 
   //Test Write File
-//  if (null != args && 3 == args.size){
-//    println("Running conversion")
-//    val pathFileShape = args(0)
-//    val tazIdName = args(1)
-//    val destination = args(2)
-//
-//    println("Process Started")
-//    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
-//    println("Process Terminate...")
-//  } else {
-//    println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
-//  }
+  if (null != args && 3 == args.size){
+    println("Running conversion")
+    val pathFileShape = args(0)
+    val tazIdName = args(1)
+    val destination = args(2)
+
+    println("Process Started")
+    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
+    println("Process Terminate...")
+  } else {
+    println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
+  }
 
 }
 
@@ -219,7 +220,7 @@ object TAZTreeMap {
   def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String) = {
     f.getDefaultGeometry match {
       case g: Geometry =>
-        Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[String], g.getCoordinate.x, g.getCoordinate.y))
+        Some(CsvTaz(f.getAttribute(tazIDFieldName).toString, g.getCoordinate.x, g.getCoordinate.y))
       case _ => None
     }
   }
@@ -229,10 +230,12 @@ object TAZTreeMap {
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
-    var mapWriter: ICsvMapWriter   = null;
+    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
+
+    var mapWriter: ICsvMapWriter   = null
     try {
       mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath),
-        CsvPreference.STANDARD_PREFERENCE);
+        CsvPreference.STANDARD_PREFERENCE)
 
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")
@@ -260,12 +263,13 @@ object TAZTreeMap {
       println(s"Total all TAZ ${allNonRepeatedTaz.size}")
 
       for(t <- allNonRepeatedTaz){
-        val tazToWrite = new HashMap[String, Object]();
+        val tazToWrite = new HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
        //
        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
-        tazToWrite.put(header(1), transFormedCoord.getX.toString)
-        tazToWrite.put(header(2), transFormedCoord.getY.toString)
+        val tcoord = utm2Wgs.transform(new Coord(transFormedCoord.getX, transFormedCoord.getY))
+        tazToWrite.put(header(1), tcoord.getX.toString)
+        tazToWrite.put(header(2), tcoord.getY.toString)
         mapWriter.write(tazToWrite, header, processors)
       }
     } finally {

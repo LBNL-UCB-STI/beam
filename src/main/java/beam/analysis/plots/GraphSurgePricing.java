@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager;
 import beam.agentsim.agents.rideHail.SurgePriceBin;
+import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -11,6 +12,10 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.jfree.data.statistics.HistogramDataset;
 import org.jfree.data.statistics.HistogramType;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.listener.ControlerListener;
+import org.matsim.core.controler.listener.IterationEndsListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
@@ -23,7 +28,7 @@ import java.io.IOException;
 import java.util.*;
 
 
-public class GraphSurgePricing {
+public class GraphSurgePricing implements ControlerListener, IterationEndsListener{
 
     // The keys of the outer map represents binNumber
     // The inner map consists of category index to number of occurrence for each category
@@ -31,7 +36,6 @@ public class GraphSurgePricing {
 
     private Logger log = LoggerFactory.getLogger(GraphSurgePricing.class);
 
-    private int iterationNumber = 0;
 
     private  Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
     private  int binSize;
@@ -58,32 +62,42 @@ public class GraphSurgePricing {
     private RideHailSurgePricingManager surgePricingManager;
 
 
+
+    @Inject
     public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager){
 
         this.surgePricingManager = surgePricingManager;
         noOfCategories = this.surgePricingManager.numberOfCategories();
-        iterationNumber = this.surgePricingManager.getIterationNumber();
-        //iterationNumber = itNo;
+
         tazDataset.clear();
         transformedBins.clear();
         max = null;
         min = null;
         tazIds.clear();
 
-
-        final int iNo = iterationNumber;
-        graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
-        surgePricingCsvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
-        revenueGraphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailRevenue.png");
-        revenueCsvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iNo, "rideHailRevenue.csv");
-
-
         binSize = this.surgePricingManager.timeBinSize();
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
 
         revenueDataSet = new double[numberOfTimeBins];
+    }
 
+
+    @Override
+    public void notifyIterationEnds(IterationEndsEvent event) {
+        final int iNo = event.getIteration();
+
+        OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
+
+
+        graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
+        surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
+        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
+        revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
+        revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
+
+
+
+        this.createGraphs();
     }
 
     public  void createGraphs(){

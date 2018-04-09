@@ -7,6 +7,7 @@ import java.util.Properties
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
+import beam.analysis.plots.GraphSurgePricing
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
@@ -21,8 +22,8 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -34,8 +35,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
-trait BeamHelper {
-  val log: Logger = Logger.getLogger(classOf[BeamHelper])
+trait BeamHelper extends LazyLogging {
 
   def module(typesafeConfig: com.typesafe.config.Config, scenario: Scenario, transportNetwork: TransportNetwork): com.google.inject.Module = AbstractModule.`override`(
     ListBuffer(new AbstractModule() {
@@ -68,6 +68,9 @@ trait BeamHelper {
         bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
 
         addControlerListenerBinding().to(classOf[BeamSim])
+
+        addControlerListenerBinding().to(classOf[GraphSurgePricing])
+
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
         bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])

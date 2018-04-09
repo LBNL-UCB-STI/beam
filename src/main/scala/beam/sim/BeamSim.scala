@@ -18,6 +18,7 @@ import beam.router.osm.TollCalculator
 import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}
@@ -33,14 +34,14 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val beamServices: BeamServices,
                         private val eventsManager: EventsManager,
                         private val scenario: Scenario,
-                       ) extends StartupListener with IterationEndsListener with ShutdownListener {
+                       ) extends StartupListener with IterationEndsListener with ShutdownListener with LazyLogging {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _;
-  private var modalityStyleStats: ModalityStyleStats = _;
-  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _;
+  private var createGraphsFromEvents: GraphsStatsAgentSimEventsListener = _
+  private var modalityStyleStats: ModalityStyleStats = _
+  private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
 
   private var tncWaitingTimes: TNCWaitingTimesCollector = _
 
@@ -77,19 +78,17 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
       beamServices.beamConfig)
 
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(eventsManager, event.getServices.getControlerIO, scenario)
-    modalityStyleStats = new ModalityStyleStats();
+    modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(eventsManager, scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig.beam.outputs.writeEventsInterval)
 
-
     tncWaitingTimes = new TNCWaitingTimesCollector(eventsManager)
-
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     agentSimToPhysSimPlanConverter.startPhysSim(event)
-    createGraphsFromEvents.createGraphs(event);
-    modalityStyleStats.processData(scenario.getPopulation(), event);
-    modalityStyleStats.buildModalityStyleGraph();
+    createGraphsFromEvents.createGraphs(event)
+    modalityStyleStats.processData(scenario.getPopulation(), event)
+    modalityStyleStats.buildModalityStyleGraph()
     PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
 
     tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
@@ -98,20 +97,15 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   override def notifyShutdown(event: ShutdownEvent): Unit = {
     Await.result(actorSystem.terminate(), Duration.Inf)
 
+    // remove output files which are not ready for release yet (enable again after Jan 2018)
+    val outputFilesToDelete = Array("traveldistancestats.txt", "traveldistancestats.png", "tmp"/*, "modestats.txt", "modestats.png"*/)
+
+    outputFilesToDelete.foreach(deleteOutputFile)
+
     def deleteOutputFile(fileName: String) = {
+      logger.debug(s"deleting output file: ${fileName}")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
-
-    // remove output files which are not ready for release yet (enable again after Jan 2018)
-    deleteOutputFile("traveldistancestats.txt")
-
-    deleteOutputFile("traveldistancestats.png")
-
-    //  deleteOutputFile("modestats.txt")
-    // deleteOutputFile("modestats.png")
-
-    deleteOutputFile("tmp")
-    //===========================
   }
 }
 

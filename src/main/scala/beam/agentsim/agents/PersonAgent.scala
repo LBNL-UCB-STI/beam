@@ -31,6 +31,10 @@ import scala.concurrent.duration._
   */
 object PersonAgent {
 
+  val timeToChooseMode: Double = 0.0
+  val minActDuration: Double = 0.0
+  val teleportWalkDuration = 0.0
+
   def props(scheduler: ActorRef, services: BeamServices, modeChoiceCalculator: ModeChoiceCalculator, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager, personId: Id[PersonAgent], household: Household, plan: Plan,
             humanBodyVehicleId: Id[Vehicle]): Props = {
     Props(new PersonAgent(scheduler, services, modeChoiceCalculator, transportNetwork, router, rideHailingManager, eventsManager, personId, plan, humanBodyVehicleId))
@@ -80,9 +84,8 @@ object PersonAgent {
 
 }
 
-class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends BeamAgent[PersonData] with
-  HasServices with ChoosesMode with DrivesVehicle[PersonData] with Stash {
-
+class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle]) extends
+  DrivesVehicle[PersonData] with ChoosesMode with Stash {
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
   startWith(Uninitialized, BasePersonData())
@@ -344,8 +347,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
       stop(Failure("Timeout - this probably means this agent was not getting a reply it was expecting."))
     case Event(Finish, _) =>
-      log.warning("Still travelling at end of simulation.")
-      log.warning("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+      }
       stop
   }
 

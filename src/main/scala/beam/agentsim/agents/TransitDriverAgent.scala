@@ -47,7 +47,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicle: BeamVehicle,
                          val legs: Seq[BeamLeg]) extends
-  BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
+  DrivesVehicle[TransitDriverData] {
   override val id: Id[TransitDriverAgent] = transitDriverId
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "

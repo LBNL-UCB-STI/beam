@@ -4,7 +4,9 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, FSM, LoggingFSM}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.scheduler.Trigger
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.sim.metrics.{Metrics, MetricsSupport}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
 

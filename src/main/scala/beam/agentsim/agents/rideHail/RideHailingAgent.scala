@@ -41,10 +41,7 @@ object RideHailingAgent {
 
 class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: ActorRef, vehicle: BeamVehicle, initialLocation: Coord,
                        val eventsManager: EventsManager, val beamServices: BeamServices, val transportNetwork: TransportNetwork)
-  extends BeamAgent[RideHailingAgentData]
-    with HasServices
-    with DrivesVehicle[RideHailingAgentData] {
-  override def logPrefix(): String = s"RideHailingAgent $id: "
+  extends BeamAgent[RideHailingAgentData] with DrivesVehicle[RideHailingAgentData] {
 
   startWith(Uninitialized, RideHailingAgentData())
 
