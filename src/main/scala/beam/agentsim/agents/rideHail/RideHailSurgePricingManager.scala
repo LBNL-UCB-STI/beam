@@ -22,7 +22,7 @@ object RideHailSurgePricingManager {
 
 class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TAZTreeMap]) {
 
-  var iteration = 0;
+  var iteration = 0
 
 
   // TODO:
@@ -58,7 +58,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
 
   var rideHailingRevenue = ArrayBuffer[Double]()
 
-  val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0);
+  val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
 
   // TODO: add system iteration revenue in class (add after each iteration), so that it can be accessed during graph generation!
 
@@ -105,7 +105,7 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
         // TODO: move surge price by step in direction of positive movement
         //   iterate over all items
         updateForAllElements(surgePriceBins) { surgePriceBin =>
-          val updatedPreviousSurgePriceLevel = surgePriceBin.currentIterationSurgePriceLevel;
+          val updatedPreviousSurgePriceLevel = surgePriceBin.currentIterationSurgePriceLevel
           val updatedSurgeLevel = if (surgePriceBin.currentIterationRevenue == surgePriceBin.previousIterationRevenue) {
             surgePriceBin.currentIterationSurgePriceLevel
           } else {
@@ -186,11 +186,11 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
   private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
 
   def incrementIteration() = {
-    iteration += 1;
+    iteration += 1
   }
 
   def getIterationNumber() = {
-    iteration;
+    iteration
   }
 }
 

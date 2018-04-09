@@ -3,7 +3,7 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, DeadLetter, Identify, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, PoisonPill, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -17,8 +17,10 @@ import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
+import beam.utils.{MemoryLoggingTimerActor, Tick}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -28,6 +30,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.matsim.core.utils.misc.Time
 
+import scala.concurrent.duration._
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
@@ -37,13 +40,13 @@ import scala.concurrent.duration.FiniteDuration
   *
   * Created by sfeygin on 2/8/17.
   */
-class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim {
+class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim with LazyLogging {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
-
-  private val log = Logger.getLogger(classOf[BeamMobsim])
 
   var rideHailingAgents: Seq[ActorRef] = Nil
   val rideHailingHouseholds: mutable.Set[Id[Household]] = mutable.Set[Id[Household]]()
+  var memoryLoggingTimerActorRef:ActorRef=_
+  var memoryLoggingTimerCancellable:Cancellable=_
 /*
   var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
@@ -55,6 +58,10 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       var runSender: ActorRef = _
       private val errorListener = context.actorOf(ErrorListener.props())
       context.watch(errorListener)
+
+      memoryLoggingTimerActorRef =   context.actorOf(Props(classOf[MemoryLoggingTimerActor]))
+      memoryLoggingTimerCancellable=prepareMemoryLoggingTimerActor(beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec,context.system,memoryLoggingTimerActorRef)
+
       context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
       val scheduler = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) , 300.0), "scheduler")
       context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
@@ -109,6 +116,23 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       scheduleRideHailManagerTimerMessage()
 
 
+      def prepareMemoryLoggingTimerActor(timeoutInSeconds:Int,system:ActorSystem,memoryLoggingTimerActorRef: ActorRef):Cancellable={
+
+
+
+        import system.dispatcher
+
+        val cancellable=system.scheduler.schedule(
+          0 milliseconds,
+          timeoutInSeconds*1000 milliseconds,
+          memoryLoggingTimerActorRef,
+          Tick)
+
+        cancellable
+      }
+
+
+
       override def receive = {
 
         case CompletionNotice(_, _) =>
@@ -121,13 +145,15 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           context.stop(rideHailingManager)
           context.stop(scheduler)
           context.stop(errorListener)
+          memoryLoggingTimerCancellable.cancel()
+          context.stop(memoryLoggingTimerActorRef)
 
         case Terminated(_) =>
           if (context.children.isEmpty) {
             context.stop(self)
             runSender ! Success("Ran.")
           } else {
-            log.debug("Remaining: {}", context.children)
+            log.debug(s"Remaining: ${context.children}")
           }
 
         case "Run!" =>
@@ -158,9 +184,9 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
     }))
     Await.result(iteration ? "Run!", timeout.duration)
-    log.info("Agentsim finished.")
+    logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
-    log.info("Events drained.")
+    logger.info("Events drained.")
   }
 }
 
