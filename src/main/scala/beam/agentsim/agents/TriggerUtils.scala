@@ -3,13 +3,14 @@ package beam.agentsim.agents
 import akka.actor.ActorRef
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.reflect.{ClassTag, _}
 
 /**
   * BEAM
   */
-object TriggerUtils {
+object TriggerUtils extends LazyLogging {
   def completed(triggerId: Long, scheduleTriggers: Vector[ScheduleTrigger] = Vector()): CompletionNotice = {
     CompletionNotice(triggerId, scheduleTriggers)
   }
@@ -39,7 +40,7 @@ object TriggerUtils {
       }
     } catch {
       case ex: Throwable =>
-        ex.printStackTrace()
+        logger.error("Error in schedule.", ex)
         throw ex
     }
     ScheduleTrigger(trigger.asInstanceOf[T], recipient)

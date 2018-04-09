@@ -25,5 +25,5 @@ object RunBeam extends BeamHelper with App {
   val argsMap = parseArgs()
 
   runBeamWithConfigFile(argsMap.get("config"))
-  print("Exiting BEAM")
+  logger.info("Exiting BEAM")
 }
