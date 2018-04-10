@@ -16,15 +16,15 @@ peeps[vehicleClassName=='NEV',veh.type:='NEV']
 out.dirs <- list()
 
 # Base
-#out.dirs[['base']]            <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-#out.dirs[['base-tou-night']]  <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-#out.dirs[['base-tou-both']]   <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-#out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-#out.dirs[['morework-8x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-#out.dirs[['morework-8x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-#out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
-#out.dirs[['morework-4x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
-#out.dirs[['morework-4x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+out.dirs[['base']]            <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
+out.dirs[['base-tou-night']]  <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
+out.dirs[['base-tou-both']]   <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
+out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+out.dirs[['morework-8x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+out.dirs[['morework-8x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+out.dirs[['morework-4x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+out.dirs[['morework-4x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
 out.dirs[['morework-2x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
 out.dirs[['morework-2x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
 out.dirs[['morework-2x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
@@ -412,8 +412,9 @@ for(scen in scens){
 
   # Finally, scale according to the scenarios developed by Julia
   scenarios <- load.scenarios()
+  scenarios <- scenarios[penetration=='High' & veh.type.split=='6040']
 
-  results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v8'
+  results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2024-tou-v9'
   make.dir(results.dir.base)
   make.dir(pp(results.dir.base,'/',scen))
   the.utility <- scenarios$Electric.Utility[3]
@@ -434,11 +435,21 @@ for(scen in scens){
         to.write[,hour:=hour+(week-1)*168]
         to.write[,week:=NULL]
         to.write <- join.on(to.write[hour<=366*24],scenarios[Electric.Utility==the.utility & penetration==pen & veh.type.split==veh.split],'veh.type','veh.type','value')
-        to.write <- to.write[,list(pev.inflexible.load.mw=sum(pev.inflexible.load.mw*value*scale),
-                       plexos.battery.max.mwh=sum(plexos.battery.max.mwh*value*scale),
-                       plexos.battery.min.mwh=sum(plexos.battery.min.mwh*value*scale),
-                       plexos.battery.max.discharge=sum(plexos.battery.max.discharge*value*scale),
-                       plexos.battery.max.charge=sum(plexos.battery.max.charge*value*scale)
+        if(scen=='base'){
+          scale.to.base <- 1
+          energy.for.scale.to.base <- sum(to.write$value * to.write$pev.inflexible.load.mw * to.write$scale)
+          make.dir(pp(results.dir.base,'/base-annual-energy-for-scaling'))
+          save(energy.for.scale.to.base,file=pp(results.dir.base,'/base-annual-energy-for-scaling/',the.utility,'-',pen,'-',veh.split,'.Rdata'))
+        }else{
+          rm('energy.for.scale.to.base')
+          load(file=pp(results.dir.base,'/base-annual-energy-for-scaling/',the.utility,'-',pen,'-',veh.split,'.Rdata'))
+          scale.to.base <- energy.for.scale.to.base / sum(to.write$value * to.write$pev.inflexible.load.mw * to.write$scale)
+        }
+        to.write <- to.write[,list(pev.inflexible.load.mw=sum(pev.inflexible.load.mw*value*scale*scale.to.base),
+                       plexos.battery.max.mwh=sum(plexos.battery.max.mwh*value*scale*scale.to.base),
+                       plexos.battery.min.mwh=sum(plexos.battery.min.mwh*value*scale*scale.to.base),
+                       plexos.battery.max.discharge=sum(plexos.battery.max.discharge*value*scale*scale.to.base),
+                       plexos.battery.max.charge=sum(plexos.battery.max.charge*value*scale*scale.to.base)
                        ),by='hour']
         write.csv(to.write,pp(results.dir.base,'/',scen,'/',pen,'_',veh.split,'_',the.utility,'.csv'),row.names=F)
         to.write[,Year:=2024]
@@ -480,15 +491,15 @@ for(vari in u(all.agg$variable)){
 }
 
 
-if(F){
+if(T){
   ## Go through and splice together data sets from differen TOU scenarios
   #scenarios <- load.scenarios()
 
   #results.dir.base <- '/Users/critter/GoogleDriveUCB/beam-collaborators/planning/vgi/vgi-constraints-for-plexos-2025-tou-v4'
 
   #scen.base <- 'morework-100pct'
-  #for(scen.base in c('base','morework-4x','morework-8x')){
-  for(scen.base in c('morework-2x')){
+  #for(scen.base in c('morework-2x')){
+  for(scen.base in c('base','morework-2x','morework-4x','morework-8x')){
     the.utility <- scenarios$Electric.Utility[3]
     pen <- scenarios$penetration[1]
     veh.split <- scenarios$veh.type.split[1]
