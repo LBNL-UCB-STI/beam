@@ -88,16 +88,6 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
-      try {
-        /*val graphSurgePricing: GraphSurgePricing = new GraphSurgePricing(surgePricingManager, beamServices)
-        graphSurgePricing.createGraphs()*/
-
-        val graphRideHailingRevenue: GraphRideHailingRevenue = new GraphRideHailingRevenue()
-        graphRideHailingRevenue.createGraph(surgePricingManager)
-      } catch {
-        // print out exceptions, otherwise hidden, leads to difficult debugging
-        case e: Exception => log.error("Error in NotifyIterationEnds.", e)
-      }
 
       surgePricingManager.updateRevenueStats()
       surgePricingManager.updateSurgePriceLevels()

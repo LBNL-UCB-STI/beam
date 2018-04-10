@@ -108,7 +108,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         EventsManager jdeqsimEvents = new EventsManagerImpl();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
-        jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint());
+        jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
             createNetworkFile(jdeqSimScenario.getNetwork());
@@ -129,14 +129,15 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
 
-        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
+        if(beamConfig.beam().debug().debugEnabled()) {
+            log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
+        }
 
         jdeqSimulation.run();
 
-        log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
-
-
-
+        if(beamConfig.beam().debug().debugEnabled()) {
+            log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
+        }
 
         linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
 
