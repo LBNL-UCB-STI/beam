@@ -18,6 +18,7 @@ Contents:
    developers
    agents
    protocols
+   devops
 
 
 Indices and tables

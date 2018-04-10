@@ -1,9 +1,8 @@
 package beam.router
 
+import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode
-import com.conveyal.r5.api.util.LegMode
-import com.conveyal.r5.api.util.TransitModes
 
 import scala.collection.immutable
 
@@ -29,15 +28,15 @@ object Modes {
 
     case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car)
 
-    case object RIDEHAIL extends BeamMode(value = "ride_hailing", Some(Left(LegMode.CAR)), TransportMode.other)
+    case object RIDE_HAIL extends BeamMode(value = "ride_hailing", Some(Left(LegMode.CAR)), TransportMode.other)
 
     case object EV extends BeamMode(value = "ev", Some(Left(LegMode.CAR)), TransportMode.other)
 
     // Transit
 
-    case object BUS extends BeamMode(value = "bus",Some(Right(TransitModes.BUS)), TransportMode.pt)
+    case object BUS extends BeamMode(value = "bus", Some(Right(TransitModes.BUS)), TransportMode.pt)
 
-    case object FUNICULAR extends BeamMode(value = "funicular",  Some(Right(TransitModes.FUNICULAR)), TransportMode.pt)
+    case object FUNICULAR extends BeamMode(value = "funicular", Some(Right(TransitModes.FUNICULAR)), TransportMode.pt)
 
     case object GONDOLA extends BeamMode(value = "gondola", Some(Right(TransitModes.GONDOLA)), TransportMode.pt)
 
@@ -69,9 +68,12 @@ object Modes {
 
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
 
+    val chainBasedModes = Seq(CAR, EV, BIKE)
   }
 
-  implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode,TransitModes] = beamMode.r5Mode.get
+  def isChainBasedMode(beamMode: BeamMode): Boolean =BeamMode.chainBasedModes.contains(beamMode)
+
+  implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] = beamMode.r5Mode.get
 
   def isR5TransitMode(beamMode: BeamMode): Boolean = {
     beamMode.r5Mode match {
@@ -80,6 +82,7 @@ object Modes {
       case _ => false
     }
   }
+
   def isR5LegMode(beamMode: BeamMode): Boolean = {
     beamMode.r5Mode match {
       case Some(Left(_)) =>
@@ -87,6 +90,7 @@ object Modes {
       case _ => false
     }
   }
+
   def isOnStreetTransit(beamMode: BeamMode): Boolean = {
     beamMode.r5Mode match {
       case Some(Left(_)) =>
@@ -109,7 +113,7 @@ object Modes {
     case LegMode.CAR | LegMode.CAR_PARK => BeamMode.CAR
   }
 
-  def mapTransitMode(mode: TransitModes): BeamMode = mode match  {
+  def mapTransitMode(mode: TransitModes): BeamMode = mode match {
     case TransitModes.TRANSIT => BeamMode.TRANSIT
     case TransitModes.SUBWAY => BeamMode.SUBWAY
     case TransitModes.BUS => BeamMode.BUS
@@ -121,7 +125,8 @@ object Modes {
     case TransitModes.TRAM => BeamMode.TRAM
   }
 
-  def filterForTransit(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter( mode =>  isR5TransitMode(mode))
-  def filterForStreet(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter( mode =>  isR5LegMode(mode))
+  def filterForTransit(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter(mode => isR5TransitMode(mode))
+
+  def filterForStreet(modes: Vector[BeamMode]): Vector[BeamMode] = modes.filter(mode => isR5LegMode(mode))
 
 }

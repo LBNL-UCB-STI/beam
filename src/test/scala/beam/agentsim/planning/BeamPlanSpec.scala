@@ -1,7 +1,7 @@
 package beam.agentsim.planning
 
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.planning.Startegy.ModeChoiceStrategy
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamHelper
 import org.matsim.api.core.v01.Coord
@@ -14,21 +14,21 @@ import scala.collection.JavaConverters._
 /**
   * BeamPlanSpec
   */
-class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
 
   "A BeamPlan" must {
 
     val matsimPlan: Plan = PopulationUtils.createPlan(null)
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
-    PopulationUtils.createAndAddLeg(matsimPlan, "Car")
+    PopulationUtils.createAndAddLeg(matsimPlan, "car")
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Work", new Coord(0.0, 0.0))
-    PopulationUtils.createAndAddLeg(matsimPlan, "Car")
+    PopulationUtils.createAndAddLeg(matsimPlan, "car")
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Shop", new Coord(0.0, 0.0))
-    PopulationUtils.createAndAddLeg(matsimPlan, "Car")
+    PopulationUtils.createAndAddLeg(matsimPlan, "car")
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
-    PopulationUtils.createAndAddLeg(matsimPlan, "Car")
+    PopulationUtils.createAndAddLeg(matsimPlan, "car")
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Eat", new Coord(0.0, 0.0))
-    PopulationUtils.createAndAddLeg(matsimPlan, "Car")
+    PopulationUtils.createAndAddLeg(matsimPlan, "car")
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
 
     val strat = ModeChoiceStrategy(CAR)

@@ -2,7 +2,7 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamServices, BoundingBox, HasServices}
+import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
@@ -19,9 +19,8 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
 @ImplementedBy(classOf[GeoUtilsImpl])
 trait GeoUtils extends HasServices  {
-  lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
+    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
   lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("EPSG:4326",beamServices.beamConfig.beam.spatial.localCRS)
-  lazy val utmbbox: BoundingBox = new BoundingBox(beamServices.beamConfig.beam.spatial.localCRS)
 
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc),spacetime.time)
 
@@ -46,48 +45,38 @@ trait GeoUtils extends HasServices  {
   def distInMeters(coord1: Coord, coord2: Coord): Double = {
     distLatLon2Meters(utm2Wgs(coord1), utm2Wgs(coord2))
   }
+
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distLatLon2Meters(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
 
-  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
-    //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
-    val earthRadius = 6371000
-    val distX = Math.toRadians(x2 - x1)
-    val distY = Math.toRadians(y2 - y1)
-    val a = Math.sin(distX / 2) * Math.sin(distX / 2) + Math.cos(Math.toRadians(x1)) * Math.cos(Math.toRadians(x2)) * Math.sin(distY / 2) * Math.sin(distY / 2)
-    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    val dist = earthRadius * c
-    dist
+  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
 
+  def getNearestR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5): Int = {
+    val theSplit = getR5Split(streetLayer, coord, maxRadius, StreetMode.WALK)
+    if(theSplit == null){
+      Int.MinValue
+    }else{
+      theSplit.edge
+    }
   }
-
-  //TODO if we want to dynamically determined BBox extents, this should be updated to be generic to CRS of the BBox
-  def observeCoord(coord: Coord, boundingBox: BoundingBox): Unit = {
-//    val posTransformed = if (boundingBox.crs == "EPSG:4326" && coord.getX <= 180.0 & coord.getX >= -180.0 & coord.getY > -90.0 & coord.getY < 90.0) {
-//      wgs2utm.transform(coord)
-//    }else{
-//      coord
-//    }
-//    if (posTransformed.getX < boundingBox.minX) boundingBox.minX = posTransformed.getX
-//    if (posTransformed.getY < boundingBox.minY) boundingBox.minY = posTransformed.getY
-//    if (posTransformed.getX > boundingBox.maxX) boundingBox.maxX = posTransformed.getX
-//    if (posTransformed.getY > boundingBox.maxY) boundingBox.maxY = posTransformed.getY
-  }
-
   def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
-    var radius = 10.0
-    var theSplit: Split = null
-    while(theSplit == null && radius <= maxRadius) {
-      theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode);
-      radius = radius * 10
-    }
-    if(theSplit == null) {
-      theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode);
-    }
+    val theSplit = getR5Split(streetLayer, coord, maxRadius, streetMode)
     if(theSplit == null){
       coord
     }else{
       new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
     }
+  }
+  def getR5Split(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Split = {
+    var radius = 10.0
+    var theSplit: Split = null
+    while(theSplit == null && radius <= maxRadius) {
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode)
+      radius = radius * 10
+    }
+    if(theSplit == null) {
+      theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
+    }
+    theSplit
   }
 }
 
@@ -112,6 +101,19 @@ object GeoUtils {
       lazy val wgs2Utm: GeotoolsTransformation = new GeotoolsTransformation("epsg:4326",beamConfig.beam.spatial.localCRS)
       wgs2Utm.transform(coord)
     }
+  }
+
+
+  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
+    //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
+    val earthRadius = 6371000
+    val distX = Math.toRadians(x2 - x1)
+    val distY = Math.toRadians(y2 - y1)
+    val a = Math.sin(distX / 2) * Math.sin(distX / 2) + Math.cos(Math.toRadians(x1)) * Math.cos(Math.toRadians(x2)) * Math.sin(distY / 2) * Math.sin(distY / 2)
+    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    val dist = earthRadius * c
+    dist
+
   }
 }
 

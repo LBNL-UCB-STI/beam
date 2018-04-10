@@ -4,24 +4,38 @@ import java.io.FileOutputStream
 import java.nio.file.{Files, InvalidPathException, Paths}
 import java.util.Properties
 
+import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.agentsim.infrastructure.TAZTreeMap
+import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
+import beam.replanning._
+import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
+import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
+import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import beam.utils.reflection.ReflectionUtils
+import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
-import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, DumpDataAtEnd, EventsHandling}
+import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
+import org.matsim.utils.objectattributes.AttributeConverter
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
+import scala.util.Try
 
-trait BeamHelper {
+trait BeamHelper extends LazyLogging {
 
   def module(typesafeConfig: com.typesafe.config.Config, scenario: Scenario, transportNetwork: TransportNetwork): com.google.inject.Module = AbstractModule.`override`(
     ListBuffer(new AbstractModule() {
@@ -32,27 +46,47 @@ trait BeamHelper {
         install(new ControlerDefaultsModule)
         install(new ControlerDefaultCoreListenersModule)
 
-
         // Beam Inject below:
         install(new ConfigModule(typesafeConfig))
         install(new BeamAgentModule(BeamConfig(typesafeConfig)))
         install(new UtilsModule)
       }
     }).asJava, new AbstractModule() {
+      private val mapper = new ObjectMapper()
+      mapper.registerModule(DefaultScalaModule)
+
       override def install(): Unit = {
-        // Override MATSim Defaults
-        bind(classOf[PrepareForSim]).toInstance(new PrepareForSim {
-          override def run(): Unit = {}
-        }) // Nothing to do
-        bind(classOf[DumpDataAtEnd]).toInstance(new DumpDataAtEnd {}) // Don't dump data at end.
-//        bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
+        val beamConfig = BeamConfig(typesafeConfig)
 
-        // Beam -> MATSim Wirings
-        bindMobsim().to(classOf[BeamMobsim])
+        val mTazTreeMap = Try(TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)).toOption
+        mTazTreeMap.foreach { tazTreeMap =>
+          bind(classOf[TAZTreeMap]).toInstance(tazTreeMap)
+        }
+
+        bind(classOf[BeamConfig]).toInstance(beamConfig)
+        bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+        bind(classOf[RideHailSurgePricingManager]).toInstance(new RideHailSurgePricingManager(beamConfig, mTazTreeMap))
+
         addControlerListenerBinding().to(classOf[BeamSim])
-        bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
-        bind(classOf[BeamConfig]).toInstance(BeamConfig(typesafeConfig))
 
+        addControlerListenerBinding().to(classOf[GraphSurgePricing])
+        addControlerListenerBinding().to(classOf[GraphRideHailingRevenue])
+
+        bindMobsim().to(classOf[BeamMobsim])
+        bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
+        bindScoringFunctionFactory().to(classOf[BeamScoringFunctionFactory])
+        if (getConfig.strategy().getPlanSelectorForRemoval == "tryToKeepOneOfEachClass") {
+          bindPlanSelectorForRemoval().to(classOf[TryToKeepOneOfEachClass])
+        }
+        addPlanStrategyBinding("GrabExperiencedPlan").to(classOf[GrabExperiencedPlan])
+        addPlanStrategyBinding("SwitchModalityStyle").toProvider(classOf[SwitchModalityStyle])
+        addPlanStrategyBinding("ClearRoutes").toProvider(classOf[ClearRoutes])
+        addPlanStrategyBinding(BeamReplanningStrategy.UtilityBasedModeChoice.toString).toProvider(classOf[UtilityBasedModeChoice])
+        addAttributeConverterBinding(classOf[MapStringDouble]).toInstance(new AttributeConverter[MapStringDouble] {
+          override def convertToString(o: scala.Any): String = mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
+
+          override def convert(value: String): MapStringDouble = MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
+        })
         bind(classOf[TransportNetwork]).toInstance(transportNetwork)
       }
     })
@@ -65,21 +99,30 @@ trait BeamHelper {
         throw new InvalidPathException("null", "invalid configuration file.")
     }
 
-    val (_, outputDirectory) = runBeamWithConfig(config)
     val beamConfig = BeamConfig(config)
+    level = beamConfig.beam.metrics.level
+
+    if (isMetricsEnable()) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+
+    val (_, outputDirectory) = runBeamWithConfig(config)
 
     val props = new Properties()
     props.setProperty("commitHash", LoggingUtil.getCommitHash)
     props.setProperty("configFile", cfgFile)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
-    Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile), Paths.get(outputDirectory, "modeChoiceParameters.xml"))
+    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equalsIgnoreCase("ModeChoiceLCCM")) {
+      Files.copy(Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile), Paths.get(outputDirectory, Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile).getFileName.toString))
+    }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
+
+    if (isMetricsEnable()) Kamon.shutdown()
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
+    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     val beamConfig = BeamConfig(config)
 
@@ -99,13 +142,9 @@ trait BeamHelper {
 
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
 
-    val envelopeInUTM = beamServices.geo.wgs2Utm(networkCoordinator.transportNetwork.streetLayer.envelope)
-    beamServices.geo.utmbbox.maxX = envelopeInUTM.getMaxX + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.maxY = envelopeInUTM.getMaxY + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.minX = envelopeInUTM.getMinX - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    beamServices.geo.utmbbox.minY = envelopeInUTM.getMinY - beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-
     beamServices.controler.run()
     (matsimConfig, outputDirectory)
   }
 }
+
+case class MapStringDouble(data: Map[String, Double])

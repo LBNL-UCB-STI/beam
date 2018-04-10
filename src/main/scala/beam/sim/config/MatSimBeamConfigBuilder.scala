@@ -1,12 +1,11 @@
 package beam.sim.config
 
-import java.nio.file.Paths
 
 import beam.utils.reflection.ReflectionUtils
 import com.typesafe.config.{Config, ConfigList, ConfigUtil}
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.api.internal.MatsimParameters
 import org.matsim.core.config.{ConfigGroup, ConfigUtils}
-import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -29,8 +28,7 @@ import scala.util.Try
   *
   * @author dserdiuk
   */
-class MatSimBeamConfigBuilder(beamConf: Config) {
-  private val logger: Logger = LoggerFactory.getLogger(classOf[MatSimBeamConfigBuilder])
+class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
 
   def buildMatSamConf() = {
     val matSimConfig = ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))

@@ -2,14 +2,14 @@ package beam.integration
 
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
 /**
   * Created by fdariasm on 29/08/2017
   *
   */
 
-class TransitPriceSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
+class TransitPriceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing transitPrice value" must {
     "create more entries for mode choice transit as value increases" in {

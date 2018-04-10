@@ -1,21 +1,26 @@
 package beam.agentsim.agents.modalBehaviors
 
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
-import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator.AttributesOfIndividual
+import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
+import beam.router.Modes.BeamMode
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.api.core.v01.population.Person
 
 import scala.util.Random
 
 /**
   * BEAM
   */
-trait ModeChoiceCalculator extends HasServices with Cloneable {
-  def apply(alternatives: Seq[EmbodiedBeamTrip], extraAttributes: Option[AttributesOfIndividual]): EmbodiedBeamTrip
+trait ModeChoiceCalculator extends HasServices {
 
-  def apply(alternatives: Seq[EmbodiedBeamTrip]): EmbodiedBeamTrip = {
-    this(alternatives, None)
-  }
+  def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip]
+
+  def utilityOf(alternative: EmbodiedBeamTrip): Double
+
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {
@@ -24,31 +29,37 @@ trait ModeChoiceCalculator extends HasServices with Cloneable {
       throw new IllegalArgumentException("Cannot choose from an empty choice set.")
     }
   }
-
-  override def clone(): ModeChoiceCalculator = {
-    this.clone()
-  }
 }
 
 object ModeChoiceCalculator {
-  def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculator = {
+  def apply(classname: String, beamServices: BeamServices): AttributesOfIndividual => ModeChoiceCalculator = {
     classname match {
       case "ModeChoiceLCCM" =>
-        ModeChoiceLCCM(beamServices)
+        val lccm = new LatentClassChoiceModel(beamServices)
+        (attributesOfIndividual: AttributesOfIndividual) =>
+          attributesOfIndividual match {
+            case AttributesOfIndividual(_,_,_,Some(modalityStyle),_) =>
+              new ModeChoiceMultinomialLogit(beamServices, lccm.modeChoiceModels(Mandatory)(modalityStyle))
+            case _ =>
+              throw new RuntimeException("LCCM needs people to have modality styles")
+          }
       case "ModeChoiceTransitIfAvailable" =>
-        new ModeChoiceTransitIfAvailable(beamServices)
+        (_) => new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        new ModeChoiceDriveIfAvailable(beamServices)
+        (_) => new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        new ModeChoiceRideHailIfAvailable(beamServices)
+        (_) => new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        new ModeChoiceUniformRandom(beamServices)
+        (_) => new ModeChoiceUniformRandom(beamServices)
       case "ModeChoiceMultinomialLogit" =>
-        ModeChoiceMultinomialLogit(beamServices)
+        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit)
+        (_) => new ModeChoiceMultinomialLogit(beamServices, logit)
+      case "ModeChoiceMultinomialLogitTest" =>
+        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit)
+        (_) => new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
 
-  case class AttributesOfIndividual(householdIncome: Double, householdSize: Int, isMale: Boolean, numCars: Int, numBikes: Int)
 
 }
 

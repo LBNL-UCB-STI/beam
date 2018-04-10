@@ -2,16 +2,16 @@ package beam.integration
 
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.{Matchers, WordSpecLike}
 
 /**
   * Created by fdariasm on 29/08/2017
   *
   */
 
-class RideHailPriceSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with IntegrationSpecCommon {
+class RideHailPriceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing rideHailPrice value" must {
-    "create less entries for mode choice rideHail as value increases" ignore {
+    "create less entries for mode choice rideHail as value increases" ignore{
       val inputRideHailPrice = Seq(0.1, 1.0)
       val modeChoice = inputRideHailPrice.map(tc => new StartWithCustomConfig(
         baseConfig

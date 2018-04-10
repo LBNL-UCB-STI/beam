@@ -1,5 +1,7 @@
 
-clean.and.relabel <- function(ev,factor.to.scale.personal.back){
+load.libraries(c('GEOquery','XML'))
+
+clean.and.relabel <- function(ev,factor.to.scale.personal.back,val.of.time=16.9){
   # Clean and relabel
   ev[vehicle_type=="bus",vehicle_type:="Bus"]
   ev[vehicle_type=="CAR" | substr(vehicle_id,1,5)=="rideH",vehicle_type:="TNC"]
@@ -9,7 +11,7 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[vehicle_type=="tram",vehicle_type:="Muni"]
   ev[vehicle_type=="rail",vehicle_type:="Rail"]
   ev[vehicle_type=="ferry",vehicle_type:="Ferry"]
-  ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car'),'transit',as.character(mode))]
+  ev[,tripmode:=ifelse(mode%in%c('subway','bus','rail','tram','walk_transit','drive_transit','cable_car','ferry'),'transit',as.character(mode))]
   ev[,hour:=time/3600]
   ev[,hr:=round(hour)]
   setkey(ev,vehicle_type)
@@ -28,6 +30,13 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back){
   ev[num_passengers > capacity,num_passengers:=capacity]
   ev[,pmt:=num_passengers*length/1609]
   ev[is.na(pmt),pmt:=0]
+  #ev[,expectedMaximumUtility:=expectedMaximumUtility-quantile(ev$expectedMaximumUtility,probs=.001,na.rm=T)]
+  #ev[,expectedMaximumUtility:=expectedMaximumUtility-mean(ev$expectedMaximumUtility,na.rm=T)]
+  ev[,numAlternatives:=0]
+  ev[expectedMaximumUtility==-Inf,expectedMaximumUtility:=NA]
+  ev[type=='ModeChoice',numAlternatives:=str_count(availableAlternatives,":")+1]
+  ev[type=='ModeChoice',carSurplus:=log(exp(-length/1609/45*val.of.time))]
+  ev[type=='ModeChoice',access:=expectedMaximumUtility-carSurplus]
   ev
 }
 
@@ -62,6 +71,20 @@ pretty.modes <- function(ugly){
       the.ugly
     }
   })
+}
+
+parse.link.stats <- function(link.stats.file,net.file=NA){
+  file.rdata <- pp(link.stats.file,'.Rdata')
+  if(file.exists(file.rdata)){
+    load(file.rdata)
+  }else{
+    stats <- data.table(read.csv(link.stats.file,fill=T))
+    stats[,hour:=as.numeric(as.character(hour))]
+    setkey(stats,link,stat,hour)
+    stats <- unique(stats)
+    save(stats,file=file.rdata)
+  }
+  stats
 }
 
 my.colors <- c(blue='#377eb8',green='#227222',orange='#C66200',purple='#470467',red='#B30C0C',yellow='#C6A600',light.green='#C0E0C0',magenta='#D0339D',dark.blue='#23128F',brown='#542D06',grey='#8A8A8A',dark.grey='#2D2D2D',light.yellow='#FFE664',light.purple='#9C50C0',light.orange='#FFB164',black='#000000')
@@ -131,7 +154,12 @@ csv2rdata <- function(csv.file){
   rdata.file <- pp(head(str_split(csv.file,'csv')[[1]],-1),'Rdata')
   if(!file.exists(rdata.file)){
     if(file.exists(csv.file)){
-      df <- data.table(read.csv(csv.file))
+      headers <- unlist(as.vector(read.table(csv.file,header=F,nrows=1,sep=',',stringsAsFactors=F)))
+      firstrow <- as.vector(read.table(csv.file,header=F,skip=1,nrows=1,sep=','))
+      if(length(headers)<length(firstrow)){
+        headers <- c(unlist(headers),pp("V",1:(length(firstrow)-length(headers))))
+      }
+      df <- data.table(read.csv(csv.file,fill=T,col.names=headers))
       save(df,file=rdata.file)
     }else{
       my.cat(pp("File not found: ",csv.file))
@@ -142,6 +170,34 @@ csv2rdata <- function(csv.file){
   }
   return(df)
 }
+
+# Not ready yet
+#plans2rdata <- function(plans.file){
+  #rdata.file <- pp(head(str_split(plans.file,'xml')[[1]],-1),'Rdata')
+  #if(!file.exists(rdata.file)){
+    #if(file.exists(plans.file)){
+      #tmpdir <- tempdir()
+      #tmpfile <- pp(tmpdir,'/plans.xml')
+      #gunzip(plans.file, destname = tmpfile, remove=F)
+
+      #xmlToList(tmpfile)
+
+      #doc <- xmlTreeParse(tmpfile, useInternalNodes = TRUE)
+      #xpathApply(doc, "//population//person", function(x) do.call(paste, as.list(xmlValue(x))))
+      #xpathSApply(doc, "//book", function(x) strsplit(xmlValue(x), " "))
+      #xpathSApply(doc, "//book/child::*", xmlValue)
+
+      #df <- data.table(read.csv(csv.file))
+      #save(df,file=rdata.file)
+    #}else{
+      #my.cat(pp("File not found: ",csv.file))
+      #df <- data.table(dat=NA)
+    #}
+  #}else{
+    #load(rdata.file)
+  #}
+  #return(df)
+#}
 
 repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
     if (!forward) x = rev(x)           # reverse x twice if carrying backward
@@ -164,4 +220,10 @@ repeat_last = function(x, forward = TRUE, maxgap = Inf, na.rm = FALSE) {
 
 dir.slash <- function(the.dirs){
   sapply(the.dirs,function(the.dir){ ifelse(strtail(the.dir)=="/",the.dir,pp(the.dir,"/")) })
+}
+
+read.data.table.with.filter <- function(filepath,match.words,header.word=NA){
+  if(!is.na(header.word))match.words <- c(match.words,header.word)
+  match.string <- pp("'",pp(match.words,collapse="\\|"),"'")
+  return(data.table(read.csv.sql(filepath,filter=pp("grep ",match.string))))
 }
