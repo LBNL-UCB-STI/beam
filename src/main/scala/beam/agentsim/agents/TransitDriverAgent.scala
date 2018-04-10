@@ -28,8 +28,9 @@ object TransitDriverAgent {
     Props(new TransitDriverAgent(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs))
   }
 
-  case class TransitDriverData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData {
+  case class TransitDriverData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
   }
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {

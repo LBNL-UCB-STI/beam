@@ -42,33 +42,33 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(Driving) {
     // When I already started driving on the schedule.head leg, I cannot take reservations for it anymore
-    case Event(req: ReservationRequest, data) if req.departFrom.startTime == data.passengerSchedule.schedule.head._1.startTime =>
+    case Event(req: ReservationRequest, data) if req.departFrom.startTime == data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.startTime =>
       log.debug("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       val currentVehicleUnderControl = data.currentVehicle.head
       // If no manager is set, we ignore
-      beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint)))
-      data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.foreach { pv =>
+      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+      beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
+      data.passengerSchedule.schedule(currentLeg).riders.foreach { pv =>
         beamServices.personRefs.get(pv.personId).foreach { personRef =>
           logDebug(s"Scheduling NotifyLegEndTrigger for Person $personRef")
-          scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, data.passengerSchedule.schedule.firstKey), personRef)
+          scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, currentLeg), personRef)
         }
       }
       eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
         beamServices.vehicles(currentVehicleUnderControl).getType,
-        data.passengerSchedule.schedule(data.passengerSchedule.schedule.firstKey).riders.size, data.passengerSchedule.schedule.firstKey))
+        data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
 
-      val newSchedule = PassengerSchedule(data.passengerSchedule.schedule - data.passengerSchedule.schedule.firstKey)
-
-      if (newSchedule.schedule.nonEmpty) {
-        val nextLeg = newSchedule.schedule.firstKey
-        goto(WaitingToDrive) using data.withPassengerSchedule(newSchedule).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
+      if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
+        // TODO: Throw exception here, see why scheduler doesn't recover
+        val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex + 1).head
+        goto(WaitingToDrive) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
       } else {
         holdTickAndTriggerId(tick, triggerId)
-        self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.firstKey.travelPath.endPoint))
-        goto(PassengerScheduleEmpty) using data.withPassengerSchedule(newSchedule).asInstanceOf[T]
+        self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.travelPath.endPoint))
+        goto(PassengerScheduleEmpty) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T]
       }
   }
 
@@ -82,9 +82,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       // Produce link events for this trip (the same ones as in PathTraversalEvent).
       // TODO: They don't contain correct timestamps yet, but they all happen at the end of the trip!!
       // So far, we only throw them for ExperiencedPlans, which don't need timestamps.
-      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.firstKey, data.currentVehicle.head, (_,_) => 0L)
+      RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_,_) => 0L)
         .foreach(eventsManager.processEvent)
-      val endTime = tick + data.passengerSchedule.schedule.firstKey.duration
+      val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
       eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
       goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
   }
@@ -102,11 +102,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       }
       stay() using data.withPassengerSchedule(newPassengerSchedule).asInstanceOf[T] replying ModifyPassengerScheduleAck(requestId)
 
-    case Event(req: ReservationRequest, data) if data.passengerSchedule.schedule.isEmpty =>
+    case Event(req: ReservationRequest, data) if data.currentLegPassengerScheduleIndex >= data.passengerSchedule.schedule.size =>
       log.debug("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 
-    case Event(req: ReservationRequest, data) if req.departFrom.startTime < data.passengerSchedule.schedule.head._1.startTime =>
+    case Event(req: ReservationRequest, data) if req.departFrom.startTime < data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head.startTime =>
       log.debug("Vehicle gone. Request: {} Schedule: {}", req, data.passengerSchedule.schedule)
       stay() replying ReservationResponse(req.requestId, Left(VehicleGoneError))
 

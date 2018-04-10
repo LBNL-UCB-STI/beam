@@ -44,7 +44,7 @@ trait ChoosesMode {
   // simulation time window.
 
   // I wouldn't even call it unrealistic.
-  val PLANNING_DELAY = 600
+  val PLANNING_DELAY = 1
 
   onTransition {
     case (PerformingActivity | Waiting) -> ChoosingMode =>
@@ -287,9 +287,10 @@ object ChoosesMode {
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
+    override def currentLegPassengerScheduleIndex: Int = personData.currentLegPassengerScheduleIndex
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
-
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
+    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex))
   }
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
