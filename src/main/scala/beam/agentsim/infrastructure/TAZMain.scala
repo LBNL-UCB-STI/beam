@@ -42,7 +42,7 @@ import scala.collection.mutable.ArrayBuffer
 object TAZCreatorScript extends App {
 
   /*
-  val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp";
+  val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp"
   val taz=new TAZTreeMap(shapeFile, "TAZCE10")
 
 // TODO: attriutes or xml from config file - allow specifying multiple files
@@ -232,10 +232,10 @@ object TAZTreeMap {
 
     lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
 
-    var mapWriter: ICsvMapWriter   = null;
+    var mapWriter: ICsvMapWriter   = null
     try {
       mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath),
-        CsvPreference.STANDARD_PREFERENCE);
+        CsvPreference.STANDARD_PREFERENCE)
 
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y")
@@ -263,7 +263,7 @@ object TAZTreeMap {
       println(s"Total all TAZ ${allNonRepeatedTaz.size}")
 
       for(t <- allNonRepeatedTaz){
-        val tazToWrite = new HashMap[String, Object]();
+        val tazToWrite = new HashMap[String, Object]()
         tazToWrite.put(header(0), t.id)
        //
        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))

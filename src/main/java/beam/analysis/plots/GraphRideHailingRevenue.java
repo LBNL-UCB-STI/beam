@@ -1,10 +1,15 @@
 package beam.analysis.plots;
 
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager;
+import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
+import org.matsim.core.controler.events.IterationEndsEvent;
+import org.matsim.core.controler.listener.ControlerListener;
+import org.matsim.core.controler.listener.IterationEndsListener;
 import scala.collection.Iterator;
 import scala.collection.mutable.ArrayBuffer;
 
@@ -13,13 +18,29 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-public class GraphRideHailingRevenue {
+public class GraphRideHailingRevenue implements ControlerListener, IterationEndsListener {
 
-    public GraphRideHailingRevenue(){
+    RideHailSurgePricingManager surgePricingManager;
+
+    OutputDirectoryHierarchy outputDirectoryHiearchy;
+
+    @Inject
+    public GraphRideHailingRevenue(RideHailSurgePricingManager surgePricingManager){
+        this.surgePricingManager = surgePricingManager;
+    }
+
+    @Override
+    public void notifyIterationEnds(IterationEndsEvent event) {
+
+        this.outputDirectoryHiearchy = event.getServices().getControlerIO();
+
+        this.createGraph();
 
     }
 
-    public void createGraph(RideHailSurgePricingManager surgePricingManager){
+    public void createGraph(){
+
+
 
         ArrayBuffer<Object> data = surgePricingManager.rideHailingRevenue();
 
@@ -38,7 +59,7 @@ public class GraphRideHailingRevenue {
                 PlotOrientation.VERTICAL,
                 false,true,false);
 
-        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("rideHailRevenue.png");
+        String graphImageFile = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.png");
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
@@ -63,7 +84,7 @@ public class GraphRideHailingRevenue {
 
 
         try {
-            String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("rideHailRevenue.csv");
+            String fileName = outputDirectoryHiearchy.getOutputFilename("rideHailRevenue.csv");
             BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
 
             out.write("iteration #,revenue");

@@ -91,7 +91,6 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(transitVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs)
           val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          services.agentRefs += (transitDriverId.toString -> transitDriver)
           scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
 
         case _ =>
