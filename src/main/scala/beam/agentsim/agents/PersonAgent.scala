@@ -67,6 +67,8 @@ object PersonAgent {
 
   case object WaitingForReservationConfirmation extends Traveling
 
+  case object WaitingForTransitReservationConfirmation extends Traveling
+
   case object Waiting extends Traveling
 
   case object ProcessingNextLegOrStartActivity extends Traveling
@@ -165,10 +167,9 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       goto(ProcessingNextLegOrStartActivity)
   }
 
-  when(Waiting) {
+  when(WaitingForTransitReservationConfirmation) {
     // These are responses to a transit reservation for right now -- getting on a bus, basically.
     // It is sent from ProcessingNextLegOrStartActivity.
-    // That's why we expect the response here in this state.
 
     // If boarding the bus fails, go back to choosing mode.
     case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
@@ -181,8 +182,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
-      stay()
+      goto(Waiting)
+  }
 
+  when(Waiting) {
     /*
      * Learn as passenger that leg is starting
      */
@@ -276,7 +279,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
-      goto(Waiting)
+      goto(WaitingForTransitReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_,_,_::_,_,_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
