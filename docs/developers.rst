@@ -59,7 +59,7 @@ To run from IntelliJ as an "Application", edit the "Environment Variables" field
 
   BEAM_OUTPUT="/path/to/your/preferred/output/destination/"
 
-Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure you variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
+Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure your variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
 
 File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 
