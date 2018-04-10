@@ -124,6 +124,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimConfigGroup config = new JDEQSimConfigGroup();
         config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
+        config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);

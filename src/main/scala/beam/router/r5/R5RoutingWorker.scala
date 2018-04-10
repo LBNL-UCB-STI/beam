@@ -105,6 +105,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     profileRequest.toTime = request.time.toTime
     profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = util.EnumSet.of(request.directMode)
+    profileRequest.suboptimalMinutes = 0
     if (request.transitModes.nonEmpty) {
       profileRequest.transitModes = util.EnumSet.copyOf(request.transitModes.asJavaCollection)
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
