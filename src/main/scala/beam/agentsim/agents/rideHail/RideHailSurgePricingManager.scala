@@ -160,12 +160,13 @@ class RideHailSurgePricingManager(beamConfig: BeamConfig, mTazTreeMap: Option[TA
     val timeBinIndex = getTimeBinIndex(time)
 
     surgePriceBins.get(taz.tazId.toString).foreach { i =>
-      val surgePriceBin = i.apply(timeBinIndex)
-      val updatedCurrentIterRevenue = surgePriceBin.currentIterationRevenue + cost
-      val updatedBin = surgePriceBin.copy(currentIterationRevenue = updatedCurrentIterRevenue)
-      i.update(timeBinIndex, updatedBin)
+      if(timeBinIndex < i.size) {
+        val surgePriceBin = i.apply(timeBinIndex)
+        val updatedCurrentIterRevenue = surgePriceBin.currentIterationRevenue + cost
+        val updatedBin = surgePriceBin.copy(currentIterationRevenue = updatedCurrentIterRevenue)
+        i.update(timeBinIndex, updatedBin)
+      }
     }
-
   }
 
   // TODO: print revenue each iteration out
