@@ -52,7 +52,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
 
   override def run() = {
-    logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
+    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
     beamServices.clearAll
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(Props(new Actor with ActorLogging {
