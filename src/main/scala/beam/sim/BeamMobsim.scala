@@ -60,8 +60,10 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private val errorListener = context.actorOf(ErrorListener.props())
       context.watch(errorListener)
 
-      memoryLoggingTimerActorRef =   context.actorOf(Props(classOf[MemoryLoggingTimerActor]))
-      memoryLoggingTimerCancellable=prepareMemoryLoggingTimerActor(beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec,context.system,memoryLoggingTimerActorRef)
+      if(beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0){
+        memoryLoggingTimerActorRef =   context.actorOf(Props(classOf[MemoryLoggingTimerActor]))
+        memoryLoggingTimerCancellable=prepareMemoryLoggingTimerActor(beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec,context.system,memoryLoggingTimerActorRef)
+      }
 
       context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
       private val scheduler = context.actorOf(Props(classOf[BeamAgentScheduler], beamServices.beamConfig, Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) , 300.0), "scheduler")
@@ -140,8 +142,10 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           context.stop(rideHailingManager)
           context.stop(scheduler)
           context.stop(errorListener)
-          memoryLoggingTimerCancellable.cancel()
-          context.stop(memoryLoggingTimerActorRef)
+          if(beamServices.beamConfig.beam.debug.memoryConsumptionDisplayTimeoutInSec > 0) {
+            memoryLoggingTimerCancellable.cancel()
+            context.stop(memoryLoggingTimerActorRef)
+          }
 
         case Terminated(_) =>
           if (context.children.isEmpty) {
