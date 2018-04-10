@@ -86,7 +86,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
+    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
     agentSimToPhysSimPlanConverter.startPhysSim(event)
     createGraphsFromEvents.createGraphs(event)
     modalityStyleStats.processData(scenario.getPopulation(), event)
@@ -94,7 +94,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
     PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
 
     tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
-    logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {

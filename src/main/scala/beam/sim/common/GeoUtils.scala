@@ -50,7 +50,23 @@ trait GeoUtils extends HasServices  {
 
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
 
+  def getNearestR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5): Int = {
+    val theSplit = getR5Split(streetLayer, coord, maxRadius, StreetMode.WALK)
+    if(theSplit == null){
+      Int.MinValue
+    }else{
+      theSplit.edge
+    }
+  }
   def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
+    val theSplit = getR5Split(streetLayer, coord, maxRadius, streetMode)
+    if(theSplit == null){
+      coord
+    }else{
+      new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
+    }
+  }
+  def getR5Split(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Split = {
     var radius = 10.0
     var theSplit: Split = null
     while(theSplit == null && radius <= maxRadius) {
@@ -60,11 +76,7 @@ trait GeoUtils extends HasServices  {
     if(theSplit == null) {
       theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
     }
-    if(theSplit == null){
-      coord
-    }else{
-      new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
-    }
+    theSplit
   }
 }
 
