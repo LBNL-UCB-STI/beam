@@ -21,7 +21,6 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
-import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
@@ -140,6 +139,7 @@ trait ChoosesMode {
         case Some(RIDE_HAIL) =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
+        case Some(m) => logDebug(s"$m: other then expected")
       }
       stay() using choosesModeData.copy(availablePersonalStreetVehicles = availablePersonalStreetVehicles, rideHailingResult = rideHailingResult)
     /*
