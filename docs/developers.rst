@@ -165,36 +165,43 @@ Once your container is running, now update your metrics configurations in beam.c
   beam.metrics.level = "verbose"
 
   kamon {
-      trace {
-        level = simple-trace
-      }
+    trace {
+      level = simple-trace
+    }
 
-      metric {
-        #tick-interval = 5 seconds
-        filters {
-          trace.includes = [ "**" ]
+    metric {
+      #tick-interval = 5 seconds
+      filters {
+        trace.includes = [ "**" ]
 
-          akka-actor {
-            includes = [ "beam-actor-system/user/router/**", "beam-actor-system/user/worker-*" ]
-            excludes = [ "beam-actor-system/system/**", "beam-actor-system/user/worker-helper" ]
-          }
+        akka-actor {
+          includes = [ "beam-actor-system/user/router/**", "beam-actor-system/user/worker-*" ]
+          excludes = [ "beam-actor-system/system/**", "beam-actor-system/user/worker-helper" ]
+        }
 
-          akka-dispatcher {
-            includes = [ "beam-actor-system/akka.actor.default-dispatcher" ]
-          }
+        akka-dispatcher {
+          includes = [ "beam-actor-system/akka.actor.default-dispatcher" ]
         }
       }
-
-      statsd {
-        hostname = 127.0.0.1  # replace with your container in case local loop didn't work
-        port = 8125
-      }
-
-      modules {
-        #kamon-log-reporter.auto-start = yes
-        kamon-statsd.auto-start = yes
-      }
     }
+
+    statsd {
+      hostname = 127.0.0.1  # replace with your container in case local loop didn't work
+      port = 8125
+    }
+
+    influxdb {
+      hostname = 18.216.21.254   # specify InfluxDB server IP
+      port = 8089
+      protocol = "udp"
+    }
+
+    modules {
+      #kamon-log-reporter.auto-start = yes
+      #kamon-statsd.auto-start = yes
+      #kamon-influxdb.auto-start = yes
+    }
+  }
 
 Make sure to update the **host** and **port** for StatsD server in the abode config. Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost. To find the docker container IP address, first you need to list the containers to get container id using::
 

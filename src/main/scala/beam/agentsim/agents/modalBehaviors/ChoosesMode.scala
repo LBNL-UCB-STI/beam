@@ -21,7 +21,6 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
-import com.conveyal.r5.profile.StreetMode
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute
@@ -37,17 +36,8 @@ import scala.concurrent.duration._
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  // I will plan my trips with an earliest departure time 10 minutes from now,
-  // and I will start walking/driving 10 minutes before the time scheduled by the router.
-
-  // This is my first attempt to avoid the "Vehicle Gone" error due to our
-  // simulation time window.
-
-  // I wouldn't even call it unrealistic.
-  val PLANNING_DELAY = 600
-
   onTransition {
-    case (PerformingActivity | Waiting) -> ChoosingMode =>
+    case (PerformingActivity | Waiting | WaitingForTransitReservationConfirmation) -> ChoosingMode =>
       stateData.asInstanceOf[BasePersonData].currentTourMode match {
         case Some(CAR | BIKE | DRIVE_TRANSIT)  =>
           // Only need to get available street vehicles from household if our mode requires such a vehicle
@@ -64,7 +54,7 @@ trait ChoosesMode {
     case Event(MobilityStatusReponse(streetVehicles), choosesModeData: ChoosesModeData) =>
       val bodyStreetVehicle = StreetVehicle(bodyId, SpaceTime(currentActivity(choosesModeData.personData).getCoord, _currentTick.get.toLong), WALK, asDriver = true)
       val nextAct = nextActivity(choosesModeData.personData).right.get
-      val departTime = DiscreteTime(_currentTick.get.toInt + PLANNING_DELAY)
+      val departTime = DiscreteTime(_currentTick.get.toInt)
       val availablePersonalStreetVehicles = choosesModeData.personData.currentTourMode match {
         case None | Some(CAR | BIKE) =>
           // In these cases, a personal vehicle will be involved
@@ -149,6 +139,7 @@ trait ChoosesMode {
         case Some(RIDE_HAIL) =>
           makeRequestWith(Vector(), Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
+        case Some(m) => logDebug(s"$m: other then expected")
       }
       stay() using choosesModeData.copy(availablePersonalStreetVehicles = availablePersonalStreetVehicles, rideHailingResult = rideHailingResult)
     /*
@@ -264,7 +255,7 @@ trait ChoosesMode {
         rideHailingManager ! ReleaseVehicleReservation(id, data.rideHailingResult.get.proposals.head
           .rideHailingAgentLocation.vehicleId)
       }
-      scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime - PLANNING_DELAY, tick)), self)))
+      scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)), self)))
       goto(WaitingForDeparture) using data.personData.copy(
         currentTrip = data.pendingChosenTrip,
         restOfCurrentTrip = data.pendingChosenTrip.get.legs.toList,
@@ -272,12 +263,6 @@ trait ChoosesMode {
         currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehicleUsed)
       )
   }
-
-  onTransition {
-    case FinishingModeChoice -> Waiting =>
-      unstashAll()
-  }
-
 }
 
 object ChoosesMode {
@@ -287,9 +272,10 @@ object ChoosesMode {
                              availablePersonalStreetVehicles: Vector[StreetVehicle] = Vector(),
                              expectedMaxUtilityOfLatestChoice: Option[Double] = None) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
+    override def currentLegPassengerScheduleIndex: Int = personData.currentLegPassengerScheduleIndex
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
-
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
+    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex))
   }
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
