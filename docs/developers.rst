@@ -59,7 +59,7 @@ To run from IntelliJ as an "Application", edit the "Environment Variables" field
 
   BEAM_OUTPUT="/path/to/your/preferred/output/destination/"
 
-Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure you variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
+Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure your variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
 
 File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 
@@ -103,38 +103,40 @@ To confirm that you have installed the correct version of client run the followi
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This functionality is available to internal BEAM developers with Amazon Web Services access privileges. Please contact Colin_ to discuss how you might access this capability or set up your own cloud deployment capability.
+..
 
-.. _Colin: mailto:colin.sheppard@lbl.gov
+    This functionality is available for core BEAM development team with Amazon Web Services access privileges. Please contact Colin_ for access to capability.
 
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
 
   gradle deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
 
-The following optional parameters can be specified from command line:
+The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. To run each each simulation/experiment parallel on separate instances, set `beamBatch` to false. For customized runs, you can also use following parameters that can be specified from command line:
 
-* `beamBranch`: To specify the branch for simulation, current source branch will be used as default branch.
-* `beamCommit`: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
-* `beamConfigs`: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
-* `beamExperiments`: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
-* `beamBatch`: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
-* `region`: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
-* `shutdownWait`: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **beamConfigs**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
+* **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
+* **beamBatch**: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
+* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
+* **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 
-If any of the above parameter is not specified at the command line, then default values are assumed for the above optional parameters. These default values are contained in the project gradle.properties_ file.
+If any of the above parameter is not specified at the command line, then default values are assumed for optional parameters. These default values are specified in gradle.properties_ file.
 
-.. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
-
-To run a manually specified batch simulation, you can specify multiple configuration files separated by commas::
+To run a batch simulation, you can specify multiple configuration files separated by commas::
 
   gradle deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
 
-To run experiments, you can specify comma-separated experiment files::
+Similarly for experiment batch, you can specify comma-separated experiment files::
 
   gradle deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
 
-The command will start an ec2 instance based on the provided configurations and run all simulations in serial. To run on separate parallel instances, set `beamBatch` to false. At the end of each simulation, outputs are uploaded to Amazon S3.
+For demo and presentation material, please follow the link_ on google drive.
 
+.. _Colin: mailto:colin.sheppard@lbl.gov
+.. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/
+.. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
+.. _link: https://goo.gl/Db37yM
 
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -163,36 +165,43 @@ Once your container is running, now update your metrics configurations in beam.c
   beam.metrics.level = "verbose"
 
   kamon {
-      trace {
-        level = simple-trace
-      }
+    trace {
+      level = simple-trace
+    }
 
-      metric {
-        #tick-interval = 5 seconds
-        filters {
-          trace.includes = [ "**" ]
+    metric {
+      #tick-interval = 5 seconds
+      filters {
+        trace.includes = [ "**" ]
 
-          akka-actor {
-            includes = [ "beam-actor-system/user/router/**", "beam-actor-system/user/worker-*" ]
-            excludes = [ "beam-actor-system/system/**", "beam-actor-system/user/worker-helper" ]
-          }
+        akka-actor {
+          includes = [ "beam-actor-system/user/router/**", "beam-actor-system/user/worker-*" ]
+          excludes = [ "beam-actor-system/system/**", "beam-actor-system/user/worker-helper" ]
+        }
 
-          akka-dispatcher {
-            includes = [ "beam-actor-system/akka.actor.default-dispatcher" ]
-          }
+        akka-dispatcher {
+          includes = [ "beam-actor-system/akka.actor.default-dispatcher" ]
         }
       }
-
-      statsd {
-        hostname = 127.0.0.1  # replace with your container in case local loop didn't work
-        port = 8125
-      }
-
-      modules {
-        #kamon-log-reporter.auto-start = yes
-        kamon-statsd.auto-start = yes
-      }
     }
+
+    statsd {
+      hostname = 127.0.0.1  # replace with your container in case local loop didn't work
+      port = 8125
+    }
+
+    influxdb {
+      hostname = 18.216.21.254   # specify InfluxDB server IP
+      port = 8089
+      protocol = "udp"
+    }
+
+    modules {
+      #kamon-log-reporter.auto-start = yes
+      #kamon-statsd.auto-start = yes
+      #kamon-influxdb.auto-start = yes
+    }
+  }
 
 Make sure to update the **host** and **port** for StatsD server in the abode config. Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost. To find the docker container IP address, first you need to list the containers to get container id using::
 
@@ -230,8 +239,7 @@ To stop the container::
 
    $ make down
 
-
-Cloud visualization services become more popular nowadays and save lost of effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
+Cloud visualization services become more popular nowadays and save much effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
 .. _Datadog: https://www.datadoghq.com/
 .. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
 
