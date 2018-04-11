@@ -232,8 +232,7 @@ To stop the container::
 
    $ make down
 
-
-Cloud visualization services become more popular nowadays and save lost of effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
+Cloud visualization services become more popular nowadays and save much effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
 .. _Datadog: https://www.datadoghq.com/
 .. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
 
