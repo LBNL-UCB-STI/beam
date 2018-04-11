@@ -24,6 +24,7 @@ if(interactive()){
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/ridehail-capacity'
   args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
   #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-02/ridehail-price/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -54,8 +55,9 @@ links <- list()
 for(run.i in 1:nrow(exp)){
   grp <-  exp$experimentalGroup[run.i]
   run.dir <- pp(exp.dir,'runs/run.',grp,'/')
-  events.csv <- pp(run.dir,'output/ITERS/it.0/0.events.csv')
-  tt.csv <- pp(run.dir,'output/ITERS/it.0/0.linkstats.txt.gz')
+  last.iter <- tail(sort(unlist(lapply(str_split(list.files(pp(run.dir,'output/ITERS')),"it."),function(x){ as.numeric(x[2])}))),1)
+  events.csv <- pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.events.csv')
+  tt.csv <- pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.linkstats.csv.gz')
   ev <- csv2rdata(events.csv)
   ev[,run:=grp]
   for(fact in factors){
