@@ -125,6 +125,7 @@ Setup Jenkins Server
   Docs: man:systemd-sysv-generator(8)
 
 13. To set up installation, visit Jenkins on its default port, 8080, using the server domain name or IP address:
+
   http://ip_address_of_ec2_instance:8080
 
 An "Unlock Jenkins" screen would appear, which displays the location of the initial password

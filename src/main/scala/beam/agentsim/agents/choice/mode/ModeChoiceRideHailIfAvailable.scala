@@ -12,19 +12,19 @@ import beam.sim.BeamServices
 class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
   override def apply(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
-    var containsDriveAlt: Vector[Int] = Vector[Int]()
+    var containsRideHailAlt: Vector[Int] = Vector[Int]()
     alternatives.zipWithIndex.foreach { alt =>
       if (alt._1.tripClassifier == RIDE_HAIL) {
-        containsDriveAlt = containsDriveAlt :+ alt._2
+        containsRideHailAlt = containsRideHailAlt :+ alt._2
       }
     }
-
-    Some(alternatives(if (containsDriveAlt.nonEmpty) {
-      containsDriveAlt.head
+    if (containsRideHailAlt.nonEmpty) {
+      Some(alternatives(containsRideHailAlt.head))
+    } else if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
+    } else {
+      None
     }
-    else {
-      chooseRandomAlternativeIndex(alternatives)
-    }))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
