@@ -9,7 +9,7 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosesParkingData, ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{LeavingParkingEvent, ParkEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -46,6 +46,9 @@ trait ChoosesParking {
   onTransition {
     case Driving -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
+
+      //personData.currentVehicle.head
+
       val firstLeg = personData.restOfCurrentTrip.head
       val lastLeg = personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
@@ -56,6 +59,22 @@ trait ChoosesParking {
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
+
+      val veh = beamServices
+        .vehicles(
+          data.currentVehicle.head)
+
+      //
+      veh.stall.foreach{ stall =>
+//        val nextLeg = data.passengerSchedule.schedule.head._1
+        val distance = beamServices.geo.distInMeters(stall.location, newLeg.travelPath.endPoint.loc) //nextLeg.travelPath.endPoint.loc
+        val cost = stall.cost
+        val energyCharge: Double = 0.0 //TODO
+        val valueOfTime: Double = 17.0 //TODO harcoded value ?
+        val score = calculateScore(distance, cost, energyCharge, valueOfTime)
+        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score))
+      }
+
       stash()
       stay using data
     case Event(StateTimeout, data@ChoosesParkingData(_)) =>
@@ -70,10 +89,23 @@ trait ChoosesParking {
       val nextLeg = data.passengerSchedule.schedule.head._1
       beamServices.vehicles(data.currentVehicle.head).useParkingStall(stall)
 
+      data.currentVehicle.head
+
+      //Veh id
+      //distance to dest
+      //parking Id
+      //cost
+      //location
+
+      val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
-      if (beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc) <= distanceThresholdToIgnoreWalking) {
+      if (distance <= distanceThresholdToIgnoreWalking) {
         val (tick, triggerId) = releaseTickAndTriggerId()
         scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
+        //data for event
+        val vehId = data.currentVehicle.head
+        eventsManager.processEvent(new ParkEvent(tick, stall, distance, vehId))
+
         goto(WaitingToDrive) using data
       } else {
         // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
@@ -103,6 +135,7 @@ trait ChoosesParking {
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg = data.passengerSchedule.schedule.head._1
 
+
       if(responses._1.itineraries.isEmpty){
         val i = 0
       }
@@ -123,9 +156,20 @@ trait ChoosesParking {
       //        val newPersonData = data.personData.restOfCurrentTrip.copy()
 
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg), self)))
+
+      val currVehicle = beamServices
+        .vehicles(
+          data.currentVehicle.head)
+      currVehicle.stall
+        .foreach{ stall =>
+          val distance = beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+          eventsManager.processEvent(new ParkEvent(tick, stall, distance, data.currentVehicle.head))
+        }
+
       goto(WaitingToDrive) using data.personData.copy(currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList).withPassengerSchedule(newPassengerSchedule).asInstanceOf[PersonData]
   }
 
+  def calculateScore(walkingDistance: Double, cost: Double, energyCharge: Double, valueOfTime: Double): Double = 0.0 //TODO
 }
 

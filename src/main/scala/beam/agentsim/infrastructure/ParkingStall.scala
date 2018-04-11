@@ -12,7 +12,7 @@ class ParkingStall(val id: Id[ParkingStall], val attributes: StallAttributes, va
 }
 
 object ParkingStall{
-  case class StallAttributes(val tazId: Id[TAZ], val parkingType: ParkingType, val pricingModel: PricingModel, val chargingType: ChargingType)
+  case class StallAttributes(val tazId: Id[TAZ], val parkingType: ParkingType, val pricingModel: PricingModel, val chargingType: ChargingType, val fee: Double, val parkingId: Option[Id[StallAttributes]])
 
   sealed trait ParkingType
   case object Residential extends ParkingType
