@@ -53,7 +53,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
   override def run() = {
     if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
-    beamServices.clearAll
+    beamServices.startNewIteration
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(Props(new Actor with ActorLogging {
       var runSender: ActorRef = _
@@ -158,7 +158,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         case "Run!" =>
           runSender = sender
           log.info("Running BEAM Mobsim")
-          scheduler ! StartSchedule(0)
+          scheduler ! StartSchedule(beamServices.iterationNumber)
       }
 
       private def scheduleRideHailManagerTimerMessage(): Unit = {
@@ -188,7 +188,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
     logger.info("Events drained.")
   }
 }
-
 
 
 
