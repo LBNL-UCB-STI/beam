@@ -158,7 +158,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         case "Run!" =>
           runSender = sender
           log.info("Running BEAM Mobsim")
-          scheduler ! StartSchedule(0)
+          scheduler ! StartSchedule(BeamMobsim.it)
       }
 
       private def scheduleRideHailManagerTimerMessage(): Unit = {
@@ -189,6 +189,13 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   }
 }
 
-
+object BeamMobsim{
+  var itNo = 0
+  def it = {
+    val _itNo = itNo
+    itNo = itNo + 1
+    _itNo
+  }
+}
 
 
