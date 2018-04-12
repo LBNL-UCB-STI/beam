@@ -15,6 +15,7 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamMobsim, BeamServices}
+import beam.tags.PeriodicTest
 import beam.utils.{BeamConfigUtils, DateUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
@@ -33,6 +34,7 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
+
 
 class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFactory.parseString(
   """
@@ -84,7 +86,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
   }
 
   "The agentsim" must {
-    "let everybody walk when their plan says so" in {
+    "let everybody walk when their plan says so" taggedAs PeriodicTest in {
       scenario.getPopulation.getPersons.values().forEach(person => {
         person.getSelectedPlan.getPlanElements.asScala.collect {
           case (leg : Leg) =>
@@ -110,7 +112,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
       }
     }
 
-    "let everybody take transit when their plan says so" in {
+    "let everybody take transit when their plan says so" taggedAs PeriodicTest in {
       scenario.getPopulation.getPersons.values().forEach(person => {
         person.getSelectedPlan.getPlanElements.asScala.collect {
           case (leg : Leg) =>
