@@ -7,13 +7,11 @@ buildscript {
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
-//        maven { url "https://maven.eveoh.nl/content/repositories/releases"  }
     }
     dependencies {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
-//        classpath "nl.eveoh:gradle-aspectj:2.0"
     }
 }
 
@@ -22,9 +20,6 @@ plugins {
     id "de.undercouch.download" version "3.2.0"
 }
 
-//project.ext {
-//    aspectjVersion = '1.8.13'
-//}
 //ext {
 //    env = "beamville"
 //}
@@ -36,7 +31,6 @@ apply plugin: 'idea'
 apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
-//apply plugin: 'aspectj'
 
 group = 'beam'
 version = '0.5.0-SNAPSHOT'
@@ -238,6 +232,13 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
+
+/* Task to run tests periodically on continue integration server */
+task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
+    main = 'org.scalatest.tools.Runner'
+    args = ['-R', 'build/classes/scala/test', '-o', '-s', 'beam.agentsim.SingleModeSpec']
+    classpath = sourceSets.test.runtimeClasspath
+}
 
 //////////////////////////////////////////////////////////////////////
 // Amazon WS task to run beam sim on Lambda
