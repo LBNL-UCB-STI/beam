@@ -247,16 +247,16 @@ Cloud visualization services become more popular nowadays and save much effort a
 Tagging Tests for Periodic CI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ScalaTest allows you to define different test categories by tagging your tests. These tags categorise tests in different sets. And later you can filter tests to run based on these tags. Beam provide a custom tag `Periodic` to mark your tests for periodic CI runs. As you mark the test with this tag, your test would be included automatically become the part of next scheduled run and also be excluded immediately for regular gradle test task and CI. Follow the example below to tag your test with `Periodic` tag::
+ScalaTest allows you to define different test categories by tagging your tests. These tags categorise tests in different sets. And later you can filter these set of tests by specifying these tags with your build tasks. Beam also provide a custom tag `Periodic` to mark your tests for periodic CI runs. As you mark the test with this tag, your test would be included automatically into execution set and become the part of next scheduled run. It also be excluded immediately for regular gradle test task and CI. Follow the example below to tag your test with `Periodic` tag::
 
    behavior of "Trajectory"
       it should "interpolate coordinates" taggedAs Periodic in {
          ...
       }
 
-This code marks this test with the `com.beam.tags.Periodic` tag. You can also specify multiple tags as a comma separated parameter list in `taggedAs` method. Following code demonstrate the use of multiple tags::
+This code marks the test with `com.beam.tags.Periodic` tag. You can also specify multiple tags as a comma separated parameter list in `taggedAs` method. Following code demonstrate the use of multiple tags::
 
-   "The gentsim" must {
+   "The agentsim" must {
       ...
 
       "let everybody walk when their plan says so" taggedAs (Periodic, Slow) in {
@@ -266,6 +266,6 @@ This code marks this test with the `com.beam.tags.Periodic` tag. You can also sp
       ...
    }
 
-You can find details about scheduling a continuous integration build under DevOps section `Periodic CI Configuration.`_
+You can find details about scheduling a continuous integration build under DevOps section `Configure Periodic Jobs`_.
 
-.. _Periodic CI Configuration.: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
+.. _Configure Periodic Jobs: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
