@@ -1,18 +1,19 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource
-import beam.agentsim.infrastructure.ParkingStall.StallAttributes
+import beam.agentsim.infrastructure.ParkingStall.{StallAttributes, StallValues}
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.EmbodiedBeamLeg
 import org.matsim.api.core.v01.Id
 
 
-class ParkingStall(val id: Id[ParkingStall], val attributes: StallAttributes, val location: Location, val cost: Double) extends Resource[ParkingStall] {
+class ParkingStall(val id: Id[ParkingStall], val attributes: StallAttributes, val location: Location, val cost: Double, val stallValues: Option[StallValues]) extends Resource[ParkingStall] {
   override def getId: Id[ParkingStall] = id
 }
 
 object ParkingStall{
-  case class StallAttributes(val tazId: Id[TAZ], val parkingType: ParkingType, val pricingModel: PricingModel, val chargingType: ChargingType, val fee: Double, val parkingId: Option[Id[StallAttributes]])
+  case class StallAttributes(val tazId: Id[TAZ], val parkingType: ParkingType, val pricingModel: PricingModel, val chargingType: ChargingType)
+  case class StallValues(stall: Int, fee: Double, parkingId: Option[Id[StallValues]])
 
   sealed trait ParkingType
   case object Residential extends ParkingType

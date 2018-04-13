@@ -14,7 +14,12 @@ class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double) 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
 
-    stall.attributes.parkingId.foreach(parkingId => attr.put(PARKING_ID, parkingId.toString))
+    for{
+      stallValues <- stall.stallValues
+      parkingId <- stallValues.parkingId
+    } yield{
+      attr.put(PARKING_ID, parkingId.toString)
+    }
 
     attr.put(SCORE, score.toString)
 

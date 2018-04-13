@@ -23,7 +23,12 @@ class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[V
     attr.put(VEHICLE_ID, vehId.toString)
     attr.put(DISTANCE, distance.toString)
 
-    stall.attributes.parkingId.foreach(parkingId => attr.put(PARKING_ID, parkingId.toString))
+    for{
+      stallValues <- stall.stallValues
+      parkingId <- stallValues.parkingId
+    } yield{
+      attr.put(PARKING_ID, parkingId.toString)
+    }
 
     attr.put(COST, stall.cost.toString)
     attr.put(LOCATION, stall.location.toString)
