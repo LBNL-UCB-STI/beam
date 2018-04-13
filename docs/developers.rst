@@ -243,6 +243,25 @@ Cloud visualization services become more popular nowadays and save much effort a
 .. _Datadog: https://www.datadoghq.com/
 .. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
 
+Use Beam Metric Utility
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Beam provides metric utility as part of performance monitoring framework using kamon API. It makes developers life very easy, all you need is to extend your component from `beam.sim.metrics.MetricsSupport` trait and call your desired utility. As you extend the trait, it will add some handy entity recorder methods in your component, to measure the application behaviour. By using `MetricSupport` you measure following different metricises.
+
+    - Count occurrences or number of invocation::
+
+        countOccurrence("number-of-routing-requests", Metrics.VerboseLevel)
+
+    In this example first argument of `countOccurrence` is the name of entity you want to record and second is the metric level. It is the simplest utility and just counts and resets to zero upon each flush. you can use it for counting errors or occurrences of specifics events.
+
+    - Execution time of some expression, function call or component::
+
+        latency("time-to-calculate-route", Metrics.RegularLevel) {
+            calcRoute(request)
+        }
+
+    In this snippet, first two arguments are same as of `countOccurrence`. Next, it takes the actual piece of code/expression for which you want to measure the execution time/latency. In the example above we are measuring the execution time to calculate a router in `R5RoutingWorker`, we named the entity as `"request-router-time"` and set metric level to `Metrics.RegularLevel`. When this method executes your entity recorder record the metrics and log with provided name.
+
 
 Tagging Tests for Periodic CI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
