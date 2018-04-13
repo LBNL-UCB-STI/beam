@@ -17,13 +17,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/vot'
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/transit-price'
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/ridehail-price'
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/transit-capacity'
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/ridehail-capacity'
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/pruning'
-  #args<-'/Users/critter/Documents/beam/beam-output/experiments/prices-25k/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/ridehail-price/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -51,11 +45,14 @@ for(fact in factors){
 grp <- exp$experimentalGroup[1]
 evs <- list()
 links <- list()
+pops <- list()
 for(run.i in 1:nrow(exp)){
   grp <-  exp$experimentalGroup[run.i]
   run.dir <- pp(exp.dir,'runs/run.',grp,'/')
-  events.csv <- pp(run.dir,'output/ITERS/it.0/0.events.csv')
-  tt.csv <- pp(run.dir,'output/ITERS/it.0/0.linkstats.txt.gz')
+  last.iter <- tail(sort(unlist(lapply(str_split(list.files(pp(run.dir,'output/ITERS')),"it."),function(x){ as.numeric(x[2])}))),1)
+  if(!file.exists(pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
+  events.csv <- pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.events.csv')
+  tt.csv <- pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.linkstats.csv.gz')
   ev <- csv2rdata(events.csv)
   ev[,run:=grp]
   for(fact in factors){
@@ -73,9 +70,21 @@ for(run.i in 1:nrow(exp)){
     }
     links[[length(links)+1]] <- link
   }
+  last.iter.minus.5 <- ifelse(last.iter>4,last.iter - 4,1)
+  for(the.iter in last.iter.minus.5:last.iter){
+    pop.csv <- pp(run.dir,'output/ITERS/it.',the.iter,'/',the.iter,'.population.csv.gz')
+    if(file.exists(pop.csv)){
+      pop <- csv2rdata(pop.csv)
+      pop[,iter:=the.iter]
+      streval(pp('pop[,',fact,':="',the.level,'"]'))
+      pops[[length(pops)+1]] <- pop
+    }
+  }
 }
 ev <- rbindlist(evs,use.names=T,fill=T)
 rm('evs')
+pop <- rbindlist(pops,use.names=T,fill=T)
+rm('pops')
 if(plot.congestion){
   link <- rbindlist(links,use.names=T,fill=T)
   rm('links')
@@ -150,7 +159,7 @@ pt <- ev[J('PathTraversal')]
 for(fact in factors){
   # Energy by Mode
   streval(pp('pt[,the.factor:=',fact,']'))
-  if(all(c('low','base','high') %in% u(ev$the.factor))){
+  if(all(c('low','base','high') %in% u(pt$the.factor))){
     pt[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
   }else if(all(c('Low','Base','High') %in% u(ev$the.factor))){
     pt[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
@@ -213,6 +222,35 @@ if(plot.congestion){
     p <- ggplot(congestion,aes(x=hour,y=frac.below,colour=factor(level)))+geom_line()+facet_wrap(~the.factor)+labs(x="Hour",y="Fraction of Links Below Each Relative Speed",colour="Relative Speed",title=pp("Fraction of Links at Varying Levels of Congestion by ",fact))
     pdf.scale <- .6
     ggsave(pp(plots.dir,'congestion.pdf'),p,width=12*pdf.scale,height=8*pdf.scale,units='in')
+  }
+}
+
+if('customAttributes' %in% names(pop)){
+  for(fact in factors){
+    streval(pp('pop[,the.factor:=',fact,']'))
+    if(all(c('low','base','high') %in% u(pop$the.factor))){
+      pop[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
+    }else if(all(c('Low','Base','High') %in% u(pop$the.factor))){
+      pop[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
+    }else{
+      streval(pp('pop[,the.factor:=factor(the.factor,levels=exp$',fact,')]'))
+    }
+    pop[,style:=customAttributes]
+    pop <- pop[style!='']
+    if(any(u(pop$style)=='class1')){
+      new.names <- c(class1='Multimodals',class2='Empty nesters',class3='Transit takers',class4='Inveterate drivers',class5='Moms in cars',class6='Car commuters')
+      pop[,style:=new.names[as.character(style)]]
+    }
+    toplot <- pop[,.(n=length(type)),by=c('style','the.factor','iter')]
+    toplot <- toplot[,.(n=mean(n)),by=c('style','the.factor')]
+    setkey(toplot,style,the.factor)
+
+    pdf.scale <- .8
+    p<-ggplot(toplot,aes(x=the.factor,y=n,fill=style))+geom_bar(stat='identity',position='stack')+labs(x='Trip #',y='# Agents',title='Modality Style Distributions')
+    ggsave(pp(plots.dir,'modality-styles.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
+    p<-ggplot(toplot,aes(x=style,y=n,fill=the.factor))+geom_bar(stat='identity',position='dodge')+labs(x='',y='# Agents',fill=fact,title='Modality Style Distributions')
+    ggsave(pp(plots.dir,'modality-styles-dodged.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
   }
 }
 

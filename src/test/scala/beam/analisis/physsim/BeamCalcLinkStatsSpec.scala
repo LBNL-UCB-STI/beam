@@ -96,7 +96,7 @@ class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAf
     val lines = bufferedSource.getLines()
 
     for (line <- lines.drop(1)) {
-      val cols = line.split("\t").map(_.trim)
+      val cols = line.split(",").map(_.trim)
       buffer.append(cols(i))
     }
     buffer.toList.groupBy(identity)

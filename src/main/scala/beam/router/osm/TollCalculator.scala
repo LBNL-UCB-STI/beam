@@ -122,7 +122,7 @@ object TollCalculator {
   }
 
   trait ChargeDate {
-    val dType: String;
+    val dType: String
     val on: String
   }
 

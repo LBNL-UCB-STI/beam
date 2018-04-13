@@ -39,7 +39,7 @@ import scala.language.postfixOps
 
 class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
-  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447; // 1 mile per hour
+  val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
@@ -71,7 +71,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           calcRoute(request)
         }
       }
-      eventualResponse.failed.foreach(e => e.printStackTrace())
+      eventualResponse.failed.foreach(log.error(_, ""))
       eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
@@ -112,6 +112,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     profileRequest.toTime = request.time.toTime
     profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = util.EnumSet.of(request.directMode)
+    profileRequest.suboptimalMinutes = 0
     if (request.transitModes.nonEmpty) {
       profileRequest.transitModes = util.EnumSet.copyOf(request.transitModes.asJavaCollection)
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
@@ -171,7 +172,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val egressMode = LegMode.WALK
           val transitModes = Nil
           val profileResponse = latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
-            cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+            cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
           }
           if (profileResponse.options.isEmpty) {
             return Nil // Cannot walk to vehicle, so no options from this vehicle.
@@ -205,7 +206,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val egressMode = LegMode.WALK
         val transitModes = Nil
         val profileResponse = latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-          cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+          cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
         }
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
@@ -245,7 +246,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val transitModes: Vector[TransitModes] = routingRequest.transitModes.map(_.r5Mode.get.right.get)
       val latencyTag = (if (transitModes.isEmpty) "mainVehicleToDestinationRoute" else "mainTransitRoute") + "-router-time"
       val profileResponse: ProfileResponse = latency(latencyTag, Metrics.RegularLevel) {
-        cache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+        cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
       }
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
