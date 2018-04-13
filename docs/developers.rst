@@ -141,112 +141,12 @@ For demo and presentation material, please follow the link_ on google drive.
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Beam uses `Kamon`_ as a performance monitoring framework, and its `StatsD`_ reporter enables beam to publish matrices to a verity of backends. `Graphite`_ as the StatsD backend and `Grafana`_ to create beautiful dashboards build a very good monitoring ecosystem. To make environment up and running in a few minutes, use Kamon's provided docker image (beam dashboard need to import) from `docker hub`_ or build using Dockerfile and supporting configuration files available in metrics directory under beam root. All you need is to install few prerequisite like docker, docker-compose, and make. To start a container you just need to run the following command in metrics dir::
+Beam uses `Kamon`_ as a performance monitoring framework. It comes with a nice API to instrument your application code for metric recoding. Kamon also provide many different pingable recorders like Log Reporter, StatsD, InfluxDB etc. You can configure your desired recorder with project configurations under Kamon/metrics section. When you start the application it will measure the instrumented components and recorder would publish either to console or specified backend where you can monitor/analyse the metrics.
 
-   $ make up
+Beam Metrics Utility (`MetricsSupport`)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. _Kamon: http://kamon.io
-.. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
-.. _Graphite: http://graphite.wikidot.com/
-.. _Grafana: http://grafana.org/
-.. _docker hub: https://hub.docker.com/u/kamon/
-
-
-With the docker container following services start and exposes the listed ports:
-
-* 80: the Grafana web interface.
-* 81: the Graphite web port
-* 2003: the Graphite data port
-* 8125: the StatsD port.
-* 8126: the StatsD administrative port.
-
-Once your container is running, now update your metrics configurations in beam.conf::
-
-  beam.metrics.level = "verbose"
-
-  kamon {
-    trace {
-      level = simple-trace
-    }
-
-    metric {
-      #tick-interval = 5 seconds
-      filters {
-        trace.includes = [ "**" ]
-
-        akka-actor {
-          includes = [ "beam-actor-system/user/router/**", "beam-actor-system/user/worker-*" ]
-          excludes = [ "beam-actor-system/system/**", "beam-actor-system/user/worker-helper" ]
-        }
-
-        akka-dispatcher {
-          includes = [ "beam-actor-system/akka.actor.default-dispatcher" ]
-        }
-      }
-    }
-
-    statsd {
-      hostname = 127.0.0.1  # replace with your container in case local loop didn't work
-      port = 8125
-    }
-
-    influxdb {
-      hostname = 18.216.21.254   # specify InfluxDB server IP
-      port = 8089
-      protocol = "udp"
-    }
-
-    modules {
-      #kamon-log-reporter.auto-start = yes
-      #kamon-statsd.auto-start = yes
-      #kamon-influxdb.auto-start = yes
-    }
-  }
-
-Make sure to update the **host** and **port** for StatsD server in the abode config. Docker with VirtualBox on macOS/Windows: use docker-machine ip instead of localhost. To find the docker container IP address, first you need to list the containers to get container id using::
-
-   $ docker ps
-
-Then use the container id to find IP address of your container. Run the following command by providing container id in following command by replacing YOUR_CONTAINER_ID::
-
-   $ docker inspect YOUR_CONTAINER_ID
-
-Now at the bottom, under NetworkSettings, locate IP Address of your docker container and update statsd host.
-
-Other then IP address you also need to confirm few thing in your environment like.
-
-   -  beam.metrics.level would not be pointing to the value `off`.
-   -  kamon-statsd.auto-start = yes, under kamon.modules.
-   -  build.gradle(Gradle build script) has kamon-statsd and kamon-log-reporter available as dependencies, based on your kamon.modules settings.
-
-Now your docker container is up and required components are configured, all you need to start beam simulation. As simulation starts, kamon would load its modules and start publishing metrics to the StatsD server (running inside the docker container).
-
-In your browser open http://localhost:80 (or with IP you located in previous steps). Login with the default username (admin) and password (admin), open existing beam dashboard (or create a new one).
-
-If you get the docker image from docker hub, you need to import the beam dashboard from metrics/grafana/dashboards directory.
-
-   - To import a dashboard open dashboard search and then hit the import button.
-   - From here you can upload a dashboard json file, as upload complete the import process will let you change the name of the dashboard, pick graphite as data source.
-   - A new dashboard will appear in dashboard list.
-
-Open beam dashboard (or what ever the name you specified while importing) and start monitoring different beam module level matrices in a nice graphical interface.
-
-To view the container log::
-
-   $ make tail
-
-To stop the container::
-
-   $ make down
-
-Cloud visualization services become more popular nowadays and save much effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
-.. _Datadog: https://www.datadoghq.com/
-.. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
-
-Use Beam Metric Utility
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Beam provides metric utility as part of performance monitoring framework using kamon API. It makes developers life very easy, all you need is to extend your component from `beam.sim.metrics.MetricsSupport` trait and call your desired utility. As you extend the trait, it will add some handy entity recorder methods in your component, to measure the application behaviour. By using `MetricSupport` you measure following different metricises.
+Beam provides metric utility as part of performance monitoring framework using Kamon API. It makes developers life very easy, all you need is to extend your component from `beam.sim.metrics.MetricsSupport` trait and call your desired utility. As you extend the trait, it will add some handy entity recorder methods in your component, to measure the application behaviour. By using `MetricSupport` you measure following different metricises.
 
     - Count occurrences or number of invocation::
 
@@ -261,6 +161,123 @@ Beam provides metric utility as part of performance monitoring framework using k
         }
 
     In this snippet, first two arguments are same as of `countOccurrence`. Next, it takes the actual piece of code/expression for which you want to measure the execution time/latency. In the example above we are measuring the execution time to calculate a router in `R5RoutingWorker`, we named the entity as `"request-router-time"` and set metric level to `Metrics.RegularLevel`. When this method executes your entity recorder record the metrics and log with provided name.
+
+Beam Metrics Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After instrumenting your code you need configure your desired metric level, recorder backends and other Kamon configurations in your project configuration file (usually beam.conf). Update your metrics configurations as below::
+
+    beam.metrics.level = "verbose"
+
+    kamon {
+        trace {
+          level = simple-trace
+        }
+
+        metric {
+            #tick-interval = 5 seconds
+            filters {
+                trace.includes = [ "**" ]
+
+                akka-actor {
+                    includes = [ "beam-actor-system/user/router/**", "beam-actor-system/user/worker-*" ]
+                    excludes = [ "beam-actor-system/system/**", "beam-actor-system/user/worker-helper" ]
+                }
+
+                akka-dispatcher {
+                    includes = [ "beam-actor-system/akka.actor.default-dispatcher" ]
+                }
+            }
+        }
+
+        statsd {
+            hostname = 127.0.0.1  # replace with your container in case local loop didn't work
+            port = 8125
+        }
+
+        influxdb {
+            hostname = 18.216.21.254   # specify InfluxDB server IP
+            port = 8089
+            protocol = "udp"
+        }
+
+        modules {
+            #kamon-log-reporter.auto-start = yes
+            #kamon-statsd.auto-start = yes
+            #kamon-influxdb.auto-start = yes
+        }
+    }
+
+Make sure to update the **host** and **port** for StatsD or InfluxDB (either one(or both) of them you are using) with its relevant the server IP address in the abode config.
+
+Other then IP address you also need to confirm few thing in your environment like.
+
+-  beam.metrics.level would not be pointing to the value `off`.
+-  kamon-statsd.auto-start = yes, under kamon.modules.
+-  build.gradle(Gradle build script) has kamon-statsd, kamon-influxdb or kamon-log-reporter available as dependencies, based on your kamon.modules settings and desired backend/logger.
+
+
+Setup Docker as Metric Backend
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Kamon's `StatsD`_ reporter enables beam to publish matrices to a verity of backends. `Graphite`_ as the StatsD backend and `Grafana`_ to create beautiful dashboards build a very good monitoring ecosystem. To make environment up and running in a few minutes, use Kamon's provided docker image (beam dashboard need to import) from `docker hub`_ or build using Dockerfile and supporting configuration files available in metrics directory under beam root. All you need is to install few prerequisite like docker, docker-compose, and make. To start a container you just need to run the following command in metrics directory (available at root of beam project)::
+
+    $ make up
+
+With the docker container following services start and exposes the listed ports:
+
+* 80: the Grafana web interface.
+* 81: the Graphite web port
+* 2003: the Graphite data port
+* 8125: the StatsD port.
+* 8126: the StatsD administrative port.
+
+Now your docker container is up and required components are configured, all you need to start beam simulation. As simulation starts, kamon would load its modules and start publishing metrics to the StatsD server (running inside the docker container).
+
+In your browser open http://localhost:80 (or with IP you located in previous steps). Login with the default username (admin) and password (admin), open existing beam dashboard (or create a new one).
+
+If you get the docker image from docker hub, you need to import the beam dashboard from metrics/grafana/dashboards directory.
+
+- To import a dashboard open dashboard search and then hit the import button.
+- From here you can upload a dashboard json file, as upload complete the import process will let you change the name of the dashboard, pick graphite as data source.
+- A new dashboard will appear in dashboard list.
+
+Open beam dashboard (or what ever the name you specified while importing) and start monitoring different beam module level matrices in a nice graphical interface.
+
+To view the container log::
+
+    $ make tail
+
+To stop the container::
+
+    $ make down
+
+
+Cloud visualization services become more popular nowadays and save much effort and energy to prepare an environment. In future we are planing to use `Datadog`_ (a cloud base monitoring and analytic platform) with beam. `Kamon Datadog integration`_ is the easiest way to have something (nearly) production ready.
+
+
+How to get Docker IP?
+*********************
+
+Docker with VirtualBox on macOS/Windows: use docker-machine IP instead of localhost. To find the docker container IP address, first you need to list the containers to get container id using::
+
+    $ docker ps
+
+Then use the container id to find IP address of your container. Run the following command by providing container id in following command by replacing YOUR_CONTAINER_ID::
+
+    $ docker inspect YOUR_CONTAINER_ID
+
+Now at the bottom, under NetworkSettings, locate IP Address of your docker container.
+
+
+
+.. _Kamon: http://kamon.io
+.. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
+.. _Graphite: http://graphite.wikidot.com/
+.. _Grafana: http://grafana.org/
+.. _docker hub: https://hub.docker.com/u/kamon/
+.. _Datadog: https://www.datadoghq.com/
+.. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
 
 
 Tagging Tests for Periodic CI
