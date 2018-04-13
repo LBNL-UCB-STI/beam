@@ -2,5 +2,5 @@ package beam.tags
 
 import org.scalatest.Tag
 
-object PeriodicTest extends Tag("beam.tags.PeriodicTest")
+object Periodic extends Tag("beam.tags.PeriodicTest")
 
