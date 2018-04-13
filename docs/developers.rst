@@ -243,3 +243,29 @@ Cloud visualization services become more popular nowadays and save much effort a
 .. _Datadog: https://www.datadoghq.com/
 .. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
 
+
+Tagging Tests for Periodic CI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ScalaTest allows you to define different test categories by tagging your tests. These tags categorise tests in different sets. And later you can filter tests to run based on these tags. Beam provide a custom tag `Periodic` to mark your tests for periodic CI runs. As you mark the test with this tag, your test would be included automatically become the part of next scheduled run and also be excluded immediately for regular gradle test task and CI. Follow the example below to tag your test with `Periodic` tag::
+
+   behavior of "Trajectory"
+      it should "interpolate coordinates" taggedAs Periodic in {
+         ...
+      }
+
+This code marks this test with the `com.beam.tags.Periodic` tag. You can also specify multiple tags as a comma separated parameter list in `taggedAs` method. Following code demonstrate the use of multiple tags::
+
+   "The gentsim" must {
+      ...
+
+      "let everybody walk when their plan says so" taggedAs (Periodic, Slow) in {
+         ...
+      }
+
+      ...
+   }
+
+You can find details about scheduling a continuous integration build under DevOps section `Periodic CI Configuration.`_
+
+.. _Periodic CI Configuration.: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
