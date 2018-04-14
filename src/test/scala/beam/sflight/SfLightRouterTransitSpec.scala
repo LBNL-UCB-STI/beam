@@ -6,7 +6,6 @@ import java.time.ZonedDateTime
 import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -21,6 +20,7 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.{BeamConfigUtils, DateUtils}
 import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
@@ -30,6 +30,7 @@ import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -56,7 +57,6 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
     when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
     when(services.vehicles).thenReturn(new TrieMap[Id[Vehicle], BeamVehicle])
-    when(services.agentRefs).thenReturn(new TrieMap[String, ActorRef])
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
@@ -97,7 +97,7 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
 
     "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
       scenario.getPopulation.getPersons.values().forEach(person => {
-        val activities = PersonAgent.PersonData.planToVec(person.getSelectedPlan)
+        val activities = planToVec(person.getSelectedPlan)
         activities.sliding(2).foreach(pair => {
           val origin = pair(0).getCoord
           val destination = pair(1).getCoord
@@ -118,17 +118,9 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       })
     }
 
-    "respond with a multi transfer route having cost 9.75 USD." in {
-      val origin = new Coord(554413.5055508229, 4176933.7295036125)
-      val destination = new Coord(551010.1423040839, 4184361.3484820053)
-      val time = RoutingModel.DiscreteTime(65220)
-      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
-      val response = expectMsgType[RoutingResponse]
-
-      // printResponse(origin, destination, time, response)
-      assert(response.itineraries.exists(_.costEstimate == 9.75))
-      assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+    def planToVec(plan: Plan): Vector[Activity] = {
+      scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p
+        .isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
     }
 
     "respond with a unlimited transfer route having cost 2.75 USD." in {
@@ -155,19 +147,6 @@ class SfLightRouterTransitSpec extends TestKit(ActorSystem("router-test", Config
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
 
-    "respond with a CABLE_CAR route having multiple transfers but without transfer permission of cost 18.70 USD." in {
-      val origin = new Coord(550046.6183707184, 4173684.1312090624)
-      val destination = new Coord(551010.1423040839, 4184361.3484820053)
-      val time = RoutingModel.DiscreteTime(54960)
-      router ! RoutingRequest(origin, destination, time, Vector(TRANSIT), Vector(StreetVehicle(Id.createVehicleId("body-667520-0"), new SpaceTime(origin, time.atTime), WALK, asDriver = true)))
-      val response = expectMsgType[RoutingResponse]
-
-      //printResponse(origin, destination, time, response)
-
-      assert(response.itineraries.exists(_.costEstimate == 18.70))
-      assert(response.itineraries.exists(_.tripClassifier == WALK))
-      assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
-    }
   }
 
 //  Vector(itinerary ->, [x=550046.6183707184][y=4173684.1312090624], [x=551010.1423040839][y=4184361.3484820053], DiscreteTime(54960), WALK_TRANSIT, 18.70

@@ -1,6 +1,81 @@
 DevOps Guide
 =================
 
+Setup git-lfs Server
+--------------------
+
+1.  From the AWS Management Console, launch the Amazon EC2 instance from an Amazon Machine Image (AMI) that has Ubuntu 64-bit as base operating system.
+
+2.  Choose a security group that will allow SSH access as well as port 8080 to access your git lfs server. You should only enable ingress from the IP addresses you wish to allow access to your server.
+
+3.  On AWS Management Console go to Services menu from top bar and open the Amazon S3 console.
+
+4.  Click Create Bucket, it will opens a new dialog window.
+
+6.  On the Name and region tab, provide appropriate name (should be DNS compliant) and desired region, then Click Next button in the bottom.
+
+7.  Leave Set properties as is and click Next again.
+
+8.  On Set Permissions tab, set read and write access for your git-lfs user. and Click next.
+
+9.  Verify your settings on Review tab. If you want to change something, choose Edit. If your current settings are correct, choose Create bucket.
+
+10.  Connect to the ec2 instance via SSH.
+
+11.  Add NodeSource APT repository for Debian-based distributions repository AND the PGP key for verifying packages::
+
+    $ curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+
+12.  Install Node.js from the Debian-based distributions repository::
+
+    $ sudo apt-get install -y nodejs
+
+13.  To confirm that Node.js was successfully installed on your system, you can run the following command::
+
+    $ node -v
+
+If Node is installed, this command should print out something like this:
+
+   v6.9.1
+
+14.  To get the most up-to-date npm, you can run the command::
+
+    $ sudo npm install npm --global
+
+15.  Next, you can directly install git-lfs server using node package manager by executing following command::
+
+    $ sudo npm install node-git-lfs
+
+16.  Git LFS server offers two method of configuration, via environment variable or configuration file. At this step you have to define some environment variables to configure the server::
+
+   -  LFS_BASE_URL - URL of the LFS server - **required**
+   -  LFS_PORT - HTTP portal of the LFS server, default to 3000 - **required**
+   -  LFS_STORE_TYPE - Object store type, can be either s3 (for AWS S3) or grid (for MongoDB GridFS), default to s3 - **required**
+   -  LFS_AUTHENTICATOR_TYPE - Authenticator type, can be basic (for basic username and password), none (for no authentication), default to none - **required**
+   -  LFS_AUTHENTICATOR_USERNAME - Username - **required**
+   -  LFS_AUTHENTICATOR_PASSWORD - Password - **required**
+   -  AWS_ACCESS_KEY - AWS access key - **required**
+   -  AWS_SECRET_KEY - AWS secret key - **required**
+   -  LFS_STORE_S3_BUCKET - AWS S3 bucket - **required**
+   -  LFS_STORE_S3_ENDPOINT - AWS S3 endpoint, normally this will be set by region
+   -  LFS_STORE_S3_REGION - AWS S3 region
+
+Set Aws access key, secret ky and s3 details based on previous steps.
+
+17.  Now start git lfs server::
+
+    $ node-git-lfs
+
+18.  At the end, create file named .lfsconfig in you repository with following contents, update host and port based on your environment.
+
+    [lfs]
+        url = "http://host:port/LBNL-UCB-STI/beam.git"
+        batch = true
+        access = basic
+
+This will setup everything you need to setup and install a custom gitl-lfs server on Amazon instance and github repository will start pointing to the your custom server. There is no special installation or requirement for the clint, only thing that you need is to provide lfs user name and password on you client when you pull your contents for the first time.
+
+
 Setup Jenkins Server
 --------------------
 
@@ -50,6 +125,7 @@ Setup Jenkins Server
   Docs: man:systemd-sysv-generator(8)
 
 13. To set up installation, visit Jenkins on its default port, 8080, using the server domain name or IP address:
+
   http://ip_address_of_ec2_instance:8080
 
 An "Unlock Jenkins" screen would appear, which displays the location of the initial password
@@ -392,6 +468,43 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
 
 |image39|
 
+Configure Periodic Jobs
+----------------------
+
+You can schedule any Jenkins job to run periodically based on provided schedule. To configure periodic build follow the steps below:
+
+1. First click on Configure menu item from menu on left hand side of Job/Project home page.
+
+2. On the next (configuration) page, go to `Build Triggers` section.
+
+|image40|
+
+3. Click on check box labeled `Build periodically` to enable the option. It will expand and ask for Schedule with a warning message some thing like, No schedules so will never run.
+
+|image41|
+
+4. You have to specify a schedule by following the similar syntax of cron job as a line consists of 5 fields separated by TAB or whitespace::
+
+   MINUTE HOUR DOM MONTH DOW
+
+   - MINUTE	Minutes within the hour (0–59)
+   - HOUR	The hour of the day (0–23)
+   - DOM	The day of the month (1–31)
+   - MONTH	The month (1–12)
+   - DOW	The day of the week (0–7) where 0 and 7 are Sunday.
+
+To schedule once daily every 24 hours for only 5 working days, we need to specify some thing like::
+
+   H 0 * * 1-5
+
+
+|image42|
+
+As you specify the schedule, warning would be replaced with a descriptive schedule.
+
+5. Save the configurations and now you have setup job to run periodically.
+
+
 References
 ----------
 
@@ -444,7 +557,6 @@ https://jmaitrehenry.ca/2016/08/04/how-to-install-a-jenkins-master-that-spawn-sl
 .. |image37| image:: _static/figs/jenkins-pipeline7.png
 .. |image38| image:: _static/figs/jenkins-pipeline8.png
 .. |image39| image:: _static/figs/jenkins-pipeline9.png
-
-
-
-
+.. |image40| image:: _static/figs/jenkins-periodic-build1.png
+.. |image41| image:: _static/figs/jenkins-periodic-build2.png
+.. |image42| image:: _static/figs/jenkins-periodic-build3.png

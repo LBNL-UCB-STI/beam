@@ -9,6 +9,7 @@ import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
+import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
@@ -107,7 +108,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         EventsManager jdeqsimEvents = new EventsManagerImpl();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
-
+        jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
             createNetworkFile(jdeqSimScenario.getNetwork());
@@ -123,16 +124,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimConfigGroup config = new JDEQSimConfigGroup();
         config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
+        config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
-//        latency("physsim-cost", Metrics.RegularLevel(), new AbstractFunction0() {
-//            @Override
-//            public Object apply() {
-                jdeqSimulation.run();
-//                return null;
-//            }
-//        }); // core phys sim
+
+        if(beamConfig.beam().debug().debugEnabled()) {
+            log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
+        }
+
+        jdeqSimulation.run();
+
+        if(beamConfig.beam().debug().debugEnabled()) {
+            log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
+        }
 
         linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
 

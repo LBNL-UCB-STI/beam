@@ -1,6 +1,7 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.logit.UtilityParam.{Multiplier, UtilityParamType}
+import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
+import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.{Optional, ParseDouble}
 
@@ -10,7 +11,7 @@ import scala.util.Random
 /**
   * BEAM
   */
-case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
+case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) extends LazyLogging {
 
   def sampleAlternative(alternatives: Vector[AlternativeAttributes], random: Random): Option[String] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
@@ -42,6 +43,8 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
           theParam._2.paramType match {
             case Multiplier =>
               theParam._2.paramValue * alternative.attributes(theParam._1)
+            case Intercept =>
+              theParam._2.paramValue
           }
         }else if(theParam._1.equalsIgnoreCase("intercept") || theParam._1.equalsIgnoreCase("asc")){
           theParam._2.paramValue
@@ -50,9 +53,7 @@ case class MultinomialLogit(alternativeParams: Map[String,AlternativeParams]) {
         }
       }.toVector.sum
     }
-    if(util == Double.NaN){
-      val i = 0
-    }
+
     util
   }
 

@@ -163,7 +163,7 @@ public class BeamCalcLinkStats {
             out = IOUtils.getBufferedWriter(filename);
 
             // write header
-            out.write("LINK\tFROM\tTO\tHOUR\tLENGTH\tFREESPEED\tCAPACITY\tSTAT.TYPE\tVOLUME\tTRAVELTIME");
+            out.write("link,from,to,hour,length,freespeed,capacity,stat,volume,traveltime");
 
             out.write("\n");
 
@@ -177,38 +177,38 @@ public class BeamCalcLinkStats {
                         Link link = this.network.getLinks().get(linkId);
 
                         out.write(linkId.toString());
-                        out.write("\t" + link.getFromNode().getId().toString());
-                        out.write("\t" + link.getToNode().getId().toString());
+                        out.write("," + link.getFromNode().getId().toString());
+                        out.write("," + link.getToNode().getId().toString());
 
                         //WRITE HOUR
                         if (i < this.nofHours){
-                            out.write("\t" + Double.toString(i) +" - "+ Double.toString(i+1));
+                            out.write("," + Double.toString(i));
                         }
                         else
                         {
-                            out.write("\t" + Double.toString(0) +" - "+ Double.toString(this.nofHours));
+                            out.write("," + Double.toString(0) +" - "+ Double.toString(this.nofHours));
                         }
 
-                        out.write("\t" + Double.toString(link.getLength()));
-                        out.write("\t" + Double.toString(link.getFreespeed()));
-                        out.write("\t" + Double.toString(link.getCapacity()));
+                        out.write("," + Double.toString(link.getLength()));
+                        out.write("," + Double.toString(link.getFreespeed()));
+                        out.write("," + Double.toString(link.getCapacity()));
 
                         //WRITE STAT_TYPE
-                        out.write("\t" + statType[j]);
+                        out.write("," + statType[j]);
 
                         //WRITE VOLUME
                         if (j == SUM ){
-                            out.write("\t" + Double.toString((data.volumes[j][i]) / this.count));
+                            out.write("," + Double.toString((data.volumes[j][i]) / this.count));
                         }
                         else {
-                            out.write("\t" + Double.toString(data.volumes[j][i]));
+                            out.write("," + Double.toString(data.volumes[j][i]));
                         }
 
                         //WRITE TRAVELTIME
 
                         if (j == MIN && i< this.nofHours){
                             String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            out.write("\t" + ttimesMin);
+                            out.write("," + ttimesMin);
 
                         }
                         else if ( j == SUM && i< this.nofHours){
@@ -218,22 +218,22 @@ public class BeamCalcLinkStats {
                                 // use the value available or the minimum instead (min and max should be the same, =freespeed)
                                 double ttsum = data.ttimes[SUM][i];
                                 if (ttsum != 0.0) {
-                                    out.write("\t" + Double.toString(ttsum));
+                                    out.write("," + Double.toString(ttsum));
                                 } else {
-                                    out.write("\t" + ttimesMin);
+                                    out.write("," + ttimesMin);
                                 }
                             } else {
                                 double ttsum = data.ttimes[SUM][i];
                                 if (ttsum == 0) {
-                                    out.write("\t" + ttimesMin);
+                                    out.write("," + ttimesMin);
                                 } else {
-                                    out.write("\t" + Double.toString(ttsum / data.volumes[SUM][i]));
+                                    out.write("," + Double.toString(ttsum / data.volumes[SUM][i]));
                                 }
                             }
                         }
                         else if (j == MAX && i< this.nofHours){
                             String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            out.write("\t" + Double.toString(data.ttimes[MAX][i]));
+                            out.write("," + Double.toString(data.ttimes[MAX][i]));
                         }
                         out.write("\n");
                     }

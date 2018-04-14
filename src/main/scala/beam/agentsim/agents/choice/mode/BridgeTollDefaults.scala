@@ -26,11 +26,11 @@ object BridgeTollDefaults {
   )
 
   def estimateBridgeFares(alternatives: Seq[EmbodiedBeamTrip], beamServices: BeamServices): Seq[BigDecimal] = {
-    var tollPrices: Map[Int, Double] = Map();
+    var tollPrices: Map[Int, Double] = Map()
     if (beamServices.beamConfig.beam.agentsim.simulationName.equalsIgnoreCase("beamville")) {
-      tollPrices = tollPricesBeamVille;
+      tollPrices = tollPricesBeamVille
     } else {
-      tollPrices = tollPricesSFBay;
+      tollPrices = tollPricesSFBay
     }
 
     alternatives.map { alt =>
