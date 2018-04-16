@@ -13,12 +13,13 @@ load.libraries(c('maptools','sp'))
 # COMMAND LINE OPTIONS 
 
 factor.to.scale.personal.back <- 200 # should be a command line arg
+factor.to.scale.transit.back <- 2 # should be a command line arg
 
 option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-02/ridehail-price/runs/run.RideHailPrice_base/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/base_2018-04-06_04-10-07/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "run2plots.R [config-file]"),positional_arguments=T)
