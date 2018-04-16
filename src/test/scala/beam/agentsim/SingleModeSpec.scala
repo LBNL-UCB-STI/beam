@@ -34,6 +34,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
 
+
 class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFactory.parseString(
   """
   akka.test.timefactor=10

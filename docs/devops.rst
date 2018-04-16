@@ -468,6 +468,43 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
 
 |image39|
 
+Configure Periodic Jobs
+----------------------
+
+You can schedule any Jenkins job to run periodically based on provided schedule. To configure periodic build follow the steps below:
+
+1. First click on Configure menu item from menu on left hand side of Job/Project home page.
+
+2. On the next (configuration) page, go to `Build Triggers` section.
+
+|image40|
+
+3. Click on check box labeled `Build periodically` to enable the option. It will expand and ask for Schedule with a warning message some thing like, No schedules so will never run.
+
+|image41|
+
+4. You have to specify a schedule by following the similar syntax of cron job as a line consists of 5 fields separated by TAB or whitespace::
+
+   MINUTE HOUR DOM MONTH DOW
+
+   - MINUTE	Minutes within the hour (0–59)
+   - HOUR	The hour of the day (0–23)
+   - DOM	The day of the month (1–31)
+   - MONTH	The month (1–12)
+   - DOW	The day of the week (0–7) where 0 and 7 are Sunday.
+
+To schedule once daily every 24 hours for only 5 working days, we need to specify some thing like::
+
+   H 0 * * 1-5
+
+
+|image42|
+
+As you specify the schedule, warning would be replaced with a descriptive schedule.
+
+5. Save the configurations and now you have setup job to run periodically.
+
+
 References
 ----------
 
@@ -520,7 +557,6 @@ https://jmaitrehenry.ca/2016/08/04/how-to-install-a-jenkins-master-that-spawn-sl
 .. |image37| image:: _static/figs/jenkins-pipeline7.png
 .. |image38| image:: _static/figs/jenkins-pipeline8.png
 .. |image39| image:: _static/figs/jenkins-pipeline9.png
-
-
-
-
+.. |image40| image:: _static/figs/jenkins-periodic-build1.png
+.. |image41| image:: _static/figs/jenkins-periodic-build2.png
+.. |image42| image:: _static/figs/jenkins-periodic-build3.png
