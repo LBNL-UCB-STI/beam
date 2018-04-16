@@ -306,6 +306,7 @@ beamServices.beamRouter ! GetTravelTime
 
 
       prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
+      sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
 
 /*
     if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode && bufferedReserveRideMessages.values.size>0){
@@ -525,10 +526,10 @@ beamServices.beamRouter ! GetTravelTime
 
     // Modify RH agent passenger schedule and create BeamAgentScheduler message that will dispatch RH agent to do the
     // pickup
-    val passengerSchedule = PassengerSchedule()
-    passengerSchedule.addLegs(travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip.legs) // Adds
+    var passengerSchedule = PassengerSchedule()
+    passengerSchedule=passengerSchedule.addLegs(travelProposal.responseRideHailing2Pickup.itineraries.head.toBeamTrip.legs) // Adds
     // empty trip to customer
-    passengerSchedule.addPassenger(vehiclePersonId, trip2DestPlan.get.legs.filter(_.mode == CAR)) // Adds customer's
+    passengerSchedule=passengerSchedule.addPassenger(vehiclePersonId, trip2DestPlan.get.legs.filter(_.mode == CAR)) // Adds customer's
     // actual trip to destination
     putIntoService(closestRideHailingAgentLocation)
     lockedVehicles -= closestRideHailingAgentLocation.vehicleId

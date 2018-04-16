@@ -15,7 +15,7 @@ import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
@@ -133,11 +133,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       stay()
 
     case Event(GetBeamVehicleFuelLevel,data) =>
-      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+     // val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       // as fuel is updated only at end of leg, might not be fully accurate - if want to do more accurate, will need to update fuel during leg
       // also position is not accurate (TODO: interpolate?)
       val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
-      sender() !  GetBeamVehicleFuelLevelResult(currentVehicleUnderControl.id, currentVehicleUnderControl.fuelLevel.get,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint))
+
+      val lastLocationVisited=SpaceTime(new Coord(0,0),0) // TODO: don't ask for this here - TNC should keep track of it?
+     // val lastLocationVisited = currentLeg.travelPath.endPoint
+
+      sender() !  GetBeamVehicleFuelLevelResult(currentVehicleUnderControl.id, currentVehicleUnderControl.fuelLevel.get,beamServices.geo.wgs2Utm(lastLocationVisited))
       stay()
 
   }
