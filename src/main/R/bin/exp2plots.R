@@ -18,6 +18,7 @@ option_list <- list(
 if(interactive()){
   #setwd('~/downs/')
   args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/ridehail-price/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/surge-pricing/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -49,10 +50,11 @@ pops <- list()
 for(run.i in 1:nrow(exp)){
   grp <-  exp$experimentalGroup[run.i]
   run.dir <- pp(exp.dir,'runs/run.',grp,'/')
-  last.iter <- tail(sort(unlist(lapply(str_split(list.files(pp(run.dir,'output/ITERS')),"it."),function(x){ as.numeric(x[2])}))),1)
-  if(!file.exists(pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
-  events.csv <- pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.events.csv')
-  tt.csv <- pp(run.dir,'output/ITERS/it.',last.iter,'/',last.iter,'.linkstats.csv.gz')
+  output.dir <- ifelse(file.exists(pp(run.dir,'output_')),'output_','output')
+  last.iter <- tail(sort(unlist(lapply(str_split(list.files(pp(run.dir,output.dir,'/ITERS')),"it."),function(x){ as.numeric(x[2])}))),1)
+  if(!file.exists(pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.population.csv.gz')))last.iter <- last.iter - 1
+  events.csv <- pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.events.csv')
+  tt.csv <- pp(run.dir,output.dir,'/ITERS/it.',last.iter,'/',last.iter,'.linkstats.csv.gz')
   ev <- csv2rdata(events.csv)
   ev[,run:=grp]
   for(fact in factors){
@@ -72,7 +74,7 @@ for(run.i in 1:nrow(exp)){
   }
   last.iter.minus.5 <- ifelse(last.iter>4,last.iter - 4,1)
   for(the.iter in last.iter.minus.5:last.iter){
-    pop.csv <- pp(run.dir,'output/ITERS/it.',the.iter,'/',the.iter,'.population.csv.gz')
+    pop.csv <- pp(run.dir,output.dir,'/ITERS/it.',the.iter,'/',the.iter,'.population.csv.gz')
     if(file.exists(pop.csv)){
       pop <- csv2rdata(pop.csv)
       pop[,iter:=the.iter]
