@@ -133,6 +133,19 @@ for(fact in factors){
       scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
   pdf.scale <- .6
   ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+  write.csv(toplot,file=pp(plots.dir,'mode-split-by-',fact,'.csv'))
+
+  # Modal splits by hour
+  toplot <- mc[tripIndex==1,.(tot=length(time)),by=c('hr','the.factor')]
+  toplot <- join.on(mc[tripIndex==1,.(num=length(time)),by=c('the.factor','hr','tripmode')],toplot,c('the.factor','hr'),c('the.factor','hr'))
+  toplot[,frac:=num/tot]
+  toplot[,tripmode:=pretty.modes(tripmode)]
+  setkey(toplot,hr,the.factor,tripmode)
+  p <- ggplot(toplot,aes(x=hr,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")+facet_wrap(~the.factor)
+      scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
+  pdf.scale <- .6
+  ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+  write.csv(toplot,file=pp(plots.dir,'mode-split-by-',fact,'.csv'))
 
   target <- data.frame(tripmode=rep(c('Car','Walk','Transit','TNC'),length(u(toplot$the.factor))),
                        perc=rep(c(79,4,13,5),length(u(toplot$the.factor))),
