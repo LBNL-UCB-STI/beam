@@ -2,18 +2,15 @@ package beam.agentsim.agents.rideHail
 
 import java.util
 
-import beam.agentsim.agents.BeamAgent.BeamAgentData
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
-import beam.agentsim.agents.BeamAgent.BeamAgentData
-import beam.agentsim.agents.{PersonAgent, TriggerUtils}
-import beam.agentsim.agents.TriggerUtils._
+import beam.agentsim.agents.{PersonAgent}
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{GetBeamVehicleFuelLevel, GetBeamVehicleFuelLevelResult, StartLegTrigger}
 import beam.agentsim.agents.rideHail.RideHailingManager._
@@ -57,11 +54,13 @@ import scala.util.Random
 
 
 //TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
-case class RideHailingManagerData() extends BeamAgentData
 
 
 // TODO: remove name variable, as not used currently in the code anywhere?
-class RideHailingManager(val name: String, val beamServices: BeamServices, val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with HasServices {
+
+
+class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRef,val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with ActorLogging with HasServices {
+
 
   import scala.collection.JavaConverters._
 
@@ -143,22 +142,11 @@ beamServices.beamRouter ! GetTravelTime
 
   override def receive: Receive = {
     case NotifyIterationEnds() =>
-      try {
-        /*val graphSurgePricing: GraphSurgePricing = new GraphSurgePricing(surgePricingManager, beamServices);
-        graphSurgePricing.createGraphs()*/
-
-        val graphRideHailingRevenue: GraphRideHailingRevenue = new GraphRideHailingRevenue();
-        graphRideHailingRevenue.createGraph(surgePricingManager)
-      } catch {
-        // print out exceptions, otherwise hidden, leads to difficult debugging
-        case e: Exception => e.printStackTrace()
-      }
-
       surgePricingManager.updateRevenueStats()
       surgePricingManager.updateSurgePriceLevels()
       surgePricingManager.incrementIteration()
 
-      sender() ! () // return empty object to blocking caller
+      sender ! Unit  // return empty object to blocking caller
 
     case RegisterResource(vehId: Id[Vehicle]) =>
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
@@ -371,18 +359,23 @@ beamServices.beamRouter ! GetTravelTime
     }
 
     case msg =>
-      log.warn(s"unknown message received by RideHailingManager $msg")
+      log.warning(s"unknown message received by RideHailingManager $msg")
 
   }
+
+
+
 
   private def prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick: Double , triggerId:Long): Unit ={
     val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
     val timerMessage = ScheduleTrigger(timerTrigger, self)
-      nextCompleteNoticeRideHailAllocationTimeout = TriggerUtils.completed(triggerId,Vector(timerMessage))
+      nextCompleteNoticeRideHailAllocationTimeout = CompletionNotice(triggerId,Vector(timerMessage))
+
+
   }
 
   private def sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout(): Unit ={
-    beamServices.schedulerRef ! nextCompleteNoticeRideHailAllocationTimeout
+    scheduler ! nextCompleteNoticeRideHailAllocationTimeout
   }
 
   private def findClosestRideHailingAgents(inquiryId: Id[RideHailingInquiry], customerPickUp: Location) = {
@@ -541,8 +534,7 @@ beamServices.beamRouter ! GetTravelTime
     lockedVehicles -= closestRideHailingAgentLocation.vehicleId
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
-    val triggerToSchedule = schedule[StartLegTrigger](passengerSchedule.schedule.firstKey.startTime,
-      closestRideHailingAgentLocation.rideHailAgent, passengerSchedule.schedule.firstKey)
+    val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(passengerSchedule.schedule.firstKey.startTime, passengerSchedule.schedule.firstKey), closestRideHailingAgentLocation.rideHailAgent))
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,
       classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs
       .last, vehiclePersonId, triggerToSchedule))))
@@ -713,7 +705,7 @@ object RideHailingManager {
 
   case class RideHailAllocationManagerTimeout(tick: Double) extends Trigger
 
-  def props(name: String, services: BeamServices, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
-    Props(new RideHailingManager(name, services, router, boundingBox, surgePricingManager))
+  def props(services: BeamServices, scheduler: ActorRef, router: ActorRef, boundingBox: Envelope, surgePricingManager: RideHailSurgePricingManager) = {
+    Props(new RideHailingManager(services, scheduler, router, boundingBox, surgePricingManager))
   }
 }
