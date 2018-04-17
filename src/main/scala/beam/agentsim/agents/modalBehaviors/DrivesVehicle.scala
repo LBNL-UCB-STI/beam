@@ -61,7 +61,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       }
       eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControlId,
         beamServices.vehicles(currentVehicleUnderControlId).getType,
-        data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
+        data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg,beamServices.vehicles(currentVehicleUnderControlId).fuelLevel.getOrElse(-1.0)))
 
       if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
         // TODO: Throw exception here, see why scheduler doesn't recover
