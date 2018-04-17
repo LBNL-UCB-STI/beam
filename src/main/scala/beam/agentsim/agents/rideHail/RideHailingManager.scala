@@ -662,6 +662,10 @@ beamServices.beamRouter ! GetTravelTime
 
 object RideHailingManager {
   val RIDE_HAIL_MANAGER = "RideHailingManager";
+
+  val INITIAL_RIDEHAIL_LOCATION_HOME="HOME"
+  val INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM="UNIFORM_RANDOM"
+
   val log: Logger = LoggerFactory.getLogger(classOf[RideHailingManager])
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString,
