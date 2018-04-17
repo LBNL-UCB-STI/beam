@@ -84,7 +84,19 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents).forEach { person =>
         val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
-        val rideInitialLocation: Coord = new Coord(personInitialLocation.getX, personInitialLocation.getY)
+        val rideInitialLocation: Coord = beamServices.beamConfig.beam.agentsim.agents.rideHailing.initialLocation match {
+          case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
+            new Coord(personInitialLocation.getX, personInitialLocation.getY)
+          case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
+            new Coord(0,0)
+            // TODO: mae above random
+          case unknown =>
+            log.error(s"unknown rideHailing.initialLocation $unknown")
+            null
+        }
+
+
+
         val rideHailingName = s"rideHailingAgent-${person.getId}"
         val rideHailId = Id.create(rideHailingName, classOf[RideHailingAgent])
         val rideHailVehicleId = Id.createVehicleId(s"rideHailingVehicle-person=${person.getId}") // XXXX: for now identifier will just be initial location (assumed unique)
