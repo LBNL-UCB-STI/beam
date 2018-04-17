@@ -17,8 +17,8 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/ridehail-price/'
   args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/surge-pricing/'
+  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/ridehail-price/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
@@ -157,13 +157,15 @@ for(fact in factors){
   ggsave(pp(plots.dir,'mode-split-lines-by-',fact,'.pdf'),p,width=15*pdf.scale,height=8*pdf.scale,units='in')
 
   # Accessibility
-  pdf.scale <- .8
-  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
-  ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
-  ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-  p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+labs(x=fact,y="Avg. Accessibility Score",title='Overall Accessibility')
-  ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+  if(!all(is.nan(mc[1]$access))){
+    pdf.scale <- .8
+    p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','personalVehicleAvailable')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~personalVehicleAvailable)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Availability of Private Car')
+    ggsave(pp(plots.dir,'accessibility-by-private-vehicle.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+    p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor','mode')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+facet_wrap(~mode)+labs(x=fact,y="Avg. Accessibility Score",title='Accessibility by Chosen Mode')
+    ggsave(pp(plots.dir,'accessibility-by-chosen-mode.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+    p <- ggplot(mc[tripIndex==1,.(access=mean(access,na.rm=T)),by=c('the.factor')],aes(x=the.factor,y=access))+geom_bar(stat='identity')+labs(x=fact,y="Avg. Accessibility Score",title='Overall Accessibility')
+    ggsave(pp(plots.dir,'accessibility.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+  }
 }
 rm('mc')
 
