@@ -31,3 +31,17 @@ ggsave(pp(plots.dir,'clipper-use-wednesday.pdf'),p,width=10*pdf.scale,height=8*p
 p <- ggplot(df[CircadianDayOfWeek_Name=='Wednesday' & AgencyName%in%c('AC Transit','SF Muni','VTA','BART'),.(n=length(Year)),by=c('AgencyName','on.hr')],aes(x=on.hr,y=n,fill= AgencyName))+geom_bar(stat='identity')+facet_wrap(~AgencyName)
 pdf.scale <- .8
 ggsave(pp(plots.dir,'clipper-use-wednesday-big4.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
+# now make scaled plot that approximates ridership for the big 4 based on 
+# http://www.vitalsigns.mtc.ca.gov/transit-ridership
+
+big4 <- data.table(name=c('AC Transit','SF Muni','VTA','BART'),num=c(181.9,777,146.7,458.9)*1e3)
+clip4 <- df[CircadianDayOfWeek_Name=='Wednesday' & AgencyName%in%c('AC Transit','SF Muni','VTA','BART'),.(n=length(Year)),by=c('AgencyName')]
+big4 <- join.on(big4,clip4,'name','AgencyName')
+big4[,scale:=num/n]
+
+toplot <- join.on(df[CircadianDayOfWeek_Name=='Wednesday' & AgencyName%in%c('AC Transit','SF Muni','VTA','BART'),.(n=length(Year)),by=c('AgencyName','on.hr')],big4,'AgencyName','name','scale')
+
+p <- ggplot(toplot,aes(x=on.hr,y=n*scale,fill=AgencyName))+geom_bar(stat='identity')+facet_wrap(~AgencyName)
+pdf.scale <- .8
+ggsave(pp(plots.dir,'clipper-use-wednesday-big4-scaled.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')

@@ -12,8 +12,8 @@ load.libraries(c('maptools','sp'))
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
 
-factor.to.scale.personal.back <- 200 # should be a command line arg
-factor.to.scale.transit.back <- 2 # should be a command line arg
+factor.to.scale.personal.back <- 20 # should be a command line arg
+factor.to.scale.transit.back <- 5 # should be a command line arg
 
 option_list <- list(
 )
@@ -62,7 +62,7 @@ rm('evs')
 rm('vehs')
 rm('pops')
 
-ev <- clean.and.relabel(ev,factor.to.scale.personal.back)
+ev <- clean.and.relabel(ev,factor.to.scale.personal.back,factor.to.scale.transit.back)
 
 veh[,is.transit:=grepl(":",vehicle)]
 
