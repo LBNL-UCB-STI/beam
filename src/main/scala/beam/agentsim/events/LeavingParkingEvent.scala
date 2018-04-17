@@ -5,11 +5,16 @@ import java.util
 import beam.agentsim.infrastructure.ParkingStall
 import org.matsim.api.core.v01.events.Event
 
-class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double) extends Event(time){
 
-  import LeavingParkingEvent._
+//trait LeavingParkingEventAttrs {
+//  val EVENT_TYPE: String = "LeavingParkingEvent"
+//  val ATTRIBUTE_PARKING_ID: String = "parkingId"
+//  val ATTRIBUTE_SCORE: String = "score"
+//}
 
-  override def getEventType: String = LeavingParkingEvent.EVENT_TYPE
+class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double) extends Event(time) with LeavingParkingEventAttrs{
+
+  override def getEventType: String = LeavingParkingEventAttrs.EVENT_TYPE
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
@@ -18,18 +23,14 @@ class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double) 
       stallValues <- stall.stallValues
       parkingId <- stallValues.parkingId
     } yield{
-      attr.put(PARKING_ID, parkingId.toString)
+      attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_ID, parkingId.toString)
     }
 
-    attr.put(SCORE, score.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_SCORE, score.toString)
 
     attr
   }
 }
 
-object LeavingParkingEvent {
-  val EVENT_TYPE = "LeavingParkingEvent"
-
-  val PARKING_ID = "ParkingId"
-  val SCORE = "Score"
-}
+//object LeavingParkingEvent extends LeavingParkingEventAttrs{
+//}

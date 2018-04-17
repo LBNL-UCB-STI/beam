@@ -35,7 +35,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
 
   //TODO Fix error generating beamconf
 //  val pathResourceCSV = beamServices.beamConfig.beam.agentsim.parking
-  val pathResourceCSV = "d:/tmp/parking_out.csv"
+  val pathResourceCSV = "d:/tmp/taz-parking.csv"
   //StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger)
   val defaultStallAtrrs = StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger)
   val defaultStallValues = StallValues(Int.MaxValue, 0, None)
@@ -66,6 +66,8 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   CsvUtils.readCsvFile(pathResourceCSV).foreach( f => {
     pooledResources.update(f._1, f._2)
   })
+  println("!!!!!PooledResources")
+  println(pooledResources)
 
   // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
   pooledResources.put(defaultStallAtrrs,defaultStallValues)
