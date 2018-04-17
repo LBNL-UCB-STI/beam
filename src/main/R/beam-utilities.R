@@ -153,6 +153,8 @@ strhead <- function(s,n) {
 csv2rdata <- function(csv.file){
   rdata.file <- pp(head(str_split(csv.file,'csv')[[1]],-1),'Rdata')
   if(!file.exists(rdata.file)){
+    if(!file.exists(csv.file) & grepl("\\.gz$",csv.file))csv.file <- str_split(csv.file,".gz")[[1]][1]
+    if(!file.exists(csv.file) & grepl("\\.csv$",csv.file))csv.file <- pp(csv.file,".gz")
     if(file.exists(csv.file)){
       headers <- unlist(as.vector(read.table(csv.file,header=F,nrows=1,sep=',',stringsAsFactors=F)))
       firstrow <- as.vector(read.table(csv.file,header=F,skip=1,nrows=1,sep=','))
