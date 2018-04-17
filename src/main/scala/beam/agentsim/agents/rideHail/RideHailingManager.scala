@@ -1,7 +1,6 @@
 package beam.agentsim.agents.rideHail
 
 import java.util
-
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorLogging, ActorRef, Props}
@@ -10,9 +9,10 @@ import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
-import beam.agentsim.agents.{PersonAgent}
+import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{GetBeamVehicleFuelLevel, GetBeamVehicleFuelLevelResult, StartLegTrigger}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelResult, GetBeamVehicleFuelLevel, StartLegTrigger}
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -152,6 +152,7 @@ beamServices.beamRouter ! GetTravelTime
       resources.put(agentsim.vehicleId2BeamVehicleId(vehId), beamServices.vehicles(vehId))
 
     case NotifyResourceIdle(vehId: Id[Vehicle], whenWhere) =>
+      updateLocationOfAgent(vehId, whenWhere, true)
 
       resources.get(agentsim.vehicleId2BeamVehicleId(vehId)).get.driver.foreach(driver => {
         driver !  GetBeamVehicleFuelLevel
@@ -169,10 +170,12 @@ beamServices.beamRouter ! GetTravelTime
       })
 
 
-    case GetBeamVehicleFuelLevelResult(id,fuelLevel, lastVisited) => {
+    case BeamVehicleFuelLevelResult(id,fuelLevel, lastVisited) => {
       vehicleFuelLevel.put(id,fuelLevel)
-      updateLocationOfAgent(id, lastVisited, true)
     }
+
+    case Finish =>
+      log.info("received Finsh message")
 
     case MATSimNetwork(network) => {
       matsimNetwork=Some(network)
