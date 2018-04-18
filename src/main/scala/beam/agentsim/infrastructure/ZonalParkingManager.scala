@@ -144,7 +144,18 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   // TODO make these distributions more custom to the TAZ and stall type
   def sampleLocationForStall(taz: TAZ, attrib: StallAttributes) = {
     val rand = new Random()
-    new Location(taz.coord.getX + rand.nextDouble() * 500.0 - 250.0, taz.coord.getY + rand.nextDouble() * 500.0 - 250.0)
+    val limitTaz = math.sqrt(taz.geometry.get.getArea)/2
+    val random = Math.log(1 - rand.nextDouble) / (-limitTaz)
+    val uxs = taz.coord.getX + rand.nextDouble()
+    val uxx = rand.nextDouble()
+    val uyy = rand.nextDouble()
+    val uys = taz.coord.getY + rand.nextDouble()
+    val ux = taz.coord.getX + rand.nextDouble() * 500.0 - 250.0
+    val uy = taz.coord.getY + rand.nextDouble() * 500.0 - 250.0
+    //new Location(Math.log(1 - ux) / (-limitTaz), Math.log(1 - uy) / (-limitTaz))
+    //new Location(Math.log(1 - uxs) / (-limitTaz)* 500.0 - 250.0,Math.log(1 - uys) / (-limitTaz) * 500.0 - 250.0)
+    new Location(taz.coord.getX+ (Math.log(1 - uxx) / (-limitTaz))* 500.0 - 250.0, taz.coord.getY+ (Math.log(1 - uyy) / (-limitTaz))* 500.0 - 250.0)
+    //new Location(taz.coord.getX + rand.nextDouble() * 500.0 - 250.0, taz.coord.getY + rand.nextDouble() * 500.0 - 250.0)
   }
 
   // TODO make pricing into parameters

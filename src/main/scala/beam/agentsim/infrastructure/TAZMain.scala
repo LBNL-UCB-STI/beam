@@ -9,7 +9,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.utils.scripts.HasXY.wgs2Utm
 import beam.utils.scripts.PlansSampler._
 import beam.utils.scripts.QuadTreeExtent
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.{Coordinate, Geometry}
 import org.geotools.data.simple.SimpleFeatureIterator
 import org.geotools.data.{FileDataStore, FileDataStoreFinder}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -126,7 +126,8 @@ object TAZTreeMap {
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
-          val taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y))
+          val geometry = Some(g.getBoundary)
+          val taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y), geometry)
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
       }
@@ -311,9 +312,9 @@ object TAZTreeMap {
 case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 case class CsvTaz(id: String, coordX: Double, coordY: Double)
 
-class TAZ(val tazId: Id[TAZ],val coord: Coord){
-  def this(tazIdString: String, coord: Coord) {
-    this(Id.create(tazIdString,classOf[TAZ]),coord)
+class TAZ(val tazId: Id[TAZ],val coord: Coord, val geometry: Option[Geometry]){
+  def this(tazIdString: String, coord: Coord, geometry: Option[Geometry] = None) {
+    this(Id.create(tazIdString,classOf[TAZ]),coord, geometry)
   }
 }
 
