@@ -95,6 +95,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     }
   }
 
+  var rideHailRepositioningManager:RideHailRepositioningManager=_
+
 
   var maybeTravelTime: Option[TravelTime] = None
 
@@ -308,7 +310,13 @@ beamServices.beamRouter ! GetTravelTime
 
 
 
+
       prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
+
+      rideHailRepositioningManager.getVehiclesToReposition(tick)
+      // TODO: implement this
+
+
       sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
 
 /*

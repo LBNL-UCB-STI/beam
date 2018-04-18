@@ -1,13 +1,15 @@
 package beam.agentsim.agents.rideHail
 import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingAgentLocation, RideHailingInquiry}
+import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
 /*
 
  */
-  class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
+  class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager with RideHailRepositioningManager {
     val isBufferedRideHailAllocationMode = false
 
 
@@ -43,12 +45,8 @@ This method is used to provide vehicle allocation both during inquiry and reserv
 
    */
     override def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry],Option[(VehicleAllocation,RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = {
-
-
-
-
       ???
     }
 
-
-  }
+    override def getVehiclesToReposition(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = ???
+}
