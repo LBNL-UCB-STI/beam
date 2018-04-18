@@ -2,6 +2,7 @@ package beam.sim
 
 import java.lang.Double
 import java.util
+import java.util.Random
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 import java.util.stream.Stream
 
@@ -29,6 +30,7 @@ import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.gbl.MatsimRandom
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
@@ -113,14 +115,18 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
       val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents))
 
+      val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+
       scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents).forEach { person =>
         val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
         val rideInitialLocation: Coord = beamServices.beamConfig.beam.agentsim.agents.rideHailing.initialLocation match {
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
             new Coord(personInitialLocation.getX, personInitialLocation.getY)
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
-            val x = ThreadLocalRandom.current().nextDouble(quadTreeBounds.minx, quadTreeBounds.maxx)
-            val y = ThreadLocalRandom.current().nextDouble(quadTreeBounds.miny, quadTreeBounds.maxy)
+
+            val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand.nextDouble()
+            val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand.nextDouble()
+
             new Coord(x, y)
             // TODO: mae above random
           case unknown =>
