@@ -1,7 +1,9 @@
 package beam.sim
 
+import java.lang.Double
 import java.util
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
+import java.util.stream.Stream
 
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, PoisonPill, Props, Terminated}
@@ -14,6 +16,7 @@ import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAg
 import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.QuadTreeBounds
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
@@ -23,7 +26,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.log4j.Logger
-import org.matsim.api.core.v01.population.{Activity, PlanElement}
+import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -52,19 +55,30 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
 
-  def getRandomCoord(planElements: util.List[PlanElement]): Coord = {
+  def getQuadTreeBound[p <: Person](persons: Stream[p]): QuadTreeBounds ={
 
-    val rangeMin = 0
-    val rangeMax = planElements.size()
-    val randomIndex = ThreadLocalRandom.current().nextInt(rangeMin, rangeMax);
-    val planElement: PlanElement = planElements.get(randomIndex)
+    var minX: Double = null
+    var maxX: Double = null
+    var minY: Double = null
+    var maxY: Double = null
 
-    if(planElement.isInstanceOf[Activity]){
-      planElement.asInstanceOf[Activity].getCoord
-    }else{
-      getRandomCoord(planElements)
+    persons.forEach { person =>
+      val planElementsIterator = person.getSelectedPlan.getPlanElements.iterator()
+      while(planElementsIterator.hasNext){
+        val planElement = planElementsIterator.next()
+        if(planElement.isInstanceOf[Activity]){
+          val coord = planElement.asInstanceOf[Activity].getCoord
+          minX = if(minX == null || minX > coord.getX) coord.getX else minX
+          maxX = if(maxX == null || maxX < coord.getX) coord.getX else maxX
+          minY = if(minY == null || minY > coord.getY) coord.getY else minY
+          maxY = if(maxY == null || maxY < coord.getY) coord.getY else maxY
+        }
+      }
     }
+
+    new QuadTreeBounds(minX, minY, maxX, maxY)
   }
+
 
   override def run() = {
     if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
@@ -97,14 +111,17 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       private val numRideHailAgents = math.round(scenario.getPopulation.getPersons.size * beamServices.beamConfig.beam.agentsim.agents.rideHailing.numDriversAsFractionOfPopulation)
       private val rideHailingVehicleType = scenario.getVehicles.getVehicleTypes.get(Id.create("1", classOf[VehicleType]))
 
+      val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents))
+
       scenario.getPopulation.getPersons.values().stream().limit(numRideHailAgents).forEach { person =>
         val personInitialLocation: Coord = person.getSelectedPlan.getPlanElements.iterator().next().asInstanceOf[Activity].getCoord
         val rideInitialLocation: Coord = beamServices.beamConfig.beam.agentsim.agents.rideHailing.initialLocation match {
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
             new Coord(personInitialLocation.getX, personInitialLocation.getY)
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
-            val randomCoord = getRandomCoord(person.getSelectedPlan.getPlanElements)
-            new Coord(randomCoord.getX, randomCoord.getY)
+            val x = ThreadLocalRandom.current().nextDouble(quadTreeBounds.minx, quadTreeBounds.maxx)
+            val y = ThreadLocalRandom.current().nextDouble(quadTreeBounds.miny, quadTreeBounds.maxy)
+            new Coord(x, y)
             // TODO: mae above random
           case unknown =>
             log.error(s"unknown rideHailing.initialLocation $unknown")
