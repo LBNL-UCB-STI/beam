@@ -56,12 +56,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
     val rangeMin = 0
     val rangeMax = planElements.size()
-
-    val randomNum = ThreadLocalRandom.current().nextInt(rangeMin, rangeMax);
-    /*for(planElement: PlanElement <- planElements){
-      planElement.asInstanceOf[Activity].getCoord
-    }*/
-    val planElement: PlanElement = planElements.get(randomNum)
+    val randomIndex = ThreadLocalRandom.current().nextInt(rangeMin, rangeMax);
+    val planElement: PlanElement = planElements.get(randomIndex)
 
     if(planElement.isInstanceOf[Activity]){
       planElement.asInstanceOf[Activity].getCoord
