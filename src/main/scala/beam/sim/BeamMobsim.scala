@@ -1,6 +1,7 @@
 package beam.sim
 
-import java.util.concurrent.TimeUnit
+import java.util
+import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, PoisonPill, Props, Terminated}
@@ -22,7 +23,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.log4j.Logger
-import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.population.{Activity, PlanElement}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -50,6 +51,24 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 /*
   var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
+
+  def getRandomCoords(planElements: util.List[PlanElement]): Coord = {
+
+    val rangeMin = 0
+    val rangeMax = planElements.size()
+
+    val randomNum = ThreadLocalRandom.current().nextInt(rangeMin, rangeMax);
+    /*for(planElement: PlanElement <- planElements){
+      planElement.asInstanceOf[Activity].getCoord
+    }*/
+    val planElement: PlanElement = planElements.get(randomNum)
+
+    if(planElement.isInstanceOf[Activity]){
+      planElement.asInstanceOf[Activity].getCoord
+    }else{
+      getRandomCoords(planElements)
+    }
+  }
 
   override def run() = {
     if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
@@ -88,7 +107,8 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
             new Coord(personInitialLocation.getX, personInitialLocation.getY)
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
-            new Coord(0,0)
+            val randomCoord = getRandomCoords(person.getSelectedPlan.getPlanElements)
+            new Coord(randomCoord.getX, randomCoord.getY)
             // TODO: mae above random
           case unknown =>
             log.error(s"unknown rideHailing.initialLocation $unknown")
