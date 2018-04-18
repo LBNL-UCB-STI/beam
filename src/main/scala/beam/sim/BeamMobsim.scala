@@ -52,7 +52,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
 
-  def getRandomCoords(planElements: util.List[PlanElement]): Coord = {
+  def getRandomCoord(planElements: util.List[PlanElement]): Coord = {
 
     val rangeMin = 0
     val rangeMax = planElements.size()
@@ -66,7 +66,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
     if(planElement.isInstanceOf[Activity]){
       planElement.asInstanceOf[Activity].getCoord
     }else{
-      getRandomCoords(planElements)
+      getRandomCoord(planElements)
     }
   }
 
@@ -107,7 +107,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_HOME =>
             new Coord(personInitialLocation.getX, personInitialLocation.getY)
           case RideHailingManager.INITIAL_RIDEHAIL_LOCATION_UNIFORM_RANDOM =>
-            val randomCoord = getRandomCoords(person.getSelectedPlan.getPlanElements)
+            val randomCoord = getRandomCoord(person.getSelectedPlan.getPlanElements)
             new Coord(randomCoord.getX, randomCoord.getY)
             // TODO: mae above random
           case unknown =>
