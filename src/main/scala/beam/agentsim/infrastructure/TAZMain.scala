@@ -78,7 +78,7 @@ object TAZCreatorScript extends App {
   println(taz.getId(-120.8043534,+35.5283106))
 */
 
-  TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
+//  TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
 
 
 //  println("HELLO WORLD")
@@ -88,18 +88,18 @@ object TAZCreatorScript extends App {
 
 
   //Test Write File
-//  if (null != args && 3 == args.size){
-//    println("Running conversion")
-//    val pathFileShape = args(0)
-//    val tazIdName = args(1)
-//    val destination = args(2)
-//
-//    println("Process Started")
-//    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
-//    println("Process Terminate...")
-//  } else {
-//    println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
-//  }
+  if (null != args && 3 == args.size){
+    println("Running conversion")
+    val pathFileShape = args(0)
+    val tazIdName = args(1)
+    val destination = args(2)
+
+    println("Process Started")
+    TAZTreeMap.shapeFileToCsv(pathFileShape,tazIdName,destination)
+    println("Process Terminate...")
+  } else {
+    println("Please specify: shapeFilePath tazIDFieldName destinationFilePath")
+  }
 
 }
 
@@ -206,7 +206,8 @@ object TAZTreeMap {
         val id = line.get("taz")
         val coordX = line.get("coord-x")
         val coordY = line.get("coord-y")
-        res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble))
+        val area = line.get("area")
+        res.append(CsvTaz(id, coordX.toDouble, coordY.toDouble, area.toDouble))
         line = mapReader.read(header:_*)
       }
 
@@ -217,10 +218,10 @@ object TAZTreeMap {
     res
   }
 
-  def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String) = {
+  def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
       case g: Geometry =>
-        Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[String], g.getCoordinate.x, g.getCoordinate.y))
+        Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[String], g.getCoordinate.x, g.getCoordinate.y, g.getArea))
       case _ => None
     }
   }
@@ -236,7 +237,7 @@ object TAZTreeMap {
         CsvPreference.STANDARD_PREFERENCE);
 
       val processors = getProcessors
-      val header = Array[String]("taz", "coord-x", "coord-y")
+      val header = Array[String]("taz", "coord-x", "coord-y", "area")
       mapWriter.writeHeader(header:_*)
 
       val tazs = features.asScala.map(featureToCsvTaz(_, tazIDFieldName))
@@ -267,6 +268,7 @@ object TAZTreeMap {
        val transFormedCoord: Coord = wgs2Utm.transform(new Coord(t.coordX, t.coordY))
         tazToWrite.put(header(1), transFormedCoord.getX.toString)
         tazToWrite.put(header(2), transFormedCoord.getY.toString)
+        tazToWrite.put(header(3), t.area.toString)
         mapWriter.write(tazToWrite, header, processors)
       }
     } finally {
@@ -280,7 +282,9 @@ object TAZTreeMap {
     Array[CellProcessor](
       new UniqueHashCode(), // Id (must be unique)
       new NotNull(), // Coord X
-      new NotNull()) // Coord Y
+      new NotNull(), // Coord Y
+      new NotNull()  // Area
+    )
   }
 
   private def groupTaz(csvSeq: Array[CsvTaz]): Map[String, Array[CsvTaz]] = {
@@ -310,7 +314,7 @@ object TAZTreeMap {
 }
 
 case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
-case class CsvTaz(id: String, coordX: Double, coordY: Double)
+case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double)
 
 class TAZ(val tazId: Id[TAZ],val coord: Coord, val geometry: Option[Geometry]){
   def this(tazIdString: String, coord: Coord, geometry: Option[Geometry] = None) {
