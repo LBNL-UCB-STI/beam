@@ -8,5 +8,6 @@ public interface ParkEventAttrs {
     String ATTRIBUTE_PARKING_ID = "parkingId";
     String ATTRIBUTE_COST = "cost";
     String ATTRIBUTE_LOCATION = "location";
+    String ATTRIBUTE_PARKING_TYPE = "parkingType";
 
 }

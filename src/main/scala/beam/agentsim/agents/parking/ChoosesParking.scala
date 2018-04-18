@@ -72,7 +72,7 @@ trait ChoosesParking {
         val energyCharge: Double = 0.0 //TODO
         val valueOfTime: Double = 17.0 //TODO harcoded value ?
         val score = calculateScore(distance, cost, energyCharge, valueOfTime)
-        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score))
+        eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, veh.id))
       }
 
       stash()

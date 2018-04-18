@@ -30,7 +30,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
                           tazTreeMap:TAZTreeMap, parkingStockAttributes: ParkingStockAttributes) extends ParkingManager(tazTreeMap,parkingStockAttributes)
   with HasServices{
   override val resources: mutable.Map[Id[ParkingStall], ParkingStall] = collection.mutable.Map[Id[ParkingStall], ParkingStall]()
-  val pooledResources: mutable.Map[StallAttributes,StallValues] = mutable.Map() //TODO create new structure for the Int that contains fee, stall and parking id
+  val pooledResources: mutable.Map[StallAttributes,StallValues] = mutable.Map()
   var stallnum = 0
 
   //TODO Fix error generating beamconf
@@ -66,8 +66,6 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   CsvUtils.readCsvFile(pathResourceCSV).foreach( f => {
     pooledResources.update(f._1, f._2)
   })
-  println("!!!!!PooledResources")
-  println(pooledResources)
 
   // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
   pooledResources.put(defaultStallAtrrs,defaultStallValues)
