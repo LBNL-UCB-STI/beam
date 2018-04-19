@@ -29,14 +29,14 @@ This method is used to provide vehicle allocation during inquiry. The reservatio
       rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
       rideHailingManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation,rideHailingManager.radius)
       rideHailingManager.getIdleVehicles()
-     // val fromLinkIds= rideHailingManager.getFromLinkIds(linkId)
-      //val toLinkIds= rideHailingManager.getToLinkIds(linkId)
+      val fromLinkIds= rideHailingManager.getFromLinkIds(linkId)
+      val toLinkIds= rideHailingManager.getToLinkIds(linkId)
       val coord = rideHailingManager.getLinkCoord(linkId)
       val fromCoord= rideHailingManager.getFromNodeCoordinate(linkId)
       val toCoord=rideHailingManager.getToNodeCoordinate(linkId)
 
 
-      ???
+      None
     }
 
   /*
@@ -49,10 +49,9 @@ This method is used to provide vehicle allocation during inquiry. The reservatio
     }
 
     override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
-      val (vehicleIdA,vehicleLocationA) = rideHailingManager.getIdleVehicles().head
-
-      val (vehicleIdB,vehicleLocationB) = rideHailingManager.getIdleVehicles().last
-
-     Vector((vehicleIdA,vehicleLocationB.currentLocation))
+      val iter= rideHailingManager.getIdleVehicles().iterator
+      val (vehicleIdA,vehicleLocationA) = iter.next()
+      val (vehicleIdB,vehicleLocationB) = iter.next()
+      Vector((vehicleIdA,vehicleLocationB.currentLocation))
     }
 }
