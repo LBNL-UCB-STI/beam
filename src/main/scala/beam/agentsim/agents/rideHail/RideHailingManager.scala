@@ -12,6 +12,7 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.rideHail.RideHailingAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -267,8 +268,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
         (UnknownInquiryIdError))
       }
-    case ModifyPassengerScheduleAck(inquiryIDOption) =>
-      completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]))
+    case ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule) =>
+      completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]), triggersToSchedule)
 
     case ReleaseVehicleReservation(_, vehId) =>
       lockedVehicles -= vehId
@@ -374,19 +375,18 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     lockedVehicles -= closestRideHailingAgentLocation.vehicleId
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
-    val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(passengerSchedule.schedule.firstKey.startTime, passengerSchedule.schedule.firstKey), closestRideHailingAgentLocation.rideHailAgent))
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,
       classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs
-      .last, vehiclePersonId, triggerToSchedule))))
+      .last, vehiclePersonId, Vector()))))
     closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
   }
 
-  private def completeReservation(inquiryId: Id[RideHailingInquiry]): Unit = {
+  private def completeReservation(inquiryId: Id[RideHailingInquiry], triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
     pendingModifyPassengerScheduleAcks.remove(inquiryId) match {
       case Some(response) =>
         log.debug(s"Completed reservation for $inquiryId")
         val customerRef = beamServices.personRefs(response.response.right.get.passengerVehiclePersonId.personId)
-        customerRef ! response
+        customerRef ! response.copy(response = Right(response.response.right.get.copy(triggersToSchedule = triggersToSchedule.toVector)))
       case None =>
         log.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left

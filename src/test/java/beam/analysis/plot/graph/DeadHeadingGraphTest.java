@@ -1,15 +1,7 @@
 package beam.analysis.plot.graph;
 
-import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.analysis.plots.DeadHeadingStats;
 import org.junit.Test;
-import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.events.EventsUtils;
-import org.matsim.core.events.MatsimEventsReader;
-
-import java.io.File;
-import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -73,6 +65,4 @@ public class DeadHeadingGraphTest {
         }
         assertArrayEquals(expectedResultOfHour, actualResultOfHour);
     }
-
-
 }

@@ -1,6 +1,5 @@
 package beam.agentsim.agents.modalBehaviors
 
-import akka.actor.FSM.Failure
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
@@ -84,18 +83,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   }
 
   val drivingBehavior: StateFunction = {
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), data) if isNotCompatible(data.passengerSchedule, updatedPassengerSchedule) =>
-      stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
-
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
-      var newPassengerSchedule = data.passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
-      updatedPassengerSchedule.schedule.foreach { legAndManifest =>
-        legAndManifest._2.riders.foreach { rider =>
-          newPassengerSchedule = newPassengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
-        }
-      }
-      stay() using data.withPassengerSchedule(newPassengerSchedule).asInstanceOf[T] replying ModifyPassengerScheduleAck(requestId)
-
     case Event(req: ReservationRequest, data) if !hasRoomFor(data.passengerSchedule, req, beamServices.vehicles(data.currentVehicle.head)) =>
       stay() replying ReservationResponse(req.requestId, Left(VehicleFullError))
 
@@ -118,20 +105,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         case (leg, manifest) =>
           (leg, manifest.copy(riders = manifest.riders - id, alighters = manifest.alighters - id.vehicleId, boarders = manifest.boarders - id.vehicleId))
       })).asInstanceOf[T]
-  }
-
-  private def isNotCompatible(originalPassengerSchedule: PassengerSchedule, updatedPassengerSchedule: PassengerSchedule): Boolean = {
-    if (originalPassengerSchedule.schedule.nonEmpty) {
-      val endSpaceTime = originalPassengerSchedule.schedule.lastKey.travelPath.endPoint
-      ()
-      if (updatedPassengerSchedule.schedule.firstKey.travelPath.startPoint.time < endSpaceTime.time ||
-        beamServices.geo.distInMeters(updatedPassengerSchedule.schedule.firstKey.travelPath.startPoint.loc, endSpaceTime.loc) >
-          beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      ) {
-        return true
-      }
-    }
-    false
   }
 
   private def hasRoomFor(passengerSchedule: PassengerSchedule, req: ReservationRequest, vehicle: BeamVehicle) = {
