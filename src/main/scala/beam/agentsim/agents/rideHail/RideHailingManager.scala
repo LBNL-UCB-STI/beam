@@ -12,7 +12,7 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelResult, GetBeamVehicleFuelLevel, StartLegTrigger}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel, StartLegTrigger}
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -95,7 +95,6 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     }
   }
 
-  var rideHailRepositioningManager:RideHailRepositioningManager=_
 
 
   var maybeTravelTime: Option[TravelTime] = None
@@ -172,7 +171,7 @@ beamServices.beamRouter ! GetTravelTime
       })
 
 
-    case BeamVehicleFuelLevelResult(id,fuelLevel, lastVisited) => {
+    case BeamVehicleFuelLevelUpdate(id,fuelLevel) => {
       vehicleFuelLevel.put(id,fuelLevel)
     }
 
@@ -308,12 +307,9 @@ beamServices.beamRouter ! GetTravelTime
 
     case TriggerWithId(RideHailAllocationManagerTimeout(tick), triggerId) => {
 
-
-
-
       prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
 
-      rideHailRepositioningManager.getVehiclesToReposition(tick)
+      rideHailResourceAllocationManager.getVehiclesToReposition(tick)
       // TODO: implement this
 
 

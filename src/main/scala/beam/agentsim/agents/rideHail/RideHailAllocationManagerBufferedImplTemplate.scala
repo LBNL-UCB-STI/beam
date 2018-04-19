@@ -55,5 +55,8 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
     ???
   }
 
+  override def getVehiclesToReposition(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
+    ???
+  }
 }
 

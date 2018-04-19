@@ -9,18 +9,18 @@ import org.matsim.vehicles.Vehicle
 /*
 
  */
-  class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager with RideHailRepositioningManager {
+  class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
     val isBufferedRideHailAllocationMode = false
 
 
-
+// TODO: add more comments to the trait for each method
 
   /*
-This method is used to provide vehicle allocation both during inquiry and reservation. The reservation may be overwritten later by allocateVehiclesInBatch
+This method is used to provide vehicle allocation during inquiry. The reservation may be overwritten later by allocateVehiclesInBatch
  */
+
+  // proposeVehicleAllocation TODO rename
   override def getVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-
-
       val linkId=5
       rideHailingManager.getClosestLink(vehicleAllocationRequest.pickUpLocation)
       val links=rideHailingManager.getLinks()
@@ -44,9 +44,19 @@ This method is used to provide vehicle allocation both during inquiry and reserv
     This method can be used to attempt an overwrite of previous vehicle allocations (has no affect if vehicle already arrived).
 
    */
+
+  // allocateVehicles TODO raname
     override def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry],Option[(VehicleAllocation,RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = {
       ???
     }
 
-    override def getVehiclesToReposition(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = ???
+
+  // repositionVehicles TODO rename
+    override def getVehiclesToReposition(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
+      val (vehicleIdA,vehicleLocationA) = rideHailingManager.getIdleVehicles().head
+
+      val (vehicleIdB,vehicleLocationB) = rideHailingManager.getIdleVehicles().last
+
+     Vector((vehicleIdA,vehicleLocationB.currentLocation))
+    }
 }

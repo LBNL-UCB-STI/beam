@@ -11,6 +11,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, Dead
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.BeamVehicleFuelLevelUpdate
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RideHailAllocationManagerTimeout}
 import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAgent, RideHailingManager}
@@ -147,6 +148,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           Some(beamServices.beamConfig.beam.agentsim.tuning.fuelCapacityInJoules))
         beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
         rideHailBeamVehicle.registerResource(rideHailingManager)
+        rideHailingManager ! BeamVehicleFuelLevelUpdate(rideHailBeamVehicle.getId,rideHailBeamVehicle.fuelLevel.get)
         val rideHailingAgentProps = RideHailingAgent.props(beamServices, scheduler, transportNetwork, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)
         val rideHailingAgentRef: ActorRef = context.actorOf(rideHailingAgentProps, rideHailingName)
         context.watch(rideHailingAgentRef)

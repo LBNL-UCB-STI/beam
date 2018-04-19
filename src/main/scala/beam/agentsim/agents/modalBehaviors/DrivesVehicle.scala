@@ -35,7 +35,7 @@ object DrivesVehicle {
 
   case class AddFuel(fuelInJoules: Double)
   case object GetBeamVehicleFuelLevel
-  case class BeamVehicleFuelLevelResult(id: Id[Vehicle], fuelLevel:Double, lastVisited: SpaceTime)
+  case class BeamVehicleFuelLevelUpdate(id: Id[Vehicle], fuelLevel:Double)
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
@@ -141,7 +141,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       val lastLocationVisited=SpaceTime(new Coord(0,0),0) // TODO: don't ask for this here - TNC should keep track of it?
      // val lastLocationVisited = currentLeg.travelPath.endPoint
 
-      sender() !  BeamVehicleFuelLevelResult(currentVehicleUnderControl.id, currentVehicleUnderControl.fuelLevel.get,beamServices.geo.wgs2Utm(lastLocationVisited))
+      sender() !  BeamVehicleFuelLevelUpdate(currentVehicleUnderControl.id, currentVehicleUnderControl.fuelLevel.get)
       stay()
 
   }

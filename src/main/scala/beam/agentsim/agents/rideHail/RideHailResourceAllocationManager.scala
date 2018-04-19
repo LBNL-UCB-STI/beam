@@ -25,6 +25,9 @@ trait RideHailResourceAllocationManager {
 
   def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry], Option[(VehicleAllocation, RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry], Option[VehicleAllocation]]
 
+  def getVehiclesToReposition(tick: Double):Vector[(Id[Vehicle],SpaceTime)]
+
+
 }
 object RideHailResourceAllocationManager{
   val DEFAULT_MANAGER="DefaultRideHailResourceAllocationManager"
