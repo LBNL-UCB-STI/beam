@@ -473,21 +473,16 @@ beamServices.beamRouter ! GetTravelTime
 
 
   def getFromLinkIds(linkId:Int): Vector[Int] = {
-    val iterator = getMATSimLink(linkId).getFromNode.getInLinks.keySet().iterator() // Id[Link].toString
-
-    var linkIdVector: Vector[Int] = Vector()
-    while(iterator.hasNext){
-      val linkId: Id[Link] = iterator.next()
-      val _linkId = linkId.toString.toInt
-      linkIdVector = linkIdVector :+ _linkId
-    }
-
-    linkIdVector
+    convertLinkIdsToVector(getMATSimLink(linkId).getFromNode.getInLinks.keySet()) // Id[Link].toString
   }
 
   def getToLinkIds(linkId:Int): Vector[Int] = {
-    val iterator = getMATSimLink(linkId).getToNode.getOutLinks.keySet().iterator() // Id[Link].toString
+    convertLinkIdsToVector(getMATSimLink(linkId).getToNode.getOutLinks.keySet()) // Id[Link].toString
+  }
 
+  def convertLinkIdsToVector(set: util.Set[Id[Link]]): Vector[Int] ={
+
+    val iterator = set.iterator
     var linkIdVector: Vector[Int] = Vector()
     while(iterator.hasNext){
       val linkId: Id[Link] = iterator.next()
