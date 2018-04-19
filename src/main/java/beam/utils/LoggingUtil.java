@@ -3,7 +3,9 @@ package beam.utils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AsyncAppender;
 import org.apache.logging.log4j.core.appender.FileAppender;
+import org.apache.logging.log4j.core.config.AppenderRef;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 
@@ -34,8 +36,18 @@ public class LoggingUtil {
                 .build();
 
         appender.start();
+        config.addAppender(appender);
 
-        config.addLoggerAppender((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger(), appender);
+        AppenderRef[] refs = new AppenderRef[] { AppenderRef.createAppenderRef(appender.getName(), null, null) };
+        Appender asyncAppender = AsyncAppender.newBuilder()
+                .setConfiguration(config)
+                .setName("BeamAsync")
+                .setAppenderRefs(refs)
+                .build();
+
+        asyncAppender.start();
+
+        config.addLoggerAppender((org.apache.logging.log4j.core.Logger) LogManager.getRootLogger(), asyncAppender);
         ctx.updateLoggers();
     }
 
