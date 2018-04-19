@@ -19,8 +19,7 @@ import org.matsim.vehicles.Vehicle
 This method is used to provide vehicle allocation during inquiry. The reservation may be overwritten later by allocateVehiclesInBatch
  */
 
-  // proposeVehicleAllocation TODO rename
-  override def getVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
+  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
       val linkId=5
       rideHailingManager.getClosestLink(vehicleAllocationRequest.pickUpLocation)
       val links=rideHailingManager.getLinks()
@@ -30,8 +29,8 @@ This method is used to provide vehicle allocation during inquiry. The reservatio
       rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
       rideHailingManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation,rideHailingManager.radius)
       rideHailingManager.getIdleVehicles()
-      val fromLinkIds= rideHailingManager.getFromLinkIds(linkId)
-      val toLinkIds= rideHailingManager.getToLinkIds(linkId)
+     // val fromLinkIds= rideHailingManager.getFromLinkIds(linkId)
+      //val toLinkIds= rideHailingManager.getToLinkIds(linkId)
       val coord = rideHailingManager.getLinkCoord(linkId)
       val fromCoord= rideHailingManager.getFromNodeCoordinate(linkId)
       val toCoord=rideHailingManager.getToNodeCoordinate(linkId)
@@ -45,14 +44,11 @@ This method is used to provide vehicle allocation during inquiry. The reservatio
 
    */
 
-  // allocateVehicles TODO raname
-    override def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry],Option[(VehicleAllocation,RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = {
+    override def allocateVehicles(allocationsDuringReservation: Map[Id[RideHailingInquiry],Option[(VehicleAllocation,RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry],Option[VehicleAllocation]] = {
       ???
     }
 
-
-  // repositionVehicles TODO rename
-    override def getVehiclesToReposition(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
+    override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
       val (vehicleIdA,vehicleLocationA) = rideHailingManager.getIdleVehicles().head
 
       val (vehicleIdB,vehicleLocationB) = rideHailingManager.getIdleVehicles().last
