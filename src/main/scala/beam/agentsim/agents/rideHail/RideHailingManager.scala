@@ -473,12 +473,14 @@ beamServices.beamRouter ! GetTravelTime
 
 
   def getFromLinkIds(linkId:Int): Vector[Int] = {
-    getMATSimLink(linkId).getFromNode.getInLinks.values()
+    getMATSimLink(linkId).getFromNode.getInLinks.keySet() // Id[Link].toString
     // TODO: covert to int vector
     ???
   }
 
   def getToLinkIds(linkId:Int): Vector[Int] = {
+    getMATSimLink(linkId).getToNode.getOutLinks.keySet() // Id[Link].toString
+
     ???
   }
 
