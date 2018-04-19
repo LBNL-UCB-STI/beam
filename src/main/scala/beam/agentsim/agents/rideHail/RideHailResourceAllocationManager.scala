@@ -19,13 +19,13 @@ trait RideHailResourceAllocationManager {
 
 
   // TODO: add distinguish param inquiry vs. reservation
-  def getVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation]
+  def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation]
 
   // add assigned and get back new
 
-  def allocateVehiclesInBatch(allocationsDuringReservation: Map[Id[RideHailingInquiry], Option[(VehicleAllocation, RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry], Option[VehicleAllocation]]
+  def allocateVehicles(allocationsDuringReservation: Map[Id[RideHailingInquiry], Option[(VehicleAllocation, RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry], Option[VehicleAllocation]]
 
-  def getVehiclesToReposition(tick: Double):Vector[(Id[Vehicle],SpaceTime)]
+  def repositionVehicles(tick: Double):Vector[(Id[Vehicle],SpaceTime)]
 
 
 }
