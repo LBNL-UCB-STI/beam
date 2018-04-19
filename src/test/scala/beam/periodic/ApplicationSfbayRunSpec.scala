@@ -10,8 +10,11 @@ import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecL
 
 class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndAfterAllConfigMap with BeamHelper {
 
-  var baseConf: Config = _
-  var totalIterations: Int = _
+  private val ITERS_DIR = "ITERS"
+  private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
+
+  private var baseConf: Config = _
+  private var totalIterations: Int = _
 
   override def beforeAll(configMap: ConfigMap) = {
     val conf = configMap.getWithDefault("config", "production/application-sfbay/base.conf")
@@ -24,19 +27,20 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
     "run beam 11 iterations and generate output for each " taggedAs Periodic in {
 
 
-      val config = baseConf.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations-1))
+      val config = baseConf.withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations-1))
 
-      config.getInt("matsim.modules.controler.lastIteration") should be (totalIterations-1)
+      config.getInt(LAST_ITER_CONF_PATH) should be (totalIterations-1)
 
       val (_, output) = runBeamWithConfig(config)
 
 
       val outDir = Paths.get(output).toFile
-      val itrDir = Paths.get(output, "ITERS").toFile
+
+      val itrDir = Paths.get(output, ITERS_DIR).toFile
 
       outDir should be a 'directory
       outDir.list should not be empty
-      outDir.list should contain ("ITERS")
+      outDir.list should contain (ITERS_DIR)
       itrDir.list should have length totalIterations
       itrDir.listFiles().foreach(itr => exactly(1, itr.list) should endWith (".events.csv"))
     }
