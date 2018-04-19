@@ -88,7 +88,7 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       new DefaultRideHailResourceAllocationManager()
     }
     case "STANFORD_RIDE_ALLOCATION_MANAGER" => {
-      new StanfordRideAllocationManagerV1(this)
+      new StanfordRideHailAllocationManagerV1(this)
     }
     case _ => {
       new DefaultRideHailResourceAllocationManager()

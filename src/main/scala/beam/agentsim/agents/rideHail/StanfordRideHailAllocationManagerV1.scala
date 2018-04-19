@@ -11,7 +11,7 @@ import scala.util.control.Breaks._
 /*
 
  */
-class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
+class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
   val isBufferedRideHailAllocationMode = false
 
 
@@ -29,25 +29,6 @@ class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager
     rideHailingAgentLocation match {
       case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
       case None => None
-
-
-      /*
-            val linkId=5
-            rideHailingManager.getClosestLink(vehicleAllocationRequest.pickUpLocation)
-            val links=rideHailingManager.getLinks()
-            rideHailingManager.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime,linkId)
-            rideHailingManager.getFreeFlowTravelTime(linkId)
-            val (rideHailAgentLocation,distance)=rideHailingManager.getClosestRideHailingAgent(vehicleAllocationRequest.pickUpLocation,rideHailingManager.radius).get
-            rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-            rideHailingManager.getClosestVehiclesWithinStandardRadius(vehicleAllocationRequest.pickUpLocation,rideHailingManager.radius)
-            rideHailingManager.getIdleVehicles()
-            val fromLinkIds= rideHailingManager.getFromLinkIds(linkId)
-            val toLinkIds= rideHailingManager.getToLinkIds(linkId)
-            val coord = rideHailingManager.getLinkCoord(linkId)
-            val fromCoord= rideHailingManager.getFromNodeCoordinate(linkId)
-            val toCoord=rideHailingManager.getToNodeCoordinate(linkId)
-      */
-
     }
   }
 
@@ -90,5 +71,26 @@ class StanfordRideAllocationManagerV1(val rideHailingManager: RideHailingManager
     } else {
       Vector()
     }
+  }
+
+/*
+  API available to implement allocation manager
+ */
+  def apiExamples(vehicleAllocationRequest: VehicleAllocationRequest) = {
+
+    val linkId = 5
+    rideHailingManager.getClosestLink(vehicleAllocationRequest.pickUpLocation)
+    val links = rideHailingManager.getLinks()
+    rideHailingManager.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
+    rideHailingManager.getFreeFlowTravelTime(linkId)
+    val (rideHailAgentLocation, distance) = rideHailingManager.getClosestRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius).get
+    rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
+    rideHailingManager.getClosestVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
+    rideHailingManager.getIdleVehicles()
+    val fromLinkIds = rideHailingManager.getFromLinkIds(linkId)
+    val toLinkIds = rideHailingManager.getToLinkIds(linkId)
+    val coord = rideHailingManager.getLinkCoord(linkId)
+    val fromCoord = rideHailingManager.getFromNodeCoordinate(linkId)
+    val toCoord = rideHailingManager.getToNodeCoordinate(linkId)
   }
 }
