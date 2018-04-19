@@ -105,6 +105,10 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
   var handleRideHailInquirySubmitted = collection.mutable.Set[Id[RideHailingInquiry]] ()
 
+
+  var todo_allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]=Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]()
+
+
   var nextCompleteNoticeRideHailAllocationTimeout:CompletionNotice=_
 
 beamServices.beamRouter ! GetTravelTime
@@ -187,12 +191,17 @@ beamServices.beamRouter ! GetTravelTime
       throw new RuntimeException("Illegal use of CheckOutResource, RideHailingManager is responsible for checking out vehicles in fleet.")
 
 
-    case RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, destination) =>
+    case inquiry @ RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, destination) =>
       val customerAgent = sender()
       var rideHailLocationAndShortDistance: Option[(RideHailingAgentLocation,Double)] = None
 
       val vehicleAllocationRequest = new VehicleAllocationRequest(customerPickUp, departAt, destination, true)
-      rideHailResourceAllocationManager.proposeVehicleAllocation(vehicleAllocationRequest) match {
+
+      val vehicleAllocation = rideHailResourceAllocationManager.proposeVehicleAllocation(vehicleAllocationRequest)
+
+      todo_allocationsDuringReservation = todo_allocationsDuringReservation :+ (vehicleAllocationRequest,vehicleAllocation)
+
+      vehicleAllocation match {
         case Some(vehicleAllocation) =>
               // TODO (RW): Test following code with stanford class
               val rideHailAgent=resources.get(agentsim.vehicleId2BeamVehicleId(vehicleAllocation.vehicleId)).orElse(beamServices.vehicles.get(vehicleAllocation.vehicleId)).get.driver.head
@@ -309,11 +318,22 @@ beamServices.beamRouter ! GetTravelTime
 
       prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
 
+
       rideHailResourceAllocationManager.repositionVehicles(tick)
       // TODO: implement this
 
 
       sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+
+
+
+
+
+
+if (todo_allocationsDuringReservation.length>0){
+  rideHailResourceAllocationManager.allocateVehicles(todo_allocationsDuringReservation)
+}
+
 
 /*
     if (rideHailResourceAllocationManager.isBufferedRideHailAllocationMode && bufferedReserveRideMessages.values.size>0){

@@ -23,7 +23,7 @@ trait RideHailResourceAllocationManager {
 
   // add assigned and get back new
 
-  def allocateVehicles(allocationsDuringReservation: Map[Id[RideHailingInquiry], Option[(VehicleAllocation, RideHailingAgentLocation)]]): Map[Id[RideHailingInquiry], Option[VehicleAllocation]]
+  def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
 
   def repositionVehicles(tick: Double):Vector[(Id[Vehicle],SpaceTime)]
 
