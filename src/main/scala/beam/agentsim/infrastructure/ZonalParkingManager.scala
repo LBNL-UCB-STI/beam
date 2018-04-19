@@ -144,15 +144,12 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   // TODO make these distributions more custom to the TAZ and stall type
   def sampleLocationForStall(taz: TAZ, attrib: StallAttributes) = {
     val rand = new Random()
+    val radius = math.sqrt(taz.geometry.get.getArea)/2
+    val lambda = 1
+    val deltaRadius = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
 
-    val a = math.sqrt(taz.geometry.get.getArea)/2
-    val tx = taz.coord.getX + (rand.nextDouble() * a)
-    val ty = taz.coord.getY + (rand.nextDouble() * a)
-    val lambdaX: Double = 1.0 / tx
-    val lambdaY: Double = 1.0 / ty
-
-    val x = lambdaX * math.log(-(lambdaX * tx))
-    val y = lambdaY * math.log(-(lambdaY * ty))
+    val x = taz.coord.getX + deltaRadius
+    val y = taz.coord.getY + deltaRadius
     new Location(x, y)
     //new Location(taz.coord.getX + rand.nextDouble() * 500.0 - 250.0, taz.coord.getY + rand.nextDouble() * 500.0 - 250.0)
   }
