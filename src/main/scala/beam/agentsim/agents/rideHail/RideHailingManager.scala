@@ -595,7 +595,7 @@ if (todo_allocationsDuringReservation.length>0){
   }
 
 
-  def getClosestVehiclesWithinStandardRadius(pickupLocation: Coord, radius: Double):Vector[(RideHailingAgentLocation,
+  def getClosestVehiclesWithinRadius(pickupLocation: Coord, radius: Double):Vector[(RideHailingAgentLocation,
     Double)] = {
     val nearbyRideHailingAgents = availableRideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY,
       radius).asScala.toVector
@@ -610,7 +610,7 @@ if (todo_allocationsDuringReservation.length>0){
 
   def getClosestRideHailingAgent(pickupLocation: Coord, radius: Double): Option[(RideHailingAgentLocation,
     Double)] = {
-    getClosestVehiclesWithinStandardRadius(pickupLocation,radius).headOption
+    getClosestVehiclesWithinRadius(pickupLocation,radius).headOption
   }
 
 
