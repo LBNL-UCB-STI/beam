@@ -239,9 +239,13 @@ test.dependsOn spec
 
 /* Task to run tests periodically on continue integration server */
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
+
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.PeriodicTest']
+    args = ['-R', 'build/classes/scala/test', '-n', 'beam.tags.PeriodicTest'] << (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') : (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '-o'))
     classpath = sourceSets.test.runtimeClasspath
+
+
+
 }
 
 //////////////////////////////////////////////////////////////////////
