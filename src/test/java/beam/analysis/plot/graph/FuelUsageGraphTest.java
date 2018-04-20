@@ -1,21 +1,22 @@
 package beam.analysis.plot.graph;
 
 import beam.analysis.plots.FuelUsageStats;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
 
+import static beam.analysis.plot.graph.GraphTestUtil.*;
 import static org.junit.Assert.assertEquals;
 
 public class FuelUsageGraphTest {
     private FuelUsageStats fuelUsageStats = new FuelUsageStats();
-    static {
-        GraphTestUtil.createDummySimWithXML();
+
+    @BeforeClass
+    public static void setUpClass() {
+        createDummySimWithXML();
     }
-    private static String CAR = "car";
-    private static String WALK = "walk" ;
-    private static String BUS = "bus";
-    private static String SUBWAY = "subway";
+
     @Test
     public void testShouldPassShouldReturnPathTraversalEventCarFuel()  {
         int expectedResult=965;//1114;//1113.5134131391999 ;
