@@ -173,13 +173,13 @@ public class FuelUsageStats implements IGraphStats{
                 hourModeFuelAverage.put(hour, hourDataAverge);
 
             } else {
-                modesFuelAverage.add("Other");
+                modesFuelAverage.add(mode);
                 List<Double> rideHailAverageList = hourDataAverge.get("Other");
                 if (rideHailAverageList == null) {
                     rideHailAverageList = new ArrayList<>();
                 }
                 rideHailAverageList.add(fuel);
-                hourDataAverge.put("Other", rideHailAverageList);
+                hourDataAverge.put(mode, rideHailAverageList);
 
                 hourModeFuelAverage.put(hour, hourDataAverge);
             }
