@@ -25,6 +25,8 @@ case object BeamVehicleType extends Enum[BeamVehicleType] {
 
   case object Car extends BeamVehicleType("car") with LowerCamelcase
 
+  case object Bicycle extends BeamVehicleType("bicycle") with LowerCamelcase
+
   case object TransitVehicle
     extends BeamVehicleType("transit")
       with LowerCamelcase
