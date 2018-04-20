@@ -158,7 +158,6 @@ public class FuelUsageStats implements IGraphStats{
                 hourModeFuelage.put(hour, hourData);
             }
 
-            List internalList;
             if (hourDataAverge == null) {
                 hourDataAverge = new HashMap<>();
             }
