@@ -42,7 +42,7 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
       outDir.list should not be empty
       outDir.list should contain (ITERS_DIR)
       itrDir.list should have length totalIterations
-      itrDir.listFiles().foreach(itr => exactly(1, itr.list) should endWith (".events.csv"))
+      itrDir.listFiles().foreach(itr => exactly(1, itr.list) should endWith (".events.csv").or(endWith (".events.csv.gz")))
     }
   }
 }
