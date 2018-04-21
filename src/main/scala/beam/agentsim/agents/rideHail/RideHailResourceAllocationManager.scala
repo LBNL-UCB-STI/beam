@@ -25,7 +25,7 @@ trait RideHailResourceAllocationManager {
 
   def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]): Vector[(VehicleAllocationRequest, Option[VehicleAllocation])]
 
-  def repositionVehicles(tick: Double):Vector[(Id[Vehicle],SpaceTime)]
+  def repositionVehicles(tick: Double):Vector[(Id[Vehicle],Location)]
 
 
 }

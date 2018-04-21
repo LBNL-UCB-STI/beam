@@ -2,6 +2,7 @@ package beam.agentsim.agents.rideHail
 
 import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingAgentLocation, RideHailingInquiry}
 import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -19,7 +20,7 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
     ???
   }
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     Vector()
   }
 }

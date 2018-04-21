@@ -15,7 +15,7 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
 
   // TODO: no nested option returned
   def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailingAgentLocation = rideHailingManager.getClosestRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
+    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
 
     rideHailingAgentLocation match {
       case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
@@ -55,7 +55,7 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
     ???
   }
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     ???
   }
 }

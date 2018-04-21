@@ -9,6 +9,13 @@ import org.matsim.vehicles.Vehicle
 import scala.util.control.Breaks._
 
 /*
+TODO: check all network api, if they can use them properly
+
+TODO: vehicleAllocationRequest.isInquiry==false => we need to make that call and allow the overwrite!
+
+TODO: changing previous allocation should work
+
+TODO: repositioning vehicles should be able to get duty any time
 
  */
 class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
@@ -24,7 +31,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
    */
 
   override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailingAgentLocation = rideHailingManager.getClosestRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
+    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
 
     rideHailingAgentLocation match {
       case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
@@ -44,7 +51,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
       var vehicleAllocation: Option[VehicleAllocation] = None
 
       breakable {
-        for ((rideHailingAgentLocation, distance) <- rideHailingManager.getClosestVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)) {
+        for ((rideHailingAgentLocation, distance) <- rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)) {
           if (!alreadyUsedVehicles.contains(rideHailingAgentLocation.vehicleId)) {
             alreadyUsedVehicles.add(rideHailingAgentLocation.vehicleId)
             vehicleAllocation = Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
@@ -62,16 +69,20 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
   /*
     This method is called periodically, e.g. every 60 seconds to reposition ride hailing vehicles, e.g. towards areas of higher demand
    */
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], SpaceTime)] = {
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     if (rideHailingManager.getIdleVehicles().size >= 2) {
       val iter = rideHailingManager.getIdleVehicles().iterator
       val (vehicleIdA, vehicleLocationA) = iter.next()
       val (vehicleIdB, vehicleLocationB) = iter.next()
-      Vector((vehicleIdA, vehicleLocationB.currentLocation))
+      Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
     } else {
       Vector()
     }
   }
+
+
+  // TODO: allow specifying route not only dest coord
+  // need capacity and number of vehicles on road to implement it
 
 /*
   API available to implement allocation manager
@@ -83,9 +94,9 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     val links = rideHailingManager.getLinks()
     rideHailingManager.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
     rideHailingManager.getFreeFlowTravelTime(linkId)
-    val (rideHailAgentLocation, distance) = rideHailingManager.getClosestRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius).get
+    val (rideHailAgentLocation, distance) = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius).get
     rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailingManager.getClosestVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
+    rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
     rideHailingManager.getIdleVehicles()
     val fromLinkIds = rideHailingManager.getFromLinkIds(linkId)
     val toLinkIds = rideHailingManager.getToLinkIds(linkId)

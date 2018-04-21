@@ -212,7 +212,7 @@ beamServices.beamRouter ! GetTravelTime
 
         case None =>
           // use default allocation manager
-          rideHailLocationAndShortDistance = getClosestRideHailingAgent(customerPickUp, radius)
+          rideHailLocationAndShortDistance = getClosestIdleRideHailingAgent(customerPickUp, radius)
       }
 
       handleRideHailInquiry(inquiryId, personId, customerPickUp, departAt, destination,rideHailLocationAndShortDistance,Some(customerAgent))
@@ -595,7 +595,7 @@ if (todo_allocationsDuringReservation.length>0){
   }
 
 
-  def getClosestVehiclesWithinRadius(pickupLocation: Coord, radius: Double):Vector[(RideHailingAgentLocation,
+  def getClosestIdleVehiclesWithinRadius(pickupLocation: Coord, radius: Double):Vector[(RideHailingAgentLocation,
     Double)] = {
     val nearbyRideHailingAgents = availableRideHailingAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY,
       radius).asScala.toVector
@@ -608,9 +608,9 @@ if (todo_allocationsDuringReservation.length>0){
     distances2RideHailingAgents.filterNot(x => lockedVehicles(x._1.vehicleId)).sortBy(_._2)
   }
 
-  def getClosestRideHailingAgent(pickupLocation: Coord, radius: Double): Option[(RideHailingAgentLocation,
+  def getClosestIdleRideHailingAgent(pickupLocation: Coord, radius: Double): Option[(RideHailingAgentLocation,
     Double)] = {
-    getClosestVehiclesWithinRadius(pickupLocation,radius).headOption
+    getClosestIdleVehiclesWithinRadius(pickupLocation,radius).headOption
   }
 
 
