@@ -25,19 +25,19 @@ class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double, 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
 
-    for{
-      stallValues <- stall.stallValues
-      parkingId <- stallValues.parkingId
-    } yield{
-      attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_ID, parkingId.toString)
-    }
+//    for{
+//      stallValues <- stall.stallValues
+//      parkingId <- stallValues.parkingId
+//    } yield{
+//      attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_ID, parkingId.toString)
+//    }
 
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_SCORE, score.toString)
-    attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.attributes.parkingType.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.attributes.parkingType.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PRICING_MODEL, stall.attributes.pricingModel.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_CHARGING_TYPE, stall.attributes.chargingType.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.attributes.tazId.toString)
 
     attr
   }
 }
-
-//object LeavingParkingEvent extends LeavingParkingEventAttrs{
-//}

@@ -97,6 +97,8 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
   override def logDepth: Int = 100
 
+  def getValueOfTime = 17.0 //TODO
+
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
   startWith(Uninitialized, BasePersonData())

@@ -38,9 +38,8 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   val pathResourceCSV = "d:/tmp/taz-parking.csv"
   //StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger)
   val defaultStallAtrrs = StallAttributes(Id.create("NA",classOf[TAZ]),NoOtherExists,FlatFee,NoCharger)
-  val defaultStallValues = StallValues(Int.MaxValue, 0, None)
+  val defaultStallValues = StallValues(Int.MaxValue, 0)
 
-  //TODO allow specification of parking/charging distribution
 //  tazTreeMap.tazQuadTree.values().forEach { taz =>
 //    List(Residential, Workplace, Public).foreach { parkingType =>
 //      List(Free, FlatFee, Block).foreach { pricingModel =>
@@ -51,21 +50,21 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
 //    }
 //  }
 
+  //TODO allow specification of parking/charging distribution
   for{
     taz <- tazTreeMap.tazQuadTree.values().asScala
     parkingType <- List(Residential, Workplace, Public)
     pricingModel <- List(Free, FlatFee, Block)
     chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
   } yield {
-//    val id = CsvUtils.getHash(taz.tazId, parkingType, pricingModel, chargingType)
-    pooledResources.put(StallAttributes(taz.tazId, parkingType, pricingModel, chargingType), StallValues(1, 0, None))
+    pooledResources.put(StallAttributes(taz.tazId, parkingType, pricingModel, chargingType), StallValues(1, 0))
   }
 
-//  CsvUtils.parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+  CsvUtils.parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
 
-  CsvUtils.readCsvFile(pathResourceCSV).foreach( f => {
-    pooledResources.update(f._1, f._2)
-  })
+//  CsvUtils.readCsvFile(pathResourceCSV).foreach( f => {
+//    pooledResources.update(f._1, f._2)
+//  })
 
   // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
   pooledResources.put(defaultStallAtrrs,defaultStallValues)
@@ -144,7 +143,7 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
   // TODO make these distributions more custom to the TAZ and stall type
   def sampleLocationForStall(taz: TAZ, attrib: StallAttributes) = {
     val rand = new Random()
-    val radius = math.sqrt(taz.geometry.get.getArea)/2
+    val radius = math.sqrt(taz.area) / 2
     val lambda = 1
     val deltaRadius = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
 

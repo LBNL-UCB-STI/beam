@@ -14,7 +14,7 @@ import scala.util.Random
 object RideHailSurgePricingManager {
   val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](-1, -1, 1, 1)
-    val taz = new TAZ("0", new Coord(0.0, 0.0))
+    val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)
   }

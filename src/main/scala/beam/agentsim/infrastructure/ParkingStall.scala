@@ -13,7 +13,7 @@ class ParkingStall(val id: Id[ParkingStall], val attributes: StallAttributes, va
 
 object ParkingStall{
   case class StallAttributes(val tazId: Id[TAZ], val parkingType: ParkingType, val pricingModel: PricingModel, val chargingType: ChargingType)
-  case class StallValues(stall: Int, fee: Double, parkingId: Option[Id[StallValues]])
+  case class StallValues(stall: Int, fee: Double)
 
   sealed trait ParkingType
   case object Residential extends ParkingType
@@ -21,20 +21,46 @@ object ParkingStall{
   case object Public      extends ParkingType
   case object NoOtherExists extends ParkingType
 
-  lazy val parkingMap = Map[Int, ParkingType](
-    1 -> Residential, 2 -> Workplace, 3 -> Public, 4 -> NoOtherExists
-  )
+  object ParkingType {
+    def fromString(s: String): ParkingType = {
+      s match {
+        case "Residential" => Residential
+        case "Workplace" => Workplace
+        case "Public" => Public
+        case "NoOtherExists" => NoOtherExists
+        case _ => throw new RuntimeException("Invalid case")
+      }
+    }
+  }
+
+//  lazy val parkingMap = Map[Int, ParkingType](
+//    1 -> Residential, 2 -> Workplace, 3 -> Public, 4 -> NoOtherExists
+//  )
 
   sealed trait ChargingType
+
   case object NoCharger   extends ChargingType
   case object Level1      extends ChargingType
   case object Level2      extends ChargingType
   case object DCFast      extends ChargingType
   case object UltraFast   extends ChargingType
 
-  lazy val chargingMap = Map[Int, ChargingType](
-    1 -> NoCharger, 2 -> Level1, 3 -> Level2, 4 -> DCFast, 5 -> UltraFast
-  )
+  object ChargingType {
+    def fromString(s: String): ChargingType = {
+      s match {
+        case "NoCharger" => NoCharger
+        case "Level1"  => Level1
+        case "Level2" => Level2
+        case "DCFast" => DCFast
+        case "UltraFast" => UltraFast
+        case _ => throw new RuntimeException("Invalid case")
+      }
+    }
+  }
+
+//  lazy val chargingMap = Map[Int, ChargingType](
+//    1 -> NoCharger, 2 -> Level1, 3 -> Level2, 4 -> DCFast, 5 -> UltraFast
+//  )
 
   sealed trait ChargingPreference
   case object NoNeed          extends ChargingPreference
@@ -52,8 +78,16 @@ object ParkingStall{
   case object FlatFee  extends PricingModel
   case object Block    extends PricingModel
 
-  lazy val PricingMap = Map[Int, PricingModel](
-    1 -> Free, 2 -> FlatFee, 3 -> Block
-  )
+  object PricingModel {
+    def fromString(s: String): PricingModel = s match {
+      case "Free" => Free
+      case "FlatFee" => FlatFee
+      case "Block" => Block
+    }
+  }
+
+//  lazy val PricingMap = Map[Int, PricingModel](
+//    1 -> Free, 2 -> FlatFee, 3 -> Block
+//  )
 
 }

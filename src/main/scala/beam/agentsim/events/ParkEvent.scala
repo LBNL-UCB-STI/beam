@@ -20,28 +20,22 @@ class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[V
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
 
-    //Veh id
-    //distance to dest
-    //parking Id
-    //cost
-    //location
     attr.put(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_DISTANCE, distance.toString)
 
-    for{
-      stallValues <- stall.stallValues
-      parkingId <- stallValues.parkingId
-    } yield{
-      attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_ID, parkingId.toString)
-    }
+//    for{
+//      stallValues <- stall.stallValues
+//      parkingId <- stallValues.parkingId
+//    } yield{
+//      attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_ID, parkingId.toString)
+//    }
 
     attr.put(ParkEventAttrs.ATTRIBUTE_COST, stall.cost.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_LOCATION, stall.location.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.attributes.parkingType.toString)
-
-//    attr.put(PARKING_TYPE, stall.attributes.parkingType.toString)
-//    attr.put(PRICING_MODEL, stall.attributes.pricingModel.toString)
-//    attr.put(CHARGING_TYPE, stall.attributes.chargingType.toString)
+    attr.put(ParkEventAttrs.ATTRIBUTE_PRICING_MODEL, stall.attributes.pricingModel.toString)
+    attr.put(ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE, stall.attributes.chargingType.toString)
+    attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.attributes.tazId.toString)
 
     attr
   }

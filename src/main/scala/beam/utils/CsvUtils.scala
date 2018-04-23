@@ -4,9 +4,9 @@ import java.io._
 import java.util.HashMap
 import java.util.zip.GZIPInputStream
 
-import beam.agentsim.infrastructure.ParkingStall.{StallAttributes, StallValues}
+import beam.agentsim.infrastructure.ParkingStall._
 import beam.agentsim.infrastructure.{ParkingStall, TAZ}
-import org.matsim.api.core.v01.{Id}
+import org.matsim.api.core.v01.Id
 import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
@@ -26,14 +26,14 @@ object CsvUtils {
       while(null != line){
 
         val taz = Id.create((line.get("taz")).toUpperCase, classOf[TAZ])
-        val parkingType = ParkingStall.parkingMap(line.get("parkingType").toInt)
-        val pricingModel = ParkingStall.PricingMap(line.get("pricingModel").toInt)
-        val chargingType = ParkingStall.chargingMap(line.get("chargingType").toInt)
+        val parkingType = ParkingType.fromString(line.get("parkingType"))
+        val pricingModel = PricingModel.fromString(line.get("pricingModel"))
+        val chargingType = ChargingType.fromString(line.get("chargingType"))
         val numStalls = line.get("numStalls").toInt
-        val parkingId = line.get("parkingId")
+//        val parkingId = line.get("parkingId")
         val fee = line.get("fee").toDouble
 
-        res.put(StallAttributes(taz, parkingType, pricingModel, chargingType), StallValues(numStalls, fee, Some(Id.create(parkingId, classOf[StallValues]))))
+        res.put(StallAttributes(taz, parkingType, pricingModel, chargingType), StallValues(numStalls, fee))
 
         line = mapReader.read(header:_*)
       }
@@ -60,7 +60,7 @@ object CsvUtils {
         CsvPreference.STANDARD_PREFERENCE);
 
       val processors = getProcessors
-      val header = Array[String]("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "fee", "parkingId")
+      val header = Array[String]("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "fee")//, "parkingId"
       mapWriter.writeHeader(header:_*)
 
       val range = (1 to pooledResources.size)
@@ -70,21 +70,13 @@ object CsvUtils {
 
       for(((attrs, values), id) <- resourcesWithId){
         val tazToWrite = new HashMap[String, Object]();
-        val mParking = ParkingStall.parkingMap.find(pair => pair._2.equals(attrs.parkingType))
-        val mPricing = ParkingStall.PricingMap.find(pair => pair._2.equals(attrs.pricingModel))
-        val mCharging = ParkingStall.chargingMap.find(pair => pair._2.equals(attrs.chargingType))
-
-//        val seqOp = Seq(Some(attrs.tazId), mParking, mPricing, mCharging).flatten
-//        val id = getHash(seqOp :_*)
-//        println(s"ID generated $id")
-
         tazToWrite.put(header(0), attrs.tazId)
-        tazToWrite.put(header(1), mParking.map(_._1.toString).getOrElse(""))
-        tazToWrite.put(header(2), mPricing.map(_._1.toString).getOrElse(""))
-        tazToWrite.put(header(3), mCharging.map(_._1.toString).getOrElse(""))
+        tazToWrite.put(header(1), attrs.parkingType.toString)
+        tazToWrite.put(header(2), attrs.pricingModel.toString)
+        tazToWrite.put(header(3), attrs.chargingType.toString)
         tazToWrite.put(header(4), "" + values.stall)
         tazToWrite.put(header(5), "" + values.fee)
-        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
+//        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
         mapWriter.write(tazToWrite, header, processors)
       }
     } finally {
@@ -108,8 +100,7 @@ object CsvUtils {
       new NotNull(),
       new NotNull(),
       new NotNull(),
-      new NotNull(),
-      new UniqueHashCode())
+      new NotNull()) //new UniqueHashCode()
 
   }
 

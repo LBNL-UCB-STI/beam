@@ -126,8 +126,7 @@ object TAZTreeMap {
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
-          val geometry = Some(g.getBoundary)
-          val taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y), geometry)
+          val taz = new TAZ(f.getAttribute(tazIDFieldName).asInstanceOf[String], new Coord(g.getCoordinate.x, g.getCoordinate.y), g.getArea)
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
       }
@@ -178,7 +177,7 @@ object TAZTreeMap {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](quadTreeBounds.minx, quadTreeBounds.miny, quadTreeBounds.maxx, quadTreeBounds.maxy)
 
     for (l <- lines) {
-      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY))
+      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
@@ -221,7 +220,7 @@ object TAZTreeMap {
   def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
       case g: Geometry =>
-        Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[String], g.getCoordinate.x, g.getCoordinate.y, g.getArea))
+        Some(CsvTaz(f.getAttribute(tazIDFieldName).asInstanceOf[Long].toString, g.getCoordinate.x, g.getCoordinate.y, g.getArea))
       case _ => None
     }
   }
@@ -261,7 +260,7 @@ object TAZTreeMap {
       val allNonRepeatedTaz = clearedTaz ++ nonRepeated
       println(s"Total all TAZ ${allNonRepeatedTaz.size}")
 
-      for(t <- allNonRepeatedTaz){
+      for(t <- tazs){
         val tazToWrite = new HashMap[String, Object]();
         tazToWrite.put(header(0), t.id)
        //
@@ -316,9 +315,9 @@ object TAZTreeMap {
 case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double)
 
-class TAZ(val tazId: Id[TAZ],val coord: Coord, val geometry: Option[Geometry]){
-  def this(tazIdString: String, coord: Coord, geometry: Option[Geometry] = None) {
-    this(Id.create(tazIdString,classOf[TAZ]),coord, geometry)
+class TAZ(val tazId: Id[TAZ],val coord: Coord, val area: Double){
+  def this(tazIdString: String, coord: Coord, area: Double) {
+    this(Id.create(tazIdString,classOf[TAZ]),coord, area)
   }
 }
 

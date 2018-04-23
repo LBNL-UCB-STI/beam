@@ -30,9 +30,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
       private var leavingParkingEventScore = 0.0
 
       override def handleEvent(event: Event): Unit = {
-        println("--handleEvent--")
-        println(event)
-
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
