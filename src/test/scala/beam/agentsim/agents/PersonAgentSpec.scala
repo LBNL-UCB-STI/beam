@@ -100,7 +100,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
   private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
   networkCoordinator.loadNetwork()
 
-  describe("A PersonAgent FSM") {
+  describe("A PersonAgent") {
 
     it("should allow scheduler to set the first activity") {
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
