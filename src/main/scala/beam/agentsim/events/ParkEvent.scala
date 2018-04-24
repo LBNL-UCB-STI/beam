@@ -20,8 +20,8 @@ class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[V
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
 
-    attr.put(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_DISTANCE, distance.toString)
+    attr.put(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
 
 //    for{
 //      stallValues <- stall.stallValues

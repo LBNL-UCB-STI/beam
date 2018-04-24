@@ -60,11 +60,12 @@ class ZonalParkingManager(override val beamServices: BeamServices, val beamRoute
     pooledResources.put(StallAttributes(taz.tazId, parkingType, pricingModel, chargingType), StallValues(1, 0))
   }
 
-  CsvUtils.parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+  //Used to generate csv file
+  //  CsvUtils.parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
 
-//  CsvUtils.readCsvFile(pathResourceCSV).foreach( f => {
-//    pooledResources.update(f._1, f._2)
-//  })
+  CsvUtils.readCsvFile(pathResourceCSV).foreach( f => {
+    pooledResources.update(f._1, f._2)
+  })
 
   // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
   pooledResources.put(defaultStallAtrrs,defaultStallValues)

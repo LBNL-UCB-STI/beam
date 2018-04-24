@@ -33,6 +33,7 @@ class LeavingParkingEvent(time: Double, stall: ParkingStall, val score: Double, 
 //    }
 
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_SCORE, score.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.attributes.parkingType.toString)
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PRICING_MODEL, stall.attributes.pricingModel.toString)
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_CHARGING_TYPE, stall.attributes.chargingType.toString)
