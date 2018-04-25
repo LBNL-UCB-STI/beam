@@ -377,10 +377,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     profileRequest.toLon = destination.getY
 
     //setTime("2015-02-05T07:30+05:00", "2015-02-05T10:30+05:00")
-    val time = RoutingModel.DiscreteTime(fromFacility.getEndTime.toInt) match {
-      case time: DiscreteTime => WindowTime(time.atTime)
-      case time: WindowTime => time
-    }
+    val time = WindowTime(fromFacility.getEndTime.toInt)
     profileRequest.fromTime = time.fromTime
     profileRequest.toTime = time.toTime
 
