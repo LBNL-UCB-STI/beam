@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.{CheckInResource, RegisterResource}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.rideHail.RideHailingAgent
-import beam.agentsim.agents.rideHail.RideHailingAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
+import beam.agentsim.agents.rideHail.RideHailingAgent.{Interrupt, InterruptedAt, ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -100,6 +100,9 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
+
+      rideHailingAgent ! Interrupt()
+      expectMsgType[InterruptedAt]
 
       rideHailingAgent ! Finish
     }

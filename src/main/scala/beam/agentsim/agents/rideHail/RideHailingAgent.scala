@@ -40,10 +40,14 @@ object RideHailingAgent {
   }
 
   case object Idle extends BeamAgentState
+  case object Interrupted extends BeamAgentState
 
   case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
 
   case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger])
+
+  case class Interrupt()
+  case class InterruptedAt(tick: Double)
 
 }
 
@@ -92,6 +96,11 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       goto(WaitingToDrive) using data.copy(stashedPassengerSchedules = restOfSchedules).withPassengerSchedule(nextSchedule).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
   }
 
+  when(Interrupted) {
+    case _ =>
+      stay
+  }
+
   val myUnhandled: StateFunction =  {
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
       // Ride-hailing manager wants us to drive,
@@ -104,6 +113,10 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
 
+    case Event(Interrupt(), _) =>
+      log.debug("Interrupted.")
+      goto(Interrupted) replying InterruptedAt(30000)
+
     case Event(Finish, _) =>
       stop
   }
@@ -114,6 +127,14 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     case _ -> _ =>
       unstashAll()
   }
+
+  onTransition {
+    case _ -> _ =>
+
+      println("pups")
+
+  }
+
 
 }
 
