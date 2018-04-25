@@ -5,14 +5,14 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.Resource.{CheckInResource, RegisterResource}
+import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, RegisterResource}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.rideHail.RideHailingAgent
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.events.ModeChoiceEvent
+import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.Modes.BeamMode
@@ -78,7 +78,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 1000000.0, maxWindow = 10.0))
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
 
       val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
       expectMsgType[RegisterResource]
@@ -93,25 +93,31 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       var trigger = expectMsgType[TriggerWithId] // 28800
       scheduler ! ScheduleTrigger(TestTrigger(30000), self)
       val passengerSchedule = PassengerSchedule()
-        .addLegs(Seq(BeamLeg(28800, BeamMode.CAR, 10000, EmptyBeamPath.path)))
+        .addLegs(Seq(BeamLeg(28800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,28800), SpaceTime(0.0,0.0,38800), 10000))))
       rideHailingAgent ! ModifyPassengerSchedule(passengerSchedule)
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
       modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
       expectMsgType[VehicleEntersTrafficEvent]
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      expectMsgType[TriggerWithId] // 30000
+      // FIXME: Oops, I get a VehicleLeavesTrafficEvent for 38800 even though I can still interrupt the agent..
+      expectMsgType[VehicleLeavesTrafficEvent]
+
+
+      trigger = expectMsgType[TriggerWithId] // 30000
 
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailingAgent ! Interrupt()
       val interruptedAt = expectMsgType[InterruptedAt]
-      println("Interrupted at " + interruptedAt)
+      assert(interruptedAt.tick >= 28800)
       assert(rideHailingAgent.stateName == Interrupted)
+      expectNoMsg()
+      rideHailingAgent ! Resume()
+      scheduler ! CompletionNotice(trigger.triggerId)
 
-
-      expectMsgType[CheckInResource]
+      expectMsgType[NotifyResourceIdle]
 
       rideHailingAgent ! Finish
     }

@@ -39,6 +39,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
+  var lastTick = 0.0
+
   when(Driving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       val currentVehicleUnderControl = data.currentVehicle.head
@@ -55,6 +57,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         beamServices.vehicles(currentVehicleUnderControl).getType,
         data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
 
+      lastTick = tick
       if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
         // TODO: Throw exception here, see why scheduler doesn't recover
         val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex + 1).head
@@ -79,6 +82,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
       eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
+      lastTick = tick
       goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
   }
 

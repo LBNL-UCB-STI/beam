@@ -59,7 +59,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
   startWith(Uninitialized, RideHailingAgentData())
 
-  var lastTick = 0.0
   var lastStateName: BeamAgentState = _
 
 
@@ -142,14 +141,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
     case _ -> _ =>
       unstashAll()
   }
-
-  onTransition {
-    case _ -> _ =>
-
-      println("pups")
-
-  }
-
 
 }
 
