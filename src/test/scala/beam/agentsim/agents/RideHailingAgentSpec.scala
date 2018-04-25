@@ -2,21 +2,21 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, RegisterResource}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.rideHail.RideHailingAgent
 import beam.agentsim.agents.rideHail.RideHailingAgent._
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
+import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel.{BeamLeg, BeamPath, EmptyBeamPath}
+import beam.router.RoutingModel.{BeamLeg, BeamPath}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -24,6 +24,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
@@ -52,11 +53,13 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
   })
 
   val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
+  val personRefs = TrieMap[Id[Person], ActorRef]()
 
   val services: BeamServices = {
     val theServices = mock[BeamServices]
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.vehicles).thenReturn(vehicles)
+    when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     theServices
@@ -93,7 +96,14 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       var trigger = expectMsgType[TriggerWithId] // 28800
       scheduler ! ScheduleTrigger(TestTrigger(30000), self)
       val passengerSchedule = PassengerSchedule()
-        .addLegs(Seq(BeamLeg(28800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,28800), SpaceTime(0.0,0.0,38800), 10000))))
+        .addLegs(Seq(
+          BeamLeg(28800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,28800), SpaceTime(0.0,0.0,38800), 10000)),
+          BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,38800), SpaceTime(0.0,0.0,48800), 10000))
+        ))
+          .addPassenger(VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1)), Seq(
+            BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,38800), SpaceTime(0.0,0.0,48800), 10000))
+          ))
+      personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
       rideHailingAgent ! ModifyPassengerSchedule(passengerSchedule)
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
       modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
@@ -103,7 +113,6 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       // FIXME: Oops, I get a VehicleLeavesTrafficEvent for 38800 even though I can still interrupt the agent..
       expectMsgType[VehicleLeavesTrafficEvent]
 
-
       trigger = expectMsgType[TriggerWithId] // 30000
 
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
@@ -112,12 +121,32 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       rideHailingAgent ! Interrupt()
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.tick >= 28800)
+      assert(interruptedAt.tick <  38800) // I know this agent hasn't picked up the passenger yet
       assert(rideHailingAgent.stateName == Interrupted)
       expectNoMsg()
+      // Still, I tell it to resume
       rideHailingAgent ! Resume()
+      scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
       expectMsgType[NotifyResourceIdle]
+
+      expectMsgType[PathTraversalEvent]
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+
+      trigger = expectMsgType[TriggerWithId] // NotifyLegStartTrigger
+      scheduler ! CompletionNotice(trigger.triggerId)
+
+      expectMsgType[NotifyResourceIdle]
+      expectMsgType[PathTraversalEvent]
+      expectMsgType[CheckInResource]
+
+      trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
+      scheduler ! CompletionNotice(trigger.triggerId)
+
+      trigger = expectMsgType[TriggerWithId] // 50000
+      scheduler ! CompletionNotice(trigger.triggerId)
 
       rideHailingAgent ! Finish
     }
