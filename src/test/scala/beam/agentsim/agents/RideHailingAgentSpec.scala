@@ -102,7 +102,8 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
       rideHailingAgent ! Interrupt()
-      expectMsgType[InterruptedAt]
+      val interruptedAt = expectMsgType[InterruptedAt]
+      println("Interrupted at " + interruptedAt)
 
       rideHailingAgent ! Finish
     }

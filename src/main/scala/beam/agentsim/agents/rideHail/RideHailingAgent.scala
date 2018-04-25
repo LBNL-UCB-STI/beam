@@ -58,6 +58,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
   startWith(Uninitialized, RideHailingAgentData())
 
+  var lastTick = 0.0
+
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle.becomeDriver(self).fold(fa =>
@@ -66,6 +68,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+        lastTick = tick
         goto(Idle) replying CompletionNotice(triggerId) using data.copy(currentVehicle = Vector(vehicle.id))
       })
   }
@@ -82,9 +85,10 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(lastVisited), data) if data.stashedPassengerSchedules.isEmpty =>
-      val (_, triggerId) = releaseTickAndTriggerId()
+      val (tick, triggerId) = releaseTickAndTriggerId()
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
+      lastTick = tick
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
 
     case Event(PassengerScheduleEmptyMessage(lastVisited), data@RideHailingAgentData(_, nextSchedule::restOfSchedules, _, _)) =>
@@ -93,6 +97,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       val startTime = math.max(tick, nextSchedule.schedule.firstKey.startTime)
       val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(startTime, nextSchedule.schedule.firstKey), self))
       scheduler ! CompletionNotice(triggerId, triggerToSchedule)
+      lastTick = tick
       goto(WaitingToDrive) using data.copy(stashedPassengerSchedules = restOfSchedules).withPassengerSchedule(nextSchedule).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
   }
 
@@ -115,7 +120,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
     case Event(Interrupt(), _) =>
       log.debug("Interrupted.")
-      goto(Interrupted) replying InterruptedAt(30000)
+      goto(Interrupted) replying InterruptedAt(lastTick)
 
     case Event(Finish, _) =>
       stop
