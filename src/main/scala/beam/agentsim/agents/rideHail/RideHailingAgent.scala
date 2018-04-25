@@ -47,6 +47,7 @@ object RideHailingAgent {
   case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger])
 
   case class Interrupt()
+  case class Resume()
   case class InterruptedAt(tick: Double)
 
 }
@@ -59,6 +60,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   startWith(Uninitialized, RideHailingAgentData())
 
   var lastTick = 0.0
+  var lastStateName: BeamAgentState = _
+
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
@@ -102,9 +105,15 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   }
 
   when(Interrupted) {
+    case Event(Resume(), _) =>
+      unstashAll()
+      goto(lastStateName)
+
     case _ =>
+      stash()
       stay
   }
+
 
   val myUnhandled: StateFunction =  {
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
@@ -120,6 +129,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
     case Event(Interrupt(), _) =>
       log.debug("Interrupted.")
+      lastStateName = stateName
       goto(Interrupted) replying InterruptedAt(lastTick)
 
     case Event(Finish, _) =>
