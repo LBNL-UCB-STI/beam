@@ -39,7 +39,7 @@ import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.vehicles.VehicleUtils
-import org.mockito.ArgumentMatchers.any
+import org.mockito.Matchers.any
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -171,7 +171,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
       val network = scenario.getNetwork
       new MatsimNetworkReader(scenario.getNetwork).readFile("test/input/sf-light/physsim-network.xml")
 
-      val routerAlgo = getAStarLandmarks(network)
+      val routerAlgo = getFastAStarLandmarks(network)
 
       val nodeSet = getDijkstraDataset(network, 100000)
       runSet.foreach( n => {
@@ -195,6 +195,17 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
 
     val globalConfig: GlobalConfigGroup = new GlobalConfigGroup();
     val f = new AStarLandmarksFactory(); //injector.getInstance(classOf[AStarLandmarksFactory])//
+    FieldUtils.writeField(f, "globalConfig", globalConfig, true)
+    f.createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
+  }
+
+  def getFastAStarLandmarks(network: Network): LeastCostPathCalculator = {
+    val travelTimeCostCalculator = new FreespeedTravelTimeAndDisutility(new PlanCalcScoreConfigGroup)
+    val preProcessData = new PreProcessLandmarks(travelTimeCostCalculator)
+    preProcessData.run(network)
+
+    val globalConfig: GlobalConfigGroup = new GlobalConfigGroup();
+    val f = new FastAStarLandmarksFactory(); //injector.getInstance(classOf[AStarLandmarksFactory])//
     FieldUtils.writeField(f, "globalConfig", globalConfig, true)
     f.createPathCalculator(network, travelTimeCostCalculator, travelTimeCostCalculator)
   }
