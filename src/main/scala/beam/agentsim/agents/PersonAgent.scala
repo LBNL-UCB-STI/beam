@@ -50,6 +50,14 @@ object PersonAgent {
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData
   }
 
+  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double) extends DrivingData { // sorry
+    def currentVehicle = delegate.currentVehicle
+    def passengerSchedule = delegate.passengerSchedule
+    def currentLegPassengerScheduleIndex: Int = delegate.currentLegPassengerScheduleIndex
+    def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt)
+    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) = LiterallyDrivingData(delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex), legEndsAt)
+  }
+
   type VehicleStack = Vector[Id[Vehicle]]
 
   case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: List[EmbodiedBeamLeg] = List(), currentVehicle: VehicleStack = Vector(), currentTourMode: Option[BeamMode] = None, currentTourPersonalVehicle: Option[Id[Vehicle]] = None, passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0, hasDeparted: Boolean = false) extends PersonData {

@@ -42,10 +42,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
-  var legEndingAt = -1.0 //FIXME
-
   when(Driving) {
-    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) if tick == legEndingAt =>
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), LiterallyDrivingData(data, legEndingAt)) if tick == legEndingAt =>
       val currentVehicleUnderControl = data.currentVehicle.head
       // If no manager is set, we ignore
       val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
@@ -61,7 +59,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
 
       if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
-        // TODO: Throw exception here, see why scheduler doesn't recover
         val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex + 1).head
         goto(WaitingToDrive) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
       } else {
@@ -80,7 +77,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   }
 
   when(DrivingInterrupted) {
-    case Event(StopDriving(), data) =>
+    case Event(StopDriving(), LiterallyDrivingData(data, legEndingAt)) =>
       val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
       val currentVehicleUnderControl = data.currentVehicle.head
@@ -111,8 +108,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
       eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
-      legEndingAt = endTime
-      goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
+      goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
   }
 
   when(WaitingToDriveInterrupted) {
