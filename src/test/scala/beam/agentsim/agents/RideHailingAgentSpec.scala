@@ -105,8 +105,58 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       expectMsgType[TriggerWithId] // 30000
     }
 
-    // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
-    it("should drive around when I tell him to") {
+     it("should drive around when I tell him to") {
+        val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
+        val vehicleId = Id.createVehicleId(1)
+        val vehicle = new VehicleImpl(vehicleId, vehicleType)
+        val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+        beamVehicle.registerResource(self)
+        vehicles.put(vehicleId, beamVehicle)
+
+        val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
+
+        val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
+
+        var trigger = moveTo30000(scheduler, rideHailingAgent)
+
+        // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
+        // I can tell it whatever I want. Even though it is already 30000 for me.
+
+        rideHailingAgent ! Interrupt()
+        val interruptedAt = expectMsgType[InterruptedAt]
+        assert(interruptedAt.tick >= 28800)
+        assert(interruptedAt.tick <  38800) // I know this agent hasn't picked up the passenger yet
+        assert(rideHailingAgent.stateName == Interrupted)
+        expectNoMsg()
+        // Still, I tell it to resume
+        rideHailingAgent ! Resume()
+        scheduler ! ScheduleTrigger(TestTrigger(50000), self)
+        scheduler ! CompletionNotice(trigger.triggerId)
+
+        expectMsgType[NotifyResourceIdle]
+
+        expectMsgType[PathTraversalEvent]
+        expectMsgType[VehicleEntersTrafficEvent]
+        expectMsgType[VehicleLeavesTrafficEvent]
+
+        trigger = expectMsgType[TriggerWithId] // NotifyLegStartTrigger
+        scheduler ! CompletionNotice(trigger.triggerId)
+
+        expectMsgType[NotifyResourceIdle]
+        expectMsgType[PathTraversalEvent]
+        expectMsgType[CheckInResource]
+
+        trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
+        scheduler ! CompletionNotice(trigger.triggerId)
+
+        trigger = expectMsgType[TriggerWithId] // 50000
+        scheduler ! CompletionNotice(trigger.triggerId)
+
+        rideHailingAgent ! Finish
+        expectMsgType[CompletionNotice]
+      }
+
+    it("should let me interrupt it and give it a new job") {
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
@@ -154,7 +204,9 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       scheduler ! CompletionNotice(trigger.triggerId)
 
       rideHailingAgent ! Finish
+      expectMsgType[CompletionNotice]
     }
+
 
   }
 
