@@ -1,75 +1,18 @@
 package beam.sflight
 
-import java.time.ZonedDateTime
-
 import akka.actor._
-import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, WALK}
 import beam.router.RoutingModel.{BeamLeg, BeamPath, BeamTrip}
-import beam.router.gtfs.FareCalculator
-import beam.router.gtfs.FareCalculator.BeamFareSegment
-import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
 import beam.router.{BeamRouter, Modes, RoutingModel}
-import beam.sim.BeamServices
-import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.{BeamConfigUtils, DateUtils}
-import org.matsim.api.core.v01.population.{Activity, Plan}
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.events.EventsManagerImpl
-import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.VehicleUtils
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito._
+import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
-import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.JavaConverters._
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpecLike with Matchers with Inside with LoneElement
-  with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
-
-  var router: ActorRef = _
-  var geo: GeoUtils = _
-  var scenario: Scenario = _
-
-  override def beforeAll: Unit = {
-    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
-    val beamConfig = BeamConfig(config)
-
-    // Have to mock some things to get the router going
-    val services: BeamServices = mock[BeamServices]
-    when(services.beamConfig).thenReturn(beamConfig)
-    geo = new GeoUtilsImpl(services)
-    when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
-    networkCoordinator.loadNetwork()
-
-    val fareCalculator = mock[FareCalculator]
-    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
-    val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcToll(any())).thenReturn(0.0)
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-    scenario = ScenarioUtils.loadScenario(matsimConfig)
-    router = system.actorOf(BeamRouter.props(services, networkCoordinator.transportNetwork, networkCoordinator.network, new EventsManagerImpl(), scenario.getTransitVehicles, fareCalculator, tollCalculator))
-
-    within(60 seconds) { // Router can take a while to initialize
-      router ! Identify(0)
-      expectMsgType[ActorIdentity]
-    }
-  }
-
-  override def afterAll: Unit = {
-    shutdown()
-  }
-
+class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement {
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
       val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
@@ -144,11 +87,6 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       }
     }
 
-    def planToVec(plan: Plan): Vector[Activity] = {
-      scala.collection.immutable.Vector.empty[Activity] ++ plan.getPlanElements.asScala.filter(p => p
-        .isInstanceOf[Activity]).map(p => p.asInstanceOf[Activity])
-    }
-
     "respond with a car route and a walk route for each trip in sflight" in {
       scenario.getPopulation.getPersons.values().forEach(person => {
         val activities = planToVec(person.getSelectedPlan)
@@ -209,5 +147,4 @@ class SfLightRouterSpec extends TestKit(ActorSystem("router-test")) with WordSpe
       time += leg.duration
     })
   }
-
 }
