@@ -90,8 +90,6 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   override def receive: Receive = {
     case NotifyIterationEnds() =>
 
-      surgePricingManager.updateRevenueStats()
-      surgePricingManager.updateSurgePriceLevels()
       surgePricingManager.incrementIteration()
 
       sender ! Unit  // return empty object to blocking caller
