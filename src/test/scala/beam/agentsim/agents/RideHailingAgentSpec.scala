@@ -72,18 +72,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
   describe("A RideHailingAgent") {
 
-    // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
-    it("should drive around when I tell him to") {
-      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
-      val vehicleId = Id.createVehicleId(1)
-      val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
-      beamVehicle.registerResource(self)
-      vehicles.put(vehicleId, beamVehicle)
-
-      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
-
-      val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
+    def moveTo30000(scheduler: ActorRef, rideHailingAgent: ActorRef) = {
       expectMsgType[RegisterResource]
 
       scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailingAgent)
@@ -97,12 +86,12 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       scheduler ! ScheduleTrigger(TestTrigger(30000), self)
       val passengerSchedule = PassengerSchedule()
         .addLegs(Seq(
-          BeamLeg(28800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,28800), SpaceTime(0.0,0.0,38800), 10000)),
-          BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,38800), SpaceTime(0.0,0.0,48800), 10000))
+          BeamLeg(28800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(0.0, 0.0, 38800), 10000)),
+          BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0, 0.0, 38800), SpaceTime(0.0, 0.0, 48800), 10000))
         ))
-          .addPassenger(VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1)), Seq(
-            BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0,0.0,38800), SpaceTime(0.0,0.0,48800), 10000))
-          ))
+        .addPassenger(VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1)), Seq(
+          BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0, 0.0, 38800), SpaceTime(0.0, 0.0, 48800), 10000))
+        ))
       personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
       rideHailingAgent ! ModifyPassengerSchedule(passengerSchedule)
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
@@ -113,7 +102,23 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       // FIXME: Oops, I get a VehicleLeavesTrafficEvent for 38800 even though I can still interrupt the agent..
       expectMsgType[VehicleLeavesTrafficEvent]
 
-      trigger = expectMsgType[TriggerWithId] // 30000
+      expectMsgType[TriggerWithId] // 30000
+    }
+
+    // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
+    it("should drive around when I tell him to") {
+      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
+      val vehicleId = Id.createVehicleId(1)
+      val vehicle = new VehicleImpl(vehicleId, vehicleType)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      beamVehicle.registerResource(self)
+      vehicles.put(vehicleId, beamVehicle)
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
+
+      val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
+
+      var trigger = moveTo30000(scheduler, rideHailingAgent)
 
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
