@@ -7,6 +7,8 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, RegisterResource}
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.PersonAgent.DrivingInterrupted
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.rideHail.RideHailingAgent
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
@@ -126,7 +128,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
         val interruptedAt = expectMsgType[InterruptedAt]
         assert(interruptedAt.tick >= 28800)
         assert(interruptedAt.tick <  38800) // I know this agent hasn't picked up the passenger yet
-        assert(rideHailingAgent.stateName == Interrupted)
+        assert(rideHailingAgent.stateName == DrivingInterrupted)
         expectNoMsg()
         // Still, I tell it to resume
         rideHailingAgent ! Resume()
@@ -156,7 +158,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
         expectMsgType[CompletionNotice]
       }
 
-    it("should let me interrupt it and give it a new job") {
+    it("should let me interrupt it and tell it to cancel its job") {
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
@@ -177,9 +179,12 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.tick >= 28800)
       assert(interruptedAt.tick <  38800) // I know this agent hasn't picked up the passenger yet
-      assert(rideHailingAgent.stateName == Interrupted)
+      assert(rideHailingAgent.stateName == DrivingInterrupted)
       expectNoMsg()
-      // Still, I tell it to resume
+      // I tell it to do nothing instead
+      rideHailingAgent ! StopDriving()
+      assert(rideHailingAgent.stateName == IdleInterrupted)
+
       rideHailingAgent ! Resume()
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -187,18 +192,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       expectMsgType[NotifyResourceIdle]
 
       expectMsgType[PathTraversalEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-
-      trigger = expectMsgType[TriggerWithId] // NotifyLegStartTrigger
-      scheduler ! CompletionNotice(trigger.triggerId)
-
-      expectMsgType[NotifyResourceIdle]
-      expectMsgType[PathTraversalEvent]
       expectMsgType[CheckInResource]
-
-      trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
-      scheduler ! CompletionNotice(trigger.triggerId)
 
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)

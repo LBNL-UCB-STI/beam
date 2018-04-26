@@ -3,9 +3,9 @@ package beam.agentsim.agents.rideHail
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
@@ -40,7 +40,7 @@ object RideHailingAgent {
   }
 
   case object Idle extends BeamAgentState
-  case object Interrupted extends BeamAgentState
+  case object IdleInterrupted extends BeamAgentState
 
   case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
 
@@ -58,9 +58,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   startWith(Uninitialized, RideHailingAgentData())
-
-  var lastStateName: BeamAgentState = _
-
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
@@ -85,6 +82,18 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       goto(WaitingToDrive) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule)
   }
 
+  when(IdleInterrupted) {
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+      // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
+      // i.e. for what time it is. For now, we just believe it that time is not running backwards.
+      // TODO: Keep a local time, i.e. the time of the latest trigger we ourselves received, and make sure that at least
+      // TODO: our local time does not run backwards, i.e. let this leg here start no earlier than the latest trigger we received.
+      val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(updatedPassengerSchedule.schedule.firstKey.startTime, updatedPassengerSchedule.schedule.firstKey), self))
+      goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule)
+    case Event(Resume(), _) =>
+      goto(Idle)
+  }
+
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(lastVisited), data) if data.stashedPassengerSchedules.isEmpty =>
       val (tick, triggerId) = releaseTickAndTriggerId()
@@ -103,18 +112,18 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       goto(WaitingToDrive) using data.copy(stashedPassengerSchedules = restOfSchedules).withPassengerSchedule(nextSchedule).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
   }
 
-  when(Interrupted) {
-    case Event(Resume(), _) =>
-      unstashAll()
-      goto(lastStateName)
-
-    case _ =>
-      stash()
-      stay
+  when(PassengerScheduleEmptyInterrupted) {
+    case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
+      assert(data.stashedPassengerSchedules.isEmpty)
+      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+      goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
   }
 
-
   val myUnhandled: StateFunction =  {
+
+    case Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
+      stay replying CompletionNotice(triggerId)
+
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
       // Ride-hailing manager wants us to drive,
       // but we are not Idle.
@@ -125,11 +134,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
-
-    case Event(Interrupt(), _) =>
-      log.debug("Interrupted.")
-      lastStateName = stateName
-      goto(Interrupted) replying InterruptedAt(lastTick)
 
     case Event(Finish, _) =>
       stop

@@ -75,11 +75,17 @@ object PersonAgent {
 
   case object WaitingToDrive extends Traveling
 
+  case object WaitingToDriveInterrupted extends Traveling
+
   case object PassengerScheduleEmpty extends Traveling
+
+  case object PassengerScheduleEmptyInterrupted extends Traveling
 
   case object Moving extends Traveling
 
   case object Driving extends Traveling
+
+  case object DrivingInterrupted extends Traveling
 
   case class ActivityStartTrigger(tick: Double) extends Trigger
 
