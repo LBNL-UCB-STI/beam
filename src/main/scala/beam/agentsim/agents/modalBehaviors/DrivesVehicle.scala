@@ -83,11 +83,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   when(DrivingInterrupted) {
     case Event(StopDriving(), data) =>
+      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+      assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
       val currentVehicleUnderControl = data.currentVehicle.head
       // If no manager is set, we ignore
-      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
-      assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
       eventsManager.processEvent(new PathTraversalEvent(lastTick, currentVehicleUnderControl,
         beamServices.vehicles(currentVehicleUnderControl).getType,
         data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))

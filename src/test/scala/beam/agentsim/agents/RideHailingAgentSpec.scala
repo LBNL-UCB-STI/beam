@@ -201,6 +201,39 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       expectMsgType[CompletionNotice]
     }
 
+    it("won't let me cancel its job after it has picked up passengers") {
+      val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
+      val vehicleId = Id.createVehicleId(1)
+      val vehicle = new VehicleImpl(vehicleId, vehicleType)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      beamVehicle.registerResource(self)
+      vehicles.put(vehicleId, beamVehicle)
+
+      val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 64800.0, maxWindow = 10.0))
+
+      val rideHailingAgent = TestFSMRef(new RideHailingAgent(Id.create("1", classOf[RideHailingAgent]), scheduler, beamVehicle, new Coord(0.0, 0.0), eventsManager, services, networkCoordinator.transportNetwork))
+
+      var trigger = moveTo30000(scheduler, rideHailingAgent)
+      scheduler ! ScheduleTrigger(TestTrigger(40000), self)
+      scheduler ! CompletionNotice(trigger.triggerId)
+
+      expectMsgType[NotifyResourceIdle]
+      expectMsgType[PathTraversalEvent]
+      expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[VehicleLeavesTrafficEvent]
+
+      trigger = expectMsgType[TriggerWithId] // 40000
+      rideHailingAgent ! Interrupt()
+      val interruptedAt = expectMsgType[InterruptedAt]
+      assert(interruptedAt.tick >=  38800) // I know this agent has now picked up the passenger
+      assert(rideHailingAgent.stateName == DrivingInterrupted)
+      expectNoMsg()
+      // I tell it to do nothing instead
+      rideHailingAgent ! StopDriving()
+      expectNoMsg()
+    }
+
+
 
   }
 
