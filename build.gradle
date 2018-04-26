@@ -243,7 +243,7 @@ test.dependsOn spec
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.PeriodicTest'] <<
+    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
             (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') +
                     (project.hasProperty('iterations') ?
                             '-Diterations='+project.findProperty('iterations') :
