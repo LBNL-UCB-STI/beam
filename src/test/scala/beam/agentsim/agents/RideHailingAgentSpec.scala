@@ -126,8 +126,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
         rideHailingAgent ! Interrupt()
         val interruptedAt = expectMsgType[InterruptedAt]
-        assert(interruptedAt.tick >= 28800)
-        assert(interruptedAt.tick <  38800) // I know this agent hasn't picked up the passenger yet
+        assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
         assert(rideHailingAgent.stateName == DrivingInterrupted)
         expectNoMsg()
         // Still, I tell it to resume
@@ -177,8 +176,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
       rideHailingAgent ! Interrupt()
       val interruptedAt = expectMsgType[InterruptedAt]
-      assert(interruptedAt.tick >= 28800)
-      assert(interruptedAt.tick <  38800) // I know this agent hasn't picked up the passenger yet
+      assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailingAgent.stateName == DrivingInterrupted)
       expectNoMsg()
       // I tell it to do nothing instead
@@ -225,7 +223,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       trigger = expectMsgType[TriggerWithId] // 40000
       rideHailingAgent ! Interrupt()
       val interruptedAt = expectMsgType[InterruptedAt]
-      assert(interruptedAt.tick >=  38800) // I know this agent has now picked up the passenger
+      assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailingAgent.stateName == DrivingInterrupted)
       expectNoMsg()
       // I tell it to do nothing instead

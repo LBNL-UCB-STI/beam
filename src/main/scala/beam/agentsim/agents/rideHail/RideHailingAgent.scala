@@ -48,7 +48,7 @@ object RideHailingAgent {
 
   case class Interrupt()
   case class Resume()
-  case class InterruptedAt(tick: Double)
+  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int)
 
 }
 
@@ -67,7 +67,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        lastTick = tick
         goto(Idle) replying CompletionNotice(triggerId) using data.copy(currentVehicle = Vector(vehicle.id))
       })
   }
@@ -99,7 +98,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       val (tick, triggerId) = releaseTickAndTriggerId()
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
-      lastTick = tick
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
 
     case Event(PassengerScheduleEmptyMessage(lastVisited), data@RideHailingAgentData(_, nextSchedule::restOfSchedules, _, _)) =>
@@ -108,7 +106,6 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       val startTime = math.max(tick, nextSchedule.schedule.firstKey.startTime)
       val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(startTime, nextSchedule.schedule.firstKey), self))
       scheduler ! CompletionNotice(triggerId, triggerToSchedule)
-      lastTick = tick
       goto(WaitingToDrive) using data.copy(stashedPassengerSchedules = restOfSchedules).withPassengerSchedule(nextSchedule).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
   }
 
