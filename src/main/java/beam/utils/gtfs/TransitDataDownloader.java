@@ -18,13 +18,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static beam.utils.UnzipUtility.unzip;
+
 /**
  * Sends GET request to 511 NextGen API datafeeds endpoint and downloads a zip file w/ GTFS data
  * to a specified directory. Unzips file to directory and cleans up. Class is (probably) threadsafe and
  * all operations performed asynchronously.
- *
+ * <p>
  * To be used with {@link SFBayPT2MATSim};
- *
  */
 class TransitDataDownloader {
 
@@ -35,7 +36,7 @@ class TransitDataDownloader {
     private static ExecutorService threadpool;
     private final String apiKey;
 
-    private TransitDataDownloader(String apiKey){
+    private TransitDataDownloader(String apiKey) {
         this.apiKey = apiKey;
     }
 
@@ -53,7 +54,7 @@ class TransitDataDownloader {
         return instance;
     }
 
-    List<Operator> getTransitOperatorList(){
+    List<Operator> getTransitOperatorList() {
         threadpool = Executors.newFixedThreadPool(2);
         // Request (GET )
         URIBuilder builder = new URIBuilder();
@@ -75,7 +76,8 @@ class TransitDataDownloader {
             @Override
             public void completed(Content result) {
                 Gson gson = new Gson();
-                ops.addAll(gson.fromJson(result.asString(),new TypeToken<List<Operator>>(){}.getType()));
+                ops.addAll(gson.fromJson(result.asString(), new TypeToken<List<Operator>>() {
+                }.getType()));
                 threadpool.shutdown();
             }
 
@@ -90,11 +92,11 @@ class TransitDataDownloader {
             }
         });
 
-    while(true){
-        if (!(!threadpool.isShutdown())) break;
-    }
+        while (true) {
+            if (!(!threadpool.isShutdown())) break;
+        }
 
-    return ops;
+        return ops;
     }
 
     Future<Content> getGTFSZip(String outDir, String agencyId) {
@@ -131,23 +133,23 @@ class TransitDataDownloader {
             public void completed(Content result) {
                 InputStream in = result.asStream();
                 FileOutputStream out;
-                File outDirPath = new File(outDir+File.separator);
-                if (!outDirPath.exists()){
+                File outDirPath = new File(outDir + File.separator);
+                if (!outDirPath.exists()) {
                     outDirPath.mkdirs();
                 }
                 try {
                     String fileSuffix = File.separator + agencyId + "_gtfs";
-                    String zipFilePath = outDir+fileSuffix+".zip";
+                    String zipFilePath = outDir + fileSuffix + ".zip";
                     out = new FileOutputStream(zipFilePath);
-                    threadpool.submit(()->{
+                    threadpool.submit(() -> {
                         try {
                             copy(in, out);
                             log.info("Download done.");
                             threadpool.submit(() -> {
                                 log.info("Unzipping now... ");
-                                String destDirectory = outDirPath+fileSuffix+File.separator;
+                                String destDirectory = outDirPath + fileSuffix + File.separator;
                                 try {
-                                    UnzipUtility.unzip(zipFilePath, destDirectory,true);
+                                    unzip(zipFilePath, destDirectory, true);
                                     log.info("Done.");
                                     close();
                                 } catch (Exception ex) {
@@ -175,7 +177,9 @@ class TransitDataDownloader {
         });
     }
 
-    private void close(){threadpool.shutdown();}
+    private void close() {
+        threadpool.shutdown();
+    }
 
     private static void copy(InputStream input, OutputStream output) throws IOException {
         byte[] buf = new byte[BUFFER_SIZE];
