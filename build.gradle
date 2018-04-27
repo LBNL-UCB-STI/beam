@@ -145,7 +145,8 @@ dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.8'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
     testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
-    testCompile group: "org.mockito", name: "mockito-all", version: "1.9.5"
+    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.18.3'
+    testCompile group: "org.mockito", name: "mockito-core", version: "2.18.3"
 
 
     /////////////////////////////////
@@ -232,7 +233,7 @@ dependencies {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.PeriodicTest']
+    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.Periodic']
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
@@ -240,7 +241,13 @@ test.dependsOn spec
 /* Task to run tests periodically on continue integration server */
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.PeriodicTest']
+    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
+            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') +
+                    (project.hasProperty('iterations') ?
+                            '-Diterations='+project.findProperty('iterations') :
+                            '-Dtest=test') :
+                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') :
+                            '-Dtest=test'))
     classpath = sourceSets.test.runtimeClasspath
 }
 

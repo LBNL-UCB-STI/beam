@@ -1,4 +1,4 @@
-package beam.utils.gtfs;
+package beam.utils;
 
 import java.io.*;
 import java.util.zip.ZipEntry;
@@ -11,7 +11,7 @@ import java.util.zip.ZipInputStream;
  * @author sfeygin (modifying)
  *
  */
-class UnzipUtility {
+public class UnzipUtility {
     /**
      * Size of the buffer to read/write data
      */
@@ -23,7 +23,7 @@ class UnzipUtility {
      * @param destDirectory Target directory for unzipping.
      * @throws IOException Error on failure.
      */
-    static void unzip(String zipFilePath, String destDirectory, boolean delete) throws IOException {
+    public static void unzip(String zipFilePath, String destDirectory, boolean delete) throws IOException {
         File destDir = new File(destDirectory);
         if (!destDir.exists()) {
             boolean unused = destDir.mkdir();
