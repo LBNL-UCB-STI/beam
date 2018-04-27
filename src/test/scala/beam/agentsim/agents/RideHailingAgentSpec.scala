@@ -186,7 +186,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       rideHailingAgent ! StopDriving()
       assert(rideHailingAgent.stateName == IdleInterrupted)
 
-      rideHailingAgent ! Resume()
+      rideHailingAgent ! Resume() // That's the opposite of Interrupt(), not resume driving
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
