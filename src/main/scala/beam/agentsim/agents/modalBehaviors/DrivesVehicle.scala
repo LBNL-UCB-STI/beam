@@ -42,8 +42,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
-  var lastTick = 0.0
-
   when(Driving) {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), LiterallyDrivingData(data, legEndingAt)) if tick == legEndingAt =>
       val currentVehicleUnderControl = data.currentVehicle.head
@@ -60,7 +58,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         beamServices.vehicles(currentVehicleUnderControl).getType,
         data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
 
-      lastTick = tick
       if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
         val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex + 1).head
         goto(WaitingToDrive) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
