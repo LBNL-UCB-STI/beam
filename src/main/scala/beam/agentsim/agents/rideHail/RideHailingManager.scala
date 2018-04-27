@@ -12,7 +12,7 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.rideHail.RideHailingAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
+import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -274,6 +274,9 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     case ReleaseVehicleReservation(_, vehId) =>
       lockedVehicles -= vehId
 
+    case InterruptedWhileIdle() =>
+      // Response to Interrupt() from RideHailingAgent. We don't care about it for now.
+
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
 
@@ -378,7 +381,11 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,
       classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs
       .last, vehiclePersonId, Vector()))))
+    closestRideHailingAgentLocation.rideHailAgent ! Interrupt()
+    // RideHailingAgent sends reply which we are ignoring here,
+    // but that's okay, we don't _need_ to wait for the reply if the answer doesn't interest us.
     closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
+    closestRideHailingAgentLocation.rideHailAgent ! Resume()
   }
 
   private def completeReservation(inquiryId: Id[RideHailingInquiry], triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
