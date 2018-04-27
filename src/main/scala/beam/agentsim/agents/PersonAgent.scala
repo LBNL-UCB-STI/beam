@@ -203,11 +203,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is starting
      */
-    case Event(TriggerWithId(NotifyLegStartTrigger(_, beamLeg), triggerId), BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) if beamLeg.travelPath.endPoint.loc == currentLeg.beamLeg.travelPath.endPoint.loc && currentLeg.beamVehicleId == currentVehicle.head =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(_, beamLeg), triggerId), BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) if currentLeg.beamVehicleId == currentVehicle.head =>
       logDebug(s"Already on vehicle: ${currentVehicle.head}")
       goto(Moving) replying CompletionNotice(triggerId)
 
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) if beamLeg.travelPath.endPoint.loc == currentLeg.beamLeg.travelPath.endPoint.loc =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) =>
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
   }
@@ -216,11 +216,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is ending
      */
-    case Event(TriggerWithId(NotifyLegEndTrigger(_, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if beamLeg == currentLeg.beamLeg && restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(_, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
       // The next vehicle is the same as current so just update state and go to Waiting
       goto(Waiting) replying CompletionNotice(triggerId) using data.copy(restOfCurrentTrip = restOfCurrentTrip)
 
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if beamLeg == currentLeg.beamLeg =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) =>
       // The next vehicle is different from current so we exit the current vehicle
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, currentVehicle.head))
       holdTickAndTriggerId(tick, triggerId)
