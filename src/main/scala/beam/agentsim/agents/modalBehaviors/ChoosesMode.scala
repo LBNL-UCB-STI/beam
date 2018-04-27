@@ -153,14 +153,14 @@ trait ChoosesMode {
   } using completeChoiceIfReady)
 
   when(WaitingForReservationConfirmation) (transform {
-    case Event(response@ReservationResponse(_, _), choosesModeData: ChoosesModeData) =>
-      if (response.response.isRight) {
-        val triggers = response.response.right.get.triggersToSchedule
+    case Event(ReservationResponse(_, response), choosesModeData: ChoosesModeData) =>
+      if (response.isRight) {
+        val triggers = response.right.get.triggersToSchedule
         log.debug("scheduling triggers from reservation responses: {}", triggers)
         triggers.foreach(scheduler ! _)
         goto(FinishingModeChoice) using choosesModeData
       } else {
-        val firstErrorResponse = response.response.left.get
+        val firstErrorResponse = response.left.get
         if (choosesModeData.routingResponse.get.itineraries.isEmpty & choosesModeData.rideHailingResult.get.error.isDefined) {
           // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
           // if more agents could be hailed.

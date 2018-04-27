@@ -192,7 +192,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       holdTickAndTriggerId(tick, triggerId)
       goto(ChoosingMode) using ChoosesModeData(data)
 
-    // If boarding succeeds, stay and wait for the NotifyLegStartTrigger
+    // If boarding succeeds, wait for the NotifyLegStartTrigger
     case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
