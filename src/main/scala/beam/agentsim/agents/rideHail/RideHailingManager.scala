@@ -12,7 +12,7 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.rideHail.RideHailingAgent.{Interrupt, ModifyPassengerSchedule, ModifyPassengerScheduleAck, Resume}
+import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -273,6 +273,9 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
     case ReleaseVehicleReservation(_, vehId) =>
       lockedVehicles -= vehId
+
+    case InterruptedWhileIdle() =>
+      // Response to Interrupt() from RideHailingAgent. We don't care about it for now.
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
