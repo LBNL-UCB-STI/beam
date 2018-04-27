@@ -95,7 +95,10 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
           BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0, 0.0, 38800), SpaceTime(0.0, 0.0, 48800), 10000))
         ))
       personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
+      rideHailingAgent ! Interrupt()
+      expectMsg(InterruptedWhileIdle())
       rideHailingAgent ! ModifyPassengerSchedule(passengerSchedule)
+      rideHailingAgent ! Resume()
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
       modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
       expectMsgType[VehicleEntersTrafficEvent]

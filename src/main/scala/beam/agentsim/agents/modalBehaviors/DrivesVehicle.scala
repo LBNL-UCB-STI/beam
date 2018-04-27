@@ -71,7 +71,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       stay
 
     case Event(Interrupt(), data) =>
-      log.debug("Interrupted.")
       goto(DrivingInterrupted) replying InterruptedAt(data.passengerSchedule, data.currentLegPassengerScheduleIndex)
 
   }
