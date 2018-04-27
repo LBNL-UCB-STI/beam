@@ -228,9 +228,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailingAgent.stateName == DrivingInterrupted)
       expectNoMsg()
-      // I tell it to do nothing instead
-      rideHailingAgent ! StopDriving()
-      expectNoMsg()
+      // Don't StopDriving() here because we have a Passenger and we don't know how that works yet.
     }
 
 
