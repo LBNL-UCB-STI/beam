@@ -233,7 +233,7 @@ dependencies {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.PeriodicTest']
+    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.Periodic']
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
@@ -241,7 +241,13 @@ test.dependsOn spec
 /* Task to run tests periodically on continue integration server */
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.PeriodicTest']
+    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
+            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') +
+                    (project.hasProperty('iterations') ?
+                            '-Diterations='+project.findProperty('iterations') :
+                            '-Dtest=test') :
+                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') :
+                            '-Dtest=test'))
     classpath = sourceSets.test.runtimeClasspath
 }
 
