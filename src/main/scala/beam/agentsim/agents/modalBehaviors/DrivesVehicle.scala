@@ -54,6 +54,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
           scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, currentLeg), personRef)
         }
       }
+      eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
       eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
         beamServices.vehicles(currentVehicleUnderControl).getType,
         data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
@@ -106,7 +107,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_,_) => 0L)
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
-      eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
       goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
   }
 
