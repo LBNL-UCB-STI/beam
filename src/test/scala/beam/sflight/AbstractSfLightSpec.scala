@@ -57,8 +57,7 @@ class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFacto
     val networkCoordinator: NetworkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
     networkCoordinator.loadNetwork()
 
-    val fareCalculator = mock[FareCalculator]
-    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
+    val fareCalculator: FareCalculator = createFareCalc(beamConfig)
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcToll(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
@@ -75,6 +74,11 @@ class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFacto
     shutdown()
   }
 
+  def createFareCalc(beamConfig: BeamConfig): FareCalculator = {
+    val fareCalculator = mock[FareCalculator]
+    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
+    fareCalculator
+  }
   def planToVec(plan: Plan): Vector[Activity] = {
     plan.getPlanElements.asScala.filter(_
       .isInstanceOf[Activity]).map(_.asInstanceOf[Activity]).toVector
