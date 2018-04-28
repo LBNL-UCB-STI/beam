@@ -65,7 +65,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
   var router: ActorRef = _
   var scenario: Scenario = _
 
-  private val runSet = List(10 /*00, 100000*/
+  private val runSet = List(1000, 10000
     /*, 10000, 25000, 50000, 75000*/)
 
   var dataSet: Seq[Seq[Node]] = _
@@ -276,16 +276,14 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     }
   }
 
-  def testMatsim(routerAlgo: () => LeastCostPathCalculator) {
-    //    new MatsimNetworkReader(scenario.getNetwork).readFile("test/input/sf-light/physsim-network.xml")
-    network = scenario.getNetwork
+  def testMatsim(routerAlgo: LeastCostPathCalculator) {
 
     runSet.foreach(n => {
       val testSet = dataSet.take(n)
       val start = System.currentTimeMillis();
       testSet.foreach({ pare =>
 
-        val path = routerAlgo().calcLeastCostPath(pare(0), pare(1), 8.0 * 3600, null, null)
+        val path = routerAlgo.calcLeastCostPath(pare(0), pare(1), 8.0 * 3600, null, null)
         //        println("--------------------------------------")
         //        println(s"origin.x:${pare(0).getCoord.getX}, origin.y: ${pare(0).getCoord.getY}")
         //        println(s"destination.x:${pare(1).getCoord.getX}, destination.y: ${pare(1).getCoord.getY}")
