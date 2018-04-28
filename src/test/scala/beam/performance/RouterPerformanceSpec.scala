@@ -65,7 +65,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
   var router: ActorRef = _
   var scenario: Scenario = _
 
-  private val runSet = List(1000, 10000
+  private val runSet = List(1000, 100000
     /*, 10000, 25000, 50000, 75000*/)
 
   var dataSet: Seq[Seq[Node]] = _
