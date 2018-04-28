@@ -109,7 +109,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
 
   "A Beam router" must {
 
-    "respond with a car route for each trip" in {
+    "respond with a car route for each trip" taggedAs (Performance) in {
 
       println("=================BEAM=================")
 
@@ -227,49 +227,49 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
 
   "A MATSIM Router" must {
 
-    "respond with a path using router alog(AStarEuclidean)" in {
+    "respond with a path using router alog(AStarEuclidean)" taggedAs (Performance) in {
       println("=================AStarEuclidean=================")
 
       testMatsim(getAStarEuclidean)
     }
 
-    "respond with a path using router alog(FastAStarEuclidean)" in {
+    "respond with a path using router alog(FastAStarEuclidean)" taggedAs (Performance) in {
       println("=================FastAStarEuclidean=================")
 
       testMatsim(getFastAStarEuclidean)
     }
 
-    "respond with a path using router alog(Dijkstra)" in {
+    "respond with a path using router alog(Dijkstra)" taggedAs (Performance) in {
       println("=================Dijkstra=================")
 
       testMatsim(getDijkstra)
     }
 
-    "respond with a path using router alog(FastDijkstra)" in {
+    "respond with a path using router alog(FastDijkstra)" taggedAs (Performance) in {
       println("=================FastDijkstra=================")
 
       testMatsim(getFastDijkstra)
     }
 
-    "respond with a path using router alog(MultiNodeDijkstra)" in {
+    "respond with a path using router alog(MultiNodeDijkstra)" taggedAs (Performance) in {
       println("=================MultiNodeDijkstra=================")
 
       testMatsim(getMultiNodeDijkstra)
     }
 
-    "respond with a path using router alog(FastMultiNodeDijkstra)" in {
+    "respond with a path using router alog(FastMultiNodeDijkstra)" taggedAs (Performance) in {
       println("=================FastMultiNodeDijkstra=================")
 
       testMatsim(getFastMultiNodeDijkstra)
     }
 
-    "respond with a path using router alog(AStarLandmarks)" in {
+    "respond with a path using router alog(AStarLandmarks)" taggedAs (Performance) in {
       println("=================AStarLandmarks=================")
 
       testMatsim(getAStarLandmarks)
     }
 
-    "respond with a path using router alog(FastAStarLandmarks)" in {
+    "respond with a path using router alog(FastAStarLandmarks)" taggedAs (Performance) in {
       println("=================FastAStarLandmarks=================")
 
       testMatsim(getFastAStarLandmarks)
