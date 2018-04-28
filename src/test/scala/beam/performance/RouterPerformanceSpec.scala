@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, BUS, CAR, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel.WindowTime
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
@@ -148,7 +148,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
     }
 
     "respond with a route for each beam mode" taggedAs (Performance) in {
-      val modeSet: Seq[BeamMode] = Seq(CAR, BIKE, WALK, RIDE_HAIL, WALK_TRANSIT, TRANSIT)
+      val modeSet: Seq[BeamMode] = Seq(CAR, BIKE, WALK, RIDE_HAIL, BUS, WALK_TRANSIT, TRANSIT)
 
       var transitModes: Vector[BeamMode] = Vector()
       var streetVehicles: Vector[StreetVehicle] = Vector()
