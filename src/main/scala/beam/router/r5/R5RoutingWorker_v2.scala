@@ -6,6 +6,9 @@ import java.util
 
 import akka.actor._
 import akka.pattern._
+import beam.agentsim.agents.household.HouseholdActor
+import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -19,25 +22,78 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.{Modes, RoutingModel}
-import beam.sim.BeamServices
+import beam.sim.RunBeamCluster.config
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.{BeamHelper, BeamServices}
+import beam.utils.reflection.ReflectionUtils
+import beam.utils.{DateUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
-import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator, TurnCostCalculator}
+import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import org.matsim.api.core.v01.network.Network
+import com.google.inject.Injector
+import com.typesafe.config.Config
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.language.postfixOps
 
-class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {
+class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLogging with MetricsSupport with BeamHelper {
+  val beamConfig = BeamConfig(typesafeConfig)
+  val outputDirectory = FileUtils.getConfigOutputFile(beamConfig.beam.outputs.baseOutputDirectory,
+    beamConfig.beam.agentsim.simulationName, beamConfig.beam.outputs.addTimestampToOutputDirectory)
+
+  val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+  matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+
+  ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
+
+  LoggingUtil.createFileLogger(outputDirectory)
+  matsimConfig.controler.setOutputDirectory(outputDirectory)
+  matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+
+  val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+  val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
+  networkCoordinator.loadNetwork()
+  scenario.setNetwork(networkCoordinator.network)
+
+  val network = networkCoordinator.network
+  val transportNetwork = networkCoordinator.transportNetwork
+
+  val beamServices: BeamServices = new BeamServices {
+    override lazy val controler: ControlerI = ???
+    override var beamConfig: BeamConfig = BeamConfig(typesafeConfig)
+    override lazy val registry: ActorRef = throw new Exception("KKK")
+    override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
+    override var modeChoiceCalculatorFactory: HouseholdActor.AttributesOfIndividual => ModeChoiceCalculator = _
+    override val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
+
+    override var beamRouter: ActorRef = null
+    override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
+    override val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
+
+    override def startNewIteration: Unit = throw new Exception("KKK")
+
+    override protected def injector: Injector = throw new Exception("KKK")
+  }
+
+
+  val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+  val tollCalculator = new TollCalculator(beamConfig.beam.routing.r5.directory)
+
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
@@ -53,6 +109,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
   import context.dispatcher
+
+  log.info("R5RoutingWorker_v2 is ready")
 
   override final def receive: Receive = {
     case TransitInited(newTransitSchedule) =>
@@ -296,8 +354,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
               //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
               val fs = fares.filter(_.patternIndex == segmentPattern.patternIdx).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
-              val vehileId = Id.createVehicleId(tripId)
-              val segmentLegs = transitSchedule(vehileId.toString)._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
+              val vehileId = Id.createVehicleId(tripId).toString
+              val segmentLegs = transitSchedule(vehileId)._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.zipWithIndex.map(beamLeg => (beamLeg._1, if (beamLeg._2 == 0) fare else 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {
@@ -629,9 +687,4 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
 }
 
-object R5RoutingWorker {
-  def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new R5RoutingWorker(beamServices, transportNetwork, network, fareCalculator, tollCalculator))
 
-  case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
-
-}

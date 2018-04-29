@@ -1,6 +1,8 @@
 package beam.sim.modules
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, PoisonPill, Props}
+import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+import beam.router.{BeamRouter, RouteFrontend}
 import beam.sim.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, BeamServicesImpl}
@@ -17,7 +19,8 @@ class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with Ak
 
   @Provides @Singleton
   def provideActorSystem(injector: Injector, config: Config): ActorSystem = {
-    val system = ActorSystem("beam-actor-system", config)
+    println(config)
+    val system = ActorSystem("ClusterSystem", config)
     // add the GuiceAkkaExtension to the system, and initialize it with the Guice injector
     GuiceAkkaExtension(system).initialize(injector)
     system

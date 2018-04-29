@@ -211,7 +211,7 @@ dependencies {
     compile group: 'com.typesafe.akka', name: "akka-slf4j_${scalaBinaryVersion}", version: akkaBinaryVersion
 //    compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
 //    compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
-//    compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
+    compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
 //    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
