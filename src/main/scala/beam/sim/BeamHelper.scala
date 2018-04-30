@@ -155,36 +155,39 @@ trait BeamHelper extends LazyLogging {
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(scenario: MutableScenario, beamConfig: BeamConfig, matsimConfig: Config): Unit ={
-
-    val selectedHousHolds = new HouseholdsImpl()
+    var notSelectedHouseholdIds = ListBuffer[Id[Household]]()
     var notSelectedVehicleIds = List[Id[Vehicle]]()
     var numberOfAgents = 0
+    val population = PopulationUtils.createPopulation(matsimConfig)
 
     scenario.getVehicles.getVehicles.keySet().forEach( vehicleId =>
       notSelectedVehicleIds = notSelectedVehicleIds :+ vehicleId
     )
 
+    scenario.getHouseholds.getHouseholds.keySet().forEach( householdId =>
+      notSelectedHouseholdIds = notSelectedHouseholdIds :+ householdId
+    )
+
     val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
     while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
       val household = iterHouseholds.next()
-      selectedHousHolds.addHousehold(household)
       numberOfAgents += household.getMemberIds.size()
       notSelectedVehicleIds = notSelectedVehicleIds.filterNot(filterId => household.getVehicleIds.contains(filterId))
+      notSelectedHouseholdIds-= household.getId
+
+      household.getMemberIds.forEach { personId =>
+        val person: Person = scenario.getPopulation.getPersons.get(personId)
+        population.addPerson(person)
+      }
     }
 
     notSelectedVehicleIds.foreach(vehicleId =>
       scenario.getVehicles.removeVehicle(vehicleId)
     )
 
-    scenario.setHouseholds(selectedHousHolds)
-
-    val population = PopulationUtils.createPopulation(matsimConfig)
-
-    selectedHousHolds.getHouseholds.values().forEach { houshold =>
-      houshold.getMemberIds.forEach { personId =>
-        val person: Person = scenario.getPopulation.getPersons.get(personId)
-        population.addPerson(person)
-      }
+    notSelectedHouseholdIds.foreach { housholdId =>
+      scenario.getHouseholds.getHouseholds.remove(housholdId)
+      scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
     }
 
     scenario.setPopulation(population)
