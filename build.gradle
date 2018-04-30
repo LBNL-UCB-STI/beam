@@ -128,13 +128,19 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
 
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.9.0'
-    compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
+    compile (group: 'org.matsim', name: 'matsim', version: '0.10.0-SNAPSHOT') {
         exclude group: 'log4j', module: 'log4j'
     }
     compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.9.0'
 
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.8.0"
-    compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
+
+    compile (group: 'log4j', name: 'log4j', version: '1.2.15') {
+        exclude group: 'com.sun.jmx', module: 'jmxri'
+        exclude group: 'com.sun.jdmk', module: 'jmxtools'
+        exclude group: 'javax.jms', module: 'jms'
+        exclude group: "javax.mail", module: 'mail'
+    }
 
     compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'

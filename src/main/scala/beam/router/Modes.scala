@@ -16,11 +16,11 @@ import scala.collection.immutable
   */
 object Modes {
 
-  sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry {
+  sealed abstract class BeamMode(val value: String, val r5Mode: Option[Either[LegMode,TransitModes]], val matsimMode: String) extends StringEnumEntry with java.io.Serializable {
     def isTransit(): Boolean = isR5TransitMode(this)
   }
 
-  object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
+  object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode]  with java.io.Serializable {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
 

@@ -22,7 +22,6 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.{Modes, RoutingModel}
-import beam.sim.RunBeamCluster.config
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -55,7 +54,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   val outputDirectory = FileUtils.getConfigOutputFile(beamConfig.beam.outputs.baseOutputDirectory,
     beamConfig.beam.agentsim.simulationName, beamConfig.beam.outputs.addTimestampToOutputDirectory)
 
-  val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+  val matsimConfig = new MatSimBeamConfigBuilder(typesafeConfig).buildMatSamConf()
   matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
   ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
@@ -98,7 +97,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
-  var transitSchedule: Map[String, (RouteInfo, Seq[BeamLeg])] = Map()
+  var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
@@ -127,8 +126,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
-    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleIdStr: String) =>
-      val vehicleId = Id.createVehicleId(vehicleIdStr)
+    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
         case Some(matsimTravelTime) =>
           matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
@@ -355,7 +353,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
               val fs = fares.filter(_.patternIndex == segmentPattern.patternIdx).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
               val vehileId = Id.createVehicleId(tripId).toString
-              val segmentLegs = transitSchedule(vehileId)._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
+              val segmentLegs = transitSchedule(Id.createVehicleId(tripId))._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.zipWithIndex.map(beamLeg => (beamLeg._1, if (beamLeg._2 == 0) fare else 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {

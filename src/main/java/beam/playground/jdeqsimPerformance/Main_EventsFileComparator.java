@@ -12,24 +12,24 @@ public class Main_EventsFileComparator {
         } else {
             String filePath   = args[0];
             String filePath1 = args[1];
-
-            switch(EventsFileComparator.compare(filePath,filePath1)){
-                case EventsFileComparator.CODE_DIFFERENT_NUMBER_OF_TIMESTEPS:
-                    log.info("Different number of time steps");
-                    break;
-                case EventsFileComparator.CODE_DIFFERENT_TIMESTEPS:
-                    log.info("Different time steps");
-                    break;
-                case EventsFileComparator.CODE_FILES_ARE_EQUAL:
-                    log.info("Files are equal");
-                    break;
-                case EventsFileComparator.CODE_MISSING_EVENT:
-                    log.info("Missing Events");
-                    break;
-                case EventsFileComparator.CODE_WRONG_EVENT_COUNT:
-                    log.info("Wrong event count");
-                    break;
-            }
+            // TODO FIX ME?!
+//            switch(EventsFileComparator.compare(filePath,filePath1)){
+//                case EventsFileComparator.CODE_DIFFERENT_NUMBER_OF_TIMESTEPS:
+//                    log.info("Different number of time steps");
+//                    break;
+//                case EventsFileComparator.CODE_DIFFERENT_TIMESTEPS:
+//                    log.info("Different time steps");
+//                    break;
+//                case EventsFileComparator.CODE_FILES_ARE_EQUAL:
+//                    log.info("Files are equal");
+//                    break;
+//                case EventsFileComparator.CODE_MISSING_EVENT:
+//                    log.info("Missing Events");
+//                    break;
+//                case EventsFileComparator.CODE_WRONG_EVENT_COUNT:
+//                    log.info("Wrong event count");
+//                    break;
+//            }
         }
     }
 

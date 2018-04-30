@@ -96,7 +96,8 @@ public class ScheduleMerger {
 				facility.getCoord(), facility.getIsBlockingLane());
 		newFacility.setName(facility.getName());
 		newFacility.setLinkId(facility.getLinkId());
-		newFacility.setStopPostAreaId(facility.getStopPostAreaId());
+        // TODO FIX ME?!
+		//		newFacility.setStopPostAreaId(facility.getStopPostAreaId());
 		return newFacility;
 	}
 

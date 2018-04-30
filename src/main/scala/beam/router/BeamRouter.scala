@@ -39,7 +39,7 @@ import scala.collection.mutable
 
 class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with Stash with ActorLogging {
   // TODO Fix me!
-  val servicePath = "/user/statsService"
+  val servicePath = "/user/statsServiceProxy"
   val cluster = Cluster(context.system)
   val servicePathElements = servicePath match {
     case RelativeActorPath(elements) => elements
@@ -50,7 +50,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val config = services.beamConfig.beam.routing
-  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
+  // private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
   private var numStopsNotFound = 0
 
   var nodes = Set.empty[Address]
@@ -65,9 +65,10 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 
   override def receive = {
     case InitTransit(scheduler) =>
-      val transitSchedule = initTransit(scheduler).map { case (k, v) => (k.toString, v) }
+      val transitSchedule = initTransit(scheduler)
       val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
       val service = context.actorSelection(RootActorPath(address) / servicePathElements)
+      log.info("Sending TransitInited to {}", service)
       service ! TransitInited(transitSchedule)
       sender ! Success("success")
     case state: CurrentClusterState =>
@@ -76,7 +77,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
         case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
       }
     case MemberUp(m) if m.hasRole("compute") =>
-      log.info("MemberUp: {}", m)
+      log.info("MemberUp[compute]: {}", m)
       nodes += m.address
     case other: MemberEvent                         =>
       log.info("MemberEvent: {}", other)
@@ -90,6 +91,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     case other =>
       val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
       val service = context.actorSelection(RootActorPath(address) / servicePathElements)
+      log.info("Sending other `{}` to {}", other, service)
       service.forward(other)
   }
 
@@ -312,9 +314,9 @@ object BeamRouter {
 
   case class InitTransit(scheduler: ActorRef)
 
-  case class TransitInited(transitSchedule: Map[String, (RouteInfo, Seq[BeamLeg])])
+  case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
 
-  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: String)
+  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle])
 
   case class UpdateTravelTime(travelTime: TravelTime)
 

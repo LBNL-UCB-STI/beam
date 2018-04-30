@@ -118,7 +118,7 @@ trait ChoosesMode {
               maybeVehicle match {
                 case Some(vehicle) =>
                   val leg = BeamLeg(departTime.atTime, mode, l.getTravelTime.toLong, BeamPath((r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId).map(id => id.toString.toInt).toVector, None, SpaceTime.zero, SpaceTime.zero, r.getDistance))
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id.toString)
+                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
                 case _ =>
                   makeRequestWith(Vector(), Vector(bodyStreetVehicle))
               }

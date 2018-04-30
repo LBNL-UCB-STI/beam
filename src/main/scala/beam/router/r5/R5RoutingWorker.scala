@@ -42,7 +42,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
   var maybeTravelTime: Option[TravelTime] = None
-  var transitSchedule: Map[String, (RouteInfo, Seq[BeamLeg])] = Map()
+  var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
@@ -69,8 +69,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
-    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleIdStr: String) =>
-      val vehicleId = Id.createVehicleId(vehicleIdStr)
+    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
         case Some(matsimTravelTime) =>
           matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
@@ -296,8 +295,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
               //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
               val fs = fares.filter(_.patternIndex == segmentPattern.patternIdx).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
-              val vehileId = Id.createVehicleId(tripId)
-              val segmentLegs = transitSchedule(vehileId.toString)._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
+              val segmentLegs = transitSchedule(Id.createVehicleId(tripId))._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.zipWithIndex.map(beamLeg => (beamLeg._1, if (beamLeg._2 == 0) fare else 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
               if (transitSegment.middle != null) {
