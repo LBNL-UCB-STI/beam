@@ -36,6 +36,7 @@ import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
@@ -155,30 +156,22 @@ trait BeamHelper extends LazyLogging {
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(scenario: MutableScenario, beamConfig: BeamConfig, matsimConfig: Config): Unit ={
-    var notSelectedHouseholdIds = ListBuffer[Id[Household]]()
-    var notSelectedVehicleIds = List[Id[Vehicle]]()
+    var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
+    var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
+    var notSelectedPersonIds = mutable.Set[Id[Person]]()
     var numberOfAgents = 0
-    val population = PopulationUtils.createPopulation(matsimConfig)
 
-    scenario.getVehicles.getVehicles.keySet().forEach( vehicleId =>
-      notSelectedVehicleIds = notSelectedVehicleIds :+ vehicleId
-    )
-
-    scenario.getHouseholds.getHouseholds.keySet().forEach( householdId =>
-      notSelectedHouseholdIds = notSelectedHouseholdIds :+ householdId
-    )
+    scenario.getVehicles.getVehicles.keySet().forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+    scenario.getHouseholds.getHouseholds.keySet().forEach(householdId => notSelectedHouseholdIds.add(householdId))
+    scenario.getPopulation.getPersons.keySet().forEach(persondId => notSelectedPersonIds.add(persondId))
 
     val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
     while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
       val household = iterHouseholds.next()
       numberOfAgents += household.getMemberIds.size()
-      notSelectedVehicleIds = notSelectedVehicleIds.filterNot(filterId => household.getVehicleIds.contains(filterId))
-      notSelectedHouseholdIds-= household.getId
-
-      household.getMemberIds.forEach { personId =>
-        val person: Person = scenario.getPopulation.getPersons.get(personId)
-        population.addPerson(person)
-      }
+      household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
+      notSelectedHouseholdIds.remove(household.getId)
+      household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
     }
 
     notSelectedVehicleIds.foreach(vehicleId =>
@@ -190,7 +183,9 @@ trait BeamHelper extends LazyLogging {
       scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
     }
 
-    scenario.setPopulation(population)
+    notSelectedPersonIds.foreach { personId =>
+      scenario.getPopulation.removePerson(personId)
+    }
   }
 
 }
