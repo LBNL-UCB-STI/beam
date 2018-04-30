@@ -65,7 +65,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
   var router: ActorRef = _
   var scenario: Scenario = _
 
-  private val runSet = List(1000, 100000
+  private val runSet = List(1000, 10000, 100000
     /*, 10000, 25000, 50000, 75000*/)
 
   var dataSet: Seq[Seq[Node]] = _
@@ -153,7 +153,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
       var transitModes: Vector[BeamMode] = Vector()
       var streetVehicles: Vector[StreetVehicle] = Vector()
 
-      val r5Set = getActivityDataset(runSet.max)
+      val r5Set = getRandomNodePairDataset(runSet.max)
       modeSet.foreach(mode => {
         println(s"=================${mode.value}=================")
         runSet.foreach(n => {
@@ -162,7 +162,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
           testSet.foreach(pair => {
             val origin = pair(0).getCoord
             val destination = pair(1).getCoord
-            val time = RoutingModel.DiscreteTime(pair(0).getEndTime.toInt)
+            val time = RoutingModel.DiscreteTime(8 * 3600/*pair(0).getEndTime.toInt*/)
 
             mode.r5Mode match {
               case Some(Left(m)) =>
@@ -178,12 +178,11 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
               router ! RoutingRequest(origin, destination, time, transitModes, streetVehicles)
               expectMsgType[RoutingResponse]
             }
-            //println("--------------------------------------")
-            //response.itineraries.foreach(i => println(s"links#${i.beamLegs().map(_.travelPath.linkIds.size).sum}, time:${i.totalTravelTime}"))
+//            println("--------------------------------------")
+//            response.itineraries.foreach(i => println(s"links#${i.beamLegs().map(_.travelPath.linkIds.size).sum}, time:${i.totalTravelTime}"))
           })
           val latency = System.currentTimeMillis() - start
           println()
-
           println(s"Time to complete ${testSet.size} requests is : ${latency}ms around ${latency / 1000.0}sec")
         })
       })
