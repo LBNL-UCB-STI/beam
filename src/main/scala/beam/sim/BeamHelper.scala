@@ -24,14 +24,19 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.api.core.v01.population.{Person, PopulationFactory}
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
+import org.matsim.households.{Household, Households, HouseholdsImpl}
 import org.matsim.utils.objectattributes.AttributeConverter
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
@@ -134,6 +139,9 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+
+    samplePopulation(scenario,beamConfig,matsimConfig)
+
     val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
     networkCoordinator.loadNetwork()
     scenario.setNetwork(networkCoordinator.network)
@@ -145,6 +153,41 @@ trait BeamHelper extends LazyLogging {
     beamServices.controler.run()
     (matsimConfig, outputDirectory)
   }
+
+  // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
+  def samplePopulation(scenario: MutableScenario, beamConfig: BeamConfig, matsimConfig: Config): Unit ={
+    var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
+    var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
+    var notSelectedPersonIds = mutable.Set[Id[Person]]()
+    var numberOfAgents = 0
+
+    scenario.getVehicles.getVehicles.keySet().forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+    scenario.getHouseholds.getHouseholds.keySet().forEach(householdId => notSelectedHouseholdIds.add(householdId))
+    scenario.getPopulation.getPersons.keySet().forEach(persondId => notSelectedPersonIds.add(persondId))
+
+    val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
+    while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
+      val household = iterHouseholds.next()
+      numberOfAgents += household.getMemberIds.size()
+      household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
+      notSelectedHouseholdIds.remove(household.getId)
+      household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
+    }
+
+    notSelectedVehicleIds.foreach(vehicleId =>
+      scenario.getVehicles.removeVehicle(vehicleId)
+    )
+
+    notSelectedHouseholdIds.foreach { housholdId =>
+      scenario.getHouseholds.getHouseholds.remove(housholdId)
+      scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
+    }
+
+    notSelectedPersonIds.foreach { personId =>
+      scenario.getPopulation.removePerson(personId)
+    }
+  }
+
 }
 
 case class MapStringDouble(data: Map[String, Double])

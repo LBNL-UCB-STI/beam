@@ -14,28 +14,29 @@ import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 
-import java.io.File;
+import java.nio.file.Paths;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-public class PhyssimCalcLinkStatsTest{
+public class PhyssimCalcLinkStatsTest {
 
-    private static String BASE_PATH = new File("").getAbsolutePath();
-    private static String EVENTS_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimEvents-relative-speeds.xml";
-    private static String NETWORK_FILE_PATH = BASE_PATH+"/test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml";
+    private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
+    private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/equil-square/test-data/physSimEvents-relative-speeds.xml";
+    private static final String NETWORK_FILE_PATH = BASE_PATH + "/test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml";
+
     private static PhyssimCalcLinkStats physsimCalcLinkStats;
 
     @BeforeClass
-    public static void createDummySimWithXML(){
+    public static void createDummySimWithXML() {
 
         Config config = ConfigUtils.createConfig();
         Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
         Network network = scenario.getNetwork();
-        MatsimNetworkReader matsimNetworkReader= new MatsimNetworkReader(network);
+        MatsimNetworkReader matsimNetworkReader = new MatsimNetworkReader(network);
         matsimNetworkReader.readFile(NETWORK_FILE_PATH);
 
-        TravelTimeCalculatorConfigGroup defaultTravelTimeCalculator= config.travelTimeCalculator();
+        TravelTimeCalculatorConfigGroup defaultTravelTimeCalculator = config.travelTimeCalculator();
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(network, defaultTravelTimeCalculator);
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
@@ -50,27 +51,27 @@ public class PhyssimCalcLinkStatsTest{
     }
 
     @Test
-    public void testShouldPassShouldReturnCountRelativeSpeedOfSpecificHour(){
-        Double expectedResult=10.0;
-        Double actualResult =  physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(0,7);
+    public void testShouldPassShouldReturnCountRelativeSpeedOfSpecificHour() {
+        Double expectedResult = 10.0;
+        Double actualResult = physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(0, 7);
         assertEquals(expectedResult, actualResult);
     }
 
     @Test
-    public void testShouldPassShouldReturnCountOfAllRelativeSpeedCategoryForSpecificHour(){
-        List<Double> relativeSpeedCategoryList=physsimCalcLinkStats.getSortedListRelativeSpeedCategoryList();
-        Double expectedResult=260.0;
+    public void testShouldPassShouldReturnCountOfAllRelativeSpeedCategoryForSpecificHour() {
+        List<Double> relativeSpeedCategoryList = physsimCalcLinkStats.getSortedListRelativeSpeedCategoryList();
+        Double expectedResult = 260.0;
         Double actualRelativeSpeedSum = 0.0;
-        for(Double category:relativeSpeedCategoryList){
-            actualRelativeSpeedSum = actualRelativeSpeedSum + physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(category.intValue(),7);
+        for (Double category : relativeSpeedCategoryList) {
+            actualRelativeSpeedSum = actualRelativeSpeedSum + physsimCalcLinkStats.getRelativeSpeedOfSpecificHour(category.intValue(), 7);
         }
         assertEquals(expectedResult, actualRelativeSpeedSum);
     }
 
     @Test
-    public void testShouldPassShouldReturnSumOfRelativeSpeedForSpecificHour(){
-        Double expectedResult=148.0;
-        Double actualResult=physsimCalcLinkStats.getRelativeSpeedCountOfSpecificCategory(0);
+    public void testShouldPassShouldReturnSumOfRelativeSpeedForSpecificHour() {
+        Double expectedResult = 148.0;
+        Double actualResult = physsimCalcLinkStats.getRelativeSpeedCountOfSpecificCategory(0);
         assertEquals(expectedResult, actualResult);
     }
 

@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.mockito.Matchers._
+import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar

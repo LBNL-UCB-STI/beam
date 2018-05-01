@@ -4,7 +4,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingInquiry, RideHailingInquiryResponse}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
-import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
@@ -59,12 +59,6 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)
   val config = BeamConfig(system.settings.config)
-  val eventsManager = new EventsManagerImpl()
-  eventsManager.addHandler(new BasicEventHandler {
-    override def handleEvent(event: Event): Unit = {
-      self ! event
-    }
-  })
 
   val dummyAgentId = Id.createPersonId("dummyAgent")
   val vehicles = TrieMap[Id[Vehicle], BeamVehicle]()
@@ -97,12 +91,20 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     }
   }), "router")
 
+  case class TestTrigger(tick: Double) extends Trigger
+
   private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
   networkCoordinator.loadNetwork()
 
-  describe("A PersonAgent FSM") {
+  describe("A PersonAgent") {
 
     it("should allow scheduler to set the first activity") {
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          self ! event
+        }
+      })
       val scheduler = TestActorRef[BeamAgentScheduler](SchedulerProps(config, stopTick = 11.0, maxWindow = 10.0))
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -121,6 +123,12 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
     // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
     it("should demonstrate a complete trip, throwing MATSim events") {
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          self ! event
+        }
+      })
       val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
@@ -171,6 +179,12 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     }
 
     it("should know how to take a car trip when it's already in its plan") {
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          self ! event
+        }
+      })
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
@@ -227,6 +241,18 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
     }
 
     it("should know how to take a walk_transit trip when it's already in its plan") {
+
+      // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
+      // that we are expecting. And also not necessary in real life.
+      // So we put the Events on a separate channel to avoid a non-deterministically failing test.
+      val events = new TestProbe(system)
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          events.ref ! event
+        }
+      })
+
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val bus = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_bus"), vehicleType), None, Car)
       val tram = new BeamVehicle(new Powertrain(0.0), new VehicleImpl(Id.createVehicleId("my_tram"), vehicleType), None, Car)
@@ -273,38 +299,39 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
         EmbodiedBeamLeg(BeamLeg(30600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30600), SpaceTime(new Coord(167138.4,1117), 30600), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false)
       ))))
 
-      expectMsgType[ModeChoiceEvent]
-      expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      events.expectMsgType[ModeChoiceEvent]
+      events.expectMsgType[ActivityEndEvent]
+      events.expectMsgType[PersonDepartureEvent]
 
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
+      events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
-      lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
+      lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
+
+      events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[PersonLeavesVehicleEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
       lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
+      events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[PersonLeavesVehicleEvent]
 
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
 
-      expectMsgType[TeleportationArrivalEvent]
-      expectMsgType[PersonArrivalEvent]
-      expectMsgType[ActivityStartEvent]
+      events.expectMsgType[TeleportationArrivalEvent]
+      events.expectMsgType[PersonArrivalEvent]
+      events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
     }

@@ -1,10 +1,10 @@
 package beam.agentsim.agents.modalBehaviors
 
-import akka.actor.FSM.Failure
 import beam.agentsim.Resource.NotifyResourceIdle
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle._
+import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
@@ -32,6 +32,8 @@ object DrivesVehicle {
 
   case class NotifyLegStartTrigger(tick: Double, beamLeg: BeamLeg) extends Trigger
 
+  case class StopDriving()
+
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
@@ -41,7 +43,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime)
 
   when(Driving) {
-    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), LiterallyDrivingData(data, legEndingAt)) if tick == legEndingAt =>
       val currentVehicleUnderControl = data.currentVehicle.head
       // If no manager is set, we ignore
       val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
@@ -52,12 +54,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
           scheduler ! ScheduleTrigger(NotifyLegEndTrigger(tick, currentLeg), personRef)
         }
       }
+      eventsManager.processEvent(new VehicleLeavesTrafficEvent(tick, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
       eventsManager.processEvent(new PathTraversalEvent(tick, currentVehicleUnderControl,
         beamServices.vehicles(currentVehicleUnderControl).getType,
         data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
 
       if (data.currentLegPassengerScheduleIndex + 1 < data.passengerSchedule.schedule.size) {
-        // TODO: Throw exception here, see why scheduler doesn't recover
         val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex + 1).head
         goto(WaitingToDrive) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)))
       } else {
@@ -65,6 +67,32 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.travelPath.endPoint))
         goto(PassengerScheduleEmpty) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T]
       }
+
+    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
+      stay
+
+    case Event(Interrupt(), data) =>
+      goto(DrivingInterrupted) replying InterruptedAt(data.passengerSchedule, data.currentLegPassengerScheduleIndex)
+
+  }
+
+  when(DrivingInterrupted) {
+    case Event(StopDriving(), LiterallyDrivingData(data, legEndingAt)) =>
+      val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+      assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
+      val currentVehicleUnderControl = data.currentVehicle.head
+      // If no manager is set, we ignore
+      beamServices.vehicles(currentVehicleUnderControl).manager.foreach( _ ! NotifyResourceIdle(currentVehicleUnderControl,beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint)))
+      eventsManager.processEvent(new PathTraversalEvent(legEndingAt, currentVehicleUnderControl,
+        beamServices.vehicles(currentVehicleUnderControl).getType,
+        data.passengerSchedule.schedule(currentLeg).riders.size, currentLeg))
+      self ! PassengerScheduleEmptyMessage(beamServices.geo.wgs2Utm(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.travelPath.endPoint))
+      goto(PassengerScheduleEmptyInterrupted) using data.withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1).asInstanceOf[T]
+    case Event(Resume(), _) =>
+      goto(Driving)
+    case Event(TriggerWithId(EndLegTrigger(_), _), _) =>
+      stash()
+      stay
   }
 
   when(WaitingToDrive) {
@@ -79,23 +107,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
       RoutingModel.traverseStreetLeg(data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1, data.currentVehicle.head, (_,_) => 0L)
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
-      eventsManager.processEvent(new VehicleLeavesTrafficEvent(endTime, id.asInstanceOf[Id[Person]], null, data.currentVehicle.head, "car", 0.0))
-      goto(Driving) replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
+      goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
+  }
+
+  when(WaitingToDriveInterrupted) {
+    case Event(Resume(), _) =>
+      goto(WaitingToDrive)
   }
 
   val drivingBehavior: StateFunction = {
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, _), data) if isNotCompatible(data.passengerSchedule, updatedPassengerSchedule) =>
-      stop(Failure("Invalid attempt to ModifyPassengerSchedule, Spacetime of existing schedule incompatible with new"))
-
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
-      var newPassengerSchedule = data.passengerSchedule.addLegs(updatedPassengerSchedule.schedule.keys.toSeq)
-      updatedPassengerSchedule.schedule.foreach { legAndManifest =>
-        legAndManifest._2.riders.foreach { rider =>
-          newPassengerSchedule = newPassengerSchedule.addPassenger(rider, Seq(legAndManifest._1))
-        }
-      }
-      stay() using data.withPassengerSchedule(newPassengerSchedule).asInstanceOf[T] replying ModifyPassengerScheduleAck(requestId)
-
     case Event(req: ReservationRequest, data) if !hasRoomFor(data.passengerSchedule, req, beamServices.vehicles(data.currentVehicle.head)) =>
       stay() replying ReservationResponse(req.requestId, Left(VehicleFullError))
 
@@ -118,20 +138,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         case (leg, manifest) =>
           (leg, manifest.copy(riders = manifest.riders - id, alighters = manifest.alighters - id.vehicleId, boarders = manifest.boarders - id.vehicleId))
       })).asInstanceOf[T]
-  }
-
-  private def isNotCompatible(originalPassengerSchedule: PassengerSchedule, updatedPassengerSchedule: PassengerSchedule): Boolean = {
-    if (originalPassengerSchedule.schedule.nonEmpty) {
-      val endSpaceTime = originalPassengerSchedule.schedule.lastKey.travelPath.endPoint
-      ()
-      if (updatedPassengerSchedule.schedule.firstKey.travelPath.startPoint.time < endSpaceTime.time ||
-        beamServices.geo.distInMeters(updatedPassengerSchedule.schedule.firstKey.travelPath.startPoint.loc, endSpaceTime.loc) >
-          beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      ) {
-        return true
-      }
-    }
-    false
   }
 
   private def hasRoomFor(passengerSchedule: PassengerSchedule, req: ReservationRequest, vehicle: BeamVehicle) = {
