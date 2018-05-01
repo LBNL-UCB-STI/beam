@@ -20,7 +20,7 @@ import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.{Modes, RoutingModel}
 import beam.sim.BeamServices
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.{Metrics, MetricsSupport, PerformanceStats}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
@@ -44,8 +44,18 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var maybeTravelTime: Option[TravelTime] = None
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
+  /////////////////////////////////////////////////////////
+  // Defined for Performance Benchmarking
+  var iterationNumber = 0
+  val isNonCached = new ThreadLocal[Boolean]
+  var cacheRequestStats: PerformanceStats = new PerformanceStats()
+  var nonCacheTransitRequestStats = new PerformanceStats()
+  var nonCacheNonTransitRequestStats: PerformanceStats = new PerformanceStats()
+
+  /////////////////////////////////////////////////////////
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
     override def load(key: R5Request) = {
+      isNonCached.set(true)
       getPlanFromR5(key)
     }
   })
@@ -58,16 +68,55 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
     case request: RoutingRequest =>
-      val eventualResponse = Future {
 
-        latency("request-router-time", Metrics.RegularLevel) {
+      val eventualResponse = Future {
+        val start = System.currentTimeMillis()
+        val resp = latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
         }
+
+        if(log.isInfoEnabled) {
+          val time = System.currentTimeMillis() - start
+
+          if (isNonCached.get()) {
+            val isTransit = request.transitModes != null && !request.transitModes.isEmpty
+            if(isTransit) {
+              nonCacheTransitRequestStats.addTime(time)
+            } else {
+              nonCacheNonTransitRequestStats.addTime(time)
+            }
+          } else {
+            cacheRequestStats.addTime(time)
+          }
+          isNonCached.set(false)
+        }
+        resp
       }
       eventualResponse.failed.foreach(log.error(_, ""))
       eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
+
+
+      if(log.isInfoEnabled) {
+        val nonCacheRequestStats = nonCacheTransitRequestStats.combine(nonCacheNonTransitRequestStats)
+        // If you want to change the LOG LEVEL, please also change if condition above and
+        // in routing request section where these metrices are being captured.
+        log.info(s"""
+         | =======================================================================================
+         | Performance Benchmarks (iteration no: ${iterationNumber})
+         | number of cached requests: ${cacheRequestStats.toString}
+         | number of non-cached requests: ${nonCacheRequestStats.toString}
+         |  - number of transit requests (non-cached): ${nonCacheTransitRequestStats.toString}
+         |  - number of non-transit requests (non-cached): ${nonCacheNonTransitRequestStats.toString}
+         | ======================================================================================="""
+        )
+        isNonCached.set(false)
+        iterationNumber = iterationNumber + 1
+        cacheRequestStats.reset
+        nonCacheTransitRequestStats.reset
+        nonCacheNonTransitRequestStats.reset
+      }
       cache.invalidateAll()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {

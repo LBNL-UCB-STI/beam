@@ -140,7 +140,7 @@ trait BeamHelper extends LazyLogging {
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
 
-    samplePopulation(scenario,beamConfig,matsimConfig)
+    samplePopulation(scenario, beamConfig, matsimConfig)
 
     val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
     networkCoordinator.loadNetwork()
@@ -155,36 +155,38 @@ trait BeamHelper extends LazyLogging {
   }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
-  def samplePopulation(scenario: MutableScenario, beamConfig: BeamConfig, matsimConfig: Config): Unit ={
-    var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
-    var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
-    var notSelectedPersonIds = mutable.Set[Id[Person]]()
-    var numberOfAgents = 0
+  def samplePopulation(scenario: MutableScenario, beamConfig: BeamConfig, matsimConfig: Config): Unit = {
+    if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
+      var notSelectedHouseholdIds = mutable.Set[Id[Household]]()
+      var notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
+      var notSelectedPersonIds = mutable.Set[Id[Person]]()
+      var numberOfAgents = 0
 
-    scenario.getVehicles.getVehicles.keySet().forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
-    scenario.getHouseholds.getHouseholds.keySet().forEach(householdId => notSelectedHouseholdIds.add(householdId))
-    scenario.getPopulation.getPersons.keySet().forEach(persondId => notSelectedPersonIds.add(persondId))
+      scenario.getVehicles.getVehicles.keySet().forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+      scenario.getHouseholds.getHouseholds.keySet().forEach(householdId => notSelectedHouseholdIds.add(householdId))
+      scenario.getPopulation.getPersons.keySet().forEach(persondId => notSelectedPersonIds.add(persondId))
 
-    val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
-    while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
-      val household = iterHouseholds.next()
-      numberOfAgents += household.getMemberIds.size()
-      household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
-      notSelectedHouseholdIds.remove(household.getId)
-      household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
-    }
+      val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
+      while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
+        val household = iterHouseholds.next()
+        numberOfAgents += household.getMemberIds.size()
+        household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
+        notSelectedHouseholdIds.remove(household.getId)
+        household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
+      }
 
-    notSelectedVehicleIds.foreach(vehicleId =>
-      scenario.getVehicles.removeVehicle(vehicleId)
-    )
+      notSelectedVehicleIds.foreach(vehicleId =>
+        scenario.getVehicles.removeVehicle(vehicleId)
+      )
 
-    notSelectedHouseholdIds.foreach { housholdId =>
-      scenario.getHouseholds.getHouseholds.remove(housholdId)
-      scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
-    }
+      notSelectedHouseholdIds.foreach { housholdId =>
+        scenario.getHouseholds.getHouseholds.remove(housholdId)
+        scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
+      }
 
-    notSelectedPersonIds.foreach { personId =>
-      scenario.getPopulation.removePerson(personId)
+      notSelectedPersonIds.foreach { personId =>
+        scenario.getPopulation.removePerson(personId)
+      }
     }
   }
 
