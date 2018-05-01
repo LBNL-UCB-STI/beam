@@ -8,8 +8,7 @@ from botocore.errorfactory import ClientError
 CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"
   -    sleep 10s
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/
-  -    rm -rf test/output/*'''
+  -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
@@ -71,6 +70,7 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge']
 
 regions = ['us-east-2', 'us-west-2']
+shutdown_behaviours = ['stop', 'terminate']
 
 s3 = boto3.client('s3')
 ec2 = None
@@ -99,7 +99,7 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour):
     res = ec2.run_instances(ImageId=os.environ[region_prefix + 'IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
@@ -108,7 +108,7 @@ def deploy(script, instance_type, region_prefix):
                             MaxCount=1,
                             SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
                             IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior='terminate')
+                            InstanceInitiatedShutdownBehavior=shutdown_behaviour)
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -128,13 +128,17 @@ def lambda_handler(event, context):
     commit_id = event.get('commit', COMMIT_DEFAULT)
     configs = event.get('configs', CONFIG_DEFAULT)
     is_experiment = event.get('is_experiment', 'false')
-    instance_type = event.get('instance_type')
+    instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
     batch = event.get('batch', TRUE)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
     region = event.get('region', os.environ['REGION'])
+    shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
 
-    if instance_type is None or instance_type not in instance_types:
+    if instance_type not in instance_types:
         instance_type = os.environ['INSTANCE_TYPE']
+
+    if shutdown_behaviour not in shutdown_behaviours:
+        shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
 
     selected_script = CONFIG_SCRIPT
     if is_experiment == TRUE:
@@ -157,7 +161,7 @@ def lambda_handler(event, context):
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait)
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_')
+            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
             # txt = txt + 'Script is {script}. \n'.format(script=script)
