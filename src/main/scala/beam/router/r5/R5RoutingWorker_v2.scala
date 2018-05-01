@@ -109,24 +109,37 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   // be the dispatcher on which this actor is running.
   import context.dispatcher
 
-  log.info("R5RoutingWorker_v2 is ready")
+  log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
+
+  def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
   override final def receive: Receive = {
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
-    case request: RoutingRequest =>
-      val eventualResponse = Future {
+      log.info(s"{} TransitInited. transitSchedule[{}] keys: {}", getNameAndHashCode,
+        transitSchedule.hashCode(), transitSchedule.keys.size)
 
-        latency("request-router-time", Metrics.RegularLevel) {
-          calcRoute(request)
-        }
+    case request: RoutingRequest =>
+      log.info(s"{} RoutingRequest. transitSchedule[{}] keys: {}", getNameAndHashCode, transitSchedule.keys.size)
+
+      val res = latency("request-router-time", Metrics.RegularLevel) {
+        calcRoute(request)
       }
-      eventualResponse.failed.foreach(log.error(_, ""))
-      eventualResponse pipeTo sender
+      sender ! res
+//      val eventualResponse = Future {
+//
+//        latency("request-router-time", Metrics.RegularLevel) {
+//          calcRoute(request)
+//        }
+//      }
+//      eventualResponse.failed.foreach(log.error(_, ""))
+//      eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
+      log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
+      log.info(s"{} EmbodyWithCurrentTravelTime", getNameAndHashCode)
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
         case Some(matsimTravelTime) =>
           matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
@@ -352,7 +365,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
               //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
               val fs = fares.filter(_.patternIndex == segmentPattern.patternIdx).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
-              val vehileId = Id.createVehicleId(tripId).toString
+              log.info("transitSchedule[{}].keys: {}", transitSchedule.hashCode(), transitSchedule.keys.size)
               val segmentLegs = transitSchedule(Id.createVehicleId(tripId))._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.zipWithIndex.map(beamLeg => (beamLeg._1, if (beamLeg._2 == 0) fare else 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)
