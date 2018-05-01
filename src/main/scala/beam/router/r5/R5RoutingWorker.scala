@@ -20,7 +20,7 @@ import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.{Modes, RoutingModel}
 import beam.sim.BeamServices
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.{Metrics, MetricsSupport, PerformanceStats}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
@@ -45,37 +45,12 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
   /////////////////////////////////////////////////////////
-  class PerformanceStats {
-    var totalTime: Long = 0
-    var numberOfStats:Int = 0
-
-    def avg = totalTime / numberOfStats
-
-    def addTime(time: Long): Unit = {
-      totalTime = totalTime + time
-      numberOfStats = numberOfStats + 1
-    }
-
-    def combine(stats: PerformanceStats): PerformanceStats = {
-      val combined = new PerformanceStats
-      combined.totalTime = this.totalTime + stats.totalTime
-      combined.numberOfStats = this.numberOfStats + stats.numberOfStats
-      combined
-    }
-
-    def reset: Unit = {
-      totalTime = 0
-      numberOfStats = 0
-    }
-
-    override def toString: String = s"$numberOfStats (average time: $avg [ms]; total time: $totalTime)"
-  }
+  // Defined for Performance Benchmarking
   var iterationNumber = 0
   val isNonCached = new ThreadLocal[Boolean]
   var cacheRequestStats: PerformanceStats = new PerformanceStats()
   var nonCacheTransitRequestStats = new PerformanceStats()
   var nonCacheNonTransitRequestStats: PerformanceStats = new PerformanceStats()
-
 
   /////////////////////////////////////////////////////////
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
@@ -113,6 +88,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           } else {
             cacheRequestStats.addTime(time)
           }
+          isNonCached.set(false)
         }
         resp
       }
