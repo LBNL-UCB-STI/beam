@@ -45,6 +45,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
   /////////////////////////////////////////////////////////
+
   var iterationNumber = 0
   val isNonCached = new ThreadLocal[Boolean]
   var nonCacheRequestTime: mutable.Map[Boolean, Vector[Long]] = mutable.Map(true -> Vector(), false -> Vector())
@@ -72,13 +73,16 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val resp = latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
         }
-        val time = System.currentTimeMillis() - start
 
-        val isTransit = request.transitModes != null && !request.transitModes.isEmpty
-        if(isNonCached.get()) {
-          nonCacheRequestTime(isTransit) = nonCacheRequestTime(isTransit) :+ time
-        } else {
-          cacheRequestTime = cacheRequestTime :+ time
+        if(log.isInfoEnabled) {
+          val time = System.currentTimeMillis() - start
+
+          val isTransit = request.transitModes != null && !request.transitModes.isEmpty
+          if (isNonCached.get()) {
+            nonCacheRequestTime(isTransit) = nonCacheRequestTime(isTransit) :+ time
+          } else {
+            cacheRequestTime = cacheRequestTime :+ time
+          }
         }
         resp
       }
@@ -87,17 +91,24 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
 
-      println("======================================================================")
-      println(s"Performance Benchmarks (iteration no: ${iterationNumber})")
-      println(s"number of cached requests: ${cacheRequestTime.size} (average time: ${cacheRequestTime.sum / cacheRequestTime.size} [ms]) ")
-      println(s"number of non-cached requests: ${nonCacheRequestTime.flatMap(_._2).size} (average time: ${nonCacheRequestTime.flatMap(_._2).sum / nonCacheRequestTime.flatMap(_._2).size} [ms])")
-      println(s"number of transit requests (non-cached): ${nonCacheRequestTime(true).size} (average time: ${nonCacheRequestTime(true).sum / nonCacheRequestTime(true).size} [ms])")
-      println(s"number of non-transit requests (non-cached): ${nonCacheRequestTime(false).size} (average time: ${nonCacheRequestTime(false).sum / nonCacheRequestTime(false).size} [ms])")
-      println("======================================================================")
-      isNonCached.set(false)
-      iterationNumber = iterationNumber + 1
-      nonCacheRequestTime = mutable.Map(true -> Vector(), false -> Vector())
-      cacheRequestTime = Vector[Long]()
+
+      if(log.isInfoEnabled) {
+        // If you want to change the LOG LEVEL, please also change if condition above and
+        // in routing request section where these metrices are being captured.
+        log.info("\n" +
+          "=======================================================================================\n" +
+          s"Performance Benchmarks (iteration no: ${iterationNumber})\n" +
+          s"number of cached requests: ${cacheRequestTime.size} (average time: ${cacheRequestTime.sum / cacheRequestTime.size} [ms]; total time: ${cacheRequestTime.sum}) \n" +
+          s"number of non-cached requests: ${nonCacheRequestTime.flatMap(_._2).size} (average time: ${nonCacheRequestTime.flatMap(_._2).sum / nonCacheRequestTime.flatMap(_._2).size} [ms]; total time: ${nonCacheRequestTime.flatMap(_._2).sum})\n" +
+          s"number of transit requests (non-cached): ${nonCacheRequestTime(true).size} (average time: ${nonCacheRequestTime(true).sum / nonCacheRequestTime(true).size} [ms]; total time: ${nonCacheRequestTime(true).sum})\n" +
+          s"number of non-transit requests (non-cached): ${nonCacheRequestTime(false).size} (average time: ${nonCacheRequestTime(false).sum / nonCacheRequestTime(false).size} [ms]; total time: ${nonCacheRequestTime(false).sum})\n" +
+          "======================================================================================="
+        )
+        isNonCached.set(false)
+        iterationNumber = iterationNumber + 1
+        nonCacheRequestTime = mutable.Map(true -> Vector(), false -> Vector())
+        cacheRequestTime = Vector[Long]()
+      }
       cache.invalidateAll()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
