@@ -45,11 +45,37 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
   /////////////////////////////////////////////////////////
+  class PerformanceStats {
+    var totalTime: Long = 0
+    var numberOfStats:Int = 0
 
+    def avg = totalTime / numberOfStats
+
+    def addTime(time: Long): Unit = {
+      totalTime = totalTime + time
+      numberOfStats = numberOfStats + 1
+    }
+
+    def combine(stats: PerformanceStats): PerformanceStats = {
+      val combined = new PerformanceStats
+      combined.totalTime = this.totalTime + stats.totalTime
+      combined.numberOfStats = this.numberOfStats + stats.numberOfStats
+      combined
+    }
+
+    def reset: Unit = {
+      totalTime = 0
+      numberOfStats = 0
+    }
+
+    override def toString: String = s"$numberOfStats (average time: $avg [ms]; total time: $totalTime)"
+  }
   var iterationNumber = 0
   val isNonCached = new ThreadLocal[Boolean]
-  var nonCacheRequestTime: mutable.Map[Boolean, Vector[Long]] = mutable.Map(true -> Vector(), false -> Vector())
-  var cacheRequestTime = Vector[Long]()
+  var cacheRequestStats: PerformanceStats = new PerformanceStats()
+  var nonCacheTransitRequestStats = new PerformanceStats()
+  var nonCacheNonTransitRequestStats: PerformanceStats = new PerformanceStats()
+
 
   /////////////////////////////////////////////////////////
   val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
@@ -77,11 +103,15 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         if(log.isInfoEnabled) {
           val time = System.currentTimeMillis() - start
 
-          val isTransit = request.transitModes != null && !request.transitModes.isEmpty
           if (isNonCached.get()) {
-            nonCacheRequestTime(isTransit) = nonCacheRequestTime(isTransit) :+ time
+            val isTransit = request.transitModes != null && !request.transitModes.isEmpty
+            if(isTransit) {
+              nonCacheTransitRequestStats.addTime(time)
+            } else {
+              nonCacheNonTransitRequestStats.addTime(time)
+            }
           } else {
-            cacheRequestTime = cacheRequestTime :+ time
+            cacheRequestStats.addTime(time)
           }
         }
         resp
@@ -93,21 +123,23 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
 
       if(log.isInfoEnabled) {
+        val nonCacheRequestStats = nonCacheTransitRequestStats.combine(nonCacheNonTransitRequestStats)
         // If you want to change the LOG LEVEL, please also change if condition above and
         // in routing request section where these metrices are being captured.
-        log.info("\n" +
-          "=======================================================================================\n" +
-          s"Performance Benchmarks (iteration no: ${iterationNumber})\n" +
-          s"number of cached requests: ${cacheRequestTime.size} (average time: ${cacheRequestTime.sum / cacheRequestTime.size} [ms]; total time: ${cacheRequestTime.sum}) \n" +
-          s"number of non-cached requests: ${nonCacheRequestTime.flatMap(_._2).size} (average time: ${nonCacheRequestTime.flatMap(_._2).sum / nonCacheRequestTime.flatMap(_._2).size} [ms]; total time: ${nonCacheRequestTime.flatMap(_._2).sum})\n" +
-          s"number of transit requests (non-cached): ${nonCacheRequestTime(true).size} (average time: ${nonCacheRequestTime(true).sum / nonCacheRequestTime(true).size} [ms]; total time: ${nonCacheRequestTime(true).sum})\n" +
-          s"number of non-transit requests (non-cached): ${nonCacheRequestTime(false).size} (average time: ${nonCacheRequestTime(false).sum / nonCacheRequestTime(false).size} [ms]; total time: ${nonCacheRequestTime(false).sum})\n" +
-          "======================================================================================="
+        log.info(s"""
+         | =======================================================================================
+         | Performance Benchmarks (iteration no: ${iterationNumber})
+         | number of cached requests: ${cacheRequestStats.toString}
+         | number of non-cached requests: ${nonCacheRequestStats.toString}
+         |  - number of transit requests (non-cached): ${nonCacheTransitRequestStats.toString}
+         |  - number of non-transit requests (non-cached): ${nonCacheNonTransitRequestStats.toString}
+         | ======================================================================================="""
         )
         isNonCached.set(false)
         iterationNumber = iterationNumber + 1
-        nonCacheRequestTime = mutable.Map(true -> Vector(), false -> Vector())
-        cacheRequestTime = Vector[Long]()
+        cacheRequestStats.reset
+        nonCacheTransitRequestStats.reset
+        nonCacheNonTransitRequestStats.reset
       }
       cache.invalidateAll()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
