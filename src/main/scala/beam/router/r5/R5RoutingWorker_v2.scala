@@ -121,19 +121,13 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
     case request: RoutingRequest =>
       log.info(s"{} RoutingRequest. transitSchedule[{}] keys: {}", getNameAndHashCode, transitSchedule.keys.size)
-
-      val res = latency("request-router-time", Metrics.RegularLevel) {
-        calcRoute(request)
+      val eventualResponse = Future {
+        latency("request-router-time", Metrics.RegularLevel) {
+          calcRoute(request)
+        }
       }
-      sender ! res
-//      val eventualResponse = Future {
-//
-//        latency("request-router-time", Metrics.RegularLevel) {
-//          calcRoute(request)
-//        }
-//      }
-//      eventualResponse.failed.foreach(log.error(_, ""))
-//      eventualResponse pipeTo sender
+      eventualResponse.failed.foreach(log.error(_, ""))
+      eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)

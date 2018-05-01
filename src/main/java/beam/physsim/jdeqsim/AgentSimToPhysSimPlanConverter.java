@@ -145,7 +145,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             eventsWriterXML.closeFile();
         }
 
-        router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
+        // router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
     }
 
     private boolean writePhysSimEvents(int iterationNumber) {
