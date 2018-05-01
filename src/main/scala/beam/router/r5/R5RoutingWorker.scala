@@ -111,7 +111,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
          |  - number of non-transit requests (non-cached): ${nonCacheNonTransitRequestStats.toString}
          | ======================================================================================="""
         )
-        isNonCached.set(false)
+
         iterationNumber = iterationNumber + 1
         cacheRequestStats.reset
         nonCacheTransitRequestStats.reset
