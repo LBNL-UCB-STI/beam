@@ -308,7 +308,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "batch": "$beamBatch",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "region": "$region",
-  "shutdown_wait": "$shutdownWait"
+  "shutdown_wait": "$shutdownWait",
+  "shutdown_behaviour": "$shutdownBehaviour"
 }"""
 
     functionName = "simulateBeam"
