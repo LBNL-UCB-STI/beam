@@ -45,7 +45,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
 
   /////////////////////////////////////////////////////////
-
+  var iterationNumber = 0
   val isNonCached = new ThreadLocal[Boolean]
   var nonCacheRequestTime: mutable.Map[Boolean, Vector[Long]] = mutable.Map(true -> Vector(), false -> Vector())
   var cacheRequestTime = Vector[Long]()
@@ -88,18 +88,14 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       maybeTravelTime = Some(travelTime)
 
       println("======================================================================")
-      println(s"number of cached requests: ${cacheRequestTime.size}")
-      println(s"number of non-cached requests: ${nonCacheRequestTime.flatMap(_._2).size}")
-      println(s"number of transit requests: ${nonCacheRequestTime(true).size}")
-      println(s"number of non-transit requests: ${nonCacheRequestTime(false).size}")
-      println("   --------------")
-      println(s"average time of cached request: ${cacheRequestTime.sum / cacheRequestTime.size} for ${cacheRequestTime.size} requests")
-      println(s"average time of non-cached request: ${nonCacheRequestTime.flatMap(_._2).sum / nonCacheRequestTime.flatMap(_._2).size} for ${nonCacheRequestTime.flatMap(_._2).size} requests")
-      println(s"average time of transit request: ${nonCacheRequestTime(true).sum / nonCacheRequestTime(true).size} for ${nonCacheRequestTime(true).size} requests")
-      println(s"average time of non-transit request: ${nonCacheRequestTime(false).sum / nonCacheRequestTime(false).size} for ${nonCacheRequestTime(false).size} requests")
+      println(s"Performance Benchmarks (iteration no: ${iterationNumber})")
+      println(s"number of cached requests: ${cacheRequestTime.size} (average time: ${cacheRequestTime.sum / cacheRequestTime.size} [ms]) ")
+      println(s"number of non-cached requests: ${nonCacheRequestTime.flatMap(_._2).size} (average time: ${nonCacheRequestTime.flatMap(_._2).sum / nonCacheRequestTime.flatMap(_._2).size} [ms])")
+      println(s"number of transit requests (non-cached): ${nonCacheRequestTime(true).size} (average time: ${nonCacheRequestTime(true).sum / nonCacheRequestTime(true).size} [ms])")
+      println(s"number of non-transit requests (non-cached): ${nonCacheRequestTime(false).size} (average time: ${nonCacheRequestTime(false).sum / nonCacheRequestTime(false).size} [ms])")
       println("======================================================================")
       isNonCached.set(false)
-
+      iterationNumber = iterationNumber + 1
       nonCacheRequestTime = mutable.Map(true -> Vector(), false -> Vector())
       cacheRequestTime = Vector[Long]()
       cache.invalidateAll()
