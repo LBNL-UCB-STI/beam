@@ -66,10 +66,12 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   override def receive = {
     case InitTransit(scheduler) =>
       val transitSchedule = initTransit(scheduler)
-      val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
-      val service = context.actorSelection(RootActorPath(address) / servicePathElements)
-      log.info("Sending TransitInited to {}", service)
-      service ! TransitInited(transitSchedule)
+      // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
+      nodes.foreach { address =>
+        val service = context.actorSelection(RootActorPath(address) / servicePathElements)
+        log.info("Sending TransitInited to {}", service)
+        service ! TransitInited(transitSchedule)
+      }
       sender ! Success("success")
     case state: CurrentClusterState =>
       log.info("CurrentClusterState: {}", state)
@@ -94,7 +96,6 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
       log.info("Sending other `{}` to {}", other, service)
       service.forward(other)
   }
-
 
   /*
 * Plan of action:

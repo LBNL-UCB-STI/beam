@@ -5,20 +5,8 @@ import java.nio.file.InvalidPathException
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
 import beam.router.RouteFrontend
-import beam.router.gtfs.FareCalculator
-import beam.router.osm.TollCalculator
-import beam.router.r5.NetworkCoordinator
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.reflection.ReflectionUtils
-import beam.utils.{BeamConfigUtils, FileUtils, LoggingUtil}
-import com.conveyal.r5.streets.StreetLayer
-import com.conveyal.r5.transit.TransportNetwork
+import beam.utils.BeamConfigUtils
 import com.typesafe.config.ConfigFactory
-import javassist.ClassPool
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.Network
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.vehicles.Vehicle
 
 object RunBeamCluster extends BeamHelper with App {
   print(

@@ -1,8 +1,6 @@
 package beam.sim.modules
 
-import akka.actor.{ActorSystem, PoisonPill, Props}
-import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
-import beam.router.{BeamRouter, RouteFrontend}
+import akka.actor.ActorSystem
 import beam.sim.akkaguice.{AkkaGuiceSupport, GuiceAkkaExtension}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, BeamServicesImpl}

@@ -3,15 +3,8 @@ package beam.router
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.routing.{Broadcast, FromConfig}
 import beam.router.BeamRouter.TransitInited
-import beam.router.gtfs.FareCalculator
-import beam.router.osm.TollCalculator
-import beam.router.r5.{R5RoutingWorker, R5RoutingWorker_v2}
-import beam.sim.BeamServices
-import com.conveyal.r5.transit.TransportNetwork
+import beam.router.r5.R5RoutingWorker_v2
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.network.Network
-import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.vehicles.Vehicles
 
 class RouteFrontend(config: Config) extends Actor with ActorLogging{
   // This router is used both with lookup and deploy of routees. If you
