@@ -126,7 +126,7 @@ def get_dns(instance_id):
 def lambda_handler(event, context):
     titled = event.get('title')
     if titled is None:
-        return "Unable to start the run, title is required. Please restart with appropriate title."
+        return "Unable to start the run, runName is required. Please restart with appropriate runName."
 
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)

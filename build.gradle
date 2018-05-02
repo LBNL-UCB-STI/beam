@@ -296,8 +296,8 @@ def getCurrentGitBranch() {
 
 task deploy(type: AWSLambdaInvokeTask) {
 
-    if(!project.hasProperty('title')) {
-        throw new GradleException('Please name the run by specifying `title` argument. e.g; ./gradlew deploy -Ptitle=sfbay-performance-run')
+    if(!project.hasProperty('runName')) {
+        throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
     }
 
     if(!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.configs') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
@@ -305,7 +305,7 @@ task deploy(type: AWSLambdaInvokeTask) {
     }
 
     def pload = """{
-  "title": "${project.findProperty('title')}",
+  "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
