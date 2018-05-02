@@ -28,7 +28,7 @@ initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
-  - /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "$TITLED started..." -t "An ec2 instance $(ec2metadata --instance-id) of size $(ec2metadata --instance-type) started." -b "An EC2 instance of type $(ec2metadata --instance-type) launched in $REGION to run the batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
+  - /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "Run [$TITLED] started..." -t "An ec2 instance $(ec2metadata --instance-id) of size $(ec2metadata --instance-type) started." -b "An EC2 instance of type $(ec2metadata --instance-type) launched in $REGION to run the batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
   - echo "notification sent..."
   - echo '0 * * * * /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
   - echo "notification saved..."
@@ -50,7 +50,7 @@ runcmd:
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
-  - /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "$TITLED completed..." -t "An ec2 instance $(ec2metadata --instance-id) of size $(ec2metadata --instance-type) finished execution." -b "An EC2 instance of type $(ec2metadata --instance-type) has just completed the run in $REGION for batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
+  - /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "Run [$TITLED] completed..." -t "An ec2 instance $(ec2metadata --instance-id) of size $(ec2metadata --instance-type) finished execution." -b "An EC2 instance of type $(ec2metadata --instance-type) has just completed the run in $REGION for batch [$UID] on branch / commit [$BRANCH / $COMMIT]."
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
