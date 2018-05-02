@@ -5,7 +5,7 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace run -PappArgs="['--config', '$cf']"
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']"
   -    sleep 10s
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''

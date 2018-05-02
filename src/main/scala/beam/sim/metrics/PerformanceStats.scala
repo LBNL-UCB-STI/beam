@@ -6,6 +6,10 @@ class PerformanceStats {
 
   def avg = if (numberOfStats > 0) totalTime / numberOfStats else -1L
 
+  def avgSec: Double = avg / 1000.0
+
+  def totalSec: Double = totalTime / 1000.0
+
   def addTime(time: Long): Unit = {
     totalTime = totalTime + time
     numberOfStats = numberOfStats + 1
@@ -23,6 +27,7 @@ class PerformanceStats {
     numberOfStats = 0
   }
 
-  override def toString: String = s"$numberOfStats (average time: $avg [ms]; total time: $totalTime [ms])"
+  override def toString: String = s"$numberOfStats (average time: $avgSec [sec]; total time: $totalSec [sec])"
+
 
 }

@@ -22,6 +22,8 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
+import beam.sim.metrics.MetricsPrinter
+import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
@@ -40,13 +42,19 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 
   private val config = services.beamConfig.beam.routing
   private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
+
+  private val metricsPrinter = context.actorOf(MetricsPrinter.props())
   private var numStopsNotFound = 0
 
   override def receive = {
     case InitTransit(scheduler) =>
       val transitSchedule = initTransit(scheduler)
+      metricsPrinter ! Subscribe("histogram","**")
       routerWorker ! TransitInited(transitSchedule)
       sender ! Success("success")
+    case msg: UpdateTravelTime =>
+      metricsPrinter ! Print(Seq("cache-router-time", "noncache-router-time", "noncache-transit-router-time", "noncache-nontransit-router-time"), Nil)
+      routerWorker.forward(msg)
     case other =>
       routerWorker.forward(other)
   }
