@@ -36,8 +36,6 @@ import scala.collection.{JavaConverters, immutable}
 import scala.io.Source
 import scala.util.Random
 
-
-
 case class SynthHousehold(householdId: Id[Household], numPersons: Int, cars: Int, hhIncome: Double, coord: Coord)
 
 sealed trait HouseholdAttrib extends EnumEntry
@@ -155,11 +153,7 @@ object QuadTreeBuilder {
     // loop through all activities and check if each is in the bounds
     for (person <- pop) {
       val pplan = person.getPlans.get(0) // First and only plan
-      //      val elements = JavaConverters.collectionAsScalaIterable(pplan.getPlanElements())
       val activities = PopulationUtils.getActivities(pplan, null)
-      //      val plans = JavaConverters.collectionAsScalaIterable(person.getPlans())   //.iterator();
-      //      while (plans.hasNext()){
-      //        val plan = plans.next();
 
       // If any activities outside of bounding box, skip this person
       var allIn = true
@@ -194,6 +188,8 @@ object SynthHouseholdParser {
   private val homeCoordYIdx: Int = 5
 
   /**
+    * Obtain the household data from formatted population sample and create [[SynthHousehold]]s
+    * based on hhId and associated attributes, where each row is a different household.
     *
     * @param synthFileName : synthetic households filename
     * @return the [[Vector]] of [[SynthHousehold]]s
@@ -319,8 +315,8 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val defaultVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
-    newVehicles.addVehicleType(defaultVehicleType)
+    val carVehicleType = JavaConverters.collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values()).head
+    newVehicles.addVehicleType(carVehicleType)
     synthHouseholds foreach (sh => {
 
       val N = if (sh.numPersons * 2 > 0) {
@@ -343,7 +339,7 @@ object PlansSampler {
       // Create and add car identifiers
       (0 to sh.cars).foreach(x => {
         val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
-        val vehicle: Vehicle = VehicleUtils.getFactory.createVehicle(vehicleId, defaultVehicleType)
+        val vehicle: Vehicle = VehicleUtils.getFactory.createVehicle(vehicleId, carVehicleType)
         newVehicles.addVehicle(vehicle)
         spHH.getVehicleIds.add(vehicleId)
       })
@@ -404,7 +400,9 @@ object PlansSampler {
 }
 
 /**
-  * Inputs
+  * This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
+  * command-line args]:
+  *
   * [0] Raw plans input filename
   * [1] Input AOI shapefile
   * [2] Network input filename

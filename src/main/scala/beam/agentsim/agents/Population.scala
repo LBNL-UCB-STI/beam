@@ -108,6 +108,8 @@ object Population {
     Props(new Population(scenario, services, scheduler, transportNetwork, router, rideHailingManager, eventsManager))
   }
 
+  // TODO: Bike vs. car splits.
+
 
   def getVehiclesFromHousehold(household: Household, matsimVehicles: Vehicles):
   Map[Id[BeamVehicle], BeamVehicle] = {
