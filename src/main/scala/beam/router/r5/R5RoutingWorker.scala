@@ -60,6 +60,21 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     }
   })
 
+  def getPlanUsingCache(request: R5Request) = {
+    var plan = latencyIfNonNull("cache-router-time", Metrics.VerboseLevel) {cache.getIfPresent(request)}
+    if(plan == null) {
+      val planWithTime = measure(cache.get(request))
+      plan = planWithTime._1
+
+      var nt = ""
+      if(request.transitModes.isEmpty) nt = "non"
+
+      latency(s"noncache-${nt}transit-router-time", Metrics.VerboseLevel, planWithTime._2)
+      latency("noncache-router-time", Metrics.VerboseLevel, planWithTime._2)
+    }
+    plan
+  }
+
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
   import context.dispatcher
@@ -96,7 +111,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
-
 
       if(log.isInfoEnabled) {
         val nonCacheRequestStats = nonCacheTransitRequestStats.combine(nonCacheNonTransitRequestStats)
@@ -214,7 +228,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val egressMode = LegMode.WALK
           val transitModes = Nil
           val profileResponse = latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
-            cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+            getPlanUsingCache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
           }
           if (profileResponse.options.isEmpty) {
             return Nil // Cannot walk to vehicle, so no options from this vehicle.
@@ -248,7 +262,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val egressMode = LegMode.WALK
         val transitModes = Nil
         val profileResponse = latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-          cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+          getPlanUsingCache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
         }
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
@@ -288,7 +302,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val transitModes: Vector[TransitModes] = routingRequest.transitModes.map(_.r5Mode.get.right.get)
       val latencyTag = (if (transitModes.isEmpty) "mainVehicleToDestinationRoute" else "mainTransitRoute") + "-router-time"
       val profileResponse: ProfileResponse = latency(latencyTag, Metrics.RegularLevel) {
-        cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+        getPlanUsingCache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
       }
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
