@@ -28,9 +28,9 @@ initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
-  - /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "Run [$TITLED] started..." -t "An ec2 instance **$(ec2metadata --instance-id)** of size **$(ec2metadata --instance-type)** started." -b "An EC2 instance of type $(ec2metadata --instance-type) launched in $REGION to run the batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]."
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] started..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** launched in **$REGION** to run the batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]."
   - echo "notification sent..."
-  - echo '0 * * * * /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
+  - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
   - echo "notification saved..."
   - crontab /tmp/glip_notification
   - crontab -l
@@ -50,7 +50,7 @@ runcmd:
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
-  - /home/ubuntu/git/glip.sh -i "https://a0.awsstatic.com/main/images/logos/aws_logo_smile_1200x630.png" -a "Run [$TITLED] completed..." -t "An ec2 instance **$(ec2metadata --instance-id)** of size **$(ec2metadata --instance-type)** finished execution." -b "An EC2 instance of type **$(ec2metadata --instance-type)** has just completed the run in $REGION for batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]. Instanse will remain available for next $SHUTDOWN_WAIT minutes."
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] completed..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** has just completed the run in **$REGION** for batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]. Instanse will remain available for next $SHUTDOWN_WAIT minutes."
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
@@ -167,9 +167,9 @@ def lambda_handler(event, context):
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', titled)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
             host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. \n'.format(branch=branch, commit=commit_id, dns=host, batch=uid)
-            # txt = txt + 'Script is {script}. \n'.format(script=script)
+            txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. '.format(branch=branch, commit=commit_id, dns=host, batch=uid)
+            # txt = txt + 'Script is {script}.'.format(script=script)
     else:
-        txt = 'Unable to start bach for branch/commit {branch}/{commit}.'.format(branch=branch, commit=commit_id)
+        txt = 'Unable to start bach for branch/commit {branch}/{commit}. '.format(branch=branch, commit=commit_id)
 
     return txt
