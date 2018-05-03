@@ -314,6 +314,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "commit": "${beamCommit ?: 'HEAD'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
+  "max_ram": "${maxRAM ?: '2g'}",
   "batch": "$beamBatch",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "region": "$region",
@@ -389,7 +390,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
+def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]

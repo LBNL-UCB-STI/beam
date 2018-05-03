@@ -5,7 +5,7 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']"
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf'] -PmaxRAM=$MAX_RAM"
   -    sleep 10s
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''
@@ -15,6 +15,8 @@ EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 BRANCH_DEFAULT = 'master'
 
 COMMIT_DEFAULT = 'HEAD'
+
+MAXRAM_DEFAULT = '2g'
 
 SHUTDOWN_DEFAULT = '30'
 
@@ -45,6 +47,8 @@ runcmd:
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
+  - export MAXRAM=$MAX_RAM
+  - echo $MAXRAM
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
@@ -132,6 +136,7 @@ def lambda_handler(event, context):
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
     configs = event.get('configs', CONFIG_DEFAULT)
+    max_ram = event.get('max_ram', MAXRAM_DEFAULT)
     is_experiment = event.get('is_experiment', 'false')
     instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
     batch = event.get('batch', TRUE)
@@ -165,7 +170,7 @@ def lambda_handler(event, context):
     if validate(branch) and validate(commit_id):
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', titled)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', titled).replace('$MAX_RAM', max_ram)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. '.format(branch=branch, commit=commit_id, dns=host, batch=uid)
