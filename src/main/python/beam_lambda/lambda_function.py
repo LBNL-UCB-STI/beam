@@ -56,6 +56,7 @@ runcmd:
 
 instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
                   'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
+                  'm5.large', 'm5.xlarge', 'm5.2xlarge', 'm5.4xlarge', 'm5.12xlarge', 'm5.24xlarge',
                   'c4.large', 'c4.xlarge', 'c4.2xlarge', 'c4.4xlarge', 'c4.8xlarge',
                   'g3.4xlarge', 'g3.8xlarge', 'g3.16xlarge',
                   'p2.xlarge', 'p2.8xlarge', 'p2.16xlarge',
@@ -124,7 +125,7 @@ def get_dns(instance_id):
     return host
 
 def lambda_handler(event, context):
-    titled = event.get('title')
+    titled = event.get('title', 'hostname-test')
     if titled is None:
         return "Unable to start the run, runName is required. Please restart with appropriate runName."
 
