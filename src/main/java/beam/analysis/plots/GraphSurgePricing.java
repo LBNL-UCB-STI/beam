@@ -69,21 +69,27 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         this.surgePricingManager = surgePricingManager;
         noOfCategories = this.surgePricingManager.numberOfCategories();
 
-        tazDataset.clear();
-        transformedBins.clear();
+
         max = null;
         min = null;
-        tazIds.clear();
+
+
 
         binSize = this.surgePricingManager.timeBinSize();
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
 
-        revenueDataSet = new double[numberOfTimeBins];
+
     }
 
 
     @Override
     public void notifyIterationEnds(IterationEndsEvent event) {
+
+        tazDataset.clear();
+        transformedBins.clear();
+        tazIds.clear();
+        revenueDataSet = new double[numberOfTimeBins];
+
         final int iNo = event.getIteration();
 
         OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
@@ -98,6 +104,9 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
 
         this.createGraphs();
+
+        // for next iteration
+        this.surgePricingManager.updateSurgePriceLevels();
     }
 
     public  void createGraphs(){
@@ -205,7 +214,6 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         double revenue = surgePriceBin.currentIterationRevenue();
         revenueDataSet[binNumber] += revenue;
-        //
 
         Double price = surgePriceBin.currentIterationSurgePriceLevel();
 
