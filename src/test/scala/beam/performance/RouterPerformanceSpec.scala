@@ -52,7 +52,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 
-//@Ignore
+@Ignore
 class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
   """
   akka.loglevel="OFF"
