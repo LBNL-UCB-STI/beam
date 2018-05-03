@@ -7,6 +7,7 @@ from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf'] -PmaxRAM=$MAX_RAM"
   -    sleep 10s
+  -    for file in test/output/*; do sudo cp /var/log/cloud-init-output.log "$file"; done;
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''
 
