@@ -135,6 +135,13 @@ def get_dns(instance_id):
                     host = dns
     return host
 
+def check_instance_id(instance_ids):
+    for reservation in ec2.describe_instances()['Reservations']:
+        for instance in reservation['Instances']:
+            if instance['InstanceId'] in instance_ids:
+                instance_ids.remove(instance['InstanceId'])
+    return instance_ids
+
 def start_instance(instance_ids):
     return ec2.start_instances(InstanceIds=instance_ids)
 
@@ -201,20 +208,24 @@ def instance_handler(event):
     command_id = event.get('command')
 
     if region not in regions:
-        return "Unable to {command} instance(s), {region} region not supported.".format(com=command_id, region=region)
+        return "Unable to {command} instance(s), {region} region not supported.".format(command=command_id, region=region)
 
     init_ec2(region)
 
     instance_ids = instance_ids.split(',')
+    invalid_ids = check_instance_id(list(instance_ids))
+    valid_ids = [item for item in instance_ids if item not in invalid_ids]
 
     if command_id == 'start':
-        return start_instance(instance_ids)
+        start_instance(valid_ids)
 
     if command_id == 'stop':
-        return stop_instance(instance_ids)
+        stop_instance(valid_ids)
 
     if command_id == 'terminate':
-        return terminate_instance(instance_ids)
+        terminate_instance(valid_ids)
+
+    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(valid_ids))
 
 def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
