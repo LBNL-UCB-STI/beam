@@ -36,6 +36,38 @@ import scala.collection.mutable.ListBuffer
 import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
+  def getConfig(argsMap: Map[String, String]): com.typesafe.config.Config = {
+    var (config, cfgFile) = argsMap.get("config") match {
+      case Some(fileName) =>
+        (BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName), fileName)
+      case _ =>
+        throw new InvalidPathException("null", "invalid configuration file.")
+    }
+
+    val nodeHost = argsMap.get("node-host").get
+    val nodePort = argsMap.get("node-port").get
+    val seedAddress = argsMap.get("seed-address").get
+
+    config.withFallback(ConfigFactory.parseMap(
+      Map("seed.address" -> seedAddress,
+        "node.host" -> nodeHost,
+        "node.port" -> nodePort).asJava))
+      .resolve()
+  }
+
+  def parseArgs(args: Array[String]): Map[String, String] = {
+    args.sliding(2, 2).toList.foreach { r =>
+      println(r.mkString(" "))
+    }
+
+    args.sliding(2, 2).toList.collect {
+      case Array("--config", configName: String) if configName.trim.nonEmpty => ("config", configName)
+      case Array("--node-host", value: String) => ("node-host", value)
+      case Array("--node-port", value: String) => ("node-port", value)
+      case Array("--seed-address", value: String) => ("seed-address", value)
+      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
+    }.toMap
+  }
 
   def module(typesafeConfig: com.typesafe.config.Config, scenario: Scenario, transportNetwork: TransportNetwork): com.google.inject.Module = AbstractModule.`override`(
     ListBuffer(new AbstractModule() {
@@ -91,13 +123,9 @@ trait BeamHelper extends LazyLogging {
       }
     })
 
-  def runBeamWithConfigFile(configFileName: Option[String]): Unit = {
-    val (config, cfgFile) = configFileName match {
-      case Some(fileName) =>
-        (BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName), fileName)
-      case _ =>
-        throw new InvalidPathException("null", "invalid configuration file.")
-    }
+  def runBeamWithConfigFile(argsMap: Map[String, String]): Unit = {
+    val cfgFile = argsMap.get("config").get
+    val config = getConfig(argsMap)
 
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level

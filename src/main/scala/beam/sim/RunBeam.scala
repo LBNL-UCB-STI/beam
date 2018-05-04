@@ -13,17 +13,9 @@ object RunBeam extends BeamHelper with App {
 
  """)
 
-  def parseArgs() = {
 
-    args.sliding(2, 1).toList.collect {
-      case Array("--config", configName: String) if configName.trim.nonEmpty => ("config", configName)
-      //case Array("--anotherParamName", value: String)  => ("anotherParamName", value)
-      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
-  }
+  val argsMap = parseArgs(args)
 
-  val argsMap = parseArgs()
-
-  runBeamWithConfigFile(argsMap.get("config"))
+  runBeamWithConfigFile(argsMap)
   logger.info("Exiting BEAM")
 }

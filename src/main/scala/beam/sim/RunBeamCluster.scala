@@ -6,7 +6,9 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
 import beam.router.RouteFrontend
 import beam.utils.BeamConfigUtils
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
+
+import scala.collection.JavaConverters._
 
 object RunBeamCluster extends BeamHelper with App {
   print(
@@ -21,35 +23,26 @@ object RunBeamCluster extends BeamHelper with App {
 
  """)
 
-  def parseArgs() = {
-
-    args.sliding(2, 2).toList.foreach { r =>
-      println(r.mkString(" "))
-    }
-
-    args.sliding(2, 2).toList.collect {
-      case Array("--config", configName: String) if configName.trim.nonEmpty => ("config", configName)
-      case Array("--cluster-port", value: String)  => ("cluster-port", value)
-      case arg@_ => throw new IllegalArgumentException(arg.mkString(" "))
-    }.toMap
+  val argsMap = parseArgs(args)
+  val config = Some(getConfig(argsMap)) match {
+    case Some(cfg) =>
+      ConfigFactory.parseString(
+        s"""
+           |akka.cluster.roles = [compute]
+           |akka.actor.deployment {
+           |      /statsService/singleton/workerRouter {
+           |        router = round-robin-pool
+           |        cluster {
+           |          enabled = on
+           |          max-nr-of-instances-per-node = 1
+           |          allow-local-routees = on
+           |          use-roles = ["compute"]
+           |        }
+           |      }
+           |    }
+          """.stripMargin)
+        .withFallback(cfg)
   }
-
-  val argsMap = parseArgs()
-
-  var (config, cfgFile) = argsMap.get("config") match {
-    case Some(fileName) =>
-      (BeamConfigUtils.parseFileSubstitutingInputDirectory(fileName), fileName)
-    case _ =>
-      throw new InvalidPathException("null", "invalid configuration file.")
-  }
-
-
-  var clusterPort = argsMap.get("cluster-port").get
-  config =
-    ConfigFactory.parseString(s"""
-          akka.remote.netty.tcp.port=${clusterPort}
-          akka.remote.artery.canonical.port=$clusterPort
-          """).withFallback(config)
 
   val system = ActorSystem("ClusterSystem", config)
 

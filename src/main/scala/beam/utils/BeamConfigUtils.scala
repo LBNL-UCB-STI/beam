@@ -19,7 +19,6 @@ object BeamConfigUtils extends LazyLogging {
   def parseFileSubstitutingInputDirectory(file: File): com.typesafe.config.Config = {
     ConfigFactory.parseFile(file)
       .withFallback(ConfigFactory.parseMap(Map("beam.inputDirectory" -> file.getAbsoluteFile.getParent).asJava))
-      .resolve
   }
 
 }
