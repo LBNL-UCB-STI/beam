@@ -78,7 +78,7 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
 
 regions = ['us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
-instance_operations = ['start']
+instance_operations = ['start', 'stop', 'terminate']
 
 s3 = boto3.client('s3')
 ec2 = None
@@ -137,6 +137,12 @@ def get_dns(instance_id):
 
 def start_instance(instance_ids):
     return ec2.start_instances(InstanceIds=instance_ids)
+
+def stop_instance(instance_ids):
+    return ec2.stop_instances(InstanceIds=instance_ids)
+
+def terminate_instance(instance_ids):
+    return ec2.terminate_instances(InstanceIds=instance_ids)
 
 def deploy_handler(event):
     titled = event.get('title', 'hostname-test')
@@ -204,8 +210,14 @@ def instance_handler(event):
     if command_id == 'start':
         return start_instance(instance_ids)
 
+    if command_id == 'stop':
+        return stop_instance(instance_ids)
+
+    if command_id == 'terminate':
+        return terminate_instance(instance_ids)
+
 def lambda_handler(event, context):
-    command_id = event.get('command', 'deploy') # deploy | start
+    command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
 
     if command_id == 'deploy':
         return deploy_handler(event)
@@ -213,4 +225,4 @@ def lambda_handler(event, context):
     if command_id in instance_operations:
         return instance_handler(event)
 
-    return "Operation {command} not supported, please specify one of the supported operations (deploy | start). "
+    return "Operation {command} not supported, please specify one of the supported operations (deploy | start | stop | terminate | log). "

@@ -353,6 +353,28 @@ task startEC2(type: AWSLambdaInvokeTask) {
     }
 }
 
+task stopEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "$instanceIds",
+  "region": "$region",
+  "command": "${project.hasProperty('terminate') ? 'terminate' : 'stop'}",
+}"""
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////
