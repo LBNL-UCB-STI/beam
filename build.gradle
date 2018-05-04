@@ -305,9 +305,6 @@ task deploy(type: AWSLambdaInvokeTask) {
         }
     }
 
-
-
-
     def pload = """{
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
@@ -319,7 +316,31 @@ task deploy(type: AWSLambdaInvokeTask) {
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "region": "$region",
   "shutdown_wait": "$shutdownWait",
-  "shutdown_behaviour": "$shutdownBehaviour"
+  "shutdown_behaviour": "$shutdownBehaviour",
+  "command": "deploy"
+}"""
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
+task startEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "$instanceIds",
+  "region": "$region",
+  "command": "start"
 }"""
 
     functionName = "simulateBeam"
