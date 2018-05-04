@@ -67,7 +67,7 @@ public class ActorVersionJDEQSimMain {
 //            System.out.println(">>> Producing & sending a number " +  i);
 //            printNumbersConsumer.tell(i, ActorRef.noSender());
 //        }
-        system.awaitTermination();
+        //system.awaitTermination();
         //System.out.println("===== Finished producing & sending numbers 1 to 10");
        // Await.ready(system.whenTerminated, new Timeout(FiniteDuration.create(1, java.util.concurrent.TimeUnit.SECONDS)));
         

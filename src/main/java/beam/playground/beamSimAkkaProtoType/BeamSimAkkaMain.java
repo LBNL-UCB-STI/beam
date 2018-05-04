@@ -23,6 +23,8 @@ import akka.util.Timeout;
 import beam.playground.beamSimAkkaProtoType.chargingInfrastructure.ChargingInfrastructureManager;
 import beam.playground.beamSimAkkaProtoType.scheduler.Scheduler;
 import beam.playground.beamSimAkkaProtoType.scheduler.StartSimulationMessage;
+import scala.concurrent.Await;
+import scala.concurrent.duration.Duration;
 
 public class BeamSimAkkaMain {
 
@@ -59,7 +61,7 @@ public class BeamSimAkkaMain {
         
 		scheduler.tell(new StartSimulationMessage(), ActorRef.noSender());
         
-        system.awaitTermination();
+        //Await.result(system.terminate(), Duration.Inf());
 	}
 	
 	public static void clonePerson(Scenario scenario, int numberOfPeople, Person templatePerson) {
