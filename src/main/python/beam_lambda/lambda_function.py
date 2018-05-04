@@ -5,7 +5,7 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf'] -PmaxRAM=$MAX_RAM"
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM
   -    sleep 10s
   -    for file in test/output/*; do sudo cp /var/log/cloud-init-output.log "$file"; done;
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
@@ -41,10 +41,11 @@ runcmd:
   - cd /home/ubuntu/git/beam
   - git fetch
   - echo "git checkout ..."
-  - git checkout $BRANCH
-  - git pull
+  - GIT_LFS_SKIP_SMUDGE=1 git checkout $BRANCH
   - echo "git checkout -qf ..."
-  - git checkout -qf $COMMIT
+  - GIT_LFS_SKIP_SMUDGE=1 git checkout -qf $COMMIT
+  - git pull
+  - git lfs pull
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
