@@ -338,7 +338,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
     }
 
     def pload = """{
-  "instance_ids": "$instanceIds",
+  "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "$region",
   "command": "start"
 }"""
@@ -361,7 +361,7 @@ task stopEC2(type: AWSLambdaInvokeTask) {
     }
 
     def pload = """{
-  "instance_ids": "$instanceIds",
+  "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "$region",
   "command": "${project.hasProperty('terminate') ? 'terminate' : 'stop'}",
 }"""

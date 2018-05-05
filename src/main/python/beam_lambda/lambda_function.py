@@ -190,13 +190,17 @@ def deploy_handler(event):
     init_ec2(region)
 
     if validate(branch) and validate(commit_id):
+        runNum = 0
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', titled).replace('$MAX_RAM', max_ram)
+            runName = titled
+            if runNum > 0:
+                runName += "-" + `runNum`
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
             host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
-            # txt = txt + 'Script is {script}.'.format(script=script)
+            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+            runNum += 1
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}. '.format(branch=branch, commit=commit_id)
 
@@ -236,4 +240,4 @@ def lambda_handler(event, context):
     if command_id in instance_operations:
         return instance_handler(event)
 
-    return "Operation {command} not supported, please specify one of the supported operations (deploy | start | stop | terminate | log). "
+    return "Operation {command} not supported, please specify one of the supported operations (deploy | start | stop | terminate | log). ".format(command=command_id)
