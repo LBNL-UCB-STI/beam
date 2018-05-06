@@ -5,8 +5,9 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']"
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf'] -PmaxRAM=$MAX_RAM"
   -    sleep 10s
+  -    for file in test/output/*; do sudo cp /var/log/cloud-init-output.log "$file"; done;
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
   -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''
 
@@ -15,6 +16,8 @@ EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 BRANCH_DEFAULT = 'master'
 
 COMMIT_DEFAULT = 'HEAD'
+
+MAXRAM_DEFAULT = '2g'
 
 SHUTDOWN_DEFAULT = '30'
 
@@ -28,7 +31,7 @@ initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] started..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** launched in **$REGION** to run the batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]."
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] started..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** having host name **$(ec2metadata --public-hostname)** is launched in **$REGION** to run the batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]."
   - echo "notification sent..."
   - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
   - echo "notification saved..."
@@ -45,17 +48,20 @@ runcmd:
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
+  - export MAXRAM=$MAX_RAM
+  - echo $MAXRAM
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] completed..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** has just completed the run in **$REGION** for batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]. Instanse will remain available for next $SHUTDOWN_WAIT minutes."
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] completed..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** having host name **$(ec2metadata --public-hostname)** has just completed the run in **$REGION** for batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]. Instanse will remain available for next $SHUTDOWN_WAIT minutes."
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
 instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
                   'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
+                  'm5.large', 'm5.xlarge', 'm5.2xlarge', 'm5.4xlarge', 'm5.12xlarge', 'm5.24xlarge',
                   'c4.large', 'c4.xlarge', 'c4.2xlarge', 'c4.4xlarge', 'c4.8xlarge',
                   'g3.4xlarge', 'g3.8xlarge', 'g3.16xlarge',
                   'p2.xlarge', 'p2.8xlarge', 'p2.16xlarge',
@@ -124,13 +130,14 @@ def get_dns(instance_id):
     return host
 
 def lambda_handler(event, context):
-    titled = event.get('title')
+    titled = event.get('title', 'hostname-test')
     if titled is None:
-        return "Unable to start the run, title is required. Please restart with appropriate title."
+        return "Unable to start the run, runName is required. Please restart with appropriate runName."
 
     branch = event.get('branch', BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
     configs = event.get('configs', CONFIG_DEFAULT)
+    max_ram = event.get('max_ram', MAXRAM_DEFAULT)
     is_experiment = event.get('is_experiment', 'false')
     instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
     batch = event.get('batch', TRUE)
@@ -164,7 +171,7 @@ def lambda_handler(event, context):
     if validate(branch) and validate(commit_id):
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', titled)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', titled).replace('$MAX_RAM', max_ram)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. '.format(branch=branch, commit=commit_id, dns=host, batch=uid)
