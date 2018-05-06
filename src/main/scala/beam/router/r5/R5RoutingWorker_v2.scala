@@ -133,7 +133,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       f.pipeTo(sender)
 
     case request: RoutingRequest =>
-      log.info(s"{} RoutingRequest. transitSchedule[{}] keys: {}", getNameAndHashCode, transitSchedule.keys.size)
+      log.debug(s"{} RoutingRequest. transitSchedule[{}] keys: {}", getNameAndHashCode, transitSchedule.keys.size)
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
@@ -372,7 +372,6 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
               //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
               val fs = fares.filter(_.patternIndex == segmentPattern.patternIdx).map(_.fare.price)
               val fare = if (fs.nonEmpty) fs.min else 0.0
-              log.info("transitSchedule[{}].keys: {}", transitSchedule.hashCode(), transitSchedule.keys.size)
               val segmentLegs = transitSchedule(Id.createVehicleId(tripId))._2.slice(segmentPattern.fromIndex, segmentPattern.toIndex)
               legsWithFares ++= segmentLegs.zipWithIndex.map(beamLeg => (beamLeg._1, if (beamLeg._2 == 0) fare else 0.0))
               arrivalTime = beamServices.dates.toBaseMidnightSeconds(segmentPattern.toArrivalTime.get(transitJourneyID.time), isTransit)

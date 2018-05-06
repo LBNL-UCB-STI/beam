@@ -102,7 +102,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     case other =>
       val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
       val service = context.actorSelection(RootActorPath(address) / servicePathElements)
-      log.info("Sending other `{}` to {}", other, service)
+      //log.debug("Sending other `{}` to {}", other, service)
       service.forward(other)
   }
 

@@ -29,7 +29,7 @@ class RouteFrontend(config: Config) extends Actor with ActorLogging{
       log.info("{} Sending Broadcast", getNameAndHashCode)
       workerRouter.tell(Broadcast(initTransit_v2), sender())
     case other =>
-      log.info("{} received {}", getNameAndHashCode, other)
+      log.debug("{} received {}", getNameAndHashCode, other)
       workerRouter.forward(other)
   }
 }
