@@ -1,5 +1,7 @@
 package beam.agentsim.agents
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse, RegisterResource}
@@ -255,7 +257,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
    * of activity
    * 4 The trip is over and there are no more activities in the agent plan => goto Finished
    */
-  when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
+  when(ProcessingNextLegOrStartActivity, stateTimeout = Duration(5, TimeUnit.SECONDS)) {
     case Event(StateTimeout, data@BasePersonData(_, _,nextLeg::_,currentVehicle,_,_,_,_,_)) if nextLeg.asDriver =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)))
