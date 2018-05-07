@@ -363,7 +363,7 @@ task stopEC2(type: AWSLambdaInvokeTask) {
     def pload = """{
   "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "$region",
-  "command": "${project.hasProperty('terminate') ? 'terminate' : 'stop'}",
+  "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
 }"""
 
     functionName = "simulateBeam"
