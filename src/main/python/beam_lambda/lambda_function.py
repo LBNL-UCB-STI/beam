@@ -190,11 +190,11 @@ def deploy_handler(event):
     init_ec2(region)
 
     if validate(branch) and validate(commit_id):
-        runNum = 0
+        runNum = 1
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
             runName = titled
-            if runNum > 0:
+            if len(configs) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
