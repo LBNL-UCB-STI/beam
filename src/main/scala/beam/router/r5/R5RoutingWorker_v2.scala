@@ -133,7 +133,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       f.pipeTo(sender)
 
     case request: RoutingRequest =>
-      log.debug(s"{} RoutingRequest. transitSchedule[{}] keys: {}", getNameAndHashCode, transitSchedule.keys.size)
+      log.info(s"{} Received RoutingRequest[{}] from `{}`", getNameAndHashCode, request.requestId, sender().path)
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)

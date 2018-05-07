@@ -2,7 +2,7 @@ package beam.router
 
 import java.io.{ByteArrayOutputStream, ObjectOutput, ObjectOutputStream}
 import java.util
-import java.util.Collections
+import java.util.{Collections, UUID}
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
 
 import akka.actor.Status.Success
@@ -99,6 +99,11 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     case ReachableMember(m) if m.hasRole("compute") =>
       log.info("ReachableMember: {}", m)
       nodes += m.address
+    case rr: RoutingRequest =>
+      val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
+      val service = context.actorSelection(RootActorPath(address) / servicePathElements)
+      log.info("Sending RoutingRequest[{}] `{}` to {}", rr.requestId, rr, service)
+      service.forward(rr)
     case other =>
       val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
       val service = context.actorSelection(RootActorPath(address) / servicePathElements)
@@ -144,7 +149,9 @@ object BeamRouter {
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
     */
-  case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime, transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true)
+  case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime,
+                            transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle],
+                            streetVehiclesAsAccess: Boolean = true, requestId: String = UUID.randomUUID.toString)
 
   /**
     * Message to respond a plan against a particular router request
