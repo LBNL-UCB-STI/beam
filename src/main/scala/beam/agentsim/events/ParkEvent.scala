@@ -41,7 +41,7 @@ class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[V
   }
 }
 
-//object ParkEvent {
+object ParkEvent extends ParkEventAttrs
 //  val EVENT_TYPE = "ParkEvent"
 //
 //  val ATTRIBUTE_VEHICLE_ID = "vehicleId"
