@@ -84,14 +84,18 @@ goto :init
 :main
     if defined OptVerbose (
         echo **** DEBUG IS ON
+
+         if defined identity_file           echo identity_file:      "%identity_file%"
+         if defined host_name               echo host_name:          "%host_name%"
+         if defined source_path             echo source_path:        "%source_path%"
+         if defined destination_path        echo destination_path:   "%destination_path%"
     )
 
-    if defined identity_file           echo identity_file:      "%identity_file%"
-    if defined host_name               echo host_name:          "%host_name%"
-    if defined source_path             echo source_path:        "%source_path%"
-    if defined destination_path        echo destination_path:   "%destination_path%"
-
-    scp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" %destination_path%
+    scp >nul 2>&1 && (
+        scp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" %destination_path%
+    ) || (
+        pscp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" %destination_path%
+    )
 
 :end
     call :cleanup
