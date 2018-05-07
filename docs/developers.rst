@@ -98,8 +98,13 @@ To verify successful installation execute following command::
 
 To confirm that you have installed the correct version of client run the following command::
 
-   $ gti lfs env
+   $ git lfs env
+   
+To replaces the text pointers with the actual files run the following command(if it requests credentials, use any username and leave the password empty)::
 
+   $ git lfs pull
+   Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
+   
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
