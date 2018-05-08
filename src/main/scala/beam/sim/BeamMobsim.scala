@@ -3,17 +3,17 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, PoisonPill, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.agents.rideHail.RideHailingManager.{NotifyIterationEnds, RepositioningTimer}
 import beam.agentsim.agents.rideHail.{RideHailSurgePricingManager, RideHailingAgent, RideHailingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType.{Car, HumanBodyVehicle}
+import beam.agentsim.agents.vehicles.BeamVehicleType.{CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
+import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.sim.monitoring.ErrorListener
@@ -21,19 +21,17 @@ import beam.utils.{DebugLib, MemoryLoggingTimerActor, Tick}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
+import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-import org.matsim.core.utils.misc.Time
 
-import scala.concurrent.duration._
 import scala.collection.mutable
 import scala.concurrent.Await
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 /**
   * AgentSim.
@@ -97,7 +95,7 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
           information
             .map(_.getGasConsumption)
             .getOrElse(Powertrain.AverageMilesPerGallon))
-        val rideHailBeamVehicle = new BeamVehicle(powerTrain, rideHailVehicle, vehicleAttribute, Car)
+        val rideHailBeamVehicle = new BeamVehicle(powerTrain, rideHailVehicle, vehicleAttribute, CarVehicle)
         beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
         rideHailBeamVehicle.registerResource(rideHailingManager)
         val rideHailingAgentProps = RideHailingAgent.props(beamServices, scheduler, transportNetwork, eventsManager, rideHailingAgentPersonId, rideHailBeamVehicle, rideInitialLocation)

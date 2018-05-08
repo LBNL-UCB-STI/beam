@@ -4,11 +4,10 @@ import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
 import beam.agentsim.Resource.{CheckInResource, NotifyResourceIdle, NotifyResourceInUse}
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
-
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{MatsimHumanBodyVehicleType, createId, powerTrainForHumanBody}
+import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
@@ -23,7 +22,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
-import org.matsim.vehicles.{Vehicle, VehicleUtils}
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -116,21 +115,27 @@ object HouseholdActor {
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
     household.members.foreach { person =>
-      val bodyVehicleIdFromPerson = createId(person.getId)
-      val matsimBodyVehicle = VehicleUtils.getFactory.createVehicle(bodyVehicleIdFromPerson, MatsimHumanBodyVehicleType)
+      val personId = person.getId
+      val bodyVehicleIdFromPerson = createId(personId)
+      val matsimBodyVehicle: Vehicle = HumanBodyVehicle.createMatsimVehicle(personId)
       // real vehicle( car, bus, etc.)  should be populated from config in notifyStartup
       //let's put here human body vehicle too, it should be clean up on each iteration
       val attributes = AttributesOfIndividual(person, household, vehicles)
       person.getCustomAttributes.put("beam-attributes", attributes)
       val personRef: ActorRef = context.actorOf(PersonAgent.props(schedulerRef, beamServices, modeChoiceCalculatorFactory(attributes),
-        transportNetwork, router, rideHailingManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
+        transportNetwork, router, rideHailingManager, eventsManager, personId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), personId.toString)
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
-      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
+      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody, matsimBodyVehicle, None, HumanBodyVehicle)
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
+
+
+
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)
-      beamServices.personRefs += ((person.getId, personRef))
+      beamServices.personRefs += ((personId, personRef))
+
+
     }
 
 

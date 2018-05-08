@@ -9,16 +9,16 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.Car
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import beam.agentsim.vehicleId2BeamVehicleId
 import beam.sim.BeamServices
+import beam.utils.BeamVehicleUtils._
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicles
+import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
@@ -110,29 +110,23 @@ object Population {
 
   // TODO: Bike vs. car splits.
 
-
   def getVehiclesFromHousehold(household: Household, matsimVehicles: Vehicles):
   Map[Id[BeamVehicle], BeamVehicle] = {
-    val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
-      .collectionAsScalaIterable(household.getVehicleIds)
-      .map({ id =>
-        val matsimVehicle = JavaConverters.mapAsScalaMap(
-          matsimVehicles.getVehicles)(
-          id)
-        val information = Option(matsimVehicle.getType.getEngineInformation)
-        val vehicleAttribute = Option(
-          matsimVehicles.getVehicleAttributes)
-        val powerTrain = Powertrain.PowertrainFromMilesPerGallon(
-          information
-            .map(_.getGasConsumption)
-            .getOrElse(Powertrain.AverageMilesPerGallon))
-        vehicleId2BeamVehicleId(id) -> new BeamVehicle(
-          powerTrain,
-          matsimVehicle,
-          vehicleAttribute,
-          Car)
+    val houseHoldVehicles: Iterable[Id[Vehicle]] = JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
+
+    houseHoldVehicles.map({ id=>
+      makeHouseholdVehicle(matsimVehicles,id) match {
+        case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
+      }
       }).toMap
-    houseHoldVehicles
+    }
+
+
+  def addBicycleVehicleIdsToHousehold(household:Household):Unit={
+    val householdMembers: Iterable[Id[Person]] = JavaConverters.collectionAsScalaIterable(household.getMemberIds)
+    householdMembers.map{ id: Id[Person] => BicycleVehicle.createId(id) }
   }
+
+
 
 }

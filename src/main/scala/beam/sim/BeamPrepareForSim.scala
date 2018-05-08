@@ -1,8 +1,8 @@
 package beam.sim
 
-import javax.inject.Inject
-
+import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import beam.replanning.SwitchModalityStyle
+import javax.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.controler.PrepareForSim
@@ -14,6 +14,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
   override def run(): Unit = {
     keepOnlyActivities()
     assignInitialModalityStyles()
+    addBicycleVehicleType()
   }
 
   private def keepOnlyActivities(): Unit = {
@@ -33,6 +34,10 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
       person.getPlans.clear()
       cleanedPlans.foreach(person.addPlan)
     })
+  }
+
+  def addBicycleVehicleType(): Unit ={
+    scenario.getVehicles.addVehicleType(BicycleVehicle.MatsimVehicleType)
   }
 
   def assignInitialModalityStyles(): Unit = {
