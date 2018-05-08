@@ -15,7 +15,8 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamMobsim, BeamServices}
-import beam.utils.{BeamConfigUtils, DateUtils}
+import beam.utils.DateUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -24,7 +25,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.{Vehicle, VehicleUtils}
-import org.mockito.Matchers.any
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -33,6 +34,8 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
+import beam.utils.TestConfigUtils.testConfig
+
 
 class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFactory.parseString(
   """
@@ -48,7 +51,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
   var beamConfig: BeamConfig = _
 
   override def beforeAll: Unit = {
-    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
+    val config = testConfig("test/input/sf-light/sf-light.conf")
     beamConfig = BeamConfig(config)
 
     // Have to mock a lot of things to get the router going
@@ -75,6 +78,12 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
 
   override def afterAll: Unit = {
     shutdown()
+    router = null
+    geo = null
+    scenario = null
+    services = null
+    networkCoordinator = null
+    beamConfig = null
   }
 
   "The agentsim" must {
@@ -96,7 +105,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, null,new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, null, networkCoordinator.transportNetwork, scenario, eventsManager, system,new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
@@ -122,7 +131,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, null,new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, null, networkCoordinator.transportNetwork, scenario, eventsManager, system,new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
@@ -165,7 +174,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, null,new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, null, networkCoordinator.transportNetwork, scenario, eventsManager, system,new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
       events.collect {
         case event: PersonDepartureEvent =>
@@ -179,7 +188,16 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           .sliding(2)
           .exists(pair => pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home"))
       }
-      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
+      eventsByPerson.map {
+        _._2.span {
+          case event: ActivityEndEvent if event.getActType == "Home" =>
+            true
+          case _ =>
+            false
+        }
+      }
+      // TODO: Test that what can be printed with the line below makes sense (chains of modes)
+//      filteredEventsByPerson.map(_._2.mkString("--\n","\n","--\n")).foreach(print(_))
     }
 
   }

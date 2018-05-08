@@ -1,19 +1,20 @@
 package beam.agentsim.agents.rideHail
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.rideHail.RideHailingAgent.RideHailingAgentData
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
+import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.TriggerWithId
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -25,8 +26,9 @@ object RideHailingAgent {
   def props(services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
     Props(new RideHailingAgent(rideHailingAgentId, scheduler, vehicle, location, eventsManager, services, transportNetwork))
 
-  case class RideHailingAgentData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData {
+  case class RideHailingAgentData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
     override def hasParkingBehaviors: Boolean = false
   }
 
@@ -38,13 +40,24 @@ object RideHailingAgent {
     chosenTrip.legs.filter(l => isRideHailingLeg(l))
   }
 
+  case object Idle extends BeamAgentState
+  case object IdleInterrupted extends BeamAgentState
+
+  case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
+
+  case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger])
+
+  case class Interrupt()
+  case class Resume()
+
+  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int)
+  case class InterruptedWhileIdle()
+
 }
 
 class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: ActorRef, vehicle: BeamVehicle, initialLocation: Coord,
                        val eventsManager: EventsManager, val beamServices: BeamServices, val transportNetwork: TransportNetwork)
-  extends BeamAgent[RideHailingAgentData]
-    with HasServices
-    with DrivesVehicle[RideHailingAgentData] {
+  extends BeamAgent[RideHailingAgentData] with DrivesVehicle[RideHailingAgentData] with Stash {
   override def logPrefix(): String = s"RideHailingAgent $id: "
 
   startWith(Uninitialized, RideHailingAgentData())
@@ -57,24 +70,57 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
         vehicle.checkInResource(Some(SpaceTime(initialLocation,tick.toLong)),context.dispatcher)
         eventsManager.processEvent(new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver"))
         eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-        goto(WaitingToDrive) replying CompletionNotice(triggerId) using data.copy(currentVehicle = Vector(vehicle.id))
+        goto(Idle) replying CompletionNotice(triggerId) using data.copy(currentVehicle = Vector(vehicle.id))
       })
   }
 
+  when(Idle) {
+    case Event(Interrupt(), data) =>
+      goto(IdleInterrupted) replying InterruptedWhileIdle()
+  }
+
+  when(IdleInterrupted) {
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+      // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
+      // i.e. for what time it is. For now, we just believe it that time is not running backwards.
+      val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(updatedPassengerSchedule.schedule.firstKey.startTime, updatedPassengerSchedule.schedule.firstKey), self))
+      goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule)
+    case Event(Resume(), _) =>
+      goto(Idle)
+  }
+
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(lastVisited), _) =>
-      val (_, triggerId) = releaseTickAndTriggerId()
+    case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
+      val (tick, triggerId) = releaseTickAndTriggerId()
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
-      goto(WaitingToDrive) using stateData.withPassengerSchedule(PassengerSchedule()).asInstanceOf[RideHailingAgentData]
+      goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+  }
+
+  when(PassengerScheduleEmptyInterrupted) {
+    case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
+      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+      goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
   }
 
   val myUnhandled: StateFunction =  {
-    case Event (Finish, _) =>
+
+    case Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
+      stay replying CompletionNotice(triggerId)
+
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+
+    case Event(Finish, _) =>
       stop
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
+
+  onTransition {
+    case _ -> _ =>
+      unstashAll()
+  }
 
 }
 

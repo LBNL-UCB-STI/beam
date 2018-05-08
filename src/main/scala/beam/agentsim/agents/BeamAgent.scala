@@ -2,9 +2,11 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, FSM, LoggingFSM}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Stash}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.scheduler.Trigger
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.sim.metrics.{Metrics, MetricsSupport}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -27,7 +29,7 @@ object BeamAgent {
 case class InitializeTrigger(tick: Double) extends Trigger
 
 
-trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T]  {
+trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager

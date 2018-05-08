@@ -36,6 +36,10 @@ object ChoosesParking {
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
     override def hasParkingBehaviors: Boolean = true
+
+    override def currentLegPassengerScheduleIndex: Int = ???
+
+    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = ???
   }
   case object ChoosingParkingSpot extends BeamAgentState
   case object ReleasingParkingSpot extends BeamAgentState

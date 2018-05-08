@@ -28,8 +28,9 @@ object TransitDriverAgent {
     Props(new TransitDriverAgent(scheduler, services, transportNetwork, eventsManager, transitDriverId, vehicle, legs))
   }
 
-  case class TransitDriverData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule()) extends DrivingData {
+  case class TransitDriverData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
+    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
     override def hasParkingBehaviors: Boolean = false
   }
 
@@ -48,7 +49,7 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
                          val transitDriverId: Id[TransitDriverAgent],
                          val vehicle: BeamVehicle,
                          val legs: Seq[BeamLeg]) extends
-  BeamAgent[TransitDriverData] with HasServices with DrivesVehicle[TransitDriverData] {
+  DrivesVehicle[TransitDriverData] {
   override val id: Id[TransitDriverAgent] = transitDriverId
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "

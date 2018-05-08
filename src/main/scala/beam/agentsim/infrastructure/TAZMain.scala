@@ -21,6 +21,7 @@ import util.HashMap
 
 import beam.utils.ObjectAttributesUtils
 import beam.utils.scripts.HouseholdAttrib.HousingType
+import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.supercsv.cellprocessor.ParseDouble
@@ -41,7 +42,7 @@ import scala.collection.mutable.ArrayBuffer
 object TAZCreatorScript extends App {
 
   /*
-  val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp";
+  val shapeFile: String = "Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp"
   val taz=new TAZTreeMap(shapeFile, "TAZCE10")
 
 // TODO: attriutes or xml from config file - allow specifying multiple files
@@ -78,7 +79,7 @@ object TAZCreatorScript extends App {
   println(taz.getId(-120.8043534,+35.5283106))
 */
 
-//  TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
+  //TAZTreeMap.shapeFileToCsv("Y:\\tmp\\beam\\tl_2011_06_taz10\\tl_2011_06_taz10.shp","TAZCE10","Y:\\tmp\\beam\\taz-centers.csv")
 
 
 //  println("HELLO WORLD")
@@ -230,10 +231,12 @@ object TAZTreeMap {
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
 
-    var mapWriter: ICsvMapWriter   = null;
+    lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation("utm", "EPSG:26910")
+
+    var mapWriter: ICsvMapWriter   = null
     try {
       mapWriter = new CsvMapWriter(new FileWriter(writeDestinationPath),
-        CsvPreference.STANDARD_PREFERENCE);
+        CsvPreference.STANDARD_PREFERENCE)
 
       val processors = getProcessors
       val header = Array[String]("taz", "coord-x", "coord-y", "area")
