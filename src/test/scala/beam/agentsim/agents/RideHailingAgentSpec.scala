@@ -111,7 +111,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -163,7 +163,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -205,7 +205,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       val vehicleType = new VehicleTypeImpl(Id.create(1, classOf[VehicleType]))
       val vehicleId = Id.createVehicleId(1)
       val vehicle = new VehicleImpl(vehicleId, vehicleType)
-      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car)
+      val beamVehicle = new BeamVehicle(new Powertrain(0.0), vehicle, None, Car, None, None)
       beamVehicle.registerResource(self)
       vehicles.put(vehicleId, beamVehicle)
 
