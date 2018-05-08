@@ -153,7 +153,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         val p75 = percentile.evaluate(75)
         val p95 = percentile.evaluate(95)
         val stop = System.currentTimeMillis()
-        log.info(s"R5RoutingWorker_v2 Memory Measurements[${pqSize.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
+        log.info(s"R5RoutingWorker_v2 Memory Measurements[${pqSize.size}] took ${stop - start} ms => min: $minTime bytes, max: $maxTime bytes, median: $median bytes, p-75: $p75, p-95: $p95")
       }
     }
     case InitTransit_v2(scheduler) =>
@@ -166,8 +166,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       f.pipeTo(sender)
 
     case request: RoutingRequest =>
-      val eventualResponse = Future {
-        latency("request-router-time", Metrics.RegularLevel) {
+        val routingResponse = latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
           val res = calcRoute(request)
           val bos = new ByteArrayOutputStream()
@@ -184,9 +183,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           }
           res
         }
-      }
-      eventualResponse.failed.foreach(log.error(_, ""))
-      eventualResponse pipeTo sender
+      sender() ! routingResponse
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
