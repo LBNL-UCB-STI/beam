@@ -5,6 +5,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
 import java.util
 import java.util.Collections
+import java.util.concurrent.Executors
 
 import akka.actor.Status.Success
 import akka.actor._
@@ -54,7 +55,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.concurrent.duration._
 
@@ -116,9 +117,8 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
     }
   })
 
-  // Let the dispatcher on which the Future in receive will be running
-  // be the dispatcher on which this actor is running.
-  import context.dispatcher
+  implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
+    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 1))
 
   val pq: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
   val pqSize: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
@@ -126,6 +126,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
 
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
+  log.info("Num of avaiable processors: {}", Runtime.getRuntime().availableProcessors())
 
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
@@ -166,7 +167,8 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       f.pipeTo(sender)
 
     case request: RoutingRequest =>
-        val routingResponse = latency("request-router-time", Metrics.RegularLevel) {
+      val eventualResponse = Future {
+        latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
           val res = calcRoute(request)
           val bos = new ByteArrayOutputStream()
@@ -183,7 +185,9 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           }
           res
         }
-      sender() ! routingResponse
+      }
+      eventualResponse.failed.foreach(log.error(_, ""))
+      eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
