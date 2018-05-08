@@ -6,12 +6,12 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.BeamVehicleType.Car
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.vehicleId2BeamVehicleId
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
@@ -126,7 +126,7 @@ object Population {
           information
             .map(_.getGasConsumption)
             .getOrElse(Powertrain.AverageMilesPerGallon))
-        agentsim.vehicleId2BeamVehicleId(id) -> new BeamVehicle(
+        vehicleId2BeamVehicleId(id) -> new BeamVehicle(
           powerTrain,
           matsimVehicle,
           vehicleAttribute,
