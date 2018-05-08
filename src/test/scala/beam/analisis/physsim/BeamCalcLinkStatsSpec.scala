@@ -20,7 +20,7 @@ import scala.xml.XML
 class BeamCalcLinkStatsSpec  extends WordSpecLike with Matchers with BeforeAndAfterAll{
 
   private val BASE_PATH = new File("").getAbsolutePath
-  private val OUTPUT_DIR_PATH = BASE_PATH + "/test/input/beamville/output/linkstats-test"
+  private val OUTPUT_DIR_PATH = BASE_PATH + "/output/test/linkstats-test"
   private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/0.events_linkStatsTest.xml"
   private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/physsim-network.xml"
 
