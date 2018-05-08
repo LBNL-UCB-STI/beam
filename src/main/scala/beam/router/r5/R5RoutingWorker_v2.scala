@@ -121,6 +121,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   import context.dispatcher
 
   val pq: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+  val pqSize: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
 
   val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
 
@@ -129,18 +130,32 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
   override final def receive: Receive = {
-    case "tick" if pq.size >= 1 =>
-      val start = System.currentTimeMillis()
-      val minTime = pq.min
-      val maxTime = pq.max
-      val percentile = new Percentile()
-      percentile.setData(pq.toArray)
-      val median = percentile.evaluate(50)
-      val p75 = percentile.evaluate(75)
-      val p95 = percentile.evaluate(95)
-      val stop = System.currentTimeMillis()
-      log.info(s"R5RoutingWorker_v2 Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
-
+    case "tick" if pq.size >= 1 && pqSize.size >= 1 => {
+      {
+        val start = System.currentTimeMillis()
+        val minTime = pq.min
+        val maxTime = pq.max
+        val percentile = new Percentile()
+        percentile.setData(pq.toArray)
+        val median = percentile.evaluate(50)
+        val p75 = percentile.evaluate(75)
+        val p95 = percentile.evaluate(95)
+        val stop = System.currentTimeMillis()
+        log.info(s"R5RoutingWorker_v2 Execution Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
+      }
+      {
+        val start = System.currentTimeMillis()
+        val minTime = pqSize.min
+        val maxTime = pqSize.max
+        val percentile = new Percentile()
+        percentile.setData(pqSize.toArray)
+        val median = percentile.evaluate(50)
+        val p75 = percentile.evaluate(75)
+        val p95 = percentile.evaluate(95)
+        val stop = System.currentTimeMillis()
+        log.info(s"R5RoutingWorker_v2 Memory Measurements[${pqSize.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
+      }
+    }
     case InitTransit_v2(scheduler) =>
       val f = Future {
         transitSchedule = initTransit(scheduler)
@@ -155,9 +170,17 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
           val res = calcRoute(request)
+          val bos = new ByteArrayOutputStream()
+          val out = new ObjectOutputStream(bos)
+          out.writeObject(res)
+          out.flush()
+          val bytes = bos.toByteArray()
           val stop = System.currentTimeMillis()
           pq.synchronized {
             pq += stop - start
+          }
+          pqSize.synchronized {
+            pqSize += bytes.length
           }
           res
         }
