@@ -43,6 +43,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
+import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.ControlerI
@@ -55,6 +56,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.language.postfixOps
+import scala.concurrent.duration._
 
 class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLogging with MetricsSupport with BeamHelper {
   val beamConfig = BeamConfig(typesafeConfig)
@@ -118,11 +120,27 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   // be the dispatcher on which this actor is running.
   import context.dispatcher
 
+  val pq: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+
+  val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
+
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
 
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
   override final def receive: Receive = {
+    case "tick" if pq.size >= 1 =>
+      val start = System.currentTimeMillis()
+      val minTime = pq.min
+      val maxTime = pq.max
+      val percentile = new Percentile()
+      percentile.setData(pq.toArray)
+      val median = percentile.evaluate(50)
+      val p75 = percentile.evaluate(75)
+      val p95 = percentile.evaluate(95)
+      val stop = System.currentTimeMillis()
+      log.info(s"R5RoutingWorker_v2 Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
+
     case InitTransit_v2(scheduler) =>
       val f = Future {
         transitSchedule = initTransit(scheduler)
@@ -135,7 +153,13 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
     case request: RoutingRequest =>
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
-          calcRoute(request)
+          val start = System.currentTimeMillis()
+          val res = calcRoute(request)
+          val stop = System.currentTimeMillis()
+          pq.synchronized {
+            pq += stop - start
+          }
+          res
         }
       }
       eventualResponse.failed.foreach(log.error(_, ""))
