@@ -111,7 +111,7 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name):
     res = ec2.run_instances(ImageId=os.environ[region_prefix + 'IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
@@ -120,7 +120,14 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour):
                             MaxCount=1,
                             SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
                             IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour)
+                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+                            TagSpecifications=[ {
+                                'ResourceType': 'instance',
+                                'Tags': [ {
+                                    'Key': 'Name',
+                                    'Value': instance_name
+                                } ]
+                            } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -197,7 +204,7 @@ def deploy_handler(event):
             if len(configs) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram)
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
+            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
             runNum += 1
