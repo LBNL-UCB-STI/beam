@@ -133,7 +133,6 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       f.pipeTo(sender)
 
     case request: RoutingRequest =>
-      log.info(s"{} Received RoutingRequest[{}] from `{}`", getNameAndHashCode, request.requestId, sender().path)
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
@@ -145,7 +144,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
-    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
+    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt: ZonedDateTime) =>
       log.info(s"{} EmbodyWithCurrentTravelTime", getNameAndHashCode)
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
         case Some(matsimTravelTime) =>
@@ -156,7 +155,8 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       }
       val duration = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map(e => e.getTime).max - leg.startTime
 
-      sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))))
+      sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))),
+        requestCreatedAt = createdAt)
   }
 
   case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
@@ -446,13 +446,13 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
               maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
-        RoutingResponse(embodiedTrips :+ dummyTrip)
+        RoutingResponse(embodiedTrips :+ dummyTrip, requestCreatedAt = routingRequest.createdAt)
       } else {
         log.debug("Not adding a dummy walk route since agent has no body.")
-        RoutingResponse(embodiedTrips)
+        RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt)
       }
     } else {
-      RoutingResponse(embodiedTrips)
+      RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt)
     }
   }
 

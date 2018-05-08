@@ -1,5 +1,8 @@
 package beam.agentsim.agents.rideHail
 
+import java.time.temporal.ChronoUnit
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.util.LongSummaryStatistics
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.BeamAgent.Finish
@@ -30,15 +33,17 @@ import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
+import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
-
+import scala.concurrent.duration._
 
 
 
@@ -59,6 +64,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
   val selfTimerTimoutDuration=10*60 // TODO: set from config
+
+  val pq: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
 
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
@@ -87,7 +94,20 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     ReservationResponse]()
   private var lockedVehicles = Set[Id[Vehicle]]()
 
+  val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
+
   override def receive: Receive = {
+    case "tick" if pq.size >= 1 =>
+      val start = System.currentTimeMillis()
+      val minTime = pq.min
+      val maxTime = pq.max
+      val percentile = new Percentile()
+      percentile.setData(pq.toArray)
+      val median = percentile.evaluate(50)
+      val p75 = percentile.evaluate(75)
+      val p95 = percentile.evaluate(95)
+      val stop = System.currentTimeMillis()
+      log.info(s"rideHailingManager Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $minTime ms, median: $median ms, p-75: $p75, p-95: $p95")
     case NotifyIterationEnds() =>
 
       surgePricingManager.updateRevenueStats()
@@ -112,7 +132,9 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
         sender ! CheckInSuccess
       }     )
 
-    case RepositionResponse(rnd1, rnd2, _, _) =>
+    case RepositionResponse(rnd1, rnd2, r1, r2) =>
+      pq += ChronoUnit.MILLIS.between(r1.requestCreatedAt, r1.responseReceivedAt.get)
+      pq += ChronoUnit.MILLIS.between(r2.requestCreatedAt, r2.responseReceivedAt.get)
       updateLocationOfAgent(rnd1.vehicleId, rnd2.currentLocation, true)
       updateLocationOfAgent(rnd2.vehicleId, rnd1.currentLocation, true)
 
@@ -149,7 +171,10 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
             rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
           for{
             rnd1Response <- futureRnd1AgentResponse.mapTo[RoutingResponse]
+              .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
             rnd2Response <- futureRnd2AgentResponse.mapTo[RoutingResponse]
+              .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+
           } yield {
             self ! RepositionResponse(rnd1, rnd2, rnd1Response, rnd2Response)
           }
@@ -190,7 +215,9 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
           for {
             rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
+                .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
             rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
+              .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
           } {
             // TODO: could we just call the code, instead of sending the message here?
             self ! RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
@@ -201,6 +228,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       }
 
     case RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
+      pq += ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.responseReceivedAt.get)
+      pq += ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.responseReceivedAt.get)
       val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
       // TODO: Find better way of doing this error checking than sentry value
       val timeToCustomer = if (timesToCustomer.nonEmpty) {
@@ -229,8 +258,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
           }
         ))))
 
-        val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
-        val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest)
+        val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, requestCreatedAt = ZonedDateTime.now(ZoneOffset.UTC))
+        val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest, requestCreatedAt = ZonedDateTime.now(ZoneOffset.UTC))
 
         val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration
         (customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod,

@@ -148,7 +148,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
         busLeg2,
         tramLeg,
         EmbodiedBeamLeg(BeamLeg(30600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 30600), SpaceTime(new Coord(167138.4,1117), 30600), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false)
-      ))))
+      ))), request.createdAt)
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
@@ -176,7 +176,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       lastSender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
         replannedTramLeg,
         EmbodiedBeamLeg(BeamLeg(35600, BeamMode.WALK, 0, BeamPath(Vector(), None, SpaceTime(new Coord(167138.4,1117), 35600), SpaceTime(new Coord(167138.4,1117), 35600), 1.0)), Id.createVehicleId("body-dummyAgent"), true, None, BigDecimal(0), false)
-      ))))
+      ))), replanningRequest.createdAt)
       expectMsgType[ModeChoiceEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]

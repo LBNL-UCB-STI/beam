@@ -69,7 +69,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
-    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
+    case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt) =>
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
         case Some(matsimTravelTime) =>
           matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
@@ -79,7 +79,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       }
       val duration = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map(e => e.getTime).max - leg.startTime
 
-      sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))))
+      sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))),
+        requestCreatedAt = createdAt)
   }
 
   case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
@@ -369,13 +370,13 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
               maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
-        RoutingResponse(embodiedTrips :+ dummyTrip)
+        RoutingResponse(embodiedTrips :+ dummyTrip, requestCreatedAt = routingRequest.createdAt)
       } else {
         log.debug("Not adding a dummy walk route since agent has no body.")
-        RoutingResponse(embodiedTrips)
+        RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt)
       }
     } else {
-      RoutingResponse(embodiedTrips)
+      RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt)
     }
   }
 

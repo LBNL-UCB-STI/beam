@@ -1,6 +1,7 @@
 package beam.router
 
 import java.io.{ByteArrayOutputStream, ObjectOutput, ObjectOutputStream}
+import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
 import java.util.{Collections, UUID}
 import java.util.concurrent.{ThreadLocalRandom, TimeUnit}
@@ -99,11 +100,6 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     case ReachableMember(m) if m.hasRole("compute") =>
       log.info("ReachableMember: {}", m)
       nodes += m.address
-    case rr: RoutingRequest =>
-      val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
-      val service = context.actorSelection(RootActorPath(address) / servicePathElements)
-      log.info("Sending RoutingRequest[{}] `{}` to {}", rr.requestId, rr, service)
-      service.forward(rr)
     case other =>
       val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
       val service = context.actorSelection(RootActorPath(address) / servicePathElements)
@@ -135,7 +131,7 @@ object BeamRouter {
 
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
 
-  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle])
+  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC))
 
   case class UpdateTravelTime(travelTime: TravelTime)
 
@@ -151,14 +147,14 @@ object BeamRouter {
     */
   case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime,
                             transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle],
-                            streetVehiclesAsAccess: Boolean = true, requestId: String = UUID.randomUUID.toString)
+                            streetVehiclesAsAccess: Boolean = true, createdAt: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC))
 
   /**
     * Message to respond a plan against a particular router request
     *
     * @param itineraries a vector of planned routes
     */
-  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip])
+  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime, responseReceivedAt: Option[ZonedDateTime] = None)
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }
