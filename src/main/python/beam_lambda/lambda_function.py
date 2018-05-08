@@ -229,6 +229,7 @@ def instance_handler(event):
 
     if command_id == 'start':
         start_instance(valid_ids)
+        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(valid_ids, list(map(get_dns, valid_ids)))]))
 
     if command_id == 'stop':
         stop_instance(valid_ids)
