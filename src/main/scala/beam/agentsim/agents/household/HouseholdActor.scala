@@ -6,13 +6,13 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle
+import beam.agentsim.agents.vehicles.BeamVehicleType.{BicycleVehicle, CarVehicle, HumanBodyVehicle}
 import beam.agentsim.agents.vehicles.BeamVehicleType.HumanBodyVehicle.{createId, powerTrainForHumanBody}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
@@ -283,9 +283,13 @@ object HouseholdActor {
       val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0L)
 
       for {veh <- _vehicles} yield {
-        //TODO following mode should come from the vehicle
+        //TODO following mode should match exhaustively
+        val mode = vehicles(veh).beamVehicleType match {
+          case BicycleVehicle => BIKE
+          case CarVehicle => CAR
+        }
         _vehicleToStreetVehicle = _vehicleToStreetVehicle +
-          (veh -> StreetVehicle(veh, initialLocation, CAR, asDriver = true))
+          (veh -> StreetVehicle(veh, initialLocation, mode, asDriver = true))
       }
     }
 

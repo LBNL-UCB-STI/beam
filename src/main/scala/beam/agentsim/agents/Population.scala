@@ -9,7 +9,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import beam.agentsim.vehicleId2BeamVehicleId
 import beam.sim.BeamServices
 import beam.utils.BeamVehicleUtils._
@@ -122,10 +121,7 @@ object Population {
     }
 
 
-  def addBicycleVehicleIdsToHousehold(household:Household):Unit={
-    val householdMembers: Iterable[Id[Person]] = JavaConverters.collectionAsScalaIterable(household.getMemberIds)
-    householdMembers.map{ id: Id[Person] => BicycleVehicle.createId(id) }
-  }
+
 
 
 
