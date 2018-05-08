@@ -107,7 +107,7 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       val p75 = percentile.evaluate(75)
       val p95 = percentile.evaluate(95)
       val stop = System.currentTimeMillis()
-      log.info(s"rideHailingManager Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $minTime ms, median: $median ms, p-75: $p75, p-95: $p95")
+      log.info(s"rideHailingManager Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
     case NotifyIterationEnds() =>
 
       surgePricingManager.updateRevenueStats()
