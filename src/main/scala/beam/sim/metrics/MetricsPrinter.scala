@@ -78,9 +78,10 @@ class MetricsPrinter(val includes: Seq[String], val excludes: Seq[String]) exten
     val num = hs.numberOfMeasurements
     val ttime = hs.sum
     val p99_9 = hs.percentile(99.9)
+    val max = hs.max
 
     s"""
-       | ${e.name} -> count: $num; average time: ${ttime / num} [ms]; 99.9 percentile: $p99_9 [ms]; total time: ${ttime / 1000} [s]""".stripMargin
+       | ${e.name} -> count: $num; average time: ${ttime / num} [ms]; max time: $max [ms]; total time: ${ttime / 1000} [s]""".stripMargin
   }
 
   private def toCounterString(e: Entity, s: EntitySnapshot): String = {

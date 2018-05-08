@@ -29,6 +29,7 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import beam.utils.TestConfigUtils.testConfig
 
 class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFactory.parseString(
   """
@@ -44,7 +45,7 @@ class AbstractSfLightSpec extends TestKit(ActorSystem("router-test", ConfigFacto
   val confPath = "test/input/sf-light/sf-light.conf"
 
   override def beforeAll: Unit = {
-    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(confPath).resolve()
+    val config = testConfig(confPath)
     val beamConfig = BeamConfig(config)
 
     // Have to mock some things to get the router going
