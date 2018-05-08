@@ -17,7 +17,8 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.{BeamConfigUtils, DateUtils}
+import beam.utils.DateUtils
+import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -34,7 +35,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve())) with WordSpecLike with Matchers
+class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", testConfig("test/input/beamville/beam.conf"))) with WordSpecLike with Matchers
   with ImplicitSender with MockitoSugar with BeforeAndAfterAll {
 
   var router: ActorRef = _

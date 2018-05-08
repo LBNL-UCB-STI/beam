@@ -15,7 +15,8 @@ import beam.router.r5.NetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamMobsim, BeamServices}
-import beam.utils.{BeamConfigUtils, DateUtils}
+import beam.utils.DateUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -33,6 +34,7 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
+import beam.utils.TestConfigUtils.testConfig
 
 
 class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFactory.parseString(
@@ -49,7 +51,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
   var beamConfig: BeamConfig = _
 
   override def beforeAll: Unit = {
-    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
+    val config = testConfig("test/input/sf-light/sf-light.conf")
     beamConfig = BeamConfig(config)
 
     // Have to mock a lot of things to get the router going
