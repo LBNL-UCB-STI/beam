@@ -21,10 +21,6 @@ case class ReservationRequest(requestId: Id[ReservationRequest], departFrom: Bea
     .nextReservationId, departFrom, arriveAt, passengerVehiclePersonId)
 }
 
-case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
-
-case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None)
-
 case class ReservationResponse(requestId: Id[ReservationRequest], response: Either[ReservationError,
   ReserveConfirmInfo])
 

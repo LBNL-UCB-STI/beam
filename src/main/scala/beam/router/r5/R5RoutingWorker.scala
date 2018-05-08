@@ -16,11 +16,11 @@ import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.TripWithFares
+import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.{Modes, RoutingModel}
 import beam.sim.BeamServices
-import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.metrics.{Metrics, MetricsSupport, PerformanceStats}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
@@ -41,15 +41,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
-  var maybeTravelTime: Option[TravelTime] = None
-  var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
-
-  val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
-    override def load(key: R5Request) = {
-      getPlanFromR5(key)
-    }
-  })
-
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
   import context.dispatcher
@@ -65,8 +56,8 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case request: RoutingRequest =>
-      val eventualResponse = Future {
 
+      val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
         }
@@ -75,6 +66,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
+
       cache.invalidateAll()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle]) =>
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
@@ -89,7 +81,31 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))))
   }
 
-  case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
+
+
+  var maybeTravelTime: Option[TravelTime] = None
+  var transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = Map()
+
+  val cache = CacheBuilder.newBuilder().recordStats().maximumSize(1000).build(new CacheLoader[R5Request, ProfileResponse] {
+    override def load(key: R5Request) = {
+      getPlanFromR5(key)
+    }
+  })
+
+  def getPlanUsingCache(request: R5Request) = {
+    var plan = latencyIfNonNull("cache-router-time", Metrics.VerboseLevel) {cache.getIfPresent(request)}
+    if(plan == null) {
+      val planWithTime = measure(cache.get(request))
+      plan = planWithTime._1
+
+      var nt = ""
+      if(request.transitModes.isEmpty) nt = "non"
+
+      latency(s"noncache-${nt}transit-router-time", Metrics.VerboseLevel, planWithTime._2)
+      latency("noncache-router-time", Metrics.VerboseLevel, planWithTime._2)
+    }
+    plan
+  }
 
   def getPlanFromR5(request: R5Request): ProfileResponse = {
     val maxStreetTime = 2 * 60
@@ -172,7 +188,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
           val egressMode = LegMode.WALK
           val transitModes = Nil
           val profileResponse = latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
-            cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+            getPlanUsingCache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
           }
           if (profileResponse.options.isEmpty) {
             return Nil // Cannot walk to vehicle, so no options from this vehicle.
@@ -206,7 +222,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
         val egressMode = LegMode.WALK
         val transitModes = Nil
         val profileResponse = latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-          cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+          getPlanUsingCache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
         }
         if (!profileResponse.options.isEmpty) {
           val travelTime = profileResponse.options.get(0).itinerary.get(0).duration
@@ -246,7 +262,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       val transitModes: Vector[TransitModes] = routingRequest.transitModes.map(_.r5Mode.get.right.get)
       val latencyTag = (if (transitModes.isEmpty) "mainVehicleToDestinationRoute" else "mainTransitRoute") + "-router-time"
       val profileResponse: ProfileResponse = latency(latencyTag, Metrics.RegularLevel) {
-        cache.get(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
+        getPlanUsingCache(R5Request(from, to, time, directMode, accessMode, transitModes, egressMode))
       }
       val tripsWithFares = profileResponse.options.asScala.flatMap(option => {
         /*
@@ -638,5 +654,5 @@ object R5RoutingWorker {
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new R5RoutingWorker(beamServices, transportNetwork, network, fareCalculator, tollCalculator))
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
-
+  case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
 }

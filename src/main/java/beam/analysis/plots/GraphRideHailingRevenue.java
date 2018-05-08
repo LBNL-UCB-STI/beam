@@ -34,9 +34,13 @@ public class GraphRideHailingRevenue implements ControlerListener, IterationEnds
 
         this.outputDirectoryHiearchy = event.getServices().getControlerIO();
 
+        // for next iteration
+        this.surgePricingManager.updateRevenueStats();
+
         this.createGraph();
 
     }
+
 
     public void createGraph(){
 
