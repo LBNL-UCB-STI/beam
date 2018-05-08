@@ -166,16 +166,24 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
           val departureTime: BeamTime = DiscreteTime(0)
           val futureRnd1AgentResponse = router ? RoutingRequest(
             rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
-          // get route from customer to destination
+          val rnd1SentTime = System.currentTimeMillis()
+          log.info(s"TriggerWithId. Sent first random RoutingRequest") // get route from customer to destination
           val futureRnd2AgentResponse  = router ? RoutingRequest(
             rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
+          val rnd2SentTime = System.currentTimeMillis()
+          log.info(s"TriggerWithId. Sent second random RoutingRequest")
+
           for{
             rnd1Response <- futureRnd1AgentResponse.mapTo[RoutingResponse]
               .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+            rnd1ReceiveTime = System.currentTimeMillis()
             rnd2Response <- futureRnd2AgentResponse.mapTo[RoutingResponse]
               .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
-
+            rnd2ReceiveTime = System.currentTimeMillis()
           } yield {
+            val rnd1Dt = rnd1ReceiveTime - rnd1SentTime
+            val rnd2Dt = rnd2ReceiveTime - rnd2SentTime
+            log.info("TriggerWithId. rnd1Dt: {} ms, rnd2Dt: {} ms", rnd1Dt, rnd2Dt)
             self ! RepositionResponse(rnd1, rnd2, rnd1Response, rnd2Response)
           }
         }
@@ -212,13 +220,19 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
           val (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse) =
             createCustomerInquiryResponse(personId, customerPickUp, departAt, destination, rideHailingLocation)
-
+          log.info("RideHailingInquiry. Sent two routing requests")
+          val sentTime = System.currentTimeMillis()
           for {
             rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
                 .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+            customerRespReceiveTime = System.currentTimeMillis()
             rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
               .map { r => r.copy(responseReceivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+            destinationRespReceiveTime = System.currentTimeMillis()
           } {
+            val custDt = customerRespReceiveTime - sentTime
+            val destDt = destinationRespReceiveTime - sentTime
+            log.info("RideHailingInquiry. CustomerResponse: {} ms, DestinationResponse: {} ms", custDt, destDt)
             // TODO: could we just call the code, instead of sending the message here?
             self ! RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
           }
