@@ -167,7 +167,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
   override final def receive: Receive = {
     case "tick" if pqRouteCalcTime.size >= 1 && pqMsgSize.size >= 1 && pqRoutingRequestTravelTime.size >= 1 => {
-        log.info(s"R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
+      log.info("R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
       log.info("R5RoutingWorker_v2 Memory (bytes): {}", Statistics(pqMsgSize))
       log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
     }

@@ -29,6 +29,7 @@ import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime}
+import beam.router.r5.Statistics
 import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
@@ -65,7 +66,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   val radius: Double = 5000
   val selfTimerTimoutDuration=10*60 // TODO: set from config
 
-  val pq: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+  val pqRequestResponse: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+  val pqResponseTravelTime: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
 
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
@@ -97,17 +99,10 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
 
   override def receive: Receive = {
-    case "tick" if pq.size >= 1 =>
-      val start = System.currentTimeMillis()
-      val minTime = pq.min
-      val maxTime = pq.max
-      val percentile = new Percentile()
-      percentile.setData(pq.toArray)
-      val median = percentile.evaluate(50)
-      val p75 = percentile.evaluate(75)
-      val p95 = percentile.evaluate(95)
-      val stop = System.currentTimeMillis()
-      log.info(s"rideHailingManager Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
+    case "tick" if pqRequestResponse.size >= 1 && pqResponseTravelTime.size >= 1 =>
+      log.info("rideHailingManager RoutingResponse travel time (ms): {}", Statistics(pqResponseTravelTime))
+      log.info("rideHailingManager RoutingRequest -> time (ms): {}", Statistics(pqRequestResponse))
+
     case NotifyIterationEnds() =>
 
       surgePricingManager.updateRevenueStats()
@@ -133,8 +128,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       }     )
 
     case RepositionResponse(rnd1, rnd2, r1, r2) =>
-      pq += ChronoUnit.MILLIS.between(r1.requestCreatedAt, r1.responseReceivedAt.get)
-      pq += ChronoUnit.MILLIS.between(r2.requestCreatedAt, r2.responseReceivedAt.get)
+      pqRequestResponse += ChronoUnit.MILLIS.between(r1.requestCreatedAt, r1.responseReceivedAt.get)
+      pqRequestResponse += ChronoUnit.MILLIS.between(r2.requestCreatedAt, r2.responseReceivedAt.get)
       updateLocationOfAgent(rnd1.vehicleId, rnd2.currentLocation, true)
       updateLocationOfAgent(rnd2.vehicleId, rnd1.currentLocation, true)
 
@@ -242,8 +237,12 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       }
 
     case RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
-      pq += ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.responseReceivedAt.get)
-      pq += ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.responseReceivedAt.get)
+      pqRequestResponse += ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.responseReceivedAt.get)
+      pqRequestResponse += ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.responseReceivedAt.get)
+
+      pqResponseTravelTime += ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.createdAt, rideHailingAgent2CustomerResponse.responseReceivedAt.get)
+      pqResponseTravelTime += ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.createdAt, rideHailing2DestinationResponse.responseReceivedAt.get)
+
       val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
       // TODO: Find better way of doing this error checking than sentry value
       val timeToCustomer = if (timesToCustomer.nonEmpty) {

@@ -154,7 +154,9 @@ object BeamRouter {
     *
     * @param itineraries a vector of planned routes
     */
-  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime, responseReceivedAt: Option[ZonedDateTime] = None)
+  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime,
+                             createdAt: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC),
+                             responseReceivedAt: Option[ZonedDateTime] = None)
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }
