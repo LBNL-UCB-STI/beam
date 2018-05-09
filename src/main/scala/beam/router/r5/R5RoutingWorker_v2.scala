@@ -2,7 +2,7 @@ package beam.router.r5
 
 import java.io.{ByteArrayOutputStream, IOException, ObjectOutput, ObjectOutputStream}
 import java.time.temporal.ChronoUnit
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
 import java.util.Collections
 import java.util.concurrent.Executors
@@ -58,6 +58,34 @@ import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.concurrent.duration._
+
+
+case class Statistics
+(
+  numOfValues: Int,
+  measureTimeMs: Long,
+  minValue: Double,
+  maxValue: Double,
+  median: Double,
+  p75: Double,
+  p95: Double
+)
+
+object Statistics {
+  def apply(pq: mutable.PriorityQueue[Double]): Statistics = {
+    val start = System.currentTimeMillis()
+    val min = pq.min
+    val max = pq.head
+    val percentile = new Percentile()
+    percentile.setData(pq.toArray)
+    val median = percentile.evaluate(50)
+    val p75 = percentile.evaluate(75)
+    val p95 = percentile.evaluate(95)
+    val stop = System.currentTimeMillis()
+    Statistics(numOfValues = pq.size, measureTimeMs = stop - start, minValue = min,
+      maxValue = max, median = median, p75 = p75, p95 = p95)
+  }
+}
 
 class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLogging with MetricsSupport with BeamHelper {
   val beamConfig = BeamConfig(typesafeConfig)
@@ -120,8 +148,9 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
     Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 1))
 
-  val pq: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
-  val pqSize: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+  val pqRouteCalcTime: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+  val pqMsgSize: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+  val pqRoutingRequestTravelTime: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
 
   val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
 
@@ -130,32 +159,13 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
+
+
   override final def receive: Receive = {
-    case "tick" if pq.size >= 1 && pqSize.size >= 1 => {
-      {
-        val start = System.currentTimeMillis()
-        val minTime = pq.min
-        val maxTime = pq.max
-        val percentile = new Percentile()
-        percentile.setData(pq.toArray)
-        val median = percentile.evaluate(50)
-        val p75 = percentile.evaluate(75)
-        val p95 = percentile.evaluate(95)
-        val stop = System.currentTimeMillis()
-        log.info(s"R5RoutingWorker_v2 Execution Measurements[${pq.size}] took ${stop - start} ms => min: $minTime ms, max: $maxTime ms, median: $median ms, p-75: $p75, p-95: $p95")
-      }
-      {
-        val start = System.currentTimeMillis()
-        val minTime = pqSize.min
-        val maxTime = pqSize.max
-        val percentile = new Percentile()
-        percentile.setData(pqSize.toArray)
-        val median = percentile.evaluate(50)
-        val p75 = percentile.evaluate(75)
-        val p95 = percentile.evaluate(95)
-        val stop = System.currentTimeMillis()
-        log.info(s"R5RoutingWorker_v2 Memory Measurements[${pqSize.size}] took ${stop - start} ms => min: $minTime bytes, max: $maxTime bytes, median: $median bytes, p-75: $p75, p-95: $p95")
-      }
+    case "tick" if pqRouteCalcTime.size >= 1 && pqMsgSize.size >= 1 && pqRoutingRequestTravelTime.size >= 1 => {
+        log.info(s"R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
+      log.info("R5RoutingWorker_v2 Memory (bytes): {}", Statistics(pqMsgSize))
+      log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
     }
     case InitTransit_v2(scheduler) =>
       val f = Future {
@@ -167,6 +177,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       f.pipeTo(sender)
 
     case request: RoutingRequest =>
+      pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
@@ -177,11 +188,11 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           out.flush()
           val bytes = bos.toByteArray()
           val stop = System.currentTimeMillis()
-          pq.synchronized {
-            pq += stop - start
+          pqRouteCalcTime.synchronized {
+            pqRouteCalcTime += stop - start
           }
-          pqSize.synchronized {
-            pqSize += bytes.length
+          pqMsgSize.synchronized {
+            pqMsgSize += bytes.length
           }
           res
         }
@@ -206,6 +217,8 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))),
         requestCreatedAt = createdAt)
   }
+
+
 
   case class R5Request(from: Coord, to: Coord, time: WindowTime, directMode: LegMode, accessMode: LegMode, transitModes: Seq[TransitModes], egressMode: LegMode)
 
