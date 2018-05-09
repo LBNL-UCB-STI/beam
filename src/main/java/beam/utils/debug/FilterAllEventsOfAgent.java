@@ -20,7 +20,7 @@ public class FilterAllEventsOfAgent implements BasicEventHandler {
 
     public static void main(String[] args) {
         EventsManager events = EventsUtils.createEventsManager();
-        FilterAllEventsOfAgent filterAllEventsOfAgent=new FilterAllEventsOfAgent("2096-0");
+        FilterAllEventsOfAgent filterAllEventsOfAgent=new FilterAllEventsOfAgent("4865-4");
         events.addHandler(filterAllEventsOfAgent);
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
