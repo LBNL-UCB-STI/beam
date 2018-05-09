@@ -173,7 +173,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       val stop = System.currentTimeMillis()
       log.info(s"{} TransitInited in ${stop - start} ms. transitSchedule[{}] keys: {}", getNameAndHashCode,
         transitSchedule.hashCode(), transitSchedule.keys.size)
-      Success("inited")
+      sender() ! Success("inited")
 
     case request: RoutingRequest =>
       pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, ZonedDateTime.now(ZoneOffset.UTC))
