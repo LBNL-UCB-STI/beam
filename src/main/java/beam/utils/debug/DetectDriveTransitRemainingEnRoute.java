@@ -11,7 +11,7 @@ import java.util.HashSet;
 // see issue 272
 public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
 
-    HashSet<String> personIdsOnDriveTransit;
+    HashSet<String> personIdsOnDriveTransit=new HashSet<>();
 
     public static void main(String[] args) {
         EventsManager events = EventsUtils.createEventsManager();
@@ -25,12 +25,22 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
 
 
     public void printAgents(){
-
+        for (String personId:personIdsOnDriveTransit){
+            System.out.print(personId);
+        }
     }
 
 
     @Override
     public void handleEvent(Event event) {
-        System.out.println();
+        if (event.getEventType().equalsIgnoreCase("departure")){
+            if (event.getAttributes().get("legMode").equalsIgnoreCase("drive_transit")) {
+                personIdsOnDriveTransit.add(event.getAttributes().get("person").toString());
+            }
+        } else if (event.getEventType().equalsIgnoreCase("arrival")){
+            if (event.getAttributes().get("legMode").equalsIgnoreCase("drive_transit")) {
+                personIdsOnDriveTransit.remove(event.getAttributes().get("person").toString());
+            }
+        }
     }
 }
