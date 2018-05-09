@@ -69,7 +69,11 @@ case class Statistics
   median: Double,
   p75: Double,
   p95: Double
-)
+) {
+  override def toString: String = {
+    s"numOfValues: $numOfValues, measureTimeMs: $measureTimeMs, [$minValue, $maxValue], median: $median, p75: $p75, p95: $p95"
+  }
+}
 
 object Statistics {
   def apply(pq: mutable.PriorityQueue[Double]): Statistics = {
