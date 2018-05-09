@@ -19,14 +19,15 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
         events.addHandler(detectDriveTransitRemainingEnRoute);
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
-        reader.readFile("C:\\Users\\NRO_M4700_SSD_02\\IdeaProjects\\beam-may-2nd\\beam-may-2nd\\output\\beamville\\beamville__2018-05-09_14-35-32\\ITERS\\it.0\\0.events.xml");
+        reader.readFile("C:\\Users\\rwaraich\\IdeaProjects\\beam-feb-2018-1\\beam\\output\\application-sfbay\\base__2018-05-09_11-56-49\\ITERS\\it.0\\0.events.xml.gz");
+
+// print agents which stay on route at the end of the simulation
         detectDriveTransitRemainingEnRoute.printAgents();
     }
 
-
     public void printAgents(){
         for (String personId:personIdsOnDriveTransit){
-            System.out.print(personId);
+            System.out.println(personId);
         }
     }
 
