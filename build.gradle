@@ -307,9 +307,6 @@ task deploy(type: AWSLambdaInvokeTask) {
         }
     }
 
-
-
-
     def pload = """{
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
@@ -321,7 +318,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "region": "$region",
   "shutdown_wait": "$shutdownWait",
-  "shutdown_behaviour": "$shutdownBehaviour"
+  "shutdown_behaviour": "$shutdownBehaviour",
+  "command": "deploy"
 }"""
 
     functionName = "simulateBeam"
@@ -334,6 +332,51 @@ task deploy(type: AWSLambdaInvokeTask) {
     }
 }
 
+task startEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "${project.findProperty('instanceIds')}",
+  "region": "$region",
+  "command": "start"
+}"""
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
+task stopEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "${project.findProperty('instanceIds')}",
+  "region": "$region",
+  "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
+}"""
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////

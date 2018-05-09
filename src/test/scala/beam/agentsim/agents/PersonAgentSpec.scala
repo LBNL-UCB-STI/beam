@@ -45,6 +45,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
+import beam.utils.TestConfigUtils.testConfig
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -54,7 +55,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
-  """).withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve()))) with FunSpecLike
+  """).withFallback(testConfig("test/input/beamville/beam.conf")))) with FunSpecLike
   with BeforeAndAfterAll with MockitoSugar with ImplicitSender {
 
   private implicit val timeout = Timeout(60, TimeUnit.SECONDS)

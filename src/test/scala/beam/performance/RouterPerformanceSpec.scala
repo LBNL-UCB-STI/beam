@@ -23,7 +23,8 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.MetricsSupport
 import beam.tags.Performance
-import beam.utils.{BeamConfigUtils, DateUtils}
+import beam.utils.DateUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.ProfileRequest
 import com.conveyal.r5.transit.TransportNetwork
@@ -72,7 +73,7 @@ class RouterPerformanceSpec extends TestKit(ActorSystem("router-test", ConfigFac
 
   override def beforeAll(configMap: ConfigMap): Unit = {
     val confPath = configMap.getWithDefault("config", "test/input/sf-light/sf-light.conf")
-    config = BeamConfigUtils.parseFileSubstitutingInputDirectory(confPath).resolve()
+    config = testConfig(confPath)
     val beamConfig = BeamConfig(config)
 
     val services: BeamServices = mock[BeamServices]

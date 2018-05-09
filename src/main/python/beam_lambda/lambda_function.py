@@ -5,7 +5,7 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf'] -PmaxRAM=$MAX_RAM"
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM
   -    sleep 10s
   -    for file in test/output/*; do sudo cp /var/log/cloud-init-output.log "$file"; done;
   -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
@@ -31,7 +31,7 @@ initscript = (('''#cloud-config
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] started..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** having host name **$(ec2metadata --public-hostname)** is launched in **$REGION** to run the batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]."
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
   - echo "notification sent..."
   - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
   - echo "notification saved..."
@@ -41,10 +41,11 @@ runcmd:
   - cd /home/ubuntu/git/beam
   - git fetch
   - echo "git checkout ..."
-  - git checkout $BRANCH
-  - git pull
+  - GIT_LFS_SKIP_SMUDGE=1 git checkout $BRANCH
   - echo "git checkout -qf ..."
-  - git checkout -qf $COMMIT
+  - GIT_LFS_SKIP_SMUDGE=1 git checkout -qf $COMMIT
+  - git pull
+  - git lfs pull
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
@@ -55,7 +56,7 @@ runcmd:
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run [$TITLED] completed..." -b "An ec2 instance $(ec2metadata --instance-id) of type **$(ec2metadata --instance-type)** having host name **$(ec2metadata --public-hostname)** has just completed the run in **$REGION** for batch [$UID] on branch / commit [**$BRANCH** / $COMMIT]. Instanse will remain available for next $SHUTDOWN_WAIT minutes."
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT \\n Shutdown in $SHUTDOWN_WAIT minutes"
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
@@ -77,9 +78,14 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
 
 regions = ['us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
+instance_operations = ['start', 'stop', 'terminate']
 
 s3 = boto3.client('s3')
 ec2 = None
+
+def init_ec2(region):
+    global ec2
+    ec2 = boto3.client('ec2',region_name=region)
 
 def check_resource(bucket, key):
     try:
@@ -129,7 +135,23 @@ def get_dns(instance_id):
                     host = dns
     return host
 
-def lambda_handler(event, context):
+def check_instance_id(instance_ids):
+    for reservation in ec2.describe_instances()['Reservations']:
+        for instance in reservation['Instances']:
+            if instance['InstanceId'] in instance_ids:
+                instance_ids.remove(instance['InstanceId'])
+    return instance_ids
+
+def start_instance(instance_ids):
+    return ec2.start_instances(InstanceIds=instance_ids)
+
+def stop_instance(instance_ids):
+    return ec2.stop_instances(InstanceIds=instance_ids)
+
+def terminate_instance(instance_ids):
+    return ec2.terminate_instances(InstanceIds=instance_ids)
+
+def deploy_handler(event):
     titled = event.get('title', 'hostname-test')
     if titled is None:
         return "Unable to start the run, runName is required. Please restart with appropriate runName."
@@ -165,18 +187,57 @@ def lambda_handler(event, context):
     if region not in regions:
         return "Unable to start run, {region} region not supported.".format(region=region)
 
-    global ec2
-    ec2 = boto3.client('ec2',region_name=region)
+    init_ec2(region)
 
     if validate(branch) and validate(commit_id):
+        runNum = 1
         for arg in configs:
             uid = str(uuid.uuid4())[:8]
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', titled).replace('$MAX_RAM', max_ram)
+            runName = titled
+            if len(configs) > 1:
+                runName += "-" + `runNum`
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram)
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
             host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} for branch/commit {branch}/{commit} at host {dns}. '.format(branch=branch, commit=commit_id, dns=host, batch=uid)
-            # txt = txt + 'Script is {script}.'.format(script=script)
+            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+            runNum += 1
     else:
         txt = 'Unable to start bach for branch/commit {branch}/{commit}. '.format(branch=branch, commit=commit_id)
 
     return txt
+
+def instance_handler(event):
+    region = event.get('region', os.environ['REGION'])
+    instance_ids = event.get('instance_ids')
+    command_id = event.get('command')
+
+    if region not in regions:
+        return "Unable to {command} instance(s), {region} region not supported.".format(command=command_id, region=region)
+
+    init_ec2(region)
+
+    instance_ids = instance_ids.split(',')
+    invalid_ids = check_instance_id(list(instance_ids))
+    valid_ids = [item for item in instance_ids if item not in invalid_ids]
+
+    if command_id == 'start':
+        start_instance(valid_ids)
+
+    if command_id == 'stop':
+        stop_instance(valid_ids)
+
+    if command_id == 'terminate':
+        terminate_instance(valid_ids)
+
+    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(valid_ids))
+
+def lambda_handler(event, context):
+    command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
+
+    if command_id == 'deploy':
+        return deploy_handler(event)
+
+    if command_id in instance_operations:
+        return instance_handler(event)
+
+    return "Operation {command} not supported, please specify one of the supported operations (deploy | start | stop | terminate | log). ".format(command=command_id)
