@@ -194,13 +194,14 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           val res = calcRoute(withReceivedAt)
           val stop = System.currentTimeMillis()
 
-          log.info("itineraries size: {} => '{}'", res.itineraries, res.itineraries.toString())
-
           val bos = new ByteArrayOutputStream()
           val out = new ObjectOutputStream(bos)
           out.writeObject(res)
           out.flush()
           val bytes = bos.toByteArray()
+
+          log.info("itineraries size: {}, bytes: {} => '{}'", res.itineraries.size, bytes.length, res.itineraries.toString())
+
           pqRouteCalcTime.synchronized {
             pqRouteCalcTime += stop - start
           }
