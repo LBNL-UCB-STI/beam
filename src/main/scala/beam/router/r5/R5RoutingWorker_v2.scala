@@ -168,13 +168,12 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
     }
     case InitTransit_v2(scheduler) =>
-      val f = Future {
-        transitSchedule = initTransit(scheduler)
-        log.info(s"{} TransitInited. transitSchedule[{}] keys: {}", getNameAndHashCode,
-          transitSchedule.hashCode(), transitSchedule.keys.size)
-        Success("inited")
-      }
-      f.pipeTo(sender)
+      val start = System.currentTimeMillis()
+      transitSchedule = initTransit(scheduler)
+      val stop = System.currentTimeMillis()
+      log.info(s"{} TransitInited in ${stop - start} ms. transitSchedule[{}] keys: {}", getNameAndHashCode,
+        transitSchedule.hashCode(), transitSchedule.keys.size)
+      Success("inited")
 
     case request: RoutingRequest =>
       pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, ZonedDateTime.now(ZoneOffset.UTC))
