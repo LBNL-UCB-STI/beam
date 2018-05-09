@@ -131,7 +131,7 @@ object BeamRouter {
 
   case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
 
-  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC))
+  case class EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt: ZonedDateTime)
 
   case class UpdateTravelTime(travelTime: TravelTime)
 
@@ -147,7 +147,9 @@ object BeamRouter {
     */
   case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime,
                             transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle],
-                            streetVehiclesAsAccess: Boolean = true, createdAt: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC))
+                            streetVehiclesAsAccess: Boolean = true,
+                            createdAt: ZonedDateTime,
+                            receivedAt: Option[ZonedDateTime] = None)
 
   /**
     * Message to respond a plan against a particular router request
@@ -155,8 +157,9 @@ object BeamRouter {
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime,
-                             createdAt: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC),
-                             responseReceivedAt: Option[ZonedDateTime] = None)
+                             requestReceivedAt: ZonedDateTime,
+                             createdAt: ZonedDateTime,
+                             receivedAt: Option[ZonedDateTime] = None)
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }

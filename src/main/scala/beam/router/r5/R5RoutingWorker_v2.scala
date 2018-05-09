@@ -27,7 +27,6 @@ import beam.router.RoutingModel.{EmbodiedBeamTrip, _}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.TripWithFares
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.router.{Modes, RoutingModel}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -76,10 +75,10 @@ case class Statistics
 }
 
 object Statistics {
-  def apply(pq: mutable.PriorityQueue[Double]): Statistics = {
+  def apply(pq: Seq[Double]): Statistics = {
     val start = System.currentTimeMillis()
     val min = pq.min
-    val max = pq.head
+    val max = pq.max
     val percentile = new Percentile()
     percentile.setData(pq.toArray)
     val median = percentile.evaluate(50)
@@ -152,9 +151,9 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
     Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 1))
 
-  val pqRouteCalcTime: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
-  val pqMsgSize: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
-  val pqRoutingRequestTravelTime: mutable.PriorityQueue[Double] = collection.mutable.PriorityQueue.empty[Double]
+  val pqRouteCalcTime: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
+  val pqMsgSize: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
+  val pqRoutingRequestTravelTime: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
 
   val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
 
@@ -167,9 +166,16 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
   override final def receive: Receive = {
     case "tick" if pqRouteCalcTime.size >= 1 && pqMsgSize.size >= 1 && pqRoutingRequestTravelTime.size >= 1 => {
-      log.info("R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
-      log.info("R5RoutingWorker_v2 Memory (bytes): {}", Statistics(pqMsgSize))
-      log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
+      pqRouteCalcTime.synchronized {
+        log.info("R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
+      }
+      pqMsgSize.synchronized {
+        log.info("R5RoutingWorker_v2 Memory (bytes): {}", Statistics(pqMsgSize))
+      }
+
+      pqRoutingRequestTravelTime.synchronized {
+        log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
+      }
     }
     case InitTransit_v2(scheduler) =>
       val start = System.currentTimeMillis()
@@ -180,17 +186,21 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       sender() ! Success("inited")
 
     case request: RoutingRequest =>
-      pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, ZonedDateTime.now(ZoneOffset.UTC))
+      val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
+      pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, withReceivedAt.receivedAt.get)
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
-          val res = calcRoute(request)
+          val res = calcRoute(withReceivedAt)
+          val stop = System.currentTimeMillis()
+
+          log.info("itineraries size: {} => '{}'", res.itineraries, res.itineraries.toString())
+
           val bos = new ByteArrayOutputStream()
           val out = new ObjectOutputStream(bos)
           out.writeObject(res)
           out.flush()
           val bytes = bos.toByteArray()
-          val stop = System.currentTimeMillis()
           pqRouteCalcTime.synchronized {
             pqRouteCalcTime += stop - start
           }
@@ -207,6 +217,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       maybeTravelTime = Some(travelTime)
       cache.invalidateAll()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt: ZonedDateTime) =>
+      val now = ZonedDateTime.now(ZoneOffset.UTC)
       log.info(s"{} EmbodyWithCurrentTravelTime", getNameAndHashCode)
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
         case Some(matsimTravelTime) =>
@@ -218,7 +229,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       val duration = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map(e => e.getTime).max - leg.startTime
 
       sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))),
-        requestCreatedAt = createdAt)
+        requestCreatedAt = createdAt, requestReceivedAt = now, createdAt = ZonedDateTime.now(ZoneOffset.UTC))
   }
 
 
@@ -510,13 +521,20 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
               maybeBody.get.id, maybeBody.get.asDriver, None, 0, unbecomeDriverOnCompletion = false)
           )
         )
-        RoutingResponse(embodiedTrips :+ dummyTrip, requestCreatedAt = routingRequest.createdAt)
+        RoutingResponse(embodiedTrips :+ dummyTrip,
+          requestCreatedAt = routingRequest.createdAt,
+          requestReceivedAt = routingRequest.receivedAt.get,
+          createdAt = ZonedDateTime.now(ZoneOffset.UTC))
       } else {
         log.debug("Not adding a dummy walk route since agent has no body.")
-        RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt)
+        RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt,
+          requestReceivedAt = routingRequest.receivedAt.get,
+          createdAt = ZonedDateTime.now(ZoneOffset.UTC))
       }
     } else {
-      RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt)
+      RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt,
+        requestReceivedAt = routingRequest.receivedAt.get,
+        createdAt = ZonedDateTime.now(ZoneOffset.UTC))
     }
   }
 

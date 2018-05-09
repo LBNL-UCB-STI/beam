@@ -27,9 +27,13 @@ object RoutingModel {
 
   case class EmbodiedBeamTrip(legs: Vector[EmbodiedBeamLeg]) {
 
+    @transient
     lazy val costEstimate: BigDecimal = legs.map(_.cost).sum /// Generalize or remove
+    @transient
     lazy val tripClassifier: BeamMode = determineTripMode(legs)
+    @transient
     lazy val vehiclesInTrip: Vector[Id[Vehicle]] = determineVehiclesInTrip(legs)
+    @transient
     lazy val requiresReservationConfirmation: Boolean = tripClassifier!= WALK && legs.exists(!_.asDriver)
 
     val totalTravelTime: Long = legs.map(_.beamLeg.duration).sum

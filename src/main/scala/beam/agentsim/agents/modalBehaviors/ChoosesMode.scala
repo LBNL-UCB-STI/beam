@@ -1,5 +1,7 @@
 package beam.agentsim.agents.modalBehaviors
 
+import java.time.{ZoneOffset, ZonedDateTime}
+
 import akka.actor.FSM
 import akka.actor.FSM.Failure
 import beam.agentsim.Resource.CheckInResource
@@ -80,7 +82,8 @@ trait ChoosesMode {
       }
 
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
-        router ! RoutingRequest(currentActivity(choosesModeData.personData).getCoord, nextAct.getCoord, departTime, Modes.filterForTransit(transitModes), vehicles, streetVehiclesAsAccess)
+        router ! RoutingRequest(currentActivity(choosesModeData.personData).getCoord, nextAct.getCoord,
+          departTime, Modes.filterForTransit(transitModes), vehicles, streetVehiclesAsAccess, createdAt = ZonedDateTime.now(ZoneOffset.UTC))
       }
 
       def makeRideHailRequest(): Unit = {
@@ -118,7 +121,7 @@ trait ChoosesMode {
               maybeVehicle match {
                 case Some(vehicle) =>
                   val leg = BeamLeg(departTime.atTime, mode, l.getTravelTime.toLong, BeamPath((r.getStartLinkId +: r.getLinkIds.asScala :+ r.getEndLinkId).map(id => id.toString.toInt).toVector, None, SpaceTime.zero, SpaceTime.zero, r.getDistance))
-                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id)
+                  router ! EmbodyWithCurrentTravelTime(leg, vehicle.id, createdAt = ZonedDateTime.now(ZoneOffset.UTC))
                 case _ =>
                   makeRequestWith(Vector(), Vector(bodyStreetVehicle))
               }
