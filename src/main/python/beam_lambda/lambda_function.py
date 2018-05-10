@@ -7,9 +7,11 @@ from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM
   -    sleep 10s
-  -    for file in test/output/*; do sudo cp /var/log/cloud-init-output.log "$file"; done;
-  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''
+  -    opth="output/$(basename $(dirname $cf))"
+  -    for file in $opth/*; do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -    for file in $opth/*.zip; do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(basename $file)"; done;
+  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/
+  -    sudo rm -rf output/*'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
@@ -51,12 +53,13 @@ runcmd:
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
   - echo $MAXRAM
+  - s3p=""
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT \\n Shutdown in $SHUTDOWN_WAIT minutes"
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT \\n S3 output url ${s3p#","} \\n Shutdown in $SHUTDOWN_WAIT minutes"
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
