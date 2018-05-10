@@ -2,7 +2,7 @@ package beam.router.r5
 
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
-import java.util
+import java.{lang, util}
 
 import akka.actor._
 import akka.pattern._
@@ -27,7 +27,8 @@ import com.conveyal.r5.profile._
 import com.conveyal.r5.streets.{EdgeStore, StreetRouter, TravelTimeCalculator, TurnCostCalculator}
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
-import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
@@ -36,6 +37,39 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.language.postfixOps
+
+
+// map is a map from slotId -> TraveTime
+case class LinkTravelTime(link: Link, map: util.HashMap[Int, Double])
+
+class LinkTravelTimeContainer(timeBinSizeInSeconds: Int, linkTravelTimeMap: util.HashMap[Id[Link], LinkTravelTime]) extends TravelTime{
+
+  // TODO ASIF
+  // constructor with a filename
+  // the constructor will load stats
+  // or an update function will load the stats
+
+
+  def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = {
+    if (linkTravelTimeMap.keySet().contains(link.getId)){
+      if (linkTravelTimeMap.get(link.getId).map.containsKey(getSlot(time))){
+
+        linkTravelTimeMap.get(link.getId).map.get(getSlot(time))
+      } else {
+        link.getFreespeed
+      }
+    } else {
+      link.getFreespeed
+    }
+  }
+
+  //override def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = ???
+
+  def getSlot(time: Double): Int ={
+
+    Math.round(Math.floor(time/timeBinSizeInSeconds)).toInt
+  }
+}
 
 class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {
   val distanceThresholdToIgnoreWalking = beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
@@ -57,6 +91,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
       }
       eventualResponse.failed.foreach(log.error(_, ""))
       eventualResponse pipeTo sender
+
     case UpdateTravelTime(travelTime) =>
       maybeTravelTime = Some(travelTime)
 
@@ -73,7 +108,6 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
       sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))))
   }
-
 
 
   var maybeTravelTime: Option[TravelTime] = None

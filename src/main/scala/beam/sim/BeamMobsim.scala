@@ -110,7 +110,14 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       log.info(s"Initialized ${beamServices.personRefs.size} people")
       log.info(s"Initialized ${scenario.getVehicles.getVehicles.size()} personal vehicles")
       log.info(s"Initialized ${numRideHailAgents} ride hailing agents")
+
+
       Await.result(beamServices.beamRouter ? InitTransit(scheduler), timeout.duration)
+
+      // TODO ASIF
+      // We have to read the linkstats and send a message to the R5RoutingWorker
+      // Here we should send the UpdateTravelTimes message to R5RoutingWorker with the loaded linkstats
+
       log.info(s"Transit schedule has been initialized")
 
       scheduleRideHailManagerTimerMessage()
