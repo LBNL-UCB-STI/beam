@@ -7,9 +7,11 @@ from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM
   -    sleep 10s
-  -    for file in test/output/*; do sudo cp /var/log/cloud-init-output.log "$file"; done;
-  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''
+  -    opth="output/$(basename $(dirname $cf))"
+  -    for file in $opth/*; do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -    for file in $opth/*.zip; do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(basename $file)"; done;
+  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/
+  -    sudo rm -rf output/*'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
@@ -51,12 +53,13 @@ runcmd:
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
   - echo $MAXRAM
+  - s3p=""
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT \\n Shutdown in $SHUTDOWN_WAIT minutes"
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT \\n S3 output url ${s3p#","} \\n Shutdown in $SHUTDOWN_WAIT minutes"
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
@@ -111,7 +114,7 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name):
     res = ec2.run_instances(ImageId=os.environ[region_prefix + 'IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
@@ -120,7 +123,14 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour):
                             MaxCount=1,
                             SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
                             IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour)
+                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+                            TagSpecifications=[ {
+                                'ResourceType': 'instance',
+                                'Tags': [ {
+                                    'Key': 'Name',
+                                    'Value': instance_name
+                                } ]
+                            } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -197,7 +207,7 @@ def deploy_handler(event):
             if len(configs) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram)
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
+            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
             runNum += 1
@@ -222,6 +232,7 @@ def instance_handler(event):
 
     if command_id == 'start':
         start_instance(valid_ids)
+        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(valid_ids, list(map(get_dns, valid_ids)))]))
 
     if command_id == 'stop':
         stop_instance(valid_ids)
