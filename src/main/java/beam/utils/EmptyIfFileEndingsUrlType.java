@@ -1,4 +1,4 @@
-package beam.utils.reflection;
+package beam.utils;
 
 import com.google.common.collect.Lists;
 import org.reflections.vfs.Vfs;
@@ -33,7 +33,7 @@ public class EmptyIfFileEndingsUrlType implements Vfs.UrlType {
         return false;
     }
 
-    public Vfs.Dir createDir(final URL url) throws Exception {
+    public Vfs.Dir createDir(final URL url) {
 
         return emptyVfsDir(url);
     }

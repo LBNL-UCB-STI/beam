@@ -3,9 +3,9 @@ package beam.agentsim.agents.rideHail
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
+import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{EndLegTrigger, StartLegTrigger}
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
@@ -26,7 +26,7 @@ object RideHailingAgent {
   def props(services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, eventsManager: EventsManager, rideHailingAgentId: Id[RideHailingAgent], vehicle: BeamVehicle, location: Coord) =
     Props(new RideHailingAgent(rideHailingAgentId, scheduler, vehicle, location, eventsManager, services, transportNetwork))
 
-  case class RideHailingAgentData(currentVehicle: VehicleStack = Vector(), stashedPassengerSchedules: List[PassengerSchedule] = List(), passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0) extends DrivingData {
+  case class RideHailingAgentData(currentVehicle: VehicleStack = Vector(), passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
     override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
   }
@@ -40,10 +40,17 @@ object RideHailingAgent {
   }
 
   case object Idle extends BeamAgentState
+  case object IdleInterrupted extends BeamAgentState
 
   case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
 
   case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger])
+
+  case class Interrupt()
+  case class Resume()
+
+  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int)
+  case class InterruptedWhileIdle()
 
 }
 
@@ -67,39 +74,38 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   }
 
   when(Idle) {
+    case Event(Interrupt(), data) =>
+      goto(IdleInterrupted) replying InterruptedWhileIdle()
+  }
+
+  when(IdleInterrupted) {
     case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
-      // TODO: Keep a local time, i.e. the time of the latest trigger we ourselves received, and make sure that at least
-      // TODO: our local time does not run backwards, i.e. let this leg here start no earlier than the latest trigger we received.
       val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(updatedPassengerSchedule.schedule.firstKey.startTime, updatedPassengerSchedule.schedule.firstKey), self))
-      goto(WaitingToDrive) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule)
+      goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule)
+    case Event(Resume(), _) =>
+      goto(Idle)
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(lastVisited), data) if data.stashedPassengerSchedules.isEmpty =>
-      val (_, triggerId) = releaseTickAndTriggerId()
+    case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
+      val (tick, triggerId) = releaseTickAndTriggerId()
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+  }
 
-    case Event(PassengerScheduleEmptyMessage(lastVisited), data@RideHailingAgentData(_, nextSchedule::restOfSchedules, _, _)) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      vehicle.checkInResource(Some(lastVisited),context.dispatcher) // ??
-      val startTime = math.max(tick, nextSchedule.schedule.firstKey.startTime)
-      val triggerToSchedule = Vector(ScheduleTrigger(StartLegTrigger(startTime, nextSchedule.schedule.firstKey), self))
-      scheduler ! CompletionNotice(triggerId, triggerToSchedule)
-      goto(WaitingToDrive) using data.copy(stashedPassengerSchedules = restOfSchedules).withPassengerSchedule(nextSchedule).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+  when(PassengerScheduleEmptyInterrupted) {
+    case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
+      vehicle.checkInResource(Some(lastVisited),context.dispatcher)
+      goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
   }
 
   val myUnhandled: StateFunction =  {
-    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
-      // Ride-hailing manager wants us to drive,
-      // but we are not Idle.
-      // Not being Idle means we cannot return a trigger to be scheduled to start driving.
-      // Rather, we stash a reminder to start driving
-      // as soon as we finish our current trip.
-      stay using data.copy(stashedPassengerSchedules = data.stashedPassengerSchedules :+ updatedPassengerSchedule) replying ModifyPassengerScheduleAck(requestId, Vector())
+
+    case Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
+      stay replying CompletionNotice(triggerId)
 
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
