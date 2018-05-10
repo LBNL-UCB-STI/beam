@@ -92,9 +92,9 @@ goto :init
     )
 
     scp >nul 2>&1 && (
-        scp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" %destination_path%
+        scp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" "%destination_path%"
     ) || (
-        pscp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" %destination_path%
+        pscp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" "%destination_path%"
     )
 
 :end
