@@ -63,9 +63,9 @@ goto :init
     if /i "%~1"=="-?"         call :header & call :usage "%~2" & goto :end
     if /i "%~1"=="--help"     call :header & call :usage "%~2" & goto :end
 
-    if /i "%~1"=="/v"         call :version      & goto :end
-    if /i "%~1"=="-v"         call :version      & goto :end
-    if /i "%~1"=="--version"  call :version full & goto :end
+    if /i "%~1"=="/v"         call :version         & goto :end
+    if /i "%~1"=="-v"         call :version         & goto :end
+    if /i "%~1"=="--version"  call :version full    & goto :end
 
     if /i "%~1"=="/e"         set "OptVerbose=yes"  & shift & goto :parse
     if /i "%~1"=="-e"         set "OptVerbose=yes"  & shift & goto :parse
@@ -82,16 +82,17 @@ goto :init
     goto :parse
 
 :validate
-    if not defined host_name call :missing_argument & goto :end
-    if not defined source_path call :missing_argument & goto :end
+    if not defined host_name        call :missing_argument & goto :end
+    if not defined source_path      call :missing_argument & goto :end
     where scp >nul 2>nul
     if %errorlevel%==1 (
         @echo scp not found in path. Please install OpenSSH [https://github.com/PowerShell/Win32-OpenSSH/wiki/Install-Win32-OpenSSH]
         goto :end
     )
+
 :main
     if defined OptVerbose (
-        echo **** DEBUG IS ON
+        echo **** DEBUG IS ON ****
 
          if defined identity_file           echo identity_file:      "%identity_file%"
          if defined host_name               echo host_name:          "%host_name%"
@@ -143,5 +144,6 @@ goto :init
     set "host_name="
     set "source_path="
     set "destination_path="
+    set "source="
 
     goto :eof
