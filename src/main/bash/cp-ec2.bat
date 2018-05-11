@@ -18,6 +18,7 @@ goto :init
     echo.
     echo.  -h host_name         host name where source files are available
     echo.  -s source_path       source file path
+    echo.  -x file_extension    files with extension in source path
     echo.  -d destination_path  destination where to place file after copy, default to current directory
     echo.  -i identity_file     specify the identity file, default value ~/beam-box.pem
     goto :eof
@@ -52,6 +53,7 @@ goto :init
     set "identity_file=~/beam-box.pem"
     set "host_name="
     set "source_path="
+    set "file_extension="
     set "destination_path=./"
 
 :parse
@@ -72,7 +74,9 @@ goto :init
     if /i "%~1"=="-i"         set "identity_file=%~2"       & shift & shift & goto :parse
     if /i "%~1"=="-h"         set "host_name=%~2"           & shift & shift & goto :parse
     if /i "%~1"=="-s"         set "source_path=%~2"         & shift & shift & goto :parse
+    if /i "%~1"=="-x"         set "file_extension=%~2"      & shift & shift & goto :parse
     if /i "%~1"=="-d"         set "destination_path=%~2"    & shift & shift & goto :parse
+    if /i "%~1"=="-p"         set "retain_path=yes"         & shift & shift & goto :parse
 
     shift
     goto :parse
@@ -80,7 +84,11 @@ goto :init
 :validate
     if not defined host_name call :missing_argument & goto :end
     if not defined source_path call :missing_argument & goto :end
-
+    where scp >nul 2>nul
+    if %errorlevel%==1 (
+        @echo scp not found in path. Please install OpenSSH [https://github.com/PowerShell/Win32-OpenSSH/wiki/Install-Win32-OpenSSH]
+        goto :end
+    )
 :main
     if defined OptVerbose (
         echo **** DEBUG IS ON
@@ -88,14 +96,29 @@ goto :init
          if defined identity_file           echo identity_file:      "%identity_file%"
          if defined host_name               echo host_name:          "%host_name%"
          if defined source_path             echo source_path:        "%source_path%"
+         if defined file_extension          echo file_extension:     "%file_extension%"
          if defined destination_path        echo destination_path:   "%destination_path%"
     )
 
-    scp >nul 2>&1 && (
-        scp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" "%destination_path%"
-    ) || (
-        pscp -i "%identity_file%" ubuntu@%host_name%:"%source_path%" "%destination_path%"
+    if defined file_extension (
+        set "tmp_dir=/home/ubuntu/tmp-cp-ec2/"
+        ssh -i "%identity_file%" ubuntu@%host_name% mkdir /home/ubuntu/tmp-cp-ec2/
+
+        if defined retain_path (
+            ssh -i "%identity_file%" ubuntu@%host_name% "find %source_path% -name *.%file_extension% | cpio -pdm /home/ubuntu/tmp-cp-ec2/"
+        ) else (
+            ssh -i "%identity_file%" ubuntu@%host_name% "cp `find %source_path% -name *.%file_extension%` /home/ubuntu/tmp-cp-ec2/"
+        )
+
+        set "source=/home/ubuntu/tmp-cp-ec2/*"
+    ) else (
+        set "source=%source_path%"
     )
+
+    scp -r -i "%identity_file%" ubuntu@%host_name%:"%source%" "%destination_path%"
+
+
+    if defined file_extension ssh -i "%identity_file%" ubuntu@%host_name% rm -rf tmp
 
 :end
     call :cleanup
