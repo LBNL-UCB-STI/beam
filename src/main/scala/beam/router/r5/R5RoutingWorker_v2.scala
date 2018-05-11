@@ -155,7 +155,10 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   val pqMsgSize: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
   val pqRoutingRequestTravelTime: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
 
-  val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
+  val tickTask = context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
+
+  var msgs: Long = 0
+  var firstMsgTime: Option[ZonedDateTime] = None
 
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info("Num of avaiable processors: {}", Runtime.getRuntime().availableProcessors())
@@ -165,16 +168,26 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
 
   override final def receive: Receive = {
-    case "tick" if pqRouteCalcTime.size >= 1 && pqMsgSize.size >= 1 && pqRoutingRequestTravelTime.size >= 1 => {
+    case "tick"   => {
       pqRouteCalcTime.synchronized {
-        log.info("R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
+        if (pqRouteCalcTime.size >= 1) {
+          log.info("R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
+        }
       }
-      pqMsgSize.synchronized {
-        log.info("R5RoutingWorker_v2 Memory (bytes): {}", Statistics(pqMsgSize))
-      }
+//      pqMsgSize.synchronized {
+//        log.info("R5RoutingWorker_v2 Memory (bytes): {}", Statistics(pqMsgSize))
+//      }
 
       pqRoutingRequestTravelTime.synchronized {
-        log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
+        if (pqRoutingRequestTravelTime.size >= 1) {
+          log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
+        }
+      }
+
+      if (firstMsgTime.isDefined) {
+        val seconds = ChronoUnit.SECONDS.between(firstMsgTime.get, ZonedDateTime.now(ZoneOffset.UTC))
+        val rate = msgs.toDouble / seconds
+        log.info(s"Receiving $rate per seconds of RoutingRequest")
       }
     }
     case InitTransit_v2(scheduler) =>
@@ -186,6 +199,9 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       sender() ! Success("inited")
 
     case request: RoutingRequest =>
+      msgs += 1
+      if (firstMsgTime.isEmpty)
+        firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
       pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, withReceivedAt.receivedAt.get)
       val eventualResponse = Future {
@@ -193,21 +209,21 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           val start = System.currentTimeMillis()
           val res = calcRoute(withReceivedAt)
           val stop = System.currentTimeMillis()
-
-          val bos = new ByteArrayOutputStream()
-          val out = new ObjectOutputStream(bos)
-          out.writeObject(res)
-          out.flush()
-          val bytes = bos.toByteArray()
-
-          log.info("itineraries size: {}, bytes: {} => '{}'", res.itineraries.size, bytes.length, res.itineraries.toString())
+//
+//          val bos = new ByteArrayOutputStream()
+//          val out = new ObjectOutputStream(bos)
+//          out.writeObject(res)
+//          out.flush()
+//          val bytes = bos.toByteArray()
+//
+//          log.info("itineraries size: {}, bytes: {} => '{}'", res.itineraries.size, bytes.length, res.itineraries.toString())
 
           pqRouteCalcTime.synchronized {
             pqRouteCalcTime += stop - start
           }
-          pqMsgSize.synchronized {
-            pqMsgSize += bytes.length
-          }
+//          pqMsgSize.synchronized {
+//            pqMsgSize += bytes.length
+//          }
           res
         }
       }
