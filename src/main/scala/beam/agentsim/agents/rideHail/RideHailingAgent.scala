@@ -35,7 +35,7 @@ object RideHailingAgent {
     currentLeg.beamVehicleId.toString.contains("rideHailingVehicle")
   }
 
-  def getRideHailingTrip(chosenTrip: EmbodiedBeamTrip): Vector[RoutingModel.EmbodiedBeamLeg] = {
+  def getRideHailingTrip(chosenTrip: EmbodiedBeamTrip): Seq[RoutingModel.EmbodiedBeamLeg] = {
     chosenTrip.legs.filter(l => isRideHailingLeg(l))
   }
 

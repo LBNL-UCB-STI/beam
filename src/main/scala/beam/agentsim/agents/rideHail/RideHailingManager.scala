@@ -264,7 +264,7 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       }
 
     case RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
-      val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
+      val timesToCustomer: Seq[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
       // TODO: Find better way of doing this error checking than sentry value
       val timeToCustomer = if (timesToCustomer.nonEmpty) {
         timesToCustomer.min

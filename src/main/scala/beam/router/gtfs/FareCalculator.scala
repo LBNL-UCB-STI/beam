@@ -212,7 +212,7 @@ object FareCalculator {
     * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
     * @return collection of @BeamFareSegment for an itinerary after applying transfer rules
     */
-  def filterFaresOnTransfers(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+  def filterFaresOnTransfers(fareSegments: Seq[BeamFareSegment]): Seq[BeamFareSegment] = {
 
     /**
       * Apply filter on fare segments, agency by agency in order
@@ -220,9 +220,9 @@ object FareCalculator {
       * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
       * @return a resultant collection of @BeamFareSegment
       */
-    def groupFaresByAgencyAndProceed(fareSegments: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+    def groupFaresByAgencyAndProceed(fareSegments: Seq[BeamFareSegment]): Seq[BeamFareSegment] = {
       if (fareSegments.isEmpty)
-        Vector()
+        Seq()
       else {
         val agencyRules = fareSegments.span(_.agencyId == fareSegments.head.agencyId)
         // for first agency fare/rules start filter iteration
@@ -238,7 +238,7 @@ object FareCalculator {
       * @param trans transfer number under processing
       * @return processed collection of @BeamFareSegment
       */
-    def iterateTransfers(fareSegments: Vector[BeamFareSegment], trans: Int = 0): Vector[BeamFareSegment] = {
+    def iterateTransfers(fareSegments: Seq[BeamFareSegment], trans: Int = 0): Seq[BeamFareSegment] = {
 
       /**
         * Generate a next transfer number /option
@@ -262,23 +262,23 @@ object FareCalculator {
         * @param lhs takes fare segments
         * @return
         */
-      def applyTransferRules(lhs: Vector[BeamFareSegment]): Vector[BeamFareSegment] = {
+      def applyTransferRules(lhs: Seq[BeamFareSegment]): Seq[BeamFareSegment] = {
         // when permitted transfers are 0, then return as is
         // otherwise take the first segment and reiterate for the rest
         // having higher segment duration from permitted transfer duration
         // or transfer limit exceeded
         trans match {
           case 0 => lhs
-          case _ => Vector(lhs.head) ++ iterateTransfers(lhs.tail.zipWithIndex.filter(fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans).map(s => BeamFareSegment(s._1, s._1.segmentDuration - lhs.head.segmentDuration)))
+          case _ => Seq(lhs.head) ++ iterateTransfers(lhs.tail.zipWithIndex.filter(fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans).map(s => BeamFareSegment(s._1, s._1.segmentDuration - lhs.head.segmentDuration)))
         }
       }
 
       // separate fare segments with current transfer number as lhs then apply transfer rules
       // and reiterate for rest of the fare segments (rhs) with next iteration number
       fareSegments.span(_.fare.transfers == trans) match {
-        case (Vector(), Vector()) => Vector()
-        case (Vector(), rhs) => iterateTransfers(rhs, next)
-        case (lhs, Vector()) => applyTransferRules(lhs)
+        case (Seq(), Seq()) => Vector()
+        case (Seq(), rhs) => iterateTransfers(rhs, next)
+        case (lhs, Seq()) => applyTransferRules(lhs)
         case (lhs, rhs) => applyTransferRules(lhs) ++ iterateTransfers(rhs, next)
       }
     }

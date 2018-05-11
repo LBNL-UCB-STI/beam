@@ -145,7 +145,7 @@ object BeamRouter {
     * @param streetVehiclesAsAccess boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(origin: Location, destination: Location, departureTime: BeamTime,
-                            transitModes: Vector[BeamMode], streetVehicles: Vector[StreetVehicle],
+                            transitModes: Seq[BeamMode], streetVehicles: Seq[StreetVehicle],
                             streetVehiclesAsAccess: Boolean = true,
                             createdAt: ZonedDateTime,
                             receivedAt: Option[ZonedDateTime] = None)
@@ -155,7 +155,7 @@ object BeamRouter {
     *
     * @param itineraries a vector of planned routes
     */
-  case class RoutingResponse(itineraries: Vector[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime,
+  case class RoutingResponse(itineraries: Seq[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime,
                              requestReceivedAt: ZonedDateTime,
                              createdAt: ZonedDateTime,
                              receivedAt: Option[ZonedDateTime] = None)
