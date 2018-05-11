@@ -315,6 +315,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
   "max_ram": "${maxRAM ?: '2g'}",
   "batch": "$beamBatch",
+  "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "region": "$region",
   "shutdown_wait": "$shutdownWait",
