@@ -55,6 +55,7 @@ goto :init
     set "source_path="
     set "file_extension="
     set "destination_path=./"
+    set "retain_path="
 
 :parse
     if "%~1"=="" goto :validate
@@ -145,5 +146,6 @@ goto :init
     set "source_path="
     set "destination_path="
     set "source="
+    set "retain_path="
 
     goto :eof
