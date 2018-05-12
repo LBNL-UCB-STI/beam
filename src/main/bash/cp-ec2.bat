@@ -107,9 +107,9 @@ goto :init
         ssh -i "%identity_file%" ubuntu@%host_name% mkdir /home/ubuntu/tmp-cp-ec2/
 
         if defined retain_path (
-            ssh -i "%identity_file%" ubuntu@%host_name% "find %source_path% -name *.%file_extension% | cpio -pdm /home/ubuntu/tmp-cp-ec2/"
+            ssh -i "%identity_file%" ubuntu@%host_name% "find %source_path% -name %file_extension% | cpio -pdm /home/ubuntu/tmp-cp-ec2/"
         ) else (
-            ssh -i "%identity_file%" ubuntu@%host_name% "cp `find %source_path% -name *.%file_extension%` /home/ubuntu/tmp-cp-ec2/"
+            ssh -i "%identity_file%" ubuntu@%host_name% "cp `find %source_path% -name %file_extension%` /home/ubuntu/tmp-cp-ec2/"
         )
 
         set "source=/home/ubuntu/tmp-cp-ec2/*"
