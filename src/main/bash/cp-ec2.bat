@@ -119,7 +119,7 @@ goto :init
     scp -r -i "%identity_file%" ubuntu@%host_name%:"%source%" "%destination_path%"
 
 
-    if defined file_extension ssh -i "%identity_file%" ubuntu@%host_name% rm -rf tmp
+    if defined file_extension ssh -i "%identity_file%" ubuntu@%host_name% rm -rf tmp-cp-ec2
 
 :end
     call :cleanup
