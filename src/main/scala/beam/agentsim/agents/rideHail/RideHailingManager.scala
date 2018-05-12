@@ -217,7 +217,6 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
           val (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse) =
             createCustomerInquiryResponse(personId, customerPickUp, departAt, destination, rideHailingLocation)
-          log.info("RideHailingInquiry. Sent two routing requests")
           val sentTime = System.currentTimeMillis()
           for {
             rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
