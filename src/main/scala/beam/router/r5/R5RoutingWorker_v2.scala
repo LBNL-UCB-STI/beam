@@ -226,8 +226,9 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 //            pqMsgSize += bytes.length
 //          }
           // Put only 1 resut
-          val itineraries = Seq(res.itineraries.headOption).flatten
-          res.copy(itineraries = itineraries)
+//          val itineraries = Seq(res.itineraries.headOption).flatten
+//          res.copy(itineraries = itineraries)
+          res
         }
       }
       eventualResponse.failed.foreach(log.error(_, ""))
