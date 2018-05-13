@@ -12,7 +12,7 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobil
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
-import beam.agentsim.agents.rideHail.{RideHailingAgent, RideHailingManager}
+import beam.agentsim.agents.rideHail.{RideHailingAgent, RideHailingManager, RoutingRequestSenderCounter}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -84,6 +84,8 @@ trait ChoosesMode {
       def makeRequestWith(transitModes: Vector[BeamMode], vehicles: Vector[StreetVehicle], streetVehiclesAsAccess: Boolean = true): Unit = {
         router ! RoutingRequest(currentActivity(choosesModeData.personData).getCoord, nextAct.getCoord,
           departTime, Modes.filterForTransit(transitModes), vehicles, streetVehiclesAsAccess, createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+
+        RoutingRequestSenderCounter.sent()
       }
 
       def makeRideHailRequest(): Unit = {
