@@ -6,8 +6,10 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.jsoup.helper.StringUtil;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
+import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.BufferedWriter;
@@ -34,18 +36,34 @@ public class RideHailingWaitingStats implements IGraphStats {
     private static double lastMaximumTime = 0;
     private static List<Double> listOfBounds = new ArrayList<>();
     private static double NUMBER_OF_CATEGORIES = 6.0;
+
     @Override
     public void processStats(Event event) {
-        if (event instanceof ModeChoiceEvent && event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE).equalsIgnoreCase(GraphsStatsAgentSimEventsListener.RIDE_HAILING)) {
-            ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
-            rideHailingWaiting.put(modeChoiceEvent.getPersonId().toString(), event);
-        } else if (event.getEventType().equalsIgnoreCase(PersonEntersVehicleEvent.EVENT_TYPE) && rideHailingWaiting.containsKey(((PersonEntersVehicleEvent) event).getPersonId().toString())) {
-            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
-            String id = personEntersVehicleEvent.getPersonId().toString();
-            ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailingWaiting.get(id);
-            double difference = event.getTime() - modeChoiceEvent.getTime();
-            rideHailingWaiting.remove(id);
-            processRideHailingWaitingTimes(modeChoiceEvent, difference);
+
+        if (event instanceof ModeChoiceEvent){
+
+            String mode = event.getAttributes().get("mode");
+            if(mode.equalsIgnoreCase("ride_hailing")) {
+
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+                Id<Person> personId = modeChoiceEvent.getPersonId();
+                rideHailingWaiting.put(personId.toString(), event);
+            }
+        } else if(event instanceof PersonEntersVehicleEvent) {
+
+            PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent)event;
+            Id<Person> personId = personEntersVehicleEvent.getPersonId();
+            String _personId = personId.toString();
+
+            if(rideHailingWaiting.containsKey(personId.toString())) {
+
+                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailingWaiting.get(_personId);
+                double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
+                processRideHailingWaitingTimes(modeChoiceEvent, difference);
+
+                // Remove the personId from the list of ModeChoiceEvent
+                rideHailingWaiting.remove(_personId);
+            }
         }
     }
 
@@ -59,7 +77,7 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     @Override
     public void createGraph(IterationEndsEvent event, String graphType) throws IOException {
-        throw new IOException("just for no reason");
+        throw new IOException("Not implemented");
     }
 
     @Override
@@ -73,19 +91,21 @@ public class RideHailingWaitingStats implements IGraphStats {
     }
 
 
-    private void processRideHailingWaitingTimes(Event event, double time) {
+    private void processRideHailingWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
-        time = Math.ceil(time / 60);
-        if (time > lastMaximumTime) {
-            lastMaximumTime = time;
+        //waitingTime = Math.ceil(waitingTime / 60);
+        waitingTime = waitingTime/60;
+
+        if (waitingTime > lastMaximumTime) {
+            lastMaximumTime = waitingTime;
         }
 
         List<Double> timeList = hoursTimesMap.get(hour);
         if (timeList == null) {
             timeList = new ArrayList<>();
         }
-        timeList.add(time);
+        timeList.add(waitingTime);
         hoursTimesMap.put(hour, timeList);
     }
 
@@ -135,6 +155,29 @@ public class RideHailingWaitingStats implements IGraphStats {
         writeToCSV(iterationNumber);
     }
 
+    /**
+     * Recursive function that will add the upper and lower bounds to the list
+     *
+     */
+    private void getBounds() {
+        /*DecimalFormat df = new DecimalFormat();
+        df.setMaximumFractionDigits(2);*/
+        /*if ((upperBound - bound) <= 0) {
+            listOfBounds.add(upperBound);
+            listOfBounds.add(0.0);
+        } else if (bound < upperBound) {
+            listOfBounds.add(bound);
+            getBounds(bound + , upperBound);
+        }*/
+        double upperBound = lastMaximumTime;
+        double bound = (lastMaximumTime / NUMBER_OF_CATEGORIES);
+
+        listOfBounds.add(0.0);
+        for(double x = bound; x <= upperBound; x += bound){
+            listOfBounds.add(x);
+        }
+    }
+
     private void writeToCSV(int iterationNumber) throws IOException {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
         BufferedWriter out = null;
@@ -173,8 +216,9 @@ public class RideHailingWaitingStats implements IGraphStats {
      */
     private synchronized void calculateHourlyData() {
 
-        double bound = Math.ceil(lastMaximumTime / NUMBER_OF_CATEGORIES);
-        getBounds(bound, lastMaximumTime);
+
+
+        getBounds();
         Collections.sort(listOfBounds);
         Set<Integer> hours = hoursTimesMap.keySet();
 
@@ -198,24 +242,6 @@ public class RideHailingWaitingStats implements IGraphStats {
     }
 
     /**
-     * Recursive function that will add the upper and lower bounds to the list
-     *
-     * @param bound      difference between upper and lowerBound of class boundaries
-     * @param upperBound upperBound of the boundary
-     */
-    private void getBounds(double bound, double upperBound) {
-        DecimalFormat df = new DecimalFormat();
-        df.setMaximumFractionDigits(2);
-        if ((upperBound - bound) <= 0) {
-            listOfBounds.add(upperBound);
-            listOfBounds.add(0.0);
-        } else if (upperBound > 0) {
-            listOfBounds.add(upperBound);
-            getBounds(bound, upperBound - bound);
-        }
-    }
-
-    /**
      * Returns the category in which the current time lies
      *
      * @param time given time
@@ -226,7 +252,11 @@ public class RideHailingWaitingStats implements IGraphStats {
         while (i < listOfBounds.size()) {
             double range = listOfBounds.get(i);
             if (time <= range) {
-                return listOfBounds.get(i - 1) + "-" + range + " mins ";
+
+                range = Math.round(range*100)/100.0;
+
+                return range + "_min";
+                //return listOfBounds.get(i - 1) + "-" + range + " mins ";
             }
             i++;
         }
