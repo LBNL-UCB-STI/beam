@@ -150,7 +150,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   })
 
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
-    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 1))
+    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2))
 
   val pqRouteCalcTime: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
   val pqMsgSize: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
@@ -205,7 +205,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
       pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, withReceivedAt.receivedAt.get)
-      val eventualResponse = {
+      val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
           val res = calcRoute(withReceivedAt)
@@ -231,7 +231,8 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           res
         }
       }
-      sender ! eventualResponse
+      eventualResponse.failed.foreach(log.error(_, ""))
+      eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)

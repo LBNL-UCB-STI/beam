@@ -3,7 +3,7 @@ package beam.agentsim.agents.rideHail
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.LongSummaryStatistics
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{Executors, TimeUnit}
 
 import beam.agentsim.agents.BeamAgent.Finish
 import akka.actor.{ActorLogging, ActorRef, Props}
@@ -41,7 +41,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 import scala.concurrent.duration._
@@ -90,6 +90,10 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   private var lockedVehicles = Set[Id[Vehicle]]()
 
   val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
+
+
+  val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
+    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2))
 
   override def receive: Receive = {
     case "tick" if fullTime.size >= 1 && requestTravelTime.size >= 1 && responseTravelTime.size >= 1=>
@@ -206,14 +210,14 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
 
     case RideHailingInquiry(inquiryId, personId, customerPickUp, departAt, destination) =>
-
+      implicit val ex = executionContext
       val customerAgent = sender()
       getClosestRideHailingAgent(customerPickUp, radius) match {
         case Some((rideHailingLocation, shortDistanceToRideHailingAgent)) =>
           lockedVehicles += rideHailingLocation.vehicleId
 
           // Need to have this dispatcher here for the future execution below
-          import context.dispatcher
+          // import context.dispatcher
 
           val (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse) =
             createCustomerInquiryResponse(personId, customerPickUp, departAt, destination, rideHailingLocation)
