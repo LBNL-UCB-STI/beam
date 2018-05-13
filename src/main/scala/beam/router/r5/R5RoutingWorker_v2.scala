@@ -149,8 +149,15 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
     }
   })
 
+  val numOfThreads = if (Runtime.getRuntime().availableProcessors() <= 2)  {
+    1
+  }
+  else {
+    Runtime.getRuntime().availableProcessors() - 2
+  }
+
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
-    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2))
+    Executors.newFixedThreadPool(numOfThreads))
 
   val pqRouteCalcTime: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
   val pqMsgSize: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
@@ -187,8 +194,10 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
       if (firstMsgTime.isDefined) {
         val seconds = ChronoUnit.SECONDS.between(firstMsgTime.get, ZonedDateTime.now(ZoneOffset.UTC))
-        val rate = msgs.toDouble / seconds
-        log.info(s"Receiving $rate per seconds of RoutingRequest")
+        if (seconds > 0) {
+          val rate = msgs.toDouble / seconds
+          log.info(s"Receiving $rate per seconds of RoutingRequest")
+        }
       }
     }
     case InitTransit_v2(scheduler) =>

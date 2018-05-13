@@ -62,6 +62,10 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   val requestTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
   val responseTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
 
+
+  var routingRequestMsgs: Long = 0
+  var firstMsgTime: Option[ZonedDateTime] = None
+
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
     new QuadTree[RideHailingAgentLocation](
@@ -91,9 +95,15 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
   val tickTask = context.system.scheduler.schedule(2.seconds, 2.seconds, self, "tick")(context.dispatcher)
 
+  val numOfThreads = if (Runtime.getRuntime().availableProcessors() <= 2)  {
+    1
+  }
+  else {
+    Runtime.getRuntime().availableProcessors() - 2
+  }
 
   val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
-    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2))
+    Executors.newFixedThreadPool(numOfThreads))
 
   override def receive: Receive = {
     case "tick" if fullTime.size >= 1 && requestTravelTime.size >= 1 && responseTravelTime.size >= 1=>
@@ -105,6 +115,14 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       }
       responseTravelTime.synchronized {
         log.info("rideHailingManager RoutingResponse travel time (ms): {}", Statistics(responseTravelTime))
+      }
+
+      if (firstMsgTime.isDefined) {
+        val seconds = ChronoUnit.SECONDS.between(firstMsgTime.get, ZonedDateTime.now(ZoneOffset.UTC))
+        if (seconds > 0) {
+          val rate = routingRequestMsgs.toDouble / seconds
+          log.info(s"Sending $rate per seconds of RoutingRequest")
+        }
       }
 
     case NotifyIterationEnds() =>
@@ -384,11 +402,16 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(rideHailingLocation
           .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin),
       createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+    if (firstMsgTime.isEmpty)
+      firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
+
+    routingRequestMsgs += 1
     //XXXX: customer trip request might be redundant... possibly pass in info
 
     // get route from customer to destination
     val futureRideHailing2DestinationResponse = router ? RoutingRequest(customerPickUp, destination, departAt, Vector(),
       Vector(customerAgentBody, rideHailingVehicleAtPickup), createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+    routingRequestMsgs += 1
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 
