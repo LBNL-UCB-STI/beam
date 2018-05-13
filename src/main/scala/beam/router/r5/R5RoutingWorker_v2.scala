@@ -205,7 +205,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
       pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, withReceivedAt.receivedAt.get)
-      val eventualResponse = Future {
+      val eventualResponse = {
         latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
           val res = calcRoute(withReceivedAt)
@@ -231,8 +231,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           res
         }
       }
-      eventualResponse.failed.foreach(log.error(_, ""))
-      eventualResponse pipeTo sender
+      sender ! eventualResponse
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
