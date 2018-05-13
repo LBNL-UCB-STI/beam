@@ -70,7 +70,7 @@ allprojects {
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "http://central.maven.org/maven2" }
         maven { url "http://repo.maven.apache.org/maven2" }
-        maven { url "http://download.osgeo.org/webdav/geotools" }
+        maven { url "http://repo.boundlessgeo.com/main" }
         maven { url "http://dl.bintray.com/matsim/matsim" }
         maven { url "http://maven.conveyal.com/" }
         maven { url "http://repo1.maven.org/maven2" }
