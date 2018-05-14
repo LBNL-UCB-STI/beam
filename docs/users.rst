@@ -37,13 +37,17 @@ The BEAM GUI app is the simplest way to run the model. It looks like this:
 
 .. image:: _static/figs/beam-gui.png
 
-Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`. 
+Use "Choose" to select a configuration file from your file system. Choose `test/input/beamville/beam.conf`.
 
 Click "Run BEAM". 
 
 You will see output appear in the console. Congrats, you're running BEAM! 
 
 Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
+
+You can also run bean using command line with a gradle task and configuration need to provide in `appArgs` (as gradle argument). To run for beamville, following command need to execute::
+
+  ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
 Scenarios
 ^^^^^^^^^
