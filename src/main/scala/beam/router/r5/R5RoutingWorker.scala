@@ -102,7 +102,7 @@ class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: Tran
 
   def getPlanFromR5(request: R5Request): ProfileResponse = {
     val maxStreetTime = 2 * 60
-    // If we already have observed travel times, probably from the previous iteration,
+    // If we already have observed travel times, probably from the pre
     // let R5 use those. Otherwise, let R5 use its own travel time estimates.
     val profileRequest = new ProfileRequest()
     profileRequest.fromLon = request.from.getX

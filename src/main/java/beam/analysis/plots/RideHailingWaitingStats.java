@@ -218,9 +218,6 @@ public class RideHailingWaitingStats implements IGraphStats {
      * Calculate the data and populate the dataset i.e. "hourModeFrequency"
      */
     private synchronized void calculateHourlyData() {
-
-
-
         getBounds();
         Collections.sort(listOfBounds);
         Set<Integer> hours = hoursTimesMap.keySet();
@@ -231,18 +228,19 @@ public class RideHailingWaitingStats implements IGraphStats {
                 String range = getSlot(time);
                 if(range == null){
                     System.out.println("range is null");
+                }else{
+                    timeSlots.add(range);
+                    Map<String, Integer> hourData = hourModeFrequency.get(hour);
+                    Integer frequency = 1;
+                    if (hourData != null) {
+                        frequency = hourData.get(range);
+                        frequency = (frequency == null) ? 1 : frequency + 1;
+                    } else {
+                        hourData = new HashMap<>();
+                    }
+                    hourData.put(range, frequency);
+                    hourModeFrequency.put(hour, hourData);
                 }
-                timeSlots.add(range);
-                Map<String, Integer> hourData = hourModeFrequency.get(hour);
-                Integer frequency = 1;
-                if (hourData != null) {
-                    frequency = hourData.get(range);
-                    frequency = (frequency == null) ? 1 : frequency + 1;
-                } else {
-                    hourData = new HashMap<>();
-                }
-                hourData.put(range, frequency);
-                hourModeFrequency.put(hour, hourData);
             }
         }
     }
