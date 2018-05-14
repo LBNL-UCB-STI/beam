@@ -10,7 +10,7 @@ public class UtilityFunction {
   private Map<String, Double> coefficients = new HashMap<>();
   private Map<String, LogitCoefficientType> coefficientTypes = new HashMap<>();
 
-  void addCoefficient(String variableName, double coefficient, LogitCoefficientType coefficientType) {
+  void addCoefficient(final String variableName, final double coefficient, final LogitCoefficientType coefficientType) {
     coefficients.put(variableName, coefficient);
     coefficientTypes.put(variableName, coefficientType);
   }
