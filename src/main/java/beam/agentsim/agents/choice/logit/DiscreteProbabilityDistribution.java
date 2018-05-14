@@ -10,12 +10,12 @@ import java.util.TreeMap;
 
 public class DiscreteProbabilityDistribution {
 
-  public static final double PRECISION = 1e-6d;
+  private static final double PRECISION = 1e-6d;
 
   private LinkedHashMap<String, Double> pdf;
   private NavigableMap<Double, String> cdf;
 
-  public void setPDF(Map<String, Double> pdf) {
+  void setPDF(Map<String, Double> pdf) {
     this.pdf = new LinkedHashMap<>(pdf);
     cdf = null;
   }
@@ -37,15 +37,15 @@ public class DiscreteProbabilityDistribution {
   private String updateCumulativeProbabilityAndReturnLastKey(final double scalingFactor) {
     String lastKey = null;
 
-    double cumulativeProb = 0.0d;
+    double cumulativeProbability = 0.0d;
     for (Map.Entry<String, Double> entry : pdf.entrySet()) {
       final String key = entry.getKey();
       final Double value = entry.getValue();
 
       double theProb = Double.isInfinite(value) ? 1.0d : value / scalingFactor;
       if (theProb > PRECISION) {
-        cumulativeProb += theProb;
-        cdf.put(cumulativeProb, key);
+        cumulativeProbability += theProb;
+        cdf.put(cumulativeProbability, key);
         lastKey = key;
       }
     }
@@ -73,7 +73,7 @@ public class DiscreteProbabilityDistribution {
     return cdf.ceilingEntry(rand.nextDouble()).getValue();
   }
 
-  public Map<String, Double> getProbabilityDensityMap() {
+  Map<String, Double> getProbabilityDensityMap() {
     return Collections.unmodifiableMap(pdf);
   }
 
