@@ -176,7 +176,9 @@ public class RideHailingWaitingStats implements IGraphStats {
         double bound = (lastMaximumTime / NUMBER_OF_CATEGORIES);
 
         listOfBounds.add(0.0);
-        for(double x = bound; x <= upperBound; x += bound){
+        listOfBounds.add(lastMaximumTime);
+
+        for(double x = bound; x < upperBound; x += bound){
             listOfBounds.add(x);
         }
     }
@@ -230,6 +232,8 @@ public class RideHailingWaitingStats implements IGraphStats {
             for (double time : listTimes) {
                 String range = getSlot(time);
                 if(range == null){
+                    System.out.println("time -> " + time + ", " + Arrays.toString(listOfBounds.toArray())
+                            + ", max -> " + lastMaximumTime);
                     System.out.println("range is null");
                 }
                 timeSlots.add(range);
