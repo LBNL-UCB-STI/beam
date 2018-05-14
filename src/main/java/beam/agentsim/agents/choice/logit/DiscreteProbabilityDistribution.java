@@ -66,13 +66,6 @@ public class DiscreteProbabilityDistribution {
     return scalingFactor;
   }
 
-  public String sample(Random rand) {
-    if (cdf == null) {
-      createCDF();
-    }
-    return cdf.ceilingEntry(rand.nextDouble()).getValue();
-  }
-
   Map<String, Double> getProbabilityDensityMap() {
     return Collections.unmodifiableMap(pdf);
   }
@@ -80,5 +73,12 @@ public class DiscreteProbabilityDistribution {
   private static boolean isNumber(double value) {
     return !Double.isNaN(value);
   }
-}
 
+  public String sample(Random rand) {
+    if (cdf == null) {
+      createCDF();
+    }
+    return cdf.ceilingEntry(rand.nextDouble()).getValue();
+  }
+
+}
