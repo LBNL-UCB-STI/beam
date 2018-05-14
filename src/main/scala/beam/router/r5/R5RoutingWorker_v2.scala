@@ -77,17 +77,23 @@ case class Statistics
 
 object Statistics {
   def apply(pq: Seq[Double]): Statistics = {
-    val start = System.currentTimeMillis()
-    val min = pq.min
-    val max = pq.max
-    val percentile = new Percentile()
-    percentile.setData(pq.toArray)
-    val median = percentile.evaluate(50)
-    val p75 = percentile.evaluate(75)
-    val p95 = percentile.evaluate(95)
-    val stop = System.currentTimeMillis()
-    Statistics(numOfValues = pq.size, measureTimeMs = stop - start, minValue = min,
-      maxValue = max, median = median, p75 = p75, p95 = p95)
+    if (pq.nonEmpty) {
+      val start = System.currentTimeMillis()
+      val min = pq.min
+      val max = pq.max
+      val percentile = new Percentile()
+      percentile.setData(pq.toArray)
+      val median = percentile.evaluate(50)
+      val p75 = percentile.evaluate(75)
+      val p95 = percentile.evaluate(95)
+      val stop = System.currentTimeMillis()
+      Statistics(numOfValues = pq.size, measureTimeMs = stop - start, minValue = min,
+        maxValue = max, median = median, p75 = p75, p95 = p95)
+    }
+    else {
+      Statistics(numOfValues = 0, measureTimeMs = 0, minValue = Double.NaN,
+        maxValue = Double.NaN, median = Double.NaN, p75 = Double.NaN, p95 = Double.NaN)
+    }
   }
 }
 

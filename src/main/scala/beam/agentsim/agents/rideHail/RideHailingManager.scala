@@ -2,7 +2,6 @@ package beam.agentsim.agents.rideHail
 
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.LongSummaryStatistics
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 import java.util.concurrent.{Executors, TimeUnit}
 
@@ -15,7 +14,6 @@ import beam.agentsim.Resource._
 import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.rideHail.RideHailingAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
@@ -35,7 +33,6 @@ import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
-import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -47,6 +44,43 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 import scala.concurrent.duration._
 
+
+object RoutingRequestResponseStats {
+  private val fullTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+  private val requestTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+  private val responseTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+
+  def add(resp: RoutingResponse): Unit = {
+    fullTime.synchronized {
+      fullTime += ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.receivedAt.get)
+    }
+    requestTravelTime.synchronized {
+      requestTravelTime += ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.requestReceivedAt)
+    }
+
+    responseTravelTime.synchronized {
+      responseTravelTime += ChronoUnit.MILLIS.between(resp.createdAt, resp.receivedAt.get)
+    }
+  }
+
+  def fullTimeStat: Statistics = {
+    fullTime.synchronized {
+      Statistics(fullTime)
+    }
+  }
+
+  def requestTravelTimeStat: Statistics = {
+    requestTravelTime.synchronized {
+      Statistics(requestTravelTime)
+    }
+  }
+
+  def responseTravelTimeStat: Statistics = {
+    responseTravelTime.synchronized {
+      Statistics(responseTravelTime)
+    }
+  }
+}
 
 object RoutingRequestSenderCounter {
   private val n: AtomicLong = new AtomicLong(0L)
@@ -82,10 +116,6 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   val DefaultCostPerMinute = BigDecimal(beamServices.beamConfig.beam.agentsim.agents.rideHailing.defaultCostPerMinute)
   val radius: Double = 5000
   val selfTimerTimoutDuration=10*60 // TODO: set from config
-
-  val fullTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
-  val requestTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
-  val responseTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
 
   //TODO improve search to take into account time when available
   private val availableRideHailingAgentSpatialIndex = {
@@ -127,16 +157,13 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     Executors.newFixedThreadPool(numOfThreads))
 
   override def receive: Receive = {
-    case "tick" if fullTime.size >= 1 && requestTravelTime.size >= 1 && responseTravelTime.size >= 1=>
-      fullTime.synchronized {
-        log.info("rideHailingManager Full time (ms): {}", Statistics(fullTime))
-      }
-      requestTravelTime.synchronized {
-        log.info("rideHailingManager RoutingRequest travel time (ms): {}", Statistics(requestTravelTime))
-      }
-      responseTravelTime.synchronized {
-        log.info("rideHailingManager RoutingResponse travel time (ms): {}", Statistics(responseTravelTime))
-      }
+    case "tick" =>
+      log.info("rideHailingManager Full time (ms): {}",
+          RoutingRequestResponseStats.fullTimeStat)
+      log.info("rideHailingManager RoutingRequest travel time (ms): {}",
+          RoutingRequestResponseStats.requestTravelTimeStat)
+      log.info("rideHailingManager RoutingResponse travel time (ms): {}",
+          RoutingRequestResponseStats.responseTravelTimeStat)
 
       log.info(s"Sending ${RoutingRequestSenderCounter.rate} per seconds of RoutingRequest")
 
@@ -165,8 +192,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       }     )
 
     case RepositionResponse(rnd1, rnd2, r1, r2) =>
-      fullTime += ChronoUnit.MILLIS.between(r1.requestCreatedAt, r1.receivedAt.get)
-      fullTime += ChronoUnit.MILLIS.between(r2.requestCreatedAt, r2.receivedAt.get)
+      RoutingRequestResponseStats.add(r1)
+      RoutingRequestResponseStats.add(r2)
       updateLocationOfAgent(rnd1.vehicleId, rnd2.currentLocation, true)
       updateLocationOfAgent(rnd2.vehicleId, rnd1.currentLocation, true)
 
@@ -280,20 +307,8 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
             log.info("RideHailingInquiry. Destination RoutingRequest travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.requestReceivedAt))
             log.info("RideHailingInquiry. Destination RoutingResponse travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.createdAt, rideHailing2DestinationResponse.receivedAt.get))
 
-            fullTime.synchronized {
-              fullTime += ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.receivedAt.get)
-              fullTime += ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.receivedAt.get)
-            }
-
-            requestTravelTime.synchronized {
-              requestTravelTime += ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.requestReceivedAt)
-              requestTravelTime += ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.requestReceivedAt)
-            }
-
-            responseTravelTime.synchronized {
-              responseTravelTime += ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.createdAt, rideHailingAgent2CustomerResponse.receivedAt.get)
-              responseTravelTime += ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.createdAt, rideHailing2DestinationResponse.receivedAt.get)
-            }
+            RoutingRequestResponseStats.add(rideHailingAgent2CustomerResponse)
+            RoutingRequestResponseStats.add(rideHailing2DestinationResponse)
 
             // TODO: could we just call the code, instead of sending the message here?
             self ! RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)

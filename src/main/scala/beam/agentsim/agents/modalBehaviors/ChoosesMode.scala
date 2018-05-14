@@ -12,7 +12,7 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobil
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
-import beam.agentsim.agents.rideHail.{RideHailingAgent, RideHailingManager, RoutingRequestSenderCounter}
+import beam.agentsim.agents.rideHail.{RideHailingAgent, RideHailingManager, RoutingRequestResponseStats, RoutingRequestSenderCounter}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -151,6 +151,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
+      RoutingRequestResponseStats.add(theRouterResult.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC))))
       stay() using choosesModeData.copy(routingResponse = Some(theRouterResult))
     case Event(theRideHailingResult: RideHailingInquiryResponse, choosesModeData: ChoosesModeData) =>
       stay() using choosesModeData.copy(rideHailingResult = Some(theRideHailingResult))
