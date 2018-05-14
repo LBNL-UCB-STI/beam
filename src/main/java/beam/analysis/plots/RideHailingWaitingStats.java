@@ -231,11 +231,6 @@ public class RideHailingWaitingStats implements IGraphStats {
             List<Double> listTimes = hoursTimesMap.get(hour);
             for (double time : listTimes) {
                 String range = getSlot(time);
-                if(range == null){
-                    System.out.println("time -> " + time + ", " + Arrays.toString(listOfBounds.toArray())
-                            + ", max -> " + lastMaximumTime);
-                    System.out.println("range is null");
-                }
                 timeSlots.add(range);
                 Map<String, Integer> hourData = hourModeFrequency.get(hour);
                 Integer frequency = 1;
