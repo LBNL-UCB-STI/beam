@@ -176,7 +176,9 @@ public class RideHailingWaitingStats implements IGraphStats {
         double bound = (lastMaximumTime / NUMBER_OF_CATEGORIES);
 
         listOfBounds.add(0.0);
-        for(double x = bound; x <= upperBound; x += bound){
+        listOfBounds.add(lastMaximumTime);
+
+        for(double x = bound; x < upperBound; x += bound){
             listOfBounds.add(x);
         }
     }
