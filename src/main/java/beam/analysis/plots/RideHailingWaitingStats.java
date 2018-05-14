@@ -23,19 +23,21 @@ import java.util.*;
  * @author abid
  */
 public class RideHailingWaitingStats implements IGraphStats {
-    private static Set<String> timeSlots = new TreeSet<>();
-    private static Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (min)";
     private static final String fileName = "RideHailWaitingStats";
-    private static HashMap<String, Event> rideHailingWaiting = new HashMap<>();
-    private static int lastMax = 0;
 
-    private static Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
-    private static double lastMaximumTime = 0;
-    private static List<Double> listOfBounds = new ArrayList<>();
-    private static double NUMBER_OF_CATEGORIES = 6.0;
+    private int lastMax = 0;
+    private double lastMaximumTime = 0;
+    private double NUMBER_OF_CATEGORIES = 6.0;
+
+    private HashMap<String, Event> rideHailingWaiting = new HashMap<>();
+    private Map<Integer, Map<String, Integer>> hourModeFrequency = new HashMap<>();
+    private Set<String> timeSlots = new TreeSet<>();
+    private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
+    private List<Double> listOfBounds = new ArrayList<>();
 
     @Override
     public void processStats(Event event) {
@@ -82,11 +84,12 @@ public class RideHailingWaitingStats implements IGraphStats {
 
     @Override
     public void resetStats() {
+        lastMax = 0;
+        lastMaximumTime = 0;
+
         hourModeFrequency.clear();
         timeSlots.clear();
         rideHailingWaiting.clear();
-        RideHailingWaitingStats.lastMax = 0;
-        RideHailingWaitingStats.lastMaximumTime = 0;
         hoursTimesMap.clear();
     }
 
@@ -226,6 +229,9 @@ public class RideHailingWaitingStats implements IGraphStats {
             List<Double> listTimes = hoursTimesMap.get(hour);
             for (double time : listTimes) {
                 String range = getSlot(time);
+                if(range == null){
+                    System.out.println("range is null");
+                }
                 timeSlots.add(range);
                 Map<String, Integer> hourData = hourModeFrequency.get(hour);
                 Integer frequency = 1;
