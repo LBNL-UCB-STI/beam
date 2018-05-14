@@ -10,7 +10,7 @@ import java.util.TreeMap;
 
 public class DiscreteProbabilityDistribution {
 
-  public static final double PRECISION = 1e-6;
+  public static final double PRECISION = 1e-6d;
 
   private LinkedHashMap<String, Double> pdf;
   private NavigableMap<Double, String> cdf;
