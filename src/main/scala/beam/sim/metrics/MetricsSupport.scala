@@ -16,12 +16,12 @@ trait MetricsSupport {
 
   def latency[A](name: String, level: MetricLevel)(thunk: => A): A = if (isRightLevel(level)) Latency.measure(Kamon.metrics.histogram(name))(thunk) else thunk
 
-  def latency(name: String, level: MetricLevel, nanoTime: Long) = if (isRightLevel(level)) Kamon.metrics.histogram(name).record(nanoTime)
+  def record(name: String, level: MetricLevel, nanoTime: Long, tags: Map[String, String] = Map()) = if (isRightLevel(level)) Kamon.metrics.histogram(name, tags).record(nanoTime)
 
   def latencyIfNonNull[A](name: String, level: MetricLevel)(thunk: => A): A = if (isRightLevel(level)) {
     val resultWithTime = measure(thunk)
     if(resultWithTime._1 != null) {
-      latency(name, level, resultWithTime._2)
+      record(name, level, resultWithTime._2)
     }
     resultWithTime._1
   } else thunk
