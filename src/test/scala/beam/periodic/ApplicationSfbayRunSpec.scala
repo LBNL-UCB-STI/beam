@@ -3,7 +3,7 @@ package beam.periodic
 import java.nio.file.Paths
 
 import beam.sim.BeamHelper
-import beam.tags.Periodic
+import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
@@ -24,8 +24,7 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
 
   "SF Bay Run" must {
 
-    "run beam 11 iterations and generate output for each " taggedAs Periodic in {
-
+    "run beam 11 iterations and generate output for each " taggedAs (Periodic, ExcludeRegular) in {
 
       val config = baseConf.withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations-1))
 
