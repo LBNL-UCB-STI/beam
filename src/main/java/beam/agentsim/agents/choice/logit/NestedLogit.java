@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.logit;
 
+import java.util.Map;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jdom.JDOMException;
@@ -187,7 +188,8 @@ public class NestedLogit implements AbstractLogit{
 		if(this.cdf==null){
 			return null;
 		}else{
-			return sumMarginalProbsOfNest(this,nestName,this.cdf.getProbabilityDensityMap());
+			LinkedHashMap<String, Double> probabilityDensityMap = new LinkedHashMap<>(cdf.getProbabilityDensityMap());
+			return sumMarginalProbsOfNest(this,nestName, probabilityDensityMap);
 		}
 	}
 	@Override
