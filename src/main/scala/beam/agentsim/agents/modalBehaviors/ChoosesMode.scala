@@ -181,8 +181,8 @@ trait ChoosesMode {
       val filteredItinerariesForChoice = personData.currentTourMode match {
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
-          (currentTour(choosesModeData.personData).tripIndexOfElement(nextAct), personData.hasDeparted) match {
-            case (0 | LastTripIndex, false) =>
+          currentTour(choosesModeData.personData).tripIndexOfElement(nextAct) match {
+            case 0 | LastTripIndex =>
               combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
             case _ =>
               combinedItinerariesForChoice.filter(_.tripClassifier == WALK_TRANSIT)

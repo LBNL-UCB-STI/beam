@@ -15,6 +15,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
@@ -319,6 +320,10 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
           // on the link being undefined.
           eventsManager.processEvent(new TeleportationArrivalEvent(tick, id, currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum))
           assert(activity.getLinkId != null)
+
+          if(currentTrip.tripClassifier == WALK_TRANSIT && currentTourMode.getOrElse(WALK) == DRIVE_TRANSIT){
+            val i = 0
+          }
           eventsManager.processEvent(new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value))
           eventsManager.processEvent(new ActivityStartEvent(tick, id, activity.getLinkId, activity.getFacilityId, activity.getType))
           scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(ActivityEndTrigger(endTime), self)))
