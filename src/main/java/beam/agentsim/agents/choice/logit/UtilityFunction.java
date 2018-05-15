@@ -44,7 +44,7 @@ public class UtilityFunction {
     return coefficients.entrySet()
         .stream()
         .map(entry -> entry.getKey() + ":" + entry.getValue())
-        .collect(Collectors.joining(","));
+        .collect(Collectors.joining(", "));
   }
 
 }
