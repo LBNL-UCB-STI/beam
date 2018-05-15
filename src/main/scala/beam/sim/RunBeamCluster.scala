@@ -7,6 +7,7 @@ import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerS
 import beam.router.RouteFrontend
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigFactory}
+import kamon.Kamon
 
 import scala.collection.JavaConverters._
 
@@ -55,6 +56,9 @@ object RunBeamCluster extends BeamHelper with App {
   system.actorOf(ClusterSingletonProxy.props(singletonManagerPath = "/user/statsService",
     settings = ClusterSingletonProxySettings(system).withRole("compute")),
     name = "statsServiceProxy")
+
+
+  Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
   logger.info("Exiting BEAM")
 }
