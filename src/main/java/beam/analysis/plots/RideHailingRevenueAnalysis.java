@@ -17,6 +17,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Paths;
 
 import static beam.analysis.AnalysisCollector.rideHailRevenueAnalytics;
 
@@ -45,7 +46,8 @@ public class RideHailingRevenueAnalysis implements ControlerListener, IterationE
 
         writeRideHailingRevenueCsv(data);
 
-        rideHailRevenueAnalytics(data);
+        String runName = Paths.get(outputDirectoryHiearchy.getOutputPath()).toFile().getName();
+        rideHailRevenueAnalytics(data, runName);
     }
 
     private void createGraph(ArrayBuffer<?> data) {
