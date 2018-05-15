@@ -68,10 +68,11 @@ case class Statistics
   maxValue: Double,
   median: Double,
   p75: Double,
-  p95: Double
+  p95: Double,
+  sum: Double
 ) {
   override def toString: String = {
-    s"numOfValues: $numOfValues, measureTimeMs: $measureTimeMs, [$minValue, $maxValue], median: $median, p75: $p75, p95: $p95"
+    s"numOfValues: $numOfValues, measureTimeMs: $measureTimeMs, [$minValue, $maxValue], median: $median, p75: $p75, p95: $p95, sum: $sum"
   }
 }
 
@@ -88,11 +89,11 @@ object Statistics {
       val p95 = percentile.evaluate(95)
       val stop = System.currentTimeMillis()
       Statistics(numOfValues = pq.size, measureTimeMs = stop - start, minValue = min,
-        maxValue = max, median = median, p75 = p75, p95 = p95)
+        maxValue = max, median = median, p75 = p75, p95 = p95, sum = pq.sum)
     }
     else {
       Statistics(numOfValues = 0, measureTimeMs = 0, minValue = Double.NaN,
-        maxValue = Double.NaN, median = Double.NaN, p75 = Double.NaN, p95 = Double.NaN)
+        maxValue = Double.NaN, median = Double.NaN, p75 = Double.NaN, p95 = Double.NaN, sum = 0.0)
     }
   }
 }
@@ -220,7 +221,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
       pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, withReceivedAt.receivedAt.get)
-      val eventualResponse = Future {
+      val eventualResponse =  {
         latency("request-router-time", Metrics.RegularLevel) {
           val start = System.currentTimeMillis()
           val res = calcRoute(withReceivedAt)
@@ -246,8 +247,9 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           res
         }
       }
-      eventualResponse.failed.foreach(log.error(_, ""))
-      eventualResponse pipeTo sender
+      sender() ! eventualResponse
+//      eventualResponse.failed.foreach(log.error(_, ""))
+//      eventualResponse pipeTo sender
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
