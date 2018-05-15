@@ -7,7 +7,7 @@ import java.util.Properties
 import beam.agentsim.agents.rideHail.RideHailSurgePricingManager
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
-import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
+import beam.analysis.plots.{RideHailingRevenueAnalysis, GraphSurgePricing}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.r5.NetworkCoordinator
@@ -75,7 +75,7 @@ trait BeamHelper extends LazyLogging {
         addControlerListenerBinding().to(classOf[BeamSim])
 
         addControlerListenerBinding().to(classOf[GraphSurgePricing])
-        addControlerListenerBinding().to(classOf[GraphRideHailingRevenue])
+        addControlerListenerBinding().to(classOf[RideHailingRevenueAnalysis])
 
         bindMobsim().to(classOf[BeamMobsim])
         bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])
