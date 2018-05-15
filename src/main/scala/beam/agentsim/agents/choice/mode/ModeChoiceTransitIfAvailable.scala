@@ -19,12 +19,13 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
         containsTransitAlt = containsTransitAlt :+ alt._2
       }
     }
-    Some(alternatives(if (containsTransitAlt.nonEmpty) {
-      containsTransitAlt.head
+    if (containsTransitAlt.nonEmpty) {
+      Some(alternatives(containsTransitAlt.head))
+    } else if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
+    } else {
+      None
     }
-    else {
-      chooseRandomAlternativeIndex(alternatives)
-    }))
   }
 
   override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0

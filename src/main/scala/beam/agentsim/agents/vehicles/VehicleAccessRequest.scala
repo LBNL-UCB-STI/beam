@@ -6,7 +6,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.RoutingModel.BeamLeg
 import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
 /**
   * @author dserdiuk
@@ -21,12 +20,6 @@ case class ReservationRequest(requestId: Id[ReservationRequest], departFrom: Bea
   def this(departFrom: BeamLeg, arriveAt: BeamLeg, passengerVehiclePersonId: VehiclePersonId) = this(Reservation
     .nextReservationId, departFrom, arriveAt, passengerVehiclePersonId)
 }
-
-case class ReservationRequestWithVehicle(request: ReservationRequest, vehicleIdToReserve: Id[Vehicle])
-
-case class ModifyPassengerSchedule(updatedPassengerSchedule: PassengerSchedule, msgId: Option[Id[_]] = None)
-
-case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None)
 
 case class ReservationResponse(requestId: Id[ReservationRequest], response: Either[ReservationError,
   ReserveConfirmInfo])
@@ -61,20 +54,12 @@ case object AccessErrorCodes {
     override def errorCode: ReservationErrorCode = RideHailRouteNotFound
   }
 
-  case object DriverHasEmptyPassengerScheduleError extends ReservationError {
-    override def errorCode: ReservationErrorCode = ResourceUnavailable
-  }
-
   case object VehicleGoneError extends ReservationError {
     override def errorCode: ReservationErrorCode = ResourceUnavailable
   }
 
   case object DriverNotFoundError extends ReservationError {
     override def errorCode: ReservationErrorCode = ResourceUnavailable
-  }
-
-  case object VehicleNotUnderControlError extends ReservationError {
-    override def errorCode: ReservationErrorCode = VehicleNotUnderControl
   }
 
   case object VehicleFullError extends ReservationError {

@@ -7,24 +7,20 @@ buildscript {
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
-//        maven { url "https://maven.eveoh.nl/content/repositories/releases"  }
     }
     dependencies {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
-//        classpath "nl.eveoh:gradle-aspectj:2.0"
     }
 }
 
 plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
+    id "org.scoverage" version "2.1.0"
 }
 
-//project.ext {
-//    aspectjVersion = '1.8.13'
-//}
 //ext {
 //    env = "beamville"
 //}
@@ -36,7 +32,6 @@ apply plugin: 'idea'
 apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
-//apply plugin: 'aspectj'
 
 group = 'beam'
 version = '0.5.0-SNAPSHOT'
@@ -138,8 +133,8 @@ dependencies {
     }
     compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.9.0'
 
+    compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.8.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
-
 
     compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
@@ -147,10 +142,11 @@ dependencies {
     }
 
 
-    testCompile group: 'junit', name: 'junit', version: '4.4'
+    testCompile group: 'junit', name: 'junit', version: '4.8'
     // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
     testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
-    testCompile group: "org.mockito", name: "mockito-all", version: "1.9.5"
+    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.18.3'
+    testCompile group: "org.mockito", name: "mockito-core", version: "2.18.3"
 
 
     /////////////////////////////////
@@ -201,8 +197,9 @@ dependencies {
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
+//    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
+//    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
+//    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
 
 
     /////////////
@@ -228,17 +225,44 @@ dependencies {
     compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
-    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.0'
+    compile 'org.apache.logging.log4j:log4j-slf4j-impl:2.9.0'
 
+    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 }
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o']
+    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.Periodic']
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
+
+/* //////////////////////////////////////////////////
+*  Task to run tagged tests.
+*  Note: use space separated list of tags
+* ./gradlew taggedTest -Ptags="beam.tags.Performance beam.tags.Integration"
+* /////////////////////////////////////////////////// */
+
+task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
+    main = 'org.scalatest.tools.Runner'
+
+    args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
+    classpath = sourceSets.test.runtimeClasspath
+}
+
+/* Task to run tests periodically on continue integration server */
+task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
+    main = 'org.scalatest.tools.Runner'
+    args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
+            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') +
+                    (project.hasProperty('iterations') ?
+                            '-Diterations='+project.findProperty('iterations') :
+                            '-Dtest=test') :
+                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') :
+                            '-Dtest=test'))
+    classpath = sourceSets.test.runtimeClasspath
+}
 
 //////////////////////////////////////////////////////////////////////
 // Amazon WS task to run beam sim on Lambda
@@ -271,20 +295,30 @@ def getCurrentGitBranch() {
 }
 
 task deploy(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('runName')) {
+            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
+        }
 
-    if(!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.configs') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
-        throw new GradleException('beamConfigs or beamExperiments is required to deploy.')
+        if(!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.configs') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+            throw new GradleException('beamConfigs or beamExperiments is required to deploy.')
+        }
     }
 
     def pload = """{
+  "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
-  "commit": "$beamCommit",
+  "commit": "${beamCommit ?: 'HEAD'}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
+  "max_ram": "${maxRAM ?: '2g'}",
   "batch": "$beamBatch",
+  "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "region": "$region",
-  "shutdown_wait": "$shutdownWait"
+  "shutdown_wait": "$shutdownWait",
+  "shutdown_behaviour": "$shutdownBehaviour",
+  "command": "deploy"
 }"""
 
     functionName = "simulateBeam"
@@ -297,6 +331,51 @@ task deploy(type: AWSLambdaInvokeTask) {
     }
 }
 
+task startEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "${project.findProperty('instanceIds')}",
+  "region": "$region",
+  "command": "start"
+}"""
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
+task stopEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "${project.findProperty('instanceIds')}",
+  "region": "$region",
+  "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
+}"""
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
 //////////////////////////////////////////////////////////////////////
 // Generate config classes reflecting the application.conf file
 //////////////////////////////////////////////////////////////////////
@@ -355,7 +434,7 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = System.getenv("MAXRAM") ?: "16g"
+def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "16g")
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]

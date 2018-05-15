@@ -1,32 +1,22 @@
 package beam.analysis.plot.graph;
 
-import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.analysis.plots.PersonTravelTimeStats;
+import org.junit.BeforeClass;
 import org.junit.Test;
-import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.events.EventsUtils;
-import org.matsim.core.events.MatsimEventsReader;
 
-import java.io.File;
-import java.util.List;
-
+import static beam.analysis.plot.graph.GraphTestUtil.*;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
 
 public class PersonTravelTimeTest {
     private PersonTravelTimeStats personTravelTimeStats = new PersonTravelTimeStats();
-      static {
-        GraphTestUtil.createDummySimWithXML();
+
+    @BeforeClass
+    public static void setUpClass() {
+        createDummySimWithXML();
     }
-    private static String CAR = "car";
-    private static String DRIVE_TRANS = "drive_transit";
-    private static String RIDE_HAILING = "ride_hailing";
-    private static String WALK = "walk" ;
-    private static String WALK_TRANS = "walk_transit";
 
     @Test
-    public void testShouldPassShouldReturnAvgTimeForSpecificHour()  {
+    public void testShouldPassShouldReturnAvgTimeForSpecificHour() {
         /**
          * 0 index represent CAR count
          * 1 index represent DriveTran count
@@ -34,14 +24,15 @@ public class PersonTravelTimeTest {
          * 3 index represent Walk count
          * 4 index represent WalkTran count
          */
-        int expectedResultOfMode[]={3,0,4,32,17};
-        int actualResultOfMode[]= new int[5];
-        actualResultOfMode[0] = personTravelTimeStats.getAvgCountForSpecificHour(CAR,6);
-        actualResultOfMode[1] = personTravelTimeStats.getAvgCountForSpecificHour(DRIVE_TRANS,6);
-        actualResultOfMode[2] = personTravelTimeStats.getAvgCountForSpecificHour(RIDE_HAILING,6);
-        actualResultOfMode[3] = personTravelTimeStats.getAvgCountForSpecificHour(WALK ,6);
-        actualResultOfMode[4] = personTravelTimeStats.getAvgCountForSpecificHour(WALK_TRANS,6);
-        assertArrayEquals(expectedResultOfMode,actualResultOfMode);
+        int expectedResultOfMode[] = {3, 0, 4, 32, 17};
+        int actualResultOfMode[] = {
+                personTravelTimeStats.getAvgCountForSpecificHour(CAR, 6),
+                personTravelTimeStats.getAvgCountForSpecificHour(DRIVE_TRANS, 6),
+                personTravelTimeStats.getAvgCountForSpecificHour(RIDE_HAILING, 6),
+                personTravelTimeStats.getAvgCountForSpecificHour(WALK, 6),
+                personTravelTimeStats.getAvgCountForSpecificHour(WALK_TRANS, 6)
+        };
+        assertArrayEquals(expectedResultOfMode, actualResultOfMode);
     }
 
 }

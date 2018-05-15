@@ -2,21 +2,20 @@ package beam.sim
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
-import beam.agentsim.agents.BeamAgent.{NoData, _}
-import beam.agentsim.agents.TriggerUtils.completed
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents._
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger, TriggerWithId}
 import beam.sim.BeamAgentSchedulerSpec._
 import beam.sim.config.BeamConfig
-import beam.utils.BeamConfigUtils
+import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
-class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf").resolve())) with FunSpecLike with BeforeAndAfterAll with MustMatchers with ImplicitSender {
+class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", testConfig("test/input/beamville/beam.conf"))) with FunSpecLike with BeforeAndAfterAll with MustMatchers with ImplicitSender {
 
   val config = BeamConfig(system.settings.config)
 
@@ -52,17 +51,17 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Be
       scheduler ! ScheduleTrigger(ReportState(9.0), self)
       scheduler ! StartSchedule(0)
       expectMsg(TriggerWithId(InitializeTrigger(0.0), 1))
-      scheduler ! completed(1)
+      scheduler ! CompletionNotice(1)
       expectMsg(TriggerWithId(ReportState(1.0), 2))
-      scheduler ! completed(2)
+      scheduler ! CompletionNotice(2)
       expectMsg(TriggerWithId(ReportState(5.0), 4))
-      scheduler ! completed(4)
+      scheduler ! CompletionNotice(4)
       expectMsg(TriggerWithId(ReportState(9.0), 6))
-      scheduler ! completed(6)
+      scheduler ! CompletionNotice(6)
       expectMsg(TriggerWithId(ReportState(10.0), 3))
-      scheduler ! completed(3)
+      scheduler ! CompletionNotice(3)
       expectMsg(TriggerWithId(ReportState(15.0), 5))
-      scheduler ! completed(5)
+      scheduler ! CompletionNotice(5)
       expectMsg(CompletionNotice(0L))
     }
   }
@@ -75,24 +74,26 @@ class BeamAgentSchedulerSpec extends TestKit(ActorSystem("beam-actor-system", Be
 
 object BeamAgentSchedulerSpec {
 
-  case class ReportState(val tick: Double) extends Trigger
+  case class MyData()
 
-  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[NoData] {
+  case class ReportState(tick: Double) extends Trigger
+
+  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[MyData] {
     val eventsManager = new EventsManagerImpl
-
-    override def data = NoData()
 
     override def logPrefix(): String = "TestBeamAgent"
 
-    chainedWhen(Uninitialized) {
-      case Event(TriggerWithId(InitializeTrigger(tick), triggerId), _) =>
-        goto(Initialized) replying completed(triggerId, Vector())
+    startWith(Uninitialized, MyData())
+
+    when(Uninitialized) {
+      case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
+        goto(Initialized) replying CompletionNotice(triggerId, Vector())
     }
-    chainedWhen(Initialized) {
-      case msg@Event(TriggerWithId(_, triggerId), _) =>
-        stay() replying completed(triggerId, Vector())
+    when(Initialized) {
+      case Event(TriggerWithId(_, triggerId), _) =>
+        stay() replying CompletionNotice(triggerId, Vector())
     }
-    chainedWhen(AnyState) {
+    whenUnhandled {
       case Event(IllegalTriggerGoToError(_), _) =>
         stop
       case Event(Finish, _) =>

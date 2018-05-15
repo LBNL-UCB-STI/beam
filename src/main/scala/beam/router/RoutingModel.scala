@@ -72,7 +72,7 @@ object RoutingModel {
       legs.map(leg => leg.beamVehicleId).distinct
     }
     override def toString() = {
-      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.head.beamLeg.startTime} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
+      s"EmbodiedBeamTrip(${tripClassifier} starts ${legs.headOption.map(head => head.beamLeg.startTime).getOrElse("empty")} legModes ${legs.map(_.beamLeg.mode).mkString(",")})"
     }
   }
 
@@ -133,7 +133,6 @@ object RoutingModel {
     *
     * @param linkIds either matsim linkId or R5 edgeIds that describes whole path
     * @param transitStops start and end stop if this path is transit (partial) route
-
     */
   case class BeamPath(linkIds: Vector[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 

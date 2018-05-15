@@ -29,7 +29,6 @@ import scala.concurrent.duration.FiniteDuration
 trait BeamServices extends ActorInject {
   val controler: ControlerI
   var beamConfig: BeamConfig
-//  val matsimServices: MatsimServices
 
   val registry: ActorRef
 
@@ -38,41 +37,35 @@ trait BeamServices extends ActorInject {
   val dates: DateUtils
 
   var beamRouter: ActorRef
-  var physSim: ActorRef
-  var schedulerRef: ActorRef
-  var rideHailingManager: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle]
-  val agentRefs: TrieMap[String, ActorRef]
- // var taz: TAZTreeMap
 
-  def clearAll
+
+  var iterationNumber = -1
+  def startNewIteration
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   var beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val registry: ActorRef = Registry.start(injector.getInstance(classOf[ActorSystem]), "actor-registry")
-//  val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
   val dates: DateUtils = DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate))
 
   var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
   var beamRouter: ActorRef = _
-  var physSim: ActorRef = _
-  var schedulerRef: ActorRef = _
-  var rideHailingManager: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap[Id[Person], ActorRef]()
   val vehicles: TrieMap[Id[Vehicle], BeamVehicle] = TrieMap[Id[Vehicle], BeamVehicle]()
-  val agentRefs: TrieMap[String, ActorRef] = TrieMap[String, ActorRef]()
-
- // var taz: TAZTreeMap = _
 
   def clearAll = {
     personRefs.clear
     vehicles.clear()
-    agentRefs.clear()
+  }
+
+  def startNewIteration = {
+    clearAll
+    iterationNumber += 1
   }
 }
 

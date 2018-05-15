@@ -20,22 +20,20 @@
 package beam.utils;
 
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.util.Map;
-import java.util.TreeMap;
-
 import org.apache.log4j.Logger;
+import org.matsim.analysis.CalcLinkStats;
+import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.io.IOUtils;
-import org.matsim.core.utils.misc.StringUtils;
 
 import javax.inject.Inject;
-import org.matsim.analysis.*;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class BeamCalcLinkStats {
 
@@ -61,7 +59,7 @@ public class BeamCalcLinkStats {
     private static final int MIN = 0;
     private static final int MAX = 1;
     private static final int SUM = 2;
-    private static final String[] statType = {"MIN","MAX","AVG"};
+    private static final String[] statType = {"MIN", "MAX", "AVG"};
 
     private static final int NOF_STATS = 3;
 
@@ -76,8 +74,6 @@ public class BeamCalcLinkStats {
     /**
      * @param network
      * @param vol_scale_factor scaling factor when reading in values from a file
-     *
-     *
      */
     public BeamCalcLinkStats(final Network network, double vol_scale_factor) {
         this(network);
@@ -107,7 +103,7 @@ public class BeamCalcLinkStats {
             for (int hour = 0; hour < this.nofHours; hour++) {
 
                 // get travel time for hour
-                double ttime = ttimes.getLinkTravelTime(link, hour*3600, null, null);
+                double ttime = ttimes.getLinkTravelTime(link, hour * 3600, null, null);
 
                 // add for daily sum:
                 sumVolumes += volumes[hour];
@@ -146,8 +142,8 @@ public class BeamCalcLinkStats {
     public void reset() {
         this.linkData.clear();
         this.count = 0;
-        log.info( " resetting `count' to zero.  This info is here since we want to check when this" +
-                " is happening during normal simulation runs.  kai, jan'11") ;
+        log.info(" resetting `count' to zero.  This info is here since we want to check when this" +
+                " is happening during normal simulation runs.  kai, jan'11");
 
         // initialize our data-table
         for (Link link : this.network.getLinks().values()) {
@@ -163,7 +159,7 @@ public class BeamCalcLinkStats {
             out = IOUtils.getBufferedWriter(filename);
 
             // write header
-            out.write("LINK\tFROM\tTO\tHOUR\tLENGTH\tFREESPEED\tCAPACITY\tSTAT.TYPE\tVOLUME\tTRAVELTIME");
+            out.write("link,from,to,hour,length,freespeed,capacity,stat,volume,traveltime");
 
             out.write("\n");
 
@@ -171,69 +167,64 @@ public class BeamCalcLinkStats {
             for (Map.Entry<Id<Link>, LinkData> entry : this.linkData.entrySet()) {
 
                 for (int i = 0; i <= this.nofHours; i++) {
-                    for (int j= MIN; j<= SUM; j++){
+                    for (int j = MIN; j <= SUM; j++) {
                         Id<Link> linkId = entry.getKey();
                         LinkData data = entry.getValue();
                         Link link = this.network.getLinks().get(linkId);
 
                         out.write(linkId.toString());
-                        out.write("\t" + link.getFromNode().getId().toString());
-                        out.write("\t" + link.getToNode().getId().toString());
+                        out.write("," + link.getFromNode().getId().toString());
+                        out.write("," + link.getToNode().getId().toString());
 
                         //WRITE HOUR
-                        if (i < this.nofHours){
-                            out.write("\t" + Double.toString(i) +" - "+ Double.toString(i+1));
-                        }
-                        else
-                        {
-                            out.write("\t" + Double.toString(0) +" - "+ Double.toString(this.nofHours));
+                        if (i < this.nofHours) {
+                            out.write("," + Double.toString(i));
+                        } else {
+                            out.write("," + Double.toString(0) + " - " + Double.toString(this.nofHours));
                         }
 
-                        out.write("\t" + Double.toString(link.getLength()));
-                        out.write("\t" + Double.toString(link.getFreespeed()));
-                        out.write("\t" + Double.toString(link.getCapacity()));
+                        out.write("," + Double.toString(link.getLength()));
+                        out.write("," + Double.toString(link.getFreespeed()));
+                        out.write("," + Double.toString(link.getCapacity()));
 
                         //WRITE STAT_TYPE
-                        out.write("\t" + statType[j]);
+                        out.write("," + statType[j]);
 
                         //WRITE VOLUME
-                        if (j == SUM ){
-                            out.write("\t" + Double.toString((data.volumes[j][i]) / this.count));
-                        }
-                        else {
-                            out.write("\t" + Double.toString(data.volumes[j][i]));
+                        if (j == SUM) {
+                            out.write("," + Double.toString((data.volumes[j][i]) / this.count));
+                        } else {
+                            out.write("," + Double.toString(data.volumes[j][i]));
                         }
 
                         //WRITE TRAVELTIME
 
-                        if (j == MIN && i< this.nofHours){
+                        if (j == MIN && i < this.nofHours) {
                             String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            out.write("\t" + ttimesMin);
+                            out.write("," + ttimesMin);
 
-                        }
-                        else if ( j == SUM && i< this.nofHours){
+                        } else if (j == SUM && i < this.nofHours) {
                             String ttimesMin = Double.toString(data.ttimes[MIN][i]);
                             if (data.volumes[SUM][i] == 0) {
                                 // nobody traveled along the link in this hour, so we cannot calculate an average
                                 // use the value available or the minimum instead (min and max should be the same, =freespeed)
                                 double ttsum = data.ttimes[SUM][i];
                                 if (ttsum != 0.0) {
-                                    out.write("\t" + Double.toString(ttsum));
+                                    out.write("," + Double.toString(ttsum));
                                 } else {
-                                    out.write("\t" + ttimesMin);
+                                    out.write("," + ttimesMin);
                                 }
                             } else {
                                 double ttsum = data.ttimes[SUM][i];
                                 if (ttsum == 0) {
-                                    out.write("\t" + ttimesMin);
+                                    out.write("," + ttimesMin);
                                 } else {
-                                    out.write("\t" + Double.toString(ttsum / data.volumes[SUM][i]));
+                                    out.write("," + Double.toString(ttsum / data.volumes[SUM][i]));
                                 }
                             }
-                        }
-                        else if (j == MAX && i< this.nofHours){
+                        } else if (j == MAX && i < this.nofHours) {
                             String ttimesMin = Double.toString(data.ttimes[MIN][i]);
-                            out.write("\t" + Double.toString(data.ttimes[MAX][i]));
+                            out.write("," + Double.toString(data.ttimes[MAX][i]));
                         }
                         out.write("\n");
                     }
@@ -245,8 +236,7 @@ public class BeamCalcLinkStats {
 
         } catch (IOException e) {
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             if (out != null) {
                 try {
                     out.close();
@@ -256,8 +246,6 @@ public class BeamCalcLinkStats {
             }
         }
     }
-
-
 
 
 }
