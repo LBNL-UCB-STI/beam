@@ -203,7 +203,7 @@ dependencies {
 
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
-    compile("io.kamon:kamon-akka-2.5_${scalaBinaryVersion}:${kamonVersion}")
+    compile("io.kamon:kamon-akka-2.5_${scalaBinaryVersion}:0.6.8")
 //    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
 //    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
     compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")

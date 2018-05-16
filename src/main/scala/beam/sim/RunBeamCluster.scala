@@ -45,6 +45,8 @@ object RunBeamCluster extends BeamHelper with App {
         .withFallback(cfg)
   }
 
+  Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+
   val system = ActorSystem("ClusterSystem", config)
 
   system.actorOf(ClusterSingletonManager.props(
@@ -56,9 +58,6 @@ object RunBeamCluster extends BeamHelper with App {
   system.actorOf(ClusterSingletonProxy.props(singletonManagerPath = "/user/statsService",
     settings = ClusterSingletonProxySettings(system).withRole("compute")),
     name = "statsServiceProxy")
-
-
-  Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
   logger.info("Exiting BEAM")
 }
