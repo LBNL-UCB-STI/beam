@@ -49,7 +49,7 @@ object RunBeamCluster extends BeamHelper with App {
 
   Kamon.reconfigure(config.withFallback(ConfigFactory.defaultReference()))
   Kamon.addReporter(new PrometheusReporter())
-  Kamon.addReporter(new ZipkinReporter())
+  // Kamon.addReporter(new ZipkinReporter())
 
   val system = ActorSystem("ClusterSystem", config)
 
