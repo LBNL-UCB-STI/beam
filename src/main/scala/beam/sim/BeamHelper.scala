@@ -24,6 +24,8 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
+import kamon.prometheus.PrometheusReporter
+import kamon.zipkin.ZipkinReporter
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler._
@@ -130,7 +132,11 @@ trait BeamHelper extends LazyLogging {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
 
-    if (isMetricsEnable()) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+    if (isMetricsEnable()) {
+      Kamon.reconfigure(config.withFallback(ConfigFactory.defaultReference()))
+      Kamon.addReporter(new PrometheusReporter())
+      Kamon.addReporter(new ZipkinReporter())
+    }
 
     val (_, outputDirectory) = runBeamWithConfig(config)
 
@@ -144,7 +150,7 @@ trait BeamHelper extends LazyLogging {
     }
     Files.copy(Paths.get(cfgFile), Paths.get(outputDirectory, "beam.conf"))
 
-    if (isMetricsEnable()) Kamon.shutdown()
+//    if (isMetricsEnable()) Kamon.shutdown()
   }
 
   def runBeamWithConfig(config: com.typesafe.config.Config): (Config, String) = {

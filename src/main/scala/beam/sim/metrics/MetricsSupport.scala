@@ -2,19 +2,23 @@ package beam.sim.metrics
 
 import beam.sim.metrics.Metrics._
 import kamon.Kamon
-import kamon.metric.instrument.Histogram
-import kamon.util.Latency
-
+import kamon.metric.Histogram
 
 trait MetricsSupport {
 
-  def countOccurrence(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.counter(name).increment()
+  def countOccurrence(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.counter(name).increment()
 
-  def increment(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.minMaxCounter(name).increment()
+  def increment(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.rangeSampler(name).increment()
 
-  def decrement(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.metrics.minMaxCounter(name).decrement()
+  def decrement(name: String, level: MetricLevel) = if (isRightLevel(level)) Kamon.rangeSampler(name).decrement()
 
-  def latency[A](name: String, level: MetricLevel)(thunk: => A): A = if (isRightLevel(level)) Latency.measure(Kamon.metrics.histogram(name))(thunk) else thunk
+  def latency[A](name: String, level: MetricLevel)(thunk: => A): A =  {
+    if (isRightLevel(level)) {
+      measure(Kamon.histogram(name))(thunk)
+    }
+    else
+      thunk
+  }
 
   private def measure[A](histogram: Histogram)(thunk: ⇒ A): A = {
     val start = System.nanoTime()

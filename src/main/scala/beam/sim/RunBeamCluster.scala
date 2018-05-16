@@ -8,6 +8,8 @@ import beam.router.RouteFrontend
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigFactory}
 import kamon.Kamon
+import kamon.prometheus.PrometheusReporter
+import kamon.zipkin.ZipkinReporter
 
 import scala.collection.JavaConverters._
 
@@ -45,7 +47,9 @@ object RunBeamCluster extends BeamHelper with App {
         .withFallback(cfg)
   }
 
-  Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
+  Kamon.reconfigure(config.withFallback(ConfigFactory.defaultReference()))
+  Kamon.addReporter(new PrometheusReporter())
+  Kamon.addReporter(new ZipkinReporter())
 
   val system = ActorSystem("ClusterSystem", config)
 
