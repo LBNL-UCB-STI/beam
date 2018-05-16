@@ -132,10 +132,10 @@ trait BeamHelper extends LazyLogging {
     val beamConfig = BeamConfig(config)
     level = beamConfig.beam.metrics.level
 
+    Kamon.reconfigure(config.withFallback(ConfigFactory.defaultReference()))
+    Kamon.addReporter(new PrometheusReporter())
+
     if (isMetricsEnable()) {
-      Kamon.reconfigure(config.withFallback(ConfigFactory.defaultReference()))
-      Kamon.addReporter(new PrometheusReporter())
-      // Kamon.addReporter(new ZipkinReporter())
     }
 
     val (_, outputDirectory) = runBeamWithConfig(config)
