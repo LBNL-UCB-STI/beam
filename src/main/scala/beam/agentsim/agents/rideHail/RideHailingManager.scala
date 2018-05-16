@@ -107,7 +107,7 @@ object RoutingRequestSenderCounter {
 
 class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRef,val router: ActorRef, val boundingBox: Envelope, val surgePricingManager: RideHailSurgePricingManager) extends VehicleManager with ActorLogging with HasServices {
 
-  println(s"RideHailingManager: ${self.path}")
+  log.info(s"RideHailingManager: ${self.path}")
 
 
   import scala.collection.JavaConverters._

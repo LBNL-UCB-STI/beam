@@ -62,7 +62,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   implicit val ex = context.system.dispatcher
 
 
-  println(s"BeamRouter: ${self.path}")
+  log.info(s"BeamRouter: ${self.path}")
 
   override def preStart(): Unit = {
     cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
