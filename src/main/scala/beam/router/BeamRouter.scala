@@ -61,6 +61,9 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   var nodes = Set.empty[Address]
   implicit val ex = context.system.dispatcher
 
+
+  println(s"BeamRouter: ${self.path}")
+
   override def preStart(): Unit = {
     cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
   }
@@ -68,6 +71,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   override def postStop(): Unit = {
     cluster.unsubscribe(self)
   }
+
 
   override def receive = {
     case InitTransit(scheduler) =>
