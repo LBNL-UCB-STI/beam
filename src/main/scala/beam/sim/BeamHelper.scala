@@ -138,13 +138,13 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
+    val networkCoordinator = new NetworkCoordinator(beamConfig)
+    networkCoordinator.loadNetwork()
+
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario.setNetwork(networkCoordinator.network)
 
     samplePopulation(scenario, beamConfig, matsimConfig)
-
-    val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
-    networkCoordinator.loadNetwork()
-    scenario.setNetwork(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(scenario.getConfig, module(config, scenario, networkCoordinator.transportNetwork))
 
