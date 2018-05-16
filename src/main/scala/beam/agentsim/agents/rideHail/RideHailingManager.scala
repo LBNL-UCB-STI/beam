@@ -23,7 +23,6 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.analysis.plots.GraphRideHailingRevenue
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
@@ -33,6 +32,7 @@ import beam.sim.{BeamServices, HasServices}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
+import kamon.Kamon
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -46,38 +46,53 @@ import scala.concurrent.duration._
 
 
 object RoutingRequestResponseStats {
-  private val fullTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
-  private val requestTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
-  private val responseTravelTime: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+  private val fullTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+  private val requestTravelTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+  private val responseTravelTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
+  private val routeCalcTimes: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty[Double]
 
   def add(resp: RoutingResponse): Unit = {
-    fullTime.synchronized {
-      fullTime += ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.receivedAt.get)
-    }
-    requestTravelTime.synchronized {
-      requestTravelTime += ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.requestReceivedAt)
+    val fullTime = ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.receivedAt.get)
+    fullTimes.synchronized {
+      fullTimes += fullTime
     }
 
-    responseTravelTime.synchronized {
-      responseTravelTime += ChronoUnit.MILLIS.between(resp.createdAt, resp.receivedAt.get)
+    val requestTravelTime = ChronoUnit.MILLIS.between(resp.requestCreatedAt, resp.requestReceivedAt)
+    requestTravelTimes.synchronized {
+      requestTravelTimes += requestTravelTime
+    }
+
+    val responseTravelTime = ChronoUnit.MILLIS.between(resp.createdAt, resp.receivedAt.get)
+    responseTravelTimes.synchronized {
+      responseTravelTimes += responseTravelTime
+    }
+
+    routeCalcTimes.synchronized {
+      routeCalcTimes += resp.routeCalcTimeMs
     }
   }
 
   def fullTimeStat: Statistics = {
-    fullTime.synchronized {
-      Statistics(fullTime)
+    fullTimes.synchronized {
+      Statistics(fullTimes)
     }
   }
 
   def requestTravelTimeStat: Statistics = {
-    requestTravelTime.synchronized {
-      Statistics(requestTravelTime)
+    requestTravelTimes.synchronized {
+      Statistics(requestTravelTimes)
     }
   }
 
   def responseTravelTimeStat: Statistics = {
-    responseTravelTime.synchronized {
-      Statistics(responseTravelTime)
+    responseTravelTimes.synchronized {
+      Statistics(responseTravelTimes)
+    }
+  }
+
+  def routeCalcTime: Statistics = {
+    routeCalcTimes.synchronized {
+      Statistics(routeCalcTimes)
     }
   }
 }
@@ -88,6 +103,7 @@ object RoutingRequestSenderCounter {
   private val obj: Object = new Object
 
   def sent(): Unit = {
+    Kamon.counter("sending-routing-requests")
     obj.synchronized {
       if (startTime.isEmpty)
         startTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
@@ -167,6 +183,9 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
           RoutingRequestResponseStats.requestTravelTimeStat)
       log.info("rideHailingManager RoutingResponse travel time (ms): {}",
           RoutingRequestResponseStats.responseTravelTimeStat)
+
+      log.info("rideHailingManager Route calc time (ms): {}",
+        RoutingRequestResponseStats.routeCalcTime)
 
       log.info(s"Sending ${RoutingRequestSenderCounter.rate} per seconds of RoutingRequest")
 
@@ -300,15 +319,15 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
             val custDt = customerRespReceiveTime - sentTime
             val destDt = destinationRespReceiveTime - sentTime
 
-            log.info("RideHailingInquiry. CustomerResponse: {} ms, DestinationResponse: {} ms", custDt, destDt)
-
-            log.info("RideHailingInquiry. Customer Full time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.receivedAt.get))
-            log.info("RideHailingInquiry. Customer RoutingRequest travel time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.requestReceivedAt))
-            log.info("RideHailingInquiry. Customer RoutingResponse travel time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.createdAt, rideHailingAgent2CustomerResponse.receivedAt.get))
-
-            log.info("RideHailingInquiry. Destination Full time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.receivedAt.get))
-            log.info("RideHailingInquiry. Destination RoutingRequest travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.requestReceivedAt))
-            log.info("RideHailingInquiry. Destination RoutingResponse travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.createdAt, rideHailing2DestinationResponse.receivedAt.get))
+//            log.info("RideHailingInquiry. CustomerResponse: {} ms, DestinationResponse: {} ms", custDt, destDt)
+//
+//            log.info("RideHailingInquiry. Customer Full time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.receivedAt.get))
+//            log.info("RideHailingInquiry. Customer RoutingRequest travel time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.requestReceivedAt))
+//            log.info("RideHailingInquiry. Customer RoutingResponse travel time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.createdAt, rideHailingAgent2CustomerResponse.receivedAt.get))
+//
+//            log.info("RideHailingInquiry. Destination Full time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.receivedAt.get))
+//            log.info("RideHailingInquiry. Destination RoutingRequest travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.requestReceivedAt))
+//            log.info("RideHailingInquiry. Destination RoutingResponse travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.createdAt, rideHailing2DestinationResponse.receivedAt.get))
 
             RoutingRequestResponseStats.add(rideHailingAgent2CustomerResponse)
             RoutingRequestResponseStats.add(rideHailing2DestinationResponse)

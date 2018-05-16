@@ -161,7 +161,7 @@ object BeamRouter {
     */
   case class RoutingResponse(itineraries: Seq[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime,
                              requestReceivedAt: ZonedDateTime,
-                             createdAt: ZonedDateTime,
+                             createdAt: ZonedDateTime, routeCalcTimeMs: Long = 0,
                              receivedAt: Option[ZonedDateTime] = None)
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))

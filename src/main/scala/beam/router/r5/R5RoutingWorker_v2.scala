@@ -43,6 +43,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
+import kamon.Kamon
 import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -72,7 +73,8 @@ case class Statistics
   sum: Double
 ) {
   override def toString: String = {
-    s"numOfValues: $numOfValues, measureTimeMs: $measureTimeMs, [$minValue, $maxValue], median: $median, p75: $p75, p95: $p95, sum: $sum"
+    val avg = sum / numOfValues
+    s"numOfValues: $numOfValues, measureTimeMs: $measureTimeMs, [$minValue, $maxValue], median: $median, avg: $avg, p75: $p75, p95: $p95, sum: $sum"
   }
 }
 
@@ -216,6 +218,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       sender() ! Success("inited")
 
     case request: RoutingRequest =>
+      Kamon.counter("receiving-routing-requests")
       msgs += 1
       if (firstMsgTime.isEmpty)
         firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
@@ -244,7 +247,7 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
           // Put only 1 resut
 //          val itineraries = Seq(res.itineraries.headOption).flatten
 //          res.copy(itineraries = itineraries)
-          res
+          res.copy(routeCalcTimeMs = stop - start)
         }
       }
       sender() ! eventualResponse
