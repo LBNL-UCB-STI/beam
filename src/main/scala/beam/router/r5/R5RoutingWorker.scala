@@ -1,5 +1,11 @@
 package beam.router.r5
 
+import java.io.InputStreamReader
+import java.io.BufferedReader
+import java.io.FileInputStream
+import java.io.InputStream
+import java.util.zip.GZIPInputStream
+
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZonedDateTime}
 import java.{lang, util}
@@ -40,14 +46,63 @@ import scala.language.postfixOps
 
 
 // map is a map from slotId -> TraveTime
-case class LinkTravelTime(link: Link, map: util.HashMap[Int, Double])
+case class LinkTravelTime(link: Id[Link], map: util.HashMap[Int, Double])
 
-class LinkTravelTimeContainer(timeBinSizeInSeconds: Int, linkTravelTimeMap: util.HashMap[Id[Link], LinkTravelTime]) extends TravelTime{
+class LinkTravelTimeContainer(fileName: String,
+                              timeBinSizeInSeconds: Int) extends TravelTime{
+
+  var linkTravelTimeMap: util.HashMap[Id[Link], LinkTravelTime] = new util.HashMap()
 
   // TODO ASIF
   // constructor with a filename
   // the constructor will load stats
   // or an update function will load the stats
+
+  def loadLinkStats() = {
+    System.out.println("fileName -> " + fileName + " is being loaded")
+
+
+    val fileStream = new FileInputStream(fileName)
+    val gzipStream = new GZIPInputStream(fileStream)
+    val decoder = new InputStreamReader(gzipStream)
+    val bufferedReader = new BufferedReader(decoder)
+
+    var line: String = null
+
+
+    while ({line = bufferedReader.readLine; line != null}){
+      val linkStats = line.split(",")
+
+      if(linkStats.length == 10) {
+        val linkId = linkStats(0)
+        val hour = linkStats(3)
+        val travelTime = linkStats(9)
+        val stat = linkStats(7)
+
+        if (stat.equalsIgnoreCase("avg")) {
+          val _linkId = Id.createLinkId(linkId)
+          if (linkTravelTimeMap.containsKey(_linkId)) {
+
+            val linkTravelTime = linkTravelTimeMap.get(_linkId)
+            linkTravelTime.map.put(hour.toDouble.toInt, travelTime.toDouble)
+            linkTravelTimeMap.put(_linkId, linkTravelTime)
+          } else {
+
+            val map = new util.HashMap[Int, Double]()
+            map.put(hour.toDouble.toInt, travelTime.toDouble)
+
+            val linkTravelTime = new LinkTravelTime(_linkId, map)
+            linkTravelTimeMap.put(_linkId, linkTravelTime)
+          }
+        }
+      }
+
+    }
+
+    System.out.println("LinkTravelTimeMap is initialized")
+
+  }
+
 
 
   def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = {
@@ -63,12 +118,12 @@ class LinkTravelTimeContainer(timeBinSizeInSeconds: Int, linkTravelTimeMap: util
     }
   }
 
-  //override def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = ???
-
   def getSlot(time: Double): Int ={
 
     Math.round(Math.floor(time/timeBinSizeInSeconds)).toInt
   }
+
+  loadLinkStats()
 }
 
 class R5RoutingWorker(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val network: Network, val fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with ActorLogging with MetricsSupport {

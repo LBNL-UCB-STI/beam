@@ -15,7 +15,8 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.InitTransit
+import beam.router.BeamRouter.{InitTransit, UpdateTravelTime}
+import beam.router.r5.{LinkTravelTime, LinkTravelTimeContainer, R5RoutingWorker}
 import beam.sim.monitoring.ErrorListener
 import beam.utils.{DebugLib, MemoryLoggingTimerActor, Tick}
 import com.conveyal.r5.transit.TransportNetwork
@@ -117,6 +118,14 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       // TODO ASIF
       // We have to read the linkstats and send a message to the R5RoutingWorker
       // Here we should send the UpdateTravelTimes message to R5RoutingWorker with the loaded linkstats
+      // 1. Create LinkTravelTimeContainer with the filename linkstats
+      // 2. Send that object as a message UpdateTravelTimes parameter to the R5RoutingWorker
+      val fileName = "C:/ns/beam-projects/beam-master/output/beamville/beamville__2018-05-14_03-02-57/ITERS/it.0/0.linkstats.csv.gz"
+      val binSize = 60
+      val linkTravelTimeContainer = new LinkTravelTimeContainer(fileName, binSize)
+
+
+      //Await.result(beamServices.beamRouter ? UpdateTravelTime(linkTravelTimeContainer), timeout.duration)
 
       log.info(s"Transit schedule has been initialized")
 
