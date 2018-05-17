@@ -4,7 +4,7 @@ import java.io.{ByteArrayOutputStream, IOException, ObjectOutput, ObjectOutputSt
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.Collections
+import java.util.{Collections, UUID}
 import java.util.concurrent.Executors
 
 import akka.actor.Status.Success
@@ -217,6 +217,20 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         transitSchedule.hashCode(), transitSchedule.keys.size)
       sender() ! Success("inited")
 
+    case batchRequests: BatchRoutingRequests =>
+      val wholeStart =  System.currentTimeMillis()
+      val responses = batchRequests.requests.map { request =>
+        val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
+        val start = System.currentTimeMillis()
+        val res = calcRoute(withReceivedAt)
+        val stop = System.currentTimeMillis()
+
+        res.copy(routeCalcTimeMs = stop - start)
+      }
+      val wholeTimeMs = System.currentTimeMillis() - wholeStart
+      log.info("Processed {} RoutingRequests in {} ms", batchRequests.requests.size, wholeTimeMs)
+      sender() ! BatchRoutingResponses(responses = responses, routesCalcTimeMs = wholeTimeMs)
+
     case request: RoutingRequest =>
       Kamon.counter("receiving-routing-requests")
       msgs += 1
@@ -269,8 +283,11 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       }
       val duration = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime).map(e => e.getTime).max - leg.startTime
 
+      // TODO FIX ME!
       sender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg(leg.copy(duration = duration.toLong), vehicleId, true, None, BigDecimal.valueOf(0), true)))),
-        requestCreatedAt = createdAt, requestReceivedAt = now, createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+        requestCreatedAt = createdAt, requestReceivedAt = now, createdAt = ZonedDateTime.now(ZoneOffset.UTC),
+        requestId = UUID.fromString("00000000-0000-0000-0000-000000000000")
+      )
   }
 
 
@@ -565,17 +582,17 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         RoutingResponse(embodiedTrips :+ dummyTrip,
           requestCreatedAt = routingRequest.createdAt,
           requestReceivedAt = routingRequest.receivedAt.get,
-          createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+          createdAt = ZonedDateTime.now(ZoneOffset.UTC), requestId = routingRequest.id)
       } else {
         log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt,
           requestReceivedAt = routingRequest.receivedAt.get,
-          createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+          createdAt = ZonedDateTime.now(ZoneOffset.UTC), requestId = routingRequest.id)
       }
     } else {
       RoutingResponse(embodiedTrips, requestCreatedAt = routingRequest.createdAt,
         requestReceivedAt = routingRequest.receivedAt.get,
-        createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+        createdAt = ZonedDateTime.now(ZoneOffset.UTC), requestId = routingRequest.id)
     }
   }
 

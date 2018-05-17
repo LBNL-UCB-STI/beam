@@ -40,6 +40,7 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import akka.pattern._
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.Future
 
 class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) extends Actor with Stash with ActorLogging {
@@ -63,6 +64,12 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
 
 
   log.info(s"BeamRouter: ${self.path}")
+
+  private val buffer: ArrayBuffer[RoutingRequest] = ArrayBuffer.empty[RoutingRequest]
+  private val map: mutable.Map[UUID, ActorRef] = mutable.Map.empty
+  private val BATCH_SIZE: Int = 20
+
+  val tickTask = context.system.scheduler.schedule(2.seconds, 1.seconds, self, "tick")(context.dispatcher)
 
   override def preStart(): Unit = {
     cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
@@ -103,6 +110,25 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
     case ReachableMember(m) if m.hasRole("compute") =>
       log.info("ReachableMember: {}", m)
       nodes += m.address
+    case other: RoutingRequest =>
+      buffer +=(other)
+      val actorRef = sender()
+      map(other.id) = actorRef
+
+    case "tick" if buffer.nonEmpty =>
+      val msgs = buffer.take(BATCH_SIZE)
+      msgs.foreach { m => buffer -= m }
+      val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
+      val service = context.actorSelection(RootActorPath(address) / servicePathElements)
+      log.debug("Sending BatchRoutingRequests with {} messages to `{}`", msgs.size, service)
+      service ! BatchRoutingRequests(msgs)
+
+    case resp: BatchRoutingResponses =>
+      resp.responses.foreach { resp =>
+        val actorRef = map(resp.requestId)
+        actorRef ! resp
+      }
+
     case other =>
       val address = nodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodes.size))
       val service = context.actorSelection(RootActorPath(address) / servicePathElements)
@@ -152,7 +178,7 @@ object BeamRouter {
                             transitModes: Seq[BeamMode], streetVehicles: Seq[StreetVehicle],
                             streetVehiclesAsAccess: Boolean = true,
                             createdAt: ZonedDateTime,
-                            receivedAt: Option[ZonedDateTime] = None)
+                            receivedAt: Option[ZonedDateTime] = None, id: UUID = UUID.randomUUID())
 
   /**
     * Message to respond a plan against a particular router request
@@ -161,8 +187,12 @@ object BeamRouter {
     */
   case class RoutingResponse(itineraries: Seq[EmbodiedBeamTrip], requestCreatedAt: ZonedDateTime,
                              requestReceivedAt: ZonedDateTime,
-                             createdAt: ZonedDateTime, routeCalcTimeMs: Long = 0,
+                             createdAt: ZonedDateTime, requestId: UUID, routeCalcTimeMs: Long = 0,
                              receivedAt: Option[ZonedDateTime] = None)
+
+
+  case class BatchRoutingRequests(requests: Seq[RoutingRequest])
+  case class BatchRoutingResponses(responses: Seq[RoutingResponse], routesCalcTimeMs: Long = 0)
 
   def props(beamServices: BeamServices, transportNetwork: TransportNetwork, network: Network, eventsManager: EventsManager, transitVehicles: Vehicles, fareCalculator: FareCalculator, tollCalculator: TollCalculator) = Props(new BeamRouter(beamServices, transportNetwork, network, eventsManager, transitVehicles, fareCalculator, tollCalculator))
 }
