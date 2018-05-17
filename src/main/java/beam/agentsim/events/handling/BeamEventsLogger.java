@@ -1,8 +1,6 @@
 package beam.agentsim.events.handling;
 
-import beam.agentsim.events.LoggerLevels;
-import beam.agentsim.events.ModeChoiceEvent;
-import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.events.*;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import com.google.common.collect.ArrayListMultimap;
@@ -59,6 +57,8 @@ public class BeamEventsLogger {
         allLoggableEvents.add(PersonLeavesVehicleEvent.class);
         allLoggableEvents.add(PersonArrivalEvent.class);
         allLoggableEvents.add(ActivityStartEvent.class);
+        allLoggableEvents.add(ParkEvent.class);
+        allLoggableEvents.add(LeavingParkingEvent.class);
 
         //filter according loggerLevel
         if (this.beamServices.beamConfig().beam().outputs().events().defaultWritingLevel().equals("")) {

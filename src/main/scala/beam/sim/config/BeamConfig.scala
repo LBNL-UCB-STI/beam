@@ -20,12 +20,13 @@ object BeamConfig {
   )
   object Beam {
     case class Agentsim(
-      agents                      : BeamConfig.Beam.Agentsim.Agents,
-      numAgents                   : scala.Int,
-      simulationName              : java.lang.String,
-      taz                         : BeamConfig.Beam.Agentsim.Taz,
-      thresholdForWalkingInMeters : scala.Int,
-      tuning                      : BeamConfig.Beam.Agentsim.Tuning
+      agents                                  : BeamConfig.Beam.Agentsim.Agents,
+      numAgents                               : scala.Int,
+      simulationName                          : java.lang.String,
+      taz                                     : BeamConfig.Beam.Agentsim.Taz,
+      thresholdForMakingParkingChoiceInMeters : scala.Int,
+      thresholdForWalkingInMeters             : scala.Int,
+      tuning                                  : BeamConfig.Beam.Agentsim.Tuning
     )
     object Agentsim {
       case class Agents(
@@ -122,7 +123,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHailing = {
             BeamConfig.Beam.Agentsim.Agents.RideHailing(
               defaultCostPerMile               = if(c.hasPathOrNull("defaultCostPerMile")) c.getDouble("defaultCostPerMile") else 1.25,
@@ -171,12 +172,13 @@ object BeamConfig {
             
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
-          agents                      = BeamConfig.Beam.Agentsim.Agents(c.getConfig("agents")),
-          numAgents                   = if(c.hasPathOrNull("numAgents")) c.getInt("numAgents") else 100,
-          simulationName              = if(c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
-          taz                         = BeamConfig.Beam.Agentsim.Taz(c.getConfig("taz")),
-          thresholdForWalkingInMeters = if(c.hasPathOrNull("thresholdForWalkingInMeters")) c.getInt("thresholdForWalkingInMeters") else 100,
-          tuning                      = BeamConfig.Beam.Agentsim.Tuning(c.getConfig("tuning"))
+          agents                                  = BeamConfig.Beam.Agentsim.Agents(c.getConfig("agents")),
+          numAgents                               = if(c.hasPathOrNull("numAgents")) c.getInt("numAgents") else 100,
+          simulationName                          = if(c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          taz                                     = BeamConfig.Beam.Agentsim.Taz(c.getConfig("taz")),
+          thresholdForMakingParkingChoiceInMeters = if(c.hasPathOrNull("thresholdForMakingParkingChoiceInMeters")) c.getInt("thresholdForMakingParkingChoiceInMeters") else 100,
+          thresholdForWalkingInMeters             = if(c.hasPathOrNull("thresholdForWalkingInMeters")) c.getInt("thresholdForWalkingInMeters") else 100,
+          tuning                                  = BeamConfig.Beam.Agentsim.Tuning(c.getConfig("tuning"))
         )
       }
     }

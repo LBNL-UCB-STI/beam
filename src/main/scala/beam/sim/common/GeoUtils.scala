@@ -16,7 +16,6 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 
 
-
 @ImplementedBy(classOf[GeoUtilsImpl])
 trait GeoUtils extends HasServices  {
     lazy val utm2Wgs: GeotoolsTransformation = new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
@@ -57,6 +56,11 @@ trait GeoUtils extends HasServices  {
     }else{
       theSplit.edge
     }
+  }
+
+  def coordOfR5Edge(streetLayer: StreetLayer, edgeId: Int): Coord = {
+    var theEdge = streetLayer.edgeStore.getCursor(edgeId)
+    new Coord(theEdge.getGeometry.getCoordinate.x, theEdge.getGeometry.getCoordinate.y)
   }
   def snapToR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5, streetMode: StreetMode = StreetMode.WALK): Coord = {
     val theSplit = getR5Split(streetLayer, coord, maxRadius, streetMode)

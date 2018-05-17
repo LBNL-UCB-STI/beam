@@ -141,10 +141,10 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
         } yield {
           val departureTime: BeamTime = DiscreteTime(0)
           val futureRnd1AgentResponse = router ? RoutingRequest(
-            rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
+            rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector(), true, false) //TODO what should go in vectors
           // get route from customer to destination
           val futureRnd2AgentResponse  = router ? RoutingRequest(
-            rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
+            rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector(), true, false) //TODO what should go in vectors
           for{
             rnd1Response <- futureRnd1AgentResponse.mapTo[RoutingResponse]
             rnd2Response <- futureRnd2AgentResponse.mapTo[RoutingResponse]
@@ -313,11 +313,11 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
     // get route from ride hailing vehicle to customer
     val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(rideHailingLocation
-          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin))
+          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin), true, false)
     //XXXX: customer trip request might be redundant... possibly pass in info
 
     // get route from customer to destination
-    val futureRideHailing2DestinationResponse = router ? RoutingRequest(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup))
+    val futureRideHailing2DestinationResponse = router ? RoutingRequest(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup),true,false)
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 

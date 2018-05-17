@@ -8,7 +8,6 @@ import org.matsim.core.config.Config
 import scala.io.Source
 
 trait EventsFileHandlingCommon {
-  def beamConfig: BeamConfig
 
   def getListIDsWithTag(file: File, tagIgnore: String, positionID: Int): List[String] = {
     var listResult = List[String]()

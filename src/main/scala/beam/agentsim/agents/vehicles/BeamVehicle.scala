@@ -5,6 +5,7 @@ import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.infrastructure.ParkingStall
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.Id
 import org.matsim.utils.objectattributes.ObjectAttributes
@@ -30,7 +31,8 @@ class BeamVehicle(val powerTrain: Powertrain,
                   val  beamVehicleType: BeamVehicleType,
   )
   extends Resource[BeamVehicle] {
-    val log: Logger = Logger.getLogger(classOf[BeamVehicle])
+
+  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
 
   /**
     * Identifier for this vehicle
@@ -44,6 +46,8 @@ class BeamVehicle(val powerTrain: Powertrain,
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
+
+  var stall: Option[ParkingStall] = None
 
   def getType: VehicleType = matSimVehicle.getType
 
@@ -71,6 +75,12 @@ class BeamVehicle(val powerTrain: Powertrain,
     } else {
       Left(DriverAlreadyAssigned(id, driver.get))
     }
+  }
+  def useParkingStall(newStall: ParkingStall) = {
+    stall = Some(newStall)
+  }
+  def unsetParkingStall() = {
+    stall = None
   }
 
 }
