@@ -30,7 +30,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper {
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new NetworkCoordinator(beamConfig, scenario.getTransitVehicles)
+      val networkCoordinator = new NetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       scenario.setNetwork(networkCoordinator.network)
       var nCarTrips = 0

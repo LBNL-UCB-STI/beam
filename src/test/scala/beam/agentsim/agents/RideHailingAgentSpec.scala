@@ -69,7 +69,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
 
   case class TestTrigger(tick: Double) extends Trigger
 
-  private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
+  private val networkCoordinator = new NetworkCoordinator(config)
   networkCoordinator.loadNetwork()
 
   describe("A RideHailingAgent") {

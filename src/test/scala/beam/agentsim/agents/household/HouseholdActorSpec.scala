@@ -30,7 +30,7 @@ class HouseholdActorSpec extends TestKit(ActorSystem("testsystem", ConfigFactory
     when(theServices.beamConfig).thenReturn(config)
     theServices
   }
-  private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
+  private val networkCoordinator = new NetworkCoordinator(config)
   networkCoordinator.loadNetwork()
 
 

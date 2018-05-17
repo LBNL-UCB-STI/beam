@@ -11,10 +11,12 @@ import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{NotifyLegEndTrigger, N
 import beam.agentsim.agents.modalBehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
+import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{RIDE_HAIL, TRANSIT}
 import beam.router.RoutingModel._
 import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
@@ -74,8 +76,6 @@ object PersonAgent {
   case object WaitingForDeparture extends Traveling
 
   case object WaitingForReservationConfirmation extends Traveling
-
-  case object WaitingForTransitReservationConfirmation extends Traveling
 
   case object Waiting extends Traveling
 
@@ -181,22 +181,22 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       goto(ProcessingNextLegOrStartActivity)
   }
 
-  when(WaitingForTransitReservationConfirmation) {
-    // These are responses to a transit reservation for right now -- getting on a bus, basically.
-    // It is sent from ProcessingNextLegOrStartActivity.
-
-    // If boarding the bus fails, go back to choosing mode.
-    case Event(ReservationResponse(_, Left(error)), data: BasePersonData) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      log.warning("at {} replanning leg {} because {}", tick, data.restOfCurrentTrip.head, error.errorCode)
-      holdTickAndTriggerId(tick, triggerId)
-      goto(ChoosingMode) using ChoosesModeData(data)
-
-    // If boarding succeeds, wait for the NotifyLegStartTrigger
-    case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
+  when(WaitingForReservationConfirmation){
+    case Event(ReservationResponse(_, Right(response),reservedMode), data: BasePersonData) =>
       val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! CompletionNotice(triggerId)
-      goto(Waiting)
+      val triggers = response.triggersToSchedule
+      log.debug("scheduling triggers from reservation responses: {}", triggers)
+      scheduler ! CompletionNotice(triggerId,triggers)
+      goto(Waiting) using data
+    case Event(ReservationResponse(_, Left(firstErrorResponse), reservedMode), data: BasePersonData) =>
+      log.warning("at {} replanning leg {} because {}", _currentTick, data.restOfCurrentTrip.head, firstErrorResponse.errorCode)
+      val choosesModeData = reservedMode match {
+        case RIDE_HAIL =>
+          ChoosesModeData(data,rideHailingResult = Some(dummyRideHailResponse().copy(error = Some(firstErrorResponse))))
+        case mode if mode.isTransit() =>
+          ChoosesModeData(data)
+      }
+      goto(ChoosingMode) using choosesModeData
   }
 
   when(Waiting) {
@@ -293,7 +293,13 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
-      goto(WaitingForTransitReservationConfirmation)
+      goto(WaitingForReservationConfirmation)
+    case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.beamLeg.mode.isRideHail() =>
+      val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
+      val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
+      rideHailingManager ! ReserveRide(Id.create("dummyInquiryId",classOf[RideHailingInquiry]), VehiclePersonId(bodyId, id),
+        nextLeg.beamLeg.travelPath.startPoint.loc, departAt, legSegment.last.beamLeg.travelPath.endPoint.loc)
+      goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_,_,_::_,_,_,_,_,_,_)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)

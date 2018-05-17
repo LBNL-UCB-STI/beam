@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
@@ -94,7 +95,7 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
 
   case class TestTrigger(tick: Double) extends Trigger
 
-  private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
+  private val networkCoordinator = new NetworkCoordinator(config)
   networkCoordinator.loadNetwork()
 
   describe("A PersonAgent") {
@@ -314,13 +315,13 @@ class PersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFactory.pa
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(30000, busLeg2.beamLeg), personActor)
-      lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
+      lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
-      lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
+      lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(30000, tramLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(32000, tramLeg.beamLeg), personActor) // My tram is late!
       events.expectMsgType[PersonEntersVehicleEvent]

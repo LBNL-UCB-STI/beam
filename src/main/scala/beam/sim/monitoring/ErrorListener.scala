@@ -7,6 +7,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.TriggerWithId
+import beam.router.Modes.BeamMode.TRANSIT
 
 /**
   * @author sid.feygin
@@ -27,7 +28,7 @@ class ErrorListener() extends Actor with ActorLogging {
       d.message match {
         case m: ReservationRequest =>
           log.warning(s"Person ${d.sender} attempted to reserve ride with agent ${d.recipient} that was not found, message sent to dead letters.")
-          d.sender ! ReservationResponse(m.requestId,Left(DriverNotFoundError))
+          d.sender ! ReservationResponse(m.requestId,Left(DriverNotFoundError),TRANSIT)
         case m: RemovePassengerFromTrip =>
           // Can be safely skipped
         case TriggerWithId(trigger,triggerId) =>

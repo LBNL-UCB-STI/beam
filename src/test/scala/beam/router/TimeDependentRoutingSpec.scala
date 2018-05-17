@@ -50,7 +50,7 @@ class TimeDependentRoutingSpec extends TestKit(ActorSystem("router-test", testCo
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.dates).thenReturn(DateUtils(ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime, ZonedDateTime.parse(beamConfig.beam.routing.baseDate)))
-    networkCoordinator = new NetworkCoordinator(beamConfig, VehicleUtils.createVehiclesContainer())
+    networkCoordinator = new NetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
 
     val fareCalculator = mock[FareCalculator]

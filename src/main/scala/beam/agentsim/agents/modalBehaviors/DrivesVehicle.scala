@@ -11,6 +11,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
+import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel
 import beam.router.RoutingModel.BeamLeg
 import beam.sim.HasServices
@@ -133,7 +134,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
 
   val drivingBehavior: StateFunction = {
     case Event(req: ReservationRequest, data) if !hasRoomFor(data.passengerSchedule, req, beamServices.vehicles(data.currentVehicle.head)) =>
-      stay() replying ReservationResponse(req.requestId, Left(VehicleFullError))
+      stay() replying ReservationResponse(req.requestId, Left(VehicleFullError),TRANSIT)
 
     case Event(req: ReservationRequest, data) =>
       val legs = data.passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).keys.toSeq
@@ -152,8 +153,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         case None =>
           log.warning("Driver did not find a leg at currentLegPassengerScheduleIndex.")
       }
-
-      stay() using data.withPassengerSchedule(data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)).asInstanceOf[T] replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))
+      stay() using data.withPassengerSchedule(data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)).asInstanceOf[T] replying
+        ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)),TRANSIT)
 
     case Event(RemovePassengerFromTrip(id), data) =>
       stay() using data.withPassengerSchedule(PassengerSchedule(data.passengerSchedule.schedule ++ data.passengerSchedule.schedule.collect {

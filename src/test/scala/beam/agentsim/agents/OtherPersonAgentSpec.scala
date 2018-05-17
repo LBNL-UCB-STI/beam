@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.RoutingModel.{EmbodiedBeamLeg, _}
 import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamServices
@@ -97,7 +98,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
     }
   }), "router")
 
-  private val networkCoordinator = new NetworkCoordinator(config, VehicleUtils.createVehiclesContainer())
+  private val networkCoordinator = new NetworkCoordinator(config)
   networkCoordinator.loadNetwork()
 
   describe("A PersonAgent FSM") {
@@ -160,7 +161,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       expectMsgType[PathTraversalEvent]
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
-      lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
+      lastSender ! ReservationResponse(reservationRequestBus.requestId, Right(ReserveConfirmInfo(busLeg.beamLeg, busLeg2.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(28800, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(29400, busLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(29400, busLeg2.beamLeg), personActor)
@@ -170,7 +171,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       assert(personLeavesVehicleEvent.getTime == 34400.0)
 
       val reservationRequestLateTram = expectMsgType[ReservationRequest]
-      lastSender ! ReservationResponse(reservationRequestLateTram.requestId, Left(VehicleGoneError))
+      lastSender ! ReservationResponse(reservationRequestLateTram.requestId, Left(VehicleGoneError),TRANSIT)
 
       val replanningRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(Vector(EmbodiedBeamTrip(Vector(
@@ -180,7 +181,7 @@ class OtherPersonAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       expectMsgType[ModeChoiceEvent]
 
       val reservationRequestTram = expectMsgType[ReservationRequest]
-      lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)))
+      lastSender ! ReservationResponse(reservationRequestTram.requestId, Right(ReserveConfirmInfo(tramLeg.beamLeg, tramLeg.beamLeg, reservationRequestBus.passengerVehiclePersonId)),TRANSIT)
       scheduler ! ScheduleTrigger(NotifyLegStartTrigger(35000, replannedTramLeg.beamLeg), personActor)
       scheduler ! ScheduleTrigger(NotifyLegEndTrigger(40000, replannedTramLeg.beamLeg), personActor) // My tram is late!
       expectMsgType[PersonEntersVehicleEvent]

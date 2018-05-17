@@ -260,11 +260,11 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
           // We have an agent nearby, but it's not the one we originally wanted
           case _ =>
             customerAgent ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
-            (UnknownRideHailReservationError))
+            (UnknownRideHailReservationError),RIDE_HAIL)
         }
       } else {
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
-        (UnknownInquiryIdError))
+        (UnknownInquiryIdError),RIDE_HAIL)
       }
     case ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule) =>
       completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]), triggersToSchedule)
@@ -378,7 +378,7 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,
       classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs
-      .last, vehiclePersonId, Vector()))))
+      .last, vehiclePersonId, Vector())),RIDE_HAIL))
     closestRideHailingAgentLocation.rideHailAgent ! Interrupt()
     // RideHailingAgent sends reply which we are ignoring here,
     // but that's okay, we don't _need_ to wait for the reply if the answer doesn't interest us.
@@ -395,7 +395,7 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       case None =>
         log.error(s"Vehicle was reserved by another agent for inquiry id $inquiryId")
         sender() ! ReservationResponse(Id.create(inquiryId.toString, classOf[ReservationRequest]), Left
-        (RideHailVehicleTakenError))
+        (RideHailVehicleTakenError),RIDE_HAIL)
     }
 
   }
