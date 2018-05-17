@@ -206,14 +206,14 @@ trait ChoosesMode {
       val walkTransitTrip = routingResponse.itineraries.dropWhile(_.tripClassifier != WALK_TRANSIT).head
       val tncAccessLeg = rideHail2TransitAccessResult.proposals.head.responseRideHailing2Dest.itineraries.head.legs.dropRight(1)
       // Replacing walk access leg with TNC changes the travel time.
-      if(walkTransitTrip.legs.head.beamLeg.duration < tncAccessLeg.last.beamLeg.duration){
+      val differenceInAccessDuration = walkTransitTrip.legs.head.beamLeg.duration - tncAccessLeg.last.beamLeg.duration
+      if(differenceInAccessDuration < 0){
         // Travel time increases in rare cases due to sloppiness in occasionally using the link as a proxy for the point location
         None
       }else{
         // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
-        val startTimeBufferForWaiting = 20L
-        tncAccessLeg.map(leg => leg.copy(leg.beamLeg.copy(startTime = leg.beamLeg.startTime - startTimeBufferForWaiting)))
-        val accessAndTransit = tncAccessLeg ++ walkTransitTrip.legs.tail
+        val startTimeBufferForWaiting = math.max(60.0,rideHail2TransitAccessResult.proposals.head.timesToCustomer * 1.5) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
+        val accessAndTransit = tncAccessLeg.map(leg => leg.copy(leg.beamLeg.updateStartTime(leg.beamLeg.startTime + differenceInAccessDuration - startTimeBufferForWaiting.longValue()))) ++ walkTransitTrip.legs.tail
         val fullTrip = if(rideHail2TransitEgressResult.error.isEmpty){
           accessAndTransit.dropRight(1) ++ rideHail2TransitEgressResult.proposals.head.responseRideHailing2Dest.itineraries.head.legs.tail
         }else{
@@ -230,8 +230,9 @@ trait ChoosesMode {
     case FSM.State(_, choosesModeData @ ChoosesModeData(personData, None, Some(routingResponse), Some(rideHailingResult), Some(rideHail2TransitAccessResult), _,Some(rideHail2TransitEgressResult),_,_,_), _, _, _) =>
       val nextAct = nextActivity(choosesModeData.personData).right.get
       val rideHail2TransitIinerary = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
-      val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
-//      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
+      val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++
+        routingResponse.itineraries ++ rideHail2TransitIinerary.toVector
+    //      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
       val filteredItinerariesForChoice = personData.currentTourMode match {
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
@@ -239,8 +240,10 @@ trait ChoosesMode {
             case (0 | LastTripIndex, false) =>
               combinedItinerariesForChoice.filter(_.tripClassifier == DRIVE_TRANSIT)
             case _ =>
-              combinedItinerariesForChoice.filter(_.tripClassifier == WALK_TRANSIT)
+              combinedItinerariesForChoice.filter(trip => trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT)
           }
+        case Some(mode) if mode == WALK_TRANSIT || mode == RIDE_HAIL_TRANSIT =>
+          combinedItinerariesForChoice.filter(trip => trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT)
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>

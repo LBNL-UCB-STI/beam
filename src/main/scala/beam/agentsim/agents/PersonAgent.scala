@@ -294,7 +294,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       val resRequest = new ReservationRequest(legSegment.head.beamLeg, legSegment.last.beamLeg, VehiclePersonId(legSegment.head.beamVehicleId, id))
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
-    case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.beamLeg.mode.isRideHail() =>
+    case Event(StateTimeout, BasePersonData(_,_,nextLeg::tailOfCurrentTrip,_,_,_,_,_,_)) if nextLeg.isRideHail =>
       val legSegment = nextLeg::tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val departAt = DiscreteTime(legSegment.head.beamLeg.startTime.toInt)
       rideHailingManager ! ReserveRide(Id.create("dummyInquiryId",classOf[RideHailingInquiry]), VehiclePersonId(bodyId, id),
