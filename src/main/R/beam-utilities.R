@@ -1,7 +1,7 @@
 
 load.libraries(c('GEOquery','XML'))
 
-clean.and.relabel <- function(ev,factor.to.scale.personal.back,val.of.time=16.9){
+clean.and.relabel <- function(ev,factor.to.scale.personal.back,factor.to.scale.transit.back,val.of.time=16.9){
   # Clean and relabel
   ev[vehicle_type=="bus",vehicle_type:="Bus"]
   ev[vehicle_type=="CAR" | substr(vehicle_id,1,5)=="rideH",vehicle_type:="TNC"]
@@ -26,7 +26,8 @@ clean.and.relabel <- function(ev,factor.to.scale.personal.back,val.of.time=16.9)
   ev[start.y<=0.003 | end.y <=0.003,':='(start.x=NA,start.y=NA,end.x=NA,end.y=NA)]
   ev[length==Inf,length:=NA]
   ev[vehicle_type%in%c('BART','Ferry','Muni','Rail','Cable_Car') & !is.na(start.x)  & !is.na(start.y)  & !is.na(end.y)  & !is.na(end.y),length:=dist.from.latlon(start.y,start.x,end.y,end.x)]
-  ev[vehicle_type%in%c('BART','Bus','Cable_Car','Muni','Rail','TNC'),num_passengers:=num_passengers*factor.to.scale.personal.back]
+  ev[vehicle_type%in%c('BART','Bus','Cable_Car','Muni','Rail'),num_passengers:=round(num_passengers*factor.to.scale.personal.back)]
+  ev[vehicle_type%in%c('BART','Bus','Cable_Car','Muni','Rail'),capacity:=round(capacity*factor.to.scale.transit.back)]
   ev[num_passengers > capacity,num_passengers:=capacity]
   ev[,pmt:=num_passengers*length/1609]
   ev[is.na(pmt),pmt:=0]
