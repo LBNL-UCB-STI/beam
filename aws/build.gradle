@@ -74,7 +74,7 @@ task start(type: AWSLambdaInvokeTask) {
         checkInstanceId()
     }
 
-    functionName = "simulateBeam:ec2StartStop"
+    functionName = "ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = buildPayload("start")
 
@@ -88,7 +88,7 @@ task stop(type: AWSLambdaInvokeTask) {
         checkInstanceId()
     }
 
-    functionName = "simulateBeam:ec2StartStop"
+    functionName = "ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = buildPayload("stop")
 
