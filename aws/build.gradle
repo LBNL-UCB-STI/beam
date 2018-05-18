@@ -1,0 +1,127 @@
+import com.amazonaws.services.lambda.model.InvocationType
+import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+
+buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
+    }
+}
+
+group 'beam'
+version '0.5.0-SNAPSHOT'
+
+apply plugin: "base"
+apply plugin: "jp.classmethod.aws.lambda"
+
+aws {
+    profileName = "gradle"
+    region = "us-east-2"
+}
+
+lambda {
+    region = "us-east-2"
+}
+
+def getCurrentGitBranch() {
+    def gitBranch = "$defaultBranch"
+    try {
+        def workingDir = new File("${project.projectDir}")
+        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
+        result.waitFor()
+        if (result.exitValue() == 0) {
+            gitBranch = result.text.trim()
+        }
+    } catch (e) {
+    }
+    return gitBranch
+}
+
+task deploy(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('runName')) {
+            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
+        }
+
+        if(!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.configs') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+            throw new GradleException('beamConfigs or beamExperiments is required to deploy.')
+        }
+    }
+
+    def pload = """{
+  "title": "${project.findProperty('runName')}",
+  "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
+  "commit": "${beamCommit ?: 'HEAD'}",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
+  "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
+  "max_ram": "${maxRAM ?: '2g'}",
+  "batch": "$beamBatch",
+  "s3_publish": "${project.findProperty('s3Backup') ?: true}",
+  "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
+  "region": "$region",
+  "shutdown_wait": "$shutdownWait",
+  "shutdown_behaviour": "$shutdownBehaviour",
+  "command": "deploy"
+}"""
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
+task startEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "${project.findProperty('instanceIds')}",
+  "region": "$region",
+  "command": "start"
+}"""
+
+    functionName = "simulateBeam:ec2StartStop"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
+task stopEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        if(!project.hasProperty('instanceIds')) {
+            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+        }
+    }
+
+    def pload = """{
+  "instance_ids": "${project.findProperty('instanceIds')}",
+  "region": "$region",
+  "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
+}"""
+
+    functionName = "simulateBeam:ec2StartStop"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
+
+    doLast {
+        println pload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
