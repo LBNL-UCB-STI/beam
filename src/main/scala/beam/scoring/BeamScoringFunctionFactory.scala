@@ -5,7 +5,7 @@ import javax.inject.Inject
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
-import beam.agentsim.events.ModeChoiceEvent
+import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent}
 import beam.router.RoutingModel.EmbodiedBeamTrip
 import beam.sim.{BeamServices, MapStringDouble}
 import org.apache.log4j.Logger
@@ -27,11 +27,14 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
       private var finalScore = 0.0
       private var trips = mutable.ListBuffer[EmbodiedBeamTrip]()
+      private var leavingParkingEventScore = 0.0
 
       override def handleEvent(event: Event): Unit = {
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
+          case leavingParkingEvent: LeavingParkingEvent =>
+            leavingParkingEventScore += leavingParkingEvent.score
           case _ =>
         }
       }
@@ -78,7 +81,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
           "surplus" -> logsum   // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
         )))
 
-        finalScore = Math.max(scoreOfBeingInClassGivenThisOutcome, -100.0) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
+        finalScore = scoreOfBeingInClassGivenThisOutcome + leavingParkingEventScore
+        finalScore = Math.max(finalScore, -100) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100, this will need to be replaced with another big number.
       }
 

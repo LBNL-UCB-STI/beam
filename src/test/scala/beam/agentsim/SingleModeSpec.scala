@@ -105,7 +105,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, null, networkCoordinator.transportNetwork, scenario, eventsManager, system,new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
@@ -131,7 +131,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, null, networkCoordinator.transportNetwork, scenario, eventsManager, system,new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
@@ -174,7 +174,7 @@ class SingleModeSpec extends TestKit(ActorSystem("single-mode-test", ConfigFacto
           }
         }
       })
-      val mobsim = new BeamMobsim(services, networkCoordinator.transportNetwork, scenario, eventsManager, system, new RideHailSurgePricingManager(beamConfig, None))
+      val mobsim = new BeamMobsim(services, null, networkCoordinator.transportNetwork, scenario, eventsManager, system,new RideHailSurgePricingManager(beamConfig, None))
       mobsim.run()
       events.collect {
         case event: PersonDepartureEvent =>

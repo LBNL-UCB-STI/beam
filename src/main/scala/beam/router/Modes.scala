@@ -1,6 +1,8 @@
 package beam.router
 
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
+import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
 import org.matsim.api.core.v01.TransportMode
 
@@ -105,6 +107,17 @@ object Modes {
       case _ =>
         false
     }
+  }
+
+  def toR5StreetMode(mode: BeamMode): StreetMode = mode match {
+    case BIKE => StreetMode.BICYCLE
+    case WALK => StreetMode.WALK
+    case CAR => StreetMode.CAR
+  }
+  def toR5StreetMode(mode: LegMode): StreetMode = mode match {
+    case LegMode.BICYCLE | LegMode.BICYCLE_RENT  => StreetMode.BICYCLE
+    case LegMode.WALK => StreetMode.WALK
+    case LegMode.CAR => StreetMode.CAR
   }
 
   def mapLegMode(mode: LegMode): BeamMode = mode match {

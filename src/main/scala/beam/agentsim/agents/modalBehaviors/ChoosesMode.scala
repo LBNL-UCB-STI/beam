@@ -126,6 +126,7 @@ trait ChoosesMode {
               makeRequestWith(Vector(), filterStreetVehiclesForQuery(streetVehicles, mode) :+ bodyStreetVehicle)
           }
         case Some(DRIVE_TRANSIT) =>
+          // Non-standard capitalization actually needed here for the pattern matching to work correctly
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (currentTour(choosesModeData.personData).tripIndexOfElement(nextAct), choosesModeData.personData.currentTourPersonalVehicle) match {
             case (0,_) =>
@@ -180,6 +181,7 @@ trait ChoosesMode {
       val combinedItinerariesForChoice = rideHailingResult.proposals.flatMap(x => x.responseRideHailing2Dest.itineraries) ++ routingResponse.itineraries
       val filteredItinerariesForChoice = personData.currentTourMode match {
         case Some(DRIVE_TRANSIT) =>
+          // Non-standard capitalization actually needed here for the pattern matching to work correctly
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (currentTour(choosesModeData.personData).tripIndexOfElement(nextAct), personData.hasDeparted) match {
             case (0 | LastTripIndex, false) =>
@@ -273,6 +275,7 @@ object ChoosesMode {
     override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
     override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(personData = personData.copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex))
+    override def hasParkingBehaviors: Boolean = true
   }
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])

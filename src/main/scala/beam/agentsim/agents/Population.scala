@@ -24,7 +24,8 @@ import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Future}
 
-class Population(val scenario: Scenario, val beamServices: BeamServices, val scheduler: ActorRef, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager) extends Actor with ActorLogging {
+class Population(val scenario: Scenario, val beamServices: BeamServices, val scheduler: ActorRef, val transportNetwork: TransportNetwork, val router: ActorRef,
+                 val rideHailingManager: ActorRef, val parkingManager: ActorRef, val eventsManager: EventsManager) extends Actor with ActorLogging {
 
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.
@@ -87,7 +88,7 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
 
       val householdActor = context.actorOf(
         HouseholdActor.props(beamServices, beamServices.modeChoiceCalculatorFactory, scheduler, transportNetwork,
-          router, rideHailingManager, eventsManager, scenario.getPopulation, household.getId, household, houseHoldVehicles, homeCoord),
+          router, rideHailingManager, parkingManager, eventsManager, scenario.getPopulation, household.getId, household, houseHoldVehicles, homeCoord),
         household.getId.toString)
 
       houseHoldVehicles.values.foreach { veh => veh.manager = Some(householdActor) }
@@ -104,8 +105,9 @@ class Population(val scenario: Scenario, val beamServices: BeamServices, val sch
 
 
 object Population {
-  def props(scenario: Scenario, services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, router: ActorRef, rideHailingManager: ActorRef, eventsManager: EventsManager): Props = {
-    Props(new Population(scenario, services, scheduler, transportNetwork, router, rideHailingManager, eventsManager))
+  def props(scenario: Scenario, services: BeamServices, scheduler: ActorRef, transportNetwork: TransportNetwork, router: ActorRef,
+            rideHailingManager: ActorRef, parkingManager: ActorRef, eventsManager: EventsManager): Props = {
+    Props(new Population(scenario, services, scheduler, transportNetwork, router, rideHailingManager, parkingManager, eventsManager))
   }
 
 
