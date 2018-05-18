@@ -1,4 +1,5 @@
 import com.amazonaws.services.lambda.model.InvocationType
+import com.amazonaws.services.lambda.model.InvokeResult
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 
 buildscript {
@@ -64,7 +65,7 @@ task deploy(type: AWSLambdaInvokeTask) {
     payload = pload
 
     doLast {
-        printResult(pload)
+        printResult(pload, invokeResult)
     }
 }
 
@@ -75,10 +76,10 @@ task start(type: AWSLambdaInvokeTask) {
 
     functionName = "simulateBeam:ec2StartStop"
     invocationType = InvocationType.RequestResponse
-    payload = payload("start")
+    payload = buildPayload("start")
 
     doLast {
-        printResult(payload)
+        printResult(payload, invokeResult)
     }
 }
 
@@ -89,10 +90,10 @@ task stop(type: AWSLambdaInvokeTask) {
 
     functionName = "simulateBeam:ec2StartStop"
     invocationType = InvocationType.RequestResponse
-    payload = payload("stop")
+    payload = buildPayload("stop")
 
     doLast {
-        printResult(payload)
+        printResult(payload, invokeResult)
     }
 }
 
@@ -103,10 +104,10 @@ task terminate(type: AWSLambdaInvokeTask) {
 
     functionName = "simulateBeam"
     invocationType = InvocationType.RequestResponse
-    payload = payload("terminate")
+    payload = buildPayload("terminate")
 
     doLast {
-        printResult(payload)
+        printResult(payload, invokeResult)
     }
 }
 
@@ -116,17 +117,18 @@ def checkInstanceId() {
     }
 }
 
-def payload(String command) {
-    """{
+def buildPayload(command) {
+    println "command:"+command
+    return """{
   "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "$region",
-  "command": $command
+  "command": "$command"
 }"""
 }
 
-def printResult() {
+def printResult(pload, result) {
     println pload
-    println new String(invokeResult.payload.array(), "UTF-8")
+    println new String(result.payload.array(), "UTF-8")
 }
 
 def getCurrentGitBranch() {
