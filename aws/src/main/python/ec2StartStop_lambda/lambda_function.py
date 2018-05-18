@@ -1,7 +1,6 @@
 # coding=utf-8
 import boto3
 import time
-import uuidh
 import os
 from botocore.errorfactory import ClientError
 
@@ -42,10 +41,11 @@ def instance_handler(event):
     region = event.get('region', os.environ['REGION'])
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
-    system_instances = os.environ['SYSTEM_INSTANCES'].split(',')
+    system_instances = os.environ['SYSTEM_INSTANCES']
 
     init_ec2(region)
 
+    system_instances = system_instances.split(',')
     instance_ids = instance_ids.split(',')
     invalid_ids = check_instance_id(list(instance_ids))
     valid_ids = [item for item in instance_ids if item not in invalid_ids]
