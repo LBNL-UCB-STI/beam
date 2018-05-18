@@ -12,7 +12,7 @@ import beam.agentsim.ResourceManager.VehicleManager
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
-import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel, StartLegTrigger}
+import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel, StartLegTrigger, StopDriving}
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
@@ -33,6 +33,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.events.VehicleEntersTrafficEvent
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
@@ -46,6 +47,8 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
+import scala.concurrent._
+import ExecutionContext.Implicits.global
 
 
 // TODO: RW: We need to update the location of vehicle as it is moving to give good estimate to ride hail allocation manager
@@ -84,12 +87,14 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
   val allocationManager: String = beamServices.beamConfig.beam.agentsim.agents.rideHailing.allocationManager
 
   var rideHailResourceAllocationManager: RideHailResourceAllocationManager = allocationManager match {
-    case "DEFAULT_RIDEHAIL_ALLOCATION_MANAGER" => {
-
+    case RideHailResourceAllocationManager.DEFAULT_MANAGER => {
       new DefaultRideHailResourceAllocationManager()
     }
-    case "STANFORD_RIDE_ALLOCATION_MANAGER" => {
+    case RideHailResourceAllocationManager.STANFORD_V1 => {
       new StanfordRideHailAllocationManagerV1(this)
+    }
+    case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE => {
+      new RideHailAllocationManagerBufferedImplTemplate(this)
     }
     case _ => {
       new DefaultRideHailResourceAllocationManager()
@@ -306,8 +311,20 @@ beamServices.beamRouter ! GetTravelTime
 
 
 
-    case ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule) =>
-      completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]), triggersToSchedule)
+    case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule) =>
+      // modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
+
+
+
+
+      //val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
+      //val timerMessage = ScheduleTrigger(timerTrigger, self)
+      //scheduler ! CompletionNotice(triggerId,Vector(timerMessage))
+
+
+      //completeReservation(Id.create(inquiryIDOption.get.toString, classOf[RideHailingInquiry]), triggersToSchedule)
+      //print()
+      sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
 
     case ReleaseVehicleReservation(_, vehId) =>
       lockedVehicles -= vehId
@@ -322,12 +339,88 @@ beamServices.beamRouter ! GetTravelTime
       prepareAckMessageToSchedulerForRideHailAllocationManagerTimeout(tick, triggerId)
 
 
-      rideHailResourceAllocationManager.repositionVehicles(tick)
-      // TODO: implement this
+      val repositionVehicles:Vector[(Id[Vehicle], Location)]=rideHailResourceAllocationManager.repositionVehicles(tick)
 
 
-      sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
 
+      for (repositionVehicle<-repositionVehicles){
+
+        val (vehicleId,destinationLocation) = repositionVehicle
+
+        if (getIdleVehicles().contains(vehicleId)){
+          val rideHailAgentLocation=getIdleVehicles().get(vehicleId).get
+
+          val rideHailAgent = rideHailAgentLocation.rideHailAgent
+
+
+          val rideHailingVehicleAtOrigin = StreetVehicle(rideHailAgentLocation.vehicleId, SpaceTime(
+            (rideHailAgentLocation.currentLocation.loc, tick.toLong)), CAR, asDriver = false)
+
+
+
+
+          val departAt=DiscreteTime(tick.toInt)
+
+          implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+
+
+
+          val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(rideHailAgentLocation.currentLocation.loc
+            , destinationLocation, departAt, Vector(), Vector(rideHailingVehicleAtOrigin))
+
+
+          for {
+            rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
+
+          } {
+
+            val itins2Cust = rideHailingAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
+
+            if (itins2Cust.nonEmpty) {
+              val modRHA2Cust: Vector[RoutingModel.EmbodiedBeamTrip] = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
+              val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
+
+              val passengerSchedule = PassengerSchedule()
+                .addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
+
+
+              rideHailAgent !  Interrupt()
+
+              //rideHailAgent !  StopDriving()
+
+              rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+
+
+
+              rideHailAgent ! Resume()
+
+
+             // val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
+
+
+
+
+             // modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
+
+
+
+
+             // val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
+             // val timerMessage = ScheduleTrigger(timerTrigger, self)
+             // scheduler ! CompletionNotice(triggerId,Vector(timerMessage))
+            }
+
+
+          }
+
+        }
+      }
+
+
+
+      if (repositionVehicles.length==0) {
+        sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+      }
 
 
 
