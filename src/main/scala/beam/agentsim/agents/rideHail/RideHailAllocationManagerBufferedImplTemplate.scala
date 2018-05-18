@@ -11,7 +11,7 @@ import scala.util.control.Breaks._
 
 class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
 
-  val isBufferedRideHailAllocationMode = true
+  val isBufferedRideHailAllocationMode = false // TODO: this should be true - change back later!
 
   // TODO: no nested option returned
   def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
@@ -52,11 +52,20 @@ class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: Ride
     }
     result
     */
-    ???
+    return allocationsDuringReservation
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    ???
+    if (rideHailingManager.getIdleVehicles().size >= 2) {
+      val iter = rideHailingManager.getIdleVehicles().iterator
+      val (vehicleIdA, vehicleLocationA) = iter.next()
+      val (vehicleIdB, vehicleLocationB) = iter.next()
+      Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
+    } else {
+      Vector()
+    }
+
+
   }
 }
 
