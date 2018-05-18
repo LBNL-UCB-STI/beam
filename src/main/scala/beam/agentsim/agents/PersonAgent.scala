@@ -52,6 +52,14 @@ object PersonAgent {
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData
   }
 
+  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double) extends DrivingData { // sorry
+    def currentVehicle = delegate.currentVehicle
+    def passengerSchedule = delegate.passengerSchedule
+    def currentLegPassengerScheduleIndex: Int = delegate.currentLegPassengerScheduleIndex
+    def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt)
+    def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) = LiterallyDrivingData(delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex), legEndsAt)
+  }
+
   type VehicleStack = Vector[Id[Vehicle]]
 
   case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: List[EmbodiedBeamLeg] = List(), currentVehicle: VehicleStack = Vector(), currentTourMode: Option[BeamMode] = None, currentTourPersonalVehicle: Option[Id[Vehicle]] = None, passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0, hasDeparted: Boolean = false) extends PersonData {
@@ -77,11 +85,17 @@ object PersonAgent {
 
   case object WaitingToDrive extends Traveling
 
+  case object WaitingToDriveInterrupted extends Traveling
+
   case object PassengerScheduleEmpty extends Traveling
+
+  case object PassengerScheduleEmptyInterrupted extends Traveling
 
   case object Moving extends Traveling
 
   case object Driving extends Traveling
+
+  case object DrivingInterrupted extends Traveling
 
   case class ActivityStartTrigger(tick: Double) extends Trigger
 
@@ -180,7 +194,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
       holdTickAndTriggerId(tick, triggerId)
       goto(ChoosingMode) using ChoosesModeData(data)
 
-    // If boarding succeeds, stay and wait for the NotifyLegStartTrigger
+    // If boarding succeeds, wait for the NotifyLegStartTrigger
     case Event(ReservationResponse(_, Right(_)), data: BasePersonData) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
@@ -191,11 +205,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is starting
      */
-    case Event(TriggerWithId(NotifyLegStartTrigger(_, beamLeg), triggerId), BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) if beamLeg == currentLeg.beamLeg && currentLeg.beamVehicleId == currentVehicle.head =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(_, beamLeg), triggerId), BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) if currentLeg.beamVehicleId == currentVehicle.head =>
       logDebug(s"Already on vehicle: ${currentVehicle.head}")
       goto(Moving) replying CompletionNotice(triggerId)
 
-    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) if beamLeg == currentLeg.beamLeg =>
+    case Event(TriggerWithId(NotifyLegStartTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::_,currentVehicle,_,_,_,_, _)) =>
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, currentLeg.beamVehicleId))
       goto(Moving) replying CompletionNotice(triggerId) using data.copy(currentVehicle = currentLeg.beamVehicleId +: currentVehicle)
   }
@@ -204,11 +218,11 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
     /*
      * Learn as passenger that leg is ending
      */
-    case Event(TriggerWithId(NotifyLegEndTrigger(_, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if beamLeg == currentLeg.beamLeg && restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(_, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if restOfCurrentTrip.head.beamVehicleId == currentVehicle.head =>
       // The next vehicle is the same as current so just update state and go to Waiting
       goto(Waiting) replying CompletionNotice(triggerId) using data.copy(restOfCurrentTrip = restOfCurrentTrip)
 
-    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) if beamLeg == currentLeg.beamLeg =>
+    case Event(TriggerWithId(NotifyLegEndTrigger(tick, beamLeg), triggerId), data@BasePersonData(_,_,currentLeg::restOfCurrentTrip,currentVehicle,_,_,_,_,_)) =>
       // The next vehicle is different from current so we exit the current vehicle
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, currentVehicle.head))
       holdTickAndTriggerId(tick, triggerId)

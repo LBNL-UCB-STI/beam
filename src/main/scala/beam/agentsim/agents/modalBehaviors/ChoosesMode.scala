@@ -159,25 +159,22 @@ trait ChoosesMode {
   } using completeChoiceIfReady)
 
   when(WaitingForReservationConfirmation) (transform {
-    case Event(response@ReservationResponse(_, _), choosesModeData: ChoosesModeData) =>
-      if (response.response.isRight) {
-        val triggers = response.response.right.get.triggersToSchedule
-        log.debug("scheduling triggers from reservation responses: {}", triggers)
-        triggers.foreach(scheduler ! _)
-        goto(FinishingModeChoice) using choosesModeData
+    case Event(ReservationResponse(_, Right(response)), choosesModeData: ChoosesModeData) =>
+      val triggers = response.triggersToSchedule
+      log.debug("scheduling triggers from reservation responses: {}", triggers)
+      triggers.foreach(scheduler ! _)
+      goto(FinishingModeChoice) using choosesModeData
+    case Event(ReservationResponse(_, Left(firstErrorResponse)), choosesModeData: ChoosesModeData) =>
+      if (choosesModeData.routingResponse.get.itineraries.isEmpty & choosesModeData.rideHailingResult.get.error.isDefined) {
+        // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
+        // if more agents could be hailed.
+        stop(Failure(firstErrorResponse.errorCode.toString))
       } else {
-        val firstErrorResponse = response.response.left.get
-        if (choosesModeData.routingResponse.get.itineraries.isEmpty & choosesModeData.rideHailingResult.get.error.isDefined) {
-          // RideUnavailableError is defined for RHM and the trips are empty, but we don't check
-          // if more agents could be hailed.
-          stop(Failure(firstErrorResponse.errorCode.toString))
-        } else {
-          goto(ChoosingMode) using choosesModeData.copy(
-            pendingChosenTrip = None,
-            rideHailingResult = Some(choosesModeData.rideHailingResult.get.copy(proposals = Vector(), error = Some(firstErrorResponse))),
-            routingResponse = choosesModeData.routingResponse
-          )
-        }
+        goto(ChoosingMode) using choosesModeData.copy(
+          pendingChosenTrip = None,
+          rideHailingResult = Some(choosesModeData.rideHailingResult.get.copy(proposals = Vector(), error = Some(firstErrorResponse))),
+          routingResponse = choosesModeData.routingResponse
+        )
       }
   } using completeChoiceIfReady)
 

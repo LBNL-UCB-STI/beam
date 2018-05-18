@@ -1,12 +1,12 @@
 package beam.integration
 
-import beam.utils.BeamConfigUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 
 trait IntegrationSpecCommon {
 
   val configFileName = "test/input/beamville/beam.conf"
-  val baseConfig: Config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileName)
+  val baseConfig: Config = testConfig(configFileName)
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
     .resolve
 

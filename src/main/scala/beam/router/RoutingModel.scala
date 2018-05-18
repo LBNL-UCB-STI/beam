@@ -137,7 +137,6 @@ object RoutingModel {
     *
     * @param linkIds either matsim linkId or R5 edgeIds that describes whole path
     * @param transitStops start and end stop if this path is transit (partial) route
-
     */
   case class BeamPath(linkIds: Seq[Int], transitStops: Option[TransitStopsInfo], startPoint: SpaceTime, endPoint: SpaceTime, distanceInM: Double) {
 

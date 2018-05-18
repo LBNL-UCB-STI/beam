@@ -10,6 +10,8 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
+import beam.router.gtfs.FareCalculator
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
 
@@ -23,6 +25,10 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside {
       router ! InitTransit(new TestProbe(system).ref)
       expectMsgType[Success]
     }
+  }
+
+  override def createFareCalc(beamConfig: BeamConfig): FareCalculator = {
+    new FareCalculator(beamConfig.beam.routing.r5.directory)
   }
 
   "A router" must {

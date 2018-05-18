@@ -4,7 +4,9 @@ import beam.agentsim.events.ModeChoiceEvent
 import beam.router.r5.NetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{BeamConfigUtils, FileUtils}
+import beam.tags.Periodic
+import beam.utils.FileUtils
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
@@ -19,8 +21,8 @@ import org.scalatest.{Matchers, WordSpecLike}
 class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper {
 
   "SF Light" must {
-    "run without error and at least one person chooses car mode" in {
-      val config = BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/sf-light/sf-light.conf").resolve()
+    "run without error and at least one person chooses car mode" taggedAs Periodic in {
+      val config = testConfig("test/input/sf-light/sf-light.conf")
         .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
