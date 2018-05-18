@@ -73,11 +73,13 @@ class TransitDriverAgent(val scheduler: ActorRef, val beamServices: BeamServices
     case Event(PassengerScheduleEmptyMessage(_), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
+      log.info("{} going to stop due to `PassengerScheduleEmptyMessage`", self)
       stop
   }
 
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _)  =>
+      log.info("{} going to stop due to `IllegalTriggerGoToError`", self)
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
