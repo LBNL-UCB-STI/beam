@@ -20,7 +20,9 @@ trait MetricsSupport {
       thunk
   }
 
-  def latency(name: String, level: MetricLevel, nanoTime: Long) = if (isRightLevel(level)) Kamon.metrics.histogram(name).record(nanoTime)
+  def latency(name: String, level: MetricLevel, nanoTime: Long): Unit = {
+    //if (isRightLevel(level)) Kamon.metrics.histogram(name).record(nanoTime)
+  }
 
   def latencyIfNonNull[A](name: String, level: MetricLevel)(thunk: => A): A = if (isRightLevel(level)) {
     val resultWithTime = measure(thunk)

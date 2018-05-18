@@ -12,7 +12,7 @@ import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry.mobil
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusReponse, ReleaseVehicleReservation}
 import beam.agentsim.agents.modalBehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingInquiry, RideHailingInquiryResponse}
-import beam.agentsim.agents.rideHail.{RideHailingAgent, RideHailingManager, RoutingRequestResponseStats, RoutingRequestSenderCounter}
+import beam.agentsim.agents.rideHail.{RideHailingAgent, RideHailingManager}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
@@ -23,6 +23,7 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel._
+import beam.utils.{RoutingRequestResponseStats, RoutingRequestSenderCounter}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.population.routes.NetworkRoute

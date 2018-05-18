@@ -219,7 +219,7 @@ class InitTransitions(services: BeamServices, scenario: Scenario,
   val config = services.beamConfig.beam.routing
   val transitVehicles = scenario.getTransitVehicles
 
-  def initTransit(scheduler: ActorRef) = {
+  def initTransit(scheduler: ActorRef): Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])] = {
     def createTransitVehicle(transitVehId: Id[Vehicle], route: RouteInfo, legs: Seq[BeamLeg]): Unit = {
 
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))

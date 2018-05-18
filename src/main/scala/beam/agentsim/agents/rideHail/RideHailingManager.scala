@@ -1,5 +1,6 @@
 package beam.agentsim.agents.rideHail
 
+import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.BeamAgent.Finish
@@ -27,6 +28,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime}
 import beam.sim.{BeamServices, HasServices}
+import beam.utils.{RoutingRequestResponseStats, RoutingRequestSenderCounter}
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
@@ -141,13 +143,27 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
         } yield {
           val departureTime: BeamTime = DiscreteTime(0)
           val futureRnd1AgentResponse = router ? RoutingRequest(
-            rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
-          // get route from customer to destination
+            rnd1.currentLocation.loc, rnd2.currentLocation.loc, departureTime, Vector(), Vector(),
+            createdAt = ZonedDateTime.now(ZoneOffset.UTC)) //TODO what should go in vectors
+          val rnd1SentTime = System.currentTimeMillis()
+          RoutingRequestSenderCounter.sent()
+
+          log.info(s"TriggerWithId. Sent first random RoutingRequest") // get route from customer to destination
           val futureRnd2AgentResponse  = router ? RoutingRequest(
-            rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector()) //TODO what should go in vectors
+            rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector(),
+            createdAt = ZonedDateTime.now(ZoneOffset.UTC)) //TODO what should go in vectors
+          val rnd2SentTime = System.currentTimeMillis()
+          RoutingRequestSenderCounter.sent()
+
+          log.info(s"TriggerWithId. Sent second random RoutingRequest")
+
           for{
             rnd1Response <- futureRnd1AgentResponse.mapTo[RoutingResponse]
+              .map { r => r.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+            rnd1ReceiveTime = System.currentTimeMillis()
             rnd2Response <- futureRnd2AgentResponse.mapTo[RoutingResponse]
+              .map { r => r.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+            rnd2ReceiveTime = System.currentTimeMillis()
           } yield {
             self ! RepositionResponse(rnd1, rnd2, rnd1Response, rnd2Response)
           }
@@ -188,8 +204,25 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
           for {
             rideHailingAgent2CustomerResponse <- futureRideHailingAgent2CustomerResponse.mapTo[RoutingResponse]
+                .map { r => r.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+            customerRespReceiveTime = System.currentTimeMillis()
             rideHailing2DestinationResponse <- futureRideHailing2DestinationResponse.mapTo[RoutingResponse]
+              .map { r => r.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))}
+            destinationRespReceiveTime = System.currentTimeMillis()
           } {
+//            log.info("RideHailingInquiry. CustomerResponse: {} ms, DestinationResponse: {} ms", custDt, destDt)
+//
+//            log.info("RideHailingInquiry. Customer Full time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.receivedAt.get))
+//            log.info("RideHailingInquiry. Customer RoutingRequest travel time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.requestCreatedAt, rideHailingAgent2CustomerResponse.requestReceivedAt))
+//            log.info("RideHailingInquiry. Customer RoutingResponse travel time: {} ms", ChronoUnit.MILLIS.between(rideHailingAgent2CustomerResponse.createdAt, rideHailingAgent2CustomerResponse.receivedAt.get))
+//
+//            log.info("RideHailingInquiry. Destination Full time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.receivedAt.get))
+//            log.info("RideHailingInquiry. Destination RoutingRequest travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.requestCreatedAt, rideHailing2DestinationResponse.requestReceivedAt))
+//            log.info("RideHailingInquiry. Destination RoutingResponse travel time: {} ms", ChronoUnit.MILLIS.between(rideHailing2DestinationResponse.createdAt, rideHailing2DestinationResponse.receivedAt.get))
+
+            RoutingRequestResponseStats.add(rideHailingAgent2CustomerResponse)
+            RoutingRequestResponseStats.add(rideHailing2DestinationResponse)
+
             // TODO: could we just call the code, instead of sending the message here?
             self ! RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse)
           }
@@ -199,7 +232,7 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
       }
 
     case RoutingResponses(customerAgent, inquiryId, personId, customerPickUp,departAt, rideHailingLocation, shortDistanceToRideHailingAgent, rideHailingAgent2CustomerResponse, rideHailing2DestinationResponse) =>
-      val timesToCustomer: Vector[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
+      val timesToCustomer: Seq[Long] = rideHailingAgent2CustomerResponse.itineraries.map(t => t.totalTravelTime)
       // TODO: Find better way of doing this error checking than sentry value
       val timeToCustomer = if (timesToCustomer.nonEmpty) {
         timesToCustomer.min
@@ -227,8 +260,12 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
           }
         ))))
 
-        val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
-        val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest)
+        val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, requestCreatedAt = rideHailingAgent2CustomerResponse.requestCreatedAt,
+          requestReceivedAt = rideHailingAgent2CustomerResponse.requestReceivedAt, createdAt = rideHailingAgent2CustomerResponse.createdAt,
+          receivedAt = rideHailingAgent2CustomerResponse.receivedAt, requestId = rideHailingAgent2CustomerResponse.requestId)
+        val rideHailing2DestinationResponseMod = RoutingResponse(modRHA2Dest,  requestCreatedAt = rideHailing2DestinationResponse.requestCreatedAt,
+          requestReceivedAt = rideHailing2DestinationResponse.requestReceivedAt, createdAt = rideHailing2DestinationResponse.createdAt,
+          receivedAt = rideHailing2DestinationResponse.receivedAt, requestId = rideHailing2DestinationResponse.requestId)
 
         val travelProposal = TravelProposal(rideHailingLocation, timeToCustomer, cost, Option(FiniteDuration
         (customerTripPlan.totalTravelTime, TimeUnit.SECONDS)), rideHailingAgent2CustomerResponseMod,
@@ -313,11 +350,19 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
 
     // get route from ride hailing vehicle to customer
     val futureRideHailingAgent2CustomerResponse = router ? RoutingRequest(rideHailingLocation
-          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin))
+          .currentLocation.loc, customerPickUp, departAt, Vector(), Vector(rideHailingVehicleAtOrigin),
+      createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+
+    RoutingRequestSenderCounter.sent()
+
     //XXXX: customer trip request might be redundant... possibly pass in info
 
     // get route from customer to destination
-    val futureRideHailing2DestinationResponse = router ? RoutingRequest(customerPickUp, destination, departAt, Vector(), Vector(customerAgentBody, rideHailingVehicleAtPickup))
+    val futureRideHailing2DestinationResponse = router ? RoutingRequest(customerPickUp, destination, departAt, Vector(),
+      Vector(customerAgentBody, rideHailingVehicleAtPickup), createdAt = ZonedDateTime.now(ZoneOffset.UTC))
+
+    RoutingRequestSenderCounter.sent()
+
     (futureRideHailingAgent2CustomerResponse, futureRideHailing2DestinationResponse)
   }
 

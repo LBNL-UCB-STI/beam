@@ -58,7 +58,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   private val config = services.beamConfig.beam.routing
-  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
+//  private val routerWorker = context.actorOf(R5RoutingWorker.props(services, transportNetwork, network, fareCalculator, tollCalculator), "router-worker")
 
   private val metricsPrinter = context.actorOf(MetricsPrinter.props())
   private var numStopsNotFound = 0
