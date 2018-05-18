@@ -18,6 +18,16 @@ trait RideHailResourceAllocationManager {
   val isBufferedRideHailAllocationMode: Boolean
 
 
+ // def respondToCustomerInquiry()
+
+ // def allocateSingleCustomer()
+  // NON batch: None means: go to default behaviour
+  // batch none means: allocate dummy vehicle (person should send confirmation to scheduler, don't move any vehicle).
+
+
+ // def allocateBatchCustomers()
+
+
   // TODO: add distinguish param inquiry vs. reservation
   def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation]
 
@@ -30,9 +40,9 @@ trait RideHailResourceAllocationManager {
 
 }
 object RideHailResourceAllocationManager{
-  val DEFAULT_MANAGER="DefaultRideHailResourceAllocationManager"
-  val BUFFERED_IMPL_TEMPLATE ="RideHailAllocationManagerBufferedImplTemplate"
-  val STANFORD_V1 ="StanfordRideAllocationManagerV1"
+  val DEFAULT_MANAGER="DEFAULT_RIDEHAIL_ALLOCATION_MANAGER"
+  val BUFFERED_IMPL_TEMPLATE ="BUFFERED_IMPL_TEMPLATE"
+  val STANFORD_V1 ="STANFORD_RIDE_ALLOCATION_MANAGER"
 }
 
 case class VehicleAllocation(vehicleId: Id[Vehicle],availableAt: SpaceTime)
