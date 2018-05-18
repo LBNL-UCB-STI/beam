@@ -1,5 +1,6 @@
 package beam.agentsim.agents.parking
 
+import akka.actor.Stash
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.agents.BeamAgent._
@@ -18,6 +19,7 @@ import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RoutingModel
 import beam.router.RoutingModel.{BeamLeg, DiscreteTime, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.sim.HasServices
 import tscfg.model.DURATION
 
 import scala.concurrent.Future
@@ -31,35 +33,25 @@ import scala.concurrent.duration.Duration
   * BEAM
   */
 object ChoosesParking {
-  case class ChoosesParkingData(personData: BasePersonData) extends PersonData {
-    override def currentVehicle: VehicleStack = personData.currentVehicle
-    override def passengerSchedule: PassengerSchedule = personData.passengerSchedule
-    override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(personData = personData.copy(passengerSchedule = newPassengerSchedule))
-    override def hasParkingBehaviors: Boolean = true
-
-    override def currentLegPassengerScheduleIndex: Int = ???
-
-    override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = ???
-  }
   case object ChoosingParkingSpot extends BeamAgentState
   case object ReleasingParkingSpot extends BeamAgentState
 }
-trait ChoosesParking {
+trait ChoosesParking[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash  {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   onTransition {
     case Driving -> ChoosingParkingSpot =>
-      val personData = stateData.asInstanceOf[BasePersonData]
+      val drivingData = stateData.asInstanceOf[LiterallyDrivingData]
 
-      //personData.currentVehicle.head
+      //drivingData.currentVehicle.head
 
-      val firstLeg = personData.restOfCurrentTrip.head
-      val lastLeg = personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
+      val firstLeg = drivingData.passengerSchedule.schedule.firstKey
+      val lastLeg = drivingData.passengerSchedule.schedule.lastKey
 
       //TODO source value of time from appropriate place
-      parkingManager ! ParkingInquiry(id, beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
-        beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc), nextActivity(personData).right.get.getType,
-        17.0, NoNeed, lastLeg.beamLeg.endTime, nextActivity(personData).right.get.getEndTime - lastLeg.beamLeg.endTime.toDouble)
+      parkingManager ! ParkingInquiry(id, beamServices.geo.wgs2Utm(lastLeg.travelPath.startPoint.loc),
+        beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), nextActivity(drivingData).right.get.getType,
+        17.0, NoNeed, lastLeg.endTime, nextActivity(drivingData).right.get.getEndTime - lastLeg.endTime.toDouble)
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>

@@ -59,8 +59,7 @@ object PersonAgent {
     def currentLegPassengerScheduleIndex: Int = delegate.currentLegPassengerScheduleIndex
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt)
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) = LiterallyDrivingData(delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex), legEndsAt)
-
-    def hasParkingBehaviors: Boolean = false
+    override def hasParkingBehaviors: Boolean = false
   }
 
   type VehicleStack = Vector[Id[Vehicle]]
@@ -68,8 +67,7 @@ object PersonAgent {
   case class BasePersonData(currentActivityIndex: Int = 0, currentTrip: Option[EmbodiedBeamTrip] = None, restOfCurrentTrip: List[EmbodiedBeamLeg] = List(), currentVehicle: VehicleStack = Vector(), currentTourMode: Option[BeamMode] = None, currentTourPersonalVehicle: Option[Id[Vehicle]] = None, passengerSchedule: PassengerSchedule = PassengerSchedule(), currentLegPassengerScheduleIndex: Int = 0, hasDeparted: Boolean = false) extends PersonData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData = copy(passengerSchedule = newPassengerSchedule)
     override def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
-
-    override def hasParkingBehaviors: Boolean = false
+    override def hasParkingBehaviors: Boolean = true
   }
 
   case object PerformingActivity extends BeamAgentState
@@ -111,7 +109,7 @@ object PersonAgent {
 }
 
 class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val modeChoiceCalculator: ModeChoiceCalculator, val transportNetwork: TransportNetwork, val router: ActorRef, val rideHailingManager: ActorRef, val eventsManager: EventsManager, override val id: Id[PersonAgent], val matsimPlan: Plan, val bodyId: Id[Vehicle],  val parkingManager: ActorRef) extends
-  DrivesVehicle[PersonData] with ChoosesMode with Stash {
+  DrivesVehicle[PersonData] with ChoosesMode with ChoosesParking with Stash {
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
   override def logDepth: Int = 100
@@ -286,7 +284,7 @@ class PersonAgent(val scheduler: ActorRef, val beamServices: BeamServices, val m
 
       scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)))
       goto(WaitingToDrive) using data.copy(
-        passengerSchedule = PassengerSchedule().addLegs(Vector(nextLeg.beamLeg)),
+        passengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg)),
         currentLegPassengerScheduleIndex = 0,
         currentVehicle = if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
           val vehicle = beamServices.vehicles(nextLeg.beamVehicleId)

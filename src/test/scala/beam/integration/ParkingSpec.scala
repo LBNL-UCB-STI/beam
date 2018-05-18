@@ -29,10 +29,12 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     events
   }
 
-  def runAndCollectEvents(): Queue[Event] = {
+  def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
+      .withValue("beam.agentsim.taz.parking", ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-${parkingScenario}.csv"))
+      .withValue("beam.outputs.events.overrideWritingLevels", ConfigValueFactory.fromAnyRef("beam.agentsim.events.ParkEvent:VERBOSE, beam.agentsim.events.LeavingParkingEvent:VERBOSE"))
       .resolve()
 
     val matsimConfig = runBeamWithConfig(config)._1
@@ -41,21 +43,21 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     collectEvents(filePath)
   }
 
+  val defaultEvents = runAndCollectEvents("default")
+  val emptyEvents = runAndCollectEvents("empty")
+  val expensiveEvents = runAndCollectEvents("expensive")
+
   "Parking system " must {
     "guarantee at least some parking used " in {
 
-      val events = runAndCollectEvents()
-
-      val parkingEvents = events.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
       parkingEvents.size should be > 0
     }
 
     "arrival and departure should be from same parking 4 tuple" in {
 
-      val events = runAndCollectEvents()
-
-      val parkingEvents = events.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE.equals(e.getEventType))
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()){ case (c, ev) =>
         val vehId = ev.getAttributes.get("vehicle_id")
@@ -82,6 +84,13 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       }
 
       isSameArrivalAndDeparture shouldBe true
+    }
+
+    "limited parking access should reduce driving" in {
+      val parkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+      val emptyParkingEvents = defaultEvents.filter(e => ParkEventAttrs.EVENT_TYPE.equals(e.getEventType))
+
+      parkingEvents.size should be > emptyParkingEvents.size
     }
 
   }
