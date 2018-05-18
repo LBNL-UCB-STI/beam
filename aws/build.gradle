@@ -28,27 +28,13 @@ lambda {
     region = "us-east-2"
 }
 
-def getCurrentGitBranch() {
-    def gitBranch = "$defaultBranch"
-    try {
-        def workingDir = new File("${project.projectDir}")
-        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
-        result.waitFor()
-        if (result.exitValue() == 0) {
-            gitBranch = result.text.trim()
-        }
-    } catch (e) {
-    }
-    return gitBranch
-}
-
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('runName')) {
+        if (!project.hasProperty('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
-        if(!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.configs') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+        if (!project.hasProperty('beamConfigs') && !project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.configs') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
             throw new GradleException('beamConfigs or beamExperiments is required to deploy.')
         }
     }
@@ -57,8 +43,12 @@ task deploy(type: AWSLambdaInvokeTask) {
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.configs') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
-  "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
+  "configs": "${
+        project.findProperty('beamConfigs') ?: project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.configs') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
+    }",
+  "is_experiment": "${
+        !(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch() + '.configs'))
+    }",
   "max_ram": "${maxRAM ?: '2g'}",
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
@@ -74,54 +64,81 @@ task deploy(type: AWSLambdaInvokeTask) {
     payload = pload
 
     doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
+        printResult(pload)
     }
 }
 
-task startEC2(type: AWSLambdaInvokeTask) {
+task start(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('instanceIds')) {
-            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
-        }
+        checkInstanceId()
     }
-
-    def pload = """{
-  "instance_ids": "${project.findProperty('instanceIds')}",
-  "region": "$region",
-  "command": "start"
-}"""
 
     functionName = "simulateBeam:ec2StartStop"
     invocationType = InvocationType.RequestResponse
-    payload = pload
+    payload = payload("start")
 
     doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
+        printResult(payload)
     }
 }
 
-task stopEC2(type: AWSLambdaInvokeTask) {
+task stop(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('instanceIds')) {
-            throw new GradleException('Please specify instance ids using argument `instanceIds`.')
-        }
+        checkInstanceId()
     }
-
-    def pload = """{
-  "instance_ids": "${project.findProperty('instanceIds')}",
-  "region": "$region",
-  "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
-}"""
 
     functionName = "simulateBeam:ec2StartStop"
     invocationType = InvocationType.RequestResponse
-    payload = pload
+    payload = payload("stop")
 
     doLast {
-        println pload
-        println new String(invokeResult.payload.array(), "UTF-8")
+        printResult(payload)
     }
 }
 
+task terminate(type: AWSLambdaInvokeTask) {
+    doFirst {
+        checkInstanceId()
+    }
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = payload("terminate")
+
+    doLast {
+        printResult(payload)
+    }
+}
+
+def checkInstanceId() {
+    if (!project.hasProperty('instanceIds')) {
+        throw new GradleException('Please specify instance ids using argument `instanceIds`.')
+    }
+}
+
+def payload(String command) {
+    """{
+  "instance_ids": "${project.findProperty('instanceIds')}",
+  "region": "$region",
+  "command": $command
+}"""
+}
+
+def printResult() {
+    println pload
+    println new String(invokeResult.payload.array(), "UTF-8")
+}
+
+def getCurrentGitBranch() {
+    def gitBranch = "$defaultBranch"
+    try {
+        def workingDir = new File("${project.projectDir}")
+        def result = 'git rev-parse --abbrev-ref HEAD'.execute(null, workingDir)
+        result.waitFor()
+        if (result.exitValue() == 0) {
+            gitBranch = result.text.trim()
+        }
+    } catch (e) {
+    }
+    return gitBranch
+}
