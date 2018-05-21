@@ -233,7 +233,7 @@ dependencies {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.Periodic']
+    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
@@ -313,6 +313,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "is_experiment": "${!(project.hasProperty('beamConfigs') || !project.hasProperty('beamExperiments') || project.hasProperty(getCurrentGitBranch()+'.configs'))}",
   "max_ram": "${maxRAM ?: '2g'}",
   "batch": "$beamBatch",
+  "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
   "region": "$region",
   "shutdown_wait": "$shutdownWait",
@@ -343,7 +344,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
   "command": "start"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "simulateBeam:ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
@@ -366,7 +367,7 @@ task stopEC2(type: AWSLambdaInvokeTask) {
   "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "simulateBeam:ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = pload
 

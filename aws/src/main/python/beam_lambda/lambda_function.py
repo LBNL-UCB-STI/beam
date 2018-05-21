@@ -5,13 +5,17 @@ import uuid
 import os
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM
-  -    sleep 10s
-  -    for file in test/output/*; do sudo cp /var/log/cloud-init-output.log "$file"; done;
-  -    for file in test/output/*; do sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp test/output/*.zip s3://beam-outputs/'''
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
+
+S3_PUBLISH_SCRIPT = '''
+  -    sleep 10s
+  -    opth="output/$(basename $(dirname $cf))"
+  -    for file in $opth/*; do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -    for file in $opth/*.zip; do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(basename $file)"; done;
+  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/
+  -    sudo rm -rf output/*'''
 
 BRANCH_DEFAULT = 'master'
 
@@ -51,12 +55,18 @@ runcmd:
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
   - echo $MAXRAM
+  - s3p=""
   - for cf in $CONFIG
   -  do
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT \\n Shutdown in $SHUTDOWN_WAIT minutes"
+  - s3glip=""
+  - if [ "$S3_PUBLISH" = "true" ]
+  - then
+  -   s3glip="\\n S3 output url ${s3p#","}"
+  - fi
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
@@ -111,7 +121,7 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name):
     res = ec2.run_instances(ImageId=os.environ[region_prefix + 'IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
@@ -120,7 +130,14 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour):
                             MaxCount=1,
                             SecurityGroupIds=[os.environ[region_prefix + 'SECURITY_GROUP']],
                             IamInstanceProfile={'Name': os.environ['IAM_ROLE'] },
-                            InstanceInitiatedShutdownBehavior=shutdown_behaviour)
+                            InstanceInitiatedShutdownBehavior=shutdown_behaviour,
+                            TagSpecifications=[ {
+                                'ResourceType': 'instance',
+                                'Tags': [ {
+                                    'Key': 'Name',
+                                    'Value': instance_name
+                                } ]
+                            } ])
     return res['Instances'][0]['InstanceId']
 
 def get_dns(instance_id):
@@ -161,6 +178,7 @@ def deploy_handler(event):
     configs = event.get('configs', CONFIG_DEFAULT)
     max_ram = event.get('max_ram', MAXRAM_DEFAULT)
     is_experiment = event.get('is_experiment', 'false')
+    s3_publish = event.get('s3_publish', 'true')
     instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
     batch = event.get('batch', TRUE)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
@@ -174,6 +192,9 @@ def deploy_handler(event):
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
 
     selected_script = CONFIG_SCRIPT
+    if s3_publish == TRUE:
+        selected_script += S3_PUBLISH_SCRIPT
+
     if is_experiment == TRUE:
         selected_script = EXPERIMENT_SCRIPT
 
@@ -196,8 +217,8 @@ def deploy_handler(event):
             runName = titled
             if len(configs) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram)
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$IS_EXPERIMENT', is_experiment).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish)
+            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
             runNum += 1
@@ -210,26 +231,30 @@ def instance_handler(event):
     region = event.get('region', os.environ['REGION'])
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
+    system_instances = os.environ['SYSTEM_INSTANCES']
 
     if region not in regions:
         return "Unable to {command} instance(s), {region} region not supported.".format(command=command_id, region=region)
 
     init_ec2(region)
 
+    system_instances = system_instances.split(',')
     instance_ids = instance_ids.split(',')
     invalid_ids = check_instance_id(list(instance_ids))
     valid_ids = [item for item in instance_ids if item not in invalid_ids]
+    allowed_ids = [item for item in valid_ids if item not in system_instances]
 
     if command_id == 'start':
-        start_instance(valid_ids)
+        start_instance(allowed_ids)
+        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(allowed_ids, list(map(get_dns, allowed_ids)))]))
 
     if command_id == 'stop':
-        stop_instance(valid_ids)
+        stop_instance(allowed_ids)
 
     if command_id == 'terminate':
-        terminate_instance(valid_ids)
+        terminate_instance(allowed_ids)
 
-    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(valid_ids))
+    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(allowed_ids))
 
 def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
