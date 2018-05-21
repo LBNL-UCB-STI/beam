@@ -94,6 +94,18 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+
+    case Event(Interrupt(), data) =>
+      stash()
+      stay()
+
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+      stash()
+      stay()
+
+    case Event(Resume(), _) =>
+      stash()
+      stay()
   }
 
   when(PassengerScheduleEmptyInterrupted) {
