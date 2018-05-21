@@ -350,14 +350,16 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
       if (repositionDoneOnce) {
         sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
       } else {
-
         val repositionVehicles: Vector[(Id[Vehicle], Location)] = rideHailResourceAllocationManager.repositionVehicles(tick)
 
+
+        if (repositionVehicles.size==0){
+          sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
+        }
 
         for (repositionVehicle <- repositionVehicles) {
 
           val (vehicleId, destinationLocation) = repositionVehicle
-
           if (getIdleVehicles().contains(vehicleId)) {
             val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
 
@@ -412,12 +414,11 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
                 // val timerMessage = ScheduleTrigger(timerTrigger, self)
                 // scheduler ! CompletionNotice(triggerId,Vector(timerMessage))
                 print("repositioning done")
+                repositionDoneOnce = true
               } else {
                 sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
                 print("NO repositioning done")
               }
-
-
             }
 
           }
@@ -427,7 +428,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
       }
 
 
-      repositionDoneOnce = true
+
 
 
       /*
