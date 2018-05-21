@@ -139,6 +139,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
   when(WaitingToDriveInterrupted) {
     case Event(Resume(), _) =>
       goto(WaitingToDrive)
+
+    case Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
+      stash()
+      stay
+
   }
 
   val drivingBehavior: StateFunction = {
