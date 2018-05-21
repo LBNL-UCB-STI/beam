@@ -413,11 +413,12 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
                 // val timerTrigger = RideHailAllocationManagerTimeout(tick + rideHailAllocationManagerTimeoutInSeconds)
                 // val timerMessage = ScheduleTrigger(timerTrigger, self)
                 // scheduler ! CompletionNotice(triggerId,Vector(timerMessage))
-                print("repositioning done")
-                repositionDoneOnce = true
+                //println("repositioning done: " + rideHailAgentLocation.vehicleId)
+
+                //repositionDoneOnce = true
               } else {
                 sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
-                print("NO repositioning done")
+                //println("NO repositioning done")
               }
             }
 
