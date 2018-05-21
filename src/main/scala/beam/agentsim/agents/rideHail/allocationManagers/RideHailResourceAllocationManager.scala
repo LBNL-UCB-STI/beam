@@ -1,6 +1,5 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingAgentLocation, RideHailingInquiry}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.RoutingModel.BeamTime

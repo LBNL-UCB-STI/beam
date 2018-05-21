@@ -1,13 +1,9 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.RideHailingManager.{ReserveRide, RideHailingAgentLocation, RideHailingInquiry}
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.agents.rideHail.RideHailingManager
 import beam.router.BeamRouter.Location
-import beam.router.RoutingModel.BeamTime
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.geometry.CoordUtils
+import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import scala.util.control.Breaks._
 
 class RideHailAllocationManagerBufferedImplTemplate(val rideHailingManager: RideHailingManager) extends RideHailResourceAllocationManager {
 

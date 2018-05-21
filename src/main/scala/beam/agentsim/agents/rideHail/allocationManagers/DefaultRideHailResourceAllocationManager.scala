@@ -1,7 +1,6 @@
-package beam.agentsim.agents.rideHail
+package beam.agentsim.agents.rideHail.allocationManagers
 
-import beam.agentsim.agents.rideHail.RideHailingManager.{RideHailingAgentLocation, RideHailingInquiry}
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.agents.rideHail.allocationManagers.VehicleAllocationRequest
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
