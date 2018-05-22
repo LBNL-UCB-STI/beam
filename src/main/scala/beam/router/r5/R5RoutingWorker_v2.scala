@@ -179,17 +179,21 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
     case batchRequests: BatchRoutingRequests =>
       val wholeStart =  System.currentTimeMillis()
-      val responses = batchRequests.requests.map { request =>
-        val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
-        val start = System.currentTimeMillis()
-        val res = calcRoute(withReceivedAt)
-        val stop = System.currentTimeMillis()
+      val futureResponse =  Future {
+        val responses = batchRequests.requests.map { request =>
+          val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
+          val start = System.currentTimeMillis()
+          val res = calcRoute(withReceivedAt)
+          val stop = System.currentTimeMillis()
 
-        res.copy(routeCalcTimeMs = stop - start)
-      }
-      val wholeTimeMs = System.currentTimeMillis() - wholeStart
-      log.info("Processed {} RoutingRequests in {} ms", batchRequests.requests.size, wholeTimeMs)
-      sender() ! BatchRoutingResponses(responses = responses, routesCalcTimeMs = wholeTimeMs)
+          res.copy(routeCalcTimeMs = stop - start)
+        }
+        val wholeTimeMs = System.currentTimeMillis() - wholeStart
+        log.info("Processed {} RoutingRequests in {} ms", batchRequests.requests.size, wholeTimeMs)
+        BatchRoutingResponses(responses = responses, routesCalcTimeMs = wholeTimeMs)
+      }(executionContext)
+
+      futureResponse.pipeTo(sender)
 
     case request: RoutingRequest =>
       Kamon.counter("receiving-routing-requests")
