@@ -30,7 +30,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
    */
 
   override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): Option[VehicleAllocation] = {
-    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
+    val rideHailingAgentLocation = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
 
     rideHailingAgentLocation match {
       case Some((rideHailingAgentLocation, distance)) => Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
@@ -50,7 +50,7 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
       var vehicleAllocation: Option[VehicleAllocation] = None
 
       breakable {
-        for ((rideHailingAgentLocation, distance) <- rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)) {
+        for ((rideHailingAgentLocation, distance) <- rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)) {
           if (!alreadyUsedVehicles.contains(rideHailingAgentLocation.vehicleId)) {
             alreadyUsedVehicles.add(rideHailingAgentLocation.vehicleId)
             vehicleAllocation = Some(VehicleAllocation(rideHailingAgentLocation.vehicleId, rideHailingAgentLocation.currentLocation))
@@ -93,9 +93,9 @@ class StanfordRideHailAllocationManagerV1(val rideHailingManager: RideHailingMan
     val links = rideHailingManager.getLinks()
     rideHailingManager.getTravelTimeEstimate(vehicleAllocationRequest.departAt.atTime, linkId)
     rideHailingManager.getFreeFlowTravelTime(linkId)
-    val (rideHailAgentLocation, distance) = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius).get
+    val (rideHailAgentLocation, distance) = rideHailingManager.getClosestIdleRideHailingAgent(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters).get
     rideHailingManager.getVehicleFuelLevel(rideHailAgentLocation.vehicleId)
-    rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, rideHailingManager.radius)
+    rideHailingManager.getClosestIdleVehiclesWithinRadius(vehicleAllocationRequest.pickUpLocation, RideHailingManager.radiusInMeters)
     rideHailingManager.getIdleVehicles()
     val fromLinkIds = rideHailingManager.getFromLinkIds(linkId)
     val toLinkIds = rideHailingManager.getToLinkIds(linkId)
