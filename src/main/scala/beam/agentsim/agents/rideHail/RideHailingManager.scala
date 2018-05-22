@@ -104,6 +104,9 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     }
   }
 
+  var passengerScheduleOverrideRequests = collection.mutable.Map[Id[Vehicle], PassengerSchedule]()
+
+
   var repositionDoneOnce: Boolean = false
 
   var maybeTravelTime: Option[TravelTime] = None
@@ -401,18 +404,16 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
                 val modRHA2Cust: Vector[RoutingModel.EmbodiedBeamTrip] = itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true))))
                 val rideHailingAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust)
 
-                val passengerSchedule = PassengerSchedule()
-                  .addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
+                val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
 
+                passengerScheduleOverrideRequests.put(vehicleId,passengerSchedule)
                 rideHailAgent ! Interrupt()
 
-                rideHailAgent !  StopDriving()
 
-                rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+                //rideHailAgent !  StopDriving()
 
 
-                rideHailAgent ! Resume()
 
 
                 // val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
@@ -494,10 +495,32 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     }
 
 
-    case InterruptedWhileIdle() =>
+    case InterruptedWhileIdle(vehicleId) =>
+      println("A")
+      val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
+      println("B")
+      val rideHailAgent = rideHailAgentLocation.rideHailAgent
+      val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
+      println("C")
+
+      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+      rideHailAgent ! Resume()
+
+
+
     // Response to Interrupt() from RideHailingAgent. We don't care about it for now.
 
-    case InterruptedAt(_,_) =>
+    case InterruptedAt(_,_,vehicleId) =>
+      println("D")
+      val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
+      val rideHailAgent = rideHailAgentLocation.rideHailAgent
+      println("E")
+      rideHailAgent ! StopDriving()
+      val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
+      println("F")
+      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+      rideHailAgent ! Resume()
+
     // Response to Interrupt() from DrivesVehicle. We don't care about it for now.
 
     case Finish =>
