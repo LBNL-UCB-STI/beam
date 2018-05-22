@@ -99,6 +99,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     public void setupActorsAndRunPhysSim(int iterationNumber) {
+        log.info("JDEQSim Start");
+        startSegment("jdeqsim-execution", "jdeqsim");
         MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
         jdeqSimScenario.setNetwork(agentSimScenario.getNetwork());
         jdeqSimScenario.setPopulation(jdeqsimPopulation);
@@ -125,8 +127,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
-        log.info("JDEQSim Start");
-        startSegment("jdeqsim-execution", "jdeqsim");
+
 //        Segment jdeqSegment = Tracer.currentContext().startSegment("jdeqsim-execution", "jdeqsim", "kamon");
         if(beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
@@ -137,9 +138,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if(beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
         }
-        endSegment("jdeqsim-execution", "jdeqsim");
+
 //        jdeqSegment.finish();
-        log.info("JDEQSim End");
+
         linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
 
         if (writePhysSimEvents(iterationNumber)) {
@@ -147,6 +148,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         router.tell(new BeamRouter.UpdateTravelTime(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
+        endSegment("jdeqsim-execution", "jdeqsim");
+        log.info("JDEQSim End");
     }
 
     private boolean writePhysSimEvents(int iterationNumber) {
