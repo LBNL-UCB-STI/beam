@@ -95,6 +95,10 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     case RideHailResourceAllocationManager.BUFFERED_IMPL_TEMPLATE => {
       new RideHailAllocationManagerBufferedImplTemplate(this)
     }
+    case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES => {
+      new RepositioningWithLowWaitingTimes(this)
+    }
+
     case _ => {
       new DefaultRideHailResourceAllocationManager()
     }
@@ -361,8 +365,14 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
         for (repositionVehicle <- repositionVehicles) {
 
           val (vehicleId, destinationLocation) = repositionVehicle
+
+
+
           if (getIdleVehicles().contains(vehicleId)) {
             val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
+
+
+            println("RHM: tick(" + tick   + ")" + vehicleId + " - " +  rideHailAgentLocation.currentLocation.loc + " -> " + destinationLocation)
 
             val rideHailAgent = rideHailAgentLocation.rideHailAgent
 
@@ -397,7 +407,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
 
                 rideHailAgent ! Interrupt()
 
-                //rideHailAgent !  StopDriving()
+                rideHailAgent !  StopDriving()
 
                 rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
 
@@ -486,6 +496,9 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
 
     case InterruptedWhileIdle() =>
     // Response to Interrupt() from RideHailingAgent. We don't care about it for now.
+
+    case InterruptedAt(_,_) =>
+    // Response to Interrupt() from DrivesVehicle. We don't care about it for now.
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
