@@ -19,7 +19,14 @@ def allocateVehicles(allocationsDuringReservation: Vector[(VehicleAllocationRequ
   }
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    Vector()
+    if (rideHailingManager.getIdleVehicles().size >= 2) {
+      val iter = rideHailingManager.getIdleVehicles().iterator
+      val (vehicleIdA, vehicleLocationA) = iter.next()
+      val (vehicleIdB, vehicleLocationB) = iter.next()
+      Vector((vehicleIdA, vehicleLocationB.currentLocation.loc))
+    } else {
+      Vector()
+    }
   }
 }
 
