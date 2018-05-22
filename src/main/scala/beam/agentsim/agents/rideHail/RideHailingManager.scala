@@ -105,7 +105,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     }
   }
 
-  var passengerScheduleOverrideRequests = collection.mutable.Map[Id[Vehicle], PassengerSchedule]()
+  var repositioningPassengerSchedule = collection.mutable.Map[Id[Vehicle], PassengerSchedule]()
 
 
   var repositionDoneOnce: Boolean = false
@@ -183,6 +183,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, availableIn.get)
         makeAvailable(rideHailingAgentLocation)
         sender ! CheckInSuccess
+        repositioningPassengerSchedule.remove(vehicleId)
       })
 
 
@@ -315,7 +316,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
       }
 
 
-    case modifyPassengerScheduleAck@ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule) =>
+    case modifyPassengerScheduleAck@ModifyPassengerScheduleAck(inquiryIDOption, triggersToSchedule, vehicleId) =>
       // modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
 
 
@@ -328,6 +329,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
 
         //nextCompleteNoticeRideHailAllocationTimeout=CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, nextCompleteNoticeRideHailAllocationTimeout.newTriggers++triggersToSchedule )
         //scheduler ! nextCompleteNoticeRideHailAllocationTimeout
+
 
         scheduler ! CompletionNotice(nextCompleteNoticeRideHailAllocationTimeout.id, triggersToSchedule++nextCompleteNoticeRideHailAllocationTimeout.newTriggers )
 
@@ -408,7 +410,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
                 val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
 
-                passengerScheduleOverrideRequests.put(vehicleId,passengerSchedule)
+                repositioningPassengerSchedule.put(vehicleId,passengerSchedule)
                 rideHailAgent ! Interrupt(tick)
 
 
@@ -500,7 +502,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
       getIdleVehicles().get(vehicleId) match {
         case Some(rideHailAgentLocation)=>
           val rideHailAgent = rideHailAgentLocation.rideHailAgent
-          val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
+          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get
           rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
           rideHailAgent ! Resume()
         case None =>
@@ -510,7 +512,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
       getIdleVehicles().get(vehicleId) match {
         case Some(rideHailAgentLocation)=>
           val rideHailAgent = rideHailAgentLocation.rideHailAgent
-          val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
+          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get
           rideHailAgent ! StopDriving()
           rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
           rideHailAgent ! Resume()
@@ -519,7 +521,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
           //println(beamServices.geo.wgs2Utm(vehicleCoord))
           //DebugLib.emptyFunctionForSettingBreakPoint()
 
-          updateVehicleLocation(vehicleId,passengerSchedule.schedule.toVector(currentPassengerScheduleIndex)._1,tick)
+          updateIdleVehicleLocation(vehicleId,passengerSchedule.schedule.toVector(currentPassengerScheduleIndex)._1,tick)
 
         case None =>
       }
@@ -532,7 +534,23 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
 
   }
 
-  private def updateVehicleLocation(vehicleId:Id[Vehicle],beamLeg:BeamLeg,tick:Double): Unit ={
+
+  private def isVehicleRepositioning(vehicleId:Id[Vehicle]):Boolean={
+    repositioningPassengerSchedule.contains(vehicleId)
+  }
+
+// contains both idling and repositioning vehicles
+  private def getNotInUseVehicleLocation(vehicleId:Id[Vehicle],tick:Double): RideHailingAgentLocation ={
+    if (isVehicleRepositioning(vehicleId)){
+      updateIdleVehicleLocation(vehicleId, repositioningPassengerSchedule.get(vehicleId).get.schedule.head._1,tick)
+    }
+
+    getIdleVehicles().get(vehicleId).get
+  }
+
+
+
+  private def updateIdleVehicleLocation(vehicleId:Id[Vehicle],beamLeg:BeamLeg,tick:Double): Unit ={
     val vehicleCoord=getVehicleCoordinate(beamLeg,tick)
 
     val rideHailingAgentLocation=getIdleVehicles().get(vehicleId).get
