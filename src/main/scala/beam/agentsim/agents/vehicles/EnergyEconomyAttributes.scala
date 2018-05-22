@@ -77,6 +77,10 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
       val path = trajectory.computePath(time)
       joulesPerMeter * path
     }
+
+    def estimateConsumptionInJoules(distanceInMeters: Double): Double = {
+      joulesPerMeter * distanceInMeters
+    }
   }
 
   // TODO: don't hardcode... Couldn't these be put into the Enum for [[BeamVehicleType]]?

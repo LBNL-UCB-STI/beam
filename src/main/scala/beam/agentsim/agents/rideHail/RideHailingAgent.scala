@@ -19,6 +19,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.vehicles.Vehicle
 
 object RideHailingAgent {
   val idPrefix: String = "rideHailingAgent"
@@ -49,8 +50,8 @@ object RideHailingAgent {
   case class Interrupt()
   case class Resume()
 
-  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int)
-  case class InterruptedWhileIdle()
+  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int,vehicleId:Id[Vehicle])
+  case class InterruptedWhileIdle(vehicleId:Id[Vehicle])
 
 }
 
@@ -75,7 +76,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
   when(Idle) {
     case Event(Interrupt(), data) =>
-      goto(IdleInterrupted) replying InterruptedWhileIdle()
+      goto(IdleInterrupted) replying InterruptedWhileIdle(vehicle.id)
   }
 
   when(IdleInterrupted) {
@@ -94,12 +95,23 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+    case Event(Interrupt(), data) =>
+      stash()
+      stay()
   }
 
   when(PassengerScheduleEmptyInterrupted) {
     case Event(PassengerScheduleEmptyMessage(lastVisited), data) =>
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       goto(IdleInterrupted) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
+    case Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+      stash()
+      stay()
+    case Event(Resume(), _) =>
+      stash()
+      stay()
+
+
   }
 
   val myUnhandled: StateFunction =  {
