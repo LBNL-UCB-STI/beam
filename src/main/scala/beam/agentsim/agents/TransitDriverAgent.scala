@@ -38,7 +38,7 @@ object TransitDriverAgent {
   }
 
   def selectByVehicleId(transitVehicle: Id[Vehicle])(implicit context: ActorContext) = {
-    context.actorSelection("/user/router/" + createAgentIdFromVehicleId(transitVehicle))
+    context.actorSelection("/user/BeamMobsim.iteration/" + createAgentIdFromVehicleId(transitVehicle))
   }
 }
 
