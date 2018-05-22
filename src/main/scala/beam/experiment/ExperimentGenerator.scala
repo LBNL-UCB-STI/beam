@@ -26,7 +26,7 @@ object ExperimentGenerator extends App {
 
   val ExperimentsParamName = "experiments"
 
-  private def validateExperimentConfig(experiment: ExperimentDef) = {
+  def validateExperimentConfig(experiment: ExperimentDef) = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}")
     }
@@ -72,9 +72,9 @@ object ExperimentGenerator extends App {
     throw new IllegalArgumentException(s"$ExperimentsParamName file is missing: $experimentFile")
   }
 
-  val experiment = loadExperimentDefs(experimentFile.toFile)
+  val experiment: ExperimentDef = loadExperimentDefs(experimentFile.toFile)
 
-  private def loadExperimentDefs(file: File) = {
+  def loadExperimentDefs(file: File) = {
     import org.yaml.snakeyaml.{TypeDescription, Yaml}
     val constructor = new Constructor(classOf[ExperimentDef])
     //Experiment.class is root
