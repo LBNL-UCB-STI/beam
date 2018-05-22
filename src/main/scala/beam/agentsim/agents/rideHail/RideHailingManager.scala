@@ -148,14 +148,11 @@ class RideHailingManager(val  beamServices: BeamServices, val scheduler: ActorRe
           val rnd1SentTime = System.currentTimeMillis()
           RoutingRequestSenderCounter.sent()
 
-          log.info(s"TriggerWithId. Sent first random RoutingRequest") // get route from customer to destination
           val futureRnd2AgentResponse  = router ? RoutingRequest(
             rnd2.currentLocation.loc, rnd1.currentLocation.loc, departureTime, Vector(), Vector(),
             createdAt = ZonedDateTime.now(ZoneOffset.UTC)) //TODO what should go in vectors
           val rnd2SentTime = System.currentTimeMillis()
           RoutingRequestSenderCounter.sent()
-
-          log.info(s"TriggerWithId. Sent second random RoutingRequest")
 
           for{
             rnd1Response <- futureRnd1AgentResponse.mapTo[RoutingResponse]
