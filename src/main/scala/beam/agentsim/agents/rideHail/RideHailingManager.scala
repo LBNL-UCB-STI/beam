@@ -20,6 +20,7 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustom
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
+import scala.util.control.Breaks._
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
@@ -27,7 +28,7 @@ import beam.analysis.plots.{GraphRideHailingRevenue, GraphSurgePricing}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
-import beam.router.RoutingModel.{BeamTime, BeamTrip, DiscreteTime}
+import beam.router.RoutingModel.{BeamLeg, BeamTime, BeamTrip, DiscreteTime}
 import beam.sim.{BeamServices, HasServices}
 import beam.utils.DebugLib
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
@@ -513,6 +514,13 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
           rideHailAgent ! StopDriving()
           rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
           rideHailAgent ! Resume()
+
+
+          //println(beamServices.geo.wgs2Utm(vehicleCoord))
+          //DebugLib.emptyFunctionForSettingBreakPoint()
+
+          updateVehicleLocation(vehicleId,passengerSchedule.schedule.toVector(currentPassengerScheduleIndex)._1,tick)
+
         case None =>
       }
 
@@ -522,6 +530,14 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     case msg =>
       log.warning(s"unknown message received by RideHailingManager $msg")
 
+  }
+
+  private def updateVehicleLocation(vehicleId:Id[Vehicle],beamLeg:BeamLeg,tick:Double): Unit ={
+    val vehicleCoord=getVehicleCoordinate(beamLeg,tick)
+
+    val rideHailingAgentLocation=getIdleVehicles().get(vehicleId).get
+
+    getIdleVehicles().put(vehicleId,rideHailingAgentLocation.copy(currentLocation = SpaceTime(vehicleCoord,tick.toLong)))
   }
 
 
@@ -642,6 +658,46 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     }
 
     linkIdVector
+  }
+
+  private def getVehicleCoordinate(beamLeg:BeamLeg, stopTime:Double): Coord ={
+
+
+
+
+    // TODO: implement following solution following along links
+    /*
+    var currentTime=beamLeg.startTime
+     var resultCoord=beamLeg.travelPath.endPoint.loc
+    if (stopTime<beamLeg.endTime) {
+      for (linkId <- beamLeg.travelPath.linkIds) {
+        val linkEndTime=currentTime + getTravelTimeEstimate(currentTime, linkId)
+        breakable {
+          if (stopTime < linkEndTime) {
+              resultCoord=getLinkCoord(linkId)
+            break
+          }
+        }
+      }
+    }
+    */
+
+    val pctTravelled=(stopTime-beamLeg.startTime)/(beamLeg.endTime-beamLeg.startTime)
+    val directionCoordVector=getDirectionCoordVector(beamLeg.travelPath.startPoint.loc,beamLeg.travelPath.endPoint.loc)
+    getCoord(beamLeg.travelPath.startPoint.loc,scaleDirectionVector(directionCoordVector,pctTravelled))
+  }
+
+  // TODO: move to some utility class,   e.g. geo
+  private def getDirectionCoordVector(startCoord:Coord, endCoord:Coord): Coord ={
+    new Coord(endCoord.getX()-startCoord.getX(),endCoord.getY()-startCoord.getY())
+  }
+
+  private def getCoord(startCoord:Coord,directionCoordVector:Coord): Coord ={
+    new Coord(startCoord.getX()+directionCoordVector.getX(),startCoord.getY()+directionCoordVector.getY())
+  }
+
+  private def scaleDirectionVector(directionCoordVector:Coord, scalingFactor:Double):Coord={
+    new Coord(directionCoordVector.getX()*scalingFactor,directionCoordVector.getY()*scalingFactor)
   }
 
   private def getMATSimLink(linkId: Int): Link = {
