@@ -146,7 +146,6 @@ class BeamAgentScheduler(val beamConfig: BeamConfig,  stopTick: Double, val maxW
       if (started) doSimStep(nowInSeconds)
 
     case Terminated(actor) =>
-      log.info("{} is terminated", actor)
       awaitingResponse.values().stream()
         .filter(trigger => trigger.agent == actor)
         .forEach(trigger => {
