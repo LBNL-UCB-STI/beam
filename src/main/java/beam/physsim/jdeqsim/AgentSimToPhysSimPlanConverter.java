@@ -11,6 +11,8 @@ import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
+import kamon.trace.Segment;
+import kamon.trace.Tracer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.ActivityEndEvent;
@@ -128,7 +130,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
-
+        log.info("JDEQSim Start");
+        startSegment("jdeqsim-execution", "jdeqsim");
+//        Segment jdeqSegment = Tracer.currentContext().startSegment("jdeqsim-execution", "jdeqsim", "kamon");
         if(beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
         }
@@ -138,7 +142,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if(beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
         }
-
+        endSegment("jdeqsim-execution", "jdeqsim");
+//        jdeqSegment.finish();
+        log.info("JDEQSim End");
         linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
 
         if (writePhysSimEvents(iterationNumber)) {

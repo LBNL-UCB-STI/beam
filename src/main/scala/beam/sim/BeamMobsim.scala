@@ -16,11 +16,15 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
+import beam.sim.metrics.Metrics.MetricLevel
+import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.utils.{DebugLib, MemoryLoggingTimerActor, Tick}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import kamon.Kamon
+import kamon.trace.{Segment, Tracer}
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -40,7 +44,7 @@ import scala.concurrent.duration.FiniteDuration
   *
   * Created by sfeygin on 2/8/17.
   */
-class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim with LazyLogging {
+class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork: TransportNetwork, val scenario: Scenario, val eventsManager: EventsManager, val actorSystem: ActorSystem, val rideHailSurgePricingManager:RideHailSurgePricingManager) extends Mobsim with LazyLogging with MetricsSupport {
   private implicit val timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var rideHailingAgents: Seq[ActorRef] = Nil
@@ -52,6 +56,15 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
   new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
 
   override def run() = {
+    logger.info("Starting Iteration")
+    startMeasuringIteration(beamServices.iterationNumber)
+//    val iterationTrace = Kamon.tracer.newContext("iteration", Some("iteration"+beamServices.iterationNumber), Map("it-num"->(""+beamServices.iterationNumber)))
+//    Tracer.setCurrentContext(iterationTrace)
+    logger.info("Preparing new Iteration (Start)")
+    startSegment("iteration-preparation", "mobsim")
+//    val iterationPreparation = iterationTrace.startSegment("iteration-preparation", "mobsim", "kamon")
+//    var agentsimExecution: Segment = null
+//    var agentsimEvents: Segment = null
     if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
     beamServices.startNewIteration
     eventsManager.initProcessing()
@@ -133,7 +146,13 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       override def receive = {
 
         case CompletionNotice(_, _) =>
-          log.debug("Scheduler is finished.")
+          log.info("Scheduler is finished.")
+          endSegment("agentsim-execution", "agentsim")
+//          agentsimExecution.finish()
+          log.info("Ending Agentsim")
+          log.info("Processing Agentsim Events (Start)")
+          startSegment("agentsim-events", "agentsim")
+//          agentsimEvents = iterationTrace.startSegment("agentsim-events", "agentsim", "kamon")
           cleanupRideHailingAgents()
           cleanupVehicle()
           population ! Finish
@@ -146,7 +165,6 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
             memoryLoggingTimerCancellable.cancel()
             context.stop(memoryLoggingTimerActorRef)
           }
-
         case Terminated(_) =>
           if (context.children.isEmpty) {
             context.stop(self)
@@ -158,6 +176,12 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
         case "Run!" =>
           runSender = sender
           log.info("Running BEAM Mobsim")
+          endSegment("iteration-preparation", "mobsim")
+//          iterationPreparation.finish
+          log.info("Preparing new Iteration (End)")
+          log.info("Starting Agentsim")
+          startSegment("agentsim-execution", "agentsim")
+//          agentsimExecution = iterationTrace.startSegment("agentsim-execution", "agentsim", "kamon")
           scheduler ! StartSchedule(beamServices.iterationNumber)
       }
 
@@ -183,9 +207,13 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
 
     }),"BeamMobsim.iteration")
     Await.result(iteration ? "Run!", timeout.duration)
+
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
     logger.info("Events drained.")
+    endSegment("agentsim-events", "agentsim")
+//    agentsimEvents.finish()
+    logger.info("Processing Agentsim Events (End)")
   }
 }
 

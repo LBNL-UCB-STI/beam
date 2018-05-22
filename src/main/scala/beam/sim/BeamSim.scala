@@ -15,11 +15,13 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.sim.metrics.MetricsSupport
 import beam.utils.DebugLib
 import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import kamon.trace.Tracer
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}
@@ -35,7 +37,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val beamServices: BeamServices,
                         private val eventsManager: EventsManager,
                         private val scenario: Scenario,
-                       ) extends StartupListener with IterationEndsListener with ShutdownListener with LazyLogging {
+                       ) extends StartupListener with IterationEndsListener with ShutdownListener with LazyLogging with MetricsSupport {
 
   private var agentSimToPhysSimPlanConverter: AgentSimToPhysSimPlanConverter = _
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -95,6 +97,9 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
     tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
     if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+    stopMeasuringIteration()
+//    Tracer.currentContext.finish()
+    logger.info("Ending Iteration")
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {

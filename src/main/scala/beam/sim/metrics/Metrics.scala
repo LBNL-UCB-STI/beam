@@ -1,9 +1,14 @@
 package beam.sim.metrics
 
 import akka.util.Helpers.toRootLowerCase
+import kamon.trace.Segment
+
+import scala.collection.mutable
 
 object Metrics {
   var level: String = "off"
+
+  val currentSegments: mutable.Map[String, Segment] = mutable.Map()
 
   private def metricLevel: MetricLevel = levelForOrOff(level)
 
