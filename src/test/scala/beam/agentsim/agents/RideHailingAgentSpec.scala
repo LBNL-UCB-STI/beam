@@ -96,7 +96,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
         ))
       personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
       rideHailingAgent ! Interrupt()
-      expectMsg(InterruptedWhileIdle())
+      expectMsg(InterruptedWhileIdle(_))
       rideHailingAgent ! ModifyPassengerSchedule(passengerSchedule)
       rideHailingAgent ! Resume()
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
