@@ -21,7 +21,6 @@ import beam.utils.scripts.PopulationWriterCSV
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import kamon.trace.Tracer
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent, StartupEvent}

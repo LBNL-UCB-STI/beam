@@ -7,12 +7,9 @@ import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
-import kamon.trace.Segment;
-import kamon.trace.Tracer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.ActivityEndEvent;
@@ -37,14 +34,12 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.runtime.AbstractFunction0;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-import java.util.function.Function;
 
 
 /**
