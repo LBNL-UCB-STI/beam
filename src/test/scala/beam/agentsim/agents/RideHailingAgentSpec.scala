@@ -95,8 +95,8 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
           BeamLeg(38800, BeamMode.CAR, 10000, BeamPath(Vector(), None, SpaceTime(0.0, 0.0, 38800), SpaceTime(0.0, 0.0, 48800), 10000))
         ))
       personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
-      rideHailingAgent ! Interrupt()
-      expectMsg(InterruptedWhileIdle(_))
+      rideHailingAgent ! Interrupt(30000)
+      expectMsg(InterruptedWhileIdle(_,_))
       rideHailingAgent ! ModifyPassengerSchedule(passengerSchedule)
       rideHailingAgent ! Resume()
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
@@ -124,7 +124,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailingAgent ! Interrupt()
+      rideHailingAgent ! Interrupt(30000)
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailingAgent.stateName == DrivingInterrupted)
@@ -176,7 +176,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailingAgent ! Interrupt()
+      rideHailingAgent ! Interrupt(30000)
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailingAgent.stateName == DrivingInterrupted)
@@ -223,7 +223,7 @@ class RideHailingAgentSpec extends TestKit(ActorSystem("testsystem", ConfigFacto
       expectMsgType[VehicleEntersTrafficEvent]
 
       trigger = expectMsgType[TriggerWithId] // 40000
-      rideHailingAgent ! Interrupt()
+      rideHailingAgent ! Interrupt(30000)
       val interruptedAt = expectMsgType[InterruptedAt]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailingAgent.stateName == DrivingInterrupted)
