@@ -1,14 +1,11 @@
 # coding=utf-8
 import boto3
 import time
-import uuidh
 import os
 from botocore.errorfactory import ClientError
 
-shutdown_beaviours = ['stop', 'terminate']
-instance_operations = ['start', 'stop', 'terminate']
+instance_operations = ['start', 'stop']
 
-s3 = boto3.client('s3')
 ec2 = None
 
 def init_ec2(region):
@@ -40,31 +37,28 @@ def start_instance(instance_ids):
 def stop_instance(instance_ids):
     return ec2.stop_instances(InstanceIds=instance_ids)
 
-def terminate_instance(instance_ids):
-    return ec2.terminate_instances(InstanceIds=instance_ids)
-
 def instance_handler(event):
     region = event.get('region', os.environ['REGION'])
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
+    system_instances = os.environ['SYSTEM_INSTANCES']
 
     init_ec2(region)
 
+    system_instances = system_instances.split(',')
     instance_ids = instance_ids.split(',')
     invalid_ids = check_instance_id(list(instance_ids))
     valid_ids = [item for item in instance_ids if item not in invalid_ids]
+    allowed_ids = [item for item in valid_ids if item not in system_instances]
 
     if command_id == 'start':
-        start_instance(valid_ids)
-        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(valid_ids, list(map(get_dns, valid_ids)))]))
+        start_instance(allowed_ids)
+        return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(allowed_ids, list(map(get_dns, allowed_ids)))]))
 
     if command_id == 'stop':
-        stop_instance(valid_ids)
+        stop_instance(allowed_ids)
 
-    if command_id == 'terminate':
-        terminate_instance(valid_ids)
-
-    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(valid_ids))
+    return "Instantiated {command} request for instance(s) [ {ids} ]".format(command=command_id, ids=",".join(allowed_ids))
 
 def lambda_handler(event, context):
     command_id = event.get('command', 'stop') # start | stop | terminate | log
