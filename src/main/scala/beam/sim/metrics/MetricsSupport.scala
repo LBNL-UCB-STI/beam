@@ -38,7 +38,7 @@ trait MetricsSupport {
   def stopMeasuring() = if(Tracer.currentContext != null && !Tracer.currentContext.isClosed) Tracer.currentContext.finish()
 
 
-  def startSegment(name: String, categry: String) = if(Tracer.currentContext != null && !Tracer.currentContext.isClosed && currentSegments.contains(name+":"+categry))
+  def startSegment(name: String, categry: String) = if(Tracer.currentContext != null && !Tracer.currentContext.isClosed && !currentSegments.contains(name+":"+categry))
     currentSegments += (name+":"+categry -> Tracer.currentContext.startSegment(name, categry, "kamon"))
 
   def endSegment(name: String, categry: String) = currentSegments.remove(name+":"+categry) match {
