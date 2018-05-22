@@ -89,9 +89,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       stay
 
-    case Event(Interrupt(), data) =>
+    case Event(Interrupt(tick), data) =>
       val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
-      goto(DrivingInterrupted) replying InterruptedAt(data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id)
+      goto(DrivingInterrupted) replying InterruptedAt(data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id,tick)
 
   }
 

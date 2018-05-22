@@ -375,7 +375,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
             val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
 
 
-            println("RHM: tick(" + tick   + ")" + vehicleId + " - " +  rideHailAgentLocation.currentLocation.loc + " -> " + destinationLocation)
+            //println("RHM: tick(" + tick   + ")" + vehicleId + " - " +  rideHailAgentLocation.currentLocation.loc + " -> " + destinationLocation)
 
             val rideHailAgent = rideHailAgentLocation.rideHailAgent
 
@@ -408,7 +408,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
 
 
                 passengerScheduleOverrideRequests.put(vehicleId,passengerSchedule)
-                rideHailAgent ! Interrupt()
+                rideHailAgent ! Interrupt(tick)
 
 
                 //rideHailAgent !  StopDriving()
@@ -495,33 +495,26 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     }
 
 
-    case InterruptedWhileIdle(vehicleId) =>
-      println("A")
-      val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
-      println("B")
-      val rideHailAgent = rideHailAgentLocation.rideHailAgent
-      val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
-      println("C")
+    case InterruptedWhileIdle(vehicleId,tick) =>
+      getIdleVehicles().get(vehicleId) match {
+        case Some(rideHailAgentLocation)=>
+          val rideHailAgent = rideHailAgentLocation.rideHailAgent
+          val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
+          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+          rideHailAgent ! Resume()
+        case None =>
+      }
 
-      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
-      rideHailAgent ! Resume()
-
-
-
-    // Response to Interrupt() from RideHailingAgent. We don't care about it for now.
-
-    case InterruptedAt(_,_,vehicleId) =>
-      println("D")
-      val rideHailAgentLocation = getIdleVehicles().get(vehicleId).get
-      val rideHailAgent = rideHailAgentLocation.rideHailAgent
-      println("E")
-      rideHailAgent ! StopDriving()
-      val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
-      println("F")
-      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
-      rideHailAgent ! Resume()
-
-    // Response to Interrupt() from DrivesVehicle. We don't care about it for now.
+    case InterruptedAt(passengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
+      getIdleVehicles().get(vehicleId) match {
+        case Some(rideHailAgentLocation)=>
+          val rideHailAgent = rideHailAgentLocation.rideHailAgent
+          val passengerSchedule=passengerScheduleOverrideRequests.remove(vehicleId).get
+          rideHailAgent ! StopDriving()
+          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+          rideHailAgent ! Resume()
+        case None =>
+      }
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
@@ -711,7 +704,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,
       classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs
       .last, vehiclePersonId, Vector()))))
-    closestRideHailingAgentLocation.rideHailAgent ! Interrupt()
+    closestRideHailingAgentLocation.rideHailAgent ! Interrupt(passengerSchedule.schedule.head._1.startTime)
     // RideHailingAgent sends reply which we are ignoring here,
     // but that's okay, we don't _need_ to wait for the reply if the answer doesn't interest us.
     closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))

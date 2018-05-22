@@ -47,11 +47,11 @@ object RideHailingAgent {
 
   case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger])
 
-  case class Interrupt()
+  case class Interrupt(tick: Double)
   case class Resume()
 
-  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int,vehicleId:Id[Vehicle])
-  case class InterruptedWhileIdle(vehicleId:Id[Vehicle])
+  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int,vehicleId:Id[Vehicle], tick: Double)
+  case class InterruptedWhileIdle(vehicleId:Id[Vehicle],tick: Double)
 
 }
 
@@ -75,8 +75,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   }
 
   when(Idle) {
-    case Event(Interrupt(), data) =>
-      goto(IdleInterrupted) replying InterruptedWhileIdle(vehicle.id)
+    case Event(Interrupt(tick), data) =>
+      goto(IdleInterrupted) replying InterruptedWhileIdle(vehicle.id,tick)
   }
 
   when(IdleInterrupted) {
@@ -95,7 +95,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
-    case Event(Interrupt(), data) =>
+    case Event(Interrupt(_), data) =>
       stash()
       stay()
   }
