@@ -106,6 +106,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
   }
 
   var repositioningPassengerSchedule = collection.mutable.Map[Id[Vehicle], PassengerSchedule]()
+  var repositioningVehicles = collection.mutable.Set[Id[Vehicle]]()
 
 
   var repositionDoneOnce: Boolean = false
@@ -183,7 +184,12 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
         val rideHailingAgentLocation = RideHailingAgentLocation(driver, vehicleId, availableIn.get)
         makeAvailable(rideHailingAgentLocation)
         sender ! CheckInSuccess
-        repositioningPassengerSchedule.remove(vehicleId)
+        //println("CheckInResource:" + vehicleId)
+
+
+        repositioningVehicles.remove(vehicleId)
+
+
       })
 
 
@@ -409,7 +415,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
 
                 val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
-
+                //println("interrupt:" + vehicleId)
                 repositioningPassengerSchedule.put(vehicleId,passengerSchedule)
                 rideHailAgent ! Interrupt(tick)
 
@@ -502,9 +508,11 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
       getIdleVehicles().get(vehicleId) match {
         case Some(rideHailAgentLocation)=>
           val rideHailAgent = rideHailAgentLocation.rideHailAgent
+          //println("InterruptedWhileIdle:" + vehicleId)
           val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get
           rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
           rideHailAgent ! Resume()
+          repositioningVehicles.add(vehicleId)
         case None =>
       }
 
@@ -517,7 +525,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
           rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
           rideHailAgent ! Resume()
 
-
+          repositioningVehicles.add(vehicleId)
           //println(beamServices.geo.wgs2Utm(vehicleCoord))
           //DebugLib.emptyFunctionForSettingBreakPoint()
 
@@ -536,7 +544,7 @@ class RideHailingManager(val beamServices: BeamServices, val scheduler: ActorRef
 
 
   private def isVehicleRepositioning(vehicleId:Id[Vehicle]):Boolean={
-    repositioningPassengerSchedule.contains(vehicleId)
+    repositioningVehicles.contains(vehicleId)
   }
 
 // contains both idling and repositioning vehicles
