@@ -150,7 +150,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
             scheduler ! ScheduleTrigger(NotifyLegStartTrigger(currentLeg.startTime, currentLeg), sender())
           }
         case None =>
-          log.error("Current Leg is not available.")
+          log.warning("Driver did not find a leg at currentLegPassengerScheduleIndex.")
       }
 
       stay() using data.withPassengerSchedule(data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)).asInstanceOf[T] replying ReservationResponse(req.requestId, Right(ReserveConfirmInfo(req.departFrom, req.arriveAt, req.passengerVehiclePersonId)))

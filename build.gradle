@@ -233,7 +233,7 @@ dependencies {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.Periodic']
+    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
 test.dependsOn spec
@@ -344,7 +344,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
   "command": "start"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
@@ -367,7 +367,7 @@ task stopEC2(type: AWSLambdaInvokeTask) {
   "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "${project.hasProperty('terminate') ? "simulateBeam" : "ec2StartStop"}"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
