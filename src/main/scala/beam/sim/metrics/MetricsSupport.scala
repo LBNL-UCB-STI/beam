@@ -3,7 +3,6 @@ package beam.sim.metrics
 import beam.sim.metrics.Metrics._
 import kamon.Kamon
 import kamon.metric.instrument.Histogram
-import kamon.trace.Tracer
 import kamon.util.Latency
 
 
