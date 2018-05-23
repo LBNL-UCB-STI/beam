@@ -86,7 +86,9 @@ class RideHailingManager(
       new DefaultRideHailResourceAllocationManager()
   }
 
-  var repositioningPassengerSchedule = mutable.Map[Id[Vehicle], PassengerSchedule]()
+  // TODO: remove repositioningPassengerSchedule option part
+  var repositioningPassengerSchedule = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
+  var reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
   var repositioningVehicles = mutable.Set[Id[Vehicle]]()
 
 
@@ -367,8 +369,11 @@ class RideHailingManager(
 
                 val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
-                repositioningPassengerSchedule.put(vehicleId,passengerSchedule)
-                rideHailAgent ! Interrupt(tick)
+                val rideHailAgentInterruptId = nextRideHailAgentInterruptId
+                repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
+                rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
+                //log.info("sending interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
+                repositioningVehicles.add(vehicleId)
 
               } else {
                 sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
@@ -437,32 +442,129 @@ class RideHailingManager(
     }
 
 
-    case InterruptedWhileIdle(vehicleId,tick) =>
+    case InterruptedWhileIdle(interruptId,vehicleId,tick) =>
+     // log.info("InterruptedWhileIdle - vehicle: " + vehicleId)
+      val rideHailAgent =getRideHailAgent(vehicleId)
+
+
+      if (repositioningPassengerSchedule.contains(vehicleId)){
+        val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
+
+        if (reservationPassengerSchedule.contains(vehicleId)){
+          val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
+
+          if (interruptId==interruptIdReposition){
+            repositioningPassengerSchedule.remove(vehicleId)
+           // log.info("InterruptedWhileIdle - ignoring reposition: " + vehicleId)
+          }
+        } else {
+          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
+          rideHailAgent ! Resume()
+          //log.info("InterruptedWhileIdle - reposition: " + vehicleId)
+        }
+      }
+
+
+      if (reservationPassengerSchedule.contains(vehicleId)) {
+        val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
+
+        if (interruptId == interruptIdReservation) {
+          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
+          rideHailAgent ! modifyPassengerSchedule
+          rideHailAgent ! Resume()
+          //log.info("InterruptedWhileIdle - reservation: " + vehicleId)
+        }
+      }
+
+
+
+
+
+
+/*
       getIdleVehicles().get(vehicleId) match {
         case Some(rideHailAgentLocation)=>
           val rideHailAgent = rideHailAgentLocation.rideHailAgent
           //println("InterruptedWhileIdle:" + vehicleId)
-          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get
+          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get._2
           rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
           rideHailAgent ! Resume()
-          repositioningVehicles.add(vehicleId)
         case None =>
+          if (repositioningVehicles.contains(vehicleId)){
+            log.info("InterruptedWhileIdle: " + vehicleId + " not available anymore - no further message sent to RideHailAgent (avoiding interference with overwriting protocol)")
+            repositioningVehicles.remove(vehicleId)
+            repositioningPassengerSchedule.remove(vehicleId)
+          }
+
+      }
+*/
+    case InterruptedAt(interruptId,passengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
+      log.info("InterruptedAt - vehicle: " + vehicleId)
+      val rideHailAgent =getRideHailAgent(vehicleId)
+
+
+      if (repositioningPassengerSchedule.contains(vehicleId)){
+        val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
+
+        if (reservationPassengerSchedule.contains(vehicleId)){
+          val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
+
+          if (interruptId==interruptIdReposition){
+            repositioningPassengerSchedule.remove(vehicleId)
+            updateIdleVehicleLocation(vehicleId,passengerSchedule.get.schedule.toVector(currentPassengerScheduleIndex)._1,tick)
+           // log.info("InterruptedAt - ignoring reposition: " + vehicleId)
+          }
+        } else {
+          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
+          rideHailAgent ! Resume()
+          //log.info("InterruptedAt - reposition: " + vehicleId)
+        }
       }
 
-    case InterruptedAt(passengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
+
+
+
+      if (reservationPassengerSchedule.contains(vehicleId)) {
+        val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.get(vehicleId).get
+
+        if (interruptId == interruptIdReservation) {
+          val (interruptIdReservation, modifyPassengerSchedule) = reservationPassengerSchedule.remove(vehicleId).get
+          rideHailAgent ! StopDriving()
+          rideHailAgent ! modifyPassengerSchedule
+          rideHailAgent ! Resume()
+          //log.info("InterruptedAt - reservation: " + vehicleId)
+        }
+      }
+
+
+
+
+
+
+
+
+
+
+
+      /*
       getIdleVehicles().get(vehicleId) match {
         case Some(rideHailAgentLocation)=>
           val rideHailAgent = rideHailAgentLocation.rideHailAgent
-          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get
+          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get._2
           rideHailAgent ! StopDriving()
           rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
           rideHailAgent ! Resume()
 
-          repositioningVehicles.add(vehicleId)
           updateIdleVehicleLocation(vehicleId,passengerSchedule.schedule.toVector(currentPassengerScheduleIndex)._1,tick)
 
         case None =>
+          if (repositioningVehicles.contains(vehicleId)) {
+            log.info("InterruptedAt: " + vehicleId + " not available anymore - no further message sent to RideHailAgent (avoiding interference with overwriting protocol)")
+            repositioningVehicles.remove(vehicleId)
+            repositioningPassengerSchedule.remove(vehicleId)
+          }
       }
+      */
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
@@ -473,6 +575,11 @@ class RideHailingManager(
   }
 
 
+  private def getRideHailAgent(vehicleId:Id[Vehicle]):ActorRef={
+    getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles.get(vehicleId).get).rideHailAgent
+  }
+
+
   private def isVehicleRepositioning(vehicleId:Id[Vehicle]):Boolean={
     repositioningVehicles.contains(vehicleId)
   }
@@ -480,7 +587,7 @@ class RideHailingManager(
 // contains both idling and repositioning vehicles
   private def getNotInUseVehicleLocation(vehicleId:Id[Vehicle],tick:Double): RideHailingAgentLocation ={
     if (isVehicleRepositioning(vehicleId)){
-      updateIdleVehicleLocation(vehicleId, repositioningPassengerSchedule.get(vehicleId).get.schedule.head._1,tick)
+      updateIdleVehicleLocation(vehicleId, repositioningPassengerSchedule.get(vehicleId).get._2.get.schedule.head._1,tick)
     }
 
     getIdleVehicles().get(vehicleId).get
@@ -720,11 +827,18 @@ class RideHailingManager(
     pendingModifyPassengerScheduleAcks.put(inquiryId, ReservationResponse(Id.create(inquiryId.toString,
       classOf[ReservationRequest]), Right(ReserveConfirmInfo(trip2DestPlan.head.legs.head, trip2DestPlan.last.legs
       .last, vehiclePersonId, Vector()))))
-    closestRideHailingAgentLocation.rideHailAgent ! Interrupt(passengerSchedule.schedule.head._1.startTime)
+
+    val rideHailAgentInterruptId = nextRideHailAgentInterruptId
+
+    closestRideHailingAgentLocation.rideHailAgent ! Interrupt(rideHailAgentInterruptId,passengerSchedule.schedule.head._1.startTime)
     // RideHailingAgent sends reply which we are ignoring here,
     // but that's okay, we don't _need_ to wait for the reply if the answer doesn't interest us.
-    closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
-    closestRideHailingAgentLocation.rideHailAgent ! Resume()
+
+    reservationPassengerSchedule.put(closestRideHailingAgentLocation.vehicleId,(rideHailAgentInterruptId, ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))))
+
+      //closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
+   //closestRideHailingAgentLocation.rideHailAgent ! Resume()
+    //log.info("reserving vehicle: " + closestRideHailingAgentLocation.vehicleId )
   }
 
   private def completeReservation(inquiryId: Id[RideHailingInquiry], triggersToSchedule: Seq[ScheduleTrigger]): Unit = {
@@ -844,6 +958,10 @@ object RideHailingManager {
 
   def nextRideHailingInquiryId: Id[RideHailingInquiry] = {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailingInquiry])
+  }
+
+  def nextRideHailAgentInterruptId: Id[Interrupt] = {
+    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[Interrupt])
   }
 
   case class NotifyIterationEnds()

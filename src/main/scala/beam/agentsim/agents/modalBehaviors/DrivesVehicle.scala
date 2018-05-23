@@ -89,9 +89,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
     case Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       stay
 
-    case Event(Interrupt(tick), data) =>
+    case Event(Interrupt(interruptId,tick), data) =>
       val currentVehicleUnderControl = beamServices.vehicles(data.currentVehicle.head)
-      goto(DrivingInterrupted) replying InterruptedAt(data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id,tick)
+      goto(DrivingInterrupted) replying InterruptedAt(interruptId,data.passengerSchedule, data.currentLegPassengerScheduleIndex, currentVehicleUnderControl.id,tick)
 
   }
 
@@ -135,7 +135,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices {
         .foreach(eventsManager.processEvent)
       val endTime = tick + data.passengerSchedule.schedule.drop(data.currentLegPassengerScheduleIndex).head._1.duration
       goto(Driving) using LiterallyDrivingData(data, endTime).asInstanceOf[T] replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndLegTrigger(endTime), self)))
-    case Event(Interrupt(_), _) =>
+    case Event(Interrupt(_,_), _) =>
       stash()
       stay
   }

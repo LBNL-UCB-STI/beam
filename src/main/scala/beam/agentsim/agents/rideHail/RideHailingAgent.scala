@@ -47,11 +47,11 @@ object RideHailingAgent {
 
   case class ModifyPassengerScheduleAck(msgId: Option[Id[_]] = None, triggersToSchedule: Seq[ScheduleTrigger], vehicleId:Id[Vehicle])
 
-  case class Interrupt(tick: Double)
+  case class Interrupt(interruptId: Id[Interrupt], tick: Double)
   case class Resume()
 
-  case class InterruptedAt(passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int,vehicleId:Id[Vehicle], tick: Double)
-  case class InterruptedWhileIdle(vehicleId:Id[Vehicle],tick: Double)
+  case class InterruptedAt(interruptId: Id[Interrupt],passengerSchedule: PassengerSchedule, currentPassengerScheduleIndex: Int,vehicleId:Id[Vehicle], tick: Double)
+  case class InterruptedWhileIdle(interruptId: Id[Interrupt],vehicleId:Id[Vehicle],tick: Double)
 
 }
 
@@ -75,8 +75,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
   }
 
   when(Idle) {
-    case Event(Interrupt(tick), data) =>
-      goto(IdleInterrupted) replying InterruptedWhileIdle(vehicle.id,tick)
+    case Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
+      goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(IdleInterrupted) {
@@ -95,7 +95,7 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       vehicle.checkInResource(Some(lastVisited),context.dispatcher)
       scheduler ! CompletionNotice(triggerId)
       goto(Idle) using data.withPassengerSchedule(PassengerSchedule()).withCurrentLegPassengerScheduleIndex(0).asInstanceOf[RideHailingAgentData]
-    case Event(Interrupt(_), data) =>
+    case Event(Interrupt(_,_), data) =>
       stash()
       stay()
   }
@@ -124,6 +124,10 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
 
     case Event(Finish, _) =>
       stop
+
+    case event@Event(_,_) =>
+      log.warning("unhandled event: " + event.toString + "in state [" + stateName + "] - vehicle("  + vehicle.id.toString + ")")
+      stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
