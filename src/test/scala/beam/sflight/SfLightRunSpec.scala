@@ -24,6 +24,8 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
+  private val METRICS_LEVEL = "beam.metrics.level"
+  private val KAMON_INFLUXDB = "kamon.modules.kamon-influxdb.auto-start"
 
   private var baseConf: Config = _
   private var totalIterations: Int = _
@@ -73,7 +75,9 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
     }
 
     "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
-      val (_, output) = runBeamWithConfig(baseConf)
+      val conf = baseConf.withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("verbose"))
+                        .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("yes")).resolve()
+      val (_, output) = runBeamWithConfig(conf)
 
       val outDir = Paths.get(output).toFile
 
