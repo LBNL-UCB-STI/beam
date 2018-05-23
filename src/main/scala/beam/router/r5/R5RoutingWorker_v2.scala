@@ -1,16 +1,14 @@
 package beam.router.r5
 
-import java.io.{ByteArrayOutputStream, IOException, ObjectOutput, ObjectOutputStream}
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.{Collections, UUID}
 import java.util.concurrent.Executors
+import java.util.{Collections, UUID}
 
 import akka.actor.Status.Success
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalBehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -18,7 +16,6 @@ import beam.agentsim.agents.vehicles.BeamVehicleType.TransitVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, RAIL, SUBWAY, TRAM, WALK}
 import beam.router.Modes._
@@ -34,17 +31,16 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.{DateUtils, FileUtils, LoggingUtil, Statistics}
+import beam.utils.{DateUtils, FileUtils, LoggingUtil}
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
-import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
+import com.conveyal.r5.transit.{RouteInfo, TransitLayer}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.inject.Injector
 import com.typesafe.config.Config
 import kamon.Kamon
-import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.ControlerI
@@ -56,9 +52,9 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.concurrent.duration._
 
 class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLogging with MetricsSupport with BeamHelper {
   val beamConfig = BeamConfig(typesafeConfig)
@@ -128,10 +124,6 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
     Executors.newFixedThreadPool(numOfThreads))
 
-  val pqRouteCalcTime: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
-  val pqMsgSize: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
-  val pqRoutingRequestTravelTime: mutable.ArrayBuffer[Double] = collection.mutable.ArrayBuffer.empty[Double]
-
   val tickTask = context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
   var msgs: Long = 0
@@ -146,21 +138,6 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
 
   override final def receive: Receive = {
     case "tick"   => {
-      pqRouteCalcTime.synchronized {
-        if (pqRouteCalcTime.size >= 1) {
-          log.info("R5RoutingWorker_v2 Execution (ms): {}", Statistics(pqRouteCalcTime))
-        }
-      }
-//      pqMsgSize.synchronized {
-//        log.info("R5RoutingWorker_v2 Memory (bytes): {}", Statistics(pqMsgSize))
-//      }
-
-      pqRoutingRequestTravelTime.synchronized {
-        if (pqRoutingRequestTravelTime.size >= 1) {
-          log.info("R5RoutingWorker_v2 RoutingRequest travel time (ms): {}", Statistics(pqRoutingRequestTravelTime))
-        }
-      }
-
       if (firstMsgTime.isDefined) {
         val seconds = ChronoUnit.SECONDS.between(firstMsgTime.get, ZonedDateTime.now(ZoneOffset.UTC))
         if (seconds > 0) {
@@ -177,60 +154,21 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
         transitSchedule.hashCode(), transitSchedule.keys.size)
       sender() ! Success("inited")
 
-    case batchRequests: BatchRoutingRequests =>
-      val wholeStart =  System.currentTimeMillis()
-      val futureResponse =  Future {
-        val responses = batchRequests.requests.map { request =>
-          val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
-          val start = System.currentTimeMillis()
-          val res = calcRoute(withReceivedAt)
-          val stop = System.currentTimeMillis()
-
-          res.copy(routeCalcTimeMs = stop - start)
-        }
-        val wholeTimeMs = System.currentTimeMillis() - wholeStart
-        log.info("Processed {} RoutingRequests in {} ms", batchRequests.requests.size, wholeTimeMs)
-        BatchRoutingResponses(responses = responses, routesCalcTimeMs = wholeTimeMs)
-      }(executionContext)
-
-      futureResponse.pipeTo(sender)
-
     case request: RoutingRequest =>
       Kamon.counter("receiving-routing-requests")
       msgs += 1
       if (firstMsgTime.isEmpty)
         firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val withReceivedAt = request.copy(receivedAt = Some(ZonedDateTime.now(ZoneOffset.UTC)))
-      pqRoutingRequestTravelTime += ChronoUnit.MILLIS.between(request.createdAt, withReceivedAt.receivedAt.get)
-      val eventualResponse =  {
-        latency("request-router-time", Metrics.RegularLevel) {
+      val eventualResponse =  Future {
           val start = System.currentTimeMillis()
           val res = calcRoute(withReceivedAt)
           val stop = System.currentTimeMillis()
-//
-//          val bos = new ByteArrayOutputStream()
-//          val out = new ObjectOutputStream(bos)
-//          out.writeObject(res)
-//          out.flush()
-//          val bytes = bos.toByteArray()
-//
-//          log.info("itineraries size: {}, bytes: {} => '{}'", res.itineraries.size, bytes.length, res.itineraries.toString())
-
-          pqRouteCalcTime.synchronized {
-            pqRouteCalcTime += stop - start
-          }
-//          pqMsgSize.synchronized {
-//            pqMsgSize += bytes.length
-//          }
-          // Put only 1 resut
-//          val itineraries = Seq(res.itineraries.headOption).flatten
-//          res.copy(itineraries = itineraries)
           res.copy(routeCalcTimeMs = stop - start)
-        }
       }
-      sender() ! eventualResponse
-//      eventualResponse.failed.foreach(log.error(_, ""))
-//      eventualResponse pipeTo sender
+      eventualResponse.failed.foreach(log.error(_, ""))
+      eventualResponse pipeTo(sender)
+
     case UpdateTravelTime(travelTime) =>
       log.info(s"{} UpdateTravelTime", getNameAndHashCode)
       maybeTravelTime = Some(travelTime)
