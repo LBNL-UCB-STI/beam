@@ -72,8 +72,8 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   private val buffer: ArrayBuffer[RoutingRequest] = ArrayBuffer.empty[RoutingRequest]
   private val map: mutable.Map[UUID, ActorRef] = mutable.Map.empty
   private val BATCH_SIZE: Int = 100
-
-  val tickTask = context.system.scheduler.schedule(2.seconds, 1.seconds, self, "tick")(context.dispatcher)
+  private val BATCH_SEND_INTERVAL: FiniteDuration = 50.milliseconds
+  val tickTask = context.system.scheduler.schedule(2.seconds, BATCH_SEND_INTERVAL, self, "tick")(context.dispatcher)
 
   override def preStart(): Unit = {
     cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
