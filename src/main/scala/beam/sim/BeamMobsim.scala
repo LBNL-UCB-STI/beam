@@ -121,11 +121,12 @@ class BeamMobsim @Inject()(val beamServices: BeamServices, val transportNetwork:
       // 1. Create LinkTravelTimeContainer with the filename linkstats
       // 2. Send that object as a message UpdateTravelTimes parameter to the R5RoutingWorker
       val fileName = "C:/ns/beam-projects/beam-master/output/beamville/beamville__2018-05-14_03-02-57/ITERS/it.0/0.linkstats.csv.gz"
-      val binSize = 60
+      val binSize = 3600
       val linkTravelTimeContainer = new LinkTravelTimeContainer(fileName, binSize)
 
 
-      //Await.result(beamServices.beamRouter ? UpdateTravelTime(linkTravelTimeContainer), timeout.duration)
+      beamServices.beamRouter ! UpdateTravelTime(linkTravelTimeContainer)
+
 
       log.info(s"Transit schedule has been initialized")
 

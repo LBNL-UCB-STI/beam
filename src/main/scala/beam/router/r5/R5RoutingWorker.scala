@@ -53,10 +53,7 @@ class LinkTravelTimeContainer(fileName: String,
 
   var linkTravelTimeMap: util.HashMap[Id[Link], LinkTravelTime] = new util.HashMap()
 
-  // TODO ASIF
-  // constructor with a filename
-  // the constructor will load stats
-  // or an update function will load the stats
+
 
   def loadLinkStats() = {
     System.out.println("fileName -> " + fileName + " is being loaded")
