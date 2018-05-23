@@ -352,7 +352,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
   "command": "start"
 }"""
 
-    functionName = "simulateBeam:ec2StartStop"
+    functionName = "ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
@@ -375,7 +375,7 @@ task stopEC2(type: AWSLambdaInvokeTask) {
   "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
 }"""
 
-    functionName = "simulateBeam:ec2StartStop"
+    functionName = "${project.hasProperty('terminate') ? "simulateBeam" : "ec2StartStop"}"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
