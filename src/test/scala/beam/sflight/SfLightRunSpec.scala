@@ -30,8 +30,10 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
   override def beforeAll(configMap: ConfigMap): Unit = {
     val confPath = configMap.getWithDefault("config", "test/input/sf-light/sf-light-5k.conf")
-    totalIterations = configMap.getWithDefault("iterations", 1)
-    baseConf = testConfig(confPath)
+    totalIterations = configMap.getWithDefault("iterations", "1").toInt
+    logger.info(s"Starting test with config [$confPath] and iterations [$totalIterations]")
+    baseConf = testConfig(confPath).withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations-1))
+    baseConf.getInt(LAST_ITER_CONF_PATH) should be (totalIterations-1)
   }
 
   "SF Light" must {
@@ -71,12 +73,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
     }
 
     "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
-      val config = baseConf.withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations-1))
-
-      config.getInt(LAST_ITER_CONF_PATH) should be (totalIterations-1)
-
-      val (_, output) = runBeamWithConfig(config)
-
+      val (_, output) = runBeamWithConfig(baseConf)
 
       val outDir = Paths.get(output).toFile
 
