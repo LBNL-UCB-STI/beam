@@ -72,7 +72,7 @@ class BeamRouter(services: BeamServices, transportNetwork: TransportNetwork, net
   private val buffer: ArrayBuffer[RoutingRequest] = ArrayBuffer.empty[RoutingRequest]
   private val map: mutable.Map[UUID, ActorRef] = mutable.Map.empty
   private val BATCH_SIZE: Int = 100
-  private val BATCH_SEND_INTERVAL: FiniteDuration = 50.milliseconds
+  private val BATCH_SEND_INTERVAL: FiniteDuration = 25.milliseconds
   val tickTask = context.system.scheduler.schedule(2.seconds, BATCH_SEND_INTERVAL, self, "tick")(context.dispatcher)
 
   override def preStart(): Unit = {
