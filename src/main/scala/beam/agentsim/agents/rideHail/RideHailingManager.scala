@@ -21,7 +21,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.{Trigger, TriggerWithId}
-import beam.analysis.plots.GraphRideHailingRevenue
+import beam.analysis.plots.RideHailingRevenueAnalysis
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.router.RoutingModel
