@@ -33,13 +33,13 @@ trait MetricsSupport {
 
   def startMeasuring(name: String, level: MetricLevel): Unit = startMeasuring(name, level, Map.empty)
 
-  def startMeasuring(name: String, level: MetricLevel, tags: Map[String, String]) = if (isRightLevel(level)) Tracer.setCurrentContext(Kamon.tracer.newContext(name, None, tags))
+  def startMeasuring(name: String, level: MetricLevel, tags: Map[String, String]) = if (isRightLevel(level)) Metrics.setCurrentContext(Kamon.tracer.newContext(name, None, tags))
 
-  def stopMeasuring() = if(Tracer.currentContext != null && !Tracer.currentContext.isClosed) Tracer.currentContext.finish()
+  def stopMeasuring() = if(Metrics.currentContext != null && !Metrics.currentContext.isClosed) Metrics.currentContext.finish()
 
 
-  def startSegment(name: String, categry: String) = if(Tracer.currentContext != null && !Tracer.currentContext.isClosed && !currentSegments.contains(name+":"+categry))
-    currentSegments += (name+":"+categry -> Tracer.currentContext.startSegment(name, categry, "kamon"))
+  def startSegment(name: String, categry: String) = if(Metrics.currentContext != null && !Metrics.currentContext.isClosed && !currentSegments.contains(name+":"+categry))
+    currentSegments += (name+":"+categry -> Metrics.currentContext.startSegment(name, categry, "kamon"))
 
   def endSegment(name: String, categry: String) = currentSegments.remove(name+":"+categry) match {
     case Some(segment) =>
