@@ -87,6 +87,8 @@ class RideHailingAgent(override val id: Id[RideHailingAgent], val scheduler: Act
       goto(WaitingToDriveInterrupted) using data.withPassengerSchedule(updatedPassengerSchedule).asInstanceOf[RideHailingAgentData] replying ModifyPassengerScheduleAck(requestId, triggerToSchedule,vehicle.id)
     case Event(Resume(), _) =>
       goto(Idle)
+   // case Event(Interrupt(interruptId: Id[Interrupt], tick), data) =>
+    //  stay() replying InterruptedWhileIdle(interruptId,vehicle.id,tick)
   }
 
   when(PassengerScheduleEmpty) {

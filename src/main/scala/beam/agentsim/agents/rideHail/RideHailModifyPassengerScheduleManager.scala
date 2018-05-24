@@ -52,6 +52,18 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   def handleInterrupt(interruptType: String, interruptId: Id[Interrupt], interruptedPassengerSchedule: Option[PassengerSchedule], vehicleId: Id[Vehicle], tick: Double, rideHailAgent: ActorRef): Unit = {
     log.debug(interruptType + " - vehicle: " + vehicleId)
 
+    modifyPassengerScheduleStatus.get(interruptId) match {
+      case Some(modifyPassengerScheduleStatus) =>
+        assert(vehicleId==modifyPassengerScheduleStatus.vehicleId)
+        assert(tick==modifyPassengerScheduleStatus.)
+
+
+        getWithVehicleIds(modifyPassengerScheduleStatus.vehicleId)
+      case None =>
+        log.error("interruptId not found: interruptId(" + interruptId + "),interruptType(" + interruptType+  "),interruptedPassengerSchedule(" + interruptedPassengerSchedule+ "),vehicleId(" + vehicleId+ "),tick(" + tick+")")
+    }
+
+
 
     /*
     val rideHailAgent =getRideHailAgent(vehicleId)
@@ -87,20 +99,17 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   }
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)={
-    sendInterruptMessage(InterruptOrigin.REPOSITION)
+    sendInterruptMessage(passengerSchedule,tick,vehicleId,rideHailAgent,InterruptOrigin.REPOSITION)
   }
 
   def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)={
-    sendInterruptMessage(InterruptOrigin.RESERVATION)
+    sendInterruptMessage(passengerSchedule,tick,vehicleId,rideHailAgent,InterruptOrigin.RESERVATION)
   }
 
-  private def sendInterruptMessage(interruptOrigin:InterruptOrigin.Value): Unit ={
-    def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)={
+   private  def sendInterruptMessage(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef, interruptOrigin: InterruptOrigin.Value)={
       val rideHailAgentInterruptId = RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
-
       rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
-      add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,interruptOrigin))
-    }
+      add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,interruptOrigin,tick))
   }
 
 }
@@ -113,7 +122,7 @@ object InterruptOrigin extends Enumeration {
   val RESERVATION, REPOSITION = Value
 }
 
-class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin.Value, var status: InterruptMessageStatus.Value = InterruptMessageStatus.INTERRUPT_SENT) {}
+class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin.Value, val tick:Double, var status: InterruptMessageStatus.Value = InterruptMessageStatus.INTERRUPT_SENT) {}
 
 
 object RideHailModifyPassengerScheduleManager {
