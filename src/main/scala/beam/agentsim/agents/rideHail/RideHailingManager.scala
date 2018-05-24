@@ -451,39 +451,6 @@ class RideHailingManager(
     case InterruptedAt(interruptId,interruptedPassengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
       handleInterrupt("InterruptedAt",interruptId,Some(interruptedPassengerSchedule),vehicleId,tick)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-      /*
-      getIdleVehicles().get(vehicleId) match {
-        case Some(rideHailAgentLocation)=>
-          val rideHailAgent = rideHailAgentLocation.rideHailAgent
-          val passengerSchedule=repositioningPassengerSchedule.get(vehicleId).get._2
-          rideHailAgent ! StopDriving()
-          rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
-          rideHailAgent ! Resume()
-
-          updateIdleVehicleLocation(vehicleId,passengerSchedule.schedule.toVector(currentPassengerScheduleIndex)._1,tick)
-
-        case None =>
-          if (repositioningVehicles.contains(vehicleId)) {
-            log.info("InterruptedAt: " + vehicleId + " not available anymore - no further message sent to RideHailAgent (avoiding interference with overwriting protocol)")
-            repositioningVehicles.remove(vehicleId)
-            repositioningPassengerSchedule.remove(vehicleId)
-          }
-      }
-      */
-
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")
 
