@@ -88,7 +88,7 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
-
+    agentSimToPhysSimPlanConverter.startPhysSim(event)
     implicit val ec = ExecutionContext.Implicits.global
 
     //checking if its a last iteration
@@ -103,8 +103,6 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   def notifyIterationEndsOperations(event: IterationEndsEvent): Unit = {
-
-    agentSimToPhysSimPlanConverter.startPhysSim(event)
     createGraphsFromEvents.createGraphs(event)
     modalityStyleStats.processData(scenario.getPopulation(), event)
     modalityStyleStats.buildModalityStyleGraph()
