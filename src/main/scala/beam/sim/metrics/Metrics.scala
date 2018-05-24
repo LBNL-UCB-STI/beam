@@ -7,8 +7,9 @@ import scala.collection.mutable
 
 object Metrics {
 
-
   var level: String = "off"
+
+  var runName: String = "beam"
 
   val currentSegments: mutable.Map[String, Segment] = mutable.Map()
 
