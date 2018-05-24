@@ -498,10 +498,10 @@ class RideHailingManager(
           val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
           if (reservationPassengerSchedule.contains(vehicleId)){
             val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
-            if (interruptId==interruptIdReposition){
+           // if (interruptId==interruptIdReposition){
               interruptedPassengerSchedule.foreach(interruptedPassengerSchedule => updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick))
               log.debug(interruptType + " - ignoring reposition: " + vehicleId)
-            }
+          //  }
           } else {
             interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
             rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
@@ -518,6 +518,8 @@ class RideHailingManager(
             rideHailAgent ! modifyPassengerSchedule
             rideHailAgent ! Resume()
             log.debug(interruptType + " - reservation: " + vehicleId)
+          } else {
+            log.error(interruptType + " - reservation: " + vehicleId + "interruptId doesn't match (interruptId,interruptIdReservation):" + interruptId + "," + interruptIdReservation)
           }
         }
     }
@@ -525,7 +527,11 @@ class RideHailingManager(
 
 
   private def getRideHailAgent(vehicleId:Id[Vehicle]):ActorRef={
-    getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles.get(vehicleId).get).rideHailAgent
+    getRideHailAgentLocation(vehicleId).rideHailAgent
+  }
+
+  private def getRideHailAgentLocation(vehicleId:Id[Vehicle]):RideHailingAgentLocation={
+    getIdleVehicles().getOrElse(vehicleId,inServiceRideHailVehicles.get(vehicleId).get)
   }
 
 
@@ -547,7 +553,7 @@ class RideHailingManager(
   private def updateIdleVehicleLocation(vehicleId:Id[Vehicle],beamLeg:BeamLeg,tick:Double): Unit ={
     val vehicleCoord=getVehicleCoordinate(beamLeg,tick)
 
-    val rideHailingAgentLocation=getIdleVehicles().get(vehicleId).get
+    val rideHailingAgentLocation=getRideHailAgentLocation(vehicleId)
 
     getIdleVehicles().put(vehicleId,rideHailingAgentLocation.copy(currentLocation = SpaceTime(vehicleCoord,tick.toLong)))
   }
