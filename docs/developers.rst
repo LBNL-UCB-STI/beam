@@ -148,6 +148,15 @@ To maintain ec2 instances, there are some utility tasks that reduce operation co
 
 As a result of task, instance DNS would be printed on the console.
 
+
+AWS EC2 Stop
+~~~~~~~~~~~~
+
+Just like starting instance, you can also stop already running instances using a simple `stop` gradle task under aws module. You can specify one or more instance ids by a comma saturated list as `instanceIds` argument. Below is syntax to use the command::
+
+  cd aws
+  gradle stop -PinstanceIds=<InstanceID1>[,<InstanceID2>]
+
 .. _Colin: mailto:colin.sheppard@lbl.gov
 .. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/
 .. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
