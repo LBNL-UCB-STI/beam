@@ -95,7 +95,7 @@ class RideHailingManager(
   val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
   val repositioningVehicles = mutable.Set[Id[Vehicle]]()
 
-
+  val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager()
 
 
   private val repositionDoneOnce: Boolean = false
@@ -957,6 +957,33 @@ object RideHailingManager {
             RideHailSurgePricingManager): Props = {
     Props(new RideHailingManager(services, scheduler, router, boundingBox, surgePricingManager))
   }
+}
+
+class RideHailModifyPassengerScheduleManager(){
+
+  val modifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
+  val vehicleInterruptIds = mutable.Map[Id[Vehicle], mutable.Set[RideHailModifyPassengerScheduleStatus]]()
+
+  def add(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
+    modifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.interruptId,rideHailModifyPassengerScheduleStatus)
+    addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus)
+  }
+
+  private def addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
+    if (!vehicleInterruptIds.contains(rideHailModifyPassengerScheduleStatus.vehicleId)){
+      vehicleInterruptIds.put(rideHailModifyPassengerScheduleStatus.vehicleId,mutable.Set[RideHailModifyPassengerScheduleStatus]())
+    }
+    var set=vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
+    set.add(rideHailModifyPassengerScheduleStatus)
+  }
+
+}
+
+class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin, var status: InterruptMessageStatus)
+
+object InterruptOrigin extends Enumeration {
+  type InterruptOrigin = Value
+  val RESERVATION, REPOSITION = Value
 }
 
 object InterruptMessageStatus extends Enumeration {
