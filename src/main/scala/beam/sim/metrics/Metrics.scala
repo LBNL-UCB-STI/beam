@@ -11,6 +11,8 @@ object Metrics {
 
   var runName: String = "beam"
 
+  var iterationNumber: Int = 0
+
   val currentSegments: mutable.Map[String, Segment] = mutable.Map()
 
   var currentContext: TraceContext = null
