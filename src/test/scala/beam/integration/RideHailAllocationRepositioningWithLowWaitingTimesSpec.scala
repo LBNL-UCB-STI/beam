@@ -16,7 +16,7 @@ import org.scalatest.mockito.MockitoSugar
 
 class RideHailAllocationRepositioningWithLowWaitingTimesSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
-  it should "be able to run for 10 iterations without exceptions" in {
+  it should "be able to run for 1 iteration without exceptions" in {
     val config = testConfig("test/input/beamville/beam.conf")
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
         .withValue("beam.agentsim.agents.rideHailing.allocationManager",ConfigValueFactory.fromAnyRef("REPOSITIONING_LOW_WAITING_TIMES"))
@@ -24,7 +24,7 @@ class RideHailAllocationRepositioningWithLowWaitingTimesSpec extends FlatSpec wi
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
-    matsimConfig.controler().setLastIteration(9)
+    matsimConfig.controler().setLastIteration(0)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
@@ -41,7 +41,7 @@ class RideHailAllocationRepositioningWithLowWaitingTimesSpec extends FlatSpec wi
     })
     val controler = injector.getInstance(classOf[BeamServices]).controler
     controler.run()
-    verify(iterationCounter, times(10)).notifyIterationEnds(any())
+    verify(iterationCounter, times(1)).notifyIterationEnds(any())
   }
 
 }
