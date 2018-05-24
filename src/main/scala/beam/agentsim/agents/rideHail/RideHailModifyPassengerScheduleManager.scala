@@ -6,8 +6,25 @@ import beam.agentsim.agents.rideHail.RideHailingAgent.Interrupt
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+import scala.collection.{concurrent, mutable}
 
-class RideHailModifyPassengerScheduleManager {
+class RideHailModifyPassengerScheduleManager(){
+
+  val modifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
+  val vehicleInterruptIds = mutable.Map[Id[Vehicle], mutable.Set[RideHailModifyPassengerScheduleStatus]]()
+
+  def add(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
+    modifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.interruptId,rideHailModifyPassengerScheduleStatus)
+    addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus)
+  }
+
+  private def addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
+    if (!vehicleInterruptIds.contains(rideHailModifyPassengerScheduleStatus.vehicleId)){
+      vehicleInterruptIds.put(rideHailModifyPassengerScheduleStatus.vehicleId,mutable.Set[RideHailModifyPassengerScheduleStatus]())
+    }
+    var set=vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
+    set.add(rideHailModifyPassengerScheduleStatus)
+  }
 
 }
 
