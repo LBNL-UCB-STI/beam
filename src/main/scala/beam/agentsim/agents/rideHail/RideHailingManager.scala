@@ -763,7 +763,11 @@ class RideHailingManager(
 
     reservationPassengerSchedule.put(closestRideHailingAgentLocation.vehicleId,(rideHailAgentInterruptId, ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))))
 
-      //closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
+
+    modifyPassengerScheduleManager.add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,closestRideHailingAgentLocation.vehicleId,passengerSchedule,InterruptOrigin.RESERVATION))
+
+
+    //closestRideHailingAgentLocation.rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, Some(inquiryId))
    //closestRideHailingAgentLocation.rideHailAgent ! Resume()
     log.debug("reserving vehicle: " + closestRideHailingAgentLocation.vehicleId )
   }
@@ -978,16 +982,4 @@ class RideHailModifyPassengerScheduleManager(){
     set.add(rideHailModifyPassengerScheduleStatus)
   }
 
-}
-
-class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin, var status: InterruptMessageStatus)
-
-object InterruptOrigin extends Enumeration {
-  type InterruptOrigin = Value
-  val RESERVATION, REPOSITION = Value
-}
-
-object InterruptMessageStatus extends Enumeration {
-  type InterruptMessageStatus = Value
-  val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT = Value
 }
