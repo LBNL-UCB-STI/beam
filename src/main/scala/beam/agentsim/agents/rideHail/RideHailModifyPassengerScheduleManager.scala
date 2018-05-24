@@ -26,6 +26,14 @@ class RideHailModifyPassengerScheduleManager(){
     set.add(rideHailModifyPassengerScheduleStatus)
   }
 
+  def getWithInterruptId(interruptId: Id[Interrupt]):Option[RideHailModifyPassengerScheduleStatus] ={
+    modifyPassengerScheduleStatus.get(interruptId)
+  }
+
+  def getWithVehicleIds(vehicleId: Id[Vehicle]):Set[RideHailModifyPassengerScheduleStatus] ={
+    collection.immutable.Set(vehicleInterruptIds.get(vehicleId).get.toVector: _*)
+  }
+
 }
 
 object InterruptMessageStatus extends Enumeration {
