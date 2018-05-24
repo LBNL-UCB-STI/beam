@@ -448,10 +448,10 @@ class RideHailingManager(
 
 
     case InterruptedWhileIdle(interruptId,vehicleId,tick) =>
-      modifyPassengerScheduleManager.handleInterrupt("InterruptedWhileIdle",interruptId,None,vehicleId,tick,getRideHailAgent(vehicleId))
+      modifyPassengerScheduleManager.handleInterrupt("InterruptedWhileIdle",interruptId,None,vehicleId,tick)
 
     case InterruptedAt(interruptId,interruptedPassengerSchedule, currentPassengerScheduleIndex,vehicleId,tick) =>
-      modifyPassengerScheduleManager.handleInterrupt("InterruptedAt",interruptId,Some(interruptedPassengerSchedule),vehicleId,tick,getRideHailAgent(vehicleId))
+      modifyPassengerScheduleManager.handleInterrupt("InterruptedAt",interruptId,Some(interruptedPassengerSchedule),vehicleId,tick)
 
     case Finish =>
       log.info("finish message received from BeamAgentScheduler")

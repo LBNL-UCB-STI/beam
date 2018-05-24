@@ -49,13 +49,13 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   }
 
 
-  def handleInterrupt(interruptType: String, interruptId: Id[Interrupt], interruptedPassengerSchedule: Option[PassengerSchedule], vehicleId: Id[Vehicle], tick: Double, rideHailAgent: ActorRef): Unit = {
+  def handleInterrupt(interruptType: String, interruptId: Id[Interrupt], interruptedPassengerSchedule: Option[PassengerSchedule], vehicleId: Id[Vehicle], tick: Double): Unit = {
     log.debug(interruptType + " - vehicle: " + vehicleId)
 
     modifyPassengerScheduleStatus.get(interruptId) match {
       case Some(modifyPassengerScheduleStatus) =>
         assert(vehicleId==modifyPassengerScheduleStatus.vehicleId)
-        assert(tick==modifyPassengerScheduleStatus.)
+        assert(tick==modifyPassengerScheduleStatus.tick)
 
 
         getWithVehicleIds(modifyPassengerScheduleStatus.vehicleId)
@@ -109,7 +109,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
    private  def sendInterruptMessage(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef, interruptOrigin: InterruptOrigin.Value)={
       val rideHailAgentInterruptId = RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
       rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
-      add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,interruptOrigin,tick))
+      add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,interruptOrigin,tick,rideHailAgent))
   }
 
 }
@@ -122,7 +122,7 @@ object InterruptOrigin extends Enumeration {
   val RESERVATION, REPOSITION = Value
 }
 
-class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin.Value, val tick:Double, var status: InterruptMessageStatus.Value = InterruptMessageStatus.INTERRUPT_SENT) {}
+class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin.Value, val tick:Double, val rideHailAgent:ActorRef, var status: InterruptMessageStatus.Value = InterruptMessageStatus.INTERRUPT_SENT) {}
 
 
 object RideHailModifyPassengerScheduleManager {
