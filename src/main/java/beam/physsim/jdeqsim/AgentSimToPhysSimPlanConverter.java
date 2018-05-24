@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 
@@ -139,7 +140,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
         }
 
-        linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
+        CompletableFuture.runAsync(() -> linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator));
 
         if (writePhysSimEvents(iterationNumber)) {
             eventsWriterXML.closeFile();

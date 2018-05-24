@@ -3,6 +3,9 @@ package beam.sim
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.{CompletableFuture, TimeUnit}
 
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -27,7 +30,7 @@ import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListen
 import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.mutable
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits
 
@@ -87,36 +90,32 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
-    agentSimToPhysSimPlanConverter.startPhysSim(event)
-    implicit val ec = ExecutionContext.Implicits.global
+    if (beamServices.beamConfig.beam.debug.debugEnabled) logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
-    //checking if its a last iteration
-    if(event.getServices.getConfig.controler.getLastIteration == event.getIteration) {
-      notifyIterationEndsOperations(event)
-    }
-    else { //for all other iteration
-      CompletableFuture.runAsync(() => notifyIterationEndsOperations(event))
+    val outputGraphsFuture = Future {
+      modalityStyleStats.processData(scenario.getPopulation(), event)
+      modalityStyleStats.buildModalityStyleGraph()
+      createGraphsFromEvents.createGraphs(event)
+      PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
+      tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
     }
 
-    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
-  }
+    val physsimFuture = Future {
+      agentSimToPhysSimPlanConverter.startPhysSim(event)
+    }
 
-  def notifyIterationEndsOperations(event: IterationEndsEvent): Unit = {
-    createGraphsFromEvents.createGraphs(event)
-    modalityStyleStats.processData(scenario.getPopulation(), event)
-    modalityStyleStats.buildModalityStyleGraph()
-    PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
-    tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
-  }
+    // executing code blocks parallel
+    Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)),Duration.Inf)
 
+    if (beamServices.beamConfig.beam.debug.debugEnabled) logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+  }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
 
     Await.result(actorSystem.terminate(), Duration.Inf)
 
     // remove output files which are not ready for release yet (enable again after Jan 2018)
-    val outputFilesToDelete = Array("traveldistancestats.txt", "traveldistancestats.png", "tmp"/*, "modestats.txt", "modestats.png"*/)
+    val outputFilesToDelete = Array("traveldistancestats.txt", "traveldistancestats.png", "tmp" /*, "modestats.txt", "modestats.png"*/)
 
     outputFilesToDelete.foreach(deleteOutputFile)
 
