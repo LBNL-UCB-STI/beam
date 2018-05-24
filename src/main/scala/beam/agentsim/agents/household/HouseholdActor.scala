@@ -126,7 +126,7 @@ object HouseholdActor {
         transportNetwork, router, rideHailingManager, eventsManager, person.getId, household, person.getSelectedPlan, bodyVehicleIdFromPerson), person.getId.toString)
       context.watch(personRef)
       // Every Person gets a HumanBodyVehicle
-      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle)
+      val newBodyVehicle = new BeamVehicle(powerTrainForHumanBody(), matsimBodyVehicle, None, HumanBodyVehicle,None,None)
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0.0), personRef)

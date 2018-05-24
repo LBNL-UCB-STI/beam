@@ -197,9 +197,9 @@ dependencies {
     compile("io.kamon:kamon-core_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-scala_${scalaBinaryVersion}:${kamonVersion}")
     compile("io.kamon:kamon-akka-2.4_${scalaBinaryVersion}:${kamonVersion}")
-//    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
-//    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
-//    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
+    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
+    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
+    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
 
 
     /////////////
@@ -257,13 +257,21 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
-            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') +
-                    (project.hasProperty('iterations') ?
-                            '-Diterations='+project.findProperty('iterations') :
-                            '-Dtest=test') :
-                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') :
-                            '-Dtest=test'))
+            (project.hasProperty('config') ? '-Dconfig='+project.findProperty('config') :
+                    (project.hasProperty('iterations') ? '-Diterations='+project.findProperty('iterations') : '')) <<
+            (project.hasProperty('config') && project.hasProperty('iterations') ?
+                    '-Diterations='+project.findProperty('iterations') : '')
+    jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
+
+    doFirst() {
+        if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
+            download {
+                src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
+                dest buildDir
+            }
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -346,7 +354,7 @@ task startEC2(type: AWSLambdaInvokeTask) {
   "command": "start"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "ec2StartStop"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
@@ -369,7 +377,7 @@ task stopEC2(type: AWSLambdaInvokeTask) {
   "command": "${project.hasProperty('terminate') ? "terminate" : "stop"}"
 }"""
 
-    functionName = "simulateBeam"
+    functionName = "${project.hasProperty('terminate') ? "simulateBeam" : "ec2StartStop"}"
     invocationType = InvocationType.RequestResponse
     payload = pload
 
