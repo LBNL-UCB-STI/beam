@@ -446,7 +446,7 @@ def myAvailableRam = System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') 
 
 // Use following for remote debug mode
 //applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "-javaagent:build/aspectjweaver-1.8.10.jar"]
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}", "\"-javaagent:build/aspectjweaver-1.8.10.jar\""]
 
 run {
     if (project.hasProperty("appArgs")) {
@@ -454,7 +454,6 @@ run {
     }
 
     doFirst() {
-        jvmArgs "-javaagent:build/aspectjweaver-1.8.10.jar"
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
                 src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
@@ -481,7 +480,6 @@ task execute(type:JavaExec) {
     }
 
     doFirst() {
-        jvmArgs "-javaagent:build/aspectjweaver-1.8.10.jar"
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
                 src 'http://central.maven.org/maven2/org/aspectj/aspectjweaver/1.8.10/aspectjweaver-1.8.10.jar'
