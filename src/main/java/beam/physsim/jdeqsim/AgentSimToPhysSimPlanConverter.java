@@ -7,7 +7,6 @@ import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.router.BeamRouter;
 import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
-import beam.sim.metrics.Metrics;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import com.conveyal.r5.transit.TransportNetwork;
@@ -35,7 +34,6 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.runtime.AbstractFunction0;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -129,7 +127,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents);
-
+        log.info("JDEQSim Start");
+        startSegment("jdeqsim-execution", "jdeqsim");
         if(beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
         }
@@ -139,6 +138,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         if(beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
         }
+
+        endSegment("jdeqsim-execution", "jdeqsim");
+        log.info("JDEQSim End");
 
         CompletableFuture.runAsync(() -> linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator));
 
