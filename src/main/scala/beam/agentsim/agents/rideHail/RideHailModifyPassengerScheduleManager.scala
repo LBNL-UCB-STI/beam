@@ -49,7 +49,7 @@ class RideHailModifyPassengerScheduleManager() {
 
 object InterruptMessageStatus extends Enumeration {
   type InterruptMessageStatus = Value
-  val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT = Value
+  val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT, EXECUTED = Value
 }
 
 object InterruptOrigin extends Enumeration {
@@ -57,4 +57,4 @@ object InterruptOrigin extends Enumeration {
   val RESERVATION, REPOSITION = Value
 }
 
-class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin, var status: InterruptMessageStatus)
+class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin, var status: InterruptMessageStatus=InterruptMessageStatus.INTERRUPT_SENT)

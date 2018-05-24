@@ -90,10 +90,10 @@ class RideHailingManager(
       new DefaultRideHailResourceAllocationManager()
   }
 
-  // TODO: remove repositioningPassengerSchedule option part
+  // TODO: remove following (replace by RideHailModifyPassengerScheduleManager)
   val repositioningPassengerSchedule = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
   val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
-  val repositioningVehicles = mutable.Set[Id[Vehicle]]()
+  val repositioningVehicles = mutable.Set[Id[Vehicle]]() // TODO: move to RideHailModifyPassengerScheduleManager?
 
   val modifyPassengerScheduleManager= new RideHailModifyPassengerScheduleManager()
 
@@ -381,6 +381,7 @@ class RideHailingManager(
                 rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
                 log.debug("sending interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
                 repositioningVehicles.add(vehicleId)
+                modifyPassengerScheduleManager.add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,InterruptOrigin.REPOSITION))
 
               } else {
                 sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
