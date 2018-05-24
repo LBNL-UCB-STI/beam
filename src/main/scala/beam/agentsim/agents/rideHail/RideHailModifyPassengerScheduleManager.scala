@@ -8,30 +8,41 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 import scala.collection.{concurrent, mutable}
 
-class RideHailModifyPassengerScheduleManager(){
+class RideHailModifyPassengerScheduleManager() {
 
   val modifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   val vehicleInterruptIds = mutable.Map[Id[Vehicle], mutable.Set[RideHailModifyPassengerScheduleStatus]]()
 
-  def add(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
-    modifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.interruptId,rideHailModifyPassengerScheduleStatus)
+  def add(rideHailModifyPassengerScheduleStatus: RideHailModifyPassengerScheduleStatus): Unit = {
+    modifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.interruptId, rideHailModifyPassengerScheduleStatus)
     addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus)
   }
 
-  private def addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
-    if (!vehicleInterruptIds.contains(rideHailModifyPassengerScheduleStatus.vehicleId)){
-      vehicleInterruptIds.put(rideHailModifyPassengerScheduleStatus.vehicleId,mutable.Set[RideHailModifyPassengerScheduleStatus]())
+  private def addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus: RideHailModifyPassengerScheduleStatus): Unit = {
+    if (!vehicleInterruptIds.contains(rideHailModifyPassengerScheduleStatus.vehicleId)) {
+      vehicleInterruptIds.put(rideHailModifyPassengerScheduleStatus.vehicleId, mutable.Set[RideHailModifyPassengerScheduleStatus]())
     }
-    var set=vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
+    var set = vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
     set.add(rideHailModifyPassengerScheduleStatus)
   }
 
-  def getWithInterruptId(interruptId: Id[Interrupt]):Option[RideHailModifyPassengerScheduleStatus] ={
+  def getWithInterruptId(interruptId: Id[Interrupt]): Option[RideHailModifyPassengerScheduleStatus] = {
     modifyPassengerScheduleStatus.get(interruptId)
   }
 
-  def getWithVehicleIds(vehicleId: Id[Vehicle]):Set[RideHailModifyPassengerScheduleStatus] ={
+  def getWithVehicleIds(vehicleId: Id[Vehicle]): Set[RideHailModifyPassengerScheduleStatus] = {
     collection.immutable.Set(vehicleInterruptIds.get(vehicleId).get.toVector: _*)
+  }
+
+  def remove(interruptId: Id[Interrupt]): Option[RideHailModifyPassengerScheduleStatus] = {
+    modifyPassengerScheduleStatus.remove(interruptId) match {
+      case Some(rideHailModifyPassengerScheduleStatus) =>
+        val set=vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
+        set.remove(rideHailModifyPassengerScheduleStatus)
+        Some(rideHailModifyPassengerScheduleStatus)
+      case None =>
+        None
+    }
   }
 
 }
