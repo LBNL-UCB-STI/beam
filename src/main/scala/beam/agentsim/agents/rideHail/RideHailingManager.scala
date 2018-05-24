@@ -964,22 +964,3 @@ object RideHailingManager {
   }
 }
 
-class RideHailModifyPassengerScheduleManager(){
-
-  val modifyPassengerScheduleStatus = mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
-  val vehicleInterruptIds = mutable.Map[Id[Vehicle], mutable.Set[RideHailModifyPassengerScheduleStatus]]()
-
-  def add(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
-    modifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.interruptId,rideHailModifyPassengerScheduleStatus)
-    addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus)
-  }
-
-  private def addToVehicleInterruptIds(rideHailModifyPassengerScheduleStatus:RideHailModifyPassengerScheduleStatus): Unit ={
-    if (!vehicleInterruptIds.contains(rideHailModifyPassengerScheduleStatus.vehicleId)){
-      vehicleInterruptIds.put(rideHailModifyPassengerScheduleStatus.vehicleId,mutable.Set[RideHailModifyPassengerScheduleStatus]())
-    }
-    var set=vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
-    set.add(rideHailModifyPassengerScheduleStatus)
-  }
-
-}
