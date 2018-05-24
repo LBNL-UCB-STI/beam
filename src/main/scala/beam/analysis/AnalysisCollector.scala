@@ -12,8 +12,7 @@ object AnalysisCollector extends MetricsSupport with LazyLogging {
       case Some(value) =>
         record("ride-hailing-revenue",
           ShortLevel,
-          value.asInstanceOf[Double].toLong,
-          Map("iteration"->(""+(data.size-1)), "run-name"-> runName))
+          value.asInstanceOf[Double].toLong)
     }
   }
 }

@@ -26,7 +26,7 @@ trait MetricsSupport {
     resultWithTime._1
   } else thunk
 
-  def startMeasuringIteration(itNum: Int) = startMeasuring("iteration", ShortLevel, Map("it-num"->(""+itNum)))
+  def startMeasuringIteration(itNum: Int) = startMeasuring("iteration", ShortLevel)
 
   def stopMeasuringIteration() = stopMeasuring()
 
