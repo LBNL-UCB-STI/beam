@@ -19,6 +19,8 @@ object Metrics {
 
   def setCurrentContext(context: TraceContext) = currentContext = context
 
+  def defaultTags: Map[String, String] = Map("run-name" -> runName, "iteration-num" -> s"$iterationNumber")
+
   private def metricLevel: MetricLevel = levelForOrOff(level)
 
   /**
