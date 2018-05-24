@@ -87,11 +87,20 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   }
 
   def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)={
-    val rideHailAgentInterruptId = RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
+    sendInterruptMessage(InterruptOrigin.REPOSITION)
+  }
 
-    rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
-    add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,InterruptOrigin.REPOSITION))
+  def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)={
+    sendInterruptMessage(InterruptOrigin.RESERVATION)
+  }
 
+  private def sendInterruptMessage(interruptOrigin:InterruptOrigin.Value): Unit ={
+    def reserveVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)={
+      val rideHailAgentInterruptId = RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
+
+      rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
+      add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,interruptOrigin))
+    }
   }
 
 }
