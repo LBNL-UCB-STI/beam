@@ -13,12 +13,14 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel, StopDriving}
+import beam.agentsim.agents.rideHail.InterruptMessageStatus.InterruptMessageStatus
+import beam.agentsim.agents.rideHail.InterruptOrigin.InterruptOrigin
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.rideHail.allocationManagers._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, RideHailVehicleTakenError, UnknownInquiryIdError, UnknownRideHailReservationError}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -89,9 +91,11 @@ class RideHailingManager(
   }
 
   // TODO: remove repositioningPassengerSchedule option part
-  var repositioningPassengerSchedule = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
-  var reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
-  var repositioningVehicles = mutable.Set[Id[Vehicle]]()
+  val repositioningPassengerSchedule = mutable.Map[Id[Vehicle], (Id[Interrupt],Option[PassengerSchedule])]()
+  val reservationPassengerSchedule=mutable.Map[Id[Vehicle], (Id[Interrupt],ModifyPassengerSchedule)]()
+  val repositioningVehicles = mutable.Set[Id[Vehicle]]()
+
+
 
 
   private val repositionDoneOnce: Boolean = false
@@ -486,7 +490,7 @@ class RideHailingManager(
             rideHailAgent ! Resume()
             log.debug(interruptType + " - reservation: " + vehicleId)
           } else {
-            log.error(interruptType + " - reservation: " + vehicleId + "interruptId doesn't match (interruptId,interruptIdReservation):" + interruptId + "," + interruptIdReservation)
+            log.error(interruptType + " - reservation: " + vehicleId + " interruptId doesn't match (interruptId,interruptIdReservation):" + interruptId + "," + interruptIdReservation)
           }
         }
     }
@@ -872,6 +876,8 @@ class RideHailingManager(
 
 }
 
+
+
 object RideHailingManager {
   val radiusInMeters: Double = 5000d
 
@@ -942,6 +948,7 @@ object RideHailingManager {
 
   case class RideHailAllocationManagerTimeout(tick: Double) extends Trigger
 
+
   def props(services: BeamServices,
             scheduler: ActorRef,
             router: ActorRef,
@@ -950,4 +957,9 @@ object RideHailingManager {
             RideHailSurgePricingManager): Props = {
     Props(new RideHailingManager(services, scheduler, router, boundingBox, surgePricingManager))
   }
+}
+
+object InterruptMessageStatus extends Enumeration {
+  type InterruptMessageStatus = Value
+  val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT = Value
 }
