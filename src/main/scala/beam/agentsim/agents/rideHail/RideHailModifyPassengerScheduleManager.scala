@@ -85,6 +85,15 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   */
 
   }
+
+  def repositionVehicle(passengerSchedule:PassengerSchedule,tick:Double,vehicleId:Id[Vehicle],rideHailAgent: ActorRef)={
+    val rideHailAgentInterruptId = RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId
+
+    rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
+    add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,InterruptOrigin.REPOSITION))
+
+  }
+
 }
 
 object InterruptMessageStatus extends Enumeration {
@@ -99,8 +108,6 @@ class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val 
 
 
 object RideHailModifyPassengerScheduleManager {
-
-
   def nextRideHailAgentInterruptId: Id[Interrupt] = {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[Interrupt])
   }

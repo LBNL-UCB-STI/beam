@@ -13,8 +13,6 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleReservation
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.{BeamVehicleFuelLevelUpdate, GetBeamVehicleFuelLevel, StopDriving}
-import beam.agentsim.agents.rideHail.InterruptMessageStatus.InterruptMessageStatus
-import beam.agentsim.agents.rideHail.InterruptOrigin.InterruptOrigin
 import beam.agentsim.agents.rideHail.RideHailingAgent._
 import beam.agentsim.agents.rideHail.RideHailingManager._
 import beam.agentsim.agents.rideHail.allocationManagers._
@@ -376,12 +374,11 @@ class RideHailingManager(
 
                 val passengerSchedule = PassengerSchedule().addLegs(rideHailingAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs)
 
-                val rideHailAgentInterruptId = nextRideHailAgentInterruptId
-                repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
-                rideHailAgent ! Interrupt(rideHailAgentInterruptId, tick)
+                modifyPassengerScheduleManager.repositionVehicle(passengerSchedule,tick,vehicleId,rideHailAgent)
+                //repositioningPassengerSchedule.put(vehicleId,(rideHailAgentInterruptId, Some(passengerSchedule)))
+
                 log.debug("sending interrupt message to vehicle for repositioning: " + rideHailAgentLocation.vehicleId )
                 repositioningVehicles.add(vehicleId)
-                modifyPassengerScheduleManager.add(new RideHailModifyPassengerScheduleStatus(rideHailAgentInterruptId,vehicleId,passengerSchedule,InterruptOrigin.REPOSITION))
 
               } else {
                 sendoutAckMessageToSchedulerForRideHailAllocationmanagerTimeout()
