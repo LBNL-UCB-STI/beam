@@ -175,7 +175,6 @@ class R5RoutingWorker_v2(val typesafeConfig: Config) extends Actor with ActorLog
       cache.invalidateAll()
     case EmbodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], createdAt: ZonedDateTime) =>
       val now = ZonedDateTime.now(ZoneOffset.UTC)
-      log.info(s"{} EmbodyWithCurrentTravelTime", getNameAndHashCode)
       val travelTime = (time: Long, linkId: Int) => maybeTravelTime match {
         case Some(matsimTravelTime) =>
           matsimTravelTime.getLinkTravelTime(network.getLinks.get(Id.createLinkId(linkId)), time.toDouble, null, null).toLong
