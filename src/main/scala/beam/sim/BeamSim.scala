@@ -1,7 +1,7 @@
 package beam.sim
 
 import java.nio.file.{Files, Paths}
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CompletableFuture, TimeUnit}
 
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
@@ -27,8 +27,9 @@ import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListen
 import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.mutable
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext.Implicits
 
 class BeamSim @Inject()(private val actorSystem: ActorSystem,
                         private val transportNetwork: TransportNetwork,
@@ -87,15 +88,30 @@ class BeamSim @Inject()(private val actorSystem: ActorSystem,
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
+
+    implicit val ec = ExecutionContext.Implicits.global
+
+    //checking if its a last iteration
+    if(event.getServices.getConfig.controler.getLastIteration == event.getIteration) {
+      notifyIterationEndsOperations(event)
+    }
+    else { //for all other iteration
+      CompletableFuture.runAsync(() => notifyIterationEndsOperations(event))
+    }
+
+    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
+  }
+
+  def notifyIterationEndsOperations(event: IterationEndsEvent): Unit = {
+
     agentSimToPhysSimPlanConverter.startPhysSim(event)
     createGraphsFromEvents.createGraphs(event)
     modalityStyleStats.processData(scenario.getPopulation(), event)
     modalityStyleStats.buildModalityStyleGraph()
     PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(event.getServices.getControlerIO.getIterationFilename(event.getIteration, "population.csv.gz"))
-
     tncWaitingTimes.tellHistoryToRideHailIterationHistoryActor()
-    if(beamServices.beamConfig.beam.debug.debugEnabled)logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
   }
+
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
 
