@@ -498,10 +498,8 @@ class RideHailingManager(
           val (interruptIdReposition, passengerSchedule)=repositioningPassengerSchedule.get(vehicleId).get
           if (reservationPassengerSchedule.contains(vehicleId)){
             val (interruptIdReservation, modifyPassengerSchedule)=reservationPassengerSchedule.get(vehicleId).get
-           // if (interruptId==interruptIdReposition){
               interruptedPassengerSchedule.foreach(interruptedPassengerSchedule => updateIdleVehicleLocation(vehicleId,interruptedPassengerSchedule.schedule.head._1,tick))
               log.debug(interruptType + " - ignoring reposition: " + vehicleId)
-          //  }
           } else {
             interruptedPassengerSchedule.foreach(_ => rideHailAgent ! StopDriving())
             rideHailAgent ! ModifyPassengerSchedule(passengerSchedule.get)
