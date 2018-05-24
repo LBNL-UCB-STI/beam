@@ -893,9 +893,7 @@ object RideHailingManager {
     Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[RideHailingInquiry])
   }
 
-  def nextRideHailAgentInterruptId: Id[Interrupt] = {
-    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[Interrupt])
-  }
+
 
   case class NotifyIterationEnds()
 

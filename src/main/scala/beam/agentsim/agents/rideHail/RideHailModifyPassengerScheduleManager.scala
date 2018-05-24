@@ -5,6 +5,7 @@ import akka.event.LoggingAdapter
 import beam.agentsim.agents.modalBehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.rideHail.RideHailingAgent.{Interrupt, ModifyPassengerSchedule, Resume}
 import beam.agentsim.agents.vehicles.PassengerSchedule
+import com.eaio.uuid.UUIDGen
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -39,7 +40,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   def remove(interruptId: Id[Interrupt]): Option[RideHailModifyPassengerScheduleStatus] = {
     modifyPassengerScheduleStatus.remove(interruptId) match {
       case Some(rideHailModifyPassengerScheduleStatus) =>
-        val set=vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
+        val set = vehicleInterruptIds.get(rideHailModifyPassengerScheduleStatus.vehicleId).get
         set.remove(rideHailModifyPassengerScheduleStatus)
         Some(rideHailModifyPassengerScheduleStatus)
       case None =>
@@ -48,7 +49,7 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   }
 
 
-  def handleInterrupt( interruptType:String, interruptId: Id[Interrupt],interruptedPassengerSchedule: Option[PassengerSchedule],vehicleId:Id[Vehicle], tick: Double, rideHailAgent:ActorRef): Unit ={
+  def handleInterrupt(interruptType: String, interruptId: Id[Interrupt], interruptedPassengerSchedule: Option[PassengerSchedule], vehicleId: Id[Vehicle], tick: Double, rideHailAgent: ActorRef): Unit = {
     log.debug(interruptType + " - vehicle: " + vehicleId)
 
 
@@ -83,14 +84,24 @@ class RideHailModifyPassengerScheduleManager(val log: LoggingAdapter) {
   }
   */
 
-}}
-
-  object InterruptMessageStatus extends Enumeration {
-    val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT, EXECUTED = Value
   }
+}
 
-  object InterruptOrigin extends Enumeration {
-    val RESERVATION, REPOSITION = Value
+object InterruptMessageStatus extends Enumeration {
+  val UNDEFINED, INTERRUPT_SENT, MODIFY_PASSENGER_SCHEDULE_SENT, EXECUTED = Value
+}
+
+object InterruptOrigin extends Enumeration {
+  val RESERVATION, REPOSITION = Value
+}
+
+class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin.Value, var status: InterruptMessageStatus.Value = InterruptMessageStatus.INTERRUPT_SENT) {}
+
+
+object RideHailModifyPassengerScheduleManager {
+
+
+  def nextRideHailAgentInterruptId: Id[Interrupt] = {
+    Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[Interrupt])
   }
-
-  class RideHailModifyPassengerScheduleStatus(val interruptId: Id[Interrupt], val vehicleId: Id[Vehicle], val passengerSchedule: PassengerSchedule, val interruptOrigin: InterruptOrigin.Value, var status: InterruptMessageStatus.Value=InterruptMessageStatus.INTERRUPT_SENT){  }
+}
